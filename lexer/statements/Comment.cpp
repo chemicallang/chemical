@@ -19,12 +19,13 @@ bool Lexer::lexSingleLineCommentTokens() {
 
 bool Lexer::lexMultiLineCommentTokens() {
     if(provider.increment("/*")) {
+        const auto savedPosition = Position { provider.lineNumber, provider.lineCharacterNumber - 2 };
         std::string comment = "/*";
         while(!provider.eof() && !provider.increment("*/")) {
             comment.append(1, provider.readCharacter());
         }
         comment.append("*/");
-        emplace(LexTokenType::MultilineComment, backPosition(comment.length()), comment);
+        emplace(LexTokenType::MultilineComment, savedPosition, comment);
         return true;
     } else {
         return false;

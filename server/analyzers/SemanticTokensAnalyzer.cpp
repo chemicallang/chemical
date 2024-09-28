@@ -12,24 +12,36 @@
 
 #define DEBUG false
 
-void SemanticTokensAnalyzer::put(CSTToken *token, unsigned int tokenType, unsigned int tokenModifiers) {
+void SemanticTokensAnalyzer::put(
+        unsigned int lineNumber,
+        unsigned int lineCharNumber,
+        unsigned int length,
+        unsigned int tokenType,
+        unsigned int tokenModifiers
+) {
     tokens.emplace_back(
-            token->lineNumber() - prev_token_line_num, (
-                    token->lineNumber() == prev_token_line_num ? (
+            lineNumber - prev_token_line_num, (
+                    lineNumber == prev_token_line_num ? (
                             // on the same line
-                            token->lineCharNumber() - prev_token_char_num
+                            lineCharNumber - prev_token_char_num
                     ) : (
                             // on a different line
-                            token->lineCharNumber()
+                            lineCharNumber
                     )
-            ), token->length(), tokenType, tokenModifiers
+            ), length, tokenType, tokenModifiers
     );
-    prev_token_char_num = token->lineCharNumber();
-    prev_token_line_num = token->lineNumber();
+    prev_token_char_num = lineCharNumber;
+    prev_token_line_num = lineNumber;
+}
+
+void SemanticTokensAnalyzer::put(CSTToken *token, unsigned int tokenType, unsigned int tokenModifiers) {
+    put(token->lineNumber(), token->lineCharNumber(), token->length(), tokenType, tokenModifiers);
 }
 
 void SemanticTokensAnalyzer::visitCommon(CSTToken *token) {
+#ifdef DEBUG
     throw std::runtime_error("[SemanticTokensAnalyzer] VISIT_COMMON called ! It shouldn't have when it's overridden");
+#endif
 }
 
 void SemanticTokensAnalyzer::put_auto(CSTToken* token) {
@@ -117,17 +129,12 @@ void SemanticTokensAnalyzer::visitLexTokenCommon(CSTToken *token) {
     put_auto(token);
 }
 
-void SemanticTokensAnalyzer::visit(std::vector<CSTToken*> &tokens, unsigned start, unsigned end) {
-    unsigned int i = start;
-    unsigned int till = end;
+void SemanticTokensAnalyzer::visit(std::vector<CSTToken*> &tokens_vec, unsigned start, unsigned till) {
+    auto i = start;
     while (i < till) {
-        tokens[i]->accept(this);
+        tokens_vec[i]->accept(this);
         i++;
     }
-}
-
-void SemanticTokensAnalyzer::visit(std::vector<CSTToken*> &tokens, unsigned start) {
-    visit(tokens, start, tokens.size());
 }
 
 void SemanticTokensAnalyzer::visitCompoundCommon(CSTToken* compound) {
@@ -139,18 +146,19 @@ void SemanticTokensAnalyzer::visitBody(CSTToken* bodyCst) {
 }
 
 void SemanticTokensAnalyzer::visitEnumDecl(CSTToken* enumDecl) {
-    enumDecl->tokens[0]->accept(this);
-    put(enumDecl->tokens[1]->start_token(), SemanticTokenType::ls_enum);
-    unsigned i = 2;
-    CSTToken* token;
-    while(i < enumDecl->tokens.size()) {
-        token = enumDecl->tokens[i];
+    const auto i = enum_name_index(enumDecl);
+    visit(enumDecl->tokens, 0, i);
+    put(enumDecl->tokens[i]->start_token(), SemanticTokenType::ls_enum);
+    const auto tokens_size = enumDecl->tokens.size();
+    auto j = i + 1;
+    while(j < tokens_size) {
+        const auto token = enumDecl->tokens[j];
         if(token->is_identifier()) {
             put(token, SemanticTokenType::ls_enumMember);
         } else {
             token->accept(this);
         }
-        i++;
+        j++;
     }
 }
 
@@ -160,15 +168,10 @@ void SemanticTokensAnalyzer::visitVarInit(CSTToken* varInit) {
 
 void SemanticTokensAnalyzer::visitFunction(CSTToken* function) {
     auto i = func_name_index(function);
-    unsigned j = 0;
-    while(j < i) {
-        function->tokens[j]->accept(this);
-        j++;
-    }
+    visit(function->tokens, 0, i);
     auto& name_token = function->tokens[i];
     put(name_token, SemanticTokenType::ls_function);
     visit(function->tokens, i + 1);
-
 };
 
 void SemanticTokensAnalyzer::visitIf(CSTToken* ifCst) {
@@ -192,9 +195,10 @@ void SemanticTokensAnalyzer::visitSwitch(CSTToken* switchCst) {
 };
 
 void SemanticTokensAnalyzer::visitInterface(CSTToken* cst) {
-    cst->tokens[0]->accept(this);
-    put(cst->tokens[1], SemanticTokenType::ls_interface);
-    visit(cst->tokens, 2);
+    const auto name_ind = interface_name_index(cst);
+    visit(cst->tokens, 0, name_ind);
+    put(cst->tokens[name_ind], SemanticTokenType::ls_interface);
+    visit(cst->tokens, name_ind + 1);
 }
 
 void SemanticTokensAnalyzer::visitImpl(CSTToken* cst) {
@@ -211,26 +215,48 @@ void SemanticTokensAnalyzer::visitImpl(CSTToken* cst) {
 }
 
 void SemanticTokensAnalyzer::visitStructDef(CSTToken* cst) {
-    cst->tokens[0]->accept(this);
-    auto has_specifier = cst->tokens[1]->type() == LexTokenType::Keyword;
-    if(has_specifier) {
-        cst->tokens[1]->accept(this);
-        put(cst->tokens[2], SemanticTokenType::ls_struct);
-        visit(cst->tokens, 3);
-    } else {
-        put(cst->tokens[1], SemanticTokenType::ls_struct);
-        visit(cst->tokens, 2);
-    }
+    const auto name_ind = struct_name_index(cst);
+    visit(cst->tokens, 0, name_ind);
+    put(cst->tokens[name_ind], SemanticTokenType::ls_struct);
+    visit(cst->tokens, name_ind + 1);
 };
 
-void SemanticTokensAnalyzer::analyze(std::vector<CSTToken*> &cstTokens) {
-    for (auto &token: cstTokens) {
-        token->accept(this);
-    }
-}
-
+/**
+ * comment tokens must be divided for different lines
+ * since vs code doesn't yet support a single multiline token
+ */
 void SemanticTokensAnalyzer::visitMultilineComment(CSTToken *token) {
-    put(token, SemanticTokenType::ls_comment);
+    auto lineStart = token->position().line;
+    auto charStart = token->position().character;
+    const auto& val = token->value();
+    const auto total_length = val.size();
+    unsigned lengthCovered = 0;
+    unsigned i = 0;
+    while(i < total_length) {
+        if(val[i] == '\n') {
+            // comment from previous start
+            put(lineStart, charStart, i - lengthCovered, SemanticTokenType::ls_comment, 0);
+            // update the next token start
+            lineStart++;
+            charStart = 0;
+            lengthCovered = i;
+        } else if(val[i] == '\r') {
+            // comment from previous start
+            put(lineStart, charStart, i - lengthCovered, SemanticTokenType::ls_comment, 0);
+            // consume the next line ending
+            if(val[i + 1] == '\n') {
+                i++;
+            }
+            // update the next token start
+            lineStart++;
+            charStart = 0;
+            lengthCovered = i;
+        }
+        i++;
+    }
+    if(lengthCovered < total_length) {
+        put(lineStart, charStart, total_length - lengthCovered, SemanticTokenType::ls_comment, 0);
+    }
 };
 
 void SemanticTokensAnalyzer::visitBoolToken(CSTToken *token) {
@@ -278,10 +304,5 @@ void SemanticTokensAnalyzer::visitStringToken(CSTToken *token) {
 };
 
 void SemanticTokensAnalyzer::visitAccessChain(CSTToken *chain) {
-    unsigned i = 0;
-    const auto size = chain->tokens.size();
-    while(i < size) {
-        chain->tokens[i]->accept(this);
-        i++;
-    }
+    visit(chain->tokens);
 }

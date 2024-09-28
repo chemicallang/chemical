@@ -38,7 +38,10 @@ public:
     };
 
 #ifdef LSP_BUILD
-    CSTToken* linked = nullptr;
+    /**
+     * in lsp build, every token knows about it's ast any that it created
+     * this helps us provide go to definition, hover things
+     */
     ASTAny* any = nullptr;
 #endif
 

@@ -2,7 +2,6 @@
 
 #include "WorkspaceManager.h"
 #include "preprocess/ImportGraphMaker.h"
-#include "server/helpers/CSTSymbolResolver.h"
 #include "utils/WorkspaceImportGraphImporter.h"
 #include "preprocess/ImportGraphVisitor.h"
 #include "preprocess/ImportPathHandler.h"
@@ -261,10 +260,6 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
     if(cancel_flag.load()) {
         return unit;
     }
-    // TODO we will not use cst symbol resolver (we aren't reporting the diagnostics from it)
-    // We are performing resolution because tokens must be linked to provide completion items
-    CSTSymbolResolver resolver;
-    resolver.resolve(&unit);
 
     return unit;
 }

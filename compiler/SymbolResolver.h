@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "preprocess/BaseSymbolResolver.h"
 #include "ASTDiagnoser.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/ASTAllocator.h"

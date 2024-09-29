@@ -18,6 +18,8 @@ class LexImportUnit;
 
 class LexResult;
 
+class ASTImportUnitRef;
+
 class CompletionItemAnalyzer : public CSTVisitor {
 public:
 
@@ -163,7 +165,7 @@ public:
     /**
      * analyze an entire import unit for better support for completions across different files
      */
-    CompletionList analyze(LexImportUnit* unit);
+    CompletionList analyze(ASTImportUnitRef& unit);
 
     // Visitors
 

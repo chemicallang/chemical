@@ -15,6 +15,8 @@
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "integration/cbi/model/LexImportUnit.h"
+#include "integration/cbi/model/ASTImportUnitRef.h"
+#include "integration/cbi/model/ASTResult.h"
 #include "integration/cbi/model/LexResult.h"
 #include "Documentation.h"
 
@@ -398,6 +400,43 @@ void put_non_self_param_functions_of(CompletionItemAnalyzer* analyzer, Extendabl
     }
 }
 
+std::optional<lsCompletionItemKind> toCompletionItemKind(ASTNodeKind kind) {
+    switch(kind) {
+        case ASTNodeKind::StructDecl:
+            return lsCompletionItemKind::Struct;
+        case ASTNodeKind::UnionDecl:
+            return lsCompletionItemKind::Struct;
+        case ASTNodeKind::InterfaceDecl:
+            return lsCompletionItemKind::Interface;
+        case ASTNodeKind::FunctionDecl:
+            return lsCompletionItemKind::Function;
+        case ASTNodeKind::NamespaceDecl:
+            return lsCompletionItemKind::Module;
+        case ASTNodeKind::TypealiasStmt:
+            return lsCompletionItemKind::Interface;
+        case ASTNodeKind::VariantDecl:
+            return lsCompletionItemKind::Struct;
+        case ASTNodeKind::EnumDecl:
+            return lsCompletionItemKind::Enum;
+        default:
+            return std::nullopt;
+    }
+}
+
+bool put_node(CompletionItemAnalyzer* analyzer, ASTNode* node) {
+    const auto kind = node->kind();
+    const auto lsCompKind = toCompletionItemKind(kind);
+    if(lsCompKind.has_value()) {
+        put_with_doc(analyzer, node->ns_node_identifier(), lsCompKind.value(), node);
+        return true;
+    } else {
+        if(kind == ASTNodeKind::UsingStmt) {
+            // TODO we must provide completions for all under using statement
+        }
+    }
+    return false;
+}
+
 bool put_children_of(CompletionItemAnalyzer* analyzer, BaseType* type, bool has_self);
 
 bool put_children_of(CompletionItemAnalyzer* analyzer, ASTNode* linked_node, bool has_self) {
@@ -493,13 +532,19 @@ bool CompletionItemAnalyzer::handle_chain_before_caret(CSTToken* chain) {
     return false;
 }
 
-CompletionList CompletionItemAnalyzer::analyze(LexImportUnit* unit) {
+CompletionList CompletionItemAnalyzer::analyze(ASTImportUnitRef& unit) {
 
-    if(unit->files.size() == 1) return analyze(unit->files[0]->unit.tokens);
-    if(unit->files.empty()) return list;
+    auto lex_files = unit.lex_unit.files;
+    const auto lex_files_size = lex_files.size();
+
+    if(lex_files_size == 1) {
+        return analyze(lex_files[0]->unit.tokens);
+    } else if(lex_files_size == 0) {
+        return list;
+    }
 
     // check is caret position before a chain
-    auto chain = chain_before_caret(unit->files[unit->files.size() - 1]->unit.tokens);
+    auto chain = chain_before_caret(lex_files[lex_files.size() - 1]->unit.tokens);
     if(chain) {
         if(handle_chain_before_caret(chain)) {
             return list;
@@ -508,26 +553,20 @@ CompletionList CompletionItemAnalyzer::analyze(LexImportUnit* unit) {
         }
     }
 
-    auto prev_caret_position = caret_position;
-    unsigned i = 0;
-    auto size = unit->files.size();
-    while(i < size) {
-        auto& file = unit->files[i];
-        if(i == size - 1) { // last file
-            caret_position = prev_caret_position;
-        } else {
-            if(!file->unit.tokens.empty()) { // not last file
-                // set caret position at the end of file, so all tokens are analyzed
-                auto& pos = file->unit.tokens[file->unit.tokens.size() - 1]->end_token()->position();
-                caret_position = {pos.line + 2, 0};
-            } else {
-                i++;
-                continue;
-            }
+    // add completions for the last file by analyzing it
+    auto& last_file = lex_files[lex_files_size - 1];
+    current_file = last_file.get();
+    visit(last_file->unit.tokens);
+
+    // add completions for other files in reverse fashion (no analyzing)
+    int i = ((int) unit.files.size()) - 2;
+    while(i >= 0) {
+        auto& file = unit.files[i];
+        for(auto& node : file->unit.scope.nodes) {
+            put_node(this, node);
         }
-        current_file = file.get();
-        visit(file->unit.tokens);
-        i++;
+        i--;
     }
+
     return list;
 }

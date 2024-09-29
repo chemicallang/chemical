@@ -91,7 +91,7 @@ td_completion::response WorkspaceManager::get_completion(
     auto unit = get_ast_import_unit(can_path, cancel_request);
     CompletionItemAnalyzer analyzer({ line, character });
     td_completion::response rsp;
-    rsp.result = analyzer.analyze(&unit.lex_unit);
+    rsp.result = analyzer.analyze(unit);
     return std::move(rsp);
 }
 

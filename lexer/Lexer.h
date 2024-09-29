@@ -947,6 +947,30 @@ public:
     }
 
     /**
+     * malformed value
+     */
+    inline void malformed_value(unsigned start, const std::string& message) {
+        diagnostic(message, DiagSeverity::Error);
+        compound_from(start, LexTokenType::CompMalformedValue);
+    }
+
+    /**
+     * malformed node
+     */
+    inline void malformed_node(unsigned start, const std::string& message) {
+        diagnostic(message, DiagSeverity::Error);
+        compound_from(start, LexTokenType::CompMalformedNode);
+    }
+
+    /**
+     * malformed type
+     */
+    inline void malformed_type(unsigned start, const std::string& message) {
+        diagnostic(message, DiagSeverity::Error);
+        compound_from(start, LexTokenType::CompMalformedType);
+    }
+
+    /**
      * returns the token position at the very current position
      */
     inline Position position() {

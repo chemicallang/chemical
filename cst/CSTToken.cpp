@@ -67,6 +67,11 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompInitBlock:
             visitor->visitInitBlock((CSTToken*) this);
             return;
+        case LexTokenType::CompMalformedNode:
+        case LexTokenType::CompMalformedType:
+        case LexTokenType::CompMalformedValue:
+            visitor->visitMalformedInput((CSTToken*) this);
+            return;
         case LexTokenType::CompAccessChainNode:
         case LexTokenType::CompAccessChain:
             visitor->visitAccessChain((CSTToken*) this);

@@ -273,6 +273,10 @@ public:
         visitLexTokenCommon(token);
     };
 
+    virtual void visitMalformedInput(CSTToken* token) {
+        visitCompoundCommon(token);
+    }
+
     virtual void visitAnnotationToken(CSTToken* token) {
         visitLexTokenCommon(token);
     };

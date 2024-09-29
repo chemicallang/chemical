@@ -86,6 +86,7 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/UnsafeBlock.h"
+#include "ast/base/MalformedInput.h"
 
 Operation get_operation(CSTToken *token) {
     std::string num;
@@ -615,6 +616,45 @@ void CSTConverter::visitEnumDecl(CSTToken* decl) {
         i++;
     }
     put_node(enum_decl, decl);
+}
+
+void CSTConverter::visitMalformedInput(CSTToken *token) {
+
+    auto prev_nodes = std::move(nodes);
+    auto prev_values = std::move(values);
+    auto prev_types = std::move(types);
+
+    const auto malformed = new (local<MalformedInput>()) MalformedInput(parent_node, token);
+
+    if(!token->tokens.empty()) {
+        visit(token->tokens, 0);
+        for (auto thing: nodes) {
+            malformed->any_things.emplace_back(thing);
+        }
+        for (auto thing: values) {
+            malformed->any_things.emplace_back(thing);
+        }
+        for (auto thing: types) {
+            malformed->any_things.emplace_back(thing);
+        }
+    }
+
+    const auto type = token->type();
+    if(type == LexTokenType::CompMalformedNode) {
+        nodes.emplace_back(malformed);
+    } else if(type == LexTokenType::CompMalformedType) {
+        types.emplace_back(malformed);
+    } else if(type == LexTokenType::CompMalformedValue) {
+        values.emplace_back(malformed);
+    }
+
+    nodes = std::move(prev_nodes);
+    values = std::move(prev_values);
+    types = std::move(prev_types);
+
+#ifdef DEBUG
+    throw std::runtime_error("malformed input not handled");
+#endif
 }
 
 Value* convertNumber(ASTAllocator& alloc, NumberToken* token, ValueType value_type, bool is64Bit) {

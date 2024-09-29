@@ -220,6 +220,8 @@ class ExtensionFunction;
 
 class ExtensionFuncReceiver;
 
+class MalformedInput;
+
 class ThrowStatement;
 
 class DestructStmt;
@@ -505,6 +507,10 @@ public:
 
     virtual void visit(DereferenceValue* casted) {
         visitCommonValue((Value*) casted);
+    }
+
+    virtual void visit(MalformedInput* malformed) {
+        // do nothing malformed input needs to be handled explicitly
     }
 
     virtual void visit(FunctionCall* call) {

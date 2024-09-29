@@ -18,7 +18,7 @@ const std::unordered_map<std::string, MacroLexerFn> MacroHandlers = {
         { "eval", eval_expression_macro_lexer_fn },
         { "sizeof", [](Lexer *lexer) -> void {
             if(!lexer->lexTypeTokens()) {
-                lexer->error("expected a type in sizeof macro");
+                lexer->mal_type(lexer->tokens_size() - 1, "expected a type in sizeof macro");
             }
         }},
         { "target", ignore_macro_lexer_fn },

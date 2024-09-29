@@ -54,7 +54,7 @@ bool condLexLambdaAfterComma(Lexer *lexer, unsigned int start) {
 
 void lexLambdaAfterComma(Lexer *lexer, unsigned int start) {
     if (!condLexLambdaAfterComma(lexer, start)) {
-        lexer->error("expected ')' after the lambda parameter list in parenthesized expression");
+        lexer->mal_value(start, "expected ')' after the lambda parameter list in parenthesized expression");
     }
 }
 

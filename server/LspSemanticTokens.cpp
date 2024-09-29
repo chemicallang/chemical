@@ -74,10 +74,6 @@ void WorkspaceManager::notify_diagnostics_async(
 ) {
     const auto notify = new Notify_TextDocumentPublishDiagnostics::notify;
     build_notify_request(*notify, path, diags);
-    if(notify->params.diagnostics.empty()) {
-        delete notify;
-        return;
-    }
     if(clear_diags) {
         for(auto diag : diags) {
             diag->clear();
@@ -96,9 +92,6 @@ void WorkspaceManager::notify_diagnostics_sync(
 ) {
     Notify_TextDocumentPublishDiagnostics::notify notify;
     build_notify_request(notify, path, diags);
-    if(notify.params.diagnostics.empty()) {
-        return;
-    }
     if(clear_diags) {
         for(auto diag : diags) {
             diag->clear();

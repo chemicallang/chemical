@@ -29,12 +29,12 @@ bool Lexer::lexImplTokens() {
             lexWhitespaceToken();
         }
         if (!lexOperatorToken('{')) {
-            error("expected a '{' when starting an implementation");
+            mal_node(start, "expected a '{' when starting an implementation");
             return true;
         }
         lexImplBlockTokens();
         if (!lexOperatorToken('}')) {
-            error("expected a '}' when ending an implementation");
+            mal_node(start,"expected a '}' when ending an implementation");
             return true;
         }
         compound_from(start, LexTokenType::CompImpl);

@@ -337,7 +337,7 @@ struct Lexer {
      * meaning '(' expr ')' '{' body '}'
      * @return
      */
-    func lexIfExprAndBlock (&self, is_value : bool, lex_value_node : bool, top_level : bool) :  void;
+    func lexIfExprAndBlock (&self, start : uint, is_value : bool, lex_value_node : bool, top_level : bool) :  void;
 
     /**
      * lex if block

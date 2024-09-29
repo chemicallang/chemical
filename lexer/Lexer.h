@@ -484,7 +484,7 @@ public:
      * lexes a single if expr and the body without else if or else
      * meaning '(' expr ')' '{' body '}'
      */
-    void lexIfExprAndBlock(bool is_value, bool lex_value_node, bool top_level);
+    void lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level);
 
     /**
      * lex if block
@@ -949,7 +949,7 @@ public:
     /**
      * malformed value
      */
-    inline void malformed_value(unsigned start, const std::string& message) {
+    void mal_value(unsigned start, const std::string& message) {
         diagnostic(message, DiagSeverity::Error);
         compound_from(start, LexTokenType::CompMalformedValue);
     }
@@ -957,7 +957,7 @@ public:
     /**
      * malformed node
      */
-    inline void malformed_node(unsigned start, const std::string& message) {
+    void mal_node(unsigned start, const std::string& message) {
         diagnostic(message, DiagSeverity::Error);
         compound_from(start, LexTokenType::CompMalformedNode);
     }
@@ -965,7 +965,7 @@ public:
     /**
      * malformed type
      */
-    inline void malformed_type(unsigned start, const std::string& message) {
+    void mal_type(unsigned start, const std::string& message) {
         diagnostic(message, DiagSeverity::Error);
         compound_from(start, LexTokenType::CompMalformedType);
     }

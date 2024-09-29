@@ -223,5 +223,11 @@ std::string toTypeString(LexTokenType token) {
             return "CompIsValue";
         case LexTokenType::CompGenericList:
             return "CompGenericList";
+        case LexTokenType::CompMalformedNode:
+            return "CompMalformedNode";
+        case LexTokenType::CompMalformedType:
+            return "CompMalformedType";
+        case LexTokenType::CompMalformedValue:
+            return "CompMalformedValue";
     }
 }

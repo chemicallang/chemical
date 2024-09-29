@@ -639,6 +639,10 @@ void CSTConverter::visitMalformedInput(CSTToken *token) {
         }
     }
 
+    nodes = std::move(prev_nodes);
+    values = std::move(prev_values);
+    types = std::move(prev_types);
+
     const auto type = token->type();
     if(type == LexTokenType::CompMalformedNode) {
         nodes.emplace_back(malformed);
@@ -646,15 +650,13 @@ void CSTConverter::visitMalformedInput(CSTToken *token) {
         types.emplace_back(malformed);
     } else if(type == LexTokenType::CompMalformedValue) {
         values.emplace_back(malformed);
+    } else {
+#ifdef DEBUG
+        throw std::runtime_error("malformed input not handled");
+#endif
     }
 
-    nodes = std::move(prev_nodes);
-    values = std::move(prev_values);
-    types = std::move(prev_types);
 
-#ifdef DEBUG
-    throw std::runtime_error("malformed input not handled");
-#endif
 }
 
 Value* convertNumber(ASTAllocator& alloc, NumberToken* token, ValueType value_type, bool is64Bit) {

@@ -428,7 +428,7 @@ std::string HoverAnalyzer::markdown_hover(LexImportUnit *unit) {
     auto file = unit->files[unit->files.size() - 1];
     auto token = get_token_at_position(file->unit.tokens, position);
     if (token) {
-        if (token->is_ref()) {
+        if (token->is_ref() && token->any) {
             auto ref_linked = token->any->get_ref_linked_node();
             if (ref_linked) {
                 const auto linked = ref_linked->cst_token();

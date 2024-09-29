@@ -390,14 +390,27 @@ void put_functions_of(CompletionItemAnalyzer* analyzer, ExtendableMembersContain
     }
 }
 
-bool put_children_of(CompletionItemAnalyzer* analyzer, ASTNode* linked_node) {
+void put_non_self_param_functions_of(CompletionItemAnalyzer* analyzer, ExtendableMembersContainerNode* node) {
+    for(auto& func : node->functions()) {
+        if(!func->has_self_param()) {
+            put_with_doc(analyzer, func->name, lsCompletionItemKind::Function, func);
+        }
+    }
+}
+
+bool put_children_of(CompletionItemAnalyzer* analyzer, BaseType* type, bool has_self);
+
+bool put_children_of(CompletionItemAnalyzer* analyzer, ASTNode* linked_node, bool has_self) {
     const auto linked_kind = linked_node->kind();
     switch(linked_kind) {
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::UnionDecl: {
             const auto node = linked_node->as_extendable_members_container_node();
-            put_variables_of(analyzer, node);
-            put_functions_of(analyzer, node);
+            if(has_self) {
+                put_functions_of(analyzer, node);
+            } else {
+                put_non_self_param_functions_of(analyzer, node);
+            }
             return true;
         }
         case ASTNodeKind::UnnamedUnion:
@@ -409,29 +422,32 @@ bool put_children_of(CompletionItemAnalyzer* analyzer, ASTNode* linked_node) {
         case ASTNodeKind::VariantDecl:
         case ASTNodeKind::InterfaceDecl: {
             const auto node = linked_node->as_extendable_members_container_node();
-            put_functions_of(analyzer, node);
+            if(has_self) {
+                put_functions_of(analyzer, node);
+            } else {
+                put_non_self_param_functions_of(analyzer, node);
+            }
             return true;
         }
         case ASTNodeKind::VarInitStmt: {
             auto& init = *linked_node->as_var_init_unsafe();
             const auto type = init.known_type();
             if(type) {
-                const auto linked = type->linked_node();
-                if(linked) {
-                    put_children_of(analyzer, linked);
-                }
+                put_children_of(analyzer, type, true);
             } else {
                 // TODO create type with allocator
             }
             return true;
         }
+        case ASTNodeKind::FunctionParam:
+        case ASTNodeKind::ExtensionFuncReceiver: {
+            auto& param = *linked_node->as_base_func_param_unsafe();
+            const auto type = param.known_type();
+            return put_children_of(analyzer, type, true);
+        }
         case ASTNodeKind::TypealiasStmt: {
             auto& alias = *linked_node->as_typealias_unsafe();
-            const auto linked = alias.actual_type->linked_node();
-            if(linked) {
-                put_children_of(analyzer, linked);
-            }
-            return true;
+            return put_children_of(analyzer, alias.actual_type, has_self);
         }
         case ASTNodeKind::EnumDecl:{
             const auto decl = linked_node->as_enum_decl_unsafe();
@@ -445,13 +461,21 @@ bool put_children_of(CompletionItemAnalyzer* analyzer, ASTNode* linked_node) {
     }
 }
 
+bool put_children_of(CompletionItemAnalyzer* analyzer, BaseType* type, bool has_self) {
+    const auto linked = type->linked_node();
+    if(linked) {
+        return put_children_of(analyzer, linked, has_self);
+    }
+    return false;
+}
+
 bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CSTToken* chain) {
     auto parent = chain->tokens[chain->tokens.size() - 2];
     const auto ref_any = parent->any;
     if(ref_any) {
         const auto linked_node = ref_any->get_ref_linked_node();
         if(linked_node) {
-            return put_children_of(analyzer, linked_node);
+            return put_children_of(analyzer, linked_node, false);
         }
     }
 #ifdef DEBUG

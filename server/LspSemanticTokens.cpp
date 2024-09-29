@@ -130,7 +130,7 @@ std::vector<Diag> WorkspaceManager::sym_res_import_unit(
     unsigned i = 0;
     const auto last = ast_files.size() - 1;
     while(i < last) {
-        // check publish diagnostics hasn't been cancelled
+        // check it hasn't been cancelled
         if(cancel_flag.load()) {
             return {};
         }
@@ -142,7 +142,7 @@ std::vector<Diag> WorkspaceManager::sym_res_import_unit(
         i++;
     }
 
-    // check publish diagnostics hasn't been cancelled
+    // check it hasn't been cancelled
     if(cancel_flag.load()) {
         return {};
     }
@@ -168,7 +168,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     if(found != cache.cached_units.end()) {
         auto cachedUnitPtr = found->second;
         auto& cachedUnit = *cachedUnitPtr;
-        ASTImportUnitRef importUnit(path, cachedUnitPtr);
+        ASTImportUnitRef importUnit(true, path, cachedUnitPtr);
         // check that every file in cached import unit is valid
         bool is_unit_valid = true;
         for(auto& file : cachedUnit.lex_files) {
@@ -214,7 +214,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
 
     // check it hasn't been cancelled
     if(cancel_flag.load()) {
-        return ASTImportUnitRef(path, cached_unit, import_unit);
+        return ASTImportUnitRef(false, path, cached_unit, import_unit);
     }
 
     // get the ast import unit
@@ -228,7 +228,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
 
     // check it hasn't been cancelled
     if(cancel_flag.load()) {
-        return ASTImportUnitRef(path, cached_unit, import_unit, ast_files, {});
+        return ASTImportUnitRef(false, path, cached_unit, import_unit, ast_files, {});
     }
 
     // symbol resolve the import unit, get the last file's diagnostics
@@ -238,7 +238,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     cache.cached_units.emplace(path, std::move(cached_unit));
 
     // return the complete unit ref
-    return ASTImportUnitRef(path, cached_unit, import_unit, ast_files, std::move(res_diags));
+    return ASTImportUnitRef(false, path, cached_unit, import_unit, ast_files, std::move(res_diags));
 
 }
 
@@ -247,15 +247,15 @@ void build_diags_from_unit_ref(std::vector<std::vector<Diag>*>& diag_ptrs, ASTIm
     // lex diagnostics for the last file
     auto& lex_files = ref.lex_unit.files;
     if(!lex_files.empty()) {
-        auto& last_lex_result = lex_files[lex_files.size() - 1];
-        diag_ptrs.emplace_back(&last_lex_result->diags);
+        auto& last_file_diags = lex_files[lex_files.size() - 1]->diags;
+        diag_ptrs.emplace_back(&last_file_diags);
     }
 
     // parsing diagnostics for the last file (if parsing was done)
     auto& ast_files = ref.files;
     if(!ast_files.empty()) {
-        auto& last_ast_result = ast_files[ast_files.size() - 1];
-        diag_ptrs.emplace_back(&last_ast_result->diags);
+        auto& last_file_diags = ast_files[ast_files.size() - 1]->diags;
+        diag_ptrs.emplace_back(&last_file_diags);
     }
 
     // last file symbol res diagnostics
@@ -326,8 +326,10 @@ ASTImportUnitRef WorkspaceManager::publish_diagnostics(const std::string& path) 
     // get the import unit ref
     auto import_unit = get_ast_import_unit(path, publish_diagnostics_cancel_flag);
 
-    // publish diagnostics for import unit
-    publish_diagnostics_task = publish_diagnostics_for_async(import_unit, true);
+    // publish diagnostics for import unit (if not cached and job not cancelled)
+    if(!import_unit.is_cached && !publish_diagnostics_cancel_flag.load()) {
+        publish_diagnostics_task = publish_diagnostics_for_async(import_unit, true);
+    }
 
     // return the import unit
     return import_unit;

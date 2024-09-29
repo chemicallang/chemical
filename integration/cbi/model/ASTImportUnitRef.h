@@ -18,6 +18,14 @@ class GlobalInterpretScope;
 struct ASTImportUnitRef {
 
     /**
+     * this flag indicates that the unit ref was retrieved from cache entirely
+     * it wasn't built a new, this helps us know that when the ast import unit
+     * was built, we reported diagnostics and cleared them, since this is cached
+     * we don't need to do that
+     */
+    const bool is_cached;
+
+    /**
      * the absolute path to the file the import unit belongs to
      */
     std::string path;
@@ -52,19 +60,21 @@ struct ASTImportUnitRef {
      * constructor
      */
     ASTImportUnitRef(
+        bool is_cached,
         std::string abs_path,
         const std::shared_ptr<ASTImportUnit>& unit
-    ) : path(std::move(abs_path)), unit(unit), lex_unit() {
+    ) : path(std::move(abs_path)), unit(unit), lex_unit(), is_cached(is_cached) {
     }
 
     /**
      * constructor
      */
     ASTImportUnitRef(
+        bool is_cached,
         std::string abs_path,
         const std::shared_ptr<ASTImportUnit>& unit,
         LexImportUnit& lexUnit
-    ) : path(std::move(abs_path)), unit(unit), lex_unit(lexUnit) {
+    ) : path(std::move(abs_path)), unit(unit), lex_unit(lexUnit), is_cached(is_cached) {
 
     }
 
@@ -72,12 +82,13 @@ struct ASTImportUnitRef {
      * constructor
      */
     ASTImportUnitRef(
+        bool is_cached,
         std::string abs_path,
         const std::shared_ptr<ASTImportUnit>& unit,
         LexImportUnit& lexUnit,
         std::vector<std::shared_ptr<ASTResult>>& ast_files,
         std::vector<Diag> sym_res_diag
-    ) : path(std::move(abs_path)), unit(unit), sym_res_diag(std::move(sym_res_diag)), lex_unit(lexUnit) {
+    ) : path(std::move(abs_path)), unit(unit), sym_res_diag(std::move(sym_res_diag)), lex_unit(lexUnit), is_cached(is_cached) {
         files = ast_files;
     }
 

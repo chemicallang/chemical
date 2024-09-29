@@ -74,6 +74,10 @@ void WorkspaceManager::notify_diagnostics_async(
 ) {
     const auto notify = new Notify_TextDocumentPublishDiagnostics::notify;
     build_notify_request(*notify, path, diags);
+    if(notify->params.diagnostics.empty()) {
+        delete notify;
+        return;
+    }
     if(clear_diags) {
         for(auto diag : diags) {
             diag->clear();
@@ -92,6 +96,9 @@ void WorkspaceManager::notify_diagnostics_sync(
 ) {
     Notify_TextDocumentPublishDiagnostics::notify notify;
     build_notify_request(notify, path, diags);
+    if(notify.params.diagnostics.empty()) {
+        return;
+    }
     if(clear_diags) {
         for(auto diag : diags) {
             diag->clear();
@@ -227,7 +234,6 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     }
 
     // check it hasn't been cancelled
-    // or parsing process has errors, since parsing has errors, no need to sym resolve
     if(cancel_flag.load()) {
         return ASTImportUnitRef(path, cached_unit, import_unit, ast_files, {});
     }
@@ -239,7 +245,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     cache.cached_units.emplace(path, std::move(cached_unit));
 
     // return the complete unit ref
-    return ASTImportUnitRef(path, cached_unit, import_unit, ast_files, res_diags);
+    return ASTImportUnitRef(path, cached_unit, import_unit, ast_files, std::move(res_diags));
 
 }
 

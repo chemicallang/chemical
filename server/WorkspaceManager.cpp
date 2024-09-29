@@ -88,10 +88,10 @@ td_completion::response WorkspaceManager::get_completion(
         unsigned int character
 ) {
     auto can_path = canonical(uri.GetAbsolutePath().path);
-    auto unit = get_import_unit(can_path, cancel_request);
+    auto unit = get_ast_import_unit(can_path, cancel_request);
     CompletionItemAnalyzer analyzer({ line, character });
     td_completion::response rsp;
-    rsp.result = analyzer.analyze(&unit);
+    rsp.result = analyzer.analyze(&unit.lex_unit);
     return std::move(rsp);
 }
 

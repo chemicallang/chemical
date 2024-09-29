@@ -59,8 +59,8 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_cached_ast(const std::string& p
     }
 }
 
-bool WorkspaceManager::has_errors(const LexImportUnit& unit) {
-    for(auto& file : unit.files) {
+bool WorkspaceManager::has_errors(const std::vector<std::shared_ptr<LexResult>>& lexFiles) {
+    for(auto& file : lexFiles) {
         if(Diag::has_errors(file->diags)) {
             return true;
         }
@@ -68,8 +68,8 @@ bool WorkspaceManager::has_errors(const LexImportUnit& unit) {
     return false;
 }
 
-bool WorkspaceManager::has_errors(const ASTImportUnit& unit) {
-    for(auto& file : unit.files) {
+bool WorkspaceManager::has_errors(const std::vector<std::shared_ptr<ASTResult>>& files) {
+    for(auto& file : files) {
         if(Diag::has_errors(file->diags)) {
             return true;
         }
@@ -264,14 +264,16 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
     return unit;
 }
 
-ASTImportUnit WorkspaceManager::get_ast_import_unit(const LexImportUnit& unit, std::atomic<bool>& cancel_flag) {
-    ASTImportUnit import_unit;
-    auto& files = import_unit.files;
+void WorkspaceManager::get_ast_import_unit(
+    std::vector<std::shared_ptr<ASTResult>>& files,
+    const LexImportUnit& unit,
+    GlobalInterpretScope& comptime_scope,
+    std::atomic<bool>& cancel_flag
+) {
     for(auto& file : unit.files) {
         if(cancel_flag.load()) break;
-        files.emplace_back(get_ast(file->abs_path, import_unit.comptime_scope));
+        files.emplace_back(get_ast(file->abs_path, comptime_scope));
     }
-    return import_unit;
 }
 
 WorkspaceImportGraphImporter::WorkspaceImportGraphImporter(

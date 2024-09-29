@@ -21,10 +21,22 @@ public:
      * constructor
      */
     ASTAllocator(
-            char* stackMemory,
-            std::size_t stackSize,
-            std::size_t heapBatchSize
+        char* stackMemory,
+        std::size_t stackSize,
+        std::size_t heapBatchSize
     );
+
+    /**
+     * move constructor
+     */
+    ASTAllocator(
+        ASTAllocator&& other
+    ) noexcept;
+
+    /**
+     * move assignment
+     */
+    ASTAllocator& operator =(ASTAllocator&& other) noexcept;
 
     /**
      * the method to use to allocate a type
@@ -58,11 +70,11 @@ protected:
      * the stack memory used to store objects on stack instead of heap
      * given by the user
      */
-    char* const stack_memory;
+    char* stack_memory;
     /**
      * the stack size is given by the user
      */
-    const std::size_t stack_memory_size;
+    std::size_t stack_memory_size;
     /**
      * how much of the stack memory has been consumed
      * by default initialized to zero
@@ -79,7 +91,8 @@ protected:
     /**
      * heap batch size is the memory allocated on the heap when stack memory ends
      */
-    const std::size_t heap_batch_size;
+    std::size_t heap_batch_size;
+
     /**
      * current heap offset
      */

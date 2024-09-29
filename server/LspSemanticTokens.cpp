@@ -213,8 +213,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     }
 
     // check it hasn't been cancelled
-    // or if import unit has errors, since lexing has errors, no need to parse
-    if(cancel_flag.load() || has_errors(import_unit)) {
+    if(cancel_flag.load()) {
         return ASTImportUnitRef(path, cached_unit, import_unit);
     }
 
@@ -229,7 +228,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
 
     // check it hasn't been cancelled
     // or parsing process has errors, since parsing has errors, no need to sym resolve
-    if(cancel_flag.load() || has_errors(ast_files)) {
+    if(cancel_flag.load()) {
         return ASTImportUnitRef(path, cached_unit, import_unit, ast_files, {});
     }
 

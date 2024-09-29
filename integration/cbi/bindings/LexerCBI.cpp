@@ -231,8 +231,8 @@ bool LexerlexContinueStatement(Lexer* lexer)  {
     return lexer->lexContinueStatement();
 }
 
-void LexerlexIfExprAndBlock(Lexer* lexer, bool is_value, bool lex_value_node, bool top_level)  {
-    return lexer->lexIfExprAndBlock(is_value, lex_value_node, top_level);
+void LexerlexIfExprAndBlock(Lexer* lexer, unsigned start, bool is_value, bool lex_value_node, bool top_level)  {
+    return lexer->lexIfExprAndBlock(start, is_value, lex_value_node, top_level);
 }
 
 bool LexerlexIfBlockTokens(Lexer* lexer, bool is_value, bool lex_value_node, bool top_level)  {

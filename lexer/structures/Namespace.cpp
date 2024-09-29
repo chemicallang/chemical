@@ -5,7 +5,7 @@
 bool Lexer::lexNamespaceTokens(unsigned start) {
     if(lexWSKeywordToken("namespace")) {
         if(!lexIdentifierToken()) {
-            error("expected identifier for namespace name");
+            mal_node(start, "expected identifier for namespace name");
             return true;
         }
         auto result = lexTopLevelBraceBlock("namespace");

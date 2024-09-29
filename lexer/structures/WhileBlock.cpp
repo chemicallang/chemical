@@ -15,17 +15,17 @@ bool Lexer::lexWhileBlockTokens() {
     auto start = tokens_size() - 1;
 
     if(!lexOperatorToken('(')) {
-        error("expected a starting parenthesis ( after keyword while for while block");
+        mal_node(start, "expected a starting parenthesis ( after keyword while for while block");
         return true;
     }
 
     if(!lexExpressionTokens()) {
-        error("expected a conditional statement for while block");
+        mal_node(start, "expected a conditional statement for while block");
         return true;
     }
 
     if(!lexOperatorToken(')')) {
-        error("expected a closing parenthesis ) for while block");
+        mal_node(start, "expected a closing parenthesis ) for while block");
         return true;
     }
 
@@ -35,7 +35,7 @@ bool Lexer::lexWhileBlockTokens() {
     isLexContinueStatement = true;
     isLexBreakStatement = true;
     if(!lexBraceBlock("whileloop")) {
-        error("expected a brace block { statement(s) } when lexing a while block");
+        mal_node(start, "expected a brace block { statement(s) } when lexing a while block");
     }
     isLexContinueStatement = prevLexContinue;
     isLexBreakStatement = prevLexBreak;

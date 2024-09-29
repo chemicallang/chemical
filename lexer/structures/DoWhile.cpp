@@ -18,7 +18,7 @@ bool Lexer::lexDoWhileBlockTokens() {
     isLexContinueStatement = true;
     isLexBreakStatement = true;
     if(!lexBraceBlock("dowhileloop")) {
-        error("expected a brace block { statement(s) } when lexing a while block");
+        mal_node(start, "expected a brace block { statement(s) } when lexing a while block");
     }
     isLexContinueStatement = false;
     isLexBreakStatement = false;
@@ -26,22 +26,22 @@ bool Lexer::lexDoWhileBlockTokens() {
     lexWhitespaceToken();
 
     if(!lexWSKeywordToken("while", '(')) {
-        error("expected 'while' with condition in a do while loop");
+        mal_node(start, "expected 'while' with condition in a do while loop");
         return true;
     }
 
     if(!lexOperatorToken('(')) {
-        error("expected a starting parenthesis ( after keyword while for while block");
+        mal_node(start, "expected a starting parenthesis ( after keyword while for while block");
         return true;
     }
 
     if(!lexExpressionTokens()) {
-        error("expected a conditional statement for while block");
+        mal_node(start,"expected a conditional statement for while block");
         return true;
     }
 
     if(!lexOperatorToken(')')) {
-        error("expected a closing parenthesis ) for while block");
+        mal_node(start,"expected a closing parenthesis ) for while block");
         return true;
     }
 

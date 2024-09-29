@@ -5,15 +5,21 @@
 bool Lexer::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
     if (lexWSKeywordToken("switch", '(')) {
         auto start = tokens_size() - 1;
+
+        void (Lexer::*malformed)(unsigned int, const std::string&);
+        malformed = is_value ? &Lexer::mal_value : &Lexer::mal_node;
+
         if (lexOperatorToken('(')) {
             if (!lexExpressionTokens()) {
-                error("expected an expression tokens in switch statement");
+                (this->*malformed)(start, "expected an expression tokens in switch statement");
             }
             if (!lexOperatorToken(')')) {
-                error("expected ')' in switch statement");
+                (this->*malformed)(start, "expected ')' in switch statement");
+                return true;
             }
         } else {
-            error("expect '(' after keyword 'switch' for the expression");
+            (this->*malformed)(start, "expect '(' after keyword 'switch' for the expression");
+            return true;
         }
         lexWhitespaceAndNewLines();
         if (lexOperatorToken('{')) {
@@ -26,18 +32,18 @@ bool Lexer::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
                         compound_from(bStart, LexTokenType::CompBody);
                     } else if (lexOperatorToken("=>")) {
                         if(!lexBraceBlockOrSingleStmt("switch-default", is_value, lex_value_node)) {
-                            error("expected a brace block after the '=>' in the switch default case");
-                            break;
+                            (this->*malformed)(start, "expected a brace block after the '=>' in the switch default case");
+                            return true;
                         }
                     } else {
-                        error("expected ':' or '=>' after 'default' in switch statement");
-                        break;
+                        (this->*malformed)(start, "expected ':' or '=>' after 'default' in switch statement");
+                        return true;
                     }
                 } else {
                     if(lexWSKeywordToken("case")) {
                         if (!lexSwitchCaseValue()) {
-                            error("expected a value after 'case' in switch");
-                            break;
+                            (this->*malformed)(start, "expected a value after 'case' in switch");
+                            return true;
                         }
                     } else if (!lexSwitchCaseValue()) {
                         break;
@@ -50,20 +56,22 @@ bool Lexer::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
                         continue;
                     } else if (lexOperatorToken("=>")) {
                         if(!lexBraceBlockOrSingleStmt("switch-case", is_value, lex_value_node)) {
-                            error("expected a brace block after the '=>' in the switch case");
-                            break;
+                            (this->*malformed)(start, "expected a brace block after the '=>' in the switch case");
+                            return true;
                         }
                     } else {
-                        error("expected ':' or '=>' after 'case' in switch statement");
-                        break;
+                        (this->*malformed)(start, "expected ':' or '=>' after 'case' in switch statement");
+                        return true;
                     }
                 }
             }
             if(!lexOperatorToken('}')) {
-                error("expected '}' for ending the switch block");
+                (this->*malformed)(start, "expected '}' for ending the switch block");
+                return true;
             }
         } else {
-            error("expected '{' after switch");
+            (this->*malformed)(start, "expected '{' after switch");
+            return true;
         }
         compound_from(start, is_value ? LexTokenType::CompSwitchValue : LexTokenType::CompSwitch);
         return true;

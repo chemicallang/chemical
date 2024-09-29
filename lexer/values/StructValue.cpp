@@ -32,7 +32,7 @@ bool Lexer::lexStructValueTokens(unsigned back_start) {
         lexWhitespaceAndNewLines();
 
         if(!lexOperatorToken('}')) {
-            error("expected '}' for struct value");
+            mal_value(start, "expected '}' for struct value");
         }
 
         compound_from(start, LexTokenType::CompStructValue);

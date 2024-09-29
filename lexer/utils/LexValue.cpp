@@ -75,7 +75,8 @@ bool Lexer::lexArrayInit() {
             lexWhitespaceAndNewLines();
         } while (lexOperatorToken(','));
         if (!lexOperatorToken('}')) {
-            error("expected a '}' when lexing an array");
+            mal_value(start, "expected a '}' when lexing an array");
+            return true;
         }
         lexWhitespaceToken();
         if (lexTypeTokens()) {
@@ -90,7 +91,8 @@ bool Lexer::lexArrayInit() {
                 } while (lexOperatorToken(','));
                 lexWhitespaceToken();
                 if (!lexOperatorToken(')')) {
-                    error("expected a ')' when ending array size");
+                    mal_value(start, "expected a ')' when ending array size");
+                    return true;
                 }
             }
         }

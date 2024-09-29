@@ -4,15 +4,47 @@
 #include <mutex>
 
 ASTAllocator::ASTAllocator(
-        char* stackMemory,
-        std::size_t stackSize,
-        std::size_t heapBatchSize
+    char* stackMemory,
+    std::size_t stackSize,
+    std::size_t heapBatchSize
 ) : stack_memory(stackMemory), stack_memory_size(stackSize), stack_offset(0),
     heap_offset(heapBatchSize), heap_batch_size(heapBatchSize)
 {
     ptr_storage.reserve(10);
     reserve_ptr_storage();
     allocator_mutex = new std::mutex;
+}
+
+ASTAllocator::ASTAllocator(
+    ASTAllocator&& other
+) noexcept : ptr_storage(std::move(other.ptr_storage)), stack_memory(other.stack_memory), stack_memory_size(other.stack_memory_size), stack_offset(other.stack_offset),
+    heap_memory(std::move(other.heap_memory)), heap_batch_size(other.heap_batch_size), heap_offset(other.heap_offset), allocator_mutex(other.allocator_mutex)
+{
+    other.stack_memory = nullptr;
+    other.stack_memory_size = 0;
+    other.stack_offset = 0;
+    other.heap_offset = 0;
+    other.allocator_mutex = new std::mutex;
+}
+
+ASTAllocator& ASTAllocator::operator =(ASTAllocator&& other) noexcept {
+
+    ptr_storage = std::move(other.ptr_storage);
+    stack_memory = other.stack_memory;
+    stack_memory_size = other.stack_memory_size;
+    stack_offset = other.stack_offset;
+    heap_memory = std::move(other.heap_memory);
+    heap_batch_size = other.heap_batch_size;
+    heap_offset = other.heap_offset;
+    allocator_mutex = other.allocator_mutex;
+
+    other.stack_memory = nullptr;
+    other.stack_memory_size = 0;
+    other.stack_offset = 0;
+    other.heap_offset = 0;
+    other.allocator_mutex = new std::mutex;
+
+    return *this;
 }
 
 void ASTAllocator::clear() {

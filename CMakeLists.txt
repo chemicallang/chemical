@@ -454,7 +454,7 @@ set(COMMON_SOURCES
         utils/Environment.h
         ast/base/ASTAnyKind.h
         ast/base/ASTUnit.h
-        integration/cbi/model/ASTImportUnit.h
+        integration/cbi/model/ASTImportUnitRef.h
         integration/cbi/model/ASTResult.h
         preprocess/2c/CBeforeStmtVisitor.h
         preprocess/2c/CAfterStmtVisitor.h
@@ -488,6 +488,7 @@ set(COMMON_SOURCES
         integration/cbi/bindings/ASTBuilderCBI.h
         integration/cbi/bindings/ASTBuilderCBI.cpp
         integration/cbi/bindings/ASTCBI.h
+        integration/cbi/model/ASTImportUnit.h
 )
 
 # Chemical LSP Executable Target

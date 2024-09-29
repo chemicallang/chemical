@@ -1,0 +1,84 @@
+// Copyright (c) Qinetik 2024.
+
+#pragma once
+
+#include <memory>
+#include <utility>
+#include <vector>
+#include "ASTImportUnit.h"
+
+class ASTResult;
+
+class ASTAllocator;
+
+class ASTImportUnit;
+
+class GlobalInterpretScope;
+
+struct ASTImportUnitRef {
+
+    /**
+     * the absolute path to the file the import unit belongs to
+     */
+    std::string path;
+
+    /**
+     * stores a pointer to cached ast import unit, so if it's erased from cached
+     * we still have it, only the comptime scope and allocator matters which are
+     * composed in the ast import unit
+     */
+    std::shared_ptr<ASTImportUnit> unit;
+
+    /**
+     * all the files lex results, this is supposed to be always present and valid
+     * because all files are lexed, if they can't be lexed, the diagnostics are collected and
+     * stored inside the lex result present in this unit
+     */
+    LexImportUnit lex_unit;
+
+    /**
+     * all the files ast result, this can be empty if we didn't parse / symbol resolve
+     */
+    std::vector<std::shared_ptr<ASTResult>> files;
+
+    /**
+     * this is the last file's symbol resolution diagnostics, stored for easy
+     * publishing of diagnostics, a cached unit doesn't have these because it
+     * doesn't store
+     */
+    std::vector<Diag> sym_res_diag;
+
+    /**
+     * constructor
+     */
+    ASTImportUnitRef(
+        std::string abs_path,
+        const std::shared_ptr<ASTImportUnit>& unit
+    ) : path(std::move(abs_path)), unit(unit), lex_unit() {
+    }
+
+    /**
+     * constructor
+     */
+    ASTImportUnitRef(
+        std::string abs_path,
+        const std::shared_ptr<ASTImportUnit>& unit,
+        LexImportUnit& lexUnit
+    ) : path(std::move(abs_path)), unit(unit), lex_unit(lexUnit) {
+
+    }
+
+    /**
+     * constructor
+     */
+    ASTImportUnitRef(
+        std::string abs_path,
+        const std::shared_ptr<ASTImportUnit>& unit,
+        LexImportUnit& lexUnit,
+        std::vector<std::shared_ptr<ASTResult>>& ast_files,
+        std::vector<Diag> sym_res_diag
+    ) : path(std::move(abs_path)), unit(unit), sym_res_diag(std::move(sym_res_diag)), lex_unit(lexUnit) {
+        files = ast_files;
+    }
+
+};

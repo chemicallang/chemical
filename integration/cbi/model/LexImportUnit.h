@@ -19,4 +19,14 @@ struct LexImportUnit {
 
    std::vector<std::shared_ptr<LexResult>> files;
 
+   /**
+    * default empty constructor
+    */
+   LexImportUnit() = default;
+
+   /**
+    * copy constructor
+    */
+   LexImportUnit(const LexImportUnit& other) = default;
+
 };

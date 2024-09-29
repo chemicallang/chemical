@@ -8,7 +8,14 @@
 
 class ASTResult;
 
-struct ASTImportUnit {
+/**
+ * this ast import unit is cached in import unit cache
+ * we store weak pointers, when a file changes, this weak pointer can become empty
+ * then we can re get that file, and re symbol resolve the this tree and get a concrete
+ * reference to import unit by locking the file pointers and getting shared pointers to them
+ */
+class ASTImportUnit {
+public:
 
     /**
      * The allocator used for global interpret scope
@@ -21,9 +28,14 @@ struct ASTImportUnit {
     GlobalInterpretScope comptime_scope;
 
     /**
-     * all the files ast result
+     * all the files' lex results
      */
-    std::vector<std::shared_ptr<ASTResult>> files;
+    std::vector<std::weak_ptr<LexResult>> lex_files;
+
+    /**
+     * all the files' ast results
+     */
+    std::vector<std::weak_ptr<ASTResult>> files;
 
     /**
      * constructor

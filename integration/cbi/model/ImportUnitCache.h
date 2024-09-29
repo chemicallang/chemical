@@ -3,6 +3,7 @@
 #pragma once
 
 #include "LexResult.h"
+#include "ASTImportUnit.h"
 #include <unordered_map>
 #include <string>
 #include <memory>
@@ -41,5 +42,11 @@ struct ImportUnitCache {
      * similar to how lex results are cached in ImportUnitCache
      */
     std::unordered_map<std::string, std::shared_ptr<ASTResult>> files_ast;
+
+    /**
+     * cached ast import units keeps weak pointers to files in order they appear, when files change weak pointers
+     * become null, we have to get these files again only, this helps to make getting ast import units fast
+     */
+    std::unordered_map<std::string, std::shared_ptr<ASTImportUnit>> cached_units;
 
 };

@@ -16,7 +16,7 @@
 #include "integration/cbi/model/LexResult.h"
 #include "integration/cbi/model/ASTResult.h"
 #include "integration/cbi/model/LexImportUnit.h"
-#include "integration/cbi/model/ASTImportUnit.h"
+#include "integration/cbi/model/ASTImportUnitRef.h"
 #include "integration/cbi/model/ImportUnitCache.h"
 
 class RemoteEndPoint;
@@ -77,11 +77,11 @@ private:
      */
     std::mutex lex_file_mutexes_map_mutex;
 
-//    /**
-//     * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
-//     * otherwise parallel calls might render lex_file_mutexes useless
-//     */
-//    std::mutex parse_file_mutexes_map_mutex;
+    /**
+     * the mutex used when getting ast import units, only a single ast import
+     * unit can be requested
+     */
+    std::mutex ast_import_unit_mutex;
 
     /**
      * import unit cache, contains different import units
@@ -169,9 +169,9 @@ public:
     td_completion::response get_completion(const lsDocumentUri& uri, unsigned int line, unsigned int character);
 
     /**
-     * get semantic tokens for the given document uri
+     * get semantic tokens for the given lex result
      */
-    std::vector<SemanticToken> get_semantic_tokens(const std::string& abs_path);
+    std::vector<SemanticToken> get_semantic_tokens(LexResult& ptr);
 
     /**
      * get semantic tokens full response for the given document uri
@@ -204,25 +204,53 @@ public:
      */
     void notify_diagnostics_async(
         const std::string& path,
-        const std::vector<std::vector<Diag>*>& diags
+        const std::vector<std::vector<Diag>*>& diags,
+        bool clear_diags
     );
 
     /**
-     * this will publish given diagnostics
+     * this will send given diagnostics by sending a notification to client
      */
-    void notify_diagnostics(
+    void notify_diagnostics_sync(
         const std::string& path,
-        const std::vector<std::vector<Diag>*>& diags
+        const std::vector<std::vector<Diag>*>& diags,
+        bool clear_diags
     );
 
     /**
-     * this will publish complete diagnostics for the given file, non asynchronously
+     * a helper function
+     * allows to choose whether notification is prepared and sent asynchronously
      */
-    void publish_diagnostics_complete(
+    inline void notify_diagnostics(
         const std::string& path,
-        bool notify_async,
-        std::atomic<bool>& cancel_flag
-    );
+        const std::vector<std::vector<Diag>*>& diags,
+        bool async,
+        bool clear_diags
+    ) {
+        async ? notify_diagnostics_async(path, diags, clear_diags) : notify_diagnostics_sync(path, diags, clear_diags);
+    }
+
+    /**
+     * publish diagnostics synchronously
+     */
+    void publish_diagnostics_for_sync(ASTImportUnitRef& ref, bool notify_async, bool clear_diags);
+
+    /**
+     * publish diagnostics asynchronously for the given ast import unit ref
+     */
+    std::future<void> publish_diagnostics_for_async(ASTImportUnitRef& ref, bool clear_diags);
+
+    /**
+     * this allows publishing diagnostics for the given ast import unit ref
+     * @param do_async allows to collect diagnostics and publish them
+     */
+    inline void publish_diagnostics_for(ASTImportUnitRef& ref, bool async) {
+        if(async) {
+            publish_diagnostics_for_async(ref, true);
+        } else {
+            publish_diagnostics_for_sync(ref, true, true);
+        }
+    }
 
     /**
      * after the first invocation, every other invocation is queued
@@ -238,22 +266,31 @@ public:
     /**
      * will publish diagnostics
      */
-    void publish_diagnostics_complete_async(
-        const std::string& path,
-        std::launch launch_policy,
-        bool notify_async,
-        bool do_synchronous
-    );
+    ASTImportUnitRef publish_diagnostics(const std::string& path);
 
     /**
      * check if lex import unit has errors
      */
-    static bool has_errors(const LexImportUnit& unit);
+    static bool has_errors(const std::vector<std::shared_ptr<LexResult>>& lexFiles);
+
+    /**
+     * check if given ast files has errors
+     */
+    static bool has_errors(const std::vector<std::shared_ptr<ASTResult>>& files);
+
+    /**
+     * check if the given lex import unit has errors
+     */
+    inline static bool has_errors(const LexImportUnit& unit) {
+        return has_errors(unit.files);
+    }
 
     /**
      * check if this ast import unit has errors
      */
-    static bool has_errors(const ASTImportUnit& unit);
+    inline static bool has_errors(const ASTImportUnitRef& unit) {
+        return has_errors(unit.files);
+    }
 
     /**
      * get the import unit for the given absolute path
@@ -261,25 +298,34 @@ public:
     LexImportUnit get_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag);
 
     /**
-     * get the ast import unit for the given lex import unit
+     * get the ast import unit for the given lex import unit into the files vector
      */
-    ASTImportUnit get_ast_import_unit(const LexImportUnit& unit, std::atomic<bool>& cancel_flag);
+    void get_ast_import_unit(
+        std::vector<std::shared_ptr<ASTResult>>& files,
+        const LexImportUnit& unit,
+        GlobalInterpretScope& comptime_scope,
+        std::atomic<bool>& cancel_flag
+    );
 
     /**
      * it will symbol resolver the ast import unit
      * it will return diagnostics of symbol resolution for the last file in import unit
      */
-    std::vector<Diag> sym_res_import_unit(ASTImportUnit& unit, std::atomic<bool>& cancel_flag);
+    std::vector<Diag> sym_res_import_unit(
+        std::vector<std::shared_ptr<ASTResult>>& files,
+        GlobalInterpretScope& comptime_scope,
+        std::atomic<bool>& cancel_flag
+    );
+
+    /**
+     * get ast import unit for the following name
+     */
+    ASTImportUnitRef get_ast_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag);
 
     /**
      * get a locked mutex for this path only
      */
     std::mutex& lex_lock_path_mutex(const std::string& path);
-
-    /**
-     * get a locked mutex for this path only
-     */
-    std::mutex& parse_lock_path_mutex(const std::string& path);
 
     /**
      * get the lexed file, only if it exists in cache

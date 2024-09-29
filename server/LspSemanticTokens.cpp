@@ -206,6 +206,12 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     // get the lex import unit
     auto import_unit = get_import_unit(path, cancel_flag);
 
+    // put lex files in cached ast unit
+    auto& unit_lex_files = cached_unit->lex_files;
+    for(auto& file : import_unit.files) {
+        unit_lex_files.emplace_back(file);
+    }
+
     // check it hasn't been cancelled
     // or if import unit has errors, since lexing has errors, no need to parse
     if(cancel_flag.load() || has_errors(import_unit)) {
@@ -215,6 +221,11 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     // get the ast import unit
     std::vector<std::shared_ptr<ASTResult>> ast_files;
     get_ast_import_unit(ast_files, import_unit, comptime_scope, cancel_flag);
+    // put ast files in cached ast unit
+    auto& unit_ast_files = cached_unit->files;
+    for(auto& file : ast_files) {
+        unit_ast_files.emplace_back(file);
+    }
 
     // check it hasn't been cancelled
     // or parsing process has errors, since parsing has errors, no need to sym resolve

@@ -331,6 +331,8 @@ public:
 
     void visitEnumDecl(CSTToken* enumDecl) override;
 
+    void visitMalformedInput(CSTToken *token) override;
+
     void visitMacro(CSTToken* macroCst) override;
 
     void visitAnnotation(CSTToken* annotation) override;

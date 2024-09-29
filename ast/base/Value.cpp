@@ -28,6 +28,7 @@
 #include "ast/structures/If.h"
 #include <ranges>
 #include "preprocess/RepresentationVisitor.h"
+#include "MalformedInput.h"
 #include <sstream>
 
 #ifdef COMPILER_BUILD
@@ -724,6 +725,24 @@ BaseType* implicit_constructor_type(ASTAllocator& allocator, BaseType* return_ty
         }
     }
     return return_type;
+}
+
+void MalformedInput::link(SymbolResolver &linker) {
+    for(auto any : any_things) {
+        switch(any->any_kind()) {
+            case ASTAnyKind::Value: {
+                Value* dummy = nullptr;
+                ((Value*) any)->link(linker, dummy, nullptr);
+                break;
+            }
+            case ASTAnyKind::Type:
+                ((BaseType*) any)->link(linker);
+                break;
+            case ASTAnyKind::Node:
+                ((ASTNode*) any)->declare_and_link(linker);
+                break;
+        }
+    }
 }
 
 Value::~Value() = default;

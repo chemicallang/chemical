@@ -69,6 +69,7 @@ enum class LexTokenType : int {
     CompNamespace,
     CompTryCatch,
     CompMacro,
+    CompMalformedNode, // malformed input where a node was expected
     CompWhile,
 
     // compound types
@@ -78,6 +79,7 @@ enum class LexTokenType : int {
     CompSpecializedType, // 'dyn type' is a specialized type, we could support more specialized types like dyn
     CompLinkedValueType, // linked value type is like (ns::class ns::class::class) basically anything with ::
     CompReferenceType, // a reference '&'
+    CompMalformedType, // malformed input where a type was expected
     CompPointerType, // a pointer '*'
 
     // compound values
@@ -96,6 +98,7 @@ enum class LexTokenType : int {
     CompLambda, // lambda is the actual lambda []() => {  }
     CompNegative, // -value
     CompNot, // !value
+    CompMalformedValue, // malformed input where a value was expected
     CompStructValue, // struct_name { a : 10, b : 20 }
 
     // other things

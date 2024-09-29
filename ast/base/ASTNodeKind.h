@@ -60,7 +60,8 @@ enum class ASTNodeKind : uint8_t {
     StructMemberInitializer,
     VariantMemberParam,
     CapturedVariable,
-    VariantCaseVariable
+    VariantCaseVariable,
+    Malformed
 
 
 };

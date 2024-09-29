@@ -489,6 +489,7 @@ set(COMMON_SOURCES
         integration/cbi/bindings/ASTBuilderCBI.cpp
         integration/cbi/bindings/ASTCBI.h
         integration/cbi/model/ASTImportUnit.h
+        ast/base/MalformedInput.h
 )
 
 # Chemical LSP Executable Target

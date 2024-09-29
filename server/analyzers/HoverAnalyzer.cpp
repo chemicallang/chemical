@@ -52,6 +52,31 @@ FuncSignature get_signature(CSTToken* func) {
     return {std::move(params), ret};
 }
 
+
+void struct_def_inheritance_doc(std::string& value, StructDefinition* def) {
+    if(!def->inherited.empty()) {
+        value += " : ";
+        bool has_comma = true;
+        for(auto& inherit : def->inherited) {
+            if(!has_comma) {
+                value += ", ";
+            }
+            switch(inherit->specifier) {
+                case AccessSpecifier::Private:
+                    value += "private";
+                    break;
+                case AccessSpecifier::Protected:
+                    value += "protected";
+                    break;
+                default:
+                    break;
+            }
+            value += inherit->type->representation();
+            has_comma = false;
+        }
+    }
+}
+
 void small_detail_of(std::string& value, ASTNode* linked) {
     switch (linked->kind()) {
         case ASTNodeKind::FunctionDecl:
@@ -81,13 +106,18 @@ void small_detail_of(std::string& value, ASTNode* linked) {
             break;
         }
         case ASTNodeKind::EnumDecl:
-            value += "enum ";
+            value += "enum";
             break;
-        case ASTNodeKind::StructDecl:
-            value += "struct ";
+        case ASTNodeKind::StructDecl: {
+            value += "struct";
+            value += ' ';
+            const auto struct_def = linked->as_struct_def_unsafe();
+            value += struct_def->name;
+            struct_def_inheritance_doc(value, struct_def);
             break;
+        }
         case ASTNodeKind::UnionDecl:
-            value += "union ";
+            value += "union";
             break;
         case ASTNodeKind::UnnamedStruct:
             value += "struct";
@@ -96,10 +126,16 @@ void small_detail_of(std::string& value, ASTNode* linked) {
             value += "union";
             break;
         case ASTNodeKind::InterfaceDecl:
-            value += "interface ";
+            value += "interface";
             break;
         case ASTNodeKind::VarInitStmt:{
             const auto init = linked->as_var_init_unsafe();
+            if(init->is_const) {
+                value += "const";
+            } else {
+                value += "var";
+            }
+            value += ' ';
             if (init->type) {
                 value += init->type->representation();
             }
@@ -239,27 +275,7 @@ void markdown_documentation(std::string& value, LexResult* current, LexResult* d
             const auto structDecl = linked_node->as_struct_def_unsafe();
             value += "```c\n";
             value += "struct " + structDecl->name;
-            if(!structDecl->inherited.empty()) {
-                value += " : ";
-                bool has_comma = true;
-                for(auto& inherit : structDecl->inherited) {
-                    if(!has_comma) {
-                        value += ", ";
-                    }
-                    switch(inherit->specifier) {
-                        case AccessSpecifier::Private:
-                            value += "private";
-                            break;
-                        case AccessSpecifier::Protected:
-                            value += "protected";
-                            break;
-                        default:
-                            break;
-                    }
-                    value += inherit->type->representation();
-                    has_comma = false;
-                }
-            }
+            struct_def_inheritance_doc(value, structDecl);
             value += "\n```";
             break;
         }

@@ -40,9 +40,9 @@ bool BoolType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::Bool;
 }
 
-bool CharType::satisfies(ASTAllocator& allocator, Value* value) {
-    return value->value_type() == ValueType::Char;
-}
+//bool CharType::satisfies(ASTAllocator& allocator, Value* value) {
+//    return value->value_type() == ValueType::Char;
+//}
 
 bool UCharType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::UChar;

@@ -188,10 +188,15 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
         if(def) {
             unsigned i = 0;
             while (i < values.size()) {
-                values[i]->link(linker, values[i], elemType);
-                const auto implicit = def->implicit_constructor_func(linker.allocator, values[i]);
+                auto& val_ptr = values[i];
+                const auto value = val_ptr;
+                value->link(linker, val_ptr, elemType);
+                const auto implicit = def->implicit_constructor_func(linker.allocator, value);
                 if(implicit) {
-                    link_with_implicit_constructor(implicit, linker, values[i]);
+                    link_with_implicit_constructor(implicit, linker, value);
+                } else if(!elemType->satisfies(linker.allocator, value)) {
+                    const auto val_type = value->create_type(linker.allocator);
+                    linker.error("value with type '" + val_type->representation() + "' doesn't satisfy array element type '" + elemType->representation() + "'", value);
                 }
                 i++;
             }
@@ -210,6 +215,10 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
         }
         if(known_elem_type) {
             current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
+            if(!known_elem_type->satisfies(linker.allocator, value)) {
+                const auto val_type = value->create_type(linker.allocator);
+                linker.error("value with type '" + val_type->representation() + "' doesn't satisfy array element type '" + elemType->representation() + "'", value);
+            }
         }
         i++;
     }

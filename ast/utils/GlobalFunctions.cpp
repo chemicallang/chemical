@@ -142,7 +142,7 @@ namespace InterpretVector {
             std::nullopt,
             AccessSpecifier::Public
     ) {
-        annotations.emplace_back(AnnotationKind::Constructor);
+        add_annotation(AnnotationKind::Constructor);
     }
 
     Value *InterpretVectorConstructor::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
@@ -236,7 +236,7 @@ namespace InterpretVector {
         typeParam("T", nullptr, this, 0, nullptr),
         selfType("vector", this, nullptr), selfPointer(&selfType, nullptr)
     {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         generic_params.emplace_back(&typeParam);
         insert_func(&constructorFn);
         insert_func(&sizeFn);
@@ -321,7 +321,7 @@ public:
             std::nullopt,
             AccessSpecifier::Public
     ), returnType(nullptr), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, false, this, nullptr) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -390,7 +390,7 @@ public:
             std::nullopt,
             AccessSpecifier::Public
     ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, false, this, nullptr) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
 //        generic_params.emplace_back(new (call_scope->allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
@@ -420,7 +420,7 @@ public:
             std::nullopt,
             AccessSpecifier::Public
     ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, false, this, nullptr) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
 //        generic_params.emplace_back(new (call_scope->allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
@@ -449,7 +449,7 @@ public:
             std::nullopt,
             AccessSpecifier::Public
     ), voidType(nullptr), ptrType(&voidType, nullptr) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         return new (call_scope->allocate<RetStructParamValue>()) RetStructParamValue(nullptr);
@@ -471,7 +471,7 @@ public:
             std::nullopt,
             AccessSpecifier::Public
     ), stringType(nullptr) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         std::string val;
@@ -499,7 +499,7 @@ public:
             std::nullopt,
             AccessSpecifier::Public
     ), boolType(nullptr) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
 #ifdef TCC_BUILD
@@ -525,7 +525,7 @@ public:
             std::nullopt,
             AccessSpecifier::Public
     ), boolType(nullptr) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
 #ifdef COMPILER_BUILD
@@ -553,7 +553,7 @@ public:
             std::nullopt,
             AccessSpecifier::Public
     ), boolType(nullptr), stringType(nullptr), valueParam("value", &stringType, 0, nullptr, false, this, nullptr) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -645,7 +645,7 @@ public:
             AccessSpecifier::Public
     ), boolType(nullptr), stringType(nullptr), destValueParam("dest_value", &stringType, 0, nullptr, false, this, nullptr),
       sourceValueParam("source_value", &stringType, 1, nullptr, false, this, nullptr){
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&destValueParam);
         params.emplace_back(&sourceValueParam);
     }
@@ -699,7 +699,7 @@ public:
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this)
     {
 
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode
         };
@@ -716,7 +716,7 @@ public:
     explicit MemNamespace(
         ASTNode* parent_node
     ) : Namespace("mem", parent_node, nullptr, AccessSpecifier::Public), memCopyFn(this) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         nodes = { &memCopyFn };
     }
 
@@ -728,7 +728,7 @@ public:
     explicit PtrNamespace(
             ASTNode* parent_node
     ) : Namespace("ptr", parent_node, nullptr, AccessSpecifier::Public) {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         nodes = { };
     }
 
@@ -746,7 +746,7 @@ public:
     ) : Namespace("std", nullptr, nullptr, AccessSpecifier::Public),
         memNamespace(this), ptrNamespace(this)
     {
-        annotations.emplace_back(AnnotationKind::CompTime);
+        add_annotation(AnnotationKind::CompTime);
         nodes = { &memNamespace, &ptrNamespace };
     }
 

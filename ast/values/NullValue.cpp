@@ -10,13 +10,21 @@ bool NullValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expect
         linker.error("null value can only be used in unsafe context", this);
         return false;
     }
+    if(expected_type) {
+        const auto type = expected_type->pointer_type();
+        if (type) {
+            expected = type->copy(*linker.ast_allocator);
+        }
+    }
     return true;
 }
 
 BaseType* NullValue::create_type(ASTAllocator &allocator) {
-    return new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<VoidType>()) VoidType(nullptr), nullptr);
+    return expected ? expected : (
+        new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<VoidType>()) VoidType(nullptr), nullptr)
+    );
 }
 
 BaseType* NullValue::known_type() {
-    return (BaseType*) &PointerType::void_ptr_instance;
+    return expected ? expected : (PointerType*) &PointerType::void_ptr_instance;
 }

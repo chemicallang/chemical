@@ -283,6 +283,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "make", { collect_annotation_func, AnnotationKind::Constructor } },
         { "delete", { collect_annotation_func, AnnotationKind::Delete } },
         { "override", { collect_annotation_func, AnnotationKind::Override } },
+        { "unsafe", { collect_annotation_func, AnnotationKind::Unsafe } },
         { "no_init", { collect_annotation_func, AnnotationKind::NoInit }},
         { "extern", { collect_annotation_func, AnnotationKind::Extern }},
         { "implicit", { collect_annotation_func, AnnotationKind::Implicit }},

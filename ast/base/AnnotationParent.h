@@ -28,6 +28,13 @@ public:
     Annotation* get_annotation(AnnotationKind expected);
 
     /**
+     * add an annotation of this kind with no arguments
+     */
+    inline void add_annotation(AnnotationKind kind) {
+        annotations.emplace_back(kind);
+    }
+
+    /**
      * checks if the given annotation is present
      */
     inline bool has_annotation(AnnotationKind expected) {

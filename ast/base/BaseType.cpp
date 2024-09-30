@@ -304,7 +304,7 @@ FunctionType *BaseType::function_type(BaseTypeKind k) {
 
 bool BaseType::satisfies(ASTAllocator& allocator, Value* value) {
     const auto val_type = value->create_type(allocator);
-    return val_type != nullptr && satisfies(val_type);
+    return val_type != nullptr && satisfies(val_type->pure_type());
 }
 
 BaseType::~BaseType() = default;

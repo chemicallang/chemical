@@ -365,6 +365,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         // linking values
         for (auto &val: values) {
             auto& val_ptr = val.second->value;
+            const auto value = val_ptr;
             auto child_node = definition->direct_child_member(val.first);
             if(!child_node) {
                 linker.error("couldn't find child " + val.first + " in struct declaration", this);
@@ -379,6 +380,9 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
                 current_func_type.mark_moved_value(linker.allocator, val.second->value, mem_type, linker);
                 if(implicit) {
                     link_with_implicit_constructor(implicit, linker, val_ptr);
+                } else if(!mem_type->satisfies(linker.allocator, value)) {
+                    const auto val_type = value->create_type(linker.allocator);
+                    linker.error("value with type '" + val_type->representation() + "' doesn't satisfy the struct member type '" + mem_type->representation() + "'", value);
                 }
             }
         }

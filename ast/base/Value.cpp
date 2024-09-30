@@ -557,8 +557,20 @@ Value* Value::get_first_value_from_value_node(ASTNode* node) {
             return node->holding_value();
         case ASTNodeKind::IfStmt:
             return get_first_value_from_value_node(((IfStatement*) node)->ifBody.nodes.back());
-        case ASTNodeKind::SwitchStmt:
-            return get_first_value_from_value_node(((SwitchStatement*) node)->scopes.front().second.nodes.back());
+        case ASTNodeKind::SwitchStmt: {
+            const auto switch_node = ((SwitchStatement*) node);
+            auto& scopes = switch_node->scopes;
+            if(!scopes.empty()) {
+                auto& nodes = scopes.front().second.nodes;
+                if(nodes.empty()) {
+                    return nullptr;
+                } else {
+                    return get_first_value_from_value_node(nodes.back());
+                }
+            } else {
+                return nullptr;
+            }
+        }
         default:
             return nullptr;
     }

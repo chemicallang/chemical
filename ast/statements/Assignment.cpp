@@ -25,8 +25,7 @@ void AssignStatement::declare_and_link(SymbolResolver &linker) {
     BaseType* value_type = lhs->create_type(linker.allocator);
     value->link(linker, value, value_type);
     if(!value_type->satisfies(linker.allocator, value)) {
-        const auto val_type = value->create_type(linker.allocator);
-        linker.error("value with type '" + val_type->representation() + "' doesn't satisfy type '" + value_type->representation() + "' in assignment", value);
+        linker.unsatisfied_type_err(value, value_type);
     }
     auto id = lhs->as_identifier();
     if(id) {

@@ -21,7 +21,7 @@ std::vector<Location> GotoDefAnalyzer::analyze(LexImportUnit* unit) {
     }
     auto& tokens_vec = token_parent.first ? token_parent.first->tokens : file->unit.tokens;
     auto token = tokens_vec[token_parent.second];
-    if(token && token->is_ref()) {
+    if(token && token->is_ref() && token->any) {
         const auto ref_linked = token->any->get_ref_linked_node();
         if(ref_linked) {
             const auto where = ref_linked->cst_token();

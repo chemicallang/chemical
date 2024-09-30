@@ -161,16 +161,20 @@ BaseType *SwitchStatement::known_type() {
 }
 
 bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
-    expression->link(linker, expression);
     VariantDefinition* variant_def = nullptr;
     auto& astAlloc = *linker.ast_allocator;
-    const auto linked = expression->known_type()->linked_node();
-    if(linked) {
-        variant_def = linked->as_variant_def();
-        if (value_ptr && variant_def && (scopes.size() < variant_def->variables.size() && !defScope.has_value())) {
-            linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
-            return false;
+    bool result = true;
+    if(expression->link(linker, expression)) {
+        const auto linked = expression->known_type()->linked_node();
+        if(linked) {
+            variant_def = linked->as_variant_def();
+            if (value_ptr && variant_def && (scopes.size() < variant_def->variables.size() && !defScope.has_value())) {
+                linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
+                return false;
+            }
         }
+    } else {
+        result = false;
     }
     for(auto& scope : scopes) {
         linker.scope_start();
@@ -189,7 +193,14 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
         defScope.value().link_sequentially(linker);
         linker.scope_end();
     }
-    return true;
+    if(result && value_ptr) {
+        auto val_node = get_value_node();
+        if(!val_node) {
+            linker.error("expected a single value node for the value", (ASTNode*) this);
+            return false;
+        }
+    }
+    return result;
 }
 
 void SwitchStatement::accept(Visitor *visitor) {

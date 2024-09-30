@@ -12,6 +12,7 @@ bool Lexer::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
         if (lexOperatorToken('(')) {
             if (!lexExpressionTokens()) {
                 (this->*malformed)(start, "expected an expression tokens in switch statement");
+                return true;
             }
             if (!lexOperatorToken(')')) {
                 (this->*malformed)(start, "expected ')' in switch statement");

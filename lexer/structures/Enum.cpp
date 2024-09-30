@@ -7,30 +7,23 @@
 #include "lexer/Lexer.h"
 
 bool Lexer::lexEnumBlockTokens() {
-    if(lexOperatorToken('{')) {
-        while(true) {
-            lexWhitespaceAndNewLines();
-            if(lexIdentifierToken()) {
-                lexWhitespaceToken();
-                if(lexOperatorToken(',')) {
-                    continue;
-                } else {
-                    lexWhitespaceAndNewLines();
-                    break;
-                }
-            } else if(lexSingleLineCommentTokens() || lexMultiLineCommentTokens()) {
+    while(true) {
+        lexWhitespaceAndNewLines();
+        if(lexIdentifierToken()) {
+            lexWhitespaceToken();
+            if(lexOperatorToken(',')) {
                 continue;
             } else {
+                lexWhitespaceAndNewLines();
                 break;
             }
-        };
-        if(!lexOperatorToken('}')) {
-            error("expected a closing bracket '}' in enum block");
+        } else if(lexSingleLineCommentTokens() || lexMultiLineCommentTokens()) {
+            continue;
+        } else {
+            break;
         }
-        return true;
-    } else {
-        return false;
-    }
+    };
+    return true;
 }
 
 bool Lexer::lexEnumStructureTokens(unsigned start) {
@@ -40,11 +33,19 @@ bool Lexer::lexEnumStructureTokens(unsigned start) {
             return true;
         }
         lexWhitespaceToken();
+        if(!lexOperatorToken('{')) {
+            error("expected a '{' for after the enum name");
+            return true;
+        }
         if(!lexEnumBlockTokens()) {
             error("expected an enum block for declaring an enum");
             return true;
         }
-        compound_collectable(start, LexTokenType::CompEnumDecl);
+        if(!lexOperatorToken('}')) {
+            error("expected a closing bracket '}' in enum block");
+            return true;
+        }
+        compound_from(start, LexTokenType::CompEnumDecl);
         return true;
     } else {
         return false;

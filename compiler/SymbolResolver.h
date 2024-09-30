@@ -384,4 +384,9 @@ public:
      */
     void dispose_module_symbols_now(const std::string& module_name);
 
+    /**
+     * error for when the value doesn't satisfy the requires type
+     */
+    void unsatisfied_type_err(Value* value, BaseType* type);
+
 };

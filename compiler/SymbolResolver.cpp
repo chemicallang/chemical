@@ -329,3 +329,12 @@ void SymbolResolver::dispose_module_symbols_now(const std::string& module_name) 
         }
     }
 }
+
+void SymbolResolver::unsatisfied_type_err(Value* value, BaseType* type) {
+    const auto val_type = value->create_type(allocator);
+    if(val_type) {
+        error("value with type '" + val_type->representation() + "' does not satisfy type '" + type->representation() + "'", value);
+    } else {
+        error("value does not satisfy type '" + type->representation() + "'", value);
+    }
+}

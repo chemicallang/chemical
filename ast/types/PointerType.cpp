@@ -33,6 +33,9 @@ bool PointerType::satisfies(BaseType *given) {
     }
     const auto pointer = given_pure->pointer_type(other_kind);
     if(pointer && pointer->type) {
+        if(type_kind == BaseTypeKind::Void) {
+            return true;
+        }
         return type->satisfies(pointer->type);
     }
     return false;

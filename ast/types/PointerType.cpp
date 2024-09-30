@@ -20,18 +20,18 @@ ASTNode *PointerType::linked_node() {
 bool PointerType::satisfies(BaseType *given) {
     const auto type_kind = type->kind();
     const auto given_pure = given->pure_type();
-    const auto pure_kind = given_pure->kind();
+    const auto other_kind = given_pure->kind();
     if(type_kind == BaseTypeKind::Char) {
         // this is a char* which is a string
-        if(pure_kind == BaseTypeKind::String) {
+        if(other_kind == BaseTypeKind::String) {
             return true;
         }
     }
-    if(pure_kind == BaseTypeKind::Array) {
+    if(other_kind == BaseTypeKind::Array) {
         const auto pure_type = ((ArrayType*) given_pure);
         return type->satisfies(pure_type->elem_type);
     }
-    const auto pointer = given_pure->pointer_type();
+    const auto pointer = given_pure->pointer_type(other_kind);
     if(pointer && pointer->type) {
         return type->satisfies(pointer->type);
     }

@@ -12,7 +12,7 @@ public:
     std::string type;
     ASTNode *linked;
 
-    LinkedType(std::string type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token) {
+    LinkedType(std::string type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(nullptr) {
 
     }
 

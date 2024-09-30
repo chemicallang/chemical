@@ -59,6 +59,9 @@ BaseType* Expression::create_type(ASTAllocator& allocator) {
     }
     auto first = firstValue->create_type(allocator);
     auto second = secondValue->create_type(allocator);
+    if(first == nullptr || second == nullptr) {
+        return nullptr;
+    }
     if((operation == Operation::Addition || operation == Operation::Subtraction) && first->kind() == BaseTypeKind::Pointer) {
         auto second_value_type = second->value_type();
         if(second_value_type >= ValueType::IntNStart && second_value_type <= ValueType::IntNEnd) {

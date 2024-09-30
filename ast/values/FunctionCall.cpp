@@ -758,7 +758,8 @@ void FunctionCall::infer_return_type(ASTDiagnoser& diagnoser, std::vector<BaseTy
 }
 
 ASTNode *FunctionCall::linked_node() {
-    return known_type()->linked_node();
+    const auto known = known_type();
+    return known ? known->linked_node() : nullptr;
 }
 
 void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser) {
@@ -942,5 +943,5 @@ void FunctionCall::interpret(InterpretScope &scope) {
 }
 
 BaseType* FunctionCall::known_type() {
-    return parent_val->known_type()->function_type()->returnType;
+    return parent_val ? parent_val->known_type()->function_type()->returnType : nullptr;
 }

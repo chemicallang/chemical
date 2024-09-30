@@ -458,11 +458,12 @@ bool FunctionType::mark_moved_value(
     if(chain && chain->values.back()->as_func_call()) {
         return false;
     }
-    const auto expected_type_kind = expected_type->kind();
-    if(expected_type_kind == BaseTypeKind::Reference) {
+    const auto expected_type_kind = expected_type ? expected_type->kind() : BaseTypeKind::Unknown;
+    if (expected_type_kind == BaseTypeKind::Reference) {
         return false;
     }
     const auto type = value.create_type(allocator);
+    if(!type) return false;
     const auto linked_node = type->get_direct_linked_node();
     if(!linked_node) {
         return false;
@@ -484,29 +485,33 @@ bool FunctionType::mark_moved_value(
     if (!has_destr && !has_clear_fn && !has_move_fn) {
         return false;
     }
-    const auto pure_expected = expected_type->pure_type();
-    const auto pure_expected_kind = pure_expected->kind();
-    const auto expected_node = pure_expected->get_ref_or_linked_node(pure_expected_kind);
-    if(!expected_node) {
-        if(expected_type_kind != BaseTypeKind::Any) {
-            diagnoser.error("cannot move a struct to a non struct type", &value);
-        }
-        return false;
-    }
     bool final = false;
-    if (expected_node == (ASTNode*) linked_def) {
-        final = mark_moved_value(&value, diagnoser);
-    } else {
-        const auto implicit = pure_expected->implicit_constructor_for(allocator, &value);
-        if(implicit && check_implicit_constructors) {
-            auto& param_type = *implicit->params[0]->type;
-            if(!param_type.is_reference()) { // not a reference type (requires moving)
-                final = mark_moved_value(&value, diagnoser);
+    if(expected_type) {
+        const auto pure_expected = expected_type->pure_type();
+        const auto pure_expected_kind = pure_expected->kind();
+        const auto expected_node = pure_expected->get_ref_or_linked_node(pure_expected_kind);
+        if(!expected_node) {
+            if(expected_type_kind != BaseTypeKind::Any) {
+                diagnoser.error("cannot move a struct to a non struct type", &value);
             }
-        } else {
-            diagnoser.error("unknown value being moved, where the struct types don't match", &value);
             return false;
         }
+        if (expected_node == (ASTNode*) linked_def) {
+            final = mark_moved_value(&value, diagnoser);
+        } else {
+            const auto implicit = pure_expected->implicit_constructor_for(allocator, &value);
+            if(implicit && check_implicit_constructors) {
+                auto& param_type = *implicit->params[0]->type;
+                if(!param_type.is_reference()) { // not a reference type (requires moving)
+                    final = mark_moved_value(&value, diagnoser);
+                }
+            } else {
+                diagnoser.error("unknown value being moved, where the struct types don't match", &value);
+                return false;
+            }
+        }
+    } else {
+        final = mark_moved_value(&value, diagnoser);
     }
     if(final) {
         if(has_destr) {

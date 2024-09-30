@@ -35,6 +35,7 @@ enum class AnnotationKind {
     Delete,
 
     // the function overrides another present above in a struct or interface
+    Unsafe,
     Override,
 
     // structs or unions can be declared anonymous

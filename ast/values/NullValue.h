@@ -13,6 +13,7 @@
 class NullValue : public Value {
 public:
 
+    PointerType* expected = nullptr;
     CSTToken* token;
 
     explicit NullValue(CSTToken* token) : token(token) {

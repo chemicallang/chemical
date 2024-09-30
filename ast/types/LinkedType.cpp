@@ -18,9 +18,10 @@ ValueType LinkedType::value_type() const {
 
 BaseType* LinkedType::pure_type() {
     if(linked) {
-        return linked->known_type();
+        const auto known = linked->known_type();
+        return known ? known : this;
     } else {
-        return nullptr;
+        return this;
     }
 }
 
@@ -34,6 +35,9 @@ bool LinkedType::satisfies(ValueType value_type) {
 
 bool LinkedType::satisfies(BaseType *other) {
     const auto other_kind = other->kind();
+    if(other_kind == BaseTypeKind::Linked) {
+        return linked == ((LinkedType*) other)->linked;
+    }
     const auto linked_kind = linked->kind();
     switch(linked_kind) {
         case ASTNodeKind::StructDecl:
@@ -52,7 +56,7 @@ bool LinkedType::satisfies(BaseType *other) {
             }
         }
         case ASTNodeKind::TypealiasStmt: {
-            return linked->as_typealias_unsafe()->actual_type->satisfies(other);
+            return linked->as_typealias_unsafe()->actual_type->satisfies(other->pure_type());
         }
         case ASTNodeKind::EnumDecl: {
             return linked == other->get_direct_linked_node();

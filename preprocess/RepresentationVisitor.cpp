@@ -62,6 +62,7 @@
 #include "ast/types/UBigIntType.h"
 #include "ast/types/UInt128Type.h"
 #include "ast/types/UIntType.h"
+#include "ast/types/LiteralType.h"
 #include "ast/types/ULongType.h"
 #include "ast/types/UShortType.h"
 #include "ast/types/VoidType.h"
@@ -935,9 +936,11 @@ void RepresentationVisitor::visit(UCharType *uchar) {
     write("uchar");
 }
 
-void RepresentationVisitor::visit(LiteralType *func) {
-    write("literal::");
-    write("TODO");
+void RepresentationVisitor::visit(LiteralType *type) {
+    write("literal");
+    write('<');
+    type->underlying->accept(this);
+    write('>');
 }
 
 void RepresentationVisitor::visit(UnnamedStruct *def) {

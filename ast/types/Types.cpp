@@ -71,3 +71,18 @@ bool StringType::satisfies(ASTAllocator& allocator, Value* value) {
 bool LiteralType::satisfies(ASTAllocator& allocator, Value* value) {
     return !value->reference() && underlying->satisfies(allocator, value);
 }
+
+bool IntNType::satisfies(BaseType* type) {
+    if(type->kind() == BaseTypeKind::IntN) {
+        const auto intN = (IntNType*) type;
+        const auto this_unsigned = is_unsigned();
+        const auto other_unsigned = intN->is_unsigned();
+        if((this_unsigned && other_unsigned) || (!this_unsigned && !other_unsigned)) {
+            return true;
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+}

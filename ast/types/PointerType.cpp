@@ -1,7 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "PointerType.h"
-
+#include "StringType.h"
+#include "LiteralType.h"
 #include <memory>
 #include "VoidType.h"
 
@@ -16,7 +17,15 @@ ASTNode *PointerType::linked_node() {
 }
 
 bool PointerType::satisfies(BaseType *given) {
+    const auto type_kind = type->kind();
     const auto pure = given->pure_type();
+    if(type_kind == BaseTypeKind::Char) {
+        // this is a char* which is a string
+        const auto other = pure->kind();
+        if(other == BaseTypeKind::String) {
+            return true;
+        }
+    }
     const auto pointer = pure->pointer_type();
     if(pointer) {
         return type->satisfies(pointer->type);

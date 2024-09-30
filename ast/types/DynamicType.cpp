@@ -9,3 +9,7 @@ DynamicType::DynamicType(BaseType* referenced, CSTToken* token) : referenced(ref
 void DynamicType::link(SymbolResolver &linker) {
     referenced->link(linker);
 }
+
+bool DynamicType::satisfies(ASTAllocator &allocator, Value *value) {
+    return referenced->satisfies(allocator, value);
+}

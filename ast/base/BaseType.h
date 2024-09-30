@@ -195,9 +195,7 @@ public:
     /**
      * whether the given value satisfies the current type
      */
-    virtual bool satisfies(ASTAllocator& allocator, Value* value) {
-        throw std::runtime_error("satisfies Value* called on base type");
-    }
+    virtual bool satisfies(ASTAllocator& allocator, Value* value);
 
     /**
      * pointer type returns pointer type

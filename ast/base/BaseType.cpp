@@ -304,4 +304,9 @@ FunctionType *BaseType::function_type() {
     }
 }
 
+bool BaseType::satisfies(ASTAllocator& allocator, Value* value) {
+    const auto val_type = value->create_type(allocator);
+    return val_type != nullptr && satisfies(val_type);
+}
+
 BaseType::~BaseType() = default;

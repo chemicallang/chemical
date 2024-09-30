@@ -147,7 +147,7 @@ Value *Expression::evaluate(InterpretScope &scope) {
         scope.error(
                 "Cannot evaluate expression as the method with index " + std::to_string(index) +
                 " does not exist, for value types " + to_string(fEvl->value_type()) + " and " +
-                to_string(sEvl->value_type()));
+                to_string(sEvl->value_type()), this);
         return nullptr;
     }
 }

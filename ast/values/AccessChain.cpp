@@ -171,8 +171,7 @@ Value *AccessChain::parent(InterpretScope &scope) {
     while (i < (values.size() - 1)) {
         current = values[i]->find_in(scope, current);
         if (current == nullptr) {
-            scope.error(
-                    "(access chain) " + Value::representation() + " child " + values[i]->representation() + " not found");
+            scope.error("(access chain) " + Value::representation() + " child " + values[i]->representation() + " not found", (ASTNode*) this);
             return nullptr;
         }
         i++;
@@ -190,10 +189,10 @@ inline Value* AccessChain::parent_value(InterpretScope &scope) {
 #ifdef DEBUG
     auto p = parent(scope);
     if (p == nullptr) {
-        scope.error("parent is nullptr in access cain " + Value::representation());
+        scope.error("parent is nullptr in access cain " + Value::representation(), (ASTNode*) this);
     } else if (p->evaluated_value(scope) == nullptr) {
         scope.error("evaluated value of parent is nullptr in access chain " + Value::representation() + " pointer " +
-                    p->representation());
+                    p->representation(), (ASTNode*) this);
     }
 #endif
     return parent(scope)->evaluated_value(scope);

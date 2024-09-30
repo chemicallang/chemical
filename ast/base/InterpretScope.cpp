@@ -54,8 +54,8 @@ void InterpretScope::erase_value(const std::string &name) {
     }
 }
 
-void InterpretScope::error(const std::string &err) {
-    global->add_error(err);
+void InterpretScope::error(const std::string& err, ASTAny* any) {
+    global->interpret_error(err, any);
 }
 
 void InterpretScope::print_values() {

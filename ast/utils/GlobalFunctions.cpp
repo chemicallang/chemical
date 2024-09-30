@@ -326,18 +326,18 @@ public:
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {
-            call_scope->error("compiler::size called without arguments");
+            call_scope->error("compiler::size called without arguments", call);
             return nullptr;
         }
         const auto val = call->values[0];
         const auto val_type = val->value_type();
         if(val_type != ValueType::String && val_type != ValueType::Array) {
-            call_scope->error("compiler::size called with invalid arguments");
+            call_scope->error("compiler::size called with invalid arguments", call);
             return nullptr;
         }
         auto value = resolve_ref(val, call_scope);
         if(!value) {
-            call_scope->error("couldn't get value for compiler::size");
+            call_scope->error("couldn't get value for compiler::size", call);
             return nullptr;
         }
         switch(val_type) {
@@ -652,7 +652,7 @@ public:
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         auto& backend = *call_scope->global->backend_context;
         if(call->values.size() != 2) {
-            call_scope->error("std::mem::copy called with arguments of length not equal to two");
+            call_scope->error("std::mem::copy called with arguments of length not equal to two", call);
             return nullptr;
         }
         backend.mem_copy(call->values[0], call->values[1]);

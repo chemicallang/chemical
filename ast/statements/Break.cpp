@@ -18,7 +18,7 @@ void BreakStatement::declare_and_link(SymbolResolver &linker) {
 
 void BreakStatement::interpret(InterpretScope &scope) {
     if(node == nullptr) {
-        scope.error("[Break] statement has nullptr to loop node");
+        scope.error("[Break] statement has nullptr to loop node", this);
         return;
     }
     node->body.stopInterpretOnce();

@@ -103,7 +103,7 @@ ASTNode *IndexOperator::linked_node() {
 Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     auto value = values[0];
     if (values.size() > 1) {
-        scope.error("Index operator only supports a single integer index at the moment");
+        scope.error("Index operator only supports a single integer index at the moment", this);
     }
 #ifdef DEBUG
     try {

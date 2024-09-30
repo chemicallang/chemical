@@ -9,6 +9,7 @@
 #include "InterpretScope.h"
 #include "utils/fwd/functional.h"
 #include "ASTAllocator.h"
+#include "compiler/ASTDiagnoser.h"
 #include <vector>
 #include <memory>
 
@@ -20,13 +21,8 @@ class Namespace;
 
 class SymbolResolver;
 
-class GlobalInterpretScope : public InterpretScope {
+class GlobalInterpretScope : public InterpretScope, public ASTDiagnoser {
 public:
-
-    /**
-     * This contains errors that occur during interpretation
-     */
-    std::vector<std::string> errors;
 
     /**
      * a pointer to build compiler is stored, so compile time
@@ -93,9 +89,8 @@ public:
     ~GlobalInterpretScope() override;
 
     /**
-     * Given error will be stored in the errors vector
-     * @param err
+     * apart from adding a diagnostic, this notifies in debug mode
      */
-    void add_error(const std::string &err);
+    void interpret_error(const std::string& error, ASTAny* any);
 
 };

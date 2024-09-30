@@ -8,12 +8,9 @@
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
 #include "ast/structures/Scope.h"
-
+#include "rang.hpp"
 #include <utility>
 #include <iostream>
-
-#define ANSI_COLOR_RED     "\x1b[91m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
 
 GlobalInterpretScope::GlobalInterpretScope(
     BackendContext* context,
@@ -23,16 +20,16 @@ GlobalInterpretScope::GlobalInterpretScope(
 
 }
 
-void GlobalInterpretScope::add_error(const std::string &err) {
+void GlobalInterpretScope::interpret_error(const std::string& msg, ASTAny* any) {
 #ifdef DEBUG
-    std::cerr << ANSI_COLOR_RED << "[InterpretError] " << err << ANSI_COLOR_RESET << std::endl;
+    std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
 #endif
-    errors.emplace_back(err);
+    ASTDiagnoser::error(msg, any);
 }
 
 void GlobalInterpretScope::clean() {
     InterpretScope::clean();
-    errors.clear();
+    diagnostics.clear();
 }
 
 GlobalInterpretScope::~GlobalInterpretScope() = default;

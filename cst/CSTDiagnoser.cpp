@@ -3,11 +3,12 @@
 #include <iostream>
 #include "cst/base/CSTDiagnoser.h"
 #include "cst/base/CSTToken.h"
+#include "rang.hpp"
 
 void CSTDiagnoser::diagnostic(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
     if (severity == DiagSeverity::Error) {
 #ifdef DEBUG
-        std::cerr << "[Debug_Error] " << message << std::endl;
+        std::cerr << rang::fg::red << "[Debug_Error] " << message << rang::fg::reset << std::endl;
 #endif
         has_errors = true;
     }

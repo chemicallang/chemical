@@ -1290,7 +1290,7 @@ Value *FunctionDeclaration::call(
     bool evaluate_refs
 ) {
     InterpretScope fn_scope(nullptr, call_scope->global);
-    return call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs);
+    return call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs, call_obj);
 }
 
 // called by the return statement
@@ -1313,7 +1313,8 @@ Value *FunctionDeclaration::call(
     std::vector<Value*> &call_args,
     Value* parent,
     InterpretScope *fn_scope,
-    bool evaluate_refs
+    bool evaluate_refs,
+    ASTAny* debug_value
 ) {
     callScope = call_scope;
     auto& allocator = fn_scope->allocator;
@@ -1321,7 +1322,7 @@ Value *FunctionDeclaration::call(
     auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
     if (params.size() != params_given) {
         fn_scope->error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
-                        std::to_string(call_args.size()));
+                        std::to_string(call_args.size()), debug_value);
         return nullptr;
     }
     if(self_param) {

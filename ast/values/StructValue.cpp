@@ -443,12 +443,12 @@ Value *StructValue::call_member(
 ) {
     auto fn = definition->member(name);
     if (fn == nullptr) {
-        scope.error("couldn't find member function by name " + name + " in a struct by name " + refType->representation());
+        scope.error("couldn't find member function by name " + name + " in a struct by name " + refType->representation(), this);
         return nullptr;
     }
 #ifdef DEBUG
     if (!fn->body.has_value()) {
-        scope.error("function doesn't have body in a struct " + name);
+        scope.error("function doesn't have body in a struct " + name, this);
         return nullptr;
     }
 #endif

@@ -27,6 +27,10 @@ public:
         visitor->visit(this);
     }
 
+    BaseType* pure_type() override {
+        return underlying;
+    }
+
     [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Literal;

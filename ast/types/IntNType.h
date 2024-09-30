@@ -36,6 +36,8 @@ public:
         return type == value_type();
     }
 
+    bool satisfies(BaseType *type) override;
+
     [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::IntN;

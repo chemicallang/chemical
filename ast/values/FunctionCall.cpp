@@ -655,13 +655,13 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker){
     while(i < values.size()) {
         const auto param = func_type->func_param_for_arg_at(i);
         if (param) {
-            auto implicit_constructor = param->type->implicit_constructor_for(linker.allocator, values[i]);
+            const auto value = values[i];
+            auto implicit_constructor = param->type->implicit_constructor_for(linker.allocator, value);
             if (implicit_constructor) {
-//                if(linker.preprocess) {
-//                    values[i] = call_with_arg(implicit_constructor, values[i], linker);
-//                } else {
-                    link_with_implicit_constructor(implicit_constructor, linker, values[i]);
-//                }
+                link_with_implicit_constructor(implicit_constructor, linker, value);
+            } else if(!param->type->satisfies(linker.allocator, value)) {
+                const auto val_type = value->create_type(linker.allocator);
+                linker.error("argument with type '" + val_type->representation() + "' doesn't satisfy the parameter type '" + param->type->representation() + "'", value);
             }
         }
         i++;

@@ -51,6 +51,12 @@ bool LinkedType::satisfies(BaseType *other) {
                 break;
             }
         }
+        case ASTNodeKind::TypealiasStmt: {
+            return linked->as_typealias_unsafe()->actual_type->satisfies(other);
+        }
+        case ASTNodeKind::EnumDecl: {
+            return linked == other->get_direct_linked_node();
+        }
         default:
             break;
     }

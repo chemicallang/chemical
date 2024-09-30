@@ -14,6 +14,7 @@
 #include "StringType.h"
 #include "LiteralType.h"
 #include "VoidType.h"
+#include "ast/statements/Typealias.h"
 
 const AnyType AnyType::instance(nullptr);
 const BoolType BoolType::instance(nullptr);
@@ -73,7 +74,8 @@ bool LiteralType::satisfies(ASTAllocator& allocator, Value* value) {
 }
 
 bool IntNType::satisfies(BaseType* type) {
-    if(type->kind() == BaseTypeKind::IntN) {
+    const auto type_kind = type->kind();
+    if(type_kind == BaseTypeKind::IntN) {
         const auto intN = (IntNType*) type;
         const auto this_unsigned = is_unsigned();
         const auto other_unsigned = intN->is_unsigned();
@@ -82,7 +84,6 @@ bool IntNType::satisfies(BaseType* type) {
         } else {
             return false;
         }
-    } else {
-        return false;
     }
+    return false;
 }

@@ -189,9 +189,14 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
     unsigned i = 0;
     auto itr = member->values.begin();
     while(i < values.size()) {
-        auto implicit_constructor = itr->second->type->implicit_constructor_for(linker.allocator, values[i]);
+        const auto value = values[i];
+        const auto type = itr->second->type;
+        auto implicit_constructor = type->implicit_constructor_for(linker.allocator, value);
         if (implicit_constructor) {
-            link_with_implicit_constructor(implicit_constructor, linker, values[i]);
+            link_with_implicit_constructor(implicit_constructor, linker, value);
+        } else if(!type->satisfies(linker.allocator, value)) {
+            const auto val_type = value->create_type(linker.allocator);
+            linker.error("argument with type '" + val_type->representation() + "' doesn't satisfy the variant member type '" + type->representation() + "'", value);
         }
         i++;
         itr++;

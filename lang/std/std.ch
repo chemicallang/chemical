@@ -11,13 +11,13 @@ if(compiler::is_clang_based()) {
 
 public func malloc(size : size_t) : void*
 
-public func realloc(block : void*, size : size_t) : void*
+public func realloc(block : any*, size : size_t) : void*
 
-public func free(block : void*)
+public func free(block : any*)
 
 public func memcpy(
-    _Dst : void*,
-    _Src : void*,
+    _Dst : any*,
+    _Src : any*,
     _Size : size_t
 ) : void*;
 
@@ -29,7 +29,7 @@ public func strcmp (str1 : char*, str2 : char*) : int;
 
 public func strncmp(str1 : char*, str2 : char*, n : size_t) : int
 
-public func memcmp(ptr1 : void*, ptr2 : void*, num : size_t) : int
+public func memcmp(ptr1 : any*, ptr2 : any*, num : size_t) : int
 
 /**
 public func exit(code : int)

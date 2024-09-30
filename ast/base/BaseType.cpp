@@ -286,8 +286,7 @@ int16_t BaseType::set_generic_iteration(int16_t iteration) {
     return -2;
 }
 
-PointerType *BaseType::pointer_type() {
-    auto k = kind();
+PointerType *BaseType::pointer_type(BaseTypeKind k) {
     if(k == BaseTypeKind::Pointer) {
         return (PointerType*) this;
     } else {
@@ -295,8 +294,7 @@ PointerType *BaseType::pointer_type() {
     }
 }
 
-FunctionType *BaseType::function_type() {
-    auto k = kind();
+FunctionType *BaseType::function_type(BaseTypeKind k) {
     if(k == BaseTypeKind::Function) {
         return (FunctionType*) this;
     } else {

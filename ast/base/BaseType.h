@@ -200,12 +200,26 @@ public:
     /**
      * pointer type returns pointer type
      */
-    PointerType *pointer_type();
+    PointerType *pointer_type(BaseTypeKind k);
+
+    /**
+     * a helper inline function
+     */
+    inline PointerType* pointer_type() {
+        return pointer_type(kind());
+    }
 
     /**
      * function type returns function type
      */
-    FunctionType *function_type();
+    FunctionType *function_type(BaseTypeKind k);
+
+    /**
+     * a helper inline function
+     */
+    FunctionType *function_type() {
+        return function_type(kind());
+    }
 
     /**
      * representation is representation of the type

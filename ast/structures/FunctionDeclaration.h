@@ -392,7 +392,8 @@ public:
         std::vector<Value*> &call_args,
         Value* parent_val,
         InterpretScope *fn_scope,
-        bool evaluate_refs = true
+        bool evaluate_refs = true,
+        ASTAny* debug_value = nullptr
     );
 
     BaseType* create_value_type(ASTAllocator& allocator) override;

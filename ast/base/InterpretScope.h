@@ -100,9 +100,8 @@ public:
 
     /**
      * The errors are stored in global scope only
-     * @param err
      */
-    void error(const std::string& err);
+    void error(const std::string& err, ASTAny* any);
 
     /**
      * this can be called to "clean" everything in this scope

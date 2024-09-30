@@ -143,7 +143,7 @@ bool VariableIdentifier::reference() {
 void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) {
 #ifdef DEBUG
     if (parent == nullptr) {
-        scope.error("set_value_in in variable identifier, received null pointer to parent");
+        scope.error("set_value_in in variable identifier, received null pointer to parent", parent);
     }
 #endif
     parent->set_child_value(value, next_value, op);
@@ -154,21 +154,21 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
     // iterator for previous value
     auto itr = scope.find_value_iterator(value);
     if(itr.first == itr.second.values.end()) {
-        scope.error("couldn't find identifier '" + value + "' in current scope");
+        scope.error("couldn't find identifier '" + value + "' in current scope", this);
         return;
     }
 
     // using the scope of the found value, so that it's initialized in the same scope
     auto newValue = rawValue->scope_value(itr.second);
     if (newValue == nullptr) {
-        scope.error("trying to assign null ptr to identifier " + value);
+        scope.error("trying to assign null ptr to identifier " + value, this);
         return;
     }
 
     // var init statement of current value, being assigned var x (<--- this one) = y
     auto var_init = declaration();
     if (var_init == nullptr) {
-        scope.error("couldn't find declaration for identifier " + value);
+        scope.error("couldn't find declaration for identifier " + value, this);
         return;
     }
 
@@ -178,7 +178,7 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
         auto value_var_init = rawValue->declaration();
         if (value_var_init == nullptr) {
             scope.error("couldn't find declaration of the identifier " + rawValue->representation() +
-                        " to assign to " + value);
+                        " to assign to " + value, this);
             return;
         }
     }

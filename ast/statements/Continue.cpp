@@ -15,9 +15,9 @@ void ContinueStatement::accept(Visitor *visitor) {
 }
 
 void ContinueStatement::interpret(InterpretScope &scope) {
-    if (node == nullptr) {
-        scope.error("[Continue] statement has nullptr to loop node");
-        return;
-    }
+//    if (node == nullptr) {
+//        scope.error("[Continue] statement has nullptr to loop node", this);
+//        return;
+//    }
     node->body.stopInterpretOnce();
 }

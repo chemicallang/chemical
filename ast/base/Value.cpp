@@ -473,7 +473,7 @@ Value* Value::find_in(InterpretScope& scope, Value* parent) {
 }
 
 void Value::set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op) {
-    scope.error("Value::set_value_in called on base value " + representation());
+    scope.error("Value::set_value_in called on base value " + representation(), value);
 }
 
 StructDefinition* Value::get_param_linked_struct() {
@@ -610,7 +610,7 @@ bool Value::should_build_chain_type(std::vector<Value*>& chain, unsigned index) 
 }
 
 void Value::set_identifier_value(InterpretScope& scope, Value* rawValue, Operation op) {
-    scope.error("set_identifier_value called on base value");
+    scope.error("set_identifier_value called on base value", rawValue);
 }
 
 int16_t ChainValue::set_generic_iteration(ASTAllocator& allocator) {

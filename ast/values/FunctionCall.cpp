@@ -839,7 +839,7 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
     if(id != nullptr) {
         return parent->call_member(scope, id->value, values);
     } else {
-        scope.error("No identifier for function call");
+        scope.error("No identifier for function call", this);
         return nullptr;
     }
 }
@@ -849,7 +849,7 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
     if (func) {
         return func->call(&scope, call, parent);
     } else {
-        scope.error("(function call) calling a function that is not found or has no body");
+        scope.error("(function call) calling a function that is not found or has no body", call);
     }
     return nullptr;
 }

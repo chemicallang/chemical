@@ -12,15 +12,16 @@
 #include "EnumMember.h"
 #include "ast/base/ExtendableAnnotableNode.h"
 #include "ast/base/AccessSpecifier.h"
+#include "ast/types/LinkedType.h"
 
 class EnumDeclaration : public ExtendableAnnotableNode {
 public:
 
     ASTNode* parent_node;
-    // the type is contained inside here
-    IntType type;
     CSTToken* token;
     AccessSpecifier specifier;
+    LinkedType linked_type;
+    IntType underlying_type;
 
     /**
      * @brief Construct a new EnumDeclaration object.
@@ -34,7 +35,7 @@ public:
             ASTNode* parent_node,
             CSTToken* token,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node), token(token), type(nullptr), specifier(specifier) {
+    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node), token(token), linked_type(name, this, token), underlying_type(token), specifier(specifier) {
 
     }
 
@@ -66,9 +67,11 @@ public:
 
     BaseType* create_value_type(ASTAllocator& allocator) override;
 
-//    hybrid_ptr<BaseType> get_value_type() override;
-
     BaseType* known_type() override;
+
+    uint64_t byte_size(bool is64Bit) override {
+        return underlying_type.byte_size(is64Bit);
+    }
 
 #ifdef COMPILER_BUILD
 

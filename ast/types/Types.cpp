@@ -56,9 +56,9 @@ bool FloatType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::Float;
 }
 
-bool PointerType::satisfies(ASTAllocator& allocator, Value* value) {
-    return value->value_type() == ValueType::Pointer || value->is_pointer() && type->satisfies(value->known_type());
-}
+//bool PointerType::satisfies(ASTAllocator& allocator, Value* value) {
+//    return value->value_type() == ValueType::Pointer || value->is_pointer() && type->satisfies(value->known_type());
+//}
 
 bool LinkedType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->known_type()->is_same(this);

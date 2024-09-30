@@ -37,7 +37,7 @@ bool LinkedType::satisfies(BaseType *other) {
         return linked == ((StructType*) other)->linked_node();
     }
     auto known = linked->known_type();
-    if(known != this) {
+    if(known && known != this) {
         return known->satisfies(other);
     }
     return false;

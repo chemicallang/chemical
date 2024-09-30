@@ -3,9 +3,10 @@
 #include "EnumDeclaration.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/types/IntType.h"
+#include "ast/types/LinkedType.h"
 
 BaseType* EnumMember::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<IntType>()) IntType(nullptr);
+    return new (allocator.allocate<LinkedType>()) LinkedType(parent_node->name, (ASTNode*) parent_node, token);
 }
 
 //hybrid_ptr<BaseType> EnumMember::get_value_type() {
@@ -13,7 +14,7 @@ BaseType* EnumMember::create_value_type(ASTAllocator& allocator) {
 //}
 
 BaseType* EnumMember::known_type() {
-    return (BaseType*) &IntType::instance;
+    return parent_node->known_type();
 }
 
 ASTNode *EnumDeclaration::child(const std::string &name) {
@@ -26,12 +27,11 @@ ASTNode *EnumDeclaration::child(const std::string &name) {
 }
 
 void EnumDeclaration::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name, this, specifier, false);
+    linker.declare_node(name, (ASTNode*) this, specifier, false);
 }
 
 BaseType* EnumDeclaration::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<IntType>()) IntType(nullptr);
-//    return std::make_unique<IntType>(nullptr);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, token);
 }
 
 //hybrid_ptr<BaseType> EnumDeclaration::get_value_type() {
@@ -39,5 +39,5 @@ BaseType* EnumDeclaration::create_value_type(ASTAllocator& allocator) {
 //}
 
 BaseType* EnumDeclaration::known_type() {
-    return &type;
+    return &linked_type;
 }

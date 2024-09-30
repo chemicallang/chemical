@@ -3,6 +3,7 @@
 #include "PointerType.h"
 #include "StringType.h"
 #include "LiteralType.h"
+#include "ArrayType.h"
 #include <memory>
 #include "VoidType.h"
 
@@ -18,16 +19,20 @@ ASTNode *PointerType::linked_node() {
 
 bool PointerType::satisfies(BaseType *given) {
     const auto type_kind = type->kind();
-    const auto pure = given->pure_type();
+    const auto given_pure = given->pure_type();
+    const auto pure_kind = given_pure->kind();
     if(type_kind == BaseTypeKind::Char) {
         // this is a char* which is a string
-        const auto other = pure->kind();
-        if(other == BaseTypeKind::String) {
+        if(pure_kind == BaseTypeKind::String) {
             return true;
         }
     }
-    const auto pointer = pure->pointer_type();
-    if(pointer) {
+    if(pure_kind == BaseTypeKind::Array) {
+        const auto pure_type = ((ArrayType*) given_pure);
+        return type->satisfies(pure_type->elem_type);
+    }
+    const auto pointer = given_pure->pointer_type();
+    if(pointer && pointer->type) {
         return type->satisfies(pointer->type);
     }
     return false;

@@ -634,7 +634,7 @@ void FunctionCall::link_values(SymbolResolver &linker) {
     while(i < values.size()) {
         auto& value_ptr = values[i];
         auto& value = *value_ptr;
-        const auto expected_type = func_type->func_param_for_arg_at(i)->type;
+        const auto expected_type = func_type ? func_type->func_param_for_arg_at(i)->type : nullptr;
         value.link(linker, value_ptr, expected_type);
         current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
         i++;
@@ -642,9 +642,11 @@ void FunctionCall::link_values(SymbolResolver &linker) {
 }
 
 void FunctionCall::relink_values(SymbolResolver &linker) {
+    auto func_type = function_type(linker.allocator);
     unsigned i = 0;
     while(i < values.size()) {
-        values[i]->relink_after_generic(linker, values[i], get_arg_type(i));
+        const auto expected_type = func_type ? func_type->func_param_for_arg_at(i)->type : nullptr;
+        values[i]->relink_after_generic(linker, values[i], expected_type);
         i++;
     }
 }
@@ -808,13 +810,16 @@ bool FunctionCall::find_link_in_parent(ChainValue* parent, SymbolResolver& resol
     int16_t prev_itr;
     relink_multi_func(resolver.allocator, &resolver);
     link_gen_args(resolver);
-    link_constructor(resolver);
+    // link the values, based on which constructor is determined
     link_values(resolver);
+    // find the constructor based on linked values
+    link_constructor(resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
         prev_itr = func_decl->active_iteration;
         generic_iteration = func_decl->register_call(resolver, this, expected_type);
         func_decl->set_active_iteration(generic_iteration);
     }
+    // relink values, because now we know the function type, so we know expected type
     relink_values(resolver);
     if(link_implicit_constructor) {
         link_args_implicit_constructor(resolver);

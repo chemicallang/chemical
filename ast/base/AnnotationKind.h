@@ -18,6 +18,7 @@ enum class AnnotationKind {
     CompTime, // functions that are compile time
     CompilerInterface, // it means that struct is a compiler interface
     Cpp, // mangle the function name using C++ name mangling scheme
+    Deprecated, // deprecated annotation
 
     NoInit, // structs that should not be initialized
 

@@ -380,15 +380,20 @@ PointerType* current_self_pointer(CSTConverter* converter, CSTToken* token) {
 }
 
 void CSTConverter::visitFunctionParam(CSTToken* param) {
-    auto identifier = str_token(param->tokens[0]);
-    visit(param->tokens, 2);
+    auto &paramTokens = param->tokens;
+    if (is_char_op(paramTokens[0], '&')) { // implicit parameter
+        put_node(new (local<FunctionParam>()) FunctionParam(str_token(paramTokens[1]), current_self_pointer(this, paramTokens[1]), 0, nullptr, true, nullptr, param), param);
+        return;
+    }
+    auto identifier = str_token(paramTokens[0]);
+    visit(paramTokens, 2);
     BaseType *baseType = nullptr;
-    if(2 < param->tokens.size() && param->tokens[2]->is_type()) {
+    if(2 < paramTokens.size() && paramTokens[2]->is_type()) {
         baseType = type();
     }
     Value* def_value = nullptr;
-    if(param->tokens.back()->is_value()) {
-        param->tokens.back()->accept(this);
+    if(paramTokens.back()->is_value()) {
+        paramTokens.back()->accept(this);
         def_value = value();
     }
     put_node(new (local<FunctionParam>()) FunctionParam(identifier, baseType, param_index, def_value, false, nullptr, param), param);
@@ -408,20 +413,11 @@ FunctionParamsResult function_params(CSTConverter* converter, ASTAllocator& allo
     std::vector<FunctionParam*> params;
     unsigned i = start;
     while (i < tokens.size()) {
-        if (converter->param_index == 0 && is_char_op(tokens[i]->start_token(), '&')) {
-            auto &paramTokens = ((CSTToken* ) tokens[i])->tokens;
-            auto strId = str_token(paramTokens[1]);
-            if (strId != "this" && strId != "self") {
-                converter->error("expected self parameter to be named 'self' or 'this'", tokens[i]);
-            }
-            params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam(strId, current_self_pointer(converter, paramTokens[1]), 0, nullptr, true, nullptr, tokens[i]));
-            converter->param_index = 1;
-        }
 //        else if(optional_param_types && tokens[i]->type() == LexTokenType::Variable) {
 //            auto strId = str_token(tokens[1]);
 //            params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam(strId, std::make_unique<VoidType>(), 0, std::nullopt));
 //        }
-        else if (tokens[i]->compound()) {
+        if (tokens[i]->compound()) {
             tokens[i]->accept(converter);
             converter->param_index++;
             auto param = (FunctionParam *) converter->nodes.back();

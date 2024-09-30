@@ -391,7 +391,7 @@ void CSTConverter::visitFunctionParam(CSTToken* param) {
         param->tokens.back()->accept(this);
         def_value = value();
     }
-    put_node(new (local<FunctionParam>()) FunctionParam(identifier, baseType, param_index, def_value, nullptr, param), param);
+    put_node(new (local<FunctionParam>()) FunctionParam(identifier, baseType, param_index, def_value, false, nullptr, param), param);
 }
 
 struct FunctionParamsResult {
@@ -414,7 +414,7 @@ FunctionParamsResult function_params(CSTConverter* converter, ASTAllocator& allo
             if (strId != "this" && strId != "self") {
                 converter->error("expected self parameter to be named 'self' or 'this'", tokens[i]);
             }
-            params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam(strId, current_self_pointer(converter, paramTokens[1]), 0, nullptr, nullptr, tokens[i]));
+            params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam(strId, current_self_pointer(converter, paramTokens[1]), 0, nullptr, true, nullptr, tokens[i]));
             converter->param_index = 1;
         }
 //        else if(optional_param_types && tokens[i]->type() == LexTokenType::Variable) {

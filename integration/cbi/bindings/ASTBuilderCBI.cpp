@@ -425,8 +425,8 @@ FunctionDeclaration* ASTBuildermake_function(CSTConverter* converter, chem::stri
     return new (converter->local<FunctionDeclaration>()) FunctionDeclaration(name->to_std_string(), {}, returnType, isVariadic, parent_node, token, std::nullopt);
 }
 
-FunctionParam* ASTBuildermake_function_param(CSTConverter* converter, chem::string* name, BaseType* type, unsigned int index, Value* value, FunctionType* decl, CSTToken* token) {
-    return new (converter->local<FunctionParam>()) FunctionParam(name->to_std_string(), type, index, value, decl, token);
+FunctionParam* ASTBuildermake_function_param(CSTConverter* converter, chem::string* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, CSTToken* token) {
+    return new (converter->local<FunctionParam>()) FunctionParam(name->to_std_string(), type, index, value, implicit, decl, token);
 }
 
 GenericTypeParameter* ASTBuildermake_generic_param(CSTConverter* converter, chem::string* name, BaseType* def_type, ASTNode* parent_node, unsigned int index, CSTToken* token) {

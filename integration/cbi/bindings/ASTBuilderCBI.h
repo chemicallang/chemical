@@ -283,7 +283,7 @@ extern "C" {
 
     FunctionDeclaration* ASTBuildermake_function(CSTConverter* converter, chem::string* name, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, CSTToken* token);
 
-    FunctionParam* ASTBuildermake_function_param(CSTConverter* converter, chem::string* name, BaseType* type, unsigned int index, Value* value, FunctionType* decl, CSTToken* token);
+    FunctionParam* ASTBuildermake_function_param(CSTConverter* converter, chem::string* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, CSTToken* token);
 
     GenericTypeParameter* ASTBuildermake_generic_param(CSTConverter* converter, chem::string* name, BaseType* def_type, ASTNode* parent_node, unsigned int index, CSTToken* token);
 

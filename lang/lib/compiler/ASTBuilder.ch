@@ -500,7 +500,7 @@ public struct ASTBuilder {
 
     func make_function(&self, name : string*, returnType : BaseType*, isVariadic : bool, hasBody : bool, parent_node : ASTNode*, token : CSTToken*) : FunctionDeclaration*
 
-    func make_function_param(&self, name : string*, type : BaseType*, index : uint, value : Value*, decl : FunctionType*, token : CSTToken*) : FunctionParam*
+    func make_function_param(&self, name : string*, type : BaseType*, index : uint, value : Value*, implicit : bool, decl : FunctionType*, token : CSTToken*) : FunctionParam*
 
     func make_generic_param(&self, name : string*, def_type : BaseType*, parent_node : ASTNode*, index : uint, token : CSTToken*) : GenericTypeParameter*
 

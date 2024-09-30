@@ -26,12 +26,14 @@ public:
     unsigned int index;
     Value* defValue;
     CSTToken* token;
+    const bool is_implicit;
 
     FunctionParam(
             std::string name,
             BaseType* type,
             unsigned int index,
             Value* defValue,
+            bool is_implicit,
             FunctionType* func_type,
             CSTToken* token
     );

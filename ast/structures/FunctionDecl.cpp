@@ -948,6 +948,7 @@ FunctionParam::FunctionParam(
         BaseType* type,
         unsigned int index,
         Value* defValue,
+        bool is_implicit,
         FunctionType* func_type,
         CSTToken* token
 ) : BaseFunctionParam(
@@ -957,6 +958,7 @@ FunctionParam::FunctionParam(
     ),
     index(index),
     defValue(defValue),
+    is_implicit(is_implicit),
     token(token)
 {
     name.shrink_to_fit();
@@ -983,7 +985,7 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     if (defValue) {
         copied = defValue->copy(allocator);
     }
-    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, func_type, token);
+    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, token);
 }
 
 BaseType* BaseFunctionParam::create_value_type(ASTAllocator& allocator) {
@@ -1117,7 +1119,7 @@ void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, StructDefi
 void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, true, this, nullptr));
     }
     returnType = new (allocator.allocate<VoidType>()) VoidType(nullptr);
 }
@@ -1125,7 +1127,7 @@ void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ExtendableM
 void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, true, this, nullptr));
     }
     returnType = new (allocator.allocate<VoidType>()) VoidType(nullptr);
 }
@@ -1133,8 +1135,8 @@ void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ExtendableMem
 void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() != 2 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, true, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 1, nullptr, true, this, nullptr));
     }
     returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
 }
@@ -1142,8 +1144,8 @@ void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ExtendableMemb
 void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() != 2 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, true, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 1, nullptr, true, this, nullptr));
     }
     returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
 }

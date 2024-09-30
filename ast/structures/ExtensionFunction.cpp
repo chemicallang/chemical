@@ -149,7 +149,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
 BaseType* ExtensionFunction::create_value_type(ASTAllocator& allocator) {
     auto value_type = FunctionDeclaration::create_value_type(allocator);
     auto functionType = (FunctionType*) value_type;
-    functionType->params.insert(functionType->params.begin(), new (allocator.allocate<FunctionParam>()) FunctionParam("self", receiver.type->copy(allocator), 0, nullptr, this, nullptr));
+    functionType->params.insert(functionType->params.begin(), new (allocator.allocate<FunctionParam>()) FunctionParam("self", receiver.type->copy(allocator), 0, nullptr, true, this, nullptr));
     return value_type;
 }
 

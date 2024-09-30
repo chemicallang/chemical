@@ -7,8 +7,9 @@
 #pragma once
 
 #include "LibLsp/lsp/lsp_completion.h"
-#include "cst/base/CSTVisitor.h"
+#include "ast/base/Visitor.h"
 #include "integration/common/Position.h"
+#include "cst/base/CSTToken.h"
 
 class Position;
 
@@ -20,7 +21,7 @@ class LexResult;
 
 class ASTImportUnitRef;
 
-class CompletionItemAnalyzer : public CSTVisitor {
+class CompletionItemAnalyzer : public Visitor {
 public:
 
     /**
@@ -135,18 +136,6 @@ public:
     void put_with_md_doc(const std::string& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc);
 
     /**
-     * finds completion items till the given cursor position, found completion items are put on the items vector
-     */
-    void visit(std::vector<CSTToken*> &tokens, unsigned int start, unsigned int end);
-
-    /**
-     * visit's all tokens from given start
-     */
-    void visit(std::vector<CSTToken*> &tokens, unsigned int start = 0) {
-        visit(tokens, start, tokens.size());
-    }
-
-    /**
      * chain before caret
      */
     CSTToken* chain_before_caret(std::vector<CSTToken*> &tokens);
@@ -169,38 +158,36 @@ public:
 
     // Visitors
 
-    void visitVarInit(CSTToken* varInit) override;
+    void visit(VarInitStatement *init) override;
 
-    void visitAssignment(CSTToken* assignment) override;
+    void visit(AssignStatement *assign) override;
 
-    void visitFunction(CSTToken* function) override;
+    void visit(FunctionDeclaration *functionDeclaration) override;
 
-    void visitEnumDecl(CSTToken* enumDecl) override;
+    void visit(EnumDeclaration *enumDeclaration) override;
 
-    void visitStructDef(CSTToken* structDef) override;
+    void visit(StructDefinition *structDefinition) override;
 
-    void visitInterface(CSTToken* interface) override;
+    void visit(InterfaceDefinition *interfaceDefinition) override;
 
-    void visitImpl(CSTToken* impl) override;
+    void visit(ImplDefinition *implDefinition) override;
 
-    void visitIf(CSTToken* ifCst) override;
+    void visit(IfStatement *ifStatement) override;
 
-    void visitWhile(CSTToken* whileCst) override;
+    void visit(WhileLoop *whileLoop) override;
 
-    void visitDoWhile(CSTToken* doWhileCst) override;
+    void visit(DoWhileLoop *doWhileLoop) override;
 
-    void visitForLoop(CSTToken* forLoop) override;
+    void visit(ForLoop *forLoop) override;
 
-    void visitSwitch(CSTToken* switchCst) override;
+    void visit(SwitchStatement *statement) override;
 
-    void visitLambda(CSTToken* cst) override;
+    void visit(LambdaFunction *func) override;
 
-    void visitStructValue(CSTToken* structValueCst) override;
+    void visit(StructValue *structValue) override;
 
-    void visitArrayValue(CSTToken* arrayValue) override;
+    void visit(ArrayValue *arrayVal) override;
 
-    void visitMultilineComment(CSTToken *token) override;
-
-    void visitBody(CSTToken* bodyCst) override;
+    void visit(Scope *scope) override;
 
 };

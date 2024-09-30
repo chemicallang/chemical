@@ -111,4 +111,7 @@ func test_imported_modules() {
     test("used generic functions can be used with new type imported from other modules", () => {
         return extern_used_gen_func2<long>(10, 10) == 103
     })
+    test("file imported from other module also imports it's imports", () => {
+        return indirect_mod_func() == 943;
+    })
 }

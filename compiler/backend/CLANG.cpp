@@ -155,6 +155,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
                 chem_type,
                 index,
                 nullptr,
+                false,
                 nullptr,
                 nullptr
         ));

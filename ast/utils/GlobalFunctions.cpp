@@ -158,7 +158,7 @@ namespace InterpretVector {
         nullptr,
         std::nullopt,
         AccessSpecifier::Public
-    ), retType(nullptr), selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr) {
+    ), retType(nullptr), selfParam("self", &node->selfPointer, 0, nullptr, true, this, nullptr) {
         params.emplace_back(&selfParam);
     }
 
@@ -177,7 +177,7 @@ namespace InterpretVector {
             std::nullopt,
             AccessSpecifier::Public
     ), returnLinkedType("T", &node->typeParam, nullptr),
-        selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr), indexType(nullptr), indexParam("index", &indexType, 1, nullptr, this, nullptr)
+        selfParam("self", &node->selfPointer, 0, nullptr, true, this, nullptr), indexType(nullptr), indexParam("index", &indexType, 1, nullptr, false, this, nullptr)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -196,8 +196,8 @@ namespace InterpretVector {
             nullptr,
             std::nullopt,
             AccessSpecifier::Public
-    ), selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr), returnVoidType(nullptr),
-        valueType("T", &node->typeParam, nullptr), valueParam("value", &valueType, 1, nullptr, this, nullptr)
+    ), selfParam("self", &node->selfPointer, 0, nullptr, true, this, nullptr), returnVoidType(nullptr),
+        valueType("T", &node->typeParam, nullptr), valueParam("value", &valueType, 1, nullptr, false, this, nullptr)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&valueParam);
@@ -217,8 +217,8 @@ namespace InterpretVector {
             nullptr,
             std::nullopt,
             AccessSpecifier::Public
-    ), selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr), returnVoidType(nullptr),
-        indexType(nullptr), indexParam("index", &indexType, 1, nullptr, this, nullptr)
+    ), selfParam("self", &node->selfPointer, 0, nullptr, true, this, nullptr), returnVoidType(nullptr),
+        indexType(nullptr), indexParam("index", &indexType, 1, nullptr, false, this, nullptr)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -320,7 +320,7 @@ public:
             nullptr,
             std::nullopt,
             AccessSpecifier::Public
-    ), returnType(nullptr), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, this, nullptr) {
+    ), returnType(nullptr), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, false, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
@@ -389,7 +389,7 @@ public:
             nullptr,
             std::nullopt,
             AccessSpecifier::Public
-    ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, this, nullptr) {
+    ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, false, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
@@ -419,7 +419,7 @@ public:
             nullptr,
             std::nullopt,
             AccessSpecifier::Public
-    ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, this, nullptr) {
+    ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, false, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
@@ -552,7 +552,7 @@ public:
             nullptr,
             std::nullopt,
             AccessSpecifier::Public
-    ), boolType(nullptr), stringType(nullptr), valueParam("value", &stringType, 0, nullptr, this, nullptr) {
+    ), boolType(nullptr), stringType(nullptr), valueParam("value", &stringType, 0, nullptr, false, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
@@ -643,8 +643,8 @@ public:
             nullptr,
             std::nullopt,
             AccessSpecifier::Public
-    ), boolType(nullptr), stringType(nullptr), destValueParam("dest_value", &stringType, 0, nullptr, this, nullptr),
-      sourceValueParam("source_value", &stringType, 1, nullptr, this, nullptr){
+    ), boolType(nullptr), stringType(nullptr), destValueParam("dest_value", &stringType, 0, nullptr, false, this, nullptr),
+      sourceValueParam("source_value", &stringType, 1, nullptr, false, this, nullptr){
         annotations.emplace_back(AnnotationKind::CompTime);
         params.emplace_back(&destValueParam);
         params.emplace_back(&sourceValueParam);

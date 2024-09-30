@@ -298,8 +298,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
     }
     if(type && value) {
         if(!type->satisfies(linker.allocator, value)) {
-            const auto val_type = value->create_type(linker.allocator);
-            linker.error("value with type '" + val_type->representation() + "' doesn't satisfy type '" + type->representation() + "' in variable declaration", value);
+            linker.unsatisfied_type_err(value, type);
         }
         const auto as_array = value->as_array_value();
         if(type->kind() == BaseTypeKind::Array && as_array) {

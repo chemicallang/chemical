@@ -8,6 +8,12 @@
 
 class ASTAny;
 
+class Value;
+
+class BaseType;
+
+class ASTNode;
+
 /**
  * a class that provides helpful methods and fields that allow to separate stuff from codegen
  * that could be useful to other classes, that process AST nodes for codegen purposes

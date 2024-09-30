@@ -365,19 +365,17 @@ BaseType* CSTConverter::type() {
 }
 
 PointerType* current_self_pointer(CSTConverter* converter, CSTToken* token) {
-#ifdef DEBUG
-    if(!converter->current_members_container) {
-        throw std::runtime_error("members container is nullptr");
-    }
-#endif
     std::string type;
-    auto impl_container = converter->current_members_container->as_impl_def();
-    if(impl_container) {
-        type = impl_container->struct_type->linked_name();
-    } else {
-        type = converter->current_members_container->ns_node_identifier();
+    const auto container = converter->current_members_container;
+    if(container) {
+        auto impl_container = container->as_impl_def();
+        if (impl_container) {
+            type = impl_container->struct_type->linked_name();
+        } else {
+            type = container->ns_node_identifier();
+        }
     }
-    return new (converter->local<PointerType>()) PointerType(new (converter->local<LinkedType>()) LinkedType(type, converter->current_members_container, token), token);
+    return new (converter->local<PointerType>()) PointerType(new (converter->local<LinkedType>()) LinkedType(type, container, token), token);
 }
 
 void CSTConverter::visitFunctionParam(CSTToken* param) {

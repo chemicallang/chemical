@@ -76,7 +76,7 @@ public:
 
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) final {
         link(linker);
-        return true;
+        return false;
     }
 
 };

@@ -14,13 +14,13 @@ bool Lexer::lexStructValueTokens(unsigned back_start) {
             if(storeIdentifier(identifier)) {
                 lexWhitespaceToken();
                 if(!lexOperatorToken(':')) {
-                    error("expected a ':' for initializing struct member " + identifier);
-                    break;
+                    mal_value(start, "expected a ':' for initializing struct member " + identifier);
+                    return true;
                 }
                 lexWhitespaceToken();
                 if(!(lexExpressionTokens(true) || lexArrayInit())) {
-                    error("expected an expression after ':' for struct member " + identifier);
-                    break;
+                    mal_value(start, "expected an expression after ':' for struct member " + identifier);
+                    return true;
                 }
                 lexWhitespaceToken();
                 lexOperatorToken(',');
@@ -33,6 +33,7 @@ bool Lexer::lexStructValueTokens(unsigned back_start) {
 
         if(!lexOperatorToken('}')) {
             mal_value(start, "expected '}' for struct value");
+            return true;
         }
 
         compound_from(start, LexTokenType::CompStructValue);

@@ -291,6 +291,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "cpp", { collect_annotation_func, AnnotationKind::Cpp }},
         { "clear", { collect_annotation_func, AnnotationKind::Clear }},
         { "copy", { collect_annotation_func, AnnotationKind::Copy }},
+        { "deprecated", { collect_annotation_func, AnnotationKind::Deprecated }},
         { "move", { collect_annotation_func, AnnotationKind::Move }},
 };
 

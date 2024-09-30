@@ -883,6 +883,7 @@ FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
 }
 
 BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
+    if(!parent_val) return nullptr;
     const auto func_decl = safe_linked_func();
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
         const auto struct_def = func_decl->parent_node->as_struct_def();

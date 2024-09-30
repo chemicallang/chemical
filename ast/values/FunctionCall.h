@@ -16,7 +16,7 @@ class ASTDiagnoser;
 class FunctionCall : public ChainValue {
 public:
 
-    ChainValue* parent_val;
+    ChainValue* parent_val = nullptr;
     std::vector<BaseType*> generic_list;
     std::vector<Value*> values;
     int16_t generic_iteration = 0;

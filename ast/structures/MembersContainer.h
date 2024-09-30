@@ -316,6 +316,12 @@ public:
     }
 
     /**
+     * check if the other node extends given node
+     * for example this container represents a struct X : public Y
+     */
+    bool extends_node(ASTNode* other);
+
+    /**
      * get the overriding struct / interface and the function being overridden
      */
     std::pair<ASTNode*, FunctionDeclaration*> get_overriding_info(FunctionDeclaration* function);

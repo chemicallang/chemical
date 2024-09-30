@@ -4,6 +4,9 @@
 #include "ast/statements/Typealias.h"
 #include "StructType.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/statements/VarInit.h"
+#include "ast/structures/MembersContainer.h"
+#include "ast/structures/FunctionParam.h"
 
 uint64_t LinkedType::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
@@ -31,10 +34,25 @@ bool LinkedType::satisfies(ValueType value_type) {
 
 bool LinkedType::satisfies(BaseType *other) {
     const auto other_kind = other->kind();
-    if(other_kind == BaseTypeKind::Linked) {
-        return linked == ((LinkedType*) other)->linked;
-    } else if(other_kind == BaseTypeKind::Struct) {
-        return linked == ((StructType*) other)->linked_node();
+    const auto linked_kind = linked->kind();
+    switch(linked_kind) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::InterfaceDecl:
+        case ASTNodeKind::VariantDecl: {
+            const auto other_linked = other->get_direct_linked_node(other_kind);
+            if(other_linked) {
+                if (linked == other_linked) {
+                    return true;
+                } else {
+                    const auto container = other_linked->get_members_container(other_linked->kind());
+                    return container && container->extends_node(linked);
+                }
+            } else {
+                break;
+            }
+        }
+        default:
+            break;
     }
     auto known = linked->known_type();
     if(known && known != this) {

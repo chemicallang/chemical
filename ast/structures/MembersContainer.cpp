@@ -664,6 +664,34 @@ bool MembersContainer::contains_func(const std::string& name) {
     return indexes.find(name) != indexes.end();
 }
 
+bool MembersContainer::extends_node(ASTNode* other) {
+    if(!inherited.empty()) {
+        const auto otherKind = other->kind();
+        if (otherKind == ASTNodeKind::StructDecl) {
+            const auto inherited_node = inherited.front()->type->get_direct_linked_node();
+            if(!inherited_node) return false;
+            if(inherited_node == other) {
+                return true;
+            } else {
+                const auto container = inherited_node->get_members_container(inherited_node->kind());
+                return container && container->extends_node(other);
+            }
+        } else if(otherKind == ASTNodeKind::InterfaceDecl) {
+            for(auto& inh : inherited) {
+                const auto inherited_node = inh->type->get_direct_linked_node();
+                if(!inherited_node) return false;
+                const auto container = inherited_node->get_members_container(inherited_node->kind());
+                if(container && container->extends_node(other)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+
 std::pair<long, BaseType*> VariablesContainer::variable_type_index(const std::string &varName, bool consider_inherited_structs) {
     long parents_size = 0;
     for(auto& inherits : inherited) {

@@ -79,6 +79,11 @@ public:
     std::unordered_map<FunctionCall*, Value*> evaluated_func_calls;
 
     /**
+     * implicit arguments are stored on this unordered map
+     */
+    std::unordered_map<std::string, Value*> implicit_args;
+
+    /**
      * this visitor takes out values like lambda from within functions
      * to file level scope
      */
@@ -241,7 +246,12 @@ public:
     /**
      * used to write a string to a stream
      */
-    void write(const std::string& value);
+    void write(std::string& str);
+
+    /**
+     * used to write a string to a stream
+     */
+    void write(std::string_view str);
 
     /**
      * write a debug comment
@@ -376,6 +386,8 @@ public:
     void visit(MacroValueStatement* statement) override;
 
     void visit(StructMember* member) override;
+
+    void visit(ProvideStmt *provideStmt) override;
 
     void visit(TypealiasStatement* statement) override;
 

@@ -91,6 +91,36 @@ void put_self_param(
     }
 }
 
+void put_implicit_params(
+        Codegen& gen,
+        FunctionCall* call,
+        FunctionType* func_type,
+        std::vector<llvm::Value *>& args,
+        std::vector<ChainValue*>* chain,
+        unsigned int until,
+        llvm::Value* self_arg_val,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+) {
+    for(auto& param : func_type->params) {
+        if(param->is_implicit) {
+            if(param->name == "self") {
+                put_self_param(gen, call, func_type, args, chain, until, self_arg_val, destructibles);
+            } else if(param->name == "other") {
+                gen.error("unknown other implicit parameter", call);
+            } else {
+                auto found = gen.implicit_args.find(param->name);
+                if(found != gen.implicit_args.end()) {
+                    args.emplace_back(found->second);
+                } else {
+                    gen.error("couldn't provide implicit argument '" + param->name + "'", call);
+                }
+            }
+        } else {
+            break;
+        }
+    }
+}
+
 llvm::Value* arg_value(
         Codegen& gen,
         FunctionCall* call,
@@ -212,7 +242,7 @@ void to_llvm_args(
         llvm::Value* self_arg_val,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-    put_self_param(gen, call, func_type, args, chain, until, self_arg_val, destructibles);
+    put_implicit_params(gen, call, func_type, args, chain, until, self_arg_val, destructibles);
     to_llvm_args(gen, call, func_type, values, args, chain, until, start);
 }
 

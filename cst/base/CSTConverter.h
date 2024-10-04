@@ -295,6 +295,8 @@ public:
 
     void visitUsing(CSTToken* usingStmt) override;
 
+    void visitProvide(CSTToken *provideStmt) override;
+
     void visitReturn(CSTToken* returnCst) override;
 
     void visitTypealias(CSTToken* alias) override;

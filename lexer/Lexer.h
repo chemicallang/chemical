@@ -824,6 +824,11 @@ public:
      */
     bool lexUsingStatement();
 
+    /**
+     * lex provide statement
+     */
+    bool lexProvideStatement();
+
     // -------------------------------- Exposed till here
 
     /**

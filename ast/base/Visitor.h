@@ -20,6 +20,8 @@ class ContinueStatement;
 
 class VariantMember;
 
+class ProvideStmt;
+
 class ImportStatement;
 
 class UnsafeBlock;
@@ -265,6 +267,10 @@ public:
 
     virtual void visit(ContinueStatement* continueStatement) {
         visitCommon((ASTNode*) continueStatement);
+    }
+
+    virtual void visit(ProvideStmt* provideStmt) {
+        visitCommon((ASTNode*) provideStmt);
     }
 
     virtual void visit(ImportStatement* importStatement) {

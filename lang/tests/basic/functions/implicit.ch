@@ -14,6 +14,20 @@ func implicit_with_explicit_arg(&direct_int, other : int) : int {
     return check_direct_implicit_arg() + other;
 }
 
+struct ImplicitFuncStruct {
+
+    var i : int
+
+    func take_implicit(&direct_int) : int {
+        return direct_int
+    }
+
+    func take_implicit_self(&self, &direct_int) : int {
+        return i + direct_int
+    }
+
+}
+
 func test_implicit_functions() {
     test("provide works with direct implicit arguments", () => {
         provide 3 as direct_int {
@@ -28,6 +42,18 @@ func test_implicit_functions() {
     test("function with implicit argument can take explicit argument", () => {
         provide 5 as direct_int {
             return implicit_with_explicit_arg(3) == 8;
+        }
+    })
+    test("implicit args work with functions in structs", () => {
+        var i = ImplicitFuncStruct { i : 1 }
+        provide 2 as direct_int {
+            return i.take_implicit() == 2;
+        }
+    })
+    test("implicit args work with self functions in structs", () => {
+        var i = ImplicitFuncStruct { i : 1 }
+        provide 2 as direct_int {
+            return i.take_implicit_self() == 3;
         }
     })
 }

@@ -120,6 +120,17 @@ FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
     return params[index + offset];
 }
 
+FunctionParam* FunctionType::implicit_param_for(const std::string& name) {
+    for(auto param : params) {
+        if(param->is_implicit && param->name == name) {
+            return param;
+        } else {
+            break;
+        }
+    }
+    return nullptr;
+}
+
 bool FunctionType::satisfy_args(ASTAllocator& allocator, std::vector<Value*>& forArgs) {
     auto has_self = has_self_param();
     unsigned offset = has_self ? 1 : 0;

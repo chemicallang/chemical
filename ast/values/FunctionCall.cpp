@@ -112,7 +112,12 @@ void put_implicit_params(
                 if(found != gen.implicit_args.end()) {
                     args.emplace_back(found->second);
                 } else {
-                    gen.error("couldn't provide implicit argument '" + param->name + "'", call);
+                    const auto between_param = gen.current_func_type->implicit_param_for(param->name);
+                    if(between_param) {
+                        args.emplace_back(gen.current_function->getArg(between_param->calculate_c_or_llvm_index()));
+                    } else {
+                        gen.error("couldn't provide implicit argument '" + param->name + "'", call);
+                    }
                 }
             }
         } else {

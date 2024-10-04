@@ -103,6 +103,11 @@ public:
     FunctionParam* func_param_for_arg_at(unsigned index);
 
     /**
+     * get implicit parameter for given name
+     */
+    FunctionParam* implicit_param_for(const std::string& name);
+
+    /**
      * do parameter types match with the given function parameter types
      */
     bool do_param_types_match(std::vector<FunctionParam*>& param_types, bool check_self = true);

@@ -28,6 +28,14 @@ struct ImplicitFuncStruct {
 
 }
 
+struct implicit_int {
+    var i : int
+}
+
+func take_implicit(&implicit_int) : int {
+    return implicit_int.i
+}
+
 func test_implicit_functions() {
     test("provide works with direct implicit arguments", () => {
         provide 3 as direct_int {
@@ -62,5 +70,11 @@ func test_implicit_functions() {
             i = check_direct_implicit_arg();
         }
         return i == 3;
+    })
+    test("implicit functions can take references to struct implicitly", () => {
+        var i = implicit_int { i : 55 }
+        provide i as implicit_int {
+            return take_implicit() == 55;
+        }
     })
 }

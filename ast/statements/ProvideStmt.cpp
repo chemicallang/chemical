@@ -51,7 +51,9 @@ ProvideStmt::ProvideStmt(
 }
 
 void ProvideStmt::declare_and_link(SymbolResolver &linker) {
-    put_in(linker.implicit_args, value, &linker, [](ProvideStmt* stmt, void* data) {
-        stmt->body.link_sequentially((*(SymbolResolver*) data));
-    });
+    if(value->link(linker, value, nullptr)) {
+        put_in(linker.implicit_args, value, &linker, [](ProvideStmt* stmt, void* data) {
+            stmt->body.link_sequentially((*(SymbolResolver*) data));
+        });
+    }
 }

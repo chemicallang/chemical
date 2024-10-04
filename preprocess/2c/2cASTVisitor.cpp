@@ -598,14 +598,7 @@ void write_self_arg(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, un
     if(!grandpa->is_pointer() && !force_no_pointer) {
         visitor.write('&');
     }
-    unsigned index = 0;
-    while(index <= grandpa_index) {
-        values[index]->accept(&visitor);
-        if(index < grandpa_index) {
-            write_accessor(visitor, values, index);
-        }
-        index++;
-    }
+    access_chain(visitor, values, 0, grandpa_index + 1, grandpa_index + 1);
 }
 
 bool write_self_arg_bool(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<ChainValue*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {
@@ -1083,7 +1076,9 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::v
                     auto self_param = visitor.current_func_type->get_self_param();
                     if(self_param) {
                         visitor.write(param->name);
-                        visitor.write(", ");
+                        if(!call->values.empty()) {
+                            visitor.write(", ");
+                        }
                     } else {
 //                        visitor->error("No self param can be passed to a function, because current function doesn't take a self arg");
                     }
@@ -3715,28 +3710,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
             func_name_chain(visitor, values, start, end - 1);
         }
         visitor.write('(');
-        if(func_type->has_self_param()) {
-            if(grandpa) {
-                if (chain_contains_func_call(values, start, end - 2)) {
-                    visitor.error("Function call inside a access chain with lambda that requires self is not allowed", values[start]);
-                    return;
-                }
-                if (end - 3 >= 0 && values[end - 3]->value_type() != ValueType::Pointer) {
-                    visitor.write('&');
-                }
-                access_chain(visitor, values, start, end - 2, end - 2);
-            } else if(visitor.current_func_type && !is_lambda) {
-                auto self_arg = visitor.current_func_type->get_self_param();
-                if(self_arg) {
-                    visitor.write(self_arg->name);
-                } else {
-                    visitor.error("couldn't pass self arg where current function has none.", values[start]);
-                }
-            }
-            if (!last->values.empty()) {
-                visitor.write(',');
-            }
-        }
+        write_implicit_args(visitor, func_type, values, end, last);
         func_call_args(visitor, last, func_type);
         visitor.write(')');
 //        if(!visitor->nested_value) {

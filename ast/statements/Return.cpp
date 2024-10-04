@@ -34,12 +34,11 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker) {
             }
             const auto implicit = func_type->returnType->implicit_constructor_for(linker.allocator, value);
             if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
-//                if(linker.preprocess) {
-//                    value = call_with_arg(implicit, value, linker);
-//                } else {
-                    link_with_implicit_constructor(implicit, linker, value);
-//                }
+                link_with_implicit_constructor(implicit, linker, value);
                 return;
+            }
+            if(!func_type->returnType->satisfies(linker.allocator, value)) {
+                linker.unsatisfied_type_err(value, func_type->returnType);
             }
         }
     }

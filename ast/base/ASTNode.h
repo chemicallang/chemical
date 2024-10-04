@@ -507,11 +507,13 @@ public:
         return kind() == ASTNodeKind::EnumMember;
     }
 
-private:
     static inline bool isFunctionDecl(ASTNodeKind k) {
         return k == ASTNodeKind::FunctionDecl || k == ASTNodeKind::ExtensionFunctionDecl;
     }
-public:
+
+    static inline bool isBackendStructType(ASTNodeKind k) {
+        return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion;
+    }
 
     inline bool isFunctionDecl() {
         return isFunctionDecl(kind());

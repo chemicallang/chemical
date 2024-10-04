@@ -96,10 +96,6 @@ public:
         return find_link_in_parent(parent, resolver, expected_type, true);
     }
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override {
-        return find_link_in_parent(parent, resolver, nullptr, true);
-    }
-
     void relink_parent(ChainValue *parent) override;
 
     bool primitive() override;

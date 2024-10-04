@@ -75,21 +75,13 @@ public:
 
     bool link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend);
 
-    bool link(
-            SymbolResolver &linker,
-            ChainValue *parent,
-            std::vector<ChainValue*> &values,
-            unsigned int index,
-            BaseType* expected_type
-    ) override;
-
     void relink_parent(ChainValue *parent) override;
 
     ASTNode *linked_node() override;
 
     bool find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser);
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
 
     bool primitive() override {
         return false;

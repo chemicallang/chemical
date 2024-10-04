@@ -713,7 +713,7 @@ bool ChainValue::link(
         if(index == values.size() - 1) {
             return find_link_in_parent(parent, linker, expected_type);
         } else {
-            return find_link_in_parent(parent, linker);
+            return find_link_in_parent(parent, linker, nullptr);
         }
     } else {
         return link(linker, (Value*&) values[index]);

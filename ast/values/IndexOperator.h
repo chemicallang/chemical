@@ -41,7 +41,7 @@ public:
 
     ASTNode *linked_node() override;
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
 
     void relink_parent(ChainValue *parent) override;
 

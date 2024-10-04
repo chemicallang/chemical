@@ -116,7 +116,7 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     return nullptr;
 }
 
-bool IndexOperator::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
+bool IndexOperator::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
     parent_val = parent;
     for(auto& value : values) {
         value->link(resolver, value);

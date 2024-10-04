@@ -514,7 +514,7 @@ public:
     /**
      * lex parameter list
      */
-    void lexParameterList(bool optionalTypes = false, bool defValues = true, bool lexSelfParam = true, bool variadicParam = true);
+    void lexParameterList(bool optionalTypes = false, bool defValues = true, bool lexImplicitParams = true, bool variadicParam = true);
 
     /**
     * lexes a function signature with parameters

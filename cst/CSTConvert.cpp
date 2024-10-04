@@ -384,7 +384,7 @@ void CSTConverter::visitFunctionParam(CSTToken* param) {
     if (is_char_op(paramTokens[0], '&')) { // implicit parameter
         const auto name_token = paramTokens[1];
         const auto ptr_to_linked  = new (local<PointerType>()) PointerType(new (local<LinkedType>()) LinkedType(name_token->value(), nullptr, name_token), name_token);;
-        const auto paramDecl = new (local<FunctionParam>()) FunctionParam(name_token->value(), ptr_to_linked, 0, nullptr, true, current_func_type, param);
+        const auto paramDecl = new (local<FunctionParam>()) FunctionParam(name_token->value(), ptr_to_linked, param_index, nullptr, true, current_func_type, param);
         put_node(paramDecl, param);
         return;
     }

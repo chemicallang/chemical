@@ -25,7 +25,7 @@ public:
      * called by access chain, to link a value inside values in a chain
      * it allows variable identifier to prevent auto appending self, when access chain has already done it
      */
-    virtual bool link(
+    bool link(
             SymbolResolver& linker,
             ChainValue* parent,
             std::vector<ChainValue*>& values,
@@ -34,16 +34,9 @@ public:
     );
 
     /**
-     * find linked node in given parent node, symbol resolver is passed in resolution phase
-     */
-    virtual bool find_link_in_parent(ChainValue* parent, SymbolResolver& resolver) = 0;
-
-    /**
      * called only when this value is last in the access chain
      */
-    virtual bool find_link_in_parent(ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type) {
-        return find_link_in_parent(parent, resolver);
-    }
+    virtual bool find_link_in_parent(ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type) = 0;
 
     /**
      * relink with the parent chain value, as it has changed

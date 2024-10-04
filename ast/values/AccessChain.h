@@ -63,7 +63,7 @@ public:
         link(linker, value_ptr, expected_type);
     }
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
 
     /**
      * will call relink_parent on values starting from second value

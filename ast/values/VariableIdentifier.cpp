@@ -43,21 +43,7 @@ bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bo
 }
 
 bool VariableIdentifier::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    return link(linker, (ChainValue* &) (value_ptr), true);
-}
-
-bool VariableIdentifier::link(
-    SymbolResolver &linker,
-    ChainValue *parent,
-    std::vector<ChainValue*> &values,
-    unsigned int index,
-    BaseType* expected_type
-) {
-    if(parent) {
-        return find_link_in_parent(parent, linker);
-    } else {
-        return link(linker, values[index], false);
-    }
+    return link(linker, (ChainValue* &) (value_ptr), false);
 }
 
 ASTNode* VariableIdentifier::linked_node() {
@@ -84,7 +70,7 @@ void VariableIdentifier::relink_parent(ChainValue *parent) {
     find_link_in_parent(parent, nullptr);
 }
 
-bool VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
+bool VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
     return find_link_in_parent(parent, &resolver);
 }
 

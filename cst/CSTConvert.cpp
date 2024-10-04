@@ -820,8 +820,24 @@ void CSTConverter::visitUsing(CSTToken* usingStmt) {
 
 void CSTConverter::visitProvide(CSTToken *provideStmt) {
     provideStmt->tokens[1]->accept(this);
-    const auto stmt = new (local<ProvideStmt>()) ProvideStmt(value(), provideStmt->tokens[3]->value(), { parent_node, provideStmt->tokens[4] }, parent_node, provideStmt);
-    stmt->body.nodes = take_body_nodes(this, provideStmt->tokens[4], stmt);
+    const auto val = value();
+    if(val->val_kind() != ValueKind::CastedValue) {
+        error("expected value to be in format 'value as identifier' in provide", provideStmt);
+        return;
+    }
+    const auto castedVal = (CastedValue*) val;
+    if(castedVal->type->kind() != BaseTypeKind::Linked) {
+        error("expected identifier after the 'as' keyword in provide statement", provideStmt);
+        return;
+    }
+    const auto stmt = new (local<ProvideStmt>()) ProvideStmt(
+            castedVal->value,
+            ((LinkedType*) castedVal->type)->type,
+            { parent_node, provideStmt->tokens[2] },
+            parent_node,
+            provideStmt
+    );
+    stmt->body.nodes = take_body_nodes(this, provideStmt->tokens[2], stmt);
     put_node(stmt, provideStmt);
 }
 

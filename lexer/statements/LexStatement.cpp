@@ -132,16 +132,8 @@ bool Lexer::lexUsingStatement() {
 bool Lexer::lexProvideStatement() {
     if(lexWSKeywordToken("provide")) {
         unsigned start = tokens_size() - 1;
-        if(!lexAccessChainOrAddrOf()) {
+        if(!lexExpressionTokens()) {
             error("expected a value after provide keyword");
-            return true;
-        }
-        if(!lexWSKeywordToken("as")) {
-            error("expected 'as' keyword after the value ein provide statement");
-            return true;
-        }
-        if(!lexIdentifierToken()) {
-            error("expected a identifier after 'as' in provide statement");
             return true;
         }
         if(!lexBraceBlock("provide")) {

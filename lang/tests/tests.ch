@@ -11,7 +11,8 @@ import "basic/macros.ch"
 import "basic/arrays.ch"
 import "basic/pointers.ch"
 import "basic/casts.ch"
-import "basic/functions.ch"
+import "basic/functions/functions.ch"
+import "basic/functions/implicit.ch"
 import "basic/destructors.ch"
 import "nodes/union.ch"
 import "nodes/namespaces.ch"
@@ -47,6 +48,7 @@ public func main() : int {
     test_pointer_math();
     test_casts();
     test_functions();
+    test_implicit_functions();
     test_destructors();
     test_unions();
     test_namespaces();

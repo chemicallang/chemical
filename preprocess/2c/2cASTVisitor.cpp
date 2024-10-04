@@ -3706,7 +3706,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
             func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
             func_name(visitor, parent, func_decl);
             visitor.write('(');
-            write_self_arg(visitor, func_type, values, (((int) end) - 3), last);
+            write_implicit_args(visitor, func_type, values, end, last);
             func_call_args(visitor, last->as_func_call(), func_type);
             visitor.write(')');
             if(generic_struct) {

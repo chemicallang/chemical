@@ -63,7 +63,7 @@ func comptime_primitive() : int {
 }
 
 @comptime
-func comptime_sum(a : int, b : int) {
+func comptime_sum(a : int, b : int) : int {
     return a + b;
 }
 
@@ -88,7 +88,7 @@ func call_struct_func() : int {
 }
 
 @comptime
-func determine_str_len(str : literal<string>) {
+func determine_str_len(str : literal<string>) : ubigint {
     return compiler::size(str);
 }
 

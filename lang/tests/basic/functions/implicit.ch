@@ -56,4 +56,11 @@ func test_implicit_functions() {
             return i.take_implicit_self() == 3;
         }
     })
+    test("provide doesn't introduce a scope", () => {
+        provide 3 as direct_int {
+            var i = 0;
+            i = check_direct_implicit_arg();
+        }
+        return i == 3;
+    })
 }

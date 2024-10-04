@@ -77,8 +77,10 @@ FunctionType::FunctionType(
     BaseType* returnType,
     bool isVariadic,
     bool isCapturing,
+    ASTNode* parent_node,
     CSTToken* token
-) : params(std::move(params)), returnType(returnType), isVariadic(isVariadic), isCapturing(isCapturing), TokenizedBaseType(token) {
+) : params(std::move(params)), returnType(returnType), isVariadic(isVariadic), isCapturing(isCapturing),
+    parent_node(parent_node), TokenizedBaseType(token) {
 
 }
 
@@ -212,12 +214,12 @@ FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
     for (auto &param: params) {
         copied.emplace_back(param->copy(allocator));
     }
-    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, isCapturing, token);
+    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, isCapturing, parent_node, token);
 }
 
 void FunctionType::link(SymbolResolver &linker) {
     for (auto &param: params) {
-        param->type->link(linker);
+        param->link_param_type(linker);
     }
     returnType->link(linker);
 }

@@ -39,6 +39,8 @@ public:
     // if the function is variadic, the last type in params is the type given to the variadic parameter
     bool isVariadic;
     bool isCapturing;
+    ASTNode* parent_node;
+
     /**
      * moved identifiers are stored in this vector, this is similar to moved_chains, single variable
      * identifiers are not stored in access chains, so to simplify storage and so to not having to deal with
@@ -62,6 +64,7 @@ public:
         BaseType* returnType,
         bool isVariadic,
         bool isCapturing,
+        ASTNode* parent_node,
         CSTToken* token
     );
 
@@ -71,7 +74,7 @@ public:
     }
 
     virtual ASTNode* parent() {
-        return nullptr;
+        return parent_node;
     }
 
     /**
@@ -122,6 +125,10 @@ public:
     }
 
     virtual FunctionDeclaration *as_function() {
+        return nullptr;
+    }
+
+    virtual LambdaFunction* as_lambda() {
         return nullptr;
     }
 

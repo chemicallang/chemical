@@ -51,8 +51,8 @@ public:
     }
 
     /**
- * check this variable has been moved
- */
+     * check this variable has been moved
+     */
     bool get_has_moved() {
         return has_moved;
     }
@@ -97,6 +97,11 @@ public:
         return type;
     }
 
-    [[nodiscard]] FunctionParam *copy(ASTAllocator& allocator) const;
+    [[nodiscard]]
+    FunctionParam *copy(ASTAllocator& allocator) const;
+
+    void link_param_type(SymbolResolver &linker);
+
+    void declare_and_link(SymbolResolver &linker) override;
 
 };

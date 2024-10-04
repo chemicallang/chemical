@@ -94,8 +94,9 @@ LambdaFunction::LambdaFunction(
         std::vector<FunctionParam*> params,
         bool isVariadic,
         Scope scope,
+        ASTNode* parent_node,
         CSTToken* token
-) : captureList(std::move(captureList)), FunctionType(std::move(params), nullptr, isVariadic, !captureList.empty(), token), scope(std::move(scope)) {
+) : captureList(std::move(captureList)), FunctionType(std::move(params), nullptr, isVariadic, !captureList.empty(), parent_node, token), scope(std::move(scope)) {
 
 }
 
@@ -121,18 +122,21 @@ BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes
     return new VoidType(nullptr);
 }
 
-void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker) {
+void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
     for(auto& cap : fn->captureList) {
         cap->declare_and_link(linker);
     }
-    for (auto &param : fn->params) {
+    for (auto param : fn->params) {
+        if(link_param_types) {
+            param->link_param_type(linker);
+        }
         param->declare_and_link(linker);
     }
 }
 
-void link_full(LambdaFunction* fn, SymbolResolver &linker) {
+void link_full(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
     linker.scope_start();
-    link_params_and_caps(fn, linker);
+    link_params_and_caps(fn, linker, link_param_types);
     fn->scope.link_sequentially(linker);
     linker.scope_end();
 }
@@ -150,8 +154,8 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
         linker.info("deducing lambda function type by visiting body", (Value*) this);
 #endif
 
-        // linking params and their types before copying their types
-        link_full(this, linker);
+        // linking params and their types
+        link_full(this, linker, true);
 
         // finding return type
         auto found_return_type = find_return_type(*linker.ast_allocator, scope.nodes);
@@ -167,7 +171,7 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
         }
 
         link(linker, func_type);
-        link_full(this, linker);
+        link_full(this, linker, false);
 
     }
 
@@ -175,14 +179,6 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
 
     return true;
 
-}
-
-void link_given_params(SymbolResolver& resolver, const std::vector<FunctionParam*>& params) {
-    for(auto& param : params) {
-        if(param->type) {
-            param->type->link(resolver);
-        }
-    }
 }
 
 void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std::vector<FunctionParam*>& to_params, SymbolResolver& resolver, Value* debug_value) {
@@ -198,17 +194,24 @@ void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std:
             to_params.emplace_back(nullptr);
         }
         const auto to_param = to_params[start];
-        if(!to_param->type) {
-            to_param->type = from_param->type->copy(*resolver.ast_allocator);
-        } else if(!to_param->type->is_same(from_param->type)) {
-            resolver.error("Lambda function param at index " + std::to_string(start) + " with type " + from_param->type->representation() + ", redeclared with type " + to_param->type->representation(), debug_value);
+        if(!to_param->type || to_param->is_implicit || from_param->is_implicit) {
+            const auto copied = from_param->copy(*resolver.ast_allocator);
+            // change the name to what user wants
+            copied->name = to_param->name;
+            to_params[start] = copied;
+        } else {
+            // link the given parameter
+            to_param->link_param_type(resolver);
+            // check it's type is same as the from parameter
+            if(!to_param->type->is_same(from_param->type)) {
+                resolver.error("Lambda function param at index " + std::to_string(start) + " with type " + from_param->type->representation() + ", redeclared with type " + to_param->type->representation(), debug_value);
+            }
         }
         start++;
     }
 }
 
 bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
-    link_given_params(linker, params);
     copy_func_params_types(func_type->params, params, linker, this);
     if(!returnType) {
         returnType = func_type->returnType->copy(*linker.ast_allocator);

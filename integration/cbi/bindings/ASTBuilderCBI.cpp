@@ -123,8 +123,8 @@ FloatType* ASTBuildermake_float_type(CSTConverter* converter, CSTToken* token) {
     return new (converter->local<FloatType>()) FloatType(token);
 }
 
-FunctionType* ASTBuildermake_func_type(CSTConverter* converter, BaseType* returnType, bool isVariadic, bool isCapturing, CSTToken* token) {
-    return new (converter->local<FunctionType>()) FunctionType({}, returnType, isVariadic, isCapturing, token);
+FunctionType* ASTBuildermake_func_type(CSTConverter* converter, BaseType* returnType, bool isVariadic, bool isCapturing, ASTNode* parent_node, CSTToken* token) {
+    return new (converter->local<FunctionType>()) FunctionType({}, returnType, isVariadic, isCapturing, parent_node, token);
 }
 
 GenericType* ASTBuildermake_generic_type(CSTConverter* converter, LinkedType* linkedType) {
@@ -264,7 +264,7 @@ IsValue* ASTBuildermake_is_value(CSTConverter* converter, Value* value, BaseType
 }
 
 LambdaFunction* ASTBuildermake_lambda_function(CSTConverter* converter, Value* value, BaseType* type, bool isVariadic, ASTNode* parent_node, CSTToken* token) {
-    return new (converter->local<LambdaFunction>()) LambdaFunction({}, {}, isVariadic, Scope(parent_node, token), token);
+    return new (converter->local<LambdaFunction>()) LambdaFunction({}, {}, isVariadic, Scope(parent_node, token), parent_node, token);
 }
 
 CapturedVariable* ASTBuildermake_captured_variable(CSTConverter* converter, chem::string* name, unsigned int index, bool capture_by_ref, long value, CSTToken* token) {

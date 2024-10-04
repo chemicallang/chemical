@@ -40,6 +40,7 @@ public:
             std::vector<FunctionParam*> params,
             bool isVariadic,
             Scope scope,
+            ASTNode* parent_node,
             CSTToken* token
     );
 
@@ -51,8 +52,12 @@ public:
         return ValueKind::LambdaFunc;
     }
 
+    LambdaFunction* as_lambda() override {
+        return this;
+    }
+
     ASTNode *parent() override {
-        return nullptr;
+        return parent_node;
     }
 
     void accept(Visitor *visitor) override {

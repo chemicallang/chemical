@@ -72,7 +72,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
     }
     receiver.type->link(linker);
     for(auto& param : params) {
-        param->type->link(linker);
+        param->link_param_type(linker);
     }
     linker.scope_end();
 

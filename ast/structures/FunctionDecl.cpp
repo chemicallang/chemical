@@ -19,6 +19,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/statements/Return.h"
+#include "ast/statements/Typealias.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
 #include "ast/structures/VariantDefinition.h"
@@ -988,6 +989,58 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, token);
 }
 
+void FunctionParam::link_param_type(SymbolResolver &linker) {
+    if(is_implicit) {
+        if(name == "self" || name == "other") { // name and other means pointers to parent node
+            if(!func_type->parent_node) {
+                linker.error("couldn't get implicit self / other type", this);
+                return;
+            }
+            const auto ptr_type = ((PointerType*) type);
+            const auto linked_type = ((LinkedType*) ptr_type->type);
+            const auto parent_node = func_type->parent_node;
+            const auto parent_kind = parent_node->kind();
+            ASTNode* parent;
+            if(parent_kind == ASTNodeKind::StructMember) {
+                parent = parent_node->as_struct_member_unsafe()->parent_node;
+            } else if(parent_kind == ASTNodeKind::ImplDecl) {
+                parent = parent_node->as_impl_def_unsafe()->struct_type->linked_node();
+            } else {
+                parent = func_type->parent_node;
+            }
+            if(!parent) {
+                linker.error("couldn't get self / other implicit parameter type", this);
+                return;
+            }
+            linked_type->linked = parent;
+        } else {
+            auto found = linker.find(name);
+            if(found) {
+                const auto ptr_type = ((PointerType*) type);
+                const auto linked_type = ((LinkedType*) ptr_type->type);
+                const auto found_kind = found->kind();
+                if(found_kind == ASTNodeKind::TypealiasStmt) {
+                    ptr_type->type = ((TypealiasStatement*) found)->actual_type;
+                } else {
+                    linked_type->linked = found;
+                }
+            } else {
+                linker.error("couldn't get implicit parameter type", this);
+                return;
+            }
+        }
+    } else {
+        type->link(linker);
+    }
+}
+
+void FunctionParam::declare_and_link(SymbolResolver &linker) {
+    linker.declare(name, this);
+    if(defValue) {
+        defValue->link(linker, defValue, type);
+    }
+}
+
 BaseType* BaseFunctionParam::create_value_type(ASTAllocator& allocator) {
     return type->copy(allocator);
 }
@@ -1049,9 +1102,9 @@ FunctionDeclaration::FunctionDeclaration(
         CSTToken* token,
         std::optional<LoopScope> body,
         AccessSpecifier specifier
-) : FunctionType(std::move(params), returnType, isVariadic, false, token),
+) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, token),
     name(std::move(name)),
-    body(std::move(body)), parent_node(parent_node), token(token), specifier(specifier) {
+    body(std::move(body)), token(token), specifier(specifier) {
 }
 
 std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {
@@ -1212,7 +1265,7 @@ BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
     for(const auto& param : params) {
         copied.emplace_back(param->copy(allocator));
     }
-    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, false, nullptr);
+    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, false, parent_node, nullptr);
 }
 
 //hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {
@@ -1245,7 +1298,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
         gen_param->declare_and_link(linker);
     }
     for(auto& param : params) {
-        param->type->link(linker);
+        param->link_param_type(linker);
     }
     linker.scope_end();
     linker.declare_function(name, this, specifier);
@@ -1272,10 +1325,7 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
         gen_param->declare_and_link(linker);
     }
     for (auto &param: params) {
-        linker.declare(param->name, param);
-        if(param->defValue) {
-            param->defValue->link(linker, param->defValue);
-        }
+        param->declare_and_link(linker);
     }
     returnType->link(linker);
     if (body.has_value()) {

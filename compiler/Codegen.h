@@ -81,6 +81,11 @@ public:
     std::unordered_map<FunctionCall*, Value*> evaluated_func_calls;
 
     /**
+     * implicit arguments are provided using provide as statement
+     */
+    std::unordered_map<std::string, llvm::Value*> implicit_args;
+
+    /**
      * All get element pointer instructions use this to state that the element pointer is inbounds
      * If true, results in undefined behavior when accessing element out of bounds, which is the default
      */

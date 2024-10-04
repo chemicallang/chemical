@@ -382,7 +382,10 @@ PointerType* current_self_pointer(CSTConverter* converter, CSTToken* token) {
 void CSTConverter::visitFunctionParam(CSTToken* param) {
     auto &paramTokens = param->tokens;
     if (is_char_op(paramTokens[0], '&')) { // implicit parameter
-        put_node(new (local<FunctionParam>()) FunctionParam(str_token(paramTokens[1]), current_self_pointer(this, paramTokens[1]), 0, nullptr, true, nullptr, param), param);
+        const auto name_token = paramTokens[1];
+        const auto ptr_to_linked  = new (local<PointerType>()) PointerType(new (local<LinkedType>()) LinkedType(name_token->value(), nullptr, name_token), name_token);;
+        const auto paramDecl = new (local<FunctionParam>()) FunctionParam(name_token->value(), ptr_to_linked, 0, nullptr, true, current_func_type, param);
+        put_node(paramDecl, param);
         return;
     }
     auto identifier = str_token(paramTokens[0]);
@@ -396,7 +399,7 @@ void CSTConverter::visitFunctionParam(CSTToken* param) {
         paramTokens.back()->accept(this);
         def_value = value();
     }
-    put_node(new (local<FunctionParam>()) FunctionParam(identifier, baseType, param_index, def_value, false, nullptr, param), param);
+    put_node(new (local<FunctionParam>()) FunctionParam(identifier, baseType, param_index, def_value, false, current_func_type, param), param);
 }
 
 struct FunctionParamsResult {
@@ -406,7 +409,9 @@ struct FunctionParamsResult {
 };
 
 // will probably leave the index at ')'
-FunctionParamsResult function_params(CSTConverter* converter, ASTAllocator& allocator, cst_tokens_ref_type tokens, unsigned start) {
+FunctionParamsResult function_params(CSTConverter* converter, FunctionType* func_type, cst_tokens_ref_type tokens, unsigned start) {
+    auto prev_func_type = converter->current_func_type;
+    converter->current_func_type = func_type;
     auto prev_param_index = converter->param_index;
     converter->param_index = 0;
     auto isVariadic = false;
@@ -439,6 +444,7 @@ FunctionParamsResult function_params(CSTConverter* converter, ASTAllocator& allo
         i++;
     }
     converter->param_index = prev_param_index;
+    converter->current_func_type = prev_func_type;
     return {isVariadic, std::move(params), i};
 }
 
@@ -502,7 +508,41 @@ void CSTConverter::visitFunction(CSTToken* function) {
     auto prev_local = local_allocator;
     local_allocator = &alloc;
 
-    auto params = function_params(this, alloc, function->tokens, i + 2);
+    FunctionDeclaration* funcDeclStored;
+
+    if(is_extension) {
+        auto& receiver_tok = function->tokens[extension_start + 1];
+        receiver_tok->accept(this);
+        auto param = (FunctionParam*) nodes.back();
+        nodes.pop_back();
+        funcDeclStored = new (alloc.allocate<ExtensionFunction>()) ExtensionFunction(
+                name_token->value(),
+                ExtensionFuncReceiver(std::move(param->name), param->type, nullptr, receiver_tok),
+                {},
+                nullptr,
+                false,
+                parent_node,
+                function,
+                std::nullopt,
+                specifier
+        );
+        ((ExtensionFunction*) funcDeclStored)->receiver.parent_node = funcDeclStored;
+    } else {
+        funcDeclStored = new (alloc.allocate<FunctionDeclaration>()) FunctionDeclaration(
+                name_token->value(),
+                {},
+                nullptr,
+                false,
+                parent_node,
+                function,
+                std::nullopt,
+                specifier
+        );
+    }
+
+    const auto funcDecl = funcDeclStored;
+
+    auto params = function_params(this, funcDecl, function->tokens, i + 2);
 
     i = params.index;
 
@@ -520,35 +560,9 @@ void CSTConverter::visitFunction(CSTToken* function) {
         returnType = new (alloc.allocate<VoidType>()) VoidType(nullptr);
     }
 
-    FunctionDeclaration* funcDecl;
-
-    if(is_extension) {
-        auto& receiver_tok = function->tokens[extension_start + 1];
-        receiver_tok->accept(this);
-        auto param = (FunctionParam*) nodes.back();
-        nodes.pop_back();
-        funcDecl = new (alloc.allocate<ExtensionFunction>()) ExtensionFunction(
-                name_token->value(),
-                ExtensionFuncReceiver(std::move(param->name), param->type, nullptr, receiver_tok),
-                std::move(params.params),
-                returnType, params.isVariadic,
-                parent_node,
-                function,
-                std::nullopt,
-                specifier
-        );
-        ((ExtensionFunction*) funcDecl)->receiver.parent_node = funcDecl;
-    } else {
-        funcDecl = new (alloc.allocate<FunctionDeclaration>()) FunctionDeclaration(
-                name_token->value(),
-                std::move(params.params),
-                returnType, params.isVariadic,
-                parent_node,
-                function,
-                std::nullopt,
-                specifier
-        );
-    }
+    funcDecl->params = std::move(params.params);
+    funcDecl->returnType = returnType;
+    funcDecl->isVariadic = params.isVariadic;
 
     if(is_generic) {
         convert_generic_list(this, alloc, gen_token, funcDecl->generic_params, funcDecl);
@@ -914,9 +928,12 @@ void CSTConverter::visitLambda(CSTToken* cst) {
         i += 2;
     }
 
-    auto result = function_params(this, *local_allocator, cst->tokens, i);
+    auto lambda = new (local<LambdaFunction>()) LambdaFunction(std::move(captureList), {}, false, Scope {parent_node, nullptr}, parent_node,cst);
 
-    auto lambda = new (local<LambdaFunction>()) LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic, Scope {parent_node, nullptr}, cst);
+    auto result = function_params(this, lambda, cst->tokens, i);
+
+    lambda->params = std::move(result.params);
+    lambda->isVariadic = result.isVariadic;
 
     auto bodyIndex = result.index + 2;
     if (cst->tokens[bodyIndex]->type() == LexTokenType::CompBody) {
@@ -1430,7 +1447,7 @@ void CSTConverter::visitImpl(CSTToken* impl) {
 
 void CSTConverter::visitVariantMember(CSTToken* variant_member) {
     const auto member = new (local<VariantMember>()) VariantMember(str_token(variant_member->tokens[0]), (VariantDefinition*) parent_node, variant_member);
-    auto result = function_params(this, *local_allocator, variant_member->tokens, 2);
+    auto result = function_params(this, nullptr, variant_member->tokens, 2);
     for(auto& value : result.params) {
         member->values[value->name] =  new (local<VariantMemberParam>()) VariantMemberParam(value->name, value->index, value->type, value->defValue ? value->defValue : nullptr, member, value->token);
     }
@@ -1566,9 +1583,16 @@ void CSTConverter::visitArrayType(CSTToken* arrayType) {
 
 void CSTConverter::visitFunctionType(CSTToken* funcType) {
     bool is_capturing = is_char_op(funcType->tokens[0], '[');
-    auto params = function_params(this, *local_allocator, funcType->tokens, is_capturing ? 3 : 1);
+    const auto func_type = new (local<FunctionType>()) FunctionType({}, nullptr, false, is_capturing, parent_node, funcType);
+    auto params = function_params(this, func_type, funcType->tokens, is_capturing ? 3 : 1);
+
     visit(funcType->tokens, params.index + 2);
-    put_type(new (local<FunctionType>()) FunctionType(std::move(params.params), type(), params.isVariadic, is_capturing, funcType), funcType);
+
+    func_type->params = std::move(params.params);
+    func_type->isVariadic = params.isVariadic;
+    func_type->returnType = type();
+
+    put_type(func_type, funcType);
 }
 
 

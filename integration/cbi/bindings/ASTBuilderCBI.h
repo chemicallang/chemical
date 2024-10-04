@@ -133,7 +133,7 @@ extern "C" {
 
     FloatType* ASTBuildermake_float_type(CSTConverter* converter, CSTToken* token);
 
-    FunctionType* ASTBuildermake_func_type(CSTConverter* converter, BaseType* returnType, bool isVariadic, bool isCapturing, CSTToken* token);
+    FunctionType* ASTBuildermake_func_type(CSTConverter* converter, BaseType* returnType, bool isVariadic, bool isCapturing, ASTNode* parent_node, CSTToken* token);
 
     GenericType* ASTBuildermake_generic_type(CSTConverter* converter, LinkedType* linkedType);
 

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ast/structures/Scope.h"
+#include <unordered_map>
 
 class ProvideStmt : public ASTNode {
 public:
@@ -25,6 +26,13 @@ public:
         CSTToken* token
     );
 
+    /**
+     * will allow the caller to put the value
+     * in the unordered map, while working with the body
+     */
+    template<typename T>
+    void put_in(std::unordered_map<std::string, T*>& value_map, T* new_value, void* data, void(*do_body)(ProvideStmt*, void*));
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
@@ -42,5 +50,11 @@ public:
     }
 
     void declare_and_link(SymbolResolver &linker) override;
+
+#ifdef COMPILER_BUILD
+
+    void code_gen(Codegen &gen) override;
+
+#endif
 
 };

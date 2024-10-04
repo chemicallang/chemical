@@ -35,7 +35,6 @@ public:
      */
     std::vector<GenericType*> subscribers;
     std::optional<LoopScope> body;
-    ASTNode* parent_node;
     /**
      * if this is a generic function (it has generic parameters), generic parameters
      * pretend to be different types on different iterations, iterations are number of usages

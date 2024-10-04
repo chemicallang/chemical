@@ -350,7 +350,7 @@ public struct ASTBuilder {
 
     func make_float_type(&self, token : CSTToken*) : FloatType*
 
-    func make_func_type(&self, returnType : BaseType*, isVariadic : bool, isCapturing : bool, token : CSTToken*) : FunctionType*
+    func make_func_type(&self, returnType : BaseType*, isVariadic : bool, isCapturing : bool, parent : ASTNode*, token : CSTToken*) : FunctionType*
 
     func make_generic_type(&self, linkedType : LinkedType*) : GenericType*
 

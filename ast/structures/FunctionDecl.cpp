@@ -1020,7 +1020,7 @@ void FunctionParam::link_param_type(SymbolResolver &linker) {
                 const auto linked_type = ((LinkedType*) ptr_type->type);
                 const auto found_kind = found->kind();
                 if(found_kind == ASTNodeKind::TypealiasStmt) {
-                    ptr_type->type = ((TypealiasStatement*) found)->actual_type;
+                    type = ((TypealiasStatement*) found)->actual_type;
                 } else {
                     linked_type->linked = found;
                 }

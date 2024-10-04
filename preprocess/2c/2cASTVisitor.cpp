@@ -34,6 +34,7 @@
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/If.h"
+#include "ast/statements/ProvideStmt.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/ForLoop.h"
@@ -592,20 +593,24 @@ void write_accessor(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, un
     write_accessor(visitor, values[index], index + 1 < values.size() ? values[index + 1] : nullptr);
 }
 
+void write_self_arg(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {
+    auto grandpa = values[grandpa_index];
+    if(!grandpa->is_pointer() && !force_no_pointer) {
+        visitor.write('&');
+    }
+    unsigned index = 0;
+    while(index <= grandpa_index) {
+        values[index]->accept(&visitor);
+        if(index < grandpa_index) {
+            write_accessor(visitor, values, index);
+        }
+        index++;
+    }
+}
+
 bool write_self_arg_bool(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<ChainValue*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {
     if(func_type->has_self_param()) {
-        auto grandpa = values[grandpa_index];
-        if(!grandpa->is_pointer() && !force_no_pointer) {
-            visitor.write('&');
-        }
-        unsigned index = 0;
-        while(index <= grandpa_index) {
-            values[index]->accept(&visitor);
-            if(index < grandpa_index) {
-                write_accessor(visitor, values, index);
-            }
-            index++;
-        }
+        write_self_arg(visitor, values, grandpa_index, call, force_no_pointer);
         return true;
     } else {
         return false;
@@ -1065,6 +1070,41 @@ void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
     func_decl->runtime_name_no_parent_fast(*visitor.output);
 }
 
+void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<ChainValue*>& values, unsigned end, FunctionCall* call) {
+    for(auto& param : func_type->params) {
+        if(param->is_implicit) {
+            if(param->name == "self") {
+                if(end >= 3) {
+                    write_self_arg(visitor, values, (((int) end) - 3), call, false);
+                    if (!call->values.empty()) {
+                        visitor.write(", ");
+                    }
+                } else if(visitor.current_func_type) {
+                    auto self_param = visitor.current_func_type->get_self_param();
+                    if(self_param) {
+                        visitor.write(param->name);
+                        visitor.write(", ");
+                    } else {
+//                        visitor->error("No self param can be passed to a function, because current function doesn't take a self arg");
+                    }
+                }
+            } else if(param->name == "other") {
+                // skipping it
+                // TODO check it
+            } else {
+                auto found = visitor.implicit_args.find(param->name);
+                if(found != visitor.implicit_args.end()) {
+                    found->second->accept(&visitor);
+                } else {
+                    visitor.error("couldn't find implicit argument with name '" + param->name + "'", call);
+                }
+             }
+        } else {
+            break;
+        }
+    }
+};
+
 void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* actual_visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
     auto last = values[end - 1]->as_func_call();
     auto func_decl = last->safe_linked_func();
@@ -1118,24 +1158,7 @@ void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* a
         if (!last->values.empty() || func_type->has_self_param()) {
             visitor.write(", ");
         }
-        if(func_type->has_self_param()) {
-            if(end >= 3) {
-                if (write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last, false)) {
-                    if (!last->values.empty()) {
-                        visitor.write(", ");
-                    }
-                }
-            } else if(visitor.current_func_type) {
-                auto self_param = visitor.current_func_type->get_self_param();
-                if(self_param) {
-                    visitor.write(self_param->name);
-                    visitor.write(", ");
-                } else {
-//                visitor->error("No self param can be passed to a function, because current function doesn't take a self arg");
-                }
-            }
-        }
-//        if(grandpa) write_self_arg(visitor, func_type, values, ((int) ((int) end - 3)), last);
+        write_implicit_args(visitor, func_type, values, end, last);
         func_call_args(visitor, last->as_func_call(), func_type);
         visitor.write(')');
         if(!visitor.nested_value) {
@@ -2525,8 +2548,12 @@ std::string ToCAstVisitor::get_local_temp_var_name() {
     return name;
 }
 
-void ToCAstVisitor::write(const std::string& value) {
+void ToCAstVisitor::write(std::string& value) {
     output->write(value.c_str(), value.size());
+}
+
+void ToCAstVisitor::write(std::string_view str) {
+    output->write(str.data(), str.size());
 }
 
 std::string ToCAstVisitor::string_accept(ASTAny* any) {
@@ -3926,6 +3953,13 @@ void ToCAstVisitor::visit(StructMember *member) {
         type_with_id(*this, member->type, member->name);
     }
     write(';');
+}
+
+void ToCAstVisitor::visit(ProvideStmt *stmt) {
+    stmt->put_in(implicit_args, stmt->value, this, [](ProvideStmt* stmt, void* data) {
+        const auto v = (ToCAstVisitor*) data;
+        v->visit(&stmt->body);
+    });
 }
 
 void ToCAstVisitor::visit(TypealiasStatement *stmt) {

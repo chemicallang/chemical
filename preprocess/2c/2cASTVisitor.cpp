@@ -1091,7 +1091,12 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::v
                 if(found != visitor.implicit_args.end()) {
                     found->second->accept(&visitor);
                 } else {
-                    visitor.error("couldn't find implicit argument with name '" + param->name + "'", call);
+                    const auto between = visitor.current_func_type->implicit_param_for(param->name);
+                    if(between) {
+                        visitor.write(between->name);
+                    } else {
+                        visitor.error("couldn't find implicit argument with name '" + param->name + "'", call);
+                    }
                 }
              }
         } else {

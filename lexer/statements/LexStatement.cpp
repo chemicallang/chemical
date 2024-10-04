@@ -33,6 +33,7 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexVarInitializationTokens(true) ||
            lexAnnotationMacro() ||
            lexUsingStatement() ||
+           lexProvideStatement() ||
            lexEnumStructureTokens() ||
            lexStructStructureTokens() ||
            lexUnionStructureTokens() ||
@@ -60,6 +61,7 @@ bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
            (lexDestructStatement()) ||
            lexThrowStatementTokens() ||
            lexUsingStatement() ||
+           lexProvideStatement() ||
            lexIfBlockTokens(is_value, lex_value_node, false) ||
            lexTryCatchTokens() ||
            lexTypealiasStatement() ||
@@ -122,6 +124,31 @@ bool Lexer::lexUsingStatement() {
         } while(lexOperatorToken("::"));
         compound_from(start, LexTokenType::CompUsing);
         return true;
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::lexProvideStatement() {
+    if(lexWSKeywordToken("provide")) {
+        unsigned start = tokens_size() - 1;
+        if(!lexAccessChainOrAddrOf()) {
+            error("expected a value after provide keyword");
+            return true;
+        }
+        if(!lexWSKeywordToken("as")) {
+            error("expected 'as' keyword after the value ein provide statement");
+            return true;
+        }
+        if(!lexIdentifierToken()) {
+            error("expected a identifier after 'as' in provide statement");
+            return true;
+        }
+        if(!lexBraceBlock("provide")) {
+            mal_node(start, "missing body for provide statement");
+            return true;
+        }
+        compound_from(start, LexTokenType::CompProvide);
     } else {
         return false;
     }

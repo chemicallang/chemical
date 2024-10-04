@@ -19,6 +19,7 @@ bool Lexer::lexDoWhileBlockTokens() {
     isLexBreakStatement = true;
     if(!lexBraceBlock("dowhileloop")) {
         mal_node(start, "expected a brace block { statement(s) } when lexing a while block");
+        return true;
     }
     isLexContinueStatement = false;
     isLexBreakStatement = false;

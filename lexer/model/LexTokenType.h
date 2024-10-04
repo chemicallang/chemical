@@ -43,6 +43,7 @@ enum class LexTokenType : int {
     CompUnsafeBlock,
     CompThrow,
     CompUsing,
+    CompProvide,
     CompDestruct,
     CompIf,
     CompImport,

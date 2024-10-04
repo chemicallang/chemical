@@ -53,6 +53,7 @@
 #include "lexer/model/CompilerBinder.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/statements/ProvideStmt.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/structures/Namespace.h"
 #include "ast/statements/Break.h"
@@ -815,6 +816,13 @@ void CSTConverter::visitUsing(CSTToken* usingStmt) {
     const auto stmt = new (local<UsingStmt>()) UsingStmt(std::move(curr_values), parent_node, is_keyword(usingStmt->tokens[1], "namespace"), usingStmt);
     collect_annotations_in(this, stmt);
     put_node(stmt, usingStmt);
+}
+
+void CSTConverter::visitProvide(CSTToken *provideStmt) {
+    provideStmt->tokens[1]->accept(this);
+    const auto stmt = new (local<ProvideStmt>()) ProvideStmt(value(), provideStmt->tokens[3]->value(), { parent_node, provideStmt->tokens[4] }, parent_node, provideStmt);
+    stmt->body.nodes = take_body_nodes(this, provideStmt->tokens[4], stmt);
+    put_node(stmt, provideStmt);
 }
 
 void CSTConverter::visitTypealias(CSTToken* alias) {

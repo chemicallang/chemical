@@ -91,6 +91,9 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompUsing:
             visitor->visitUsing((CSTToken*) this);
             return;
+        case LexTokenType::CompProvide:
+            visitor->visitProvide((CSTToken*) this);
+            return;
         case LexTokenType::CompDestruct:
             visitor->visitDestruct((CSTToken*) this);
             return;

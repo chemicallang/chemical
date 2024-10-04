@@ -65,6 +65,10 @@ public:
         visitCompoundCommon(usingStmt);
     }
 
+    virtual void visitProvide(CSTToken *provideStmt) {
+        visitCompoundCommon(provideStmt);
+    }
+
     virtual void visitDestruct(CSTToken *delStmt) {
         visitCompoundCommon(delStmt);
     }

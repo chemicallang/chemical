@@ -38,32 +38,19 @@ bool ArrayType::satisfies(ASTAllocator& allocator, Value* value) {
 }
 
 bool BoolType::satisfies(ASTAllocator& allocator, Value* value) {
-    return value->value_type() == ValueType::Bool;
-}
-
-//bool CharType::satisfies(ASTAllocator& allocator, Value* value) {
-//    return value->value_type() == ValueType::Char;
-//}
-
-bool UCharType::satisfies(ASTAllocator& allocator, Value* value) {
-    return value->value_type() == ValueType::UChar;
+    const auto type = value->create_type(allocator)->pure_type();
+    return type->kind() == BaseTypeKind::Bool;
 }
 
 bool DoubleType::satisfies(ASTAllocator& allocator, Value* value) {
-    return value->value_type() == ValueType::Double;
+    const auto type = value->create_type(allocator)->pure_type();
+    return type->kind() == BaseTypeKind::Double;
 }
 
 bool FloatType::satisfies(ASTAllocator& allocator, Value* value) {
-    return value->value_type() == ValueType::Float;
+    const auto type = value->create_type(allocator)->pure_type();
+    return type->kind() == BaseTypeKind::Float;
 }
-
-//bool PointerType::satisfies(ASTAllocator& allocator, Value* value) {
-//    return value->value_type() == ValueType::Pointer || value->is_pointer() && type->satisfies(value->known_type());
-//}
-
-//bool LinkedType::satisfies(ASTAllocator& allocator, Value* value) {
-//    return value->known_type()->is_same(this);
-//}
 
 bool StringType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::String;

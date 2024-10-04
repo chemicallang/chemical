@@ -24,8 +24,6 @@ public:
         return 16;
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value) override;
-
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

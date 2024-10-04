@@ -1020,7 +1020,13 @@ void FunctionParam::link_param_type(SymbolResolver &linker) {
                 const auto linked_type = ((LinkedType*) ptr_type->type);
                 const auto found_kind = found->kind();
                 if(found_kind == ASTNodeKind::TypealiasStmt) {
-                    type = ((TypealiasStatement*) found)->actual_type;
+                    const auto retrieved = ((TypealiasStatement*) found)->actual_type;
+                    type = retrieved;
+                    const auto direct = retrieved->get_direct_linked_node();
+                    if(direct && ASTNode::isStoredStructType(direct->kind())) {
+                        linker.error("struct like types must be passed as references using implicit parameters with typealias, please add '&' to make it a reference", this);
+                        return;
+                    }
                 } else {
                     linked_type->linked = found;
                 }

@@ -1097,7 +1097,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::v
                     }
                     auto type = found->second->create_type(visitor.allocator);
                     const auto node = type->get_direct_linked_node();
-                    if(node && ASTNode::isBackendStructType(node->kind())) {
+                    if(node && ASTNode::isStoredStructType(node->kind())) {
                         visitor.write('&');
                     }
                     found->second->accept(&visitor);

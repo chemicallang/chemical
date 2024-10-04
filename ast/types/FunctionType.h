@@ -85,10 +85,17 @@ public:
     bool satisfy_args(ASTAllocator& allocator, std::vector<Value*>& forArgs);
 
     /**
+     * get the total implicit parameters
+     */
+    unsigned total_implicit_params();
+
+    /**
      * suppose this function takes a self argument passed implicitly
      * the index of arguments would start at 1
      */
-    unsigned explicit_func_arg_offset();
+    inline unsigned explicit_func_arg_offset() {
+        return total_implicit_params();
+    }
 
     /**
      * get function param for argument index

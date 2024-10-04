@@ -95,28 +95,20 @@ uint64_t FunctionType::byte_size(bool is64Bit) {
         return is64Bit ? 8 : 4;
     }
 }
-
-unsigned FunctionType::explicit_func_arg_offset() {
-    if(as_extension_func()) {
-        return 0;
-    } else {
-        return has_self_param() ? 1 : 0;
+unsigned FunctionType::total_implicit_params() {
+    unsigned i = 0;
+    for(auto& param : params) {
+        if(param->is_implicit) {
+            i++;
+        } else {
+            break;
+        }
     }
+    return i;
 }
 
 unsigned int FunctionType::expectedArgsSize() {
-    const auto s = params.size();
-    if(s == 0) return 0;
-    const auto func = as_function();
-    if(func && (func->has_annotation(AnnotationKind::Copy) || func->has_annotation(AnnotationKind::Move))) {
-        return s - 2; // copy and move have two implicit parameters
-    }
-    const auto ext_func = as_extension_func();
-    if(!ext_func && has_self_param()) {
-        return s - 1;
-    } else {
-        return s;
-    }
+    return params.size() - total_implicit_params();
 }
 
 FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {

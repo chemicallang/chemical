@@ -1064,21 +1064,24 @@ void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
 }
 
 void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<ChainValue*>& values, unsigned end, FunctionCall* call) {
+    bool has_comma_before = true;
     for(auto& param : func_type->params) {
         if(param->is_implicit) {
             if(param->name == "self") {
                 if(end >= 3) {
-                    write_self_arg(visitor, values, (((int) end) - 3), call, false);
-                    if (!call->values.empty()) {
+                    if(!has_comma_before) {
                         visitor.write(", ");
                     }
+                    write_self_arg(visitor, values, (((int) end) - 3), call, false);
+                    has_comma_before = false;
                 } else if(visitor.current_func_type) {
                     auto self_param = visitor.current_func_type->get_self_param();
                     if(self_param) {
-                        visitor.write(param->name);
-                        if(!call->values.empty()) {
+                        if(!has_comma_before) {
                             visitor.write(", ");
                         }
+                        visitor.write(param->name);
+                        has_comma_before = false;
                     } else {
 //                        visitor->error("No self param can be passed to a function, because current function doesn't take a self arg");
                     }
@@ -1089,11 +1092,19 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::v
             } else {
                 auto found = visitor.implicit_args.find(param->name);
                 if(found != visitor.implicit_args.end()) {
+                    if(!has_comma_before) {
+                        visitor.write(", ");
+                    }
                     found->second->accept(&visitor);
+                    has_comma_before = false;
                 } else {
                     const auto between = visitor.current_func_type->implicit_param_for(param->name);
                     if(between) {
+                        if(!has_comma_before) {
+                            visitor.write(", ");
+                        }
                         visitor.write(between->name);
+                        has_comma_before = false;
                     } else {
                         visitor.error("couldn't find implicit argument with name '" + param->name + "'", call);
                     }
@@ -1102,6 +1113,9 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::v
         } else {
             break;
         }
+    }
+    if (!has_comma_before && !call->values.empty()) {
+        visitor.write(", ");
     }
 };
 

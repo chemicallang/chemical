@@ -199,13 +199,21 @@ public:
     VariableIdentifier* find_moved_id(VariableIdentifier* id);
 
     /**
-     * an access is found that partially matches the given access chain
-     * his checks partially matching moved chains
-     * for given 'm' if only 'm.x' has been moved, we return it
-     * for given 'm.x' if only 'm' has been moved, we return it
-     * for given 'm.x' if only 'm.y' has been moved, we don't return it
+     * an access is found that partially matches the given access chain, his checks partially matching moved chains
+     *
+     * for example when consider_nested_members and consider_last_member are true:
+     * for given 'm' if only 'm.x' has been moved, we return it (nested members considered)
+     * for given 'm.x' if only 'm' has been moved, we return it (parent member considered)
+     * for given 'm.x' if only 'm.y' has been moved, we return null (unrelated not considered)
+     * for given 'm.x' if only 'm.x' has been moved, we return it (last member considered)
+     *
+     * for example when consider_nested_members and consider_last_member are false:
+     * for given 'm.x' if only 'm.x.y' has been moved, we return null (nested members not considered)
+     * for given 'm.x' if only 'm' has been moved, we return it (parent member being considered)
+     * for given 'm.x' if only 'm.y' has been moved, we return null (unrelated nor considered)
+     * for given 'm.x' if only 'm.x' has been moved, we return null (last member not considered)
      */
-    AccessChain* find_partially_matching_moved_chain(AccessChain& chain, ValueKind first_value_kind);
+    AccessChain* find_partially_matching_moved_chain(AccessChain& chain, bool consider_nested_members, bool consider_last_member);
 
     /**
      * find's a chain value (identifier or access chain) that matches the identifier functionally
@@ -228,6 +236,39 @@ public:
      * marks given identifier moved without checking
      */
     void mark_moved_no_check(VariableIdentifier* id);
+
+    /**
+     * check if the given access chain is accessible or assignable (depending on bool assigning)
+     * for example when assigning or accessing x.y.z
+     * access:
+     * an error when 'x' or 'x.y'  has been moved
+     * an error when 'x.y.z' has been moved (considers the last member)
+     * an error if a nested member after 'z' has been moved (considers nested members)
+     *
+     * assignment:
+     * error if 'x' or 'x.y' has been moved
+     * no error when 'x.y.z' has been moved (doesn't consider the last member)
+     * no error if a nested member after 'z' has been moved (doesn't consider nested members)
+     *
+     * @return false if error was caused
+     */
+    bool check_chain(AccessChain* chain, bool assigning, ASTDiagnoser& diagnoser);
+
+    /**
+     * check if the given identifier is accessible or assignable (depending on bool assigning)
+     * for example when assigning or accessing x
+     * access:
+     * an error when 'x' or 'x.y'  has been moved
+     * an error when 'x.y.z' has been moved (considers the last member)
+     * an error if a nested member after 'z' has been moved (considers nested members)
+     *
+     * assignment:
+     * a single identifier moved or not moved, is always assignable !
+     * at the moment, references support is limited
+     *
+     * @return false if error was caused
+     */
+    bool check_id(VariableIdentifier* id, bool assigning, ASTDiagnoser& diagnoser);
 
     /**
      * checks if the value is movable and moves it (marks it move and all that)

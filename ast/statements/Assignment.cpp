@@ -21,7 +21,7 @@ void AssignStatement::accept(Visitor *visitor) {
 }
 
 void AssignStatement::declare_and_link(SymbolResolver &linker) {
-    lhs->link(linker, lhs, nullptr);
+    lhs->link_assign(linker, lhs, nullptr);
     BaseType* value_type = lhs->create_type(linker.allocator);
     value->link(linker, value, value_type);
     if(!value_type->satisfies(linker.allocator, value)) {

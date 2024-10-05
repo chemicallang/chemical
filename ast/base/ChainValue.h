@@ -34,7 +34,7 @@ public:
     );
 
     /**
-     * called only when this value is last in the access chain
+     * called when value is being linked in an access chain where it has a parent value
      */
     virtual bool find_link_in_parent(ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type) = 0;
 

@@ -303,16 +303,20 @@ bool FunctionType::un_move_id(VariableIdentifier* id) {
     return un_move_exact_id(id) || un_move_chain_with_first_id(id);
 }
 
-// given x.y and moved x.y.z match
-// given x.y and moved x.a don't match
-// given x.y.z and moved x match
-// given x and moved x.y.z match
-// given x and moved z.x don't
-// given x.y.z and moved x.y.a don't
-// when finding x.y, when has moved x.y.z, x.y then x.y is returned or x if present, the smallest chain
-// that matches is returned
-AccessChain* FunctionType::find_partially_matching_moved_chain(AccessChain& chain, ValueKind first_value_kind) {
+// for example when consider_nested_members and consider_last_member are true:
+// for given 'm' if only 'm.x' has been moved, we return it (nested members considered)
+// for given 'm.x' if only 'm' has been moved, we return it (parent member considered)
+// for given 'm.x' if only 'm.y' has been moved, we return null (unrelated not considered)
+// for given 'm.x' if only 'm.x' has been moved, we return it (last member considered)
+//
+// for example when consider_nested_members and consider_last_member are false:
+// for given 'm.x' if only 'm.x.y' has been moved, we return null (nested members not considered)
+// for given 'm.x' if only 'm' has been moved, we return it (parent member being considered)
+// for given 'm.x' if only 'm.y' has been moved, we return null (unrelated nor considered)
+// for given 'm.x' if only 'm.x' has been moved, we return null (last member not considered)
+AccessChain* FunctionType::find_partially_matching_moved_chain(AccessChain& chain, bool consider_nested_members, bool consider_last_member) {
     auto first_value = chain.values[0];
+    const auto first_value_kind = first_value->val_kind();
     AccessChain* smallest = nullptr;
     for(auto& moved_chain_ptr : moved_chains) {
         auto& moved_chain = *moved_chain_ptr;
@@ -324,8 +328,10 @@ AccessChain* FunctionType::find_partially_matching_moved_chain(AccessChain& chai
         auto& moved_chain_first = moved_chain.values[0];
         if(first_value->is_equal(moved_chain_first, first_value_kind, moved_chain_first->val_kind())) {
             const auto given_size = chain.values.size();
+            // check for nested members or not ?
+            if(!consider_nested_members && moved_size > given_size) continue;
             auto matching = true;
-            const auto less_size = std::min(moved_size, given_size);
+            const auto less_size = std::min(moved_size, consider_last_member ? given_size : given_size - 1);
             unsigned i = 1; // zero has already been checked
             while(i < less_size) {
                 if(!moved_chain.values[i]->is_equal(chain.values[i])) {
@@ -362,16 +368,16 @@ ChainValue* FunctionType::find_moved_chain_value(VariableIdentifier* id) {
 ChainValue* FunctionType::find_moved_chain_value(AccessChain* chain_ptr) {
     auto& chain = *chain_ptr;
     auto& first_value = *chain.values[0];
-    auto first_value_kind = first_value.val_kind();
-    if(first_value_kind == ValueKind::Identifier) {
+    const auto first_id = first_value.as_identifier();
+    if(first_id) {
         if(chain.values.size() == 1) {
-            return find_moved_chain_value(first_value.as_identifier());
+            return find_moved_chain_value(first_id);
         } else {
-            auto found = find_moved_id(first_value.as_identifier());
+            auto found = find_moved_id(first_id);
             if(found) return found;
         }
     }
-    return find_partially_matching_moved_chain(chain, first_value_kind);
+    return find_partially_matching_moved_chain(chain, true, true);
 }
 
 void FunctionType::mark_moved_no_check(AccessChain* chain) {
@@ -388,12 +394,66 @@ void FunctionType::mark_moved_no_check(VariableIdentifier* id) {
     id->is_moved = true;
 }
 
+bool FunctionType::check_chain(AccessChain* chain, bool assigning, ASTDiagnoser& diagnoser) {
+    ChainValue* moved;
+    if(assigning) {
+        moved = find_partially_matching_moved_chain(*chain, false, false);
+    } else {
+        moved = find_moved_chain_value(chain);
+    }
+    if(moved) {
+        std::string err("cannot ");
+        if(assigning) {
+            err += "assign";
+        } else {
+            err += "access";
+        }
+        err += ' ' + chain->chain_representation() + "' as '" + moved->representation() + "' has been moved";
+        diagnoser.error(err, (ASTNode*) chain, (ASTNode*) moved);
+        return false;
+    }
+    return true;
+}
+
+bool FunctionType::check_id(VariableIdentifier* id, bool assigning, ASTDiagnoser& diagnoser) {
+    if(assigning) {
+        // assigning to a single identifier whether moved or not is allowed
+        // because assigning to it will make it unmoved !
+        return true;
+    }
+    const auto moved = find_moved_chain_value(id);
+    if(moved) {
+        diagnoser.error("cannot access identifier '" + id->representation() + "' as '" + moved->representation() + "' has been moved" , id, moved);
+        return false;
+    }
+    const auto linked = id->linked_node();
+    const auto linked_kind = linked->kind();
+    if (linked_kind == ASTNodeKind::VarInitStmt) {
+        const auto init = linked->as_var_init_unsafe();
+#ifdef DEBUG
+        if(init->get_has_moved()) {
+            diagnoser.error("found var init that skipped move check, identifier '" + init->identifier + "' has already been moved", id);
+            return false;
+        }
+#endif
+    } else if(linked_kind == ASTNodeKind::FunctionParam) {
+        const auto param = linked->as_func_param_unsafe();
+#ifdef DEBUG
+        if(param->get_has_moved()) {
+            diagnoser.error("found function param that skipped move check, identifier '" + param->name + "' has already been moved", id);
+            return false;
+        }
+#endif
+    }
+    return true;
+}
+
 bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     const auto chain = value->as_access_chain();
     if(chain) {
         const auto moved = find_moved_chain_value(chain);
         if(moved) {
-            diagnoser.error("cannot move chain '" + chain->chain_representation() + "' as another one of it's chain '" + moved->representation() + "' has been moved" , (ASTNode*) chain, (ASTNode*) moved);
+            diagnoser.error("cannot move '" + chain->chain_representation() + "' as '" + moved->representation() + "' has been moved" , (ASTNode*) chain, (ASTNode*) moved);
             return false;
         }
         mark_moved_no_check(chain);
@@ -403,7 +463,7 @@ bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
         if(id) {
             const auto moved = find_moved_chain_value(id);
             if(moved) {
-                diagnoser.error("cannot move id '" + id->representation() + "' as chain '" + moved->representation() + "' has been moved" , id, moved);
+                diagnoser.error("cannot move '" + id->representation() + "' as '" + moved->representation() + "' has been moved" , id, moved);
                 return false;
             }
             const auto linked = value->linked_node();

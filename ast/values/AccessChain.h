@@ -55,12 +55,28 @@ public:
      * if end_offset is 1, the last value won't be linked, if it's 2, two last values won't be linked
      * end_offset may not be taken into account, if chain has a single value or two must link values
      */
-    bool link(SymbolResolver &linker, BaseType *type, Value** value_ptr, unsigned int end_offset = 0);
+    bool link(
+        SymbolResolver &linker,
+        BaseType *type,
+        Value** value_ptr,
+        unsigned int end_offset = 0,
+        bool assign = false
+    );
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override {
+        return link(linker, type, &value_ptr);
+    }
+
+    bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
+        return link(linker, expected_type, &value_ptr, 0, true);
+    }
 
     void relink_after_generic(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) override {
         link(linker, value_ptr, expected_type);
+    }
+
+    void declare_and_link(SymbolResolver &linker) override {
+        link(linker, (BaseType*) nullptr, nullptr);
     }
 
     bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
@@ -69,8 +85,6 @@ public:
      * will call relink_parent on values starting from second value
      */
     void relink_parent();
-
-    void declare_and_link(SymbolResolver &linker) override;
 
     void accept(Visitor *visitor) override;
 

@@ -95,6 +95,21 @@ public:
     }
 
     /**
+     * every access chain or identifier x, x.y is used to access elements, however
+     * when used in lhs of a assignment statement, it is being used to assign, this distinction is required
+     * in some cases, for example when accessing something, we may be accessing a moved variable,
+     * however when assigning something, it may have been moved but we allow it because assignment will make it
+     * unmoved
+     * for example assume 'x' is moved now if we use it in rhs
+     * var y = x <-- error 'x' is moved already, but if we use it in lhs
+     * x = something_else <-- no error because x is being unmoved !
+     * this is called by lhs value of assignment statement to link itself, no other place !
+     */
+    virtual bool link_assign(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type = nullptr) {
+        return link(linker, value_ptr, expected_type);
+    }
+
+    /**
      * relink value after generic types are known in the function call
      */
     virtual void relink_after_generic(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {

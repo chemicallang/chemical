@@ -415,12 +415,7 @@ bool FunctionType::check_chain(AccessChain* chain, bool assigning, ASTDiagnoser&
     return true;
 }
 
-bool FunctionType::check_id(VariableIdentifier* id, bool assigning, ASTDiagnoser& diagnoser) {
-    if(assigning) {
-        // assigning to a single identifier whether moved or not is allowed
-        // because assigning to it will make it unmoved !
-        return true;
-    }
+bool FunctionType::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
     const auto moved = find_moved_chain_value(id);
     if(moved) {
         diagnoser.error("cannot access identifier '" + id->representation() + "' as '" + moved->representation() + "' has been moved" , id, moved);

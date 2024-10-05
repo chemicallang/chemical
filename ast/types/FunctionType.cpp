@@ -330,6 +330,8 @@ AccessChain* FunctionType::find_partially_matching_moved_chain(AccessChain& chai
             const auto given_size = chain.values.size();
             // check for nested members or not ?
             if(!consider_nested_members && moved_size > given_size) continue;
+            // check for last member
+            if(!consider_last_member && moved_size == given_size) continue;
             auto matching = true;
             const auto less_size = std::min(moved_size, consider_last_member ? given_size : given_size - 1);
             unsigned i = 1; // zero has already been checked
@@ -408,7 +410,7 @@ bool FunctionType::check_chain(AccessChain* chain, bool assigning, ASTDiagnoser&
         } else {
             err += "access";
         }
-        err += ' ' + chain->chain_representation() + "' as '" + moved->representation() + "' has been moved";
+        err += " \'" + chain->chain_representation() + "' as '" + moved->representation() + "' has been moved";
         diagnoser.error(err, (ASTNode*) chain, (ASTNode*) moved);
         return false;
     }

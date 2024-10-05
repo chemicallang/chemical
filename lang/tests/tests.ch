@@ -13,6 +13,7 @@ import "basic/pointers.ch"
 import "basic/casts.ch"
 import "basic/functions/functions.ch"
 import "basic/functions/implicit.ch"
+import "basic/references/basic.ch"
 import "basic/destructors.ch"
 import "nodes/union.ch"
 import "nodes/namespaces.ch"
@@ -68,6 +69,7 @@ public func main() : int {
     test_modules_import();
     test_moves();
     test_html();
+    test_references();
     print_test_stats();
     return 0;
 }

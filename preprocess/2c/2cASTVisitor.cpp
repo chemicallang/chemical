@@ -4178,6 +4178,18 @@ void ToCAstVisitor::visit(StructValue *val) {
     }
 }
 
+bool write_accessor(ToCAstVisitor& visitor, VariableIdentifier* identifier, ASTNode* node) {
+    if (node && (node->as_struct_def() || node->as_variant_def())) {
+        visitor.write('(');
+        visitor.write('*');
+        visitor.write(identifier->value);
+        visitor.write(')');
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void ToCAstVisitor::visit(VariableIdentifier *identifier) {
     if(identifier->is_moved) {
         auto found = local_allocated.find(identifier);
@@ -4225,13 +4237,17 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
         write('.');
     } else if(linked_kind == ASTNodeKind::FunctionParam) {
         auto& type = *linked->as_func_param_unsafe()->type;
-        auto d_linked = type.get_direct_linked_node();
-        if(d_linked && (d_linked->as_struct_def() || d_linked->as_variant_def())) {
-            write('(');
-            write('*');
-            write(identifier->value);
-            write(')');
-            return;
+        const auto type_kind = type.kind();
+        if(type_kind == BaseTypeKind::Reference) {
+            const auto d_linked = ((ReferenceType&) type).type->get_direct_linked_node();
+            if(write_accessor(*this, identifier, d_linked)) {
+                return;
+            }
+        } else {
+            const auto d_linked = type.get_direct_linked_node(type_kind);
+            if(write_accessor(*this, identifier, d_linked)) {
+                return;
+            }
         }
     }
     write(identifier->value);

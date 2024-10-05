@@ -563,120 +563,120 @@ public:
         visitCommonValue((Value*) func);
     }
 
-    virtual void visit(AnyType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(AnyType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(ArrayType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(ArrayType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(BigIntType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(BigIntType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(BoolType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(BoolType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(CharType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(CharType* type) {
+        visitCommonType((BaseType*) type);
     }
 
     virtual void visit(UCharType* uchar) {
         visitCommonType((BaseType*) uchar);
     }
 
-    virtual void visit(DoubleType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(DoubleType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(FloatType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(FloatType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(FunctionType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(FunctionType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(GenericType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(GenericType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(Int128Type* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(Int128Type* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(IntType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(IntType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(LongType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(LongType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(PointerType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(PointerType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(ReferenceType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(ReferenceType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(LinkedType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(LinkedType* type) {
+        visitCommonType((BaseType*) type);
     }
 
     virtual void visit(LinkedValueType* ref_type) {
         visitCommonType((BaseType*) ref_type);
     }
 
-    virtual void visit(ShortType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(ShortType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(StringType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(StringType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(StructType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(StructType* type) {
+        visitCommonType((BaseType*) type);
     }
 
     virtual void visit(UnionType* unionType) {
         visitCommonType((BaseType*) unionType);
     }
 
-    virtual void visit(LiteralType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(LiteralType* type) {
+        visitCommonType((BaseType*) type);
     }
 
     virtual void visit(DynamicType* type) {
         visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(UBigIntType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(UBigIntType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(UInt128Type* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(UInt128Type* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(UIntType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(UIntType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(ULongType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(ULongType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(UShortType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(UShortType* type) {
+        visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(VoidType* func) {
-        visitCommonType((BaseType*) func);
+    virtual void visit(VoidType* type) {
+        visitCommonType((BaseType*) type);
     }
 
 };

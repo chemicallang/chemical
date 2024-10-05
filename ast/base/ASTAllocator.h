@@ -44,7 +44,7 @@ public:
     template<typename T>
     inline T* allocate() {
         static_assert(std::is_base_of<ASTAny, T>::value, "T must derived from ASTAny");
-        return (T*) (void*) allocate_size(sizeof(T));
+        return (T*) (void*) allocate_size(sizeof(T), alignof(T));
     }
 
     /**
@@ -145,16 +145,16 @@ protected:
     /**
      * helper function to get moved heap pointer
      */
-    char* offset_heap(char* const heap_ptr, std::size_t obj_size);
+    char* offset_heap(char* const heap_ptr, std::size_t obj_size, std::size_t alignment);
 
     /**
      * provides a pointer for the given obj size, increments heap_current
      */
-    char* object_heap_pointer(std::size_t obj_size);
+    char* object_heap_pointer(std::size_t obj_size, std::size_t alignment);
 
     /**
      * allocate a pointer with given object size
      */
-    char* allocate_size(std::size_t obj_size);
+    char* allocate_size(std::size_t obj_size, std::size_t alignment);
 
 };

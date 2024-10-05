@@ -110,35 +110,37 @@ char* ASTAllocator::reserve_heap_storage() {
     return heap_pointer;
 }
 
-char* ASTAllocator::offset_heap(char* const heap_ptr, std::size_t obj_size) {
-    const auto ptr = heap_ptr + heap_offset;
-    heap_offset = heap_offset + obj_size;
+char* ASTAllocator::offset_heap(char* const heap_ptr, std::size_t obj_size, std::size_t alignment) {
+    std::size_t aligned_offset = (heap_offset + alignment - 1) & ~(alignment - 1);
+    const auto ptr = heap_ptr + aligned_offset;
+    heap_offset = aligned_offset + obj_size;
     return ptr;
 }
 
-char* ASTAllocator::object_heap_pointer(std::size_t obj_size) {
+char* ASTAllocator::object_heap_pointer(std::size_t obj_size, std::size_t alignment) {
     if((heap_offset + obj_size) < heap_batch_size) {
-        return offset_heap(heap_memory.back(), obj_size);
+        return offset_heap(heap_memory.back(), obj_size, alignment);
     } else {
         if(obj_size < heap_batch_size) {
-            return offset_heap(reserve_heap_storage(), obj_size);
+            return offset_heap(reserve_heap_storage(), obj_size, alignment);
         } else {
             // just allocate the entire object on heap
             // and do not move heap pointer
-            return static_cast<char*>(::operator new(obj_size));
+            return static_cast<char*>(::operator new(obj_size, std::align_val_t(alignment)));
         }
     }
 }
 
-char* ASTAllocator::allocate_size(std::size_t obj_size) {
+char* ASTAllocator::allocate_size(std::size_t obj_size, std::size_t alignment) {
     std::lock_guard<std::mutex> lock(*allocator_mutex);
-    if (stack_offset + obj_size < stack_memory_size) {
-        const auto ptr = stack_memory + stack_offset;
-        stack_offset += obj_size;
+    std::size_t aligned_stack_offset = (stack_offset + alignment - 1) & ~(alignment - 1);
+    if (aligned_stack_offset + obj_size < stack_memory_size) {
+        const auto ptr = stack_memory + aligned_stack_offset;
+        stack_offset = aligned_stack_offset + obj_size;
         store_ptr(ptr);
         return ptr;
     } else {
-        const auto ptr = object_heap_pointer(obj_size);
+        const auto ptr = object_heap_pointer(obj_size, alignment);
         store_ptr(ptr);
         return ptr;
     }

@@ -28,7 +28,7 @@ void AccessChain::relink_parent() {
     }
 }
 
-bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, unsigned int end_offset) {
+bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, unsigned int end_offset, bool assign) {
 
     if(!values[0]->link(linker, nullptr, values, 0, expected_type)) {
         return false;
@@ -82,15 +82,12 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
 
     }
 
+    if(linker.current_func_type) {
+        // check chain for validity, if it's moved or members have been moved
+        linker.current_func_type->check_chain(this, assign, linker);
+    }
+
     return true;
-}
-
-void AccessChain::declare_and_link(SymbolResolver &linker) {
-    link(linker, (BaseType*) nullptr, nullptr);
-}
-
-bool AccessChain::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) {
-    return link(linker, type, &value_ptr);
 }
 
 AccessChain::AccessChain(ASTNode* parent_node, bool is_node, CSTToken* token) : parent_node(parent_node), is_node(is_node), token(token) {

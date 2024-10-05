@@ -71,9 +71,15 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend, bool assign);
 
-    bool link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend);
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override {
+        return link(linker, (ChainValue* &) (value_ptr), false, false);
+    }
+
+    bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
+        return link(linker, (ChainValue* &) (value_ptr), false, true);
+    }
 
     void relink_parent(ChainValue *parent) override;
 

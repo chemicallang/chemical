@@ -11,9 +11,13 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend) {
+bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend, bool assign) {
     linked = linker.find(value);
     if(linked) {
+        if(linker.current_func_type) {
+            // check for validity if accessible or assignable (because moved)
+            linker.current_func_type->check_id(this, assign, linker);
+        }
         if(prepend && linked->isAnyStructMember()) {
             if(!linker.current_func_type) {
                 linker.error("couldn't link identifier with struct member / function, with name '" + value + '\'', this);
@@ -40,10 +44,6 @@ bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bo
         linker.error("variable identifier '" + value + "' not found", this);
     }
     return false;
-}
-
-bool VariableIdentifier::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    return link(linker, (ChainValue* &) (value_ptr), false);
 }
 
 ASTNode* VariableIdentifier::linked_node() {

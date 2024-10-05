@@ -6,7 +6,7 @@
 #include <iostream>
 #include <unordered_map>
 
-LabBuildContext::LabBuildContext(LabBuildCompilerOptions* options, std::string lab_file, std::string user_build_dir) : options(options) {
+LabBuildContext::LabBuildContext(LabBuildCompilerOptions* options, std::string lab_file, std::string user_build_dir) : exe_path(options->exe_path) {
     if(user_build_dir.empty()) {
         build_dir = resolve_non_canon_parent_path(lab_file, "build");
     } else {

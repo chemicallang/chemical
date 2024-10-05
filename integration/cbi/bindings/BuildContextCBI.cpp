@@ -141,7 +141,7 @@ int BuildContextlink_objects(LabBuildContext* self, StringArrayRef* string_arr, 
     for(auto i = 0; i < string_arr->size; i++) {
         linkables.emplace_back(string_arr->ptr[i].copy());
     }
-    return link_objects(self->options->exe_path, linkables, output_path->to_std_string());
+    return link_objects(self->exe_path, linkables, output_path->to_std_string());
 }
 
 int BuildContextinvoke_dlltool(LabBuildContext* self, StringArrayRef* string_arr) {

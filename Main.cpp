@@ -163,6 +163,8 @@ public:
 
             _log.log(lsp::Log::Level::INFO, "td_initialize");
 
+            manager.initialize(req);
+
             need_initialize_error.reset();
             clientPreferences = std::make_shared<ClientPreferences>(req.params.capabilities);
             td_initialize::response rsp;

@@ -14,6 +14,10 @@ namespace td_semanticTokens_full {
     struct response;
 }
 
+namespace td_initialize {
+    struct request;
+}
+
 namespace td_definition {
     struct response;
 }

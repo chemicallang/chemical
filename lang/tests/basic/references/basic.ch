@@ -16,6 +16,11 @@ struct ReferencableStructRef {
     var r : &ReferencableStruct
 }
 
+variant ReferencableStructOpt {
+    Some(r : &ReferencableStruct)
+    None()
+}
+
 func test_references() {
     test("struct can be passed to functions as reference", () => {
         var r = ReferencableStruct { i : 99 }
@@ -29,5 +34,17 @@ func test_references() {
         var r = ReferencableStruct { i : 97 }
         var rr = ReferencableStructRef { r : r }
         return rr.r.i == 97
+    })
+    test("references can be stored in variants", () => {
+        var z = ReferencableStruct { i : 97 }
+        var rr = ReferencableStructOpt.Some(z)
+        switch(rr) {
+            ReferencableStructOpt.Some(r) => {
+                return r.i == 97;
+            }
+            ReferencableStructOpt.None => {
+                return false;
+            }
+        }
     })
 }

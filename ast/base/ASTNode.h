@@ -1097,6 +1097,13 @@ public:
     }
 
     /**
+     * get unsafe pointer to variant member param
+     */
+    inline VariantMemberParam* as_variant_member_param_unsafe() {
+        return (VariantMemberParam*) this;
+    }
+
+    /**
      * return if this is a variant definition
      */
     inline VariantDefinition* as_variant_def_unsafe() {

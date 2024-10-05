@@ -17,6 +17,7 @@
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
@@ -178,6 +179,9 @@ llvm::Value* create_gep(Codegen &gen, std::vector<ChainValue*>& values, unsigned
             return gen.builder->CreateGEP(access_chain_llvm_type(gen, arr_type->elem_type, values, index), pointer, idxList, "", gen.inbounds);
         } else if (type_kind == BaseTypeKind::Pointer) {
             return gen.builder->CreateGEP(access_chain_llvm_type(gen, ((PointerType*) (type))->type, values, index),
+                                          pointer, idxList, "", gen.inbounds);
+        } else if (type_kind == BaseTypeKind::Reference) {
+            return gen.builder->CreateGEP(access_chain_llvm_type(gen, ((ReferenceType*) (type))->type, values, index),
                                           pointer, idxList, "", gen.inbounds);
         }
     }

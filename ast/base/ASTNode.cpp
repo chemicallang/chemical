@@ -5,6 +5,8 @@
 #include "BaseType.h"
 #include "Value.h"
 #include "ast/structures/VariantDefinition.h"
+#include "ast/values/VariantCaseVariable.h"
+#include "ast/structures/VariantMemberParam.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/Namespace.h"
 #include "ast/values/AccessChain.h"
@@ -137,6 +139,8 @@ bool ASTNode::is_stored_pointer() {
     switch(kind()) {
         case ASTNodeKind::StructMember:
             return as_struct_member_unsafe()->type->is_pointer_or_ref();
+        case ASTNodeKind::VariantCaseVariable:
+            return as_variant_case_var_unsafe()->member_param->type->is_pointer_or_ref();
         case ASTNodeKind::VarInitStmt: {
             const auto init = as_var_init_unsafe();
             if(init->is_const) {

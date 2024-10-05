@@ -19,9 +19,13 @@
 #include "integration/cbi/model/ASTImportUnitRef.h"
 #include "integration/cbi/model/ImportUnitCache.h"
 
+class LabBuildContext;
+
 class RemoteEndPoint;
 
 class GlobalInterpretScope;
+
+class LSPLabImpl;
 
 /**
  * Workspace manager is the operations manager for all IDE related operations
@@ -64,13 +68,6 @@ private:
      */
     std::unordered_map<std::string, std::mutex> lex_file_mutexes;
 
-//    /**
-//     * map between absolute path of a file and their mutexes
-//     * when you require a file is lexed, a mutex is held for each path
-//     * so multiple different paths can be lexed at a single time but multiple same paths cannot.
-//     */
-//    std::unordered_map<std::string, std::mutex> parse_file_mutexes;
-
     /**
      * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
      * otherwise parallel calls might render lex_file_mutexes useless
@@ -92,6 +89,11 @@ private:
      * the argv is the path to the lsp executable
      */
     std::string lsp_exe_path;
+
+    /**
+     * when initialize request is sent from client, project path is saved
+     */
+    std::string project_path;
 
     /**
      * the compiler binder to use in this entire process
@@ -131,6 +133,11 @@ public:
     std::string overridden_resources_path;
 
     /**
+     * lab build compiler
+     */
+    LSPLabImpl* lab = nullptr;
+
+    /**
      * currently is64Bit is determined at compile time
      */
     bool is64Bit = sizeof(void*) == 8;
@@ -149,6 +156,21 @@ public:
      * get the path to resources folder
      */
     std::string resources_path();
+
+    /**
+     * initialize
+     */
+    void initialize(const td_initialize::request &req);
+
+    /**
+     * determines build.lab path relative to project path
+     */
+    std::string get_build_lab_path();
+
+    /**
+     * this compiles build.lab, also notifies the user
+     */
+    bool compile_build_lab();
 
     /**
      * get a system header translated to the output path output_path
@@ -410,6 +432,11 @@ public:
      * to provide lexing from the files on disk rather than their IDE state, this function can be called
      */
     void clearAllStoredContents();
+
+    /**
+     * destructor
+     */
+    ~WorkspaceManager();
 
 };
 

@@ -25,8 +25,25 @@
 #include "compiler/SelfInvocation.h"
 #include "utils/PathUtils.h"
 #include "stream/StringInputSource.h"
+#include "LibLsp/lsp/general/initialize.h"
+#include "compiler/lab/LabBuildCompiler.h"
+#include "compiler/lab/LabBuildContext.h"
+#include "compiler/lab/LabBuildCompilerOptions.h"
 
 #define DEBUG_REPLACE false
+
+struct LSPLabImpl {
+
+    LabBuildContext context;
+    TCCState* state = nullptr;
+
+    ~LSPLabImpl() {
+        if(state) {
+            tcc_delete(state);
+        }
+    }
+
+};
 
 WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()) {
 
@@ -51,6 +68,40 @@ std::string WorkspaceManager::resources_path() {
     } else {
         return overridden_resources_path;
     }
+}
+
+std::string WorkspaceManager::get_build_lab_path(){
+    return resolve_sibling(project_path, "build.lab");
+}
+
+bool WorkspaceManager::compile_build_lab() {
+    auto lab_path = get_build_lab_path();
+    if(std::filesystem::exists(lab_path)) {
+        LabBuildCompilerOptions options(compiler_exe_path(), "ide", is64Bit);
+        LabBuildCompiler compiler(&options);
+        const auto impl = new LSPLabImpl { LabBuildContext(&options, lab_path, resolve_sibling(lab_path, "build")), nullptr };
+        const auto state = compiler.built_lab_file(impl->context, lab_path);
+        if(state) {
+            impl->state = state;
+            lab = impl;
+            return true;
+        } else {
+            delete impl;
+            // TODO report failure to ide
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+
+void WorkspaceManager::initialize(const td_initialize::request &req) {
+    project_path = canonical_path(req.params.rootUri->GetAbsolutePath().path);
+    // doing asynchronous tasks during initialization
+    std::future<void> futureObj = std::async(std::launch::async, [this] {
+        // compile build.lab asynchronously
+        compile_build_lab();
+    });
 }
 
 std::pair<std::string, int> WorkspaceManager::get_c_translated(const std::string& header_abs_path, const std::string& output_path) {
@@ -227,6 +278,12 @@ void WorkspaceManager::onClosedFile(const std::string &path) {
 
 void WorkspaceManager::clearAllStoredContents() {
     overriddenSources.clear();
+}
+
+WorkspaceManager::~WorkspaceManager() {
+    if(lab) {
+        delete lab;
+    }
 }
 
 void replace(

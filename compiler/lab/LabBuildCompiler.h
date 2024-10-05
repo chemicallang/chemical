@@ -107,6 +107,11 @@ public:
     int do_job_allocating(LabJob* job);
 
     /**
+     * will build the lab file and return the callable tcc state
+     */
+    TCCState* built_lab_file(LabBuildContext& context, const std::string& path);
+
+    /**
      * will build the lab file
      */
     int build_lab_file(LabBuildContext& context, const std::string& path);

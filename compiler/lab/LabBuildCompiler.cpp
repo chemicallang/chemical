@@ -772,7 +772,7 @@ inline ASTImportResultExt future_get(std::vector<std::future<ASTImportResultExt>
 #endif
 }
 
-int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string& path) {
+TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::string& path) {
 
     // set the build context
     build_context = &context;
@@ -794,12 +794,12 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     // the processor that does everything for build.lab files only
     ASTCompiler lab_processor(
-        options,
-        &lab_resolver,
-        binder,
-        lab_allocator,
-        lab_allocator, // lab allocator is being used as a module level allocator
-        lab_allocator
+            options,
+            &lab_resolver,
+            binder,
+            lab_allocator,
+            lab_allocator, // lab allocator is being used as a module level allocator
+            lab_allocator
     );
 
     // get flat imports
@@ -923,7 +923,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     // return if error occurred during processing of build.lab(s)
     if(compile_result == 1) {
-        return compile_result;
+        return nullptr;
     }
 
     // compiling the c output from build.labs
@@ -934,26 +934,40 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
         const auto out_path = resolve_rel_child_path_str(context.build_dir, "build.lab.c");
         writeToFile(out_path, str);
         std::cerr << rang::fg::red << "[LabBuild] couldn't build lab file due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
-        return 1;
+        return nullptr;
     }
-
-    TCCDeletor auto_del(state); // automatic destroy
 
     // import all compiler interfaces the lab files import
     for(const auto& interface : compiler_interfaces) {
         if(!binder.import_compiler_interface(interface, state)) {
             std::cerr << rang::fg::red << "[LabBuild] failed to import compiler binding interface '" << interface << '\'' << rang::fg::reset << std::endl;
-            return 1;
+            tcc_delete(state);
+            return nullptr;
         }
     }
 
     // relocate the code before calling
     tcc_relocate(state);
 
+    // return the state
+    return state;
+
+}
+
+int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string& path) {
+
+    auto state = built_lab_file(context, path);
+    if(!state) {
+        return 1;
+    }
+
+    // automatic destroy
+    TCCDeletor auto_del(state);
+
     // get the build method
     auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
     if(!build) {
-        std::cerr << "[LabBuild] Couldn't get build function symbol in translated c :\n" << str << std::endl;
+        std::cerr << "[LabBuild] Couldn't get build function symbol in build.lab" << std::endl;
         return 1;
     }
 
@@ -965,7 +979,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
         std::filesystem::create_directory(context.build_dir);
     }
 
-    int job_result = compile_result;
+    int job_result = 0;
 
     // allocating ast allocators
     const auto job_stack_size = 100000; // 100 kb will be allocated on the stack

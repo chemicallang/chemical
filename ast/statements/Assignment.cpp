@@ -21,11 +21,13 @@ void AssignStatement::accept(Visitor *visitor) {
 }
 
 void AssignStatement::declare_and_link(SymbolResolver &linker) {
-    lhs->link_assign(linker, lhs, nullptr);
-    BaseType* value_type = lhs->create_type(linker.allocator);
-    value->link(linker, value, value_type);
-    if(!value_type->satisfies(linker.allocator, value)) {
-        linker.unsatisfied_type_err(value, value_type);
+    if(lhs->link_assign(linker, lhs, nullptr)) {
+        BaseType* value_type = lhs->create_type(linker.allocator);
+        if(value->link(linker, value, value_type)) {
+            if (!value_type->satisfies(linker.allocator, value)) {
+                linker.unsatisfied_type_err(value, value_type);
+            }
+        }
     }
     auto id = lhs->as_identifier();
     if(id) {

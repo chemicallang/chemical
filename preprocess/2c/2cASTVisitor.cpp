@@ -1266,7 +1266,7 @@ void CBeforeStmtVisitor::visit(VariantCall *call) {
         visitor.write(value.second->name);
         visitor.write(" = ");
         const auto& val = call->values[i];
-        val->accept(&visitor);
+        visitor.accept_mutating_value(value.second->type, val);
         visitor.write(", ");
         i++;
     }

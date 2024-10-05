@@ -20,6 +20,8 @@ class ContinueStatement;
 
 class VariantMember;
 
+class VariantMemberParam;
+
 class ProvideStmt;
 
 class ImportStatement;

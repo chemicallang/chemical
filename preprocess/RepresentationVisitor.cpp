@@ -42,6 +42,7 @@
 #include "ast/structures/WhileLoop.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
@@ -794,9 +795,14 @@ void RepresentationVisitor::visit(LongType *func) {
     write("long");
 }
 
-void RepresentationVisitor::visit(PointerType *func) {
-    func->type->accept(this);
+void RepresentationVisitor::visit(PointerType *type) {
+    type->type->accept(this);
     write('*');
+}
+
+void RepresentationVisitor::visit(ReferenceType *type) {
+    write('&');
+    type->type->accept(this);
 }
 
 void RepresentationVisitor::visit(LinkedType *type) {

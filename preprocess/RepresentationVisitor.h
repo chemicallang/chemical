@@ -247,7 +247,9 @@ public:
 
     void visit(LongType* func) override;
 
-    void visit(PointerType* func) override;
+    void visit(PointerType* type) override;
+
+    void visit(ReferenceType *type) override;
 
     void visit(LinkedType* func) override;
 

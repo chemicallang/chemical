@@ -71,7 +71,7 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
-    bool link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend, bool check_access);
+    bool link(SymbolResolver &linker, bool prepend, bool check_access);
 
     bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) override {
         const auto values_size = values.size();
@@ -80,16 +80,20 @@ public:
         if(parent) {
             return find_link_in_parent(parent, linker, expected_type);
         } else {
-            return link(linker, values[index], false, false);
+            return link(linker, false, false);
         }
     }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override {
-        return link(linker, (ChainValue* &) (value_ptr), false, true);
+        return link(linker, false, true);
     }
 
     bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
-        return link(linker, (ChainValue* &) (value_ptr), false, false);
+        return link(linker, false, false);
+    }
+
+    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) override {
+        link(linker, false, false);
     }
 
     void relink_parent(ChainValue *parent) override;

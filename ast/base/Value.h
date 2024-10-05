@@ -112,7 +112,7 @@ public:
     /**
      * relink value after generic types are known in the function call
      */
-    virtual void relink_after_generic(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {
+    virtual void relink_after_generic(SymbolResolver& linker, BaseType* expected_type) {
         // does nothing
     }
 

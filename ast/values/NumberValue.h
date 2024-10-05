@@ -42,10 +42,14 @@ public:
         visitor->visit(this);
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override;
+    bool link(SymbolResolver &linker, BaseType *type);
 
-    void relink_after_generic(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) override {
-        link(linker, value_ptr, expected_type);
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override {
+        return link(linker, type);
+    }
+
+    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) override {
+        link(linker, expected_type);
     }
 
     bool computed() override {

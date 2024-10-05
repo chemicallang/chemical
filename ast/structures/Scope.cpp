@@ -218,7 +218,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker) {
         }
         // linking chain till chain_size - 1, last function call is not included
         // last function call is not linked because it may not be valid and calling struct member
-        if(!chain->link(linker, nullptr, nullptr, 1)) {
+        if(!chain->link(linker, nullptr, nullptr, 1, false, false)) {
             continue;
         }
         auto call_parent = chain->values[chain_size - 2]; // second last value

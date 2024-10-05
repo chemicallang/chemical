@@ -448,6 +448,9 @@ bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value
 }
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value) {
+    if(type && type->kind() == BaseTypeKind::Reference) {
+        write('&');
+    }
     if(!implicit_mutate_value_default(*this, type, value)) {
         value->accept(this);
     }
@@ -578,7 +581,16 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
 //        }
 //    }
     auto type = current->create_type(visitor.allocator);
-    if(type->pure_type()->kind() == BaseTypeKind::Pointer) {
+    const auto pure_type = type->pure_type();
+    const auto pure_type_kind = pure_type->kind();
+    if(pure_type_kind == BaseTypeKind::Reference) {
+        if(linked->as_func_param()) {
+            visitor.write('.');
+            return;
+        }
+        visitor.write("->");
+        return;
+    } else if(pure_type_kind == BaseTypeKind::Pointer) {
         visitor.write("->");
         return;
     }
@@ -4178,8 +4190,8 @@ void ToCAstVisitor::visit(StructValue *val) {
     }
 }
 
-bool write_accessor(ToCAstVisitor& visitor, VariableIdentifier* identifier, ASTNode* node) {
-    if (node && (node->as_struct_def() || node->as_variant_def())) {
+bool write_id_accessor(ToCAstVisitor& visitor, VariableIdentifier* identifier, ASTNode* node) {
+    if (node && ASTNode::isStoredStructDecl(node->kind())) {
         visitor.write('(');
         visitor.write('*');
         visitor.write(identifier->value);
@@ -4240,12 +4252,12 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
         const auto type_kind = type.kind();
         if(type_kind == BaseTypeKind::Reference) {
             const auto d_linked = ((ReferenceType&) type).type->get_direct_linked_node();
-            if(write_accessor(*this, identifier, d_linked)) {
+            if(write_id_accessor(*this, identifier, d_linked)) {
                 return;
             }
         } else {
             const auto d_linked = type.get_direct_linked_node(type_kind);
-            if(write_accessor(*this, identifier, d_linked)) {
+            if(write_id_accessor(*this, identifier, d_linked)) {
                 return;
             }
         }

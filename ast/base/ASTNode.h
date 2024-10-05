@@ -620,6 +620,10 @@ public:
         return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::VariantMember || k == ASTNodeKind::InterfaceDecl || k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion;
     }
 
+    static inline bool isStoredStructDecl(ASTNodeKind k) {
+        return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::InterfaceDecl;
+    }
+
     inline bool isMembersContainer() {
         return isMembersContainer(kind());
     }

@@ -12,6 +12,10 @@ func in_between_ref_pass(r : &ReferencableStruct) : int {
     return take_ref(r);
 }
 
+struct ReferencableStructRef {
+    var r : &ReferencableStruct
+}
+
 func test_references() {
     test("struct can be passed to functions as reference", () => {
         var r = ReferencableStruct { i : 99 }
@@ -20,5 +24,10 @@ func test_references() {
     test("struct can be passed in between functions as reference", () => {
         var r = ReferencableStruct { i : 98 }
         return in_between_ref_pass(r) == 98;
+    })
+    test("references can be stored in structs", () => {
+        var r = ReferencableStruct { i : 97 }
+        var rr = ReferencableStructRef { r : r }
+        return rr.r.i == 97
     })
 }

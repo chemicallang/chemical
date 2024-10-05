@@ -842,6 +842,9 @@ void FunctionCall::relink_parent(ChainValue *parent) {
 bool FunctionCall::find_link_in_parent(ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
     parent_val = parent;
     FunctionDeclaration* func_decl = safe_linked_func();
+    if(func_decl && func_decl->has_annotation(AnnotationKind::Unsafe) && resolver.safe_context) {
+        resolver.error("unsafe function with name should be called in an unsafe block", this);
+    }
     int16_t prev_itr;
     relink_multi_func(resolver.allocator, &resolver);
     link_gen_args(resolver);

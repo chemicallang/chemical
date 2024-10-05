@@ -681,7 +681,7 @@ void FunctionCall::relink_values(SymbolResolver &linker) {
     unsigned i = 0;
     while(i < values.size()) {
         const auto expected_type = func_type ? func_type->func_param_for_arg_at(i)->type : nullptr;
-        values[i]->relink_after_generic(linker, values[i], expected_type);
+        values[i]->relink_after_generic(linker, expected_type);
         i++;
     }
 }

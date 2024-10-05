@@ -34,7 +34,7 @@ inline bool link_at(std::vector<ChainValue*>& values, unsigned int index, Symbol
     return values[index]->link(linker, values, index, index == values.size() - 1 ? expected_type : nullptr);
 }
 
-bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, unsigned int end_offset, bool assign) {
+bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, unsigned int end_offset, bool check_validity, bool assign) {
 
     if(!link_at(values, 0, linker, expected_type)) {
         return false;
@@ -88,7 +88,7 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
 
     }
 
-    if(linker.current_func_type) {
+    if(check_validity && linker.current_func_type) {
         // check chain for validity, if it's moved or members have been moved
         linker.current_func_type->check_chain(this, assign, linker);
     }

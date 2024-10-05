@@ -154,7 +154,7 @@ void VariantCall::relink_values(SymbolResolver& linker) {
     unsigned i = 0;
     auto itr = member->values.begin();
     while(i < values.size()) {
-        values[i]->relink_after_generic(linker, values[i], itr->second->type);
+        values[i]->relink_after_generic(linker, itr->second->type);
         i++;
         itr++;
     }

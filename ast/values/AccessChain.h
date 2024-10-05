@@ -59,24 +59,25 @@ public:
         SymbolResolver &linker,
         BaseType *type,
         Value** value_ptr,
-        unsigned int end_offset = 0,
-        bool assign = false
+        unsigned int end_offset,
+        bool check_validity,
+        bool assign
     );
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override {
-        return link(linker, type, &value_ptr);
+        return link(linker, type, &value_ptr, 0, true, false);
     }
 
     bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
-        return link(linker, expected_type, &value_ptr, 0, true);
+        return link(linker, expected_type, &value_ptr, 0, true, true);
     }
 
-    void relink_after_generic(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) override {
-        link(linker, value_ptr, expected_type);
+    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) override {
+        link(linker, (BaseType*) nullptr, nullptr, 0, false, false);
     }
 
     void declare_and_link(SymbolResolver &linker) override {
-        link(linker, (BaseType*) nullptr, nullptr);
+        link(linker, (BaseType*) nullptr, nullptr, 0, true, false);
     }
 
     bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type);

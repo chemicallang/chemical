@@ -11,7 +11,7 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend, bool check_access) {
+bool VariableIdentifier::link(SymbolResolver &linker, bool prepend, bool check_access) {
     linked = linker.find(value);
     if(linked) {
         if(check_access && linker.current_func_type) {

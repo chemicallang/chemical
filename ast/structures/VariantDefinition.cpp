@@ -529,7 +529,7 @@ VariantCase::VariantCase(
 
 bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
-    chain->link(linker, (BaseType*) nullptr, nullptr);
+    chain->link(linker, (BaseType*) nullptr, nullptr, 0, false, false);
     for(auto& variable : identifier_list) {
         variable.declare_and_link(linker);
     }

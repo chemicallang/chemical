@@ -46,7 +46,7 @@ IntNType* linked(BaseType* type) {
     }
 }
 
-bool NumberValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) {
+bool NumberValue::link(SymbolResolver &linker, BaseType *type) {
     if(type) {
         const auto linked = type->linked_node();
         if(linked) {

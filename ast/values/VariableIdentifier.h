@@ -71,14 +71,25 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
-    bool link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend, bool assign);
+    bool link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend, bool check_access);
+
+    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) override {
+        const auto values_size = values.size();
+        const auto parent_index = index - 1;
+        const auto parent = parent_index < values_size ? values[parent_index] : nullptr;
+        if(parent) {
+            return find_link_in_parent(parent, linker, expected_type);
+        } else {
+            return link(linker, values[index], false, false);
+        }
+    }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override {
-        return link(linker, (ChainValue* &) (value_ptr), false, false);
+        return link(linker, (ChainValue* &) (value_ptr), false, true);
     }
 
     bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
-        return link(linker, (ChainValue* &) (value_ptr), false, true);
+        return link(linker, (ChainValue* &) (value_ptr), false, false);
     }
 
     void relink_parent(ChainValue *parent) override;
@@ -87,7 +98,7 @@ public:
 
     bool find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser);
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type);
 
     bool primitive() override {
         return false;

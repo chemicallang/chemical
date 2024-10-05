@@ -702,24 +702,6 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
     return false;
 }
 
-bool ChainValue::link(
-    SymbolResolver& linker,
-    ChainValue* parent,
-    std::vector<ChainValue*>& values,
-    unsigned index,
-    BaseType* expected_type
-) {
-    if(parent) {
-        if(index == values.size() - 1) {
-            return find_link_in_parent(parent, linker, expected_type);
-        } else {
-            return find_link_in_parent(parent, linker, nullptr);
-        }
-    } else {
-        return link(linker, (Value*&) values[index]);
-    }
-}
-
 void ChainValue::relink_parent(ChainValue* parent) {
     throw std::runtime_error("relink_parent called on base chain value");
 }

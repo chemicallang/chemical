@@ -25,18 +25,12 @@ public:
      * called by access chain, to link a value inside values in a chain
      * it allows variable identifier to prevent auto appending self, when access chain has already done it
      */
-    bool link(
+    virtual bool link(
             SymbolResolver& linker,
-            ChainValue* parent,
             std::vector<ChainValue*>& values,
             unsigned index,
             BaseType* expected_type
-    );
-
-    /**
-     * called when value is being linked in an access chain where it has a parent value
-     */
-    virtual bool find_link_in_parent(ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type) = 0;
+    ) = 0;
 
     /**
      * relink with the parent chain value, as it has changed

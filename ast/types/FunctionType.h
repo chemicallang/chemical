@@ -265,10 +265,8 @@ public:
      * assignment:
      * a single identifier moved or not moved, is always assignable !
      * at the moment, references support is limited
-     *
-     * @return false if error was caused
      */
-    bool check_id(VariableIdentifier* id, bool assigning, ASTDiagnoser& diagnoser);
+    bool check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser);
 
     /**
      * checks if the value is movable and moves it (marks it move and all that)

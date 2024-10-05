@@ -28,9 +28,15 @@ void AccessChain::relink_parent() {
     }
 }
 
+// for easier invocation
+// type is only passed to the last value in the chain
+inline bool link_at(std::vector<ChainValue*>& values, unsigned int index, SymbolResolver& linker, BaseType* expected_type) {
+    return values[index]->link(linker, values, index, index == values.size() - 1 ? expected_type : nullptr);
+}
+
 bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, unsigned int end_offset, bool assign) {
 
-    if(!values[0]->link(linker, nullptr, values, 0, expected_type)) {
+    if(!link_at(values, 0, linker, expected_type)) {
         return false;
     }
     values[0]->set_generic_iteration(linker.allocator);
@@ -56,7 +62,7 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
     if (values_size > 1) {
 
         // manually linking the second value
-        if(!values[1]->link(linker, values[0], values, 1, expected_type)) {
+        if(!link_at(values, 1, linker, expected_type)) {
             return false;
         }
 
@@ -74,7 +80,7 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
 
         unsigned i = 2;
         while (i < values_size) {
-            if(!values[i]->link(linker, values[i - 1], values, i, expected_type)) {
+            if(!link_at(values, i, linker, expected_type)) {
                 return false;
             }
             i++;

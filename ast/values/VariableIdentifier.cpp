@@ -11,12 +11,12 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend, bool assign) {
+bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend, bool check_access) {
     linked = linker.find(value);
     if(linked) {
-        if(linker.current_func_type) {
+        if(check_access && linker.current_func_type) {
             // check for validity if accessible or assignable (because moved)
-            linker.current_func_type->check_id(this, assign, linker);
+            linker.current_func_type->check_id(this, linker);
         }
         if(prepend && linked->isAnyStructMember()) {
             if(!linker.current_func_type) {

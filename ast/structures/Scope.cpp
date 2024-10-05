@@ -240,7 +240,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker) {
             continue;
         } else if(linked_kind == ASTNodeKind::FunctionDecl) {
             // linking the last function call, since function call is valid
-            if(!call_ptr->link(linker, call_parent, chain->values, chain_size - 1, nullptr)) {
+            if(!call_ptr->link(linker, chain->values, chain_size - 1, nullptr)) {
                 continue;
             }
             auto linked_func = linked->as_function();

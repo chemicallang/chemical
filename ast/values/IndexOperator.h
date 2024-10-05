@@ -41,7 +41,18 @@ public:
 
     ASTNode *linked_node() override;
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type);
+
+    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) override {
+        const auto values_size = values.size();
+        const auto parent_index = index - 1;
+        const auto parent = parent_index < values_size ? values[parent_index] : nullptr;
+        if(parent) {
+            return find_link_in_parent(parent, linker, expected_type);
+        } else {
+            return link(linker, (Value*&) values[index], expected_type);
+        }
+    }
 
     void relink_parent(ChainValue *parent) override;
 

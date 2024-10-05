@@ -232,10 +232,31 @@ public:
     std::string& linked_name();
 
     /**
+     * check if this kind is a pointer
+     */
+    static inline bool is_pointer(BaseTypeKind k) {
+        return k == BaseTypeKind::Pointer || k == BaseTypeKind::String;
+    }
+
+    /**
+     * check if this kind is a pointer
+     */
+    static inline bool is_pointer_or_ref(BaseTypeKind k) {
+        return k == BaseTypeKind::Reference || is_pointer(k);
+    }
+
+    /**
      * check if this type is a pointer
      */
     bool is_pointer() {
-        return kind() == BaseTypeKind::Pointer || kind() == BaseTypeKind::String;
+        return is_pointer(kind());
+    }
+
+    /**
+     * check if this type is a pointer or ref
+     */
+    bool is_pointer_or_ref() {
+        return is_pointer_or_ref(kind());
     }
 
     /**

@@ -222,6 +222,15 @@ public:
     }
 
     /**
+     * is this value has a pointer type (includes strings)
+     */
+    [[nodiscard]]
+    bool is_pointer_or_ref() const {
+        const auto k = type_kind();
+        return k == BaseTypeKind::Pointer || k == BaseTypeKind::String || k == BaseTypeKind::Reference;
+    }
+
+    /**
      * check if this value is a stored pointer
      */
     bool is_stored_pointer();

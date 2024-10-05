@@ -136,16 +136,16 @@ bool ASTNode::is_exported() {
 bool ASTNode::is_stored_pointer() {
     switch(kind()) {
         case ASTNodeKind::StructMember:
-            return as_struct_member_unsafe()->type->is_pointer();
+            return as_struct_member_unsafe()->type->is_pointer_or_ref();
         case ASTNodeKind::VarInitStmt: {
             const auto init = as_var_init_unsafe();
             if(init->is_const) {
                 return false;
             }
             if (init->type) {
-                return init->type->is_pointer();
+                return init->type->is_pointer_or_ref();
             } else {
-                return init->value->is_pointer();
+                return init->value->is_pointer_or_ref();
             }
         }
         default:

@@ -89,6 +89,23 @@
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/base/MalformedInput.h"
 
+std::optional<Operation> get_operation_safe(CSTToken *token) {
+    std::string num;
+    unsigned i = 0;
+    const auto& value = token->value();
+    while(i < value.size()) {
+        if(std::isdigit(value[i])) {
+            num.append(1, value[i]);
+        }
+        i++;
+    }
+    try {
+        return (Operation) std::stoi(num);
+    } catch(...) {
+        return std::nullopt;
+    }
+}
+
 Operation get_operation(CSTToken *token) {
     std::string num;
     unsigned i = 0;
@@ -99,7 +116,15 @@ Operation get_operation(CSTToken *token) {
         }
         i++;
     }
+#ifdef DEBUG
+    try {
+        return (Operation) std::stoi(num);
+    } catch(...) {
+        throw std::runtime_error("get_operation failed where the token contains value: " + token->value());
+    }
+#else
     return (Operation) std::stoi(num);
+#endif
 }
 
 std::vector<ASTNode*> take_body_nodes(CSTConverter *conv, CSTToken *token, ASTNode* parent_node) {
@@ -660,7 +685,7 @@ void CSTConverter::visitMalformedInput(CSTToken *token) {
 
 }
 
-Value* convertNumber(ASTAllocator& alloc, NumberToken* token, ValueType value_type, bool is64Bit) {
+Value* convertNumber_unsafe(ASTAllocator& alloc, NumberToken* token, ValueType value_type, bool is64Bit) {
     switch(value_type) {
         case ValueType::Int:
             return new (alloc.allocate<IntValue>()) IntValue(std::stoi(token->value()), token);
@@ -685,6 +710,18 @@ Value* convertNumber(ASTAllocator& alloc, NumberToken* token, ValueType value_ty
         default:
             return nullptr;
     }
+}
+
+inline Value* convertNumber(ASTAllocator& alloc, NumberToken* token, ValueType value_type, bool is64Bit) {
+#ifdef DEBUG
+    try {
+        return convertNumber_unsafe(alloc, token, value_type, is64Bit);
+    } catch(...) {
+        throw std::runtime_error("convert number failed ! where number token contains value : " + token->value());
+    }
+#else
+    return convertNumber_unsafe(alloc, token, value_type, is64Bit);
+#endif
 }
 
 void CSTConverter::visitVarInit(CSTToken* varInit) {
@@ -961,7 +998,7 @@ void CSTConverter::visitInitBlock(CSTToken *initBlock) {
 
 void CSTConverter::visitUnsafeBlock(CSTToken *block) {
     auto& block_token = block->tokens[1];
-    auto unsafe_block = new (local<UnsafeBlock>()) UnsafeBlock(Scope(nullptr, block_token));
+    auto unsafe_block = new (local<UnsafeBlock>()) UnsafeBlock(Scope(nullptr, block_token), block);
     unsafe_block->scope.nodes = take_body_nodes(this, block_token, unsafe_block);
     nodes.emplace_back(unsafe_block);
 }
@@ -1036,6 +1073,7 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
     // first if body
     if_statement->ifBody.parent_node = if_statement;
     unsigned i = 4;
+    if_statement->ifBody.token = ifCst->tokens[i];
     if_statement->ifBody.nodes = take_body_or_single_stmt(this, ifCst, i, if_statement);
     i++; // position after body
     while ((i + 1) < ifCst->tokens.size() && is_keyword(ifCst->tokens[i + 1], "if")) {
@@ -1880,7 +1918,11 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
             if(nested->tokens.size() <= op_index) { // no operator present, just expression like '(' 'nested_expr' ')'
                 return;
             }
-            auto o1 = get_operation(nested->tokens[op_index]);
+            const auto opt = get_operation_safe(nested->tokens[op_index]);
+            if(!opt.has_value()) {
+                return;
+            }
+            const auto o1 = opt.value();
 //            while (
 //                   there is an operator o2 at the top of the operator stack which is not a left parenthesis,
 //                   and (o2 has greater precedence than o1 or (o1 and o2 have the same precedence and o1 is left-associative))
@@ -1903,8 +1945,6 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
                 visitNestedExpr(converter, nested->tokens[second_val_index], op_stack, output);
             }
         }
-    } else {
-        throw std::runtime_error("unknown type of value provided to visitNestedExpr");
     }
 }
 

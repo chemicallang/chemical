@@ -72,16 +72,23 @@ public:
         }
     }
 
+    ASTNode* usage_linked() {
+        return active_iteration > -1 ? usage[active_iteration]->linked_node() : nullptr;
+    }
+
     ASTNode *child(const std::string &name) override {
-        return usage[active_iteration]->linked_node()->child(name);
+        const auto linked = usage_linked();
+        return linked ? linked->child(name) : nullptr;
     }
 
     int child_index(const std::string &name) override {
-        return usage[active_iteration]->linked_node()->child_index(name);
+        const auto linked = usage_linked();
+        return linked ? linked->child_index(name) : -1;
     }
 
     ASTNode* child(int index) override {
-        return usage[active_iteration]->linked_node()->child(index);
+        const auto linked = usage_linked();
+        return linked ? linked->child(index) : nullptr;
     }
 
 #ifdef COMPILER_BUILD

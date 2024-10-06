@@ -72,13 +72,19 @@ bool Lexer::lexAccessChain(bool lexStruct, bool lex_as_node) {
 bool Lexer::lexAccessChainOrAddrOf(bool lexStruct) {
     if(lexOperatorToken('&')) {
         auto start = tokens_size() - 1;
-        lexAccessChain(false);
-        compound_from(start, LexTokenType::CompAddrOf);
+        if(lexAccessChain(false)) {
+            compound_from(start, LexTokenType::CompAddrOf);
+        } else {
+            error("expected a value after '&' for address of");
+        }
         return true;
     } else if(lexOperatorToken('*')) {
         auto start = tokens_size() - 1;
-        lexAccessChain(false);
-        compound_from(start, LexTokenType::CompDeference);
+        if(lexAccessChain(false)) {
+            compound_from(start, LexTokenType::CompDeference);
+        } else {
+            error("expected a value after '*' for dereference");
+        }
         return true;
     }
     return lexAccessChain(lexStruct);

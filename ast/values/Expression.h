@@ -19,7 +19,7 @@ public:
     Operation operation; ///< The operation between the two values.
     bool is64Bit; // is 64bit operating system
     CSTToken* token;
-    BaseType* created_type;
+    BaseType* created_type = nullptr;
 
     /**
      * @brief Construct a new Expression object.

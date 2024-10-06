@@ -22,20 +22,23 @@ void Lexer::lexIdentifierList() {
     } while (lexOperatorToken(','));
 }
 
-void Lexer::lexLambdaAfterParamsList(unsigned int start) {
+bool Lexer::lexLambdaAfterParamsList(unsigned int start) {
     lexWhitespaceToken();
 
     if (!lexOperatorToken("=>")) {
         error("expected '=>' for a lambda");
+        return false;
     }
 
     lexWhitespaceToken();
 
     if (!(lexBraceBlock("lambda") || lexExpressionTokens())) {
         error("expected lambda body");
+        return false;
     }
 
     compound_from(start, LexTokenType::CompLambda);
+    return true;
 }
 
 bool Lexer::lexLambdaValue() {
@@ -49,29 +52,36 @@ bool Lexer::lexLambdaValue() {
             if (!lexVariableToken()) {
                 if(lexed_amp) {
                     error("expected identifier after '&'");
+                    return true;
                 }
-                break;
             }
             lexWhitespaceToken();
         } while (lexOperatorToken(','));
 
         if (!lexOperatorToken(']')) {
             error("expected ']' after lambda function capture list");
+            return true;
         }
 
         if (!lexOperatorToken('(')) {
             error("expected '(' for lambda parameter list");
+            return true;
         }
 
-        lexParameterList(true, false);
+        if(!lexParameterList(true, false)) {
+            return true;
+        }
 
         lexNewLineChars();
 
         if (!lexOperatorToken(')')) {
             error("expected ')' after the lambda parameter list");
+            return true;
         }
 
-        lexLambdaAfterParamsList(start);
+        if(!lexLambdaAfterParamsList(start)) {
+            return true;
+        }
 
         return true;
     } else {

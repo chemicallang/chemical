@@ -5,7 +5,7 @@
 #include "ast/types/FunctionType.h"
 #include "ast/structures/FunctionDeclaration.h"
 
-UnsafeBlock::UnsafeBlock(Scope scope) : scope(std::move(scope)) {
+UnsafeBlock::UnsafeBlock(Scope scope, CSTToken* token) : scope(std::move(scope)), token(token) {
 
 }
 

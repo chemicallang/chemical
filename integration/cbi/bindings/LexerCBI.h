@@ -212,7 +212,7 @@ extern "C" {
 
     void LexerlexIdentifierList(Lexer* lexer);
 
-    void LexerlexLambdaAfterParamsList(Lexer* lexer, unsigned int start);
+    bool LexerlexLambdaAfterParamsList(Lexer* lexer, unsigned int start);
 
     bool LexerlexLambdaValue(Lexer* lexer);
 

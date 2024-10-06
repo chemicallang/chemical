@@ -48,7 +48,10 @@ bool Lexer::lexConstructorInitBlock() {
 bool Lexer::lexUnsafeBlock() {
     if(lexWSKeywordToken("unsafe", '{')) {
         unsigned start = tokens_size() - 1;
-        lexBraceBlock("unsafe_block");
+        if(!lexBraceBlock("unsafe_block")) {
+            error("expected a braced block after 'unsafe' keyword");
+            return true;
+        }
         compound_from(start, LexTokenType::CompUnsafeBlock);
         return true;
     } else {

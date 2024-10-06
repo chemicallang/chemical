@@ -403,7 +403,7 @@ void LexerlexIdentifierList(Lexer* lexer)  {
     return lexer->lexIdentifierList();
 }
 
-void LexerlexLambdaAfterParamsList(Lexer* lexer, unsigned int start)  {
+bool LexerlexLambdaAfterParamsList(Lexer* lexer, unsigned int start)  {
     return lexer->lexLambdaAfterParamsList(start);
 }
 

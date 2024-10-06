@@ -26,7 +26,9 @@ void ReturnStatement::interpret(InterpretScope &scope) {
 
 void ReturnStatement::declare_and_link(SymbolResolver &linker) {
     if (value) {
-        value->link(linker, value, func_type->returnType ? func_type->returnType : nullptr);
+        if(!value->link(linker, value, func_type->returnType ? func_type->returnType : nullptr)) {
+            return;
+        }
         const auto value_kind = value->val_kind();
         if(value_kind == ValueKind::NullValue) {
             const auto func = func_type->as_function();

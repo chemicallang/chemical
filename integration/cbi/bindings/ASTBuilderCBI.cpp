@@ -466,7 +466,7 @@ UnionDef* ASTBuildermake_union_def(CSTConverter* converter, chem::string* name, 
 }
 
 UnsafeBlock* ASTBuildermake_unsafe_block(CSTConverter* converter, ASTNode* node, CSTToken* token) {
-    return new (converter->local<UnsafeBlock>()) UnsafeBlock(Scope(node, token));
+    return new (converter->local<UnsafeBlock>()) UnsafeBlock(Scope(node, token), token);
 }
 
 WhileLoop* ASTBuildermake_while_loop(CSTConverter* converter, Value* condition, ASTNode* node, CSTToken* token) {

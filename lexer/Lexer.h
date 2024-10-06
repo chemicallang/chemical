@@ -771,8 +771,9 @@ public:
 
     /**
      * lex lambda after params list
+     * @return true if there are no errors
      */
-    void lexLambdaAfterParamsList(unsigned int start);
+    bool lexLambdaAfterParamsList(unsigned int start);
 
     /**
      * lexes a single lambda function (PARAM1, PARAM2)[CAP1, CAP2] => {}

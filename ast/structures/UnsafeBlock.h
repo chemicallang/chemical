@@ -10,7 +10,7 @@ public:
     Scope scope;
     CSTToken* token;
 
-    explicit UnsafeBlock(Scope scope);
+    explicit UnsafeBlock(Scope scope, CSTToken* token);
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);

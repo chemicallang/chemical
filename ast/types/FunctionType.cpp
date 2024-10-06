@@ -117,7 +117,12 @@ FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
     if(isVariadic && index >= (params.size() - 1 - offset)) {
         return params.back();
     }
-    return params[index + offset];
+    const auto expected = index + offset;
+    if(expected < params.size()) {
+        return params[expected];
+    } else {
+        return nullptr;
+    }
 }
 
 FunctionParam* FunctionType::implicit_param_for(const std::string& name) {

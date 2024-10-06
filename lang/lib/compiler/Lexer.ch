@@ -591,7 +591,7 @@ struct Lexer {
     /**
      * lex lambda after params list
      */
-    func lexLambdaAfterParamsList (&self, start : uint) :  void;
+    func lexLambdaAfterParamsList (&self, start : uint) :  bool;
 
     /**
      * lexes a single lambda function (PARAM1, PARAM2)[CAP1, CAP2] => {}

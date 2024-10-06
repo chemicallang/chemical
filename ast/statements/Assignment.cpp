@@ -28,22 +28,22 @@ void AssignStatement::declare_and_link(SymbolResolver &linker) {
                 linker.unsatisfied_type_err(value, value_type);
             }
         }
-    }
-    auto id = lhs->as_identifier();
-    if(id) {
-        auto linked = id->linked_node();
-        auto linked_kind = linked->kind();
-        if(linked_kind == ASTNodeKind::VarInitStmt) {
-            auto init = linked->as_var_init_unsafe();
-            init->set_has_assignment();
-        } else if(linked_kind == ASTNodeKind::FunctionParam) {
-            auto param = linked->as_func_param_unsafe();
-            param->set_has_assignment();
+        auto id = lhs->as_identifier();
+        if(id) {
+            auto linked = id->linked_node();
+            auto linked_kind = linked->kind();
+            if(linked_kind == ASTNodeKind::VarInitStmt) {
+                auto init = linked->as_var_init_unsafe();
+                init->set_has_assignment();
+            } else if(linked_kind == ASTNodeKind::FunctionParam) {
+                auto param = linked->as_func_param_unsafe();
+                param->set_has_assignment();
+            }
         }
+        auto& func_type = *linker.current_func_type;
+        func_type.mark_moved_value(linker.allocator, value, lhs->known_type(), linker, true);
+        func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());
     }
-    auto& func_type = *linker.current_func_type;
-    func_type.mark_moved_value(linker.allocator, value, lhs->known_type(), linker, true);
-    func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());
 }
 
 void AssignStatement::interpret(InterpretScope &scope) {

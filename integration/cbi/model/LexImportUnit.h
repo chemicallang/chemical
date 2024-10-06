@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include "integration/common/Diagnostic.h"
+#include "preprocess/ImportGraphMaker.h"
 
 struct LexResult;
 
@@ -17,16 +18,14 @@ struct LexResult;
  */
 struct LexImportUnit {
 
-   std::vector<std::shared_ptr<LexResult>> files;
+    /**
+     * the ig file representing this unit
+     */
+    IGFile ig_root;
 
-   /**
-    * default empty constructor
-    */
-   LexImportUnit() = default;
-
-   /**
-    * copy constructor
-    */
-   LexImportUnit(const LexImportUnit& other) = default;
+    /**
+     * the flat files in this import unit
+     */
+    std::vector<std::shared_ptr<LexResult>> files;
 
 };

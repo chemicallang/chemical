@@ -47,7 +47,7 @@ public:
     /**
      * will call prepare_source, lex_source, close_source, from_tokens
      */
-    virtual std::vector<IGFile> process(const std::string &path, IGFile *parent);
+    virtual std::vector<IGFile> process(const std::string &path, const Range& range, IGFile *parent);
 
 };
 
@@ -116,6 +116,15 @@ struct IGResult {
     IGFile root;
 
 };
+
+/**
+ * determines the import graph, returning the root ig file
+ */
+IGFile determine_import_graph_file(
+        ImportGraphImporter* importer,
+        std::vector<CSTToken*> &tokens,
+        FlatIGFile &file
+);
 
 /**
  * determines the import graph

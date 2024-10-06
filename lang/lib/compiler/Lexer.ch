@@ -367,7 +367,7 @@ struct Lexer {
     /**
      * lex parameter list
      */
-    func lexParameterList (&self, optionalTypes : bool, defValues : bool, lexSelfParam : bool, variadicParam : bool) :  void;
+    func lexParameterList (&self, optionalTypes : bool, defValues : bool, lexSelfParam : bool, variadicParam : bool) :  bool;
 
     /**
     * lexes a function signature with parameters

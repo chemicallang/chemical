@@ -38,6 +38,9 @@ bool LinkedType::satisfies(BaseType *other) {
     if(other_kind == BaseTypeKind::Linked) {
         return linked == ((LinkedType*) other)->linked;
     }
+    if(!linked) {
+        return false;
+    }
     const auto linked_kind = linked->kind();
     switch(linked_kind) {
         case ASTNodeKind::StructDecl:

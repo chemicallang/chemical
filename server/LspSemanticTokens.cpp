@@ -5,6 +5,7 @@
 //
 
 #include "utils/FileUtils.h"
+#include "utils/Utils.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
 #include "server/analyzers/SemanticTokensAnalyzer.h"
@@ -14,7 +15,7 @@
 #include <future>
 
 #define DEBUG_TOKENS false
-#define PRINT_TOKENS false
+#define PRINT_TOKENS true
 
 /**
  * why are diagnostics published here ?
@@ -361,7 +362,7 @@ ASTImportUnitRef WorkspaceManager::publish_diagnostics(const std::string& path) 
 std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(LexResult& file) {
 
 #if defined PRINT_TOKENS && PRINT_TOKENS
-    printTokens(lexed, linker.resolved);
+    printTokens(file.unit.tokens);
 #endif
 
 #if defined DEBUG_TOKENS && DEBUG_TOKENS

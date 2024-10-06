@@ -513,8 +513,9 @@ public:
 
     /**
      * lex parameter list
+     * @return true when no errors occurred
      */
-    void lexParameterList(bool optionalTypes = false, bool defValues = true, bool lexImplicitParams = true, bool variadicParam = true);
+    bool lexParameterList(bool optionalTypes = false, bool defValues = true, bool lexImplicitParams = true, bool variadicParam = true);
 
     /**
     * lexes a function signature with parameters

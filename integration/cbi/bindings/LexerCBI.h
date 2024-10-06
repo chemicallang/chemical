@@ -138,7 +138,7 @@ extern "C" {
 
     bool LexerlexLoopBlockTokens(Lexer* lexer, bool is_value);
 
-    void LexerlexParameterList(Lexer* lexer, bool optionalTypes, bool defValues, bool lexSelfParam, bool variadicParam);
+    bool LexerlexParameterList(Lexer* lexer, bool optionalTypes, bool defValues, bool lexSelfParam, bool variadicParam);
 
     bool LexerlexFunctionSignatureTokens(Lexer* lexer);
 

@@ -669,9 +669,11 @@ void FunctionCall::link_values(SymbolResolver &linker) {
     while(i < values.size()) {
         auto& value_ptr = values[i];
         auto& value = *value_ptr;
-        const auto expected_type = func_type ? func_type->func_param_for_arg_at(i)->type : nullptr;
-        value.link(linker, value_ptr, expected_type);
-        current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+        const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
+        const auto expected_type = param ? param->type : nullptr;
+        if(value.link(linker, value_ptr, expected_type)) {
+            current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+        }
         i++;
     }
 }

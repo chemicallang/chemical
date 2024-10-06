@@ -15,24 +15,20 @@
 #include <stdlib.h>
 
 void printToken(CSTToken *token) {
-    std::cout << " - [" << token->type_string() << "]" << "(" << token->start().representation() << ")";
-}
-
-void printTokens(const std::vector<CSTToken*> &lexed) {
-    for (const auto &item: lexed) {
-        printToken(item);
+    if(token->compound()) {
+        std::cout << " - [" << token->type_string() << "]\n\n";
+        for(auto tok : token->tokens) {
+            printToken(tok);
+        }
         std::cout << std::endl;
+    } else {
+        std::cout << " - [" << token->type_string() << "]" << "(" << token->representation() << ")" << std::endl;
     }
 }
 
-void printTokens(const std::vector<CSTToken*> &lexed, const std::unordered_map<unsigned int, unsigned int> &linked) {
-    int i = 0;
-    while(i < lexed.size()) {
-        auto found = linked.find(i);
-        auto token = found == linked.end() ? lexed[i] : lexed[found->second];
-        printToken(token);
-        std::cout << std::endl;
-        i++;
+void printTokens(const std::vector<CSTToken*> &lexed) {
+    for (const auto item: lexed) {
+        printToken(item);
     }
 }
 

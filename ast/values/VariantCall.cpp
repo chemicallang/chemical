@@ -212,9 +212,10 @@ bool VariantCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
     unsigned i = 0;
     for(auto& mem_value_ptr : values) {
         auto& value = *mem_value_ptr;
-        value.link(linker, mem_value_ptr);
-        const auto param = member->values.begin() + i;
-        current_func.mark_moved_value(linker.allocator, &value, param->second->type, linker, true);
+        if(value.link(linker, mem_value_ptr)) {
+            const auto param = member->values.begin() + i;
+            current_func.mark_moved_value(linker.allocator, &value, param->second->type, linker, true);
+        }
         i++;
     }
     int16_t prev_itr;

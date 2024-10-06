@@ -11,31 +11,14 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-bool VariableIdentifier::link(SymbolResolver &linker, bool prepend, bool check_access) {
+bool VariableIdentifier::link(SymbolResolver &linker, bool check_access) {
     linked = linker.find(value);
     if(linked) {
         if(check_access && linker.current_func_type) {
             // check for validity if accessible or assignable (because moved)
             linker.current_func_type->check_id(this, linker);
         }
-        if(prepend && linked->isAnyStructMember()) {
-            if(!linker.current_func_type) {
-                linker.error("couldn't link identifier with struct member / function, with name '" + value + '\'', this);
-                return false;
-            }
-            auto self_param = linker.current_func_type->get_self_param();
-            if(self_param) {
-                return true;
-            } else {
-                auto decl = linker.current_func_type->as_function();
-                if(!decl || !decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
-                    linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument", this);
-                }
-            }
-//        } else if((linked->as_interface_def() || linked->as_namespace() || linked->as_impl_def() || linked->as_struct_def()) && !can_link_with_namespace()) {
-//            linker.error("cannot link identifier with definition '" + value + "', Please use '::' to link with definition");
-//        }
-        } else if(linked->as_namespace() && !is_ns){
+        if(linked->as_namespace() && !is_ns){
             linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
         } else {
             return true;

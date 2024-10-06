@@ -7,6 +7,7 @@
 #include "preprocess/ImportPathHandler.h"
 #include "stream/StringInputSource.h"
 #include "cst/base/CSTConverter.h"
+#include "utils/PathUtils.h"
 #include <memory>
 #include <sstream>
 #include <iostream>
@@ -166,10 +167,11 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
 }
 
 std::string rel_to_lib_system(const std::string &header_path, const std::string& lsp_exe_path) {
-    auto system_headers = resolve_rel_parent_path_str(lsp_exe_path, "lib/system");
-    if(system_headers.empty()) {
-        std::cerr << "[LSP] Couldn't resolve lib/system directory path relative to LSP executable" << std::endl;
-        return "";
+    auto system_headers = resolve_sibling(lsp_exe_path, "lib/system");
+    if(!std::filesystem::exists(system_headers)) {
+        if(!std::filesystem::create_directories(system_headers)) {
+            return "";
+        }
     }
     return resolve_rel_child_path_str(system_headers, header_path + ".ch");
 }
@@ -182,7 +184,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_fi
                 auto expected_path = rel_to_lib_system(header_path, lsp_exe_path);
                 if(expected_path.empty()) {
                     std::cerr << "[LSP] Couldn't resolve header path for " << header_path << std::endl;
-                    goto empty_return;
+                    return nullptr;
                 }
 //            std::cout << "[LSP] locking path mutex " << flat_file.abs_path << std::endl;
                 // locking path mutex so multiple calls with same paths are considered once for translation
@@ -191,7 +193,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_fi
                 if(std::filesystem::exists(expected_path)) {
 //                std::cerr << "[LSP] System header cache hit " << expected_path << std::endl;
                 } else {
-                    std::cout << "[LSP] System header cache miss for header " << header_path << " at " << expected_path << std::endl;
+                    std::cout << "[LSP] System header cache miss for header " << header_path << " at " << expected_path << " trying " << flat_file.abs_path << std::endl;
                     auto result = get_c_translated(flat_file.abs_path, expected_path);
                     if(result.second == -1) {
                         std::cerr << "[LSP] status code 1 when translating c header " << header_path << " at " << expected_path << std::endl;
@@ -207,14 +209,11 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_fi
             } else {
                 // TODO check path aliases before returning empty
                 std::cerr << "[LSP] Doesn't yet support user provided headers / c files" << std::endl;
-                goto empty_return;
+                return nullptr;
             }
         }
     }
     return get_lexed(flat_file.abs_path);
-    empty_return: {
-        return nullptr;
-    };
 }
 
 LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag) {

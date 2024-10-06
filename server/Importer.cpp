@@ -99,13 +99,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string
     } else {
         FileInputSource input_source(path);
         if(input_source.has_error()) {
-            result->diags.emplace_back(
-                    Range {0,0,0,0},
-                    DiagSeverity::Error,
-                    path,
-                    "couldn't open the file"
-            );
-            return result;
+            return nullptr;
         }
         SourceProvider reader(&input_source);
         Lexer lexer(reader);
@@ -181,40 +175,45 @@ std::string rel_to_lib_system(const std::string &header_path, const std::string&
 }
 
 std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_file) {
-    if(flat_file.import_path.ends_with(".h") || flat_file.import_path.ends_with(".c")) {
-        if(flat_file.import_path.starts_with("@system")) {
-            auto header_path = flat_file.import_path.substr(flat_file.import_path.find('/') + 1);
-            auto expected_path = rel_to_lib_system(header_path, lsp_exe_path);
-            if(expected_path.empty()) {
-                 std::cerr << "[LSP] Couldn't resolve header path for " << header_path << std::endl;
+    if(!flat_file.import_path.empty() && flat_file.import_path[0] == '@') {
+        if(flat_file.import_path.ends_with(".h") || flat_file.import_path.ends_with(".c")) {
+            if(flat_file.import_path.starts_with("@system")) {
+                auto header_path = flat_file.import_path.substr(flat_file.import_path.find('/') + 1);
+                auto expected_path = rel_to_lib_system(header_path, lsp_exe_path);
+                if(expected_path.empty()) {
+                    std::cerr << "[LSP] Couldn't resolve header path for " << header_path << std::endl;
+                    goto empty_return;
+                }
+//            std::cout << "[LSP] locking path mutex " << flat_file.abs_path << std::endl;
+                // locking path mutex so multiple calls with same paths are considered once for translation
+                auto& mutex = lex_lock_path_mutex(flat_file.abs_path);
+//            std::cout << "[LSP] checking if exists " << flat_file.abs_path << std::endl;
+                if(std::filesystem::exists(expected_path)) {
+//                std::cerr << "[LSP] System header cache hit " << expected_path << std::endl;
+                } else {
+                    std::cout << "[LSP] System header cache miss for header " << header_path << " at " << expected_path << std::endl;
+                    auto result = get_c_translated(flat_file.abs_path, expected_path);
+                    if(result.second == -1) {
+                        std::cerr << "[LSP] status code 1 when translating c header " << header_path << " at " << expected_path << std::endl;
+                    } else {
+                        std::cout << "[LSP] Translation C output " << std::endl << result.first << std::endl;
+                    }
+                }
+//            std::cout << "[LSP] Unlocking path mutex " << flat_file.abs_path << std::endl;
+                mutex.unlock();
+                return get_lexed(expected_path);
+            } else if(flat_file.import_path.starts_with("@std")) {
+                // don't do anything, since
+            } else {
+                // TODO check path aliases before returning empty
+                std::cerr << "[LSP] Doesn't yet support user provided headers / c files" << std::endl;
                 goto empty_return;
             }
-//            std::cout << "[LSP] locking path mutex " << flat_file.abs_path << std::endl;
-            // locking path mutex so multiple calls with same paths are considered once for translation
-            auto& mutex = lex_lock_path_mutex(flat_file.abs_path);
-//            std::cout << "[LSP] checking if exists " << flat_file.abs_path << std::endl;
-            if(std::filesystem::exists(expected_path)) {
-//                std::cerr << "[LSP] System header cache hit " << expected_path << std::endl;
-            } else {
-                std::cout << "[LSP] System header cache miss for header " << header_path << " at " << expected_path << std::endl;
-                auto result = get_c_translated(flat_file.abs_path, expected_path);
-                if(result.second == -1) {
-                    std::cerr << "[LSP] status code 1 when translating c header " << header_path << " at " << expected_path << std::endl;
-                } else {
-                    std::cout << "[LSP] Translation C output " << std::endl << result.first << std::endl;
-                }
-            }
-//            std::cout << "[LSP] Unlocking path mutex " << flat_file.abs_path << std::endl;
-            mutex.unlock();
-            return get_lexed(expected_path);
-        } else {
-            std::cerr << "[LSP] Doesn't yet support user provided headers / c files" << std::endl;
-            goto empty_return;
         }
     }
     return get_lexed(flat_file.abs_path);
     empty_return: {
-        return std::make_shared<LexResult>();
+        return nullptr;
     };
 }
 
@@ -241,12 +240,12 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
             this
     );
     FlatIGFile flat_file { abs_path };
-    auto ig = determine_import_graph(&importer, result->unit.tokens, flat_file);
+    unit.ig_root = determine_import_graph_file(&importer, result->unit.tokens, flat_file);
     if(cancel_flag.load()) {
         return unit;
     }
     // flatten the import graph and get lex result for each file
-    auto flattened = ig.root.flatten_by_dedupe();
+    auto flattened = unit.ig_root.flatten_by_dedupe();
     for(const auto& flat : flattened) {
         if(cancel_flag.load()) {
             return unit;
@@ -254,6 +253,13 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
         auto imported = get_lexed(flat);
         if(imported) {
             unit.files.emplace_back(imported);
+        } else {
+            unit.ig_root.errors.emplace_back(
+                    flat.range,
+                    DiagSeverity::Error,
+                    std::nullopt,
+                    "couldn't open the file '" + flat.abs_path + "'"
+            );
         }
     }
 
@@ -285,7 +291,7 @@ WorkspaceImportGraphImporter::WorkspaceImportGraphImporter(
 
 }
 
-std::vector<IGFile> WorkspaceImportGraphImporter::process(const std::string &path, IGFile *parent) {
+std::vector<IGFile> WorkspaceImportGraphImporter::process(const std::string &path, const Range& range, IGFile *parent) {
 //    auto found = manager->get_cached(path);
 //    if(found) {
 //        return from_tokens(path, parent, found->tokens);
@@ -297,6 +303,6 @@ std::vector<IGFile> WorkspaceImportGraphImporter::process(const std::string &pat
         lex_source(path, parent->errors);
         return from_tokens(path, parent, lexer->unit.tokens);
     } else {
-        return ImportGraphImporter::process(path, parent);
+        return ImportGraphImporter::process(path, range, parent);
     }
 }

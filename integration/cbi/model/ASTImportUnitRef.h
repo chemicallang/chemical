@@ -73,8 +73,8 @@ struct ASTImportUnitRef {
         bool is_cached,
         std::string abs_path,
         const std::shared_ptr<ASTImportUnit>& unit,
-        LexImportUnit& lexUnit
-    ) : path(std::move(abs_path)), unit(unit), lex_unit(lexUnit), is_cached(is_cached) {
+        LexImportUnit lexUnit
+    ) : path(std::move(abs_path)), unit(unit), lex_unit(std::move(lexUnit)), is_cached(is_cached) {
 
     }
 
@@ -85,10 +85,10 @@ struct ASTImportUnitRef {
         bool is_cached,
         std::string abs_path,
         const std::shared_ptr<ASTImportUnit>& unit,
-        LexImportUnit& lexUnit,
+        LexImportUnit lexUnit,
         std::vector<std::shared_ptr<ASTResult>>& ast_files,
         std::vector<Diag> sym_res_diag
-    ) : path(std::move(abs_path)), unit(unit), sym_res_diag(std::move(sym_res_diag)), lex_unit(lexUnit), is_cached(is_cached) {
+    ) : path(std::move(abs_path)), unit(unit), sym_res_diag(std::move(sym_res_diag)), lex_unit(std::move(lexUnit)), is_cached(is_cached) {
         files = ast_files;
     }
 

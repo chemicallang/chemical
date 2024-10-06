@@ -78,5 +78,10 @@ public:
         return replace_at_in_path(filePath, path_aliases);
     }
 
+    /**
+     * resolve given import path
+     */
+    AtReplaceResult resolve_import_path(const std::string& base_path, const std::string& import_path);
+
 
 };

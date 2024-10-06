@@ -214,8 +214,11 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
 
     // check it hasn't been cancelled
     if(cancel_flag.load()) {
-        return ASTImportUnitRef(false, path, cached_unit, import_unit);
+        return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit));
     }
+
+    // whether to cache the ast unit
+    bool cache_it = true;
 
     // get the ast import unit
     std::vector<std::shared_ptr<ASTResult>> ast_files;
@@ -223,26 +226,45 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     // put ast files in cached ast unit
     auto& unit_ast_files = cached_unit->files;
     for(auto& file : ast_files) {
-        unit_ast_files.emplace_back(file);
+        if(file) {
+            unit_ast_files.emplace_back(file);
+        } else {
+            cache_it = false;
+        }
     }
 
     // check it hasn't been cancelled
     if(cancel_flag.load()) {
-        return ASTImportUnitRef(false, path, cached_unit, import_unit, ast_files, {});
+        return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit), ast_files, {});
     }
 
     // symbol resolve the import unit, get the last file's diagnostics
     auto res_diags = sym_res_import_unit(ast_files, comptime_scope, cancel_flag);
 
-    // store cached ast import unit
-    cache.cached_units.emplace(path, std::move(cached_unit));
+    if(cache_it) { // since imported files are missing, we must not cache the import unit
+        // store cached ast import unit
+        cache.cached_units.emplace(path, std::move(cached_unit));
+    }
 
     // return the complete unit ref
-    return ASTImportUnitRef(false, path, cached_unit, import_unit, ast_files, std::move(res_diags));
+    return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit), ast_files, std::move(res_diags));
 
 }
 
 void build_diags_from_unit_ref(std::vector<std::vector<Diag>*>& diag_ptrs, ASTImportUnitRef& ref) {
+
+    // import graph diagnostics (report which files weren't found)
+    auto& ig_root = ref.lex_unit.ig_root;
+    if(!ig_root.errors.empty()) {
+        diag_ptrs.emplace_back(&ig_root.errors);
+    }
+    auto& ig_files = ig_root.files;
+    if(!ig_files.empty()) {
+        auto& last_errors = ig_files[ig_files.size() - 1].errors;
+        if(!last_errors.empty()) {
+            diag_ptrs.emplace_back(&last_errors);
+        }
+    }
 
     // lex diagnostics for the last file
     auto& lex_files = ref.lex_unit.files;

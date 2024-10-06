@@ -85,11 +85,11 @@ std::vector<IGFile> ImportGraphImporter::from_tokens(
     return nested;
 }
 
-std::vector<IGFile> ImportGraphImporter::process(const std::string &path, IGFile* parent) {
+std::vector<IGFile> ImportGraphImporter::process(const std::string &path, const Range& range, IGFile* parent) {
     FileInputSource source(path);
     if(source.has_error()) {
         parent->errors.emplace_back(
-                Range {0,0,0,0},
+                range,
                 DiagSeverity::Error,
                 path,
                 "couldn't open the file " + path
@@ -115,42 +115,29 @@ IGFile from_import(
     auto& flat_file = file.flat_file;
     if (importSt == nullptr) {
         flat_file.abs_path = base_path;
+        flat_file.range = Range { 0, 0, 0, 0 };
     } else {
-        flat_file.abs_path = importSt->file.abs_path;
-        if(!flat_file.abs_path.empty() && flat_file.abs_path[0] == '@') {
-            auto result = importer->handler->replace_at_in_path(flat_file.abs_path);
-            if(result.error.empty()) {
-                flat_file.abs_path = result.replaced;
-                flat_file.import_path = importSt->file.abs_path;
-            } else {
-                parent->errors.emplace_back(
-                        importSt->range,
-                        DiagSeverity::Error,
-                        importSt->file.abs_path,
-                        result.error
-                );
-            }
-        }
-        if(!flat_file.abs_path.empty()) {
-            if(flat_file.import_path[0] == '@') {
-                file.flat_file.abs_path = absolute_path(flat_file.abs_path);
-            } else {
-                auto resolved = resolve_rel_parent_path_str(base_path, flat_file.abs_path);
-                if (resolved.empty()) {
-                    parent->errors.emplace_back(
-                            importSt->range,
-                            DiagSeverity::Error,
-                            file.flat_file.abs_path,
-                            "couldn't find the file to import " + file.flat_file.abs_path + " relative to base path " + resolve_parent_path(base_path)
-                    );
-                } else {
-                    file.flat_file.abs_path = resolved;
-                }
-            }
+        flat_file.range = importSt->range;
+        flat_file.import_path = importSt->file.abs_path;
+        auto result = importer->handler->resolve_import_path(base_path, importSt->file.abs_path);
+        flat_file.abs_path = result.replaced;
+        if(!result.error.empty()) {
+            parent->errors.emplace_back(
+                    importSt->range,
+                    DiagSeverity::Error,
+                    importSt->file.abs_path,
+                    result.error
+            );
         }
     }
-    file.files = importer->process(file.flat_file.abs_path, &file);
+    file.files = importer->process(flat_file.abs_path, importSt->range, &file);
     return file;
+}
+
+IGFile determine_import_graph_file(ImportGraphImporter* importer, std::vector<CSTToken*>& tokens, FlatIGFile &asker) {
+    auto root = IGFile { nullptr, asker };
+    root.files = importer->from_tokens(root.flat_file.abs_path, &root, tokens);
+    return root;
 }
 
 IGResult determine_import_graph(ImportGraphImporter* importer, std::vector<CSTToken*>& tokens, FlatIGFile &asker) {

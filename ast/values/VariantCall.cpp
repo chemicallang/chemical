@@ -195,8 +195,7 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
         if (implicit_constructor) {
             link_with_implicit_constructor(implicit_constructor, linker, value);
         } else if(!type->satisfies(linker.allocator, value)) {
-            const auto val_type = value->create_type(linker.allocator);
-            linker.error("argument with type '" + val_type->representation() + "' doesn't satisfy the variant member type '" + type->representation() + "'", value);
+            linker.unsatisfied_type_err(value, type);
         }
         i++;
         itr++;

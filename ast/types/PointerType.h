@@ -71,7 +71,7 @@ public:
         return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), token);
     }
 
-    void link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker) override;
 
     ASTNode *linked_node() override;
 

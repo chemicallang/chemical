@@ -725,7 +725,7 @@ BaseType* implicit_constructor_type(ASTAllocator& allocator, BaseType* return_ty
     return return_type;
 }
 
-void MalformedInput::link(SymbolResolver &linker) {
+bool MalformedInput::link(SymbolResolver &linker) {
     for(auto any : any_things) {
         switch(any->any_kind()) {
             case ASTAnyKind::Value: {
@@ -741,6 +741,7 @@ void MalformedInput::link(SymbolResolver &linker) {
                 break;
         }
     }
+    return false;
 }
 
 Value::~Value() = default;

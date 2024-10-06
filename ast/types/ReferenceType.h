@@ -70,8 +70,8 @@ public:
         return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), token);
     }
 
-    void link(SymbolResolver &linker) override {
-        type->link(linker);
+    bool link(SymbolResolver &linker) override {
+        return type->link(linker);
     }
 
     ASTNode *linked_node() override {

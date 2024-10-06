@@ -90,7 +90,7 @@ public:
     /**
      * link func
      */
-    void link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker) override;
 
     int16_t get_generic_iteration() override {
         return generic_iteration;

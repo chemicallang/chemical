@@ -34,7 +34,7 @@ public:
 
     bool satisfies(ASTAllocator& allocator, Value* value) override;
 
-    void link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker) override;
 
     [[nodiscard]]
     BaseType* create_child_type(ASTAllocator& allocator) const override {

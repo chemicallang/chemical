@@ -21,9 +21,15 @@ public:
         );
     }
 
-    void link(SymbolResolver &linker) override {
-        value->link(linker, value);
+    bool link(SymbolResolver &linker) override {
+        if(!value->link(linker, value)) {
+            return false;
+        }
         linked = value->linked_node();
+        if(!linked) {
+            return false;
+        }
+        return true;
     }
 
 };

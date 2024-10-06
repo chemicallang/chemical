@@ -9,8 +9,8 @@
 
 const PointerType PointerType::void_ptr_instance((BaseType*) &VoidType::instance, nullptr);
 
-void PointerType::link(SymbolResolver &linker) {
-    type->link(linker);
+bool PointerType::link(SymbolResolver &linker) {
+    return type->link(linker);
 }
 
 ASTNode *PointerType::linked_node() {

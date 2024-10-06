@@ -26,15 +26,18 @@ CSTToken* GenericType::cst_token() {
     return referenced->cst_token();
 }
 
-void GenericType::link(SymbolResolver &linker) {
+bool GenericType::link(SymbolResolver &linker) {
     referenced->link(linker);
     if(!referenced->linked) {
-        return;
+        return false;
     }
     for(auto& type : types) {
-        type->link(linker);
+        if(!type->link(linker)) {
+            return false;
+        }
     }
     report_generic_usage(linker);
+    return true;
 }
 
 bool GenericType::subscribe_to_parent_generic() {

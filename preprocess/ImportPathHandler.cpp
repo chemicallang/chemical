@@ -23,13 +23,14 @@ AtReplaceResult std_path_resolver(ImportPathHandler& handler, const std::string&
         stdLib = handler.std_lib_path;
     } else {
 #ifdef DEBUG
-        if(std::filesystem::exists("libs/std")) {
+        const auto libsStd = resolve_sibling(handler.compiler_exe_path, "libs/std");
+        if(std::filesystem::exists(libsStd)) {
             // debug executable launched in a folder that contains libs/std
-            stdLib = "libs/std";
+            stdLib = libsStd;
         } else {
             // debug executable launched in a folder that contains lang/std
             // this is project direct
-            stdLib = "lang/std";
+            stdLib = resolve_sibling(handler.compiler_exe_path, "lang/std");
         }
 #else
         stdLib = resolve_rel_parent_path_str(handler.compiler_exe_path, "libs/std");

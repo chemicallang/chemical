@@ -167,7 +167,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
 }
 
 std::string rel_to_lib_system(const std::string &header_path, const std::string& lsp_exe_path) {
-    auto system_headers = resolve_sibling(lsp_exe_path, "lib/system");
+    auto system_headers = resolve_sibling(lsp_exe_path, "libs/system");
     if(!std::filesystem::exists(system_headers)) {
         if(!std::filesystem::create_directories(system_headers)) {
             return "";

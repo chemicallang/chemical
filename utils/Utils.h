@@ -14,5 +14,3 @@
 void printToken(CSTToken *token);
 
 void printTokens(const std::vector<CSTToken*> &lexed);
-
-void printTokens(const std::vector<CSTToken*> &lexed, const std::unordered_map<unsigned int, unsigned int> &linked);

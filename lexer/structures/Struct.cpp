@@ -9,12 +9,9 @@
 bool Lexer::lexStructMemberTokens() {
     if(lexVarInitializationTokens(true, true)) {
         auto& last = unit.tokens.back();
-#ifdef DEBUG
-        if(last->tok_type != LexTokenType::CompVarInit) {
-            throw std::runtime_error("unknown compound token, expected var init");
+        if(last->tok_type == LexTokenType::CompVarInit) {
+            last->tok_type = LexTokenType::CompStructMember;
         }
-#endif
-        last->tok_type = LexTokenType::CompStructMember;
         return true;
     } else {
         return false;

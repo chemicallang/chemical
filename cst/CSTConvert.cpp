@@ -317,11 +317,6 @@ AccessSpecifier CSTConverter::def_specifier(std::optional<AccessSpecifier> opt) 
 }
 
 Value* CSTConverter::value() {
-#ifdef DEBUG
-    if(values.empty()) {
-        throw std::runtime_error("CSTConverter::value called when values vector is empty");
-    }
-#endif
     auto value = values.back();
     values.pop_back();
     return value;
@@ -355,11 +350,6 @@ ASTUnit CSTConverter::take_unit() {
 }
 
 BaseType* CSTConverter::type() {
-#ifdef DEBUG
-    if(types.empty()) {
-        throw std::runtime_error("CSTConverter::type called when vector array empty");
-    }
-#endif
     auto type = types.back();
     types.pop_back();
     return type;

@@ -181,7 +181,7 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
         if(variant_def) {
             const auto chain = scope.first->as_access_chain();
             if (chain) {
-                scope.first = new (astAlloc.allocate<VariantCase>()) VariantCase(chain, linker, this, nullptr);
+                scope.first = new (astAlloc.allocate<VariantCase>()) VariantCase(chain, linker, this, chain->token);
             }
         }
         scope.first->link(linker, scope.first);

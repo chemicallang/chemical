@@ -84,7 +84,7 @@ bool Lexer::lexDestructStatement() {
     }
 }
 
-void Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexImplicitParams, bool variadicParam) {
+bool Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexImplicitParams, bool variadicParam) {
     do {
         lexWhitespaceAndNewLines();
         if(lexImplicitParams && lexOperatorToken('&')) {
@@ -94,7 +94,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexImplici
                 continue;
             } else {
                 error("expected a identifier right after '&' in the first function parameter as a 'self' parameter");
-                break;
+                return false;
             }
         }
         if(lexIdentifierToken()) {
@@ -120,19 +120,20 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexImplici
                     compound_from(start, LexTokenType::CompFunctionParam);
                 } else {
                     error("missing a type token for the function parameter, expected type after the colon");
-                    return;
+                    return false;
                 }
             } else {
                 if(optionalTypes) {
                     compound_from(start, LexTokenType::CompFunctionParam);
                 } else {
                     error("expected colon ':' in function parameter list after the parameter name ");
-                    return;
+                    return false;
                 }
             }
         }
         lexWhitespaceToken();
     } while(lexOperatorToken(','));
+    return true;
 }
 
 bool Lexer::lexGenericParametersList() {
@@ -213,7 +214,9 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
         return false;
     }
 
-    lexParameterList();
+    if(!lexParameterList()) {
+        return false;
+    }
 
     lexWhitespaceAndNewLines();
 

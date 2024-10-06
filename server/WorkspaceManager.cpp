@@ -106,7 +106,7 @@ void WorkspaceManager::initialize(const td_initialize::request &req) {
 
 std::pair<std::string, int> WorkspaceManager::get_c_translated(const std::string& header_abs_path, const std::string& output_path) {
     std::string output;
-    std::vector<std::string> command = {compiler_exe_path(), '"' + header_abs_path + '"', "-tc", '"' + output_path + '"', "-res", '"' + resources_path() + '"'};
+    std::vector<std::string> command = {compiler_exe_path(), '"' + header_abs_path + '"', "-o", '"' + output_path + '"', "-res", '"' + resources_path() + '"'};
     std::cout << "[LSP] Command : ";
     for(auto& cmd : command) {
         std::cout << cmd << ' ';

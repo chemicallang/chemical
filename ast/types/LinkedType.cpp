@@ -74,11 +74,13 @@ bool LinkedType::satisfies(BaseType *other) {
     return false;
 }
 
-void LinkedType::link(SymbolResolver &linker) {
+bool LinkedType::link(SymbolResolver &linker) {
     linked = linker.find(type);
     if(!linked) {
         linker.error("unresolved symbol, couldn't find referenced type " + type, this);
+        return false;
     }
+    return true;
 }
 
 ASTNode *LinkedType::linked_node() {

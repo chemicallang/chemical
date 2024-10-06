@@ -225,11 +225,11 @@ FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
     return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, isCapturing, parent_node, token);
 }
 
-void FunctionType::link(SymbolResolver &linker) {
+bool FunctionType::link(SymbolResolver &linker) {
     for (auto &param: params) {
         param->link_param_type(linker);
     }
-    returnType->link(linker);
+    return returnType->link(linker);
 }
 
 // first chain is contained in other chain

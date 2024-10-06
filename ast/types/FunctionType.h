@@ -164,7 +164,7 @@ public:
     [[nodiscard]]
     FunctionType* copy(ASTAllocator& allocator) const override;
 
-    void link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker) override;
 
     /**
      * un_move a chain, if found to be moved

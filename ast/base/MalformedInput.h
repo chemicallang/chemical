@@ -68,7 +68,7 @@ public:
         return token;
     }
 
-    void link(SymbolResolver &linker) final;
+    bool link(SymbolResolver &linker) final;
 
     void declare_and_link(SymbolResolver &linker) final {
         link(linker);

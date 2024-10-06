@@ -47,7 +47,7 @@ public:
         return referenced->linked_node();
     }
 
-    void link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker) override;
 
 #ifdef COMPILER_BUILD
 

@@ -33,14 +33,21 @@ td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(cons
     // get the import unit, while publishing diagnostics asynchronously
     // publish diagnostics will return ast import unit ref
     publish_diagnostics(abs_path);
-
-    auto unit = publish_diagnostics_task.get();
-    auto& files = unit.lex_unit.files;
     // preparing tokens for the last file
     SemanticTokens tokens;
-    auto last_file = files.empty() ? get_lexed(abs_path) : files[files.size() - 1];
-    auto toks = get_semantic_tokens(*last_file);
-    tokens.data = SemanticTokens::encodeTokens(toks);
+    try {
+        // .get causes no state exception sometimes
+        auto unit = publish_diagnostics_task.get();
+        auto& files = unit.lex_unit.files;
+        auto last_file = files.empty() ? get_lexed(abs_path) : files[files.size() - 1];
+        auto toks = get_semantic_tokens(*last_file);
+        tokens.data = SemanticTokens::encodeTokens(toks);
+    } catch(const std::exception& e) {
+        std::cerr << "error when getting semantic tokens: " << e.what() << std::endl;
+        auto last_file = get_lexed(abs_path);
+        auto toks = get_semantic_tokens(*last_file);
+        tokens.data = SemanticTokens::encodeTokens(toks);
+    }
     // sending tokens
     td_semanticTokens_full::response rsp;
     rsp.result = std::move(tokens);

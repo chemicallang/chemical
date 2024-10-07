@@ -26,14 +26,14 @@ bool Lexer::lexLambdaAfterParamsList(unsigned int start) {
     lexWhitespaceToken();
 
     if (!lexOperatorToken("=>")) {
-        error("expected '=>' for a lambda");
+        mal_value(start, "expected '=>' for a lambda");
         return false;
     }
 
     lexWhitespaceToken();
 
     if (!(lexBraceBlock("lambda") || lexExpressionTokens())) {
-        error("expected lambda body");
+        mal_value(start, "expected lambda body");
         return false;
     }
 
@@ -75,7 +75,7 @@ bool Lexer::lexLambdaValue() {
         lexNewLineChars();
 
         if (!lexOperatorToken(')')) {
-            error("expected ')' after the lambda parameter list");
+            mal_value(start, "expected ')' after the lambda parameter list");
             return true;
         }
 

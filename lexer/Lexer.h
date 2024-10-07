@@ -84,13 +84,6 @@ public:
     }
 
     /**
-     * lexes a number as a string
-     */
-    inline std::string lexNumber() {
-        return provider.readNumber();
-    }
-
-    /**
      * lex a string that contains alphabetical characters only
      * @return alphabetical string or empty if not found
      */
@@ -798,7 +791,7 @@ public:
      * it will lex a paren expression, meaning '(' expr ')'
      * it assumes you've already consumed '('
      */
-    void lexParenExpressionAfterLParen();
+    bool lexParenExpressionAfterLParen();
 
     /**
      * lex a parenthesized expression '(x + 5)'

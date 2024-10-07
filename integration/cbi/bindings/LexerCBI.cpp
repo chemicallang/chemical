@@ -419,7 +419,7 @@ bool LexerlexLambdaOrExprAfterLParen(Lexer* lexer)  {
     return lexer->lexLambdaOrExprAfterLParen();
 }
 
-void LexerlexParenExpressionAfterLParen(Lexer* lexer)  {
+bool LexerlexParenExpressionAfterLParen(Lexer* lexer)  {
     return lexer->lexParenExpressionAfterLParen();
 }
 

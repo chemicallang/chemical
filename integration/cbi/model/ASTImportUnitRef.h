@@ -51,13 +51,6 @@ struct ASTImportUnitRef {
     std::vector<std::shared_ptr<ASTResult>> files;
 
     /**
-     * this is the last file's symbol resolution diagnostics, stored for easy
-     * publishing of diagnostics, a cached unit doesn't have these because it
-     * doesn't store
-     */
-    std::vector<Diag> sym_res_diag;
-
-    /**
      * constructor
      */
     ASTImportUnitRef(
@@ -87,9 +80,8 @@ struct ASTImportUnitRef {
         std::string abs_path,
         const std::shared_ptr<ASTImportUnit>& unit,
         LexImportUnit lexUnit,
-        std::vector<std::shared_ptr<ASTResult>>& ast_files,
-        std::vector<Diag> sym_res_diag
-    ) : path(std::move(abs_path)), unit(unit), sym_res_diag(std::move(sym_res_diag)), lex_unit(std::move(lexUnit)), is_cached(is_cached) {
+        std::vector<std::shared_ptr<ASTResult>>& ast_files
+    ) : path(std::move(abs_path)), unit(unit), lex_unit(std::move(lexUnit)), is_cached(is_cached) {
         files = ast_files;
     }
 

@@ -108,7 +108,7 @@ private:
     /**
      * the task used by publish diagnostics
      */
-    std::future<void> publish_diagnostics_task;
+    std::future<ASTImportUnitRef> publish_diagnostics_task;
     /**
      * this flag can be used to cancel the current running diagnostics task
      */
@@ -231,8 +231,7 @@ public:
      */
     void notify_diagnostics_async(
         const std::string& path,
-        const std::vector<std::vector<Diag>*>& diags,
-        bool clear_diags
+        const std::vector<std::vector<Diag>*>& diags
     );
 
     /**
@@ -240,8 +239,7 @@ public:
      */
     void notify_diagnostics_sync(
         const std::string& path,
-        const std::vector<std::vector<Diag>*>& diags,
-        bool clear_diags
+        const std::vector<std::vector<Diag>*>& diags
     );
 
     /**
@@ -251,21 +249,20 @@ public:
     inline void notify_diagnostics(
         const std::string& path,
         const std::vector<std::vector<Diag>*>& diags,
-        bool async,
-        bool clear_diags
+        bool async
     ) {
-        async ? notify_diagnostics_async(path, diags, clear_diags) : notify_diagnostics_sync(path, diags, clear_diags);
+        async ? notify_diagnostics_async(path, diags) : notify_diagnostics_sync(path, diags);
     }
 
     /**
      * publish diagnostics synchronously
      */
-    void publish_diagnostics_for_sync(ASTImportUnitRef& ref, bool notify_async, bool clear_diags);
+    void publish_diagnostics_for_sync(ASTImportUnitRef& ref, bool notify_async);
 
     /**
      * publish diagnostics asynchronously for the given ast import unit ref
      */
-    std::future<void> publish_diagnostics_for_async(ASTImportUnitRef& ref, bool clear_diags);
+    std::future<void> publish_diagnostics_for_async(ASTImportUnitRef& ref);
 
     /**
      * this allows publishing diagnostics for the given ast import unit ref
@@ -273,9 +270,9 @@ public:
      */
     inline void publish_diagnostics_for(ASTImportUnitRef& ref, bool async) {
         if(async) {
-            publish_diagnostics_for_async(ref, true);
+            publish_diagnostics_for_async(ref);
         } else {
-            publish_diagnostics_for_sync(ref, true, true);
+            publish_diagnostics_for_sync(ref, true);
         }
     }
 
@@ -293,7 +290,7 @@ public:
     /**
      * will publish diagnostics
      */
-    ASTImportUnitRef publish_diagnostics(const std::string& path);
+    void publish_diagnostics(const std::string& path);
 
     /**
      * check if lex import unit has errors
@@ -382,6 +379,16 @@ public:
      * from different threads
      */
     std::shared_ptr<LexResult> get_lexed_no_lock(const std::string& path);
+
+    /**
+     * gets the lex result, then converts to ASTResult
+     *
+     * this will also cache the ASTResult and provide it back
+     */
+    std::shared_ptr<ASTResult> get_ast(
+            LexResult* result,
+            GlobalInterpretScope& comptime_scope
+    );
 
     /**
      * gets the lex result, then converts to ASTResult

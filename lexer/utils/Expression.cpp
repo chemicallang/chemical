@@ -158,6 +158,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         auto start = tokens_size() - 1;
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '-' negative");
+            return true;
         }
         compound_from(start, LexTokenType::CompNegative);
         lexRemainingExpression(start);
@@ -168,6 +169,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         auto start = tokens_size() - 1;
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '!' not");
+            return true;
         }
         compound_from(start, LexTokenType::CompNot);
         lexRemainingExpression(start);

@@ -1572,8 +1572,7 @@ void CSTConverter::visitGenericType(CSTToken* cst) {
             if (found != TypeMakers::PrimitiveMap.end()) {
                 child_type = found->second(*local_allocator, is64Bit, id);
             } else {
-                error("couldn't find literal type by name " + id->value(), id);
-                return;
+                child_type = new (local<LinkedType>()) LinkedType(id->value(), id);
             }
         }
         put_type(new (local<LiteralType>()) LiteralType(child_type, cst), cst);

@@ -347,27 +347,6 @@ Value* CSTConverter::value() {
     return value;
 }
 
-void CSTConverter::put_type(BaseType* type, CSTToken* token) {
-    types.emplace_back(type);
-#ifdef LSP_BUILD
-    token->any = type;
-#endif
-}
-
-void CSTConverter::put_value(Value* value, CSTToken* token) {
-    values.emplace_back(value);
-#ifdef LSP_BUILD
-    token->any = value;
-#endif
-}
-
-void CSTConverter::put_node(ASTNode* node, CSTToken* token) {
-    nodes.emplace_back(node);
-#ifdef LSP_BUILD
-    token->any = node;
-#endif
-}
-
 ASTUnit CSTConverter::take_unit() {
     ASTUnit unit;
     unit.scope.nodes = std::move(nodes);

@@ -17,29 +17,6 @@ void ProvideStmt::code_gen(Codegen &gen) {
 
 #endif
 
-template<typename T>
-void ProvideStmt::put_in(std::unordered_map<std::string, T*>& value_map, T* new_value, void* data, void(*do_body)(ProvideStmt*, void*)) {
-    auto& implicit_args = value_map;
-    auto found = implicit_args.find(identifier);
-    if(found != implicit_args.end()) {
-        // record the previous value
-        const auto previous = found->second;
-        // set the new value
-        found->second = new_value;
-        // link the body
-        do_body(this, data);
-        // set previous value
-        found->second = previous;
-    } else {
-        // set the value
-        implicit_args[identifier] = new_value;
-        // link the body
-        do_body(this, data);
-        // remove the value
-        implicit_args.erase(identifier);
-    }
-}
-
 ProvideStmt::ProvideStmt(
     Value* value,
     std::string identifier,

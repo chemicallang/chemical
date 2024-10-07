@@ -426,3 +426,24 @@ BaseType* CSTConverter::pop_last_type() {
     types.pop_back();
     return last;
 }
+
+void CSTConverter::put_type(BaseType* type, CSTToken* token) {
+    types.emplace_back(type);
+#ifdef LSP_BUILD
+    token->any = (ASTAny*) type;
+#endif
+}
+
+void CSTConverter::put_value(Value* value, CSTToken* token) {
+    values.emplace_back(value);
+#ifdef LSP_BUILD
+    token->any = (ASTAny*) value;
+#endif
+}
+
+void CSTConverter::put_node(ASTNode* node, CSTToken* token) {
+    nodes.emplace_back(node);
+#ifdef LSP_BUILD
+    token->any = (ASTAny*) node;
+#endif
+}

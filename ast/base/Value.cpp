@@ -737,6 +737,7 @@ bool MalformedInput::link(SymbolResolver &linker) {
                 ((BaseType*) any)->link(linker);
                 break;
             case ASTAnyKind::Node:
+                ((ASTNode*) any)->declare_top_level(linker);
                 ((ASTNode*) any)->declare_and_link(linker);
                 break;
         }

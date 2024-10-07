@@ -221,6 +221,11 @@ public:
     td_links::response get_links(const lsDocumentUri& uri);
 
     /**
+     * get text document hints response
+     */
+    td_inlayHint::response get_hints(const lsDocumentUri& uri);
+
+    /**
      * it has to copy all the diagnostics to a request before sending
      * the request is done async
      */

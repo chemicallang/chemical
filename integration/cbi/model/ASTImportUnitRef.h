@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 #include "ASTImportUnit.h"
+#include "LexImportUnit.h"
 
 class ASTResult;
 

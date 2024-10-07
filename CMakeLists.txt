@@ -492,6 +492,7 @@ set(COMMON_SOURCES
         ast/base/MalformedInput.h
         ast/statements/ProvideStmt.h
         ast/statements/ProvideStmt.cpp
+        server/analyzers/InlayHintAnalyzer.cpp
 )
 
 # Chemical LSP Executable Target

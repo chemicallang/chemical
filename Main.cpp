@@ -13,6 +13,7 @@
 #include "LibLsp/JsonRpc/WebSocketServer.h"
 #include "LibLsp/lsp/textDocument/document_symbol.h"
 #include "LibLsp/lsp/textDocument/document_link.h"
+#include "LibLsp/lsp/textDocument/inlayHint.h"
 #include "LibLsp/lsp/textDocument/references.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include <boost/program_options.hpp>
@@ -226,6 +227,11 @@ public:
 					capabilities.foldingRangeProvider = std::pair< optional<bool>, optional<FoldingRangeOptions> >();
 					capabilities.foldingRangeProvider->first = true;
 				}
+                if (!clientPreferences->isInlayHintDynamicRegistered())
+                {
+                    capabilities.inlayHintProvider = std::pair< optional<bool>, optional<InlayHintOptions> >();
+                    capabilities.inlayHintProvider->first = true;
+                }
 //				if (!clientPreferences->isReferencesDynamicRegistered())
 //				{
 //					capabilities.referencesProvider = option;
@@ -311,6 +317,9 @@ public:
             }
             if(clientPreferences->isDocumentLinkDynamicRegistered()) {
                   collectRegisterCapability(td_links::request::kMethodInfo);
+            }
+            if(clientPreferences->isInlayHintDynamicRegistered()) {
+                collectRegisterCapability(td_inlayHint::request::kMethodInfo);
             }
             /*if (clientPreferences->isCodeActionDynamicRegistered())
             {
@@ -428,7 +437,27 @@ public:
             td_linkResolve::response rsp;
             return std::move(rsp);
         });
-//        _sp.registerHandler([&](const td_documentColor::request &req,
+        _sp.registerHandler([&](const td_inlayHint::request &req,
+                                const CancelMonitor &monitor)
+                                    -> lsp::ResponseOrError<td_inlayHint::response> {
+            _log.log(lsp::Log::Level::INFO, "td_inlayHint");
+            if (need_initialize_error) {
+                return need_initialize_error.value();
+            }
+            return manager.get_hints(req.params.textDocument.uri);
+        });
+        _sp.registerHandler([&](const td_inlayHintResolve::request &req,
+                                const CancelMonitor &monitor)
+                                    -> lsp::ResponseOrError<td_inlayHintResolve::response> {
+            _log.log(lsp::Log::Level::INFO, "td_inlayHintResolve");
+            if (need_initialize_error) {
+                return need_initialize_error.value();
+            }
+            // No need to support this request, since we send resolved hints to the IDE
+            td_inlayHintResolve::response rsp;
+            return std::move(rsp);
+        });
+//        _sp.registerHandler([&](const td_documenColor::request &req,
 //                                const CancelMonitor &monitor)
 //                                    -> lsp::ResponseOrError<td_documentColor::response> {
 //            _log.log(lsp::Log::Level::INFO, "td_documentColor");

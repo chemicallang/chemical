@@ -46,7 +46,7 @@ void Lexer::lexVariantBlockTokens() {
 bool Lexer::lexVariantStructureTokens(unsigned start_token) {
     if(lexWSKeywordToken("variant")) {
         if (!lexIdentifierToken()) {
-            mal_node(start_token, "expected a identifier as struct name");
+            error("expected a identifier as struct name");
             return true;
         }
         lexWhitespaceToken();
@@ -64,12 +64,12 @@ bool Lexer::lexVariantStructureTokens(unsigned start_token) {
 //        }
         lexWhitespaceToken();
         if(!lexOperatorToken('{')) {
-            mal_node(start_token, "expected a '{' for struct block");
+            error("expected a '{' for struct block");
             return true;
         }
         lexVariantBlockTokens();
         if(!lexOperatorToken('}')) {
-            mal_node(start_token, "expected a closing bracket '}' for struct block");
+            error("expected a closing bracket '}' for struct block");
             return true;
         }
         compound_from(start_token, LexTokenType::CompVariant);

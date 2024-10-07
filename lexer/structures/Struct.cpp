@@ -44,7 +44,7 @@ bool Lexer::lexStructStructureTokens(unsigned start, bool unnamed, bool direct_i
         if(!unnamed) {
             has_identifier = lexIdentifierToken();
             if (!has_identifier) {
-                mal_node(start, "expected a identifier as struct name");
+                error("expected a identifier as struct name");
                 return true;
             }
         }
@@ -63,16 +63,16 @@ bool Lexer::lexStructStructureTokens(unsigned start, bool unnamed, bool direct_i
         }
         lexWhitespaceToken();
         if(!lexOperatorToken('{')) {
-            mal_node(start, "expected a '{' for struct block");
+            error("expected a '{' for struct block");
             return true;
         }
         lexStructBlockTokens();
         if(!lexOperatorToken('}')) {
-            mal_node(start, "expected a closing bracket '}' for struct block");
+            error("expected a closing bracket '}' for struct block");
             return true;
         }
         if(lexWhitespaceToken() && !has_identifier && direct_init && !lexIdentifierToken()) {
-            mal_node(start, "expected an identifier after the '}' for anonymous struct definition");
+            error("expected an identifier after the '}' for anonymous struct definition");
             return true;
         }
         compound_from(start, LexTokenType::CompStructDef);

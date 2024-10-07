@@ -733,7 +733,7 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
     auto func_type = parent_val->create_type(allocator)->function_type();
     const auto func_decl = safe_linked_func();
-    if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
+    if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor) && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
             func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name, struct_def, nullptr), generic_iteration);

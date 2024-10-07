@@ -234,7 +234,7 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
         lexWhitespaceToken();
         if(!lexTypeTokens()) {
             error("expected a return type for function after ':'");
-            return false;
+            return true; // return true, since type is not found, but we continue lexing other function
         }
     }
 
@@ -272,7 +272,7 @@ bool Lexer::lexFunctionStructureTokens(unsigned start, bool allow_declarations, 
     isLexInitBlock = false;
     isLexReturnStatement = prevReturn;
 
-    compound_collectable(start, LexTokenType::CompFunction);
+    compound_from(start, LexTokenType::CompFunction);
 
     return true;
 

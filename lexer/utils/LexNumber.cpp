@@ -18,7 +18,10 @@ bool Lexer::lexUnsignedIntAsNumberToken() {
 }
 
 bool Lexer::lexNumberToken() {
-    auto number = lexNumber();
+    if(!provider.is_peak_number_char()) {
+        return false;
+    }
+    auto number = provider.readNumber();
     if (!number.empty()) {
         switch(provider.peek()) {
             case 'f':

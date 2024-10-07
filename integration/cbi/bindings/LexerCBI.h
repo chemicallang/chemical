@@ -220,7 +220,7 @@ extern "C" {
 
     bool LexerlexLambdaOrExprAfterLParen(Lexer* lexer);
 
-    void LexerlexParenExpressionAfterLParen(Lexer* lexer);
+    bool LexerlexParenExpressionAfterLParen(Lexer* lexer);
 
     bool LexerlexParenExpression(Lexer* lexer);
 

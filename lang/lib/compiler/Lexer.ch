@@ -616,7 +616,7 @@ struct Lexer {
      * it will lex a paren expression, meaning '(' expr ')'
      * it assumes you've already consumed '('
      */
-    func lexParenExpressionAfterLParen (&self) :  void;
+    func lexParenExpressionAfterLParen (&self) :  bool;
 
     /**
      * lex a parenthesized expression '(x + 5)'

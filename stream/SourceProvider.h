@@ -116,6 +116,14 @@ public:
     char peek();
 
     /**
+     * is the peak character a number character
+     */
+    inline bool is_peak_number_char() {
+        const auto p = peek();
+        return p == '-' || std::isdigit(p);
+    }
+
+    /**
      * peaks the character at current pos + ahead
      */
     char peek(unsigned int ahead);

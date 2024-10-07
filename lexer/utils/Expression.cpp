@@ -13,7 +13,7 @@ bool Lexer::lexRemainingExpression(unsigned start) {
     if (lexWSKeywordToken("as")) {
         if (!lexTypeTokens()) {
             error("expected a type for casting after 'as' in expression");
-            return true;
+            return false;
         }
         compound_from(start, LexTokenType::CompCastValue);
         lexWhitespaceToken();
@@ -21,7 +21,7 @@ bool Lexer::lexRemainingExpression(unsigned start) {
     } else if(lexWSKeywordToken("is") || lexWSKeywordToken("!is")) {
         if (!lexTypeTokens()) {
             error("expected a type for IsValue after 'is' or '!is'");
-            return true;
+            return false;
         }
         compound_from(start, LexTokenType::CompIsValue);
         lexWhitespaceToken();
@@ -33,7 +33,7 @@ bool Lexer::lexRemainingExpression(unsigned start) {
     lexWhitespaceToken();
     if (!lexExpressionTokens(false, false)) {
         error("expected an expression after the operator token in the expression");
-        return true;
+        return false;
     }
 
     compound_from(start, LexTokenType::CompExpression);
@@ -127,17 +127,19 @@ bool Lexer::lexLambdaOrExprAfterLParen() {
 
 }
 
-void Lexer::lexParenExpressionAfterLParen() {
+bool Lexer::lexParenExpressionAfterLParen() {
 
     if (!lexExpressionTokens(false, false)) {
         error("expected a nested expression after starting parenthesis ( in the expression");
-        return;
+        return false;
     };
 
     if (!lexOperatorToken(')')) {
         error("missing ) in the expression");
-        return;
+        return false;
     }
+
+    return true;
 
 }
 
@@ -177,8 +179,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         if (lambda && lexLambdaOrExprAfterLParen()) {
             return true;
         }
-        lexParenExpressionAfterLParen();
-        if(!lexRemainingExpression(start)) {
+        if(lexParenExpressionAfterLParen() && !lexRemainingExpression(start)) {
             compound_from(start, LexTokenType::CompExpression);
         }
         return true;

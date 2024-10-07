@@ -127,6 +127,43 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
 }
 
 std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
+        LexResult* lex_result,
+        GlobalInterpretScope& comptime_scope
+) {
+    const auto& path = lex_result->abs_path;
+    if(path.empty()) {
+        std::cerr << "[LSP] Empty path provided to get_lexed function " << std::endl;
+        return nullptr;
+    }
+    // lock the mutex, so we can check cache
+    auto& mutex = lex_lock_path_mutex(path);
+    std::lock_guard guard(mutex, std::adopt_lock_t());
+    auto found = get_cached_ast(path);
+    if(found) {
+//        std::cout << "[LSP] AST Cache hit for " << path << std::endl;
+        return found;
+    } else {
+        std::cout << "[LSP] AST Cache miss for " << path << std::endl;
+    }
+    const auto result_ptr = new ASTResult(
+            path,
+            ASTUnit(),
+            ASTAllocator(nullptr, 0, 0),
+            {}
+    );
+    auto result = std::shared_ptr<ASTResult>(result_ptr);
+    auto& allocator = result_ptr->allocator;
+    CSTConverter converter(path, is64Bit, "ide", comptime_scope, binder, allocator, allocator, allocator);
+    converter.convert(lex_result->unit.tokens);
+    result->unit = converter.take_unit();
+    result->diags = converter.diagnostics;
+
+    cache.files_ast[path] = result;
+//    std::cout << "[LSP] Unlocking path mutex " << path << std::endl;
+    return result;
+}
+
+std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
     const std::string& path,
     GlobalInterpretScope& comptime_scope
 ) {
@@ -134,13 +171,6 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
         std::cout << "[LSP] Empty path provided to get_lexed function " << std::endl;
         return nullptr;
     }
-    const auto result_ptr = new ASTResult(
-        path,
-        ASTUnit(),
-        ASTAllocator(nullptr, 0, 0),
-        {}
-    );
-    auto result = std::shared_ptr<ASTResult>(result_ptr);
 //    std::cout << "[LSP] Locking path mutex " << path << std::endl;
     auto& mutex = lex_lock_path_mutex(path);
     std::lock_guard guard(mutex, std::adopt_lock_t());
@@ -153,8 +183,14 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
         std::cout << "[LSP] AST Cache miss for " << path << std::endl;
     }
 
+    const auto result_ptr = new ASTResult(
+            path,
+            ASTUnit(),
+            ASTAllocator(nullptr, 0, 0),
+            {}
+    );
+    auto result = std::shared_ptr<ASTResult>(result_ptr);
     auto cst = get_lexed_no_lock(path);
-    // TODO maybe we should avoid converting if LexResult has errors, to prevent exceptions
     auto& allocator = result_ptr->allocator;
     CSTConverter converter(path, is64Bit, "ide", comptime_scope, binder, allocator, allocator, allocator);
     converter.convert(cst->unit.tokens);
@@ -277,7 +313,7 @@ void WorkspaceManager::get_ast_import_unit(
 ) {
     for(auto& file : unit.files) {
         if(cancel_flag.load()) break;
-        files.emplace_back(get_ast(file->abs_path, comptime_scope));
+        files.emplace_back(get_ast(file.get(), comptime_scope));
     }
 }
 

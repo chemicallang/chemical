@@ -32,7 +32,9 @@ td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(cons
     auto abs_path = canonical(uri.GetAbsolutePath().path);
     // get the import unit, while publishing diagnostics asynchronously
     // publish diagnostics will return ast import unit ref
-    auto unit = publish_diagnostics(abs_path);
+    publish_diagnostics(abs_path);
+
+    auto unit = publish_diagnostics_task.get();
     auto& files = unit.lex_unit.files;
     // preparing tokens for the last file
     SemanticTokens tokens;
@@ -70,16 +72,10 @@ void build_notify_request(
 
 void WorkspaceManager::notify_diagnostics_async(
     const std::string& path,
-    const std::vector<std::vector<Diag>*>& diags,
-    bool clear_diags
+    const std::vector<std::vector<Diag>*>& diags
 ) {
     const auto notify = new Notify_TextDocumentPublishDiagnostics::notify;
     build_notify_request(*notify, path, diags);
-    if(clear_diags) {
-        for(auto diag : diags) {
-            diag->clear();
-        }
-    }
     std::future<void> futureObj = std::async(std::launch::async, [this, notify] {
         remote->sendNotification(*notify);
         delete notify;
@@ -88,16 +84,10 @@ void WorkspaceManager::notify_diagnostics_async(
 
 void WorkspaceManager::notify_diagnostics_sync(
     const std::string& path,
-    const std::vector<std::vector<Diag>*>& diags,
-    bool clear_diags
+    const std::vector<std::vector<Diag>*>& diags
 ) {
     Notify_TextDocumentPublishDiagnostics::notify notify;
     build_notify_request(notify, path, diags);
-    if(clear_diags) {
-        for(auto diag : diags) {
-            diag->clear();
-        }
-    }
     remote->sendNotification(notify);
 }
 
@@ -236,19 +226,19 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
 
     // check it hasn't been cancelled
     if(cancel_flag.load()) {
-        return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit), ast_files, {});
+        return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit), ast_files);
     }
 
     // symbol resolve the import unit, get the last file's diagnostics
-    auto res_diags = sym_res_import_unit(ast_files, comptime_scope, cancel_flag);
+    cached_unit->sym_res_diag = sym_res_import_unit(ast_files, comptime_scope, cancel_flag);
 
     if(cache_it) { // since imported files are missing, we must not cache the import unit
         // store cached ast import unit
-        cache.cached_units.emplace(path, std::move(cached_unit));
+        cache.cached_units.emplace(path, cached_unit);
     }
 
     // return the complete unit ref
-    return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit), ast_files, std::move(res_diags));
+    return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit), ast_files);
 
 }
 
@@ -282,31 +272,26 @@ void build_diags_from_unit_ref(std::vector<std::vector<Diag>*>& diag_ptrs, ASTIm
     }
 
     // last file symbol res diagnostics
-    if(!ref.sym_res_diag.empty()) {
-        diag_ptrs.emplace_back(&ref.sym_res_diag);
+    if(!ref.unit->sym_res_diag.empty()) {
+        diag_ptrs.emplace_back(&ref.unit->sym_res_diag);
     }
 
 }
 
 void WorkspaceManager::publish_diagnostics_for_sync(
     ASTImportUnitRef& ref,
-    bool notify_async,
-    bool clear_diags
+    bool notify_async
 ) {
     std::vector<std::vector<Diag>*> diag_ptrs;
     build_diags_from_unit_ref(diag_ptrs, ref);
-    if(!diag_ptrs.empty()) {
-        notify_diagnostics(ref.path, diag_ptrs, true, clear_diags);
-    }
+    notify_diagnostics(ref.path, diag_ptrs, true);
 }
 
-std::future<void>  WorkspaceManager::publish_diagnostics_for_async(ASTImportUnitRef& ref, bool clear_diags) {
-    return std::async(std::launch::async, [this, ref, clear_diags]() mutable {
+std::future<void>  WorkspaceManager::publish_diagnostics_for_async(ASTImportUnitRef& ref) {
+    return std::async(std::launch::async, [this, ref]() mutable {
         std::vector<std::vector<Diag>*> diag_ptrs;
         build_diags_from_unit_ref(diag_ptrs, ref);
-        if(!diag_ptrs.empty()) {
-            notify_diagnostics_async(ref.path, diag_ptrs, clear_diags);
-        }
+        notify_diagnostics_async(ref.path, diag_ptrs);
     });
 }
 
@@ -333,7 +318,7 @@ void WorkspaceManager::queued_single_invocation(
 
 }
 
-ASTImportUnitRef WorkspaceManager::publish_diagnostics(const std::string& path) {
+void WorkspaceManager::publish_diagnostics(const std::string& path) {
 
     std::lock_guard<std::mutex> lock(publish_diagnostics_mutex);
 
@@ -346,16 +331,21 @@ ASTImportUnitRef WorkspaceManager::publish_diagnostics(const std::string& path) 
     // Reset the cancel flag for the new task
     publish_diagnostics_cancel_flag.store(false);
 
-    // get the import unit ref
-    auto import_unit = get_ast_import_unit(path, publish_diagnostics_cancel_flag);
+    // launch the task
+    publish_diagnostics_task = std::async(std::launch::async, [path, this]() {
+        // get the import unit ref
+        auto import_unit = get_ast_import_unit(path, publish_diagnostics_cancel_flag);
+        auto& unit = *import_unit.unit;
 
-    // publish diagnostics for import unit (if not cached and job not cancelled)
-    if(!import_unit.is_cached && !publish_diagnostics_cancel_flag.load()) {
-        publish_diagnostics_task = publish_diagnostics_for_async(import_unit, true);
-    }
+        // publish diagnostics for import unit (if not cached and job not cancelled)
+        if(!publish_diagnostics_cancel_flag.load() && (!import_unit.is_cached || !unit.reported_diagnostics)) {
+            publish_diagnostics_for_sync(import_unit, true);
+            unit.reported_diagnostics = true;
+        }
 
-    // return the import unit
-    return import_unit;
+        // return the import unit
+        return import_unit;
+    });
 
 }
 

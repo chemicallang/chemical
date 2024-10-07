@@ -40,11 +40,24 @@ public:
     std::vector<std::weak_ptr<ASTResult>> files;
 
     /**
+     * this is the last file's symbol resolution diagnostics, stored for easy
+     * publishing of diagnostics, a cached unit doesn't have these because it
+     * doesn't store
+     */
+    std::vector<Diag> sym_res_diag;
+
+    /**
+     * has diagnostics been reported for this ast import unit
+     */
+    bool reported_diagnostics;
+
+    /**
      * constructor
      */
     ASTImportUnit(
     ) : allocator(nullptr, 0, 0),
-        comptime_scope(nullptr, nullptr, allocator)
+        comptime_scope(nullptr, nullptr, allocator),
+        reported_diagnostics(false)
     {
 
     }

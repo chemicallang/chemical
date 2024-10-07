@@ -158,7 +158,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         auto start = tokens_size() - 1;
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '-' negative");
-            return true;
+            return false;
         }
         compound_from(start, LexTokenType::CompNegative);
         lexRemainingExpression(start);
@@ -169,7 +169,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         auto start = tokens_size() - 1;
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '!' not");
-            return true;
+            return false;
         }
         compound_from(start, LexTokenType::CompNot);
         lexRemainingExpression(start);
@@ -200,7 +200,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         lexFunctionCallWithGenericArgsList();
         if(lexOperatorToken('.') && !lexAccessChainRecursive(false)) {
             error("expected a identifier after the dot . in the access chain");
-            return true;
+            return false;
         }
         compound_from(start, LexTokenType::CompAccessChain);
         return true;

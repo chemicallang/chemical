@@ -5,6 +5,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/types/FunctionType.h"
 #include "ast/structures/FunctionParam.h"
+#include "ast/structures/StructDefinition.h"
 
 InlayHintAnalyzer::InlayHintAnalyzer() : allocator(nullptr, 0, 0) {
 
@@ -14,6 +15,7 @@ void InlayHintAnalyzer::visit(FunctionCall *call) {
     if(call->values.empty()) {
         return;
     }
+    CommonVisitor::visit(call);
     const auto func_type = call->function_type(allocator);
     if(func_type) {
         unsigned i = 0;
@@ -22,10 +24,11 @@ void InlayHintAnalyzer::visit(FunctionCall *call) {
             if(token) {
                 const auto param = func_type->func_param_for_arg_at(i);
                 if(param) {
-                    const auto& pos = token->position();
+                    const auto& pos = token->start();
                     hints.emplace_back(lsInlayHint {
                             { (int) pos.line, (int) pos.character },
-                            param->name + ": "
+                            param->name + ": ",
+                            lsInlayHintKind::Parameter
                     });
                 }
             }

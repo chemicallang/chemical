@@ -492,7 +492,6 @@ set(COMMON_SOURCES
         ast/base/MalformedInput.h
         ast/statements/ProvideStmt.h
         ast/statements/ProvideStmt.cpp
-        server/analyzers/InlayHintAnalyzer.cpp
 )
 
 # Chemical LSP Executable Target
@@ -519,6 +518,8 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/DocumentLinksAnalyzer.h
         server/analyzers/DocumentLinksAnalyzer.cpp
         server/utils/WorkspaceImportGraphImporter.h
+        server/analyzers/InlayHintAnalyzer.h
+        server/analyzers/InlayHintAnalyzer.cpp
 )
 
 # Add an executable target for the second executable

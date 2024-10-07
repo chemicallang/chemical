@@ -15,7 +15,7 @@
 #include <future>
 
 #define DEBUG_TOKENS false
-#define PRINT_TOKENS true
+#define PRINT_TOKENS false
 
 /**
  * why are diagnostics published here ?

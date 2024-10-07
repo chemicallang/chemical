@@ -20,10 +20,11 @@
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/Namespace.h"
+#include "ast/statements/DestructStmt.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/ForLoop.h"
-//#include "ast/structures/LoopScope.h"
+#include "ast/structures/UnsafeBlock.h"
 //#include "ast/structures/CapturedVariable.h"
 //#include "ast/structures/MembersContainer.h"
 #include "ast/structures/Scope.h"
@@ -162,14 +163,19 @@ void CommonVisitor::visit(StructMember *member) {
     }
 }
 
-void CommonVisitor::visit(IfStatement *ifStatement) {
-    ifStatement->ifBody.accept(this);
-    for (auto& elif : ifStatement->elseIfs) {
+void CommonVisitor::visit(IfStatement *stmt) {
+    stmt->condition->accept(this);
+    stmt->ifBody.accept(this);
+    for (auto& elif : stmt->elseIfs) {
         elif.second.accept(this);
     }
-    if(ifStatement->elseBody.has_value()) {
-        ifStatement->elseBody.value().accept(this);
+    if(stmt->elseBody.has_value()) {
+        stmt->elseBody.value().accept(this);
     }
+}
+
+void CommonVisitor::visit(DestructStmt *stmt) {
+    stmt->identifier->accept(this);
 }
 
 void CommonVisitor::visit(WhileLoop *loop) {
@@ -230,7 +236,15 @@ void CommonVisitor::visit(ArrayType *type) {
     type->elem_type->accept(this);
 }
 
+void CommonVisitor::visit(CastedValue *casted) {
+    casted->value->accept(this);
+}
+
 void CommonVisitor::visit(Expression *expr) {
     expr->firstValue->accept(this);
     expr->secondValue->accept(this);
+}
+
+void CommonVisitor::visit(UnsafeBlock *block) {
+    block->scope.accept(this);
 }

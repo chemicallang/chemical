@@ -345,7 +345,7 @@ public:
      * The start position of the token, for debugging purposes
      */
     [[nodiscard]]
-    Position start() const;
+    const Position& start() const;
 
     /**
      * this is a debug type string, that is given by each token

@@ -17,6 +17,10 @@ public:
 
     void visit(Expression *expr) override;
 
+    void visit(CastedValue *casted) override;
+
+    void visit(UnsafeBlock *block) override;
+
     void visit(VarInitStatement *init) override;
 
     void visit(ReturnStatement *stmt) override;
@@ -35,7 +39,9 @@ public:
 
     void visit(LambdaFunction *func) override;
 
-    void visit(IfStatement *ifStatement) override;
+    void visit(IfStatement *stmt) override;
+
+    void visit(DestructStmt *delStmt) override;
 
     void visit(WhileLoop *whileLoop) override;
 

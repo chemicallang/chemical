@@ -726,6 +726,7 @@ bool FunctionCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType* exp
 //}
 
 FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
+    if(!parent_val) return nullptr;
     auto func_type = parent_val->create_type(allocator)->function_type();
     const auto func_decl = safe_linked_func();
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {

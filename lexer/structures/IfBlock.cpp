@@ -6,41 +6,39 @@
 
 #include "lexer/Lexer.h"
 
-void Lexer::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level) {
+bool Lexer::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level) {
 
     void (Lexer::*malformed)(unsigned int, const std::string&);
     malformed = is_value ? &Lexer::mal_value : &Lexer::mal_node;
 
     if (!lexOperatorToken('(')) {
         (this->*malformed)(start, "expected a starting parenthesis ( when lexing a if block");
-        return;
+        return false;
     }
 
     if (!lexExpressionTokens()) {
         (this->*malformed)(start, "expected a conditional expression when lexing a if block");
-        return;
+        return false;
     }
 
     if (!lexOperatorToken(')')) {
         (this->*malformed)(start, "expected a ending parenthesis ) when lexing a if block");
-        return;
-    }
-
-    if (has_errors) {
-        return;
+        return false;
     }
 
     if(top_level) {
         if (!lexTopLevelBraceBlock("else")) {
             (this->*malformed)(start, "expected a brace block after the else while lexing an if statement");
-            return;
+            return false;
         }
     } else {
         if (!lexBraceBlockOrSingleStmt("if", is_value, lex_value_node)) {
             (this->*malformed)(start, "expected a brace block when lexing a brace block");
-            return;
+            return false;
         }
     }
+
+    return true;
 
 }
 
@@ -52,8 +50,7 @@ bool Lexer::lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level)
 
     auto start = tokens_size() - 1;
 
-    lexIfExprAndBlock(start, is_value, lex_value_node, top_level);
-    if (has_errors) {
+    if(!lexIfExprAndBlock(start, is_value, lex_value_node, top_level)) {
         return true;
     }
 
@@ -64,7 +61,9 @@ bool Lexer::lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level)
     while (lexWSKeywordToken("else", '{')) {
         lexWhitespaceAndNewLines();
         if(lexWSKeywordToken("if", '(')) {
-            lexIfExprAndBlock(start, is_value, lex_value_node, top_level);
+            if(!lexIfExprAndBlock(start, is_value, lex_value_node, top_level)) {
+                return true;
+            }
             lexWhitespaceToken();
         } else {
             if(top_level) {

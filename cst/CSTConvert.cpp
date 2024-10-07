@@ -1949,7 +1949,8 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
 
 void CSTConverter::visitExpression(CSTToken* expr) {
     auto is_braced = is_char_op(expr->tokens[0], '(');
-    if(is_braced && is_char_op(expr->tokens[2], ')') && expr->tokens.size() <= 3) {
+    const auto expr_tokens_size = expr->tokens.size();
+    if(is_braced && is_char_op(expr->tokens[2], ')') && expr_tokens_size <= 3) {
         // handles braced expression (1 + 1) that's it
         expr->tokens[1]->accept(this);
         return;
@@ -1957,6 +1958,9 @@ void CSTConverter::visitExpression(CSTToken* expr) {
     auto first_val_index = is_braced ? 1 : 0;
     auto op_index = is_braced ? 3 : 1;
     auto second_val_index = op_index + 1;
+    if(second_val_index >= expr_tokens_size) {
+        return;
+    }
     if (expr->tokens[first_val_index]->is_primitive_var() && expr->tokens[second_val_index]->is_primitive_var()) {
         // no need to create stacks for values that are primitive variables, a single expression like 1 + 2 or x + 1
         visit(expr->tokens);

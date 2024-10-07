@@ -67,6 +67,7 @@ void Lexer::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
         lexUnsignedIntAsNumberToken();
         if(!lexOperatorToken(']')) {
             error("expected ']' for array type");
+            return;
         }
         compound_from(start, LexTokenType::CompArrayType);
     }

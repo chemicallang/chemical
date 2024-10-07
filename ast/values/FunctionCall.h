@@ -43,7 +43,7 @@ public:
         visitor->visit(this);
     }
 
-    void link_values(SymbolResolver &linker);
+    void link_values(SymbolResolver &linker, std::vector<bool>& properly_linked);
 
     /**
      * this should be called only after generic types are known
@@ -54,7 +54,7 @@ public:
      * if an arg has implicit constructor, we call that implicit constructor instead of
      * just passing that value
      */
-    void link_args_implicit_constructor(SymbolResolver &linker);
+    void link_args_implicit_constructor(SymbolResolver &linker, std::vector<bool>& properly_linked);
 
     void link_gen_args(SymbolResolver &linker);
 

@@ -662,7 +662,7 @@ uint64_t FunctionCall::byte_size(bool is64Bit) {
     return known_type()->byte_size(is64Bit);
 }
 
-void FunctionCall::link_values(SymbolResolver &linker) {
+void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& properly_linked) {
     auto& current_func = *linker.current_func_type;
     auto func_type = function_type(linker.allocator);
     unsigned i = 0;
@@ -672,7 +672,10 @@ void FunctionCall::link_values(SymbolResolver &linker) {
         const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
         const auto expected_type = param ? param->type : nullptr;
         if(value.link(linker, value_ptr, expected_type)) {
+            properly_linked[i] = true;
             current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+        } else {
+            properly_linked[i] = false;
         }
         i++;
     }
@@ -689,12 +692,12 @@ void FunctionCall::relink_values(SymbolResolver &linker) {
     }
 }
 
-void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker){
+void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::vector<bool>& properly_linked){
     auto func_type = function_type(linker.allocator);
     unsigned i = 0;
     while(i < values.size()) {
         const auto param = func_type->func_param_for_arg_at(i);
-        if (param) {
+        if (param && properly_linked[i]) {
             const auto value = values[i];
             auto implicit_constructor = param->type->implicit_constructor_for(linker.allocator, value);
             if (implicit_constructor) {
@@ -715,8 +718,9 @@ void FunctionCall::link_gen_args(SymbolResolver &linker) {
 
 bool FunctionCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType* expected_type) {
     link_gen_args(linker);
-    link_values(linker);
-    link_args_implicit_constructor(linker);
+    std::vector<bool> properly_linked(values.size());
+    link_values(linker, properly_linked);
+    link_args_implicit_constructor(linker, properly_linked);
     return true;
 }
 
@@ -851,8 +855,10 @@ bool FunctionCall::find_link_in_parent(ChainValue* parent, SymbolResolver& resol
     int16_t prev_itr;
     relink_multi_func(resolver.allocator, &resolver);
     link_gen_args(resolver);
+    // this contains which args linked successfully
+    std::vector<bool> properly_linked_args(values.size());
     // link the values, based on which constructor is determined
-    link_values(resolver);
+    link_values(resolver, properly_linked_args);
     // find the constructor based on linked values
     link_constructor(resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
@@ -863,7 +869,7 @@ bool FunctionCall::find_link_in_parent(ChainValue* parent, SymbolResolver& resol
     // relink values, because now we know the function type, so we know expected type
     relink_values(resolver);
     if(link_implicit_constructor) {
-        link_args_implicit_constructor(resolver);
+        link_args_implicit_constructor(resolver, properly_linked_args);
     }
     if(func_decl && !func_decl->generic_params.empty()) {
         func_decl->set_active_iteration(prev_itr);

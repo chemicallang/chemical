@@ -1313,7 +1313,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
 bool FunctionDeclaration::ensure_has_init_block() {
     if(!body.has_value() || body->nodes.empty()) return false;
     auto& first = body->nodes.front();
-    return first->as_init_block() != nullptr;
+    return first->isInitBlock();
 }
 
 void FunctionDeclaration::ensure_has_init_block(ASTDiagnoser& diagnoser) {

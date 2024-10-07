@@ -31,22 +31,22 @@ bool Lexer::lexUnionStructureTokens(unsigned start_token, bool unnamed, bool dir
         if(!unnamed) {
             has_identifier = lexIdentifierToken();
             if (!has_identifier) {
-                mal_node(start_token, "expected a identifier as union name");
+                error("expected a identifier as union name");
                 return true;
             }
         }
         lexWhitespaceToken();
         if(!lexOperatorToken('{')) {
-            mal_node(start_token, "expected a '{' for union block");
+            error("expected a '{' for union block");
             return true;
         }
         lexUnionBlockTokens();
         if(!lexOperatorToken('}')) {
-            mal_node(start_token, "expected a closing bracket '}' for union block");
+            error("expected a closing bracket '}' for union block");
             return true;
         }
         if(lexWhitespaceToken() && !has_identifier && direct_init && !lexIdentifierToken()) {
-            mal_node(start_token, "expected an identifier after the '}' for anonymous union definition");
+            error("expected an identifier after the '}' for anonymous union definition");
             return true;
         }
         compound_from(start_token, LexTokenType::CompUnionDef);

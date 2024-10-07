@@ -563,10 +563,17 @@ void CSTConverter::visitFunction(CSTToken* function) {
 
     BaseType* returnType = nullptr;
 
-    if (i + 1 < function->tokens.size() && is_char_op(function->tokens[i + 1], ':')) {
-        function->tokens[i + 2]->accept(this);
-        returnType = type();
-        i += 3; // position at body
+    const auto type_colon = i + 1;
+    if (type_colon < function->tokens.size() && is_char_op(function->tokens[type_colon], ':')) {
+        const auto type_ind = type_colon + 1;
+        const auto type_token = function->tokens[type_ind];
+        if(type_token->is_type()) {
+            type_token->accept(this);
+            returnType = type();
+            i += 3; // position at body
+        } else if(type_token->type() == LexTokenType::CompBody) {
+            i = type_ind; // position at body
+        }
     } else {
         i++;
     }

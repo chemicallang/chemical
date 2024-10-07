@@ -8,7 +8,7 @@
 
 # Assembling Release from already built package
 
-version=v1.0.3
+version=v1.0.4
 
 # Targets to build
 linux_x86_64=true

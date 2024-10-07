@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CBIUtils.h"
+#include <cstddef>
 
 struct LabBuildContext;
 

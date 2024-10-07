@@ -929,7 +929,7 @@ void CSTConverter::visitBreak(CSTToken* breakCST) {
 void CSTConverter::visitIncDec(CSTToken* incDec) {
     incDec->tokens[0]->accept(this);
     auto acOp = (get_operation(incDec->tokens[1]) == Operation::PostfixIncrement ? Operation::Addition : Operation::Subtraction);
-    put_node(new (local<AssignStatement>()) AssignStatement(value(), new (local<IntValue>()) IntValue(1, incDec), acOp, parent_node, incDec), incDec);
+    put_node(new (local<AssignStatement>()) AssignStatement(value(), new (local<NumberValue>()) NumberValue(1, incDec), acOp, parent_node, incDec), incDec);
 }
 
 void CSTConverter::visitLambda(CSTToken* cst) {

@@ -34,6 +34,10 @@ namespace td_links {
     struct response;
 }
 
+namespace td_inlayHint {
+    struct response;
+}
+
 struct lsDocumentUri;
 struct lsDocumentLink;
 struct SemanticToken;

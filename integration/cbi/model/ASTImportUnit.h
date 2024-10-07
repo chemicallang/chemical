@@ -8,6 +8,8 @@
 
 class ASTResult;
 
+class LexResult;
+
 /**
  * this ast import unit is cached in import unit cache
  * we store weak pointers, when a file changes, this weak pointer can become empty

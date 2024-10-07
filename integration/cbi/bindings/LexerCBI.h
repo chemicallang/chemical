@@ -126,7 +126,7 @@ extern "C" {
 
     bool LexerlexContinueStatement(Lexer* lexer);
 
-    void LexerlexIfExprAndBlock(Lexer* lexer, unsigned start, bool is_value, bool lex_value_node, bool top_level);
+    bool LexerlexIfExprAndBlock(Lexer* lexer, unsigned start, bool is_value, bool lex_value_node, bool top_level);
 
     bool LexerlexIfBlockTokens(Lexer* lexer, bool is_value, bool lex_value_node, bool top_level);
 

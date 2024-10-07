@@ -477,7 +477,7 @@ public:
      * lexes a single if expr and the body without else if or else
      * meaning '(' expr ')' '{' body '}'
      */
-    void lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level);
+    bool lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level);
 
     /**
      * lex if block

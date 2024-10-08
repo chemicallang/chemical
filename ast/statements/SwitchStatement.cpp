@@ -170,12 +170,15 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
     auto& astAlloc = *linker.ast_allocator;
     bool result = true;
     if(expression->link(linker, expression)) {
-        const auto linked = expression->known_type()->linked_node();
-        if(linked) {
-            variant_def = linked->as_variant_def();
-            if (value_ptr && variant_def && (scopes.size() < variant_def->variables.size() && !defScope.has_value())) {
-                linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
-                return false;
+        const auto expr_type = expression->known_type();
+        if(expr_type) {
+        const auto linked = expr_type->linked_node();
+            if(linked) {
+                variant_def = linked->as_variant_def();
+                if (value_ptr && variant_def && (scopes.size() < variant_def->variables.size() && !defScope.has_value())) {
+                    linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
+                    return false;
+                }
             }
         }
     } else {

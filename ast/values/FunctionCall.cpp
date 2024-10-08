@@ -695,6 +695,7 @@ void FunctionCall::relink_values(SymbolResolver &linker) {
 
 void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::vector<bool>& properly_linked){
     auto func_type = function_type(linker.allocator);
+    if(!func_type) return;
     unsigned i = 0;
     while(i < values.size()) {
         const auto param = func_type->func_param_for_arg_at(i);
@@ -939,7 +940,7 @@ FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
 BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
     const auto func_decl = safe_linked_func();
-    if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
+    if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor) && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
             return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name, struct_def, nullptr), generic_iteration);
@@ -997,5 +998,14 @@ void FunctionCall::interpret(InterpretScope &scope) {
 }
 
 BaseType* FunctionCall::known_type() {
-    return parent_val ? parent_val->known_type()->function_type()->returnType : nullptr;
+    if(parent_val) {
+        const auto parent_type = parent_val->known_type();
+        if(parent_type) {
+            const auto func_type = parent_type->function_type();
+            if(func_type) {
+                return func_type->returnType;
+            }
+        }
+    }
+    return nullptr;
 }

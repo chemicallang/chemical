@@ -36,7 +36,8 @@ void ExtensionFuncReceiver::declare_and_link(SymbolResolver &linker) {
 }
 
 ASTNode *ExtensionFuncReceiver::child(const std::string &name) {
-    return type->linked_node()->child(name);
+    const auto linked = type->linked_node();
+    return linked ? linked->child(name) : nullptr;
 }
 
 static std::string get_referenced(BaseType* type) {
@@ -121,10 +122,14 @@ ExtensionFunction::ExtensionFunction(
 void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
 
     auto linked = receiver.type->linked_node();
-    const auto field_func = linked->child(name);
-    if(field_func != this) {
-        linker.error("couldn't declare extension function with name '" + name + "' because type '" + receiver.type->representation() + "' already has a field / function with same name \n", receiver.type);
-        return;
+    if(linked) {
+        const auto field_func = linked->child(name);
+        if (field_func != this) {
+            linker.error("couldn't declare extension function with name '" + name + "' because type '" +
+                         receiver.type->representation() + "' already has a field / function with same name \n",
+                         receiver.type);
+            return;
+        }
     }
 
     // if has body declare params

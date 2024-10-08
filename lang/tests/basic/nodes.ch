@@ -118,6 +118,10 @@ func give_two_hundred_one() : int {
     return 201;
 }
 
+func create_pair_point(x : int, y : int) : Point {
+    return Point { x : x, y : y }
+}
+
 func test_nodes() {
     test("global constant int", () => {
         return MyInt == 5;
@@ -429,6 +433,22 @@ func test_nodes() {
              default => give_two_hundred_one();
         }
         return i == 201;
+    })
+    test("switch as a value works with function calls that return struct - 1", () => {
+        var val = 45;
+        var i = switch(val) {
+             45 => create_pair_point(10, 20);
+             default => create_pair_point(5, 2);
+        }
+        return i.x == 10 && i.y == 20;
+    })
+    test("switch as a value works with function calls that return struct - 2", () => {
+        var val = 32;
+        var i = switch(val) {
+             45 => create_pair_point(10, 20);
+             default => create_pair_point(5, 2);
+        }
+        return i.x == 5 && i.y == 2;
     })
     test("nested if in if value statements - 1", () => {
         var i = 2;

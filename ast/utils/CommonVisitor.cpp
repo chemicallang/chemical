@@ -71,7 +71,7 @@
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
 //#include "ast/values/FloatValue.h"
-//#include "ast/values/IndexOperator.h"
+#include "ast/values/ValueNode.h"
 //#include "ast/values/Int128Value.h"
 //#include "ast/values/IntNumValue.h"
 //#include "ast/values/LongValue.h"
@@ -238,6 +238,10 @@ void CommonVisitor::visit(ArrayType *type) {
 
 void CommonVisitor::visit(CastedValue *casted) {
     casted->value->accept(this);
+}
+
+void CommonVisitor::visit(ValueNode *node) {
+    node->value->accept(this);
 }
 
 void CommonVisitor::visit(Expression *expr) {

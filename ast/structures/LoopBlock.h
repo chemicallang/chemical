@@ -65,7 +65,7 @@ public:
 
     llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
 
-    llvm::Value* llvm_assign_value(Codegen &gen, Value *lhs) override;
+    llvm::Value* llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) override;
 
     llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
 

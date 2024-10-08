@@ -368,9 +368,20 @@ llvm::Value* Value::llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt) {
 /**
  * called by assignment, to assign the current value to left hand side
  */
-llvm::Value* Value::llvm_assign_value(Codegen& gen, Value* lhs) {
-    // TODO llvm_value expects a type
-    return llvm_value(gen, lhs->known_type());
+llvm::Value* Value::llvm_assign_value(Codegen& gen, llvm::Value* lhsPtr, Value* lhs) {
+    return llvm_value(gen, lhs ? lhs->known_type() : nullptr);
+}
+
+llvm::Value* ChainValue::access_chain_assign_value(
+    Codegen& gen,
+    std::vector<ChainValue*>& values,
+    unsigned int until,
+    std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+    llvm::Value* lhsPtr,
+    Value* lhs,
+    BaseType* expected_type
+) {
+    return access_chain_value(gen, values, until, destructibles, expected_type);
 }
 
 #endif

@@ -65,6 +65,8 @@ public:
 
     BaseType *known_type() override;
 
+    ASTNode *linked_node() override;
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen, bool last_block);
@@ -79,7 +81,12 @@ public:
 
     llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
 
-    llvm::Value* llvm_assign_value(Codegen &gen, Value *lhs) override;
+    llvm::Value * llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
+        const auto linked = linked_node();
+        return linked != nullptr && linked->add_child_index(gen, indexes, name);
+    }
 
     void code_gen(Codegen &gen, Scope* scope, unsigned int index) override;
 

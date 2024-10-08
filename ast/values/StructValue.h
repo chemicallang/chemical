@@ -164,7 +164,7 @@ public:
 
     llvm::Value *llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) override;
 
-    llvm::Value *llvm_assign_value(Codegen &gen, Value *lhs) override;
+    llvm::Value * llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) override;
 
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 

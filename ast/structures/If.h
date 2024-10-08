@@ -96,6 +96,8 @@ public:
 
     BaseType *known_type() override;
 
+    ASTNode *linked_node() override;
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen, bool gen_last_block);
@@ -111,6 +113,8 @@ public:
     llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
 
     void code_gen(Codegen &gen, Scope* scope, unsigned int index) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
 

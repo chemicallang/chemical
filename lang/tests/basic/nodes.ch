@@ -402,6 +402,16 @@ func test_nodes() {
         var i = if(val) give_nine_hundred_two() else give_two_hundred_one();
         return i == 201;
     })
+    test("if as a value works with function calls that return struct - 1", () => {
+        var val = true;
+        var i = if(val) create_pair_point(10, 20) else create_pair_point(5, 2);
+        return i.x == 10 && i.y == 20;
+    })
+    test("if as a value works with function calls that return struct - 2", () => {
+        var val = false;
+        var i = if(val) create_pair_point(10, 20) else create_pair_point(5, 2);
+        return i.x == 5 && i.y == 2;
+    })
     test("switch statement can be used as a value - 1", () => {
         var val = 45;
         var i = switch(val) {

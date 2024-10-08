@@ -156,6 +156,11 @@ void IfStatement::code_gen(Codegen &gen, Scope* scope, unsigned int index) {
     code_gen(gen, index != scope->nodes.size() - 1);
 }
 
+bool IfStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    const auto linked = linked_node();
+    return linked != nullptr && linked->add_child_index(gen, indexes, name);
+}
+
 #endif
 
 IfStatement::IfStatement(
@@ -297,6 +302,11 @@ BaseType *IfStatement::known_type() {
     if(!is_value) return nullptr;
     auto last_val = get_value_node();
     return last_val ? last_val->known_type() : nullptr;
+}
+
+ASTNode *IfStatement::linked_node() {
+    const auto known = known_type();
+    return known ? known->linked_node() : nullptr;
 }
 
 void IfStatement::interpret(InterpretScope &scope) {

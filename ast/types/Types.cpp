@@ -26,9 +26,14 @@ const UCharType UCharType::instance(nullptr);
 const VoidType VoidType::instance(nullptr);
 
 bool ArrayType::satisfies(ASTAllocator& allocator, Value* value) {
-    if(value->value_type() != ValueType::Array) return false;
+//    if(value->value_type() != ValueType::Array) return false;
     const auto pure_type = value->get_pure_type(allocator);
-    if(pure_type->kind() != BaseTypeKind::Array) return false;
+    const auto pure_type_kind = pure_type->kind();
+    if(pure_type_kind == BaseTypeKind::String) {
+        const auto pure = elem_type->pure_type();
+        return pure->kind() == BaseTypeKind::Char;
+    }
+    if(pure_type_kind != BaseTypeKind::Array) return false;
     const auto arr_type = (ArrayType*) pure_type;
     if(array_size != -1 && arr_type->array_size != -1 && array_size != arr_type->array_size) return false;
     // can't get array element type, because array is empty probably and has no type declaration to lean on

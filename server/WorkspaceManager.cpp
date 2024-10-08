@@ -76,22 +76,65 @@ std::string WorkspaceManager::get_build_lab_path(){
     return resolve_sibling(project_path, "build.lab");
 }
 
+void WorkspaceManager::switch_main_job(LabJob* job) {
+    main_job = job;
+}
+
+void WorkspaceManager::post_build_lab(LabBuildCompiler* compiler) {
+
+    const auto& build = *lab;
+    auto& context = build.context;
+    if(!context.executables.empty()) {
+        switch_main_job(context.executables.front().get());
+    }
+
+    compiler->do_allocating((void*) &context, [](LabBuildCompiler* compiler, void* data) -> int {
+        auto& context = *((LabBuildContext*) data);
+        for(auto& job : context.executables) {
+            if(job->type == LabJobType::CBI) {
+                compiler->do_job(job.get());
+            }
+        }
+        return 0;
+    });
+
+}
+
 bool WorkspaceManager::compile_build_lab() {
     auto lab_path = get_build_lab_path();
     if(std::filesystem::exists(lab_path)) {
+
         LabBuildCompilerOptions options(compiler_exe_path(), "ide", is64Bit);
-        LabBuildCompiler compiler(&options);
+        LabBuildCompiler compiler(binder, &options);
         const auto impl = new LSPLabImpl { LabBuildContext(&options, lab_path, resolve_sibling(lab_path, "build")), nullptr };
         const auto state = compiler.built_lab_file(impl->context, lab_path);
+
+        // get the build method
+        auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
+        if(!build) {
+            // there's no build function in the build.lab
+            return false;
+        }
+
+        // call the root build.lab build's function
+        build(&impl->context);
+
         if(state) {
+
+            // set the state as active
             impl->state = state;
             lab = impl;
+
+            // post build lab
+            post_build_lab(&compiler);
+
             return true;
         } else {
             delete impl;
             // TODO report failure to ide
             return false;
         }
+
     } else {
         return false;
     }

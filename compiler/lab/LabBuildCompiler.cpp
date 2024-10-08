@@ -111,7 +111,7 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
     return new_modules;
 }
 
-LabBuildCompiler::LabBuildCompiler(LabBuildCompilerOptions *options) : options(options), pool((int) std::thread::hardware_concurrency()), binder(options->exe_path) {
+LabBuildCompiler::LabBuildCompiler(CompilerBinder& binder, LabBuildCompilerOptions *options) : binder(binder), options(options), pool((int) std::thread::hardware_concurrency()) {
 
 }
 
@@ -142,28 +142,6 @@ int LabBuildCompiler::do_job(LabJob* job) {
         }
     }
     return return_int;
-}
-
-int LabBuildCompiler::do_job_allocating(LabJob* job) {
-
-    // allocating ast allocators
-    const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
-    const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
-    const auto file_stack_size = 50000; // 50 kb will be allocated on the stack
-    char job_stack_memory[job_stack_size];
-    char mod_stack_memory[mod_stack_size];
-    char file_stack_memory[file_stack_size];
-    ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
-    ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
-    ASTAllocator _file_allocator(file_stack_memory, file_stack_size, file_stack_size);
-
-    // the allocators that will be used for all jobs
-    job_allocator = &_job_allocator;
-    mod_allocator = &_mod_allocator;
-    file_allocator = &_file_allocator;
-
-    return do_job(job);
-
 }
 
 int LabBuildCompiler::process_modules(LabJob* exe) {
@@ -951,6 +929,41 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
     // return the state
     return state;
+
+}
+
+int LabBuildCompiler::do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*, void*)) {
+
+    // allocating ast allocators
+    const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
+    const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
+    const auto file_stack_size = 50000; // 50 kb will be allocated on the stack
+    char job_stack_memory[job_stack_size];
+    char mod_stack_memory[mod_stack_size];
+    char file_stack_memory[file_stack_size];
+    ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
+    ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
+    ASTAllocator _file_allocator(file_stack_memory, file_stack_size, file_stack_size);
+
+    // the allocators that will be used for all jobs
+    job_allocator = &_job_allocator;
+    mod_allocator = &_mod_allocator;
+    file_allocator = &_file_allocator;
+
+    // do the jobs
+    return do_jobs(this, data);
+
+}
+
+int LabBuildCompiler::do_job_allocating(LabJob* job) {
+
+    return do_allocating((void*) job, [](LabBuildCompiler* compiler, void* data) {
+
+        const auto job = (LabJob*) data;
+        compiler->current_job = job;
+        return compiler->do_job(job);
+
+    });
 
 }
 

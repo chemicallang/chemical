@@ -23,7 +23,7 @@ public:
     /**
      * compiler binder is used to bind compiler functions with user source code
      */
-    CompilerBinder binder;
+    CompilerBinder& binder;
 
     /**
      * lab build compiler options
@@ -69,7 +69,7 @@ public:
     /**
      * constructor
      */
-    explicit LabBuildCompiler(LabBuildCompilerOptions* options);
+    explicit LabBuildCompiler(CompilerBinder& binder, LabBuildCompilerOptions* options);
 
     /**
      * processes modules, generates code, or all modules required for linking but doesn't link
@@ -102,9 +102,19 @@ public:
     int do_job(LabJob* job);
 
     /**
+     * allocators will be set, memory will be allocated to call the given lambda
+     */
+    int do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*, void*));
+
+    /**
      * will perform the job, using appropriate allocators on stack
      */
     int do_job_allocating(LabJob* job);
+
+    /**
+     * filter will be used, to perform jobs that are of interest
+     */
+    int do_jobs_filtering(bool(*filter)(LabBuildCompiler*, LabJob*));
 
     /**
      * will build the lab file and return the callable tcc state

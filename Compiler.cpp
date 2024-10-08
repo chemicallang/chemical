@@ -375,8 +375,10 @@ int main(int argc, char *argv[]) {
     // build a .lab file
     if(args[0].ends_with(".lab")) {
 
+
         LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
-        LabBuildCompiler compiler(&compiler_opts);
+        CompilerBinder binder(argv[0]);
+        LabBuildCompiler compiler(binder, &compiler_opts);
 
         // translate the build.lab to a c file (for debugging)
         if(output.has_value() && output.value().ends_with(".c")) {
@@ -402,7 +404,8 @@ int main(int argc, char *argv[]) {
 
     // compilation
     LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
-    LabBuildCompiler compiler(&compiler_opts);
+    CompilerBinder binder(argv[0]);
+    LabBuildCompiler compiler(binder, &compiler_opts);
     prepare_options(&compiler_opts);
     compiler_opts.def_mode = mode;
 

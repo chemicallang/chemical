@@ -27,6 +27,8 @@ class GlobalInterpretScope;
 
 class LSPLabImpl;
 
+class LabJob;
+
 /**
  * Workspace manager is the operations manager for all IDE related operations
  * 1 - IDE needs semantic highlighting for a single file
@@ -138,6 +140,13 @@ public:
     LSPLabImpl* lab = nullptr;
 
     /**
+     * we have a pointer to the main job
+     * by default, first job in the build.lab is considered the main job
+     * path aliases of the given job are used
+     */
+    LabJob* main_job = nullptr;
+
+    /**
      * currently is64Bit is determined at compile time
      */
     bool is64Bit = sizeof(void*) == 8;
@@ -166,6 +175,18 @@ public:
      * determines build.lab path relative to project path
      */
     std::string get_build_lab_path();
+
+    /**
+     * this switches the main job to the given job
+     * it's path aliases will be used
+     */
+    void switch_main_job(LabJob* job);
+
+    /**
+     * when build.lab has been built, we can build modules
+     * or do whateer we want with the data we have received
+     */
+    void post_build_lab(LabBuildCompiler* compiler);
 
     /**
      * this compiles build.lab, also notifies the user

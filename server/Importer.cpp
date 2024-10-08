@@ -93,7 +93,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string
     if (overridden_source.has_value()) {
         StringInputSource input_source(overridden_source.value());
         SourceProvider reader(&input_source);
-        Lexer lexer(reader);
+        Lexer lexer(reader, &binder);
         lexer.lex();
         result->unit = std::move(lexer.unit);
         result->diags = std::move(lexer.diagnostics);
@@ -103,7 +103,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string
             return nullptr;
         }
         SourceProvider reader(&input_source);
-        Lexer lexer(reader);
+        Lexer lexer(reader, &binder);
         lexer.lex();
         result->unit = std::move(lexer.unit);
         result->diags = std::move(lexer.diagnostics);
@@ -265,7 +265,7 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
     }
     // create a function that takes cst tokens in the import graph maker and creates a import graph
     SourceProvider reader(nullptr);
-    Lexer lexer(reader);
+    Lexer lexer(reader, &binder);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(compiler_exe_path());
     WorkspaceImportGraphImporter importer(

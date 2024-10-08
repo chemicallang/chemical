@@ -11,8 +11,9 @@ std::size_t Lexertokens_size(Lexer* lexer)  {
     return lexer->tokens_size();
 }
 
-void Lexerput(Lexer* lexer, chem::string* value, LexTokenType token_type, unsigned int lineNumber, unsigned int lineCharNumber) {
+CSTToken* Lexerput(Lexer* lexer, chem::string* value, LexTokenType token_type, unsigned int lineNumber, unsigned int lineCharNumber) {
     lexer->emplace(token_type, { lineNumber, lineCharNumber }, value->to_view());
+    return lexer->unit.tokens.back();
 }
 
 bool LexerstoreVariable(Lexer* lexer, chem::string* str)  {

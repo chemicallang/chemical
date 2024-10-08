@@ -5,6 +5,7 @@
 #include "ast/utils/Operation.h"
 #include "lexer/model/LexTokenType.h"
 #include "CBIUtils.h"
+#include "cst/base/CSTToken.h"
 
 class Lexer;
 
@@ -16,7 +17,7 @@ extern "C" {
 
     std::size_t Lexertokens_size(Lexer* lexer);
 
-    void Lexerput(Lexer* lexer, chem::string* value, LexTokenType token_type, unsigned int lineNumber, unsigned int lineCharNumber);
+    CSTToken* Lexerput(Lexer* lexer, chem::string* value, LexTokenType token_type, unsigned int lineNumber, unsigned int lineCharNumber);
 
     bool LexerstoreVariable(Lexer* lexer, chem::string* str);
 

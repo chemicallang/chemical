@@ -422,8 +422,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             if(!already_imported) {
                 processor.sym_res(unit.scope, result.is_c_file, file.abs_path);
                 if (resolver.has_errors) {
-                    compile_result = 1;
-                    break;
+                    // TODO when symbol resolver errors have been fixed we should enable this
+//                    compile_result = 1;
+//                    break;
                 }
                 resolver.reset_errors();
             }
@@ -840,8 +841,9 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             // symbol resolution
             lab_processor.sym_res(result.unit.scope, result.is_c_file, file.abs_path);
             if (lab_resolver.has_errors) {
-                compile_result = false;
-                break;
+                // TODO when lab build errors have been fixed, we should enable this
+//                compile_result = false;
+//                break;
             }
             lab_resolver.reset_errors();
 
@@ -980,7 +982,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // get the build method
     auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
     if(!build) {
-        std::cerr << "[LabBuild] Couldn't get build function symbol in build.lab" << std::endl;
+        std::cerr << rang::fg::red << "[LabBuild] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
         return 1;
     }
 

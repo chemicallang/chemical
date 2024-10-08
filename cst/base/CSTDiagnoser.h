@@ -32,7 +32,11 @@ public:
      * record an diagnostic
      */
     inline void diagnostic(const std::string &message, CSTToken *inside, DiagSeverity severity) {
-        diagnostic(message, inside->start_token(), inside->end_token(), severity);
+        inside ? (
+                diagnostic(message, inside->start_token(), inside->end_token(), severity)
+        ) : (
+                diagnostic(message, severity)
+        );
     }
 
     /**

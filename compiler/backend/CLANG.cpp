@@ -42,6 +42,18 @@ struct ErrorMsg {
     unsigned offset; // byte offset into source
 };
 
+BaseType* decl_type(CTranslator& translator, clang::Decl* decl, std::string name) {
+    auto found = translator.declarations.find(decl);
+    if(found != translator.declarations.end()) {
+        return new (translator.allocator.allocate<LinkedType>()) LinkedType(std::move(name), found->second, nullptr);
+    } else {
+        auto cDecl = translator.node_makers[decl->getKind()](&translator, decl);
+//        const auto cDecl = translator.make_struct(decl);
+        translator.before_nodes.emplace_back(cDecl);
+        return new (translator.allocator.allocate<LinkedType>()) LinkedType(std::move(name), cDecl, nullptr);
+    }
+}
+
 BaseType* CTranslator::make_type(clang::QualType* type) {
     auto canonical = type->getCanonicalType();
     auto ptr = type->getTypePtr();
@@ -57,12 +69,14 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         }
         return new (allocator.allocate<PointerType>()) PointerType(pointee, nullptr);
     }
-    if(canon_ptr != ptr) { // reference
-        if(canon_ptr->isStructureType()) {
-            return make_type(&canonical);
-        }
-        return new (allocator.allocate<LinkedType>()) LinkedType(type->getAsString(), nullptr);
-    }
+//    if(canon_ptr != ptr) { // reference
+//        if(canon_ptr->isRecordType()) {
+//            return make_type(&canonical);
+//        }
+//        const auto other = ptr->getAs<clang::TypedefType>();
+//        auto str = type->getAsString();
+//        return new (allocator.allocate<LinkedType>()) LinkedType(str, nullptr);
+//    }
     if(ptr->isBuiltinType()) {
         auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
         auto created = type_makers[builtIn->getKind()](allocator, builtIn);
@@ -70,10 +84,13 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str() + " with actual " + type->getAsString());
         }
         return created;
-    } else if(ptr->isStructureType()){
-        auto str_type = ptr->getAsStructureType();
-        auto decl = str_type->getAsRecordDecl();
-        return new (allocator.allocate<LinkedType>()) LinkedType(decl->getNameAsString(), nullptr);
+    } else if(ptr->isRecordType()){
+        const auto record_decl = ptr->getAsRecordDecl();
+        return decl_type(*this, record_decl, record_decl->getNameAsString());
+    } else if(ptr->isTypedefNameType()){
+        const auto type_def_type = ptr->getAs<clang::TypedefType>();
+        const auto decl = type_def_type->getDecl();
+        return decl_type(*this, decl, decl->getNameAsString());
     }
 //    else if(ptr->isArrayType()) { // couldn't make use of it
 //        auto point = ptr->getAsArrayTypeUnsafe();
@@ -115,6 +132,9 @@ StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
 }
 
 TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
+    if(decl->getName().starts_with("__")) {
+        return nullptr;
+    }
     auto decl_type = decl->getUnderlyingType();
     auto type = make_type(&decl_type);
     if(type == nullptr) return nullptr;
@@ -130,10 +150,17 @@ VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     auto type = decl->getType();
     auto made_type = make_type(&type);
     auto initial_value = (Value*) make_expr(decl->getInit());
+    if(!made_type && !initial_value) {
+        return nullptr;
+    }
     return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, decl->getNameAsString(), made_type, initial_value, parent_node, nullptr);
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
+    // skip builtins
+    if(func_decl->getName().starts_with("__")) {
+        return nullptr;
+    }
     // Check if the declaration is for the printf function
     // Extract function parameters
     std::vector<FunctionParam*> params;
@@ -169,7 +196,6 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
     if (!chem_type) {
         return nullptr;
     }
-    dispatch_before();
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(
             func_decl->getNameAsString(),
             std::move(params),
@@ -184,11 +210,32 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
 }
 
 void Translate(CTranslator *translator, clang::ASTUnit *unit) {
+    // set current unit
+    translator->current_unit = unit;
+    // translate each node
     auto tud = unit->getASTContext().getTranslationUnitDecl();
+
+    // we use this map to check for duplicate nodes, to avoid declaring them
+    std::unordered_map<std::string_view, ASTNode*> duplicates;
+    duplicates.reserve(10);
+
     for (auto decl: tud->decls()) {
         auto node = translator->node_makers[decl->getKind()](translator, decl);
         if(node) {
-            translator->nodes.emplace_back(node);
+            translator->declarations[decl] = node;
+            for(auto bNode : translator->before_nodes) {
+                const auto& id = bNode->ns_node_identifier();
+//                if(duplicates.find(id) == duplicates.end()) {
+                    translator->nodes.emplace_back(bNode);
+//                    duplicates[id] = bNode;
+//                }
+            }
+            translator->before_nodes.clear();
+            const auto& id = node->ns_node_identifier();
+//            if(duplicates.find(id) == duplicates.end()) {
+                translator->nodes.emplace_back(node);
+//                duplicates[id] = node;
+//            }
         } else {
             translator->error("couldn't convert decl with kind " + std::to_string(decl->getKind()) + " & kind name " + decl->getDeclKindName());
         }

@@ -1895,11 +1895,11 @@ void CValueDeclarationVisitor::visit(FunctionCall *call) {
     const auto size = call->values.size();
     auto func_type = call->function_type(visitor.allocator);
     unsigned i = 0;
-    while(i < size) {
+    while (i < size) {
         auto& value = call->values[i];
         auto func_param = func_type->func_param_for_arg_at(i);
         auto constructor = func_param->type->implicit_constructor_for(visitor.allocator, value);
-        if(constructor) {
+        if (constructor) {
             value = call_with_arg(constructor, value, visitor.allocator);
         }
         i++;
@@ -4470,7 +4470,7 @@ void ToCAstVisitor::visit(GenericType *gen_type) {
 }
 
 void ToCAstVisitor::visit(Int128Type *func) {
-    write("[Int128Type_UNIMPLEMENTED]");
+    write("__int128");
 }
 
 void ToCAstVisitor::visit(IntType *func) {
@@ -4569,7 +4569,7 @@ void ToCAstVisitor::visit(UBigIntType *func) {
 }
 
 void ToCAstVisitor::visit(UInt128Type *func) {
-    write("[UInt128Type_UNIMPLEMENTED]");
+    write("unsigned __int128");
 }
 
 void ToCAstVisitor::visit(UIntType *func) {

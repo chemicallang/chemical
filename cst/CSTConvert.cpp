@@ -475,6 +475,8 @@ void CSTConverter::visitFunction(CSTToken* function) {
 
     // private func <T, K> (ext : Extension*) name(param1 : int) : long
 
+    const auto tokens_size = function->tokens.size();
+
     unsigned i = 1;
 
     auto spec = specifier_token(function->tokens[0]);
@@ -547,15 +549,17 @@ void CSTConverter::visitFunction(CSTToken* function) {
     BaseType* returnType = nullptr;
 
     const auto type_colon = i + 1;
-    if (type_colon < function->tokens.size() && is_char_op(function->tokens[type_colon], ':')) {
+    if (type_colon < tokens_size && is_char_op(function->tokens[type_colon], ':')) {
         const auto type_ind = type_colon + 1;
-        const auto type_token = function->tokens[type_ind];
-        if(type_token->is_type()) {
-            type_token->accept(this);
-            returnType = type();
-            i += 3; // position at body
-        } else if(type_token->type() == LexTokenType::CompBody) {
-            i = type_ind; // position at body
+        if(type_ind < tokens_size) {
+            const auto type_token = function->tokens[type_ind];
+            if (type_token->is_type()) {
+                type_token->accept(this);
+                returnType = type();
+                i += 3; // position at body
+            } else if (type_token->type() == LexTokenType::CompBody) {
+                i = type_ind; // position at body
+            }
         }
     } else {
         i++;
@@ -583,7 +587,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
 
     put_node(funcDecl, function);
 
-    if (i < function->tokens.size()) {
+    if (i < tokens_size) {
         auto prev_decl = current_func_type;
         current_func_type = funcDecl;
         auto prev_parent = parent_node;

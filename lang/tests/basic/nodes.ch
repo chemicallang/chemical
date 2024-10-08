@@ -388,6 +388,16 @@ func test_nodes() {
         var i = if(val) 5 else 6
         return i == 6;
     })
+    test("if as value works with function calls - 1", () => {
+        var val = true;
+        var i = if(val) give_nine_hundred_two() else give_two_hundred_one();
+        return i == 902;
+    })
+    test("if as value works with function calls - 1", () => {
+        var val = false;
+        var i = if(val) give_nine_hundred_two() else give_two_hundred_one();
+        return i == 201;
+    })
     test("switch statement can be used as a value - 1", () => {
         var val = 45;
         var i = switch(val) {

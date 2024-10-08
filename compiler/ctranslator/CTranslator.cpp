@@ -1695,13 +1695,6 @@ void CTranslator::init_node_makers() {
     };
 }
 
-void CTranslator::dispatch_before() {
-    for(auto& node : before_nodes) {
-        nodes.emplace_back(node);
-    }
-    before_nodes.clear();
-}
-
 void CTranslator::error(const std::string& err) {
 // this can be turned on if exceptions are occurring and there's output in console
 //#ifdef DEBUG

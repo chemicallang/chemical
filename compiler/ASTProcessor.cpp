@@ -164,7 +164,6 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
     if (is_c_file) {
-        resolver->override_symbols = true;
         previous = std::move(resolver->diagnostics);
     }
     std::unique_ptr<BenchmarkResults> bm_results;
@@ -172,7 +171,13 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    resolver->resolve_file(scope, abs_path);
+    if(is_c_file) {
+        resolver->override_symbols = true;
+        scope.declare_top_level(*resolver);
+        resolver->override_symbols = false;
+    } else {
+        resolver->resolve_file(scope, abs_path);
+    }
     if(options->benchmark) {
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "SymRes", bm_results.get());
@@ -181,7 +186,6 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         resolver->print_diagnostics(abs_path, "SymRes");
     }
     if (is_c_file) {
-        resolver->override_symbols = false;
         resolver->diagnostics = std::move(previous);
         resolver->has_errors = prev_has_errors;
     }
@@ -222,7 +226,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif
 
-        return { std::move(unit), CSTUnit(), true, true, std::move(out.str()) };
+        return { ASTImportResult { std::move(unit), CSTUnit(), true, true }, std::move(out.str()) };
 
     } else {
 
@@ -255,7 +259,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
             printTokens(lexer.unit.tokens);
         }
         if (lexer.has_errors) {
-            return { std::move(unit), std::move(lexer.unit), false, is_c_file, std::move(out.str()) };
+            return { ASTImportResult { std::move(unit), std::move(lexer.unit), false, false }, std::move(out.str()) };
         }
 
         // convert the tokens
@@ -287,7 +291,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
             out << "[Representation]\n" << unit.scope.representation() << '\n';
         }
 
-        return { std::move(unit), std::move(lexer.unit), true, true, std::move(out.str()) };
+        return { ASTImportResult { std::move(unit), std::move(lexer.unit), true, false }, std::move(out.str()) };
 
     }
 

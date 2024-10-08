@@ -70,6 +70,16 @@ public:
     std::vector<ASTNode*> nodes;
 
     /**
+     * a map between clang declarations that we translated to our nodes
+     */
+    std::unordered_map<clang::Decl*, ASTNode*> declarations;
+
+    /**
+     * current clang unit being translated
+     */
+    clang::ASTUnit* current_unit;
+
+    /**
      * these are nodes that should be added before adding a node
      * these nodes were created by translation
      */
@@ -94,11 +104,6 @@ public:
      * initializes node makers
      */
     void init_node_makers();
-
-    /**
-     * dispatches nodes added to before_nodes vector into nodes
-     */
-    void dispatch_before();
 
     /**
      * when given a c qualified type, it constructs a chemical type

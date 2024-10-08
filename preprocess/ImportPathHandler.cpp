@@ -10,7 +10,7 @@ AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::stri
     // Resolve the containing directory to given header
     std::string dir = handler.headers_dir(headerPath);
     if (dir.empty()) {
-        return {filePath, "couldn't resolve system headers directory for " + headerPath + " when importing"};
+        return {filePath, "couldn't resolve system headers directory for '" + headerPath + "' when importing"};
     }
     // Absolute path to the header
     return {(std::filesystem::path(dir) / headerPath).string(), ""};

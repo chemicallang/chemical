@@ -1,5 +1,6 @@
 import "./SourceProvider.ch"
 import "./LexTokenType.ch"
+import "./CSTToken.ch"
 
 @compiler:interface
 struct Lexer {
@@ -17,7 +18,7 @@ struct Lexer {
     /**
      * put the given token into the tokens vector held by this Lexer
      */
-    func put(&self, value : string*, token_type : LexTokenType, lineNumber : uint, lineCharNumber : uint)
+    func put(&self, value : &string, token_type : LexTokenType, lineNumber : uint, lineCharNumber : uint) : CSTToken*
 
     /**
      * consumes a identifier and store as a variable token

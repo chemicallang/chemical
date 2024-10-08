@@ -33,10 +33,27 @@ public struct string {
     }
 
     @constructor
+    func empty_str() {
+        unsafe {
+            storage.constant.data = null;
+        }
+        storage.constant.length = 0;
+        state = '0'
+    }
+
+    @constructor
     func make_no_len(value : char*) {
         storage.constant.data = value;
         storage.constant.length = strlen(value);
         state = '0'
+    }
+
+    @constructor
+    func make_with_char(value : char) {
+        storage.sso.buffer[0] = value;
+        storage.sso.buffer[1] = '\0';
+        storage.sso.length = 1;
+        state = '1'
     }
 
     func size(&self) : size_t {

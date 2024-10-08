@@ -839,7 +839,7 @@ void FunctionCall::link_constructor(SymbolResolver &resolver) {
                 generic_iteration = parent_struct->register_generic_args(resolver, generic_list);
             }
         } else {
-            resolver.error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), (AnnotableNode*) parent_struct);
+            resolver.error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_id);
         }
     }
 }

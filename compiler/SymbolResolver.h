@@ -208,6 +208,12 @@ public:
     bool safe_context = true;
 
     /**
+     * does symbol resolver support function name overloading
+     * we turn this off for c files
+     */
+    bool fn_name_overloading = true;
+
+    /**
      * current function type, for which code is being linked
      */
     FunctionType* current_func_type = nullptr;

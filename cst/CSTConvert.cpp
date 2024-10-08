@@ -157,7 +157,11 @@ std::vector<ASTNode*> take_body_or_single_stmt(CSTConverter *conv, CSTToken *con
         if(CSTToken::is_value(type)) {
             nodes[0] = new (conv->local<ValueNode>()) ValueNode(conv->pop_last_value(), parent_node, token);
         } else {
-            nodes[0] = conv->pop_last_node();
+            if(type == LexTokenType::CompAccessChainNode) {
+                nodes[0] = new (conv->local<ValueNode>()) ValueNode((AccessChain*) conv->pop_last_node(), parent_node, token);
+            } else {
+                nodes[0] = conv->pop_last_node();
+            }
         }
         if(i + 1 < container->tokens.size() && is_char_op(container->tokens[i + 1], ';')) {
             i++;

@@ -110,6 +110,14 @@ struct DefaultInitStruct {
 
 const MyInt = 5;
 
+func give_nine_hundred_two() : int {
+    return 902;
+}
+
+func give_two_hundred_one() : int {
+    return 201;
+}
+
 func test_nodes() {
     test("global constant int", () => {
         return MyInt == 5;
@@ -395,6 +403,22 @@ func test_nodes() {
              default => 6
         }
         return i == 6;
+    })
+    test("switch as a value works with function calls - 1", () => {
+        var val = 45;
+        var i = switch(val) {
+             45 => give_nine_hundred_two();
+             default => give_two_hundred_one();
+        }
+        return i == 902;
+    })
+    test("switch as a value works with function calls - 2", () => {
+        var val = 32;
+        var i = switch(val) {
+             45 => give_nine_hundred_two();
+             default => give_two_hundred_one();
+        }
+        return i == 201;
     })
     test("nested if in if value statements - 1", () => {
         var i = 2;

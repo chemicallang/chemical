@@ -19,6 +19,8 @@ public:
 
     void visit(CastedValue *casted) override;
 
+    void visit(ValueNode *node) override;
+
     void visit(UnsafeBlock *block) override;
 
     void visit(VarInitStatement *init) override;

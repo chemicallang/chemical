@@ -633,6 +633,7 @@ llvm::Value* FunctionCall::access_chain_assign_value(
         std::vector<ChainValue*> &chain,
         unsigned int until,
         std::vector<std::pair<Value*, llvm::Value*>> &destructibles,
+        llvm::Value* lhsPtr,
         Value *lhs,
         BaseType *expected_type
 ) {
@@ -642,7 +643,7 @@ llvm::Value* FunctionCall::access_chain_assign_value(
         std::vector<llvm::Value *> args;
         // TODO very dirty way of doing this, the function returns struct and that's why the pointer is being used to assign to it
         //    returns nullptr because AssignStatement will assign the value for you, if you send it back, (THIS IS VERY BAD)
-        llvm_chain_value(gen, args, chain, until, destructibles, lhs->llvm_pointer(gen));
+        llvm_chain_value(gen, args, chain, until, destructibles, lhsPtr);
         return nullptr;
     } else {
         return access_chain_value(gen, chain, until, destructibles, expected_type);

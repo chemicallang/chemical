@@ -18,7 +18,7 @@ llvm::Type* IfStatement::llvm_type(Codegen &gen) {
 llvm::AllocaInst* IfStatement::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
     auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
     auto prev_assignable = gen.current_assignable;
-    gen.current_assignable = allocated;
+    gen.current_assignable = { nullptr, allocated };
     code_gen(gen);
     gen.current_assignable = prev_assignable;
     return allocated;
@@ -29,9 +29,9 @@ llvm::Value* IfStatement::llvm_value(Codegen &gen, BaseType *type) {
     return nullptr;
 }
 
-llvm::Value* IfStatement::llvm_assign_value(Codegen &gen, Value *lhs) {
+llvm::Value* IfStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
     auto prev_assignable = gen.current_assignable;
-    gen.current_assignable = lhs->llvm_pointer(gen);
+    gen.current_assignable = { lhs, lhsPtr };
     code_gen(gen);
     gen.current_assignable = prev_assignable;
     return nullptr;

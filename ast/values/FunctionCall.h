@@ -260,6 +260,7 @@ public:
             std::vector<ChainValue*> &values,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>> &destructibles,
+            llvm::Value* lhsPtr,
             Value *lhs,
             BaseType *expected_type
     ) override;

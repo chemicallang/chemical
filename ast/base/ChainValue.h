@@ -160,11 +160,10 @@ public:
             std::vector<ChainValue*>& values,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            llvm::Value* lhsPtr,
             Value* lhs,
             BaseType* expected_type
-    ) {
-        return access_chain_value(gen, values, until, destructibles, expected_type);
-    }
+    );
 
     /**
      * this is a helper method, it does the same thing as access_chain_value

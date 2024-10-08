@@ -20,7 +20,7 @@ llvm::Type* SwitchStatement::llvm_type(Codegen &gen) {
 llvm::AllocaInst* SwitchStatement::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
     auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
     auto prev_assignable = gen.current_assignable;
-    gen.current_assignable = allocated;
+    gen.current_assignable = { nullptr, allocated };
     code_gen(gen);
     gen.current_assignable = prev_assignable;
     return allocated;
@@ -31,9 +31,9 @@ llvm::Value* SwitchStatement::llvm_value(Codegen &gen, BaseType *type) {
     return nullptr;
 }
 
-llvm::Value* SwitchStatement::llvm_assign_value(Codegen &gen, Value *lhs) {
+llvm::Value * SwitchStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
     auto prev_assignable = gen.current_assignable;
-    gen.current_assignable = lhs->llvm_pointer(gen);
+    gen.current_assignable = { lhs, lhsPtr };
     code_gen(gen);
     gen.current_assignable = prev_assignable;
     return nullptr;
@@ -158,6 +158,11 @@ BaseType *SwitchStatement::known_type() {
     if(!is_value || scopes.empty()) return nullptr;
     auto last_val = get_value_node();
     return last_val ? last_val->known_type() : nullptr;
+}
+
+ASTNode *SwitchStatement::linked_node() {
+    const auto known = known_type();
+    return known ? known->linked_node() : nullptr;
 }
 
 bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {

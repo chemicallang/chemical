@@ -563,7 +563,7 @@ public:
      * so when if statement or switch or any value that would like to assign
      * it's implicitly returned value assigns it to this current_assignable
      */
-    llvm::Value* current_assignable = nullptr;
+    std::pair<Value*, llvm::Value*> current_assignable = {nullptr, nullptr};
 
     /**
      * When given, return's are shifted to this block

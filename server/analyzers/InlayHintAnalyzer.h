@@ -33,4 +33,6 @@ public:
 
     void visit(FunctionCall *call) override;
 
+    void visit(VarInitStatement *init) override;
+
 };

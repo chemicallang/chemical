@@ -6,6 +6,8 @@
 #include "ast/types/FunctionType.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/statements/VarInit.h"
+#include "cst/utils/CSTUtils.h"
 
 InlayHintAnalyzer::InlayHintAnalyzer() : allocator(nullptr, 0, 0) {
 
@@ -33,6 +35,25 @@ void InlayHintAnalyzer::visit(FunctionCall *call) {
                 }
             }
             i++;
+        }
+    }
+}
+
+void InlayHintAnalyzer::visit(VarInitStatement *init) {
+    CommonVisitor::visit(init);
+    if(init->value && !init->type) {
+        const auto token = init->cst_token();
+        if(token && token->type() == LexTokenType::CompVarInit) {
+            const auto known = init->value->create_type(allocator);
+            if(known) {
+                const auto name_tok = var_init_name_tok(token);
+                const auto& start = name_tok->start();
+                hints.emplace_back(lsInlayHint {
+                        { (int) start.line, (int) (start.character + name_tok->length()) },
+                        " :" + known->representation(),
+                        lsInlayHintKind::Type
+                });
+            }
         }
     }
 }

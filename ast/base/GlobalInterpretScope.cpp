@@ -20,11 +20,18 @@ GlobalInterpretScope::GlobalInterpretScope(
 
 }
 
-void GlobalInterpretScope::interpret_error(const std::string& msg, ASTAny* any) {
+void GlobalInterpretScope::interpret_error(std::string& msg, ASTAny* any) {
 #ifdef DEBUG
     std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
 #endif
-    ASTDiagnoser::error(msg, any);
+    ASTDiagnoser::diagnostic(msg, any, DiagSeverity::Error);
+}
+
+void GlobalInterpretScope::interpret_error(std::string_view& msg, ASTAny* any) {
+#ifdef DEBUG
+    std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
+#endif
+    ASTDiagnoser::diagnostic(msg, any, DiagSeverity::Error);
 }
 
 void GlobalInterpretScope::clean() {

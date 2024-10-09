@@ -8,6 +8,10 @@
 #include <vector>
 
 class CSTDiagnoser {
+private:
+
+    void real_diagnostic(const std::string_view& message, CSTToken *start, CSTToken *end, DiagSeverity severity);
+
 public:
 
     bool has_errors = false;
@@ -18,20 +22,46 @@ public:
     std::vector<Diag> diagnostics;
 
     /**
-     * record an diagnostic
+     * a helper function
      */
-    void diagnostic(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity);
+    inline void diagnostic(std::string_view& message, CSTToken* start, CSTToken* end, DiagSeverity severity) {
+        real_diagnostic(message, start, end, severity);
+    }
+
+    /**
+     * just a helper function
+     */
+    inline void diagnostic(std::string& message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
+        real_diagnostic(message, start, end, severity);
+    }
 
     /**
      * record a diagnostic
      */
     [[deprecated]]
-    void diagnostic(const std::string &message, DiagSeverity severity);
+    void diagnostic(std::string &message, DiagSeverity severity);
+
+    /**
+     * record a diagnostic
+     */
+    [[deprecated]]
+    void diagnostic(std::string_view &message, DiagSeverity severity);
 
     /**
      * record an diagnostic
      */
-    inline void diagnostic(const std::string &message, CSTToken *inside, DiagSeverity severity) {
+    inline void diagnostic(std::string& message, CSTToken *inside, DiagSeverity severity) {
+        inside ? (
+                diagnostic(message, inside->start_token(), inside->end_token(), severity)
+        ) : (
+                diagnostic(message, severity)
+        );
+    }
+
+    /**
+     * record an diagnostic
+     */
+    inline void diagnostic(std::string_view& message, CSTToken *inside, DiagSeverity severity) {
         inside ? (
                 diagnostic(message, inside->start_token(), inside->end_token(), severity)
         ) : (
@@ -42,56 +72,63 @@ public:
     /**
      * a helper method
      */
-    inline void error(const std::string& message, CSTToken* start, CSTToken* end) {
+    inline void error(std::string& message, CSTToken* start, CSTToken* end) {
         diagnostic(message, start, end, DiagSeverity::Error);
     }
 
     /**
      * a helper method
      */
-    inline void error(const std::string& message, CSTToken* inside) {
+    inline void error(std::string& message, CSTToken* inside) {
         diagnostic(message, inside, DiagSeverity::Error);
     }
 
     /**
      * a helper method
      */
-    inline void info(const std::string& message, CSTToken* start, CSTToken* end) {
+    inline void error(std::string_view message, CSTToken* inside) {
+        diagnostic(message, inside, DiagSeverity::Error);
+    }
+
+    /**
+     * a helper method
+     */
+    inline void info(std::string& message, CSTToken* start, CSTToken* end) {
         diagnostic(message, start, end, DiagSeverity::Information);
     }
 
     /**
      * a helper method
      */
-    inline void info(const std::string& message, CSTToken* inside) {
+    inline void info(std::string& message, CSTToken* inside) {
         diagnostic(message, inside, DiagSeverity::Information);
     }
 
     /**
      * a helper method
      */
-    inline void warn(const std::string& message, CSTToken* start, CSTToken* end) {
+    inline void warn(std::string& message, CSTToken* start, CSTToken* end) {
         diagnostic(message, start, end, DiagSeverity::Warning);
     }
 
     /**
      * a helper method
      */
-    inline void warn(const std::string& message, CSTToken* inside) {
+    inline void warn(std::string& message, CSTToken* inside) {
         diagnostic(message, inside, DiagSeverity::Warning);
     }
 
     /**
      * a helper method
      */
-    inline void hint(const std::string& message, CSTToken* start, CSTToken* end) {
+    inline void hint(std::string& message, CSTToken* start, CSTToken* end) {
         diagnostic(message, start, end, DiagSeverity::Hint);
     }
 
     /**
      * a helper method
      */
-    inline void hint(const std::string& message, CSTToken* inside) {
+    inline void hint(std::string& message, CSTToken* inside) {
         diagnostic(message, inside, DiagSeverity::Hint);
     }
 

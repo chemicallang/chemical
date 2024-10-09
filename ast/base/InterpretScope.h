@@ -101,7 +101,12 @@ public:
     /**
      * The errors are stored in global scope only
      */
-    void error(const std::string& err, ASTAny* any);
+    void error(std::string& err, ASTAny* any);
+
+    /**
+     * an interpret scope error
+     */
+    void error(std::string_view err, ASTAny* any);
 
     /**
      * this can be called to "clean" everything in this scope

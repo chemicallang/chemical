@@ -12,7 +12,7 @@ struct HtmlLexer {
 
 }
 
-func (html : HtmlLexer*) put_token(value : &string, type : LexTokenType) : CSTToken* {
+func (html : HtmlLexer*) put_token(value : string&, type : LexTokenType) : CSTToken* {
     return html.lexer.put(value, type, html.provider.getLineNumber(), html.provider.getLineCharNumber());
 }
 

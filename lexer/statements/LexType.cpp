@@ -74,6 +74,9 @@ void Lexer::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
     while(lexOperatorToken('*')) {
         compound_from(start, LexTokenType::CompPointerType);
     }
+    if(lexOperatorToken('&')) {
+        compound_from(start, LexTokenType::CompReferenceType);
+    }
 }
 
 bool Lexer::lexTypeId(std::string& type, unsigned int start) {
@@ -123,7 +126,6 @@ bool Lexer::lexTypeTokens() {
         return true;
     }
 
-    bool lexed_ref = lexOperatorToken('&');
     std::string type = provider.readIdentifier();
     if(type.empty()) return false;
     // dyn should be a keyword
@@ -150,10 +152,6 @@ bool Lexer::lexTypeTokens() {
     }
     lexGenericTypeAfterId(start);
     lexArrayAndPointerTypesAfterTypeId(start);
-    if(lexed_ref) {
-        // start - 1, to include '&'
-        compound_from(start - 1, LexTokenType::CompReferenceType);
-    }
 
     return true;
 

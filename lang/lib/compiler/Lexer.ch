@@ -19,7 +19,7 @@ struct Lexer : CSTDiagnoser {
     /**
      * put the given token into the tokens vector held by this Lexer
      */
-    func put(&self, value : &string, token_type : LexTokenType, lineNumber : uint, lineCharNumber : uint) : CSTToken*
+    func put(&self, value : string&, token_type : LexTokenType, lineNumber : uint, lineCharNumber : uint) : CSTToken*
 
     /**
      * consumes a identifier and store as a variable token

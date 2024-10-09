@@ -4,20 +4,20 @@ struct ReferencableStruct {
     var i : int
 }
 
-func take_ref(r : &ReferencableStruct) : int {
+func take_ref(r : ReferencableStruct&) : int {
     return r.i;
 }
 
-func in_between_ref_pass(r : &ReferencableStruct) : int {
+func in_between_ref_pass(r : ReferencableStruct&) : int {
     return take_ref(r);
 }
 
 struct ReferencableStructRef {
-    var r : &ReferencableStruct
+    var r : ReferencableStruct&
 }
 
 variant ReferencableStructOpt {
-    Some(r : &ReferencableStruct)
+    Some(r : ReferencableStruct&)
     None()
 }
 

@@ -79,11 +79,13 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
 //    }
     if(ptr->isBuiltinType()) {
         auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
-        auto created = type_makers[builtIn->getKind()](allocator, builtIn);
-        if(!created) {
+        const auto type_maker = type_makers[builtIn->getKind()];
+        if(type_maker) {
+            return type_maker(allocator, builtIn);
+        } else {
             error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str() + " with actual " + type->getAsString());
+            return nullptr;
         }
-        return created;
     } else if(ptr->isRecordType()){
         const auto record_decl = ptr->getAsRecordDecl();
         return decl_type(*this, record_decl, record_decl->getNameAsString());
@@ -226,14 +228,17 @@ void Translate(CTranslator *translator, clang::ASTUnit *unit) {
     // translate each node
     auto tud = unit->getASTContext().getTranslationUnitDecl();
     for (auto decl: tud->decls()) {
-        auto node = translator->node_makers[decl->getKind()](translator, decl);
-        if(node) {
-            translator->declarations[decl] = node;
-            for(auto bNode : translator->before_nodes) {
-                translator->nodes.emplace_back(bNode);
+        auto maker = translator->node_makers[decl->getKind()];
+        if(maker) {
+            auto node = maker(translator, decl);
+            if (node) {
+                translator->declarations[decl] = node;
+                for (auto bNode: translator->before_nodes) {
+                    translator->nodes.emplace_back(bNode);
+                }
+                translator->before_nodes.clear();
+                translator->nodes.emplace_back(node);
             }
-            translator->before_nodes.clear();
-            translator->nodes.emplace_back(node);
         } else {
             translator->error("couldn't convert decl with kind " + std::to_string(decl->getKind()) + " & kind name " + decl->getDeclKindName());
         }

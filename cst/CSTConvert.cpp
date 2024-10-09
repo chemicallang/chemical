@@ -1584,10 +1584,27 @@ void CSTConverter::visitGenericType(CSTToken* cst) {
     put_type(generic_type, cst);
 }
 
-void CSTConverter::visitSpecializedType(CSTToken* specType) {
-    // currently only one is supported dyn, which is a dynamic type
-    specType->tokens[1]->accept(this);
-    put_type(new (local<DynamicType>()) DynamicType(type(), specType), specType);
+void CSTConverter::visitQualifiedType(CSTToken *qualType) {
+    const auto qual_tok = qualType->tokens[0];
+    const auto& val = qual_tok->value();
+    // visiting the child type
+    qualType->tokens[1]->accept(this);
+    const auto t = type();
+    if(val == "dyn") {
+        const auto kind = t->kind();
+        if(kind == BaseTypeKind::Array) {
+            // since dyn Phone[] means (dyn Phone)[] and not (dyn) Phone[]
+            const auto elem_type = ((ArrayType*) t)->elem_type;
+            ((ArrayType*) t)->elem_type = new (local<DynamicType>()) DynamicType(elem_type, qualType);
+            re_put_type(t);
+        } else {
+            put_type(new (local<DynamicType>()) DynamicType(t, qualType), qualType);
+        }
+    } else if(val == "mut") {
+        // TODO this, haven't yet done it
+    } else {
+        error("unknown qualified type given", qual_tok);
+    }
 }
 
 void CSTConverter::visitArrayType(CSTToken* arrayType) {

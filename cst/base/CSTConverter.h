@@ -175,6 +175,11 @@ public:
     inline void put_type(BaseType* type, CSTToken* token);
 
     /**
+     * re-puts the type you popped, without the token
+     */
+    inline void re_put_type(BaseType* type);
+
+    /**
      * puts the value in the value vector
      */
     inline void put_value(Value* value, CSTToken* token);
@@ -361,7 +366,7 @@ public:
 
     void visitGenericType(CSTToken* genericType) override;
 
-    void visitSpecializedType(CSTToken* specType) override;
+    void visitQualifiedType(CSTToken *qualType) override;
 
     void visitArrayType(CSTToken* arrayType) override;
 
@@ -425,6 +430,10 @@ BaseType* CSTConverter::pop_last_type() {
     const auto last = types.back();
     types.pop_back();
     return last;
+}
+
+inline void CSTConverter::re_put_type(BaseType* type) {
+    types.emplace_back(type);
 }
 
 void CSTConverter::put_type(BaseType* type, CSTToken* token) {

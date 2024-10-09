@@ -733,8 +733,8 @@ void RepresentationVisitor::visit(AnyType *func) {
 }
 
 void RepresentationVisitor::visit(ArrayType *type) {
-    write("[]");
     type->elem_type->accept(this);
+    write("[]");
 }
 
 void RepresentationVisitor::visit(BigIntType *func) {

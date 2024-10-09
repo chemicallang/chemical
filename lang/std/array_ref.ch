@@ -16,7 +16,7 @@ public struct ArrayRef<T> {
     @implicit
     @comptime
     @constructor
-    func <T> make2(vec : vector<T>&) {
+    func make2(vec : vector<T>&) {
         return compiler::wrap(constructor(vec.data(), vec.size()))
     }
 

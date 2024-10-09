@@ -171,6 +171,39 @@ func test_nodes() {
             }
        }
     });
+    test("switch statement with multiple cases - 1", () => {
+       var j = 0;
+       switch(j) {
+            0 | 1 => {
+                return true;
+            }
+            default => {
+                return false;
+            }
+       }
+    });
+    test("switch statement with multiple cases - 2", () => {
+       var j = 1;
+       switch(j) {
+            0 | 1 => {
+                return true;
+            }
+            default => {
+                return false;
+            }
+       }
+    });
+    test("switch statement with multiple cases - 3", () => {
+       var j = 3;
+       switch(j) {
+            0 | 1 => {
+                return false;
+            }
+            default => {
+                return true;
+            }
+       }
+    });
     test("switch statement case keyword is optional", () => {
         var j = 0;
         switch(j) {

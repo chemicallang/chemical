@@ -801,8 +801,8 @@ void RepresentationVisitor::visit(PointerType *type) {
 }
 
 void RepresentationVisitor::visit(ReferenceType *type) {
-    write('&');
     type->type->accept(this);
+    write('&');
 }
 
 void RepresentationVisitor::visit(LinkedType *type) {

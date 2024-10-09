@@ -576,7 +576,7 @@ Value* Value::get_first_value_from_value_node(ASTNode* node) {
             const auto switch_node = ((SwitchStatement*) node);
             auto& scopes = switch_node->scopes;
             if(!scopes.empty()) {
-                auto& nodes = scopes.front().second.nodes;
+                auto& nodes = scopes.front().nodes;
                 if(nodes.empty()) {
                     return nullptr;
                 } else {

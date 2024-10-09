@@ -10,7 +10,9 @@ class SwitchStatement : public ASTNode, public Value {
 public:
 
     Value* expression;
-    std::vector<std::pair<Value*, Scope>> scopes;
+    std::vector<Scope> scopes;
+    // cases store the index of scope as second value, if given -1, it means default scope
+    std::vector<std::pair<Value*, int>> cases;
     std::optional<Scope> defScope;
     ASTNode* parent_node;
     bool is_value;
@@ -18,7 +20,6 @@ public:
 
     SwitchStatement(
         Value* expression,
-        std::vector<std::pair<Value*, Scope>> scopes,
         std::optional<Scope> defScope,
         ASTNode* parent_node,
         bool is_value,

@@ -8,7 +8,7 @@ bool Lexer::lexMultipleSwitchCaseValues() {
         if(has_single) {
             lexWhitespaceToken();
         }
-        if(lexSwitchCaseValue() || lexWSKeywordToken("default", ':')) {
+        if(lexWSKeywordToken("default", ':') || lexSwitchCaseValue()) {
             has_single = true;
         }
         lexWhitespaceToken();
@@ -37,21 +37,21 @@ bool Lexer::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
         if (lexOperatorToken('{')) {
             while(true) {
                 lexWhitespaceAndNewLines();
-                if(lexWSKeywordToken("default", ':')) {
-                    if (lexOperatorToken(':')) {
-                        auto bStart = tokens_size();
-                        lexNestedLevelMultipleStatementsTokens();
-                        compound_from(bStart, LexTokenType::CompBody);
-                    } else if (lexOperatorToken("=>")) {
-                        if(!lexBraceBlockOrSingleStmt("switch-default", is_value, lex_value_node)) {
-                            mal_value_or_node(start, "expected a brace block after the '=>' in the switch default case", is_value);
-                            return true;
-                        }
-                    } else {
-                        mal_value_or_node(start, "expected ':' or '=>' after 'default' in switch statement", is_value);
-                        return true;
-                    }
-                } else {
+//                if(lexWSKeywordToken("default", ':')) {
+//                    if (lexOperatorToken(':')) {
+//                        auto bStart = tokens_size();
+//                        lexNestedLevelMultipleStatementsTokens();
+//                        compound_from(bStart, LexTokenType::CompBody);
+//                    } else if (lexOperatorToken("=>")) {
+//                        if(!lexBraceBlockOrSingleStmt("switch-default", is_value, lex_value_node)) {
+//                            mal_value_or_node(start, "expected a brace block after the '=>' in the switch default case", is_value);
+//                            return true;
+//                        }
+//                    } else {
+//                        mal_value_or_node(start, "expected ':' or '=>' after 'default' in switch statement", is_value);
+//                        return true;
+//                    }
+//                } else {
                     if (!lexMultipleSwitchCaseValues()) {
                         break;
                     }
@@ -70,7 +70,7 @@ bool Lexer::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
                         mal_value_or_node(start, "expected ':' or '=>' after 'case' in switch statement", is_value);
                         return true;
                     }
-                }
+//                }
             }
             if(!lexOperatorToken('}')) {
                 mal_value_or_node(start, "expected '}' for ending the switch block", is_value);

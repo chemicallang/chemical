@@ -205,9 +205,6 @@ void CommonVisitor::visit(SwitchStatement *stmt) {
     for(auto& scope : stmt->scopes) {
         scope.accept(this);
     }
-    if(stmt->defScope.has_value()) {
-        stmt->defScope.value().accept(this);
-    }
 }
 
 void CommonVisitor::visit(AccessChain *chain) {

@@ -132,10 +132,6 @@ Value* get_first_broken(Scope* body) {
                 value = get_first_broken(&scope);
                 if(value) return value;
             }
-            if(switchStmt->defScope.has_value()) {
-                value = get_first_broken(&switchStmt->defScope.value());
-                if(value) return value;
-            }
         }
     }
     return value;

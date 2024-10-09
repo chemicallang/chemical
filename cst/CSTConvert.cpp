@@ -1110,7 +1110,6 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
     bool is_value = switchCst->type() == LexTokenType::CompSwitchValue;
     auto switch_statement = new (local<SwitchStatement>()) SwitchStatement(
             nullptr,
-            std::nullopt,
             parent_node,
             is_value,
             switchCst
@@ -1120,43 +1119,39 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
     switchCst->tokens[2]->accept(this);
     switch_statement->expression = value();
     unsigned i = 5; // positioned at first 'case' or 'default'
-    auto has_default = false;
     while (true) {
-        if (is_keyword(switchCst->tokens[i], "default")) {
-            i += 2; // body
-            switch_statement->defScope.emplace(Scope { switch_statement, switchCst->tokens[i] });
-            auto& defScope = switch_statement->defScope.value();
-            defScope.nodes = take_body_or_single_stmt(this, switchCst, i, switch_statement);
-            i++;
-            if (has_default) {
-                error("multiple defaults in switch statement detected", switchCst->tokens[i - 3]);
-            }
-            has_default = true;
-        } else {
-            const auto scope_ind = switch_statement->scopes.size();
-            if(switchCst->tokens[i]->is_value()) {
-                while(true) {
-                    if(switchCst->tokens[i]->is_value()) {
-                        switchCst->tokens[i]->accept(this);
-                        auto caseVal = value();
-                        switch_statement->cases.emplace_back(caseVal, scope_ind);
-                        i++;
-                    } else if(is_char_op(switchCst->tokens[i], '|')) {
-                        i++;
+        const auto scope_ind = switch_statement->scopes.size();
+        const auto first_tok = switchCst->tokens[i];
+        if(first_tok->is_value() || is_keyword(first_tok, "default")) {
+            while(true) {
+                const auto tok = switchCst->tokens[i];
+                if(tok->is_value()) {
+                    tok->accept(this);
+                    auto caseVal = value();
+                    switch_statement->cases.emplace_back(caseVal, scope_ind);
+                    i++;
+                } else if(is_keyword(tok, "default")) {
+                    if(switch_statement->defScopeInd == -1) {
+                        switch_statement->defScopeInd = (int) scope_ind;
                     } else {
-                        break;
+                        error("multiple defaults in switch statement detected", tok);
                     }
+                    i++;
+                } else if(is_char_op(tok, '|')) {
+                    i++;
+                } else {
+                    break;
                 }
-            } else {
-                break;
             }
-            i += 1; // body
-            // create a scope
-            switch_statement->scopes.emplace_back(switch_statement, switchCst->tokens[i]);
-            auto& case_scope = switch_statement->scopes.back();
-            case_scope.nodes = take_body_or_single_stmt(this, switchCst, i, switch_statement);
-            i++;
+        } else {
+            break;
         }
+        i += 1; // body
+        // create a scope
+        switch_statement->scopes.emplace_back(switch_statement, switchCst->tokens[i]);
+        auto& case_scope = switch_statement->scopes.back();
+        case_scope.nodes = take_body_or_single_stmt(this, switchCst, i, switch_statement);
+        i++;
     }
     parent_node = prev_parent;
     if(is_value) {

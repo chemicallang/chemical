@@ -11,16 +11,15 @@ public:
 
     Value* expression;
     std::vector<Scope> scopes;
-    // cases store the index of scope as second value, if given -1, it means default scope
+    // cases store the index of scope, if value is nullptr it means default case
     std::vector<std::pair<Value*, int>> cases;
-    std::optional<Scope> defScope;
+    int defScopeInd = -1;
     ASTNode* parent_node;
     bool is_value;
     CSTToken* token;
 
     SwitchStatement(
         Value* expression,
-        std::optional<Scope> defScope,
         ASTNode* parent_node,
         bool is_value,
         CSTToken* token
@@ -67,6 +66,10 @@ public:
     BaseType *known_type() override;
 
     ASTNode *linked_node() override;
+
+    inline bool has_default_case() {
+        return defScopeInd != -1;
+    }
 
 #ifdef COMPILER_BUILD
 

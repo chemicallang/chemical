@@ -1593,7 +1593,7 @@ void CSTConverter::visitQualifiedType(CSTToken *qualType) {
     if(val == "dyn") {
         const auto kind = t->kind();
         if(kind == BaseTypeKind::Array) {
-            // since dyn Phone[] means (dyn Phone)[] and not (dyn) Phone[]
+            // since dyn Phone[] means (dyn Phone)[] and not dyn (Phone[])
             const auto elem_type = ((ArrayType*) t)->elem_type;
             ((ArrayType*) t)->elem_type = new (local<DynamicType>()) DynamicType(elem_type, qualType);
             re_put_type(t);
@@ -1601,7 +1601,35 @@ void CSTConverter::visitQualifiedType(CSTToken *qualType) {
             put_type(new (local<DynamicType>()) DynamicType(t, qualType), qualType);
         }
     } else if(val == "mut") {
-        // TODO this, haven't yet done it
+        const auto kind = t->kind();
+        switch(kind) {
+            case BaseTypeKind::Linked:
+                ((LinkedType*) t)->is_mutable = true;
+                return;
+            case BaseTypeKind::Generic:
+                ((GenericType*) t)->referenced->is_mutable = true;
+                return;
+            case BaseTypeKind::Pointer:
+                ((PointerType*) t)->is_mutable = true;
+                return;
+            case BaseTypeKind::Reference:
+                ((ReferenceType*) t)->is_mutable = true;
+                return;
+            case BaseTypeKind::Dynamic: {
+                const auto ref = ((DynamicType*) t)->referenced;
+                const auto ref_kind = ref->kind();
+                if(ref_kind == BaseTypeKind::Linked) {
+                    ((LinkedType*) ref)->is_mutable = true;
+                } else if(ref_kind == BaseTypeKind::Generic) {
+                    ((GenericType*) ref)->referenced->is_mutable = true;
+                } else {
+                    error("couldn't mark type mutable", qual_tok);
+                }
+                return;
+            }
+            default:
+                return;
+        }
     } else {
         error("unknown qualified type given", qual_tok);
     }

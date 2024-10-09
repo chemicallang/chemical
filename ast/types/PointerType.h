@@ -11,6 +11,7 @@ public:
     static const PointerType void_ptr_instance;
 
     BaseType* type;
+    bool is_mutable = false;
     std::vector<std::unique_ptr<BaseType>> pures{};
 
     PointerType(BaseType* type, CSTToken* token) : type(type), TokenizedBaseType(token) {

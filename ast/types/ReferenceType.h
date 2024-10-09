@@ -9,6 +9,7 @@ class ReferenceType : public TokenizedBaseType {
 public:
 
     BaseType* type;
+    bool is_mutable = false;
 
     ReferenceType(BaseType* type, CSTToken* token) : type(type), TokenizedBaseType(token) {
 

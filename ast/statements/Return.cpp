@@ -29,13 +29,6 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker) {
         if(!value->link(linker, value, func_type->returnType ? func_type->returnType : nullptr)) {
             return;
         }
-        const auto value_kind = value->val_kind();
-        if(value_kind == ValueKind::NullValue) {
-            const auto func = func_type->as_function();
-            if(func && !func->has_annotation(AnnotationKind::Unsafe)) {
-                linker.error("to return null from a function, mark it using @unsafe annotation", this);
-            }
-        }
         if(func_type->returnType) {
             const auto func = func_type->as_function();
             if(func && func->has_annotation(AnnotationKind::Constructor)) {

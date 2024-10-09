@@ -26,29 +26,111 @@ public:
      */
     ASTDiagnoser() = default;
 
-    void info(const std::string &err, ASTAny* node);
+    /**
+     * a diagnostic with severity
+     */
+    void diagnostic(std::string& err, ASTAny* node, DiagSeverity severity);
 
-    void warn(const std::string &err, ASTAny *node);
+    /**
+     * a diagnostic with severity
+     */
+    void diagnostic(std::string_view& err, ASTAny* node, DiagSeverity severity);
 
-    void error(const std::string &err, ASTAny* node);
+    /**
+     * an info diagnostic
+     */
+    inline void info(std::string &err, ASTAny* node) {
+        diagnostic(err, node, DiagSeverity::Information);
+    }
+
+    /**
+     * an info diagnostic
+     */
+    inline void info(std::string_view err, ASTAny* node) {
+        diagnostic(err, node, DiagSeverity::Information);
+    }
+
+    /**
+     * an warning diagnostic
+     */
+    void warn(std::string &err, ASTAny *node) {
+        diagnostic(err, node, DiagSeverity::Warning);
+    }
+
+    /**
+     * an warning diagnostic
+     */
+    void warn(std::string_view err, ASTAny *node) {
+        diagnostic(err, node, DiagSeverity::Warning);
+    }
+
+    /**
+     * an error diagnostic
+     */
+    void error(std::string &err, ASTAny* node) {
+        diagnostic(err, node, DiagSeverity::Error);
+    }
+
+    /**
+     * an error diagnostic
+     */
+    inline void error(std::string_view err, ASTAny* node) {
+        diagnostic(err, node, DiagSeverity::Error);
+    }
 
     /**
      * this will report two diagnostics, one at the location of first node and other
      * at the location of other node
      */
-    void info(const std::string &err, ASTAny* node, ASTAny* other);
+    void info(std::string &err, ASTAny* node, ASTAny* other) {
+        diagnostic(err, node, DiagSeverity::Information);
+        diagnostic(err, other, DiagSeverity::Information);
+    }
 
     /**
      * this will report two diagnostics, one at the location of first node and other
      * at the location of other node
      */
-    void warn(const std::string &err, ASTAny *node, ASTAny* other);
+    void info(std::string_view err, ASTAny* node, ASTAny* other) {
+        diagnostic(err, node, DiagSeverity::Information);
+        diagnostic(err, other, DiagSeverity::Information);
+    }
 
     /**
      * this will report two diagnostics, one at the location of first node and other
      * at the location of other node
      */
-    void error(const std::string &err, ASTAny* node, ASTAny* other);
+    void warn(std::string &err, ASTAny *node, ASTAny* other) {
+        diagnostic(err, node, DiagSeverity::Warning);
+        diagnostic(err, other, DiagSeverity::Warning);
+    }
+
+    /**
+     * this will report two diagnostics, one at the location of first node and other
+     * at the location of other node
+     */
+    void warn(std::string_view err, ASTAny *node, ASTAny* other) {
+        diagnostic(err, node, DiagSeverity::Warning);
+        diagnostic(err, other, DiagSeverity::Warning);
+    }
+
+    /**
+     * this will report two diagnostics, one at the location of first node and other
+     * at the location of other node
+     */
+    void error(std::string &err, ASTAny* node, ASTAny* other) {
+        diagnostic(err, node, DiagSeverity::Error);
+        diagnostic(err, other, DiagSeverity::Error);
+    }
+
+    /**
+     * this will report two diagnostics, one at the location of first node and other
+     * at the location of other node
+     */
+    void error(std::string_view err, ASTAny* node, ASTAny* other) {
+        diagnostic(err, node, DiagSeverity::Error);
+        diagnostic(err, other, DiagSeverity::Error);
+    }
 
     /**
      * just prints the errors to std out

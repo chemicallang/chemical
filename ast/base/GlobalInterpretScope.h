@@ -91,6 +91,11 @@ public:
     /**
      * apart from adding a diagnostic, this notifies in debug mode
      */
-    void interpret_error(const std::string& error, ASTAny* any);
+    void interpret_error(std::string& error, ASTAny* any);
+
+    /**
+     * apart from adding a diagnostic, this notifies in debug mode
+     */
+    void interpret_error(std::string_view& error, ASTAny* any);
 
 };

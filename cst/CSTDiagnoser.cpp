@@ -5,7 +5,7 @@
 #include "cst/base/CSTToken.h"
 #include "rang.hpp"
 
-void CSTDiagnoser::diagnostic(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
+void CSTDiagnoser::real_diagnostic(const std::string_view& message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
     if (severity == DiagSeverity::Error) {
 #ifdef DEBUG
         std::cerr << rang::fg::red << "[Debug_Error] " << message << rang::fg::reset << std::endl;
@@ -19,11 +19,16 @@ void CSTDiagnoser::diagnostic(const std::string &message, CSTToken *start, CSTTo
             },
             severity,
             std::nullopt,
-            message
+            std::string(message)
     );
 }
 
-void CSTDiagnoser::diagnostic(const std::string &message, DiagSeverity severity) {
+void CSTDiagnoser::diagnostic(std::string &message, DiagSeverity severity) {
+    CSTToken dummy(LexTokenType::Bool, Position(0, 0), "");
+    diagnostic(message, &dummy, severity);
+}
+
+void CSTDiagnoser::diagnostic(std::string_view &message, DiagSeverity severity) {
     CSTToken dummy(LexTokenType::Bool, Position(0, 0), "");
     diagnostic(message, &dummy, severity);
 }

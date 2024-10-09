@@ -10,7 +10,13 @@ AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::stri
     // Resolve the containing directory to given header
     std::string dir = handler.headers_dir(headerPath);
     if (dir.empty()) {
-        return {filePath, "couldn't resolve system headers directory for '" + headerPath + "' when importing"};
+        // trying to resolve a cached header instead
+        auto expected_cached = resolve_sibling(handler.compiler_exe_path, "libs/system/" + headerPath + ".ch");
+        if(std::filesystem::exists(expected_cached)) {
+            return { expected_cached };
+        } else {
+            return {filePath, "couldn't resolve system headers directory for '" + headerPath + "' when importing"};
+        }
     }
     // Absolute path to the header
     return {(std::filesystem::path(dir) / headerPath).string(), ""};

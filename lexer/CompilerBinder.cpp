@@ -22,6 +22,7 @@ void handle_error(void *opaque, const char *msg){
 CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_path)) {
     source_provider_symbol_map(interface_maps["SourceProvider"]);
     lexer_symbol_map(interface_maps["Lexer"]);
+    cst_diagnoser_symbol_map(interface_maps["CSTDiagnoser"]);
     build_context_symbol_map(interface_maps["BuildContext"]);
     cst_token_symbol_map(interface_maps["CSTToken"]);
     ast_builder_symbol_map(interface_maps["ASTBuilder"]);

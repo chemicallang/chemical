@@ -1,9 +1,10 @@
 import "./SourceProvider.ch"
 import "./LexTokenType.ch"
 import "./CSTToken.ch"
+import "./CSTDiagnoser.ch"
 
 @compiler:interface
-struct Lexer {
+struct Lexer : CSTDiagnoser {
 
     /**
      * get the source provider associated with this lexer

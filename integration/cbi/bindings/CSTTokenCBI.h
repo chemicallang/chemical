@@ -23,4 +23,8 @@ extern "C" {
 
     void CSTTokenaccept(CSTToken* token, CSTConverter* converter);
 
+    CSTToken* CSTTokenstart_token(CSTToken* token);
+
+    CSTToken* CSTTokenend_token(CSTToken* token);
+
 }

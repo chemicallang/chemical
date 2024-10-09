@@ -2,7 +2,9 @@
 
 #pragma once
 
-enum class DiagSeverity : uint8_t {
+#include <string>
+
+enum class DiagSeverity : int {
     // Reports an error.
     Error = 1,
     // Reports a warning.

@@ -492,6 +492,8 @@ set(COMMON_SOURCES
         ast/base/MalformedInput.h
         ast/statements/ProvideStmt.h
         ast/statements/ProvideStmt.cpp
+        integration/cbi/bindings/CSTDiagnoserCBI.h
+        integration/cbi/bindings/CSTDiagnoserCBI.cpp
 )
 
 # Chemical LSP Executable Target

@@ -20,6 +20,10 @@ public struct CSTToken {
 
     func accept(&self, converter : ASTVisitor*);
 
+    func start_token(&self) : CSTToken*
+
+    func end_token(&self) : CSTToken*
+
 }
 
 func (token : CSTToken*) value() : string {

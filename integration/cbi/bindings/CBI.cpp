@@ -10,6 +10,7 @@
 #include "std/chem_string.h"
 #include "ASTBuilderCBI.h"
 #include "ASTCBI.h"
+#include "CSTDiagnoserCBI.h"
 
 dispose_string::~dispose_string(){
     ptr->~string();
@@ -77,6 +78,12 @@ void source_provider_symbol_map(std::unordered_map<std::string_view, void*>& sym
         { "SourceProviderreadNewLineChars", (void*) SourceProviderreadNewLineChars },
         { "SourceProviderreadWhitespacesAndNewLines", (void*) SourceProviderreadWhitespacesAndNewLines },
 
+    };
+}
+
+void cst_diagnoser_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
+    sym_map = {
+            {"CSTDiagnoserput_diagnostic",    (void*) CSTDiagnoserput_diagnostic }
     };
 }
 
@@ -202,6 +209,8 @@ void cst_token_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) 
             { "CSTTokentokens", (void*) CSTTokentokens },
             { "CSTTokentype", (void*) CSTTokentype },
             { "CSTTokenaccept", (void*) CSTTokenaccept },
+            { "CSTTokenstart_token", (void*) CSTTokenstart_token },
+            { "CSTTokenend_token", (void*) CSTTokenend_token },
     };
 }
 

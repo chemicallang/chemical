@@ -1,5 +1,5 @@
 import "./Operation.ch"
-import "../../std/string.ch"
+import "@std/string.ch"
 
 /**
  * provides access to the source code provided by the user

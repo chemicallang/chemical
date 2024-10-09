@@ -11,6 +11,7 @@ public:
 
     std::string type;
     ASTNode *linked;
+    bool is_mutable = false;
 
     LinkedType(std::string type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(nullptr) {
 

@@ -41,7 +41,7 @@ llvm::Value * SwitchStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsP
 
 void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
 
-    auto total_scopes = defScope.has_value() ? (scopes.size() + 1) : scopes.size();
+    auto total_scopes = scopes.size();
 
     // the end block
     llvm::BasicBlock* end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
@@ -58,7 +58,8 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
         if(linked) {
             auto variant_def = linked->as_variant_def();
             if (variant_def) {
-                if (scopes.size() == variant_def->variables.size() && !defScope.has_value()) {
+                if (scopes.size() == variant_def->variables.size() && !has_default_case()) {
+                    // TODO only do this when switch is a value
                     auto_default_case = true;
                 }
                 const auto def_type = variant_def->llvm_type(gen);
@@ -96,28 +97,18 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
             }
         }
 
+        if(defScopeInd == scope_ind) {
+            switchInst->setDefaultDest(caseBlock);
+        }
+
         scope_ind++;
     }
 
-    bool def_scope_returns = true;
-
-    // default case
-    if(defScope.has_value()) {
-        auto defCase = llvm::BasicBlock::Create(*gen.ctx, "default", gen.current_function);
-        gen.SetInsertPoint(defCase);
-        defScope.value().code_gen(gen);
-        if(!gen.has_current_block_ended) {
-            def_scope_returns = false;
-        }
-        gen.CreateBr(end);
-        switchInst->setDefaultDest(defCase);
-    }
-
     if(end) {
-        if (all_scopes_return && def_scope_returns && last_block) {
+        if (all_scopes_return && last_block) {
             end->eraseFromParent();
             gen.destroy_current_scope = false;
-            if(!defScope.has_value()) {
+            if(!has_default_case()) {
                 if(auto_default_case && caseBlock) {
                     switchInst->setDefaultDest(caseBlock);
                 } else {
@@ -140,11 +131,10 @@ void SwitchStatement::code_gen(Codegen &gen, Scope* scope, unsigned int index) {
 
 SwitchStatement::SwitchStatement(
         Value* expression,
-        std::optional<Scope> defScope,
         ASTNode* parent_node,
         bool is_value,
         CSTToken* token
-) : expression(expression), defScope(std::move(defScope)), parent_node(parent_node), is_value(is_value), token(token) {
+) : expression(expression), parent_node(parent_node), is_value(is_value), token(token) {
 
 }
 
@@ -183,7 +173,7 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
         const auto linked = expr_type->linked_node();
             if(linked) {
                 variant_def = linked->as_variant_def();
-                if (value_ptr && variant_def && (scopes.size() < variant_def->variables.size() && !defScope.has_value())) {
+                if (value_ptr && variant_def && (scopes.size() < variant_def->variables.size() && !has_default_case())) {
                     linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
                     return false;
                 }
@@ -207,7 +197,7 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
         auto& scope = scopes[i];
         linker.scope_start();
         for(auto& switch_case : cases) {
-            if(switch_case.second == i) {
+            if(switch_case.second == i && switch_case.first) {
                 // link the switch case value
                 switch_case.first->link(linker, switch_case.first);
             }
@@ -215,11 +205,6 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
         scope.link_sequentially(linker);
         linker.scope_end();
         i++;
-    }
-    if(defScope.has_value()) {
-        linker.scope_start();
-        defScope.value().link_sequentially(linker);
-        linker.scope_end();
     }
     if(result && value_ptr) {
         auto val_node = get_value_node();

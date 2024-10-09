@@ -17,6 +17,7 @@
 #include "std/chem_string.h"
 #include "rang.hpp"
 #include "integration/cbi/bindings/CBI.h"
+#include "preprocess/RepresentationVisitor.h"
 #include <filesystem>
 
 #ifdef COMPILER_BUILD
@@ -221,8 +222,39 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         }
 
 #if defined(COMPILER_BUILD) && defined(CLANG_LIBS)
+
         unit.scope.nodes = TranslateC(mod_allocator, options->exe_path.c_str(), abs_path.c_str(), options->resources_path.c_str());
-#else
+
+        // a system file is being translated, we will write it to libs/system folder
+        if(file.import_path.starts_with("@system")) {
+            auto& impPath = file.import_path;
+            auto slash = impPath.find('/');
+            if(slash != -1) {
+                auto header_path = impPath.substr(slash + 1) + ".ch";
+                // create if not exist the parent paths
+                auto parent_path = resolve_sibling(options->exe_path, "libs/system/");
+                std::filesystem::create_directories(parent_path);
+                std::string output_path = parent_path + header_path;
+                if(!std::filesystem::exists(output_path)) {
+                    std::ofstream output;
+                    output.open(output_path);
+                    if(output.is_open()) {
+                        // using a representation visitor to write the translated c file
+                        RepresentationVisitor visitor(output);
+                        visitor.translate(unit.scope.nodes);
+                        output.close();
+                    } else {
+//                        std::cerr << rang::fg::cyan << "[BuildLab] " << "couldn't write translated system header because can't open '" << output_path << "'" << rang::fg::reset;
+                    }
+                } else {
+//                    std::cerr << rang::fg::cyan << "[BuildLab] " << "couldn't write translated system header because path '" << output_path << "' already exists" << rang::fg::reset;
+                }
+            } else {
+//                std::cerr << rang::fg::cyan << "[BuildLab] " << "couldn't write translated system header because no '/' is present in path '" << impPath << "'" << rang::fg::reset << std::endl;
+            }
+        }
+
+#elif defined(TCC_BUILD) && defined(DEBUG)
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif
 

@@ -1133,21 +1133,27 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
             }
             has_default = true;
         } else {
-            if(is_keyword(switchCst->tokens[i], "case")) {
-                i++;
-            } else if(!switchCst->tokens[i]->is_value()) {
+            const auto scope_ind = switch_statement->scopes.size();
+            if(switchCst->tokens[i]->is_value()) {
+                while(true) {
+                    if(switchCst->tokens[i]->is_value()) {
+                        switchCst->tokens[i]->accept(this);
+                        auto caseVal = value();
+                        switch_statement->cases.emplace_back(caseVal, scope_ind);
+                        i++;
+                    } else if(is_char_op(switchCst->tokens[i], '|')) {
+                        i++;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
                 break;
             }
-            switchCst->tokens[i]->accept(this);
-            auto caseVal = value();
-            i += 2; // body
+            i += 1; // body
             // create a scope
-            const auto scope_ind = switch_statement->scopes.size();
             switch_statement->scopes.emplace_back(switch_statement, switchCst->tokens[i]);
             auto& case_scope = switch_statement->scopes.back();
-            // create a case
-            switch_statement->cases.emplace_back(caseVal, scope_ind);
-            auto& switch_case = switch_statement->scopes.back();
             case_scope.nodes = take_body_or_single_stmt(this, switchCst, i, switch_statement);
             i++;
         }

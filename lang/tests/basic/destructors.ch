@@ -515,10 +515,10 @@ func test_destructors() {
                 }
             })
             switch(x) {
-                case OptDestructible.Some(d) => {
+                OptDestructible.Some(d) => {
                     data_usable = d.data == 892;
                 }
-                case OptDestructible.None => {
+                OptDestructible.None => {
 
                 }
             }

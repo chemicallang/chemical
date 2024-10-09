@@ -732,6 +732,11 @@ public:
     bool lexSwitchCaseValue();
 
     /**
+     * lexes multiple switch case values separated with '|'
+     */
+    bool lexMultipleSwitchCaseValues();
+
+    /**
      * values like integer and string, but appearing in access chain
      */
     bool lexAccessChainValueToken();
@@ -898,10 +903,16 @@ public:
     void diagnostic(Position start, const std::string &message, DiagSeverity severity);
 
     /**
+     * get the last token from the unit
+     */
+    inline CSTToken* unit_last_token() {
+        return unit.tokens[unit.tokens.size() - 1];
+    }
+
+    /**
      * This just calls the diagnostic method above giving it the position
      */
-    inline void diagnostic(unsigned int position, const std::string &message, DiagSeverity severity) {
-        auto token = unit.tokens[position]->start_token();
+    inline void diagnostic(CSTToken* token, const std::string &message, DiagSeverity severity) {
         auto &pos = token->position();
         diagnostic({pos.line, pos.character + token->length()}, message, severity);
     }
@@ -913,43 +924,85 @@ public:
      */
     inline void diagnostic(const std::string &message, DiagSeverity severity) {
         std::string rep;
-        unit.tokens[tokens_size() - 1]->end_token()->append_representation(rep);
-        diagnostic(tokens_size() - 1, message + " got \"" + rep + "\"",
-                   severity);
+        auto token = unit_last_token();
+        token->end_token()->append_representation(rep);
+        diagnostic(token->start_token(), message + " got \"" + rep + "\"", severity);
+    }
+
+    /**
+     * a helper function
+     */
+    inline void diagnostic(std::string& message, DiagSeverity severity) {
+        CSTDiagnoser::diagnostic(message, unit_last_token()->end_token(), severity);
+    }
+
+    /**
+     * a helper function
+     */
+    inline void diagnostic(std::string_view& message, DiagSeverity severity) {
+        CSTDiagnoser::diagnostic(message, unit_last_token()->end_token(), severity);
     }
 
     /**
      * This just calls the diagnostic method above with DiagSeverity::Warning
      */
-    inline void warning(const std::string &message) {
+    inline void warning(std::string &message) {
         diagnostic(message, DiagSeverity::Warning);
     }
 
     /**
      * This just calls the diagnostic method above with DiagSeverity::Information
      */
-    inline void info(const std::string &message) {
+    inline void info(std::string &message) {
         diagnostic(message, DiagSeverity::Information);
     }
 
     /**
      * This just calls the diagnostic method above with DiagSeverity::Hint
      */
-    inline void hint(const std::string &message) {
+    inline void hint(std::string &message) {
         diagnostic(message, DiagSeverity::Hint);
     }
 
     /**
      * This just calls the diagnostic method above with DiagSeverity::Error
      */
-    inline void error(const std::string &message) {
+    inline void error(std::string &message) {
+        diagnostic(message, DiagSeverity::Error);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Warning
+     */
+    inline void warning(std::string_view message) {
+        diagnostic(message, DiagSeverity::Warning);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Information
+     */
+    inline void info(std::string_view message) {
+        diagnostic(message, DiagSeverity::Information);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Hint
+     */
+    inline void hint(std::string_view message) {
+        diagnostic(message, DiagSeverity::Hint);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Error
+     */
+    inline void error(std::string_view message) {
         diagnostic(message, DiagSeverity::Error);
     }
 
     /**
      * malformed value
      */
-    void mal_value(unsigned start, const std::string& message) {
+    void mal_value(unsigned start, std::string& message) {
         diagnostic(message, DiagSeverity::Error);
         compound_from(start, LexTokenType::CompMalformedValue);
     }
@@ -957,7 +1010,7 @@ public:
     /**
      * malformed node
      */
-    void mal_node(unsigned start, const std::string& message) {
+    void mal_node(unsigned start, std::string& message) {
         diagnostic(message, DiagSeverity::Error);
         compound_from(start, LexTokenType::CompMalformedNode);
     }
@@ -965,9 +1018,41 @@ public:
     /**
      * malformed type
      */
-    void mal_type(unsigned start, const std::string& message) {
+    void mal_type(unsigned start, std::string& message) {
         diagnostic(message, DiagSeverity::Error);
         compound_from(start, LexTokenType::CompMalformedType);
+    }
+
+    /**
+     * malformed value
+     */
+    void mal_value(unsigned start, std::string_view message) {
+        diagnostic(message, DiagSeverity::Error);
+        compound_from(start, LexTokenType::CompMalformedValue);
+    }
+
+    /**
+     * malformed node
+     */
+    void mal_node(unsigned start, std::string_view message) {
+        diagnostic(message, DiagSeverity::Error);
+        compound_from(start, LexTokenType::CompMalformedNode);
+    }
+
+    /**
+     * malformed type
+     */
+    void mal_type(unsigned start, std::string_view message) {
+        diagnostic(message, DiagSeverity::Error);
+        compound_from(start, LexTokenType::CompMalformedType);
+    }
+
+    /**
+     * malformed node
+     */
+    void mal_value_or_node(unsigned start, std::string_view message, bool is_value) {
+        diagnostic(message, DiagSeverity::Error);
+        compound_from(start, is_value ? LexTokenType::CompMalformedValue : LexTokenType::CompMalformedNode);
     }
 
     /**

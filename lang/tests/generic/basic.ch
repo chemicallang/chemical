@@ -84,10 +84,10 @@ func get_other_var1_point(value : int, some : bool) : OtherVar1<OV1Point> {
 
 func get_other_var1_point_value(other : OtherVar1<OV1Point>) : int {
     switch(other) {
-        case OtherVar1.Some(value) => {
+        OtherVar1.Some(value) => {
             return value.a + value.b + value.c;
         }
-        case OtherVar1.None => {
+        OtherVar1.None => {
             return -1;
         }
     }

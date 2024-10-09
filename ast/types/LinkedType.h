@@ -48,8 +48,6 @@ public:
         return BaseTypeKind::Linked;
     }
 
-//    bool satisfies(ASTAllocator& allocator, Value* value) override;
-
     bool is_same(BaseType *other) override {
         return other->kind() == kind() && static_cast<LinkedType *>(other)->linked == linked;
     }

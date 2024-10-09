@@ -32,7 +32,7 @@ public:
         visitor->visit(this);
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value) override;
+    bool satisfies(BaseType *type) override;
 
     bool link(SymbolResolver &linker) override;
 

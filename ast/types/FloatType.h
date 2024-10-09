@@ -33,7 +33,9 @@ public:
         return ValueType::Float;
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value) override;
+    bool satisfies(BaseType *type) override {
+        return type->kind() == BaseTypeKind::Float;
+    }
 
     bool can_promote(Value *value) override;
 

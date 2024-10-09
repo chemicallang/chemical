@@ -33,14 +33,16 @@ public:
         return ValueType::Double;
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value) override;
+    bool satisfies(BaseType *type) override {
+        return type->kind() == BaseTypeKind::Double;
+    }
 
     bool can_promote(Value *value) override;
 
     Value *promote(Value *value) override;
 
     bool is_same(BaseType *type) override {
-        return type->kind() == kind();
+        return type->kind() == BaseTypeKind::Double;
     }
 
     [[nodiscard]]

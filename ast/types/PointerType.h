@@ -59,8 +59,6 @@ public:
         return ValueType::Pointer;
     }
 
-//    bool satisfies(ASTAllocator& allocator, Value* value) override;
-
     bool satisfies(BaseType *type) override;
 
     bool is_same(BaseType *other) override {

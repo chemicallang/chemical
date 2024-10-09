@@ -165,8 +165,8 @@ public:
         visitCompoundCommon(genericType);
     }
 
-    virtual void visitSpecializedType(CSTToken *specType) {
-        visitCompoundCommon(specType);
+    virtual void visitQualifiedType(CSTToken *qualType) {
+        visitCompoundCommon(qualType);
     }
 
     virtual void visitPointerType(CSTToken *pointerType) {

@@ -77,7 +77,7 @@ enum class LexTokenType : int {
     CompArrayType, // an array type is like int[]
     CompFunctionType, // a function type is like (a : int) => void
     CompGenericType, // generic type like my_gen<int, long>
-    CompSpecializedType, // 'dyn type' is a specialized type, we could support more specialized types like dyn
+    CompQualifiedType, // a keyword like 'dyn' or 'mut' can exist before a reference type
     CompLinkedValueType, // linked value type is like (ns::class ns::class::class) basically anything with ::
     CompReferenceType, // a reference '&'
     CompMalformedType, // malformed input where a type was expected

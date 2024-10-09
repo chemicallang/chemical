@@ -207,8 +207,8 @@ std::string toTypeString(LexTokenType token) {
             return "CompNamespace";
         case LexTokenType::CompMacro:
             return "CompMacro";
-        case LexTokenType::CompSpecializedType:
-            return "CompSpecializedType";
+        case LexTokenType::CompQualifiedType:
+            return "CompQualifiedType";
         case LexTokenType::CompLinkedValueType:
             return "CompLinkedValueType";
         case LexTokenType::CompReferenceType:

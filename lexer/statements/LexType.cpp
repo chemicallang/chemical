@@ -126,26 +126,18 @@ bool Lexer::lexTypeTokens() {
         return true;
     }
 
-    std::string type = provider.readIdentifier();
-    if(type.empty()) return false;
-    // dyn should be a keyword
-    if(type == "dyn" && lexWhitespaceToken()) {
-        unsigned prev_start = tokens_size();
-        emplace(LexTokenType::Type, backPosition(type.length()), type);
-        std::string contained_type = provider.readIdentifier();
-        if(contained_type.empty()) {
-            error("expected a type identifier after dyn keyword");
-            return true;
+    if(lexWSKeywordToken("dyn") || lexWSKeywordToken("mut")) {
+        unsigned start = tokens_size() - 1;
+        if(!lexTypeTokens()) {
+            error("expected a type after the qualifier");
+            return false;
         }
-        unsigned start = tokens_size();
-        if(!lexTypeId(contained_type, start)) {
-            return true;
-        }
-        lexGenericTypeAfterId(start);
-        compound_from(prev_start, LexTokenType::CompSpecializedType);
-        lexArrayAndPointerTypesAfterTypeId(prev_start);
+        compound_from(start, LexTokenType::CompQualifiedType);
         return true;
     }
+
+    std::string type = provider.readIdentifier();
+    if(type.empty()) return false;
     unsigned start = tokens_size();
     if(!lexTypeId(type, start)) {
         return true;

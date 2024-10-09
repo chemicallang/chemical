@@ -8,32 +8,29 @@
 
 bool Lexer::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level) {
 
-    void (Lexer::*malformed)(unsigned int, const std::string&);
-    malformed = is_value ? &Lexer::mal_value : &Lexer::mal_node;
-
     if (!lexOperatorToken('(')) {
-        (this->*malformed)(start, "expected a starting parenthesis ( when lexing a if block");
+        mal_value_or_node(start, "expected a starting parenthesis ( when lexing a if block", is_value);
         return false;
     }
 
     if (!lexExpressionTokens()) {
-        (this->*malformed)(start, "expected a conditional expression when lexing a if block");
+        mal_value_or_node(start, "expected a conditional expression when lexing a if block", is_value);
         return false;
     }
 
     if (!lexOperatorToken(')')) {
-        (this->*malformed)(start, "expected a ending parenthesis ) when lexing a if block");
+        mal_value_or_node(start, "expected a ending parenthesis ) when lexing a if block", is_value);
         return false;
     }
 
     if(top_level) {
         if (!lexTopLevelBraceBlock("else")) {
-            (this->*malformed)(start, "expected a brace block after the else while lexing an if statement");
+            mal_value_or_node(start, "expected a brace block after the else while lexing an if statement", is_value);
             return false;
         }
     } else {
         if (!lexBraceBlockOrSingleStmt("if", is_value, lex_value_node)) {
-            (this->*malformed)(start, "expected a brace block when lexing a brace block");
+            mal_value_or_node(start, "expected a brace block when lexing a brace block", is_value);
             return false;
         }
     }

@@ -160,10 +160,10 @@ func test_nodes() {
     test("switch statement", () => {
        var j = 0;
        switch(j) {
-            case 0 => {
+            0 => {
                 return true;
             }
-            case 1 => {
+            1 => {
                 return false;
             }
             default => {
@@ -188,10 +188,10 @@ func test_nodes() {
     test("switch doesn't fallthrough by default", () => {
         var j = 0;
         switch(j) {
-            case 0 => {
+            0 => {
                 j += 1;
             }
-            case 1 => {
+            1 => {
                 j += 1;
             }
             default => {

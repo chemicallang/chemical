@@ -11,10 +11,10 @@ func get_optional_int(some : bool) : Option<int> {
 
 func get_opt_value(o : Option<int>) : int {
     switch(o) {
-        case Option.Some(value) => {
+        Option.Some(value) => {
             return value;
         }
-        case Option.None => {
+        Option.None => {
             return -1
         }
     }

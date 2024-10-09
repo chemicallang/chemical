@@ -23,10 +23,10 @@ variant ImpVar22 {
 
 func get_value_iv22(variant : ImpVar22) : int {
     switch(variant) {
-        case ImpVar22.Some(a) => {
+        ImpVar22.Some(a) => {
             return a.a;
         }
-        case ImpVar22.None => {
+        ImpVar22.None => {
             return -1;
         }
     }
@@ -34,10 +34,10 @@ func get_value_iv22(variant : ImpVar22) : int {
 
 func get_value(variant : OptVariant) : int {
     switch(variant) {
-        case OptVariant.Some(a) => {
+        OptVariant.Some(a) => {
             return a;
         }
-        case OptVariant.None => {
+        OptVariant.None => {
             return -1;
         }
     }
@@ -62,10 +62,10 @@ variant GenVar<T> {
 
 func get_sum(v : GenVar<int>) : int {
     switch(v) {
-        case GenVar.First(a, b) => {
+        GenVar.First(a, b) => {
             return a + b;
         }
-        case GenVar.Second(a, b, c) => {
+        GenVar.Second(a, b, c) => {
             return a + b + c;
         }
     }
@@ -84,10 +84,10 @@ func test_variants() {
     test("allocated variant is in unspecified state", () => {
         var v : OptVariant
         switch(v) {
-            case OptVariant.Some() => {
+            OptVariant.Some() => {
                 return false;
             }
-            case OptVariant.None() => {
+            OptVariant.None() => {
                 return false;
             }
         }

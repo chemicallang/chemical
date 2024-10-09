@@ -49,13 +49,7 @@ bool Lexer::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
                         return true;
                     }
                 } else {
-                    if(lexWSKeywordToken("case")) {
-                        warning("deprecated syntax, do not use 'case'");
-                        if (!lexMultipleSwitchCaseValues()) {
-                            mal_value_or_node(start, "expected a value after 'case' in switch", is_value);
-                            return true;
-                        }
-                    } else if (!lexMultipleSwitchCaseValues()) {
+                    if (!lexMultipleSwitchCaseValues()) {
                         break;
                     }
                     lexWhitespaceToken();

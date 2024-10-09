@@ -1306,6 +1306,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
     for(auto& param : params) {
         param->link_param_type(linker);
     }
+    returnType->link(linker);
     linker.scope_end();
     linker.declare_function(name, this, specifier);
 }
@@ -1333,7 +1334,6 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     for (auto &param: params) {
         param->declare_and_link(linker);
     }
-    returnType->link(linker);
     if (body.has_value()) {
         body->link_sequentially(linker);
     }

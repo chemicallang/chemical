@@ -1,8 +1,9 @@
+import "./CSTDiagnoser.ch"
 import "./ASTBuilder.ch"
 import "./ASTVisitor.ch"
 
 @compiler:interface
-public struct CSTConverter : ASTBuilder, ASTVisitor {
+public struct CSTConverter : ASTBuilder, ASTVisitor, CSTDiagnoser {
 
     func put_value(&self, value : Value*, token : CSTToken*);
 

@@ -42,7 +42,7 @@ typedef void(*AnnotationHandlerFn)(CSTConverter*, CSTToken* container, Annotatio
 
 class CompilerBinder;
 
-class CSTConverter : public CSTVisitor, public CSTDiagnoser {
+class CSTConverter : public CSTDiagnoser, public CSTVisitor {
 public:
 
     /**

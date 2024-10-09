@@ -24,3 +24,11 @@ std::vector<CSTToken*>* CSTTokentokens(CSTToken* token) {
 void CSTTokenaccept(CSTToken* token, CSTConverter* converter) {
     token->accept((CSTVisitor*) converter);
 }
+
+CSTToken* CSTTokenstart_token(CSTToken* token) {
+    return token->start_token();
+}
+
+CSTToken* CSTTokenend_token(CSTToken* token) {
+    return token->end_token();
+}

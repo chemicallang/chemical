@@ -391,6 +391,13 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         i = 0;
         for(const auto& file : flat_imports) {
 
+            // check file exists
+            if(file.abs_path.empty()) {
+                std::cerr << rang::fg::red << "error: file not found '" << file.import_path << "'" << rang::fg::reset << std::endl;
+                compile_result = 1;
+                break;
+            }
+
             auto imported = processor.shrinked_unit.find(file.abs_path);
             bool already_imported = imported != processor.shrinked_unit.end();
             // already imported

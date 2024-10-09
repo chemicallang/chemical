@@ -99,3 +99,9 @@ public:
     virtual void stopInterpretOnce();
 
 };
+
+/**
+ * nodes will be deduplicated, nodes having same identifier
+ * that appear later, will override the nodes that appear before
+ */
+void top_level_dedupe(std::vector<ASTNode*>& nodes);

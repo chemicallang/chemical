@@ -34,6 +34,10 @@ enum class AnnotationKind {
     Move,
     Delete,
 
+    // when a struct is marked with this annotation, it means after calling
+    // the move function, it can still be used, compiler won't complain about it
+    UseAfterMove,
+
     // the function overrides another present above in a struct or interface
     Unsafe,
     Override,

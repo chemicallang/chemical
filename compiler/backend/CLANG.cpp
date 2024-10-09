@@ -214,28 +214,15 @@ void Translate(CTranslator *translator, clang::ASTUnit *unit) {
     translator->current_unit = unit;
     // translate each node
     auto tud = unit->getASTContext().getTranslationUnitDecl();
-
-    // we use this map to check for duplicate nodes, to avoid declaring them
-    std::unordered_map<std::string_view, ASTNode*> duplicates;
-    duplicates.reserve(10);
-
     for (auto decl: tud->decls()) {
         auto node = translator->node_makers[decl->getKind()](translator, decl);
         if(node) {
             translator->declarations[decl] = node;
             for(auto bNode : translator->before_nodes) {
-                const auto& id = bNode->ns_node_identifier();
-//                if(duplicates.find(id) == duplicates.end()) {
-                    translator->nodes.emplace_back(bNode);
-//                    duplicates[id] = bNode;
-//                }
+                translator->nodes.emplace_back(bNode);
             }
             translator->before_nodes.clear();
-            const auto& id = node->ns_node_identifier();
-//            if(duplicates.find(id) == duplicates.end()) {
-                translator->nodes.emplace_back(node);
-//                duplicates[id] = node;
-//            }
+            translator->nodes.emplace_back(node);
         } else {
             translator->error("couldn't convert decl with kind " + std::to_string(decl->getKind()) + " & kind name " + decl->getDeclKindName());
         }
@@ -613,6 +600,8 @@ std::vector<ASTNode*> TranslateC(
     }
     CTranslator translator(allocator);
     Translate(&translator, unit);
+    // dedupe the nodes
+    top_level_dedupe(translator.nodes);
     delete unit;
     if (!translator.errors.empty()) {
         std::cerr << std::to_string(translator.errors.size()) << " errors occurred when translating C files" << std::endl;

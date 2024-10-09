@@ -17,6 +17,38 @@
 #include "ast/statements/Break.h"
 #include "compiler/SymbolResolver.h"
 
+// deduplicate the nodes, so nodes with same id appearing later will override the nodes appearing before them
+void top_level_dedupe(std::vector<ASTNode*>& nodes) {
+
+    std::vector<ASTNode*> reverse_nodes;
+    std::unordered_map<std::string_view, unsigned int> dedupe;
+
+    reverse_nodes.reserve(nodes.size());
+    dedupe.reserve(nodes.size());
+
+    const auto nodes_size = nodes.size();
+    int i = ((int) nodes_size) - 1;
+    while(i >= 0) {
+        auto node = nodes[i];
+        const auto& id = node->ns_node_identifier();
+        if(dedupe.find(id) == dedupe.end()) {
+            reverse_nodes.emplace_back(node);
+            dedupe[id] = i;
+        }
+        i--;
+    }
+
+    nodes.clear();
+
+    // put nodes from reverse nodes into nodes
+    i = ((int) reverse_nodes.size()) - 1;
+    while(i >= 0) {
+        nodes.emplace_back(reverse_nodes[i]);
+        i--;
+    }
+
+}
+
 void Scope::interpret(InterpretScope &scope) {
     for (const auto &node: nodes) {
         node->interpret(scope);

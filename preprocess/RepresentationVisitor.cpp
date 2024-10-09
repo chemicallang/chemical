@@ -486,13 +486,25 @@ void RepresentationVisitor::visit(SwitchStatement *statement) {
         auto& scope = statement->scopes[i];
         new_line_and_indent();
 
-        write("case ");
-        scope.first->accept(this);
-        write(':');
-
+        unsigned case_ind = 0;
+        const auto size = statement->cases.size();
+        while(case_ind < size) {
+            auto& switch_case = statement->cases[case_ind];
+            if(switch_case.second == i) {
+                if(case_ind > 0) {
+                    write(" | ");
+                }
+                switch_case.first->accept(this);
+            }
+            case_ind++;
+        }
+        write("=>");
+        space();
+        write('{');
         indentation_level += 1;
-        scope.second.accept(this);
+        scope.accept(this);
         indentation_level -= 1;
+        write('}');
         i++;
     }
     indentation_level -= 1;

@@ -129,7 +129,7 @@ Value* get_first_broken(Scope* body) {
         } else if(k == ASTNodeKind::SwitchStmt) {
             const auto switchStmt = node->as_switch_stmt_unsafe();
             for(auto& scope : switchStmt->scopes) {
-                value = get_first_broken(&scope.second);
+                value = get_first_broken(&scope);
                 if(value) return value;
             }
             if(switchStmt->defScope.has_value()) {

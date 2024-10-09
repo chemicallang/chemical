@@ -1110,7 +1110,6 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
     bool is_value = switchCst->type() == LexTokenType::CompSwitchValue;
     auto switch_statement = new (local<SwitchStatement>()) SwitchStatement(
             nullptr,
-            std::vector<std::pair<Value*, Scope>> {},
             std::nullopt,
             parent_node,
             is_value,
@@ -1142,9 +1141,14 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
             switchCst->tokens[i]->accept(this);
             auto caseVal = value();
             i += 2; // body
-            switch_statement->scopes.emplace_back(caseVal, Scope { switch_statement, switchCst->tokens[i] });
+            // create a scope
+            const auto scope_ind = switch_statement->scopes.size();
+            switch_statement->scopes.emplace_back(switch_statement, switchCst->tokens[i]);
+            auto& case_scope = switch_statement->scopes.back();
+            // create a case
+            switch_statement->cases.emplace_back(caseVal, scope_ind);
             auto& switch_case = switch_statement->scopes.back();
-            switch_case.second.nodes = take_body_or_single_stmt(this, switchCst, i, switch_statement);
+            case_scope.nodes = take_body_or_single_stmt(this, switchCst, i, switch_statement);
             i++;
         }
     }

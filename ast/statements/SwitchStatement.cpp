@@ -76,18 +76,27 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
 
     llvm::BasicBlock* caseBlock = nullptr;
 
-    for(auto& scope : scopes) {
+    unsigned scope_ind = 0;
+    const auto scopes_size = scopes.size();
+    while(scope_ind < scopes_size) {
+        auto& scope = scopes[scope_ind];
+
         caseBlock = llvm::BasicBlock::Create(*gen.ctx, "case", gen.current_function);
         gen.SetInsertPoint(caseBlock);
-        scope.second.code_gen(gen);
+        scope.code_gen(gen);
         if(!gen.has_current_block_ended) {
             all_scopes_return = false;
         }
         gen.CreateBr(end);
 
-        // TODO check value is of type constant integer (check in analysis phase)
-        switchInst->addCase((llvm::ConstantInt*) scope.first->llvm_value(gen), caseBlock);
+        // TODO check value is constant (check in analysis phase)
+        for(auto& switch_case : cases) {
+            if(switch_case.second == scope_ind) {
+                switchInst->addCase((llvm::ConstantInt*) switch_case.first->llvm_value(gen), caseBlock);
+            }
+        }
 
+        scope_ind++;
     }
 
     bool def_scope_returns = true;
@@ -131,12 +140,11 @@ void SwitchStatement::code_gen(Codegen &gen, Scope* scope, unsigned int index) {
 
 SwitchStatement::SwitchStatement(
         Value* expression,
-        std::vector<std::pair<Value*, Scope>> scopes,
         std::optional<Scope> defScope,
         ASTNode* parent_node,
         bool is_value,
         CSTToken* token
-) : expression(expression), scopes(std::move(scopes)), defScope(std::move(defScope)), parent_node(parent_node), is_value(is_value), token(token) {
+) : expression(expression), defScope(std::move(defScope)), parent_node(parent_node), is_value(is_value), token(token) {
 
 }
 
@@ -184,17 +192,29 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
     } else {
         result = false;
     }
-    for(auto& scope : scopes) {
-        linker.scope_start();
-        if(variant_def) {
-            const auto chain = scope.first->as_access_chain();
+    if(variant_def) {
+        for (auto& switch_case: cases) {
+            // replace variant case access chains in switch cases
+            const auto chain = switch_case.first->as_access_chain();
             if (chain) {
-                scope.first = new (astAlloc.allocate<VariantCase>()) VariantCase(chain, linker, this, chain->token);
+                switch_case.first = new (astAlloc.allocate<VariantCase>()) VariantCase(chain, linker, this, chain->token);
             }
         }
-        scope.first->link(linker, scope.first);
-        scope.second.link_sequentially(linker);
+    }
+    unsigned i = 0;
+    const auto scopes_size = scopes.size();
+    while(i < scopes_size) {
+        auto& scope = scopes[i];
+        linker.scope_start();
+        for(auto& switch_case : cases) {
+            if(switch_case.second == i) {
+                // link the switch case value
+                switch_case.first->link(linker, switch_case.first);
+            }
+        }
+        scope.link_sequentially(linker);
         linker.scope_end();
+        i++;
     }
     if(defScope.has_value()) {
         linker.scope_start();

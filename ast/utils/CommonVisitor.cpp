@@ -203,7 +203,7 @@ void CommonVisitor::visit(ForLoop *loop) {
 void CommonVisitor::visit(SwitchStatement *stmt) {
     stmt->expression->accept(this);
     for(auto& scope : stmt->scopes) {
-        scope.second.accept(this);
+        scope.accept(this);
     }
     if(stmt->defScope.has_value()) {
         stmt->defScope.value().accept(this);

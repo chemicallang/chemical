@@ -4003,12 +4003,25 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
         auto& scope = statement->scopes[i];
         new_line_and_indent();
 
-        write("case ");
-        scope.first->accept(this);
-        write(':');
+        unsigned case_ind = 0;
+        const auto size = statement->cases.size();
+        bool has_line_before = true;
+        while(case_ind < size) {
+            auto& switch_case = statement->cases[case_ind];
+            if(switch_case.second == i) {
+                if(!has_line_before) {
+                    new_line_and_indent();
+                }
+                write("case ");
+                switch_case.first->accept(this);
+                write(':');
+                has_line_before = false;
+            }
+            case_ind++;
+        }
 
         indentation_level += 1;
-        scope.second.accept(this);
+        scope.accept(this);
         new_line_and_indent();
         write("break;");
         indentation_level -= 1;

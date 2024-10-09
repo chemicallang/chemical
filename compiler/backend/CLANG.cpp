@@ -138,6 +138,17 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
     auto decl_type = decl->getUnderlyingType();
     auto type = make_type(&decl_type);
     if(type == nullptr) return nullptr;
+
+    // do not create a typealias for when user typedef's a struct with same name
+    const auto type_kind = type->kind();
+    if(type_kind == BaseTypeKind::Linked) {
+        const auto linked = ((LinkedType*) type)->linked;
+        const auto node_id = linked->ns_node_identifier();
+        if(node_id == decl->getName()) {
+            return nullptr;
+        }
+    }
+
     return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(decl->getNameAsString(), type, parent_node, nullptr);
 }
 
@@ -601,7 +612,7 @@ std::vector<ASTNode*> TranslateC(
     CTranslator translator(allocator);
     Translate(&translator, unit);
     // dedupe the nodes
-    top_level_dedupe(translator.nodes);
+//    top_level_dedupe(translator.nodes);
     delete unit;
     if (!translator.errors.empty()) {
         std::cerr << std::to_string(translator.errors.size()) << " errors occurred when translating C files" << std::endl;

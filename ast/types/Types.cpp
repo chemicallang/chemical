@@ -25,9 +25,7 @@ const StringType StringType::instance(nullptr);
 const UCharType UCharType::instance(nullptr);
 const VoidType VoidType::instance(nullptr);
 
-bool ArrayType::satisfies(ASTAllocator& allocator, Value* value) {
-//    if(value->value_type() != ValueType::Array) return false;
-    const auto pure_type = value->get_pure_type(allocator);
+bool ArrayType::satisfies(BaseType *pure_type) {
     const auto pure_type_kind = pure_type->kind();
     if(pure_type_kind == BaseTypeKind::String) {
         const auto pure = elem_type->pure_type();
@@ -42,23 +40,8 @@ bool ArrayType::satisfies(ASTAllocator& allocator, Value* value) {
     return elem_type->satisfies(arr_type->elem_type);
 }
 
-bool BoolType::satisfies(ASTAllocator& allocator, Value* value) {
-    const auto type = value->create_type(allocator)->pure_type();
-    return type->kind() == BaseTypeKind::Bool;
-}
-
-bool DoubleType::satisfies(ASTAllocator& allocator, Value* value) {
-    const auto type = value->create_type(allocator)->pure_type();
-    return type->kind() == BaseTypeKind::Double;
-}
-
-bool FloatType::satisfies(ASTAllocator& allocator, Value* value) {
-    const auto type = value->create_type(allocator)->pure_type();
-    return type->kind() == BaseTypeKind::Float;
-}
-
-bool StringType::satisfies(ASTAllocator& allocator, Value* value) {
-    return value->value_type() == ValueType::String;
+bool StringType::satisfies(BaseType *type) {
+    return type->kind() == BaseTypeKind::String;
 }
 
 bool LiteralType::satisfies(ASTAllocator& allocator, Value* value) {

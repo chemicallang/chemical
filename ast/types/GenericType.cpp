@@ -117,10 +117,9 @@ bool GenericType::satisfies(ValueType value_type) {
     return referenced->satisfies(value_type);
 }
 
-bool GenericType::satisfies(ASTAllocator& allocator, Value *value) {
-    const auto value_pure_type = value->get_pure_type(allocator);
-    if(value_pure_type->kind() == BaseTypeKind::Generic) {
-        const auto gen_type = (GenericType*) value_pure_type;
+bool GenericType::satisfies(BaseType *pure_type) {
+    if(pure_type->kind() == BaseTypeKind::Generic) {
+        const auto gen_type = (GenericType*) pure_type;
         return referenced->is_same(gen_type->referenced) && gen_type->generic_iteration == generic_iteration;
     } else {
         return false;

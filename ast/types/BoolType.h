@@ -33,10 +33,12 @@ public:
         return ValueType::Bool;
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value) override;
+    bool satisfies(BaseType *type) override {
+        return type->kind() == BaseTypeKind::Bool;
+    }
 
     bool is_same(BaseType *type) override {
-        return type->kind() == kind();
+        return type->kind() == BaseTypeKind::Bool;
     }
 
     virtual BoolType* copy(ASTAllocator& allocator) const {

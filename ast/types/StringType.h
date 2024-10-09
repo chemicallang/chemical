@@ -36,7 +36,7 @@ public:
         return ValueType::String;
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value) override;
+    bool satisfies(BaseType *type) override;
 
     bool is_same(BaseType *type) override {
         return type->kind() == kind();

@@ -28,6 +28,10 @@ public:
         return false;
     }
 
+    bool satisfies(BaseType *type) override {
+        return false;
+    }
+
     bool is_same(BaseType *type) override {
         return type->kind() == kind();
     }

@@ -20,7 +20,7 @@ bool Lexer::lexRemainingExpression(unsigned start) {
         compounded = true;
     } else if(lexWSKeywordToken("is") || lexWSKeywordToken("!is")) {
         if (!lexTypeTokens()) {
-            error("expected a type for IsValue after 'is' or '!is'");
+            error("expected a type after 'is' or '!is' in expression");
             return false;
         }
         compound_from(start, LexTokenType::CompIsValue);

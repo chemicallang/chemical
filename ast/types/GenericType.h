@@ -112,7 +112,7 @@ public:
 
     bool satisfies(ValueType value_type) override;
 
-    bool satisfies(ASTAllocator& allocator, Value *value) override;
+    bool satisfies(BaseType *type) override;
 
     [[nodiscard]]
     GenericType* copy(ASTAllocator& allocator) const override;

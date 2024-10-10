@@ -43,10 +43,9 @@ void AssignStatement::declare_and_link(SymbolResolver &linker) {
                 param->set_has_assignment();
             }
         }
-        // TODO turn this on when we have mutable self
-//        if(!lhs->check_is_mutable(linker.current_func_type, linker.allocator)) {
-//            linker.error("cannot assign to a non mutable value", lhs);
-//        }
+        if(!lhs->check_is_mutable(linker.current_func_type, linker.allocator, false)) {
+            linker.error("cannot assign to a non mutable value", lhs);
+        }
         auto& func_type = *linker.current_func_type;
         func_type.mark_moved_value(linker.allocator, value, lhs->known_type(), linker, true);
         func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());

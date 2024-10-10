@@ -11,10 +11,10 @@ public:
     static const PointerType void_ptr_instance;
 
     BaseType* type;
-    bool is_mutable = false;
+    bool is_mutable;
     std::vector<std::unique_ptr<BaseType>> pures{};
 
-    PointerType(BaseType* type, CSTToken* token) : type(type), TokenizedBaseType(token) {
+    PointerType(BaseType* type, CSTToken* token, bool is_mutable = false) : type(type), TokenizedBaseType(token), is_mutable(is_mutable) {
 
     }
 
@@ -67,7 +67,7 @@ public:
 
     [[nodiscard]]
     PointerType *copy(ASTAllocator& allocator) const override {
-        return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), token);
+        return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), token, is_mutable);
     }
 
     bool link(SymbolResolver &linker) override;

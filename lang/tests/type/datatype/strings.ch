@@ -2,7 +2,7 @@ import "../../test.ch"
 import "../../../std/string.ch"
 
 struct Str {
-    var value : char*
+    var value : *char
 }
 
 func test_strings() {

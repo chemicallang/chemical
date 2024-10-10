@@ -2,26 +2,26 @@ import "./std.ch"
 
 public struct vector<T> {
 
-    var data_ptr : T*
+    var data_ptr : *T
     var data_size : size_t
     var data_cap : size_t
 
     @constructor
     func make() {
-        data_ptr = malloc(#sizeof { T } * 2) as T*
+        data_ptr = malloc(#sizeof { T } * 2) as *T
         data_size = 0
         data_cap = 2
     }
 
     @constructor
     func make_with_capacity(init_cap : size_t) {
-        data_ptr = malloc(#sizeof { T } * init_cap) as T*
+        data_ptr = malloc(#sizeof { T } * init_cap) as *T
         data_size = 0
         data_cap = init_cap
     }
 
     func resize(&self, new_cap : size_t) {
-        var new_data = realloc(data_ptr, (#sizeof { T } * new_cap)) as T*;
+        var new_data = realloc(data_ptr, (#sizeof { T } * new_cap)) as *T;
         unsafe {
             if (new_data != null) {
                 data_ptr = new_data;
@@ -49,7 +49,7 @@ public struct vector<T> {
         return data_ptr[index];
     }
 
-    func get_ptr(&self, index : size_t) : T* {
+    func get_ptr(&self, index : size_t) : *T {
         return &data_ptr[index];
     }
 
@@ -65,7 +65,7 @@ public struct vector<T> {
         return data_cap;
     }
 
-    func data(&self) : T* {
+    func data(&self) : *T {
         return data_ptr;
     }
 

@@ -5,23 +5,23 @@ namespace cool {
         var a : int
         var b : int
     }
-    func pair2_sum_call(p : Pair2*) : int {
+    func pair2_sum_call(p : *Pair2) : int {
         return pair2_sum(p);
     }
-    func pair2_sum(p : Pair2*) : int {
+    func pair2_sum(p : *Pair2) : int {
         return p.a + p.b;
     }
     typealias kinda_int = int
 }
 
 namespace cool {
-    func pair2_ext_sum(p : Pair2*) : int {
+    func pair2_ext_sum(p : *Pair2) : int {
         return pair2_sum(p);
     }
-    func pair2_indirect_mul(p : Pair2*) : int {
+    func pair2_indirect_mul(p : *Pair2) : int {
         return pair2_mul(p);
     }
-    func pair2_mul(p : Pair2*) : int {
+    func pair2_mul(p : *Pair2) : int {
         return p.a * p.b;
     }
 }

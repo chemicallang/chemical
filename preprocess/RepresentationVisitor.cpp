@@ -808,13 +808,13 @@ void RepresentationVisitor::visit(LongType *func) {
 }
 
 void RepresentationVisitor::visit(PointerType *type) {
-    type->type->accept(this);
     write('*');
+    type->type->accept(this);
 }
 
 void RepresentationVisitor::visit(ReferenceType *type) {
-    type->type->accept(this);
     write('&');
+    type->type->accept(this);
 }
 
 void RepresentationVisitor::visit(LinkedType *type) {

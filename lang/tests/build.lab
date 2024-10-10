@@ -11,7 +11,7 @@ func relative_path(path : string) : string {
     return dir;
 }
 
-func exe_dir_path(ctx : BuildContext*, exe_name : string*) : string {
+func exe_dir_path(ctx : *BuildContext, exe_name : *string) : string {
     const new_path = ctx.build_path();
     new_path.append('/');
     new_path.append_str(exe_name);
@@ -20,14 +20,14 @@ func exe_dir_path(ctx : BuildContext*, exe_name : string*) : string {
     return new_path;
 }
 
-func exe_dir_file(ctx : BuildContext*, exe_name : string*, file_name : string*, extension : char*) : string {
+func exe_dir_file(ctx : *BuildContext, exe_name : *string, file_name : *string, extension : *char) : string {
     const exe_dir = exe_dir_path(ctx, exe_name);
     exe_dir.append_str(file_name);
     exe_dir.append_char_ptr(extension);
     return exe_dir;
 }
 
-func gen_ir(ctx : BuildContext*, exe_name : string*, module : Module*) {
+func gen_ir(ctx : *BuildContext, exe_name : *string, module : *Module) {
     module.llvm_ir_path = exe_dir_path(ctx, exe_name)
     module.llvm_ir_path.append_str(&module.name);
     module.llvm_ir_path.append_char_ptr(".ll")
@@ -35,13 +35,13 @@ func gen_ir(ctx : BuildContext*, exe_name : string*, module : Module*) {
 }
 
 struct JobAndContext {
-    var ctx : BuildContext*
-    var job : LabJob*
+    var ctx : *BuildContext
+    var job : *LabJob
 }
 
 var jc : JobAndContext
 
-func build(ctx : BuildContext*) {
+func build(ctx : *BuildContext) {
 
     const debug = true;
     if(debug) {
@@ -125,8 +125,8 @@ func build(ctx : BuildContext*) {
     ctx.define(exe_job, &def);
     jc.ctx = ctx;
     jc.job = exe_job;
-    ctx.on_finished((data : void*) => {
-        const jx = data as JobAndContext*
+    ctx.on_finished((data : *void) => {
+        const jx = data as *JobAndContext
         if(jx.job.status == LabJobStatus.Success) {
             jx.ctx.launch_executable(jx.job.abs_path.copy(), true);
         }

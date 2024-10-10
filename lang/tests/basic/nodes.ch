@@ -59,7 +59,7 @@ struct Point : Calculator {
 
 }
 
-func (point : Point*) double_sum() : int {
+func (point : *Point) double_sum() : int {
     return 2 * (point.x + point.y);
 }
 

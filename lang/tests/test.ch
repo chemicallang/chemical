@@ -9,11 +9,11 @@ const ANSI_COLOR_MAGENTA = "\x1b[35m"
 const ANSI_COLOR_CYAN = "\x1b[36m"
 const ANSI_COLOR_WHITE = "\x1b[37m"
 
-func success_msg(message : char*) {
+func success_msg(message : *char) {
     printf("%s%s%s\n", ANSI_COLOR_GREEN, message, ANSI_COLOR_RESET);
 }
 
-func error_msg(message : char*) {
+func error_msg(message : *char) {
     printf("%s%s%s\n", ANSI_COLOR_RED, message, ANSI_COLOR_RESET);
 }
 
@@ -21,7 +21,7 @@ var total_tests = 0;
 var tests_passed = 0;
 var tests_failed = 0;
 
-func test(name : char*, assert : () => bool) {
+func test(name : *char, assert : () => bool) {
     if(assert()) {
         printf("%sTest %d [%s] succeeded %s\n", ANSI_COLOR_GREEN, total_tests + 1, name, ANSI_COLOR_RESET);
         tests_passed++;

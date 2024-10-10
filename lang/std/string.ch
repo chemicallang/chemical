@@ -4,11 +4,11 @@ public struct string {
 
     union {
         struct {
-            var data : char*;
+            var data : *char;
             var length : size_t
         } constant;
         struct {
-            var data : char*;
+            var data : *char;
             var length : size_t;
             var capacity : size_t;
         } heap;
@@ -26,7 +26,7 @@ public struct string {
     }
 
     @constructor
-    func constructor(value : char*, length : size_t) {
+    func constructor(value : *char, length : size_t) {
         storage.constant.data = value;
         storage.constant.length = length;
         state = '0'
@@ -42,7 +42,7 @@ public struct string {
     }
 
     @constructor
-    func make_no_len(value : char*) {
+    func make_no_len(value : *char) {
         storage.constant.data = value;
         storage.constant.length = strlen(value);
         state = '0'
@@ -73,7 +73,7 @@ public struct string {
         }
     }
 
-    func equals(&self, other : string*) : bool {
+    func equals(&self, other : *string) : bool {
         const self_size = size();
         return self_size == other.size() && memcmp(self.data(), other.data(), self_size) == 0;
     }
@@ -93,8 +93,8 @@ public struct string {
         state = '1'
     }
 
-    func move_data_to_heap(&self, from_data : char*, length : size_t, capacity : size_t) {
-        var data = malloc(capacity) as char*
+    func move_data_to_heap(&self, from_data : *char, length : size_t, capacity : size_t) {
+        var data = malloc(capacity) as *char
         var i = 0
         while(i < length) {
             data[i] = from_data[i]
@@ -108,7 +108,7 @@ public struct string {
     }
 
     func resize(&self, new_capacity : size_t) {
-        var data = realloc(storage.heap.data, new_capacity) as char*
+        var data = realloc(storage.heap.data, new_capacity) as *char
         data[storage.heap.length] = '\0'
         storage.heap.data = data;
         storage.heap.capacity = new_capacity
@@ -163,7 +163,7 @@ public struct string {
         }
     }
 
-    func append_with_len(&self, value : char*, len : size_t) {
+    func append_with_len(&self, value : *char, len : size_t) {
         ensure_mut(size() + len + 1);
         var i : size_t = 0;
         while(i < len) {
@@ -172,11 +172,11 @@ public struct string {
         }
     }
 
-    func append_char_ptr(&self, value : char*) {
+    func append_char_ptr(&self, value : *char) {
         append_with_len(value, strlen(value));
     }
 
-    func append_str(&self, value : string*) {
+    func append_str(&self, value : *string) {
         append_with_len(value.data(), value.size())
     }
 
@@ -198,7 +198,7 @@ public struct string {
         } else {
             s.state = '2'
             const new_cap = actual_len * 2
-            var new_heap = malloc(new_cap) as char*
+            var new_heap = malloc(new_cap) as *char
             const d = data()
             for(var i = 0; i < actual_len; i++) {
                 new_heap[i] = d[start + i]
@@ -251,7 +251,7 @@ public struct string {
         }
     }
 
-    func data(&self) : char* {
+    func data(&self) : *char {
         switch(state) {
             '0' => {
                 return storage.constant.data

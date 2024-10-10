@@ -11,7 +11,7 @@ struct Animal {
 
 }
 
-func animal_sum(a : Animal*) : long {
+func animal_sum(a : *Animal) : long {
     return a.a + a.b;
 }
 
@@ -44,7 +44,7 @@ struct Dog : WalkingAnimal {
 
 }
 
-func get_dog_sum(d : Dog*) : long {
+func get_dog_sum(d : *Dog) : long {
     return d.c + d.d;
 }
 

@@ -4,19 +4,19 @@ import "@system/ctype.h"
 
 struct HtmlLexer {
 
-    var lexer : Lexer*
+    var lexer : *Lexer
 
-    var provider : SourceProvider*
+    var provider : *SourceProvider
 
     var has_lt : bool
 
 }
 
-func (html : HtmlLexer*) put_token(value : string&, type : LexTokenType) : CSTToken* {
+func (html : *HtmlLexer) put_token(value : &string, type : LexTokenType) : *CSTToken {
     return html.lexer.put(value, type, html.provider.getLineNumber(), html.provider.getLineCharNumber());
 }
 
-func (provider : SourceProvider*) read_tag_name() : string {
+func (provider : *SourceProvider) read_tag_name() : string {
     var str = string();
     while(true) {
         const c = provider.peek();
@@ -29,7 +29,7 @@ func (provider : SourceProvider*) read_tag_name() : string {
     return str;
 }
 
-func (html : HtmlLexer*) put_next_token() {
+func (html : *HtmlLexer) put_next_token() {
     var c = html.provider.peek();
     switch(c) {
         '<' => {
@@ -72,11 +72,11 @@ func (html : HtmlLexer*) put_next_token() {
     }
 }
 
-public func lexMacro(lexer : Lexer*) {
+public func lexMacro(lexer : *Lexer) {
     lexer.lexNumberToken();
 }
 
-public func parseMacro(converter : CSTConverter*, token : CSTToken*) {
+public func parseMacro(converter : *CSTConverter, token : *CSTToken) {
     const contained = token.tokens();
     const interested = contained.get(1);
     const value = converter.make_uint_value(33, token);

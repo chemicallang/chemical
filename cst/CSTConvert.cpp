@@ -363,26 +363,12 @@ BaseType* CSTConverter::type() {
     return type;
 }
 
-PointerType* current_self_pointer(CSTConverter* converter, CSTToken* token) {
-    std::string type;
-    const auto container = converter->current_members_container;
-    if(container) {
-        auto impl_container = container->as_impl_def();
-        if (impl_container) {
-            type = impl_container->struct_type->linked_name();
-        } else {
-            type = container->ns_node_identifier();
-        }
-    }
-    return new (converter->local<PointerType>()) PointerType(new (converter->local<LinkedType>()) LinkedType(type, container, token), token);
-}
-
 void CSTConverter::visitFunctionParam(CSTToken* param) {
     auto &paramTokens = param->tokens;
     if (is_char_op(paramTokens[0], '&')) { // implicit parameter
         const auto name_token = paramTokens[1];
-        const auto ptr_to_linked  = new (local<PointerType>()) PointerType(new (local<LinkedType>()) LinkedType(name_token->value(), nullptr, name_token), name_token);;
-        const auto paramDecl = new (local<FunctionParam>()) FunctionParam(name_token->value(), ptr_to_linked, param_index, nullptr, true, current_func_type, param);
+        const auto ref_to_linked  = new (local<ReferenceType>()) ReferenceType(new (local<LinkedType>()) LinkedType(name_token->value(), nullptr, name_token), name_token);;
+        const auto paramDecl = new (local<FunctionParam>()) FunctionParam(name_token->value(), ref_to_linked, param_index, nullptr, true, current_func_type, param);
         put_node(paramDecl, param);
         return;
     }

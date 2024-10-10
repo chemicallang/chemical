@@ -617,7 +617,7 @@ std::vector<ASTNode*> TranslateC(
     CTranslator translator(allocator);
     Translate(&translator, unit);
     // dedupe the nodes
-//    top_level_dedupe(translator.nodes);
+    top_level_dedupe(translator.nodes);
     delete unit;
     if (!translator.errors.empty()) {
         std::cerr << std::to_string(translator.errors.size()) << " errors occurred when translating C files" << std::endl;

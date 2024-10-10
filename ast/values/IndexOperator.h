@@ -33,10 +33,6 @@ public:
         visitor->visit(this);
     }
 
-    IndexOperator *as_index_op() override {
-        return this;
-    }
-
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     ASTNode *linked_node() override;

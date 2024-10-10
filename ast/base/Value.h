@@ -239,6 +239,12 @@ public:
     bool is_ref();
 
     /**
+     * this checks if this value is mutable
+     * basically something that you can assign to
+     */
+    bool check_is_mutable(FunctionType* func_type, ASTAllocator& allocator);
+
+    /**
      * is this value a function call
      */
     bool is_chain_func_call();

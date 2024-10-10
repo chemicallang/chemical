@@ -80,10 +80,6 @@ public:
      */
     BaseType* get_arg_type(unsigned int index);
 
-    FunctionCall *as_func_call() override {
-        return this;
-    }
-
     ASTNode *linked_node() override;
 
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);

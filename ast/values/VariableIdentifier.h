@@ -54,10 +54,6 @@ public:
         visitor->visit(this);
     }
 
-    VariableIdentifier *as_identifier() override {
-        return this;
-    }
-
     BaseType* known_type() override;
 
     Value *child(InterpretScope &scope, const std::string &name) override;

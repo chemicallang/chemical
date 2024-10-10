@@ -584,10 +584,17 @@ public:
     }
 
     /**
+     * check if identifier
+     */
+    static constexpr inline bool is_identifier(ValueKind k) {
+        return k == ValueKind::Identifier;
+    }
+
+    /**
      * a function to be overridden by identifier
      */
-    virtual VariableIdentifier* as_identifier() {
-        return nullptr;
+    VariableIdentifier* as_identifier() {
+        return is_identifier(val_kind()) ? (VariableIdentifier*) this : nullptr;
     }
 
     /**
@@ -612,17 +619,31 @@ public:
     }
 
     /**
-     * return if value is a function call
+     * check is function call
      */
-    virtual FunctionCall* as_func_call() {
-        return nullptr;
+    static constexpr inline bool isFunctionCall(ValueKind k) {
+        return k == ValueKind::FunctionCall;
     }
 
     /**
-     * return if value is an index opeartor
+     * return if value is a function call
      */
-    virtual IndexOperator* as_index_op() {
-        return nullptr;
+    FunctionCall* as_func_call() {
+        return isFunctionCall(val_kind()) ? (FunctionCall*) this : nullptr;
+    }
+
+    /**
+     * check if is index operator
+     */
+    static constexpr inline bool isIndexOperator(ValueKind k) {
+        return k == ValueKind::IndexOperator;
+    }
+
+    /**
+     * return if value is an index operator
+     */
+    IndexOperator* as_index_op() {
+        return isIndexOperator(val_kind()) ? (IndexOperator*) this : nullptr;
     }
 
     /**

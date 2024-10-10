@@ -260,6 +260,17 @@ public:
     }
 
     /**
+     * will make the type mutable, completely pointer type, linked type, generic type
+     * everything inside will become mutable, as if you wrote mut keyword before the type
+     */
+    bool make_mutable(BaseTypeKind k);
+
+    /**
+     * check if this type is mutable
+     */
+    bool is_mutable(BaseTypeKind k);
+
+    /**
      * check if this represents a reference
      */
     bool is_reference(BaseTypeKind k);

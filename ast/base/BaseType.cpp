@@ -351,6 +351,17 @@ PointerType *BaseType::pointer_type(BaseTypeKind k) {
     }
 }
 
+bool BaseType::is_reference_to(ASTNode* node, BaseTypeKind k) {
+    if(k == BaseTypeKind::Reference) {
+        const auto child_type = ((ReferenceType*) this)->type;
+        const auto child_type_kind = child_type->kind();
+        if(child_type_kind == BaseTypeKind::Linked && ((LinkedType*) child_type)->linked == node) {
+            return true;
+        }
+    }
+    return false;
+}
+
 FunctionType *BaseType::function_type(BaseTypeKind k) {
     if(k == BaseTypeKind::Function) {
         return (FunctionType*) this;

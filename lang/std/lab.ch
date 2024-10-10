@@ -100,20 +100,20 @@ public struct BuildContext {
 
     // check if argument given to chemical compiler
     // you can give argument using -arg-myarg, pass myarg to this function to check
-    func has_arg (&self, name : *string) : bool
+    func has_arg (&self, name : &string) : bool
 
     // get the argument given to chemical compiler
-    func get_arg (&self, name : *string) : string
+    func get_arg (&self, name : &string) : string
 
     // remove the argument given to chemical compiler
-    func remove_arg (&self, name : *string) : void
+    func remove_arg (&self, name : &string) : void
 
     // define a definition, that you can access using defined compiler function
     // returns true, if defined
-    func define (&self, job : *LabJob, name : *string) : bool
+    func define (&self, job : *LabJob, name : &string) : bool
 
     // un-define a definition
-    func undefine (&self, job : *LabJob, name : *string) : bool;
+    func undefine (&self, job : *LabJob, name : &string) : bool;
 
     // launch an executable at the path
     func launch_executable (&self, path : &string, same_window : bool) : int;

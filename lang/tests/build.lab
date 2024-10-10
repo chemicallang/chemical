@@ -56,12 +56,12 @@ func build(ctx : *BuildContext) {
     const compiler_version = compiler::version();
     printf("Compiler Version = %s\n", compiler_version);
     const str_arg = string("hello");
-    if(ctx.has_arg(&str_arg)) {
-        const said = ctx.get_arg(&str_arg);
+    if(ctx.has_arg(str_arg)) {
+        const said = ctx.get_arg(str_arg);
         printf("WOW : Hello World I guess, you said %s \n", said.data());
     }
     const minimal_arg = string("minimal");
-    const is_minimal = ctx.has_arg(&minimal_arg)
+    const is_minimal = ctx.has_arg(minimal_arg)
     if(is_minimal) {
         printf("Minimal Build Detected\n");
     }
@@ -115,14 +115,14 @@ func build(ctx : *BuildContext) {
 
     if(do_dyn_lib) {
         const job = ctx.build_dynamic_lib(&exe_name, { module });
-        ctx.define(job, &def);
+        ctx.define(job, def);
         if(do_one_job) {
             return;
         }
     }
 
     const exe_job = ctx.build_exe(&exe_name, { module })
-    ctx.define(exe_job, &def);
+    ctx.define(exe_job, def);
     jc.ctx = ctx;
     jc.job = exe_job;
     ctx.on_finished((data : *void) => {

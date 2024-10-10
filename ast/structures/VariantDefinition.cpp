@@ -253,19 +253,19 @@ void VariantDefinition::declare_and_link(SymbolResolver &linker) {
     bool has_move_fn = false;
     for(auto& func : functions()) {
         if(func->has_annotation(AnnotationKind::Delete)) {
-            func->ensure_destructor(allocator, this);
+            func->ensure_destructor(linker, this);
             has_destructor = true;
         }
         if(func->has_annotation(AnnotationKind::Clear)) {
-            func->ensure_clear_fn(allocator, this);
+            func->ensure_clear_fn(linker, this);
             has_clear_fn = true;
         }
         if(func->has_annotation(AnnotationKind::Move)) {
-            func->ensure_move_fn(allocator, this);
+            func->ensure_move_fn(linker, this);
             has_move_fn = true;
         }
         if(func->has_annotation(AnnotationKind::Copy)) {
-            func->ensure_copy_fn(allocator, this);
+            func->ensure_copy_fn(linker, this);
         }
     }
     MembersContainer::declare_and_link(linker);

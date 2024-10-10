@@ -1172,11 +1172,7 @@ int16_t FunctionDeclaration::total_generic_iterations() {
     return ::total_generic_iterations(generic_params);
 }
 
-void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, StructDefinition* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
-}
-
-void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
         params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, true, this, nullptr));
@@ -1184,30 +1180,58 @@ void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ExtendableM
     returnType = new (allocator.allocate<VoidType>()) VoidType(nullptr);
 }
 
-void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
-    if(!has_self_param() || params.size() > 1 || params.empty()) {
-        params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, true, this, nullptr));
+void check_returns_void(SymbolResolver& resolver, FunctionDeclaration* decl) {
+    if(decl->returnType->kind() != BaseTypeKind::Void) {
+        resolver.error(decl->name + " function return type should be void", (ASTNode*) decl);
     }
-    returnType = new (allocator.allocate<VoidType>()) VoidType(nullptr);
 }
 
-void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
-    if(!has_self_param() || params.size() != 2 || params.empty()) {
-        params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, true, this, nullptr));
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 1, nullptr, true, this, nullptr));
+void check_self_param(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNode* self) {
+    if(decl->params.size() == 1) {
+        const auto param = decl->params.front();
+        if(param->is_implicit && param->name == "self") {
+            return;
+        }
     }
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
+    resolver.error(decl->name + " must have a single implicit self reference parameter", (ASTNode*) decl);
 }
 
-void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
-    if(!has_self_param() || params.size() != 2 || params.empty()) {
-        params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, true, this, nullptr));
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 1, nullptr, true, this, nullptr));
+void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNode* self) {
+    if(decl->params.size() == 2) {
+        const auto param = decl->params.front();
+        const auto second = decl->params[1];
+        if(
+            param->is_implicit && param->name == "self" &&
+            second->is_implicit && second->name == "other"
+        ) {
+            return;
+        }
     }
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
+    resolver.error(decl->name + " function must have two implicit reference parameters", (ASTNode*) decl);
+}
+
+void FunctionDeclaration::ensure_constructor(SymbolResolver& resolver, StructDefinition* def) {
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
+}
+
+void FunctionDeclaration::ensure_destructor(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
+    check_returns_void(resolver, this);
+    check_self_param(resolver, this, def);
+}
+
+void FunctionDeclaration::ensure_clear_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
+    check_returns_void(resolver, this);
+    check_self_param(resolver, this, def);
+}
+
+void FunctionDeclaration::ensure_copy_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
+    check_self_other_params(resolver, this, def);
+}
+
+void FunctionDeclaration::ensure_move_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
+    check_self_other_params(resolver, this, def);
 }
 
 void FunctionDeclaration::set_active_iteration(int16_t iteration) {

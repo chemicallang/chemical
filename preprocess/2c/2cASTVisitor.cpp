@@ -2209,7 +2209,7 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     // TODO remove this if
     if(def->requires_destructor() && def->destructor_func() == nullptr) {
         auto decl = def->create_destructor(visitor.allocator);
-        decl->ensure_destructor(visitor.allocator, def);
+        decl->make_destructor(visitor.allocator, def);
     }
     for(auto& func : def->functions()) {
         if(def->get_overriding_interface(func) == nullptr) {

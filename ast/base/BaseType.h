@@ -100,6 +100,11 @@ public:
     virtual BaseType *copy(ASTAllocator& allocator) const = 0;
 
     /**
+     * is this type a reference to the given node
+     */
+    bool is_reference_to(ASTNode* node, BaseTypeKind k);
+
+    /**
      * a type, or a referenced type, can link itself with its definition
      */
     virtual bool link(SymbolResolver &linker) {

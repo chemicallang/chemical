@@ -20,7 +20,7 @@ public struct vector<T> {
         data_cap = init_cap
     }
 
-    func resize(&self, new_cap : size_t) {
+    func resize(&mut self, new_cap : size_t) {
         var new_data = realloc(data_ptr, (#sizeof { T } * new_cap)) as *T;
         unsafe {
             if (new_data != null) {
@@ -35,7 +35,7 @@ public struct vector<T> {
         }
     }
 
-    func push(&self, value : T) {
+    func push(&mut self, value : T) {
         const s = data_size;
         if (s >= data_cap) {
             // Double the capacity if needed
@@ -53,7 +53,7 @@ public struct vector<T> {
         return &data_ptr[index];
     }
 
-    func set(&self, index : size_t, value : T) {
+    func set(&mut self, index : size_t, value : T) {
         data_ptr[index] = value;
     }
 
@@ -69,7 +69,7 @@ public struct vector<T> {
         return data_ptr;
     }
 
-    func remove(&self, index : size_t) {
+    func remove(&mut self, index : size_t) {
         const s = data_size;
         const last = s - 1;
         destruct get_ptr(index)
@@ -83,7 +83,7 @@ public struct vector<T> {
         }
     }
 
-    func remove_last(&self) {
+    func remove_last(&mut self) {
         const s = data_size;
         const last = s - 1;
         const ptr = get_ptr(last);
@@ -91,13 +91,13 @@ public struct vector<T> {
         data_size = last;
     }
 
-    func clear(&self) {
+    func clear(&mut self) {
         destruct[data_size] data_ptr;
         data_size = 0;
     }
 
     @delete
-    func delete(&self) {
+    func delete(&mut self) {
         destruct[data_size] data_ptr;
         free(data_ptr);
         unsafe {

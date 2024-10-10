@@ -415,15 +415,21 @@ bool Value::is_ref() {
     return false;
 }
 
-bool Value::check_is_mutable(FunctionType* func_type, ASTAllocator& allocator) {
+bool Value::check_is_mutable(FunctionType* func_type, ASTAllocator& allocator, bool nested) {
     const auto kind = val_kind();
     switch(kind) {
         case ValueKind::Identifier: {
             const auto linked = as_identifier_unsafe()->linked;
             const auto linked_kind = linked->kind();
             switch(linked_kind) {
-                case ASTNodeKind::VarInitStmt:
-                    return !linked->as_var_init_unsafe()->is_const;
+                case ASTNodeKind::VarInitStmt:{
+                    if(nested) {
+                        const auto type = linked->as_var_init_unsafe()->create_value_type(allocator);
+                        return type->is_mutable(type->kind());
+                    } else {
+                        return !linked->as_var_init_unsafe()->is_const;
+                    }
+                }
                 case ASTNodeKind::FunctionParam: {
                     const auto type = linked->as_func_param()->type;
                     return type->is_mutable(type->kind());
@@ -455,11 +461,11 @@ bool Value::check_is_mutable(FunctionType* func_type, ASTAllocator& allocator) {
                 const auto value_type = chain->create_type(allocator);
                 return value_type->is_mutable(value_type->kind());
             } else {
-                return chain->values.front()->check_is_mutable(func_type, allocator);
+                return chain->values.front()->check_is_mutable(func_type, allocator, true);
             }
         }
         case ValueKind::DereferenceValue: {
-            return as_dereference_value_unsafe()->value->check_is_mutable(func_type, allocator);
+            return as_dereference_value_unsafe()->value->check_is_mutable(func_type, allocator, true);
         }
         default:
             return false;

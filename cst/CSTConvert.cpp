@@ -366,8 +366,9 @@ BaseType* CSTConverter::type() {
 void CSTConverter::visitFunctionParam(CSTToken* param) {
     auto &paramTokens = param->tokens;
     if (is_char_op(paramTokens[0], '&')) { // implicit parameter
-        const auto name_token = paramTokens[1];
-        const auto ref_to_linked  = new (local<ReferenceType>()) ReferenceType(new (local<LinkedType>()) LinkedType(name_token->value(), nullptr, name_token), name_token);;
+        const auto is_mutable = is_keyword(paramTokens[1], "mut");
+        const auto name_token = paramTokens[is_mutable ? 2 : 1];
+        const auto ref_to_linked  = new (local<ReferenceType>()) ReferenceType(new (local<LinkedType>()) LinkedType(name_token->value(), nullptr, name_token, is_mutable), name_token, is_mutable);;
         const auto paramDecl = new (local<FunctionParam>()) FunctionParam(name_token->value(), ref_to_linked, param_index, nullptr, true, current_func_type, param);
         put_node(paramDecl, param);
         return;
@@ -1558,7 +1559,12 @@ void CSTConverter::visitPointerType(CSTToken* cst) {
     const auto elem_type = type();
     const auto ptr_type = new (local<PointerType>()) PointerType(elem_type, cst);
     if(is_pointer_before){
-        ptr_type->make_mutable_on_child();
+        const auto child_tok = cst->tokens[1];
+        if(child_tok->type() == LexTokenType::CompQualifiedType && is_keyword(child_tok->tokens[0], "mut")) {
+            ptr_type->is_mutable = true;
+        } else {
+            ptr_type->make_mutable_on_child();
+        }
     }
     put_type(ptr_type, cst);
 }
@@ -1576,7 +1582,12 @@ void CSTConverter::visitReferenceType(CSTToken* cst) {
     const auto elem_type = type();
     const auto ref_type = new (local<ReferenceType>()) ReferenceType(elem_type, cst);
     if(is_pointer_before) {
-        ref_type->make_mutable_on_child();
+        const auto child_tok = cst->tokens[1];
+        if(child_tok->type() == LexTokenType::CompQualifiedType && is_keyword(child_tok->tokens[0], "mut")) {
+            ref_type->is_mutable = true;
+        } else {
+            ref_type->make_mutable_on_child();
+        }
     }
     put_type(ref_type, cst);
 }

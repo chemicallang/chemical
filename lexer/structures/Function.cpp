@@ -91,8 +91,10 @@ bool Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexImplici
     do {
         lexWhitespaceAndNewLines();
         if(lexImplicitParams && lexOperatorToken('&')) {
+            const auto start = tokens_size() - 1;
+            lexWSKeywordToken("mut"); // optional mut keyword
             if(lexIdentifierToken()) {
-                compound_from(tokens_size() - 2, LexTokenType::CompFunctionParam);
+                compound_from(start, LexTokenType::CompFunctionParam);
                 lexWhitespaceToken();
                 continue;
             } else {

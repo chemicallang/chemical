@@ -11,7 +11,7 @@ public:
 
     std::string type;
     ASTNode *linked;
-    bool is_mutable = false;
+    bool is_mutable;
 
     LinkedType(std::string type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(nullptr) {
 
@@ -22,7 +22,7 @@ public:
 
     }
 
-    LinkedType(std::string type, ASTNode* linked, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
+    LinkedType(std::string type, ASTNode* linked, CSTToken* token, bool is_mutable = false) : type(std::move(type)), TokenizedBaseType(token), linked(linked), is_mutable(is_mutable) {
 
     }
 
@@ -56,9 +56,7 @@ public:
 
     [[nodiscard]]
     LinkedType *copy(ASTAllocator& allocator) const override {
-        auto t = new (allocator.allocate<LinkedType>()) LinkedType(type, token);
-        t->linked = linked;
-        return t;
+        return new (allocator.allocate<LinkedType>()) LinkedType(type, linked, token, is_mutable);
     }
 
 #ifdef COMPILER_BUILD

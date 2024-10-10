@@ -9,9 +9,9 @@ class ReferenceType : public TokenizedBaseType {
 public:
 
     BaseType* type;
-    bool is_mutable = false;
+    bool is_mutable;
 
-    ReferenceType(BaseType* type, CSTToken* token) : type(type), TokenizedBaseType(token) {
+    ReferenceType(BaseType* type, CSTToken* token, bool is_mutable = false) : type(type), TokenizedBaseType(token), is_mutable(is_mutable) {
 
     }
 
@@ -68,7 +68,7 @@ public:
 
     [[nodiscard]]
     ReferenceType *copy(ASTAllocator& allocator) const override {
-        return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), token);
+        return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), token, is_mutable);
     }
 
     bool link(SymbolResolver &linker) override {

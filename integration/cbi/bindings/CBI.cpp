@@ -327,6 +327,7 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "FunctionTypeget_params", (void*) FunctionTypeget_params },
             { "GenericTypeget_types", (void*) GenericTypeget_types },
             { "AccessChainget_values", (void*) AccessChainget_values },
+            { "AccessChainas_value", (void*) AccessChainas_value },
             { "ArrayValueget_values", (void*) ArrayValueget_values },
             { "ArrayValueadd_size", (void*) ArrayValueadd_size },
             { "FunctionCallget_args", (void*) FunctionCallget_args },

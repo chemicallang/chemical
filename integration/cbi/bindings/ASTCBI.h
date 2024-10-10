@@ -22,6 +22,8 @@ extern "C" {
 
     std::vector<BaseType*>* GenericTypeget_types(GenericType* gen_type);
 
+    Value* AccessChainas_value(AccessChain* chain);
+
     std::vector<ChainValue*>* AccessChainget_values(AccessChain* chain);
 
     std::vector<Value*>* ArrayValueget_values(ArrayValue* value);

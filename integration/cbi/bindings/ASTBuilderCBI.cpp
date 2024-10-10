@@ -495,6 +495,12 @@ std::vector<BaseType*>* GenericTypeget_types(GenericType* gen_type) {
     return &gen_type->types;
 }
 
+Value* AccessChainas_value(AccessChain* chain) {
+    // c++ casting is required because Value is in the second place in inheritance
+    // and the first ASTNode is virtual containing a pointer
+    return chain;
+}
+
 std::vector<ChainValue*>* AccessChainget_values(AccessChain* chain) {
     return &chain->values;
 }

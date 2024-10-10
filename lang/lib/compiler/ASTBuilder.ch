@@ -73,7 +73,9 @@ struct VoidType : BaseType {}
 
 // The Values
 
-struct AccessChain : ASTNode, Value {
+struct AccessChain : ASTNode {
+
+    func as_value() : *Value
 
     func get_values(&self) : *VecRef<Value>;
 

@@ -584,11 +584,13 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
     const auto pure_type = type->pure_type();
     const auto pure_type_kind = pure_type->kind();
     if(pure_type_kind == BaseTypeKind::Reference) {
-        if(linked->as_func_param()) {
-            visitor.write('.');
+        const auto linked_kind = linked->kind();
+        if(ASTNode::isBaseDefMember(linked_kind) || linked_kind == ASTNodeKind::VariantCaseVariable) {
+            // but stored references become pointers
+            visitor.write("->");
             return;
         }
-        visitor.write("->");
+        visitor.write('.');
         return;
     } else if(pure_type_kind == BaseTypeKind::Pointer) {
         visitor.write("->");
@@ -4256,7 +4258,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
         write_accessor(*this, expr, identifier);
         write(var_mem->name);
         write('.');
-    } else if(linked_kind == ASTNodeKind::FunctionParam) {
+    } else if(linked_kind == ASTNodeKind::FunctionParam || linked_kind == ASTNodeKind::ExtensionFuncReceiver) {
         auto& type = *linked->as_func_param_unsafe()->type;
         const auto type_kind = type.kind();
         if(type_kind == BaseTypeKind::Reference) {

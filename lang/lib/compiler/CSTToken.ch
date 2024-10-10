@@ -26,7 +26,7 @@ public struct CSTToken {
 
 }
 
-func (token : *CSTToken) value() : string {
+func (token : &CSTToken) value() : string {
     const ret = compiler::return_struct() as *string;
     token.get_value(ret);
 }

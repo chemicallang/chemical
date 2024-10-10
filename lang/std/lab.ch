@@ -138,21 +138,21 @@ public struct BuildContext {
 
 }
 
-func (ctx : *BuildContext) chemical_file_module(name : &string, path : string, dependencies : ArrayRef<*Module>) : *Module {
+func (ctx : &BuildContext) chemical_file_module(name : &string, path : string, dependencies : ArrayRef<*Module>) : *Module {
     const path_ptr = &path;
     return ctx.chemical_files_module(name, &path_ptr, 1, dependencies);
 }
 
-func (ctx : *BuildContext) file_module(name : &string, path : string, dependencies : ArrayRef<*Module>) : *Module {
+func (ctx : &BuildContext) file_module(name : &string, path : string, dependencies : ArrayRef<*Module>) : *Module {
     const path_ptr = &path;
     return ctx.files_module(name, &path_ptr, 1, dependencies);
 }
 
-func (ctx : *BuildContext) translate_mod_to_c(module : *Module, output_dir : &string) : *LabJob {
+func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &string) : *LabJob {
     return ctx.translate_to_c(string("ToCJob"), { module }, output_dir);
 }
 
-func (ctx : *BuildContext) translate_file_to_c(chem_path : &string, output_path : &string) : *LabJob {
+func (ctx : &BuildContext) translate_file_to_c(chem_path : &string, output_path : &string) : *LabJob {
     var mod = ctx.file_module(string("TempChem"), chem_path, {});
     return ctx.translate_mod_to_c(mod, output_path);
 }

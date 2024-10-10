@@ -10,12 +10,12 @@ struct ClearObj {
     var i : int
 
     @clear
-    func clear() {
+    func clear(&self) {
         clear_called++;
     }
 
     @delete
-    func delete() {
+    func delete(&self) {
         delete_called++;
     }
 
@@ -26,7 +26,7 @@ struct MoveObj {
     var i : int
 
     @move
-    func move(&self, other : *MoveObj) {
+    func move(&self, &other) {
         i = other.i
         move_called++;
     }
@@ -44,7 +44,7 @@ struct ImpCopyObj {
 
     @implicit
     @copy
-    func copy(&self, other : *ImpCopyObj) {
+    func copy(&self, &other) {
         i = other.i
         copy_called++;
     }
@@ -61,7 +61,7 @@ struct CopyObj {
     var i : int
 
     @copy
-    func copy(&self, other : *CopyObj) {
+    func copy(&self, &other) {
         i = other.i
     }
 

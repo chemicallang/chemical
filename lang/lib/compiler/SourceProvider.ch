@@ -29,7 +29,7 @@ struct SourceProvider {
      * @param stop the stopping character
      * @return everything read until stop character, it doesn't include the stopping character
      */
-    func readUntil (&self, into : string*, stop : char);
+    func readUntil (&self, into : *string, stop : char);
 
     /**
      * if text is present at current pos in the stream, increments the stream with text.length()
@@ -37,7 +37,7 @@ struct SourceProvider {
      * @param peek peeks only, doesn't increment
      * @return true if incremented by text length otherwise false
      */
-    func increment (&self, text : string*, peek : bool) : bool;
+    func increment (&self, text : *string, peek : bool) : bool;
 
     /**
      * if char c is present at current pos, increments the stream with character
@@ -64,43 +64,43 @@ struct SourceProvider {
      *
      * will also append the last stopAt character into value
      */
-    func readEscaping (&self, value : string*, stopAt : char) : void;
+    func readEscaping (&self, value : *string, stopAt : char) : void;
 
     /**
      * reads all characters into a string until char occurs
      * @return the string that was found
      */
-    func readAnything (&self, into : string*, until : char) : void;
+    func readAnything (&self, into : *string, until : char) : void;
 
     /**
      * reads a alphabetical string
      */
-    func readAlpha (&self, into : string*) : void;
+    func readAlpha (&self, into : *string) : void;
 
     /**
      * reads an unsigned integer as string, returns "" if no integer found
      */
-    func readUnsignedInt (&self, into : string*) : void;
+    func readUnsignedInt (&self, into : *string) : void;
 
     /**
      * reads a number from the stream
      */
-    func readNumber (&self, into : string*) : void;
+    func readNumber (&self, into : *string) : void;
 
     /**
      * reads a alphanumeric string
      */
-    func readAlphaNum (&self, into : string*) : void;
+    func readAlphaNum (&self, into : *string) : void;
 
     /**
      * reads a single identifier
      */
-    func readIdentifier (&self, into : string*) : void;
+    func readIdentifier (&self, into : *string) : void;
 
     /**
      * reads a single annotation, this doesn't read '@'
      */
-    func readAnnotationIdentifier (&self, into : string*) : void;
+    func readAnnotationIdentifier (&self, into : *string) : void;
 
     /**
      * reads whitespaces, returns how many whitespaces were read

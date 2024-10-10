@@ -3,7 +3,7 @@ import "./std.ch"
 
 public struct ArrayRef<T> {
 
-    var data : T*
+    var data : *T
     var size : size_t
 
     @implicit
@@ -16,12 +16,12 @@ public struct ArrayRef<T> {
     @implicit
     @comptime
     @constructor
-    func make2(vec : vector<T>&) {
+    func make2(vec : &vector<T>) {
         return compiler::wrap(constructor(vec.data(), vec.size()))
     }
 
     @constructor
-    func constructor(array_ptr : T*, array_size : size_t) {
+    func constructor(array_ptr : *T, array_size : size_t) {
         init {
             data(array_ptr)
             size(array_size)

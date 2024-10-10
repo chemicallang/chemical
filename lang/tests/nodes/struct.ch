@@ -73,7 +73,7 @@ struct DeeplyNested {
 }
 
 struct PointerStr {
-    var value : DeeplyNested3*
+    var value : *DeeplyNested3
 }
 
 func give_pair() : Pair {

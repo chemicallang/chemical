@@ -72,9 +72,11 @@ void Lexer::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
         compound_from(start, LexTokenType::CompArrayType);
     }
     while(lexOperatorToken('*')) {
+        warning("deprecated syntax, pointer should be before type");
         compound_from(start, LexTokenType::CompPointerType);
     }
     if(lexOperatorToken('&')) {
+        warning("deprecated syntax, reference should be before type");
         compound_from(start, LexTokenType::CompReferenceType);
     }
 }
@@ -123,6 +125,24 @@ bool Lexer::lexTypeTokens() {
     }
 
     if(lexLambdaTypeTokens(tokens_size())) {
+        return true;
+    }
+
+    if(lexOperatorToken('*')) {
+        unsigned start = tokens_size() - 1;
+        if(!lexTypeTokens()) {
+            error("expected a type after the *");
+            return false;
+        }
+        compound_from(start, LexTokenType::CompPointerType);
+        return true;
+    } else if(lexOperatorToken('&')) {
+        unsigned start = tokens_size() - 1;
+        if(!lexTypeTokens()) {
+            error("expected a type after the &");
+            return false;
+        }
+        compound_from(start, LexTokenType::CompReferenceType);
         return true;
     }
 

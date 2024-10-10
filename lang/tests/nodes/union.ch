@@ -7,7 +7,7 @@ union IntFloatUnion {
 
 union TwoStructs {
     struct {
-        var data : int*
+        var data : *int
         var length : bigint;
     } First;
     struct {

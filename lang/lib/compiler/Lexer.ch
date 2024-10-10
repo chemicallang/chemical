@@ -9,7 +9,7 @@ struct Lexer : CSTDiagnoser {
     /**
      * get the source provider associated with this lexer
      */
-    func provider(&self) : SourceProvider*
+    func provider(&self) : *SourceProvider
 
     /**
      * get the current tokens size
@@ -19,19 +19,19 @@ struct Lexer : CSTDiagnoser {
     /**
      * put the given token into the tokens vector held by this Lexer
      */
-    func put(&self, value : string&, token_type : LexTokenType, lineNumber : uint, lineCharNumber : uint) : CSTToken*
+    func put(&self, value : &string, token_type : LexTokenType, lineNumber : uint, lineCharNumber : uint) : *CSTToken
 
     /**
      * consumes a identifier and store as a variable token
      * @return true if identifier is not empty, false if it is
      */
-    func storeVariable (&self, identifier : string*) :  bool;
+    func storeVariable (&self, identifier : *string) :  bool;
 
     /**
      * consumes a identifier and store as an identifier token
      * @return true if identifier is not empty, false if it is
      */
-    func storeIdentifier (&self, identifier : string*) :  bool;
+    func storeIdentifier (&self, identifier : *string) :  bool;
 
     /**
      * it will lex generic args list, it should be called after the '<'
@@ -193,7 +193,7 @@ struct Lexer : CSTDiagnoser {
      * @param op
      * @return whether the token was found
      */
-    func lexOperatorTokenStr (&self, op : string*) :  bool;
+    func lexOperatorTokenStr (&self, op : *string) :  bool;
 
     /**
      * store an operation token
@@ -211,24 +211,24 @@ struct Lexer : CSTDiagnoser {
      * lexes the given operator as a string operator token
      * @return whether the token was found
      */
-    func lexOperatorTokenStr2 (&self, token : string*, op : Operation) :  bool;
+    func lexOperatorTokenStr2 (&self, token : *string, op : Operation) :  bool;
 
     /**
      * lexes a keyword token for the given keyword
      * @param keyword
      * @return  whether the keyword was found
      */
-    func lexKeywordToken (&self, keyword : string*) :  bool;
+    func lexKeywordToken (&self, keyword : *string) :  bool;
 
     /**
      * lexes a keyword token, after which whitespace is present
      */
-    func lexWSKeywordToken (&self, keyword : string*) :  bool;
+    func lexWSKeywordToken (&self, keyword : *string) :  bool;
 
     /**
      * lex a whitespaced keyword token, which may end at the given character if not whitespace
      */
-    func lexWSKeywordToken2 (&self, keyword : string*, may_end_at : char) :  bool;
+    func lexWSKeywordToken2 (&self, keyword : *string, may_end_at : char) :  bool;
 
     /**
      * All top levels statements lexed, These include
@@ -268,7 +268,7 @@ struct Lexer : CSTDiagnoser {
     /**
      * lexes a brace block, { statement(s) }
      */
-    func lexBraceBlock (&self, nested_lexer : (lexer : Lexer*) => void) :  bool;
+    func lexBraceBlock (&self, nested_lexer : (lexer : *Lexer) => void) :  bool;
 
     /**
      * lexes top level brace block

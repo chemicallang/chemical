@@ -102,7 +102,7 @@ func sum_multiple(x : int) : int {
 }
 
 func ret_struct_boi() : Pair66 {
-    const p = compiler::return_struct() as Pair66*
+    const p = compiler::return_struct() as *Pair66
     p.a = 343
     p.b = 979
     return;
@@ -127,11 +127,11 @@ func ret_struct_implicit_b() : Pair66 {
 struct CompTimeCounter {
     @comptime
     @constructor
-    func constructor(thing : int*) {
+    func constructor(thing : *int) {
         return compiler::wrap(actual(thing, 1));
     }
     @constructor
-    func actual(thing : int*, inc : int) {
+    func actual(thing : *int, inc : int) {
         *thing = *thing + inc;
     }
 }

@@ -1550,12 +1550,24 @@ void CSTConverter::visitTryCatch(CSTToken* tryCatch) {
 }
 
 void CSTConverter::visitPointerType(CSTToken* cst) {
-    visit(cst->tokens, 0);
+    if(is_char_op(cst->tokens[0], '*')) {
+        // user wrote the '*' first, user likes rust
+        cst->tokens[1]->accept(this);
+    } else {
+        // user likes C++, he wrote type first
+        cst->tokens[0]->accept(this);
+    }
     put_type(new (local<PointerType>()) PointerType(type(), cst), cst);
 }
 
 void CSTConverter::visitReferenceType(CSTToken* cst) {
-    visit(cst->tokens, 0, cst->tokens.size() - 1);
+    if(is_char_op(cst->tokens[0], '&')) {
+        // user wrote the '&' first, user likes rust
+        cst->tokens[1]->accept(this);
+    } else {
+        // user likes C++, he wrote type first
+        cst->tokens[0]->accept(this);
+    }
     put_type(new (local<ReferenceType>()) ReferenceType(type(), cst), cst);
 }
 

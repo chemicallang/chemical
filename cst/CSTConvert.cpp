@@ -1549,26 +1549,50 @@ void CSTConverter::visitTryCatch(CSTToken* tryCatch) {
     put_node(try_catch, tryCatch);
 }
 
+/**
+ * *mut Phone <-- direct linked type made mutable, ptr before type finds the linked type, makes itself mutable \n
+ * *mut dyn Phone <-- mut finds dynamic type, get's the linked type, makes it mutable, ptr before type, finds the dynamic type, makes it self mutable based on it's child linked type \n
+ * *dyn mut Phone <-- mut finds linked type, makes it mutable, ptr before type finds dynamic type, makes it self mutable based on it's child linked type type \n
+ * **mut Phone <-- pointer finds pointer, makes itself mutable based on it \n
+ * mut Phone* <-- mut finds pointer type, makes its child linked type mutable \n
+ * mut dyn Phone* <-- mut finds dyn type, makes its child linked type mutable \n
+ * dyn mut Phone* <--- mut finds pointer type, makes it's child linked type mutable \n
+ * mut Phone** <-- mut finds pointer type, makes it's child pointer type mutable and grand child linked type mutable \n
+ */
 void CSTConverter::visitPointerType(CSTToken* cst) {
-    if(is_char_op(cst->tokens[0], '*')) {
+    const auto tok_zero = cst->tokens[0];
+    const auto is_pointer_before = is_char_op(tok_zero, '*');
+    if(is_pointer_before) {
         // user wrote the '*' first, user likes rust
         cst->tokens[1]->accept(this);
     } else {
         // user likes C++, he wrote type first
-        cst->tokens[0]->accept(this);
+        tok_zero->accept(this);
     }
-    put_type(new (local<PointerType>()) PointerType(type(), cst), cst);
+    const auto elem_type = type();
+    const auto ptr_type = new (local<PointerType>()) PointerType(elem_type, cst);
+    if(is_pointer_before){
+        ptr_type->make_mutable_on_child();
+    }
+    put_type(ptr_type, cst);
 }
 
 void CSTConverter::visitReferenceType(CSTToken* cst) {
-    if(is_char_op(cst->tokens[0], '&')) {
+    const auto tok_zero = cst->tokens[0];
+    const auto is_pointer_before = is_char_op(tok_zero, '&');
+    if(is_pointer_before) {
         // user wrote the '&' first, user likes rust
         cst->tokens[1]->accept(this);
     } else {
         // user likes C++, he wrote type first
-        cst->tokens[0]->accept(this);
+        tok_zero->accept(this);
     }
-    put_type(new (local<ReferenceType>()) ReferenceType(type(), cst), cst);
+    const auto elem_type = type();
+    const auto ref_type = new (local<ReferenceType>()) ReferenceType(elem_type, cst);
+    if(is_pointer_before) {
+        ref_type->make_mutable_on_child();
+    }
+    put_type(ref_type, cst);
 }
 
 void CSTConverter::visitGenericType(CSTToken* cst) {
@@ -1604,48 +1628,46 @@ void CSTConverter::visitGenericType(CSTToken* cst) {
 void CSTConverter::visitQualifiedType(CSTToken *qualType) {
     const auto qual_tok = qualType->tokens[0];
     const auto& val = qual_tok->value();
+    const auto child_tok = qualType->tokens[1];
     // visiting the child type
-    qualType->tokens[1]->accept(this);
+    child_tok->accept(this);
     const auto t = type();
     if(val == "dyn") {
         const auto kind = t->kind();
-        if(kind == BaseTypeKind::Array) {
-            // since dyn Phone[] means (dyn Phone)[] and not dyn (Phone[])
-            const auto elem_type = ((ArrayType*) t)->elem_type;
-            ((ArrayType*) t)->elem_type = new (local<DynamicType>()) DynamicType(elem_type, qualType);
-            re_put_type(t);
-        } else {
-            put_type(new (local<DynamicType>()) DynamicType(t, qualType), qualType);
+        switch(kind) {
+            case BaseTypeKind::Array:{
+                // since dyn Phone[] means (dyn Phone)[] and not dyn (Phone[])
+                const auto elem_type = ((ArrayType*) t)->elem_type;
+                ((ArrayType*) t)->elem_type = new (local<DynamicType>()) DynamicType(elem_type, qualType);
+                re_put_type(t);
+                break;
+            }
+            case BaseTypeKind::Pointer: {
+                // since dyn Phone* or dyn *Phone means (dyn Phone)* or *(dyn Phone) and not dyn (*Phone) or dyn (Phone*)
+                const auto elem_type = ((PointerType*) t)->type;
+                ((PointerType*) t)->type = new(local<DynamicType>()) DynamicType(elem_type, qualType);
+                re_put_type(t);
+                break;
+            }
+            case BaseTypeKind::Reference: {
+                // since dyn &Phone or dyn &Phone means (dyn Phone)& or &(dyn Phone) and not dyn (&Phone) or dyn (Phone&)
+                const auto elem_type = ((ReferenceType*) t)->type;
+                ((ReferenceType*) t)->type = new(local<DynamicType>()) DynamicType(elem_type, qualType);
+                re_put_type(t);
+                break;
+            }
+            case BaseTypeKind::Linked:
+            case BaseTypeKind::Generic:
+                put_type(new (local<DynamicType>()) DynamicType(t, qualType), qualType);
+                break;
+            default:
+                put_type(new (local<DynamicType>()) DynamicType(t, qualType), qualType);
+                error("child type cannot be used with dynamic type", child_tok);
+                break;
         }
     } else if(val == "mut") {
-        const auto kind = t->kind();
-        switch(kind) {
-            case BaseTypeKind::Linked:
-                ((LinkedType*) t)->is_mutable = true;
-                return;
-            case BaseTypeKind::Generic:
-                ((GenericType*) t)->referenced->is_mutable = true;
-                return;
-            case BaseTypeKind::Pointer:
-                ((PointerType*) t)->is_mutable = true;
-                return;
-            case BaseTypeKind::Reference:
-                ((ReferenceType*) t)->is_mutable = true;
-                return;
-            case BaseTypeKind::Dynamic: {
-                const auto ref = ((DynamicType*) t)->referenced;
-                const auto ref_kind = ref->kind();
-                if(ref_kind == BaseTypeKind::Linked) {
-                    ((LinkedType*) ref)->is_mutable = true;
-                } else if(ref_kind == BaseTypeKind::Generic) {
-                    ((GenericType*) ref)->referenced->is_mutable = true;
-                } else {
-                    error("couldn't mark type mutable", qual_tok);
-                }
-                return;
-            }
-            default:
-                return;
+        if(!t->make_mutable(t->kind())) {
+            error("couldn't make type mutable", child_tok);
         }
     } else {
         error("unknown qualified type given", qual_tok);

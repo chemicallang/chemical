@@ -74,6 +74,15 @@ public:
 
     ASTNode *linked_node() override;
 
+    /**
+     * this type will be made mutable, if the child type is mutable, for example
+     * this type is *mut Thing <-- pointer is not mutable but it's child type
+     * when this method is called, we will set pointer to mutable too
+     */
+    void make_mutable_on_child() {
+        is_mutable = type->is_mutable(type->kind());
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;

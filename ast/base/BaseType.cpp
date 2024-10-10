@@ -12,6 +12,8 @@
 #include "ast/types/LinkedType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/DynamicType.h"
+#include "ast/types/PointerType.h"
 #include <sstream>
 #include "ASTNode.h"
 
@@ -284,6 +286,61 @@ int16_t BaseType::set_generic_iteration(int16_t iteration) {
         }
     }
     return -2;
+}
+
+bool BaseType::make_mutable(BaseTypeKind k) {
+    switch(k) {
+        case BaseTypeKind::Linked:
+            ((LinkedType*) this)->is_mutable = true;
+            return true;
+        case BaseTypeKind::Generic:
+            ((GenericType*) this)->referenced->is_mutable = true;
+            return true;
+        case BaseTypeKind::Dynamic:{
+            const auto ref = ((DynamicType*) this)->referenced;
+            const auto ref_kind = ref->kind();
+            if(ref_kind == BaseTypeKind::Linked) {
+                ((LinkedType*) ref)->is_mutable = true;
+                return true;
+            } else if(ref_kind == BaseTypeKind::Generic) {
+                ((GenericType*) ref)->referenced->is_mutable = true;
+                return true;
+            } else {
+                return false;
+            }
+        }
+        case BaseTypeKind::Pointer: {
+            ((PointerType*) this)->is_mutable = true;
+            const auto ref = ((PointerType*) this)->type;
+            return ref->make_mutable(ref->kind());
+        }
+        case BaseTypeKind::Reference: {
+            ((ReferenceType*) this)->is_mutable = true;
+            const auto ref = ((ReferenceType*) this)->type;
+            return ref->make_mutable(ref->kind());
+        }
+        default:
+            return true;
+    }
+}
+
+bool BaseType::is_mutable(BaseTypeKind k) {
+    switch(k) {
+        case BaseTypeKind::Linked:
+            return ((LinkedType*) this)->is_mutable;
+        case BaseTypeKind::Generic:
+            return ((GenericType*) this)->referenced->is_mutable;
+        case BaseTypeKind::Dynamic: {
+            const auto ref = ((DynamicType*) this)->referenced;
+            return ref->is_mutable(ref->kind());
+        }
+        case BaseTypeKind::Pointer:
+            return ((PointerType*) this)->is_mutable;
+        case BaseTypeKind::Reference:
+            return ((ReferenceType*) this)->is_mutable;
+        default:
+            return false;
+    }
 }
 
 PointerType *BaseType::pointer_type(BaseTypeKind k) {

@@ -24,6 +24,8 @@
 #include "ast/values/IndexOperator.h"
 #include "ast/types/ArrayType.h"
 #include "ast/values/VariantCaseVariable.h"
+#include "ast/values/DereferenceValue.h"
+#include "ast/structures/VariantMemberParam.h"
 #include "ast/values/VariantCase.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/structures/If.h"
@@ -411,6 +413,57 @@ bool Value::is_ref() {
         }
     }
     return false;
+}
+
+bool Value::check_is_mutable(FunctionType* func_type, ASTAllocator& allocator) {
+    const auto kind = val_kind();
+    switch(kind) {
+        case ValueKind::Identifier: {
+            const auto linked = as_identifier_unsafe()->linked;
+            const auto linked_kind = linked->kind();
+            switch(linked_kind) {
+                case ASTNodeKind::VarInitStmt:
+                    return !linked->as_var_init_unsafe()->is_const;
+                case ASTNodeKind::FunctionParam: {
+                    const auto type = linked->as_func_param()->type;
+                    return type->is_mutable(type->kind());
+                }
+                case ASTNodeKind::VariantCaseVariable: {
+                    const auto type = linked->as_variant_case_var_unsafe()->member_param->type;
+                    return type->is_mutable(type->kind());
+                }
+                case ASTNodeKind::StructMember:
+                case ASTNodeKind::UnnamedUnion:
+                case ASTNodeKind::UnnamedStruct: {
+                    const auto self_param = func_type->get_self_param();
+                    if(self_param) {
+                        return self_param->type->is_mutable(self_param->type->kind());
+                    } else {
+                        const auto func = func_type->as_function();
+                        // constructor takes a mutable reference by default
+                        return func->has_annotation(AnnotationKind::Constructor);
+                    }
+                }
+                default:
+                    return false;
+            }
+        }
+        case ValueKind::AccessChain: {
+            const auto chain = as_access_chain();
+            const auto func_call = chain->values.back()->as_func_call();
+            if(func_call) {
+                const auto value_type = chain->create_type(allocator);
+                return value_type->is_mutable(value_type->kind());
+            } else {
+                return chain->values.front()->check_is_mutable(func_type, allocator);
+            }
+        }
+        case ValueKind::DereferenceValue: {
+            return as_dereference_value_unsafe()->value->check_is_mutable(func_type, allocator);
+        }
+        default:
+            return false;
+    }
 }
 
 bool Value::is_chain_func_call() {

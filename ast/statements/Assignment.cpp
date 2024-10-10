@@ -34,12 +34,19 @@ void AssignStatement::declare_and_link(SymbolResolver &linker) {
             auto linked_kind = linked->kind();
             if(linked_kind == ASTNodeKind::VarInitStmt) {
                 auto init = linked->as_var_init_unsafe();
+                if(init->is_const) {
+                    linker.error("cannot assign to a constant value", lhs);
+                }
                 init->set_has_assignment();
             } else if(linked_kind == ASTNodeKind::FunctionParam) {
                 auto param = linked->as_func_param_unsafe();
                 param->set_has_assignment();
             }
         }
+        // TODO turn this on when we have mutable self
+//        if(!lhs->check_is_mutable(linker.current_func_type, linker.allocator)) {
+//            linker.error("cannot assign to a non mutable value", lhs);
+//        }
         auto& func_type = *linker.current_func_type;
         func_type.mark_moved_value(linker.allocator, value, lhs->known_type(), linker, true);
         func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());

@@ -1652,9 +1652,11 @@ void CSTConverter::visitQualifiedType(CSTToken *qualType) {
                 break;
         }
     } else if(val == "mut") {
-        if(!t->make_mutable(t->kind())) {
+        if(t->make_mutable(t->kind())) {
+            re_put_type(t);
+        } else {
             error("couldn't make type mutable", child_tok);
-        }
+        };
     } else {
         error("unknown qualified type given", qual_tok);
     }

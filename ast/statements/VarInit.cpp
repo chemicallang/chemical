@@ -54,7 +54,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
         code_gen_global_var(gen, true);
     } else {
         if (value) {
-            if(is_const && !value->as_struct() && !value->as_array_value()) {
+            if(is_const && !value->as_struct_value() && !value->as_array_value()) {
                 llvm_ptr = value->llvm_value(gen, type_ptr_fast());
                 gen.destruct_nodes.emplace_back(this);
                 return;
@@ -74,7 +74,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
                 llvm::Value* dyn_obj_impl = nullptr;
 
-                if(type && value->value_type() == ValueType::Struct && value->as_struct() == nullptr) {
+                if(type && value->value_type() == ValueType::Struct && value->as_struct_value() == nullptr) {
                     // get it's dynamic object implementation based on expected type
                     dyn_obj_impl = gen.get_dyn_obj_impl(value, type_ptr_fast());
                 }

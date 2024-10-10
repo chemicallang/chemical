@@ -672,18 +672,19 @@ void visit_evaluated_func_val(
     FunctionCall* remove_alloc = nullptr;
     bool write_semi = false;
     if(!assign_id.empty() && returns_struct) {
-        if(eval->as_struct()) {
-            auto struc = eval->as_struct();
+        const auto eval_struct_val = eval->as_struct_value();
+        if(eval_struct_val) {
             visitor.write(assign_id);
             visitor.write(" = ");
-            write_struct_def_value_call(visitor, struc->linked_struct());
+            write_struct_def_value_call(visitor, eval_struct_val->linked_struct());
             write_semi = true;
         } else if(eval->as_access_chain()) {
             auto& chain = eval->as_access_chain()->values;
             auto last = chain[chain.size() - 1];
-            if(last->as_func_call()) {
+            const auto last_func_call = last->as_func_call();
+            if(last_func_call) {
                 visitor.local_allocated[last] = assign_id;
-                remove_alloc = last->as_func_call();
+                remove_alloc = last_func_call;
             }
         }
     }
@@ -777,7 +778,7 @@ void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier,
 }
 
 void value_init_default(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value) {
-    const auto struct_value = value->as_struct();
+    const auto struct_value = value->as_struct_value();
     int16_t prev_itr = 0;
     const auto is_generic = struct_value && struct_value->is_generic();
     if(struct_value && is_generic) {
@@ -1029,8 +1030,8 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
         if(decl->has_annotation(AnnotationKind::CompTime)) {
             auto eval = evaluated_func_val(visitor, decl, call);
             auto identifier = visitor.get_local_temp_var_name();
-            if(eval->as_struct()) {
-                allocate_struct_by_name(visitor, eval->as_struct()->linked_extendable(), identifier);
+            if(eval->as_struct_value()) {
+                allocate_struct_by_name(visitor, eval->as_struct_value()->linked_extendable(), identifier);
                 visitor.local_allocated[eval] = identifier;
             }
             process_init_value(eval, identifier);
@@ -1040,7 +1041,7 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     }
     CommonVisitor::visit(call);
     for(auto& value : call->values) {
-        const auto struct_val = value->as_struct();
+        const auto struct_val = value->as_struct_value();
         if(struct_val) {
             allocate_struct_for_struct_value(visitor, struct_val->linked_extendable(), struct_val, visitor.get_local_temp_var_name(), struct_val);
         }
@@ -1190,7 +1191,7 @@ void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* a
             visitor.write(", ");
         }
         write_implicit_args(visitor, func_type, values, end, last);
-        func_call_args(visitor, last->as_func_call(), func_type);
+        func_call_args(visitor, last, func_type);
         visitor.write(')');
         if(!visitor.nested_value) {
             visitor.write(';');
@@ -1283,8 +1284,9 @@ void CBeforeStmtVisitor::visit(VariantCall *call) {
 
 void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier) {
     auto eval = evaluated_func_val(visitor, decl, call);
-    if(eval->as_struct()) {
-        allocate_struct_by_name(visitor, eval->as_struct()->linked_extendable(), identifier);
+    const auto eval_struct_val = eval->as_struct_value();
+    if(eval_struct_val) {
+        allocate_struct_by_name(visitor, eval_struct_val->linked_extendable(), identifier);
         visitor.local_allocated[eval] = identifier;
     }
     process_init_value(eval, identifier);
@@ -1439,9 +1441,8 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
 
 void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
     int index = ((int) chain->values.size()) - (destruct_last ? 1 : 2);
-    FunctionCall* call;
     while(index >= 0) {
-        call = chain->values[index]->as_func_call();
+        const auto call = chain->values[index]->as_func_call();
         if(call) {
             const auto decl = call->safe_linked_func();
             if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
@@ -1690,8 +1691,9 @@ bool CDestructionVisitor::queue_destruct_arr(const std::string& self_name, ASTNo
 void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init_value) {
     auto chain = init_value->as_access_chain();
     if(chain) {
-        if(chain->values.back()->as_func_call()) {
-            queue_destruct(init->identifier, init, chain->values.back()->as_func_call());
+        const auto last_func_call = chain->values.back()->as_func_call();
+        if(last_func_call) {
+            queue_destruct(init->identifier, init, last_func_call);
             return;
         } else {
             if(chain->is_moved) {
@@ -1728,7 +1730,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
         queue_destruct(init->identifier, init, variant_call->generic_iteration, def);
         return;
     }
-    auto struct_val = init_value->as_struct();
+    auto struct_val = init_value->as_struct_value();
     if(struct_val) {
         queue_destruct(init->identifier, init, struct_val->generic_iteration, struct_val->linked_struct());
     }
@@ -1742,15 +1744,17 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
     if(init->value) {
         auto init_value = init->value;
         auto chain = init_value->as_access_chain();
-        if(chain && chain->values.back()->as_func_call()) {
+        if(chain) {
             const auto func_call = chain->values.back()->as_func_call();
-            auto decl = func_call->safe_linked_func();
-            if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
-                auto found = visitor.evaluated_func_calls.find(func_call);
-                if(found != visitor.evaluated_func_calls.end()) {
-                    init_value = found->second;
-                } else {
-                    std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor for " << func_call->representation() << std::endl;
+            if(func_call) {
+                auto decl = func_call->safe_linked_func();
+                if (decl && decl->has_annotation(AnnotationKind::CompTime)) {
+                    auto found = visitor.evaluated_func_calls.find(func_call);
+                    if (found != visitor.evaluated_func_calls.end()) {
+                        init_value = found->second;
+                    } else {
+                        std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor for " << func_call->representation() << std::endl;
+                    }
                 }
             }
         }
@@ -2668,7 +2672,7 @@ void struct_initialize_inside_braces(ToCAstVisitor& visitor, StructValue* val) {
 }
 
 bool ToCAstVisitor::requires_return(Value* val) {
-    if(val->as_struct()) {
+    if(val->as_struct_value()) {
         if(pass_structs_to_initialize) {
             return false;
         } else {
@@ -2682,14 +2686,15 @@ bool ToCAstVisitor::requires_return(Value* val) {
 }
 
 void ToCAstVisitor::return_value(Value* val, BaseType* type) {
-    if(val->as_struct()) {
+    const auto struct_val = val->as_struct_value();
+    if(struct_val) {
         if(implicit_mutate_value_default(*this, type, val)) {
            return;
         }
         if(pass_structs_to_initialize) {
-            auto size = val->as_struct()->values.size();
+            auto size = struct_val->values.size();
             unsigned i = 0;
-            for(const auto& mem : val->as_struct()->values) {
+            for(const auto& mem : struct_val->values) {
                 write(struct_passed_param_name);
                 write("->");
                 write(mem.first);
@@ -3682,7 +3687,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
                         visitor.write(", ");
                     }
                 }
-                func_call_args(visitor, last->as_func_call(), func_type);
+                func_call_args(visitor, last, func_type);
                 visitor.write(')');
             } else {
                 if(!interface) {
@@ -3724,7 +3729,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
             func_name(visitor, parent, func_decl);
             visitor.write('(');
             write_implicit_args(visitor, func_type, values, end, last);
-            func_call_args(visitor, last->as_func_call(), func_type);
+            func_call_args(visitor, last, func_type);
             visitor.write(')');
             if(generic_struct) {
                 generic_struct->set_active_iteration(prev_iteration);
@@ -3837,7 +3842,8 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, 
         current = values[start];
         if(start + 1 < total_size) {
             next = values[start + 1];
-            if(next->as_func_call() || next->as_index_op()) {
+            const auto next_kind = next->val_kind();
+            if(next_kind == ValueKind::FunctionCall || next_kind == ValueKind::IndexOperator) {
                 chain_value_accept(visitor, previous, current);
             } else {
                 if(current->linked_node()->as_enum_decl() != nullptr) {
@@ -3922,7 +3928,7 @@ void ToCAstVisitor::visit(InitBlock *initBlock) {
             auto call = val->as_func_call();
             auto called_struct = call->parent_val->linked_node();
             if(call->values.size() == 1) {
-                auto struc_val = call->values[0]->as_struct();
+                auto struc_val = call->values[0]->as_struct_value();
                 if(struc_val && struc_val->linked_node() == called_struct) {
                     // initializing directly using a struct
                     write("this->");

@@ -183,7 +183,7 @@ std::optional<bool> IfStatement::get_condition_const(InterpretScope& scope) {
     if(!constant || constant->val_kind() != ValueKind::Bool) {
         return std::nullopt;
     }
-    return constant->as_bool();
+    return constant->get_the_bool();
 }
 
 Scope* IfStatement::get_evaluated_scope(InterpretScope& scope, ASTDiagnoser* gen, bool condition_value) {
@@ -197,7 +197,7 @@ Scope* IfStatement::get_evaluated_scope(InterpretScope& scope, ASTDiagnoser* gen
                 gen->error(err, (ASTNode*) this);
                 return nullptr;
             }
-            if(constant->as_bool()) {
+            if(constant->get_the_bool()) {
                 return &elseIf.second;
             }
         }

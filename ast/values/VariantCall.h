@@ -49,10 +49,6 @@ public:
 
     BaseType* known_type() override;
 
-    VariantCall* as_variant_call() override {
-        return this;
-    }
-
     [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Struct;

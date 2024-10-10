@@ -341,7 +341,7 @@ void func_type_with_id(ToCAstVisitor& visitor, FunctionType* type, const std::st
 }
 
 bool should_void_pointer_to_self(BaseType* type, const std::string& id, unsigned index, bool overrides) {
-    if(index == 0 && type->kind() == BaseTypeKind::Pointer && ((PointerType*) type)->type->kind() == BaseTypeKind::Linked && (id == "self" || id == "this")) {
+    if(index == 0 && type->kind() == BaseTypeKind::Reference && ((ReferenceType*) type)->type->kind() == BaseTypeKind::Linked && (id == "self" || id == "this")) {
         if(((PointerType*) type)->type->linked_node()->as_interface_def() || (((PointerType*) type)->type->linked_node()->as_struct_def() && overrides)) {
             return true;
         }

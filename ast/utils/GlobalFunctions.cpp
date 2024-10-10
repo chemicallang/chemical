@@ -32,6 +32,7 @@
 #include "utils/Version.h"
 #include "ast/types/UIntType.h"
 #include "ast/values/NullValue.h"
+#include "ast/types/ReferenceType.h"
 
 namespace InterpretVector {
 
@@ -106,7 +107,7 @@ namespace InterpretVector {
         GenericTypeParameter typeParam;
 
         LinkedType selfType;
-        PointerType selfPointer;
+        ReferenceType selfReference;
 
         InterpretVectorConstructor constructorFn;
         InterpretVectorSize sizeFn;
@@ -158,7 +159,7 @@ namespace InterpretVector {
         nullptr,
         std::nullopt,
         AccessSpecifier::Public
-    ), retType(nullptr), selfParam("self", &node->selfPointer, 0, nullptr, true, this, nullptr) {
+    ), retType(nullptr), selfParam("self", &node->selfReference, 0, nullptr, true, this, nullptr) {
         params.emplace_back(&selfParam);
     }
 
@@ -177,7 +178,7 @@ namespace InterpretVector {
             std::nullopt,
             AccessSpecifier::Public
     ), returnLinkedType("T", &node->typeParam, nullptr),
-        selfParam("self", &node->selfPointer, 0, nullptr, true, this, nullptr), indexType(nullptr), indexParam("index", &indexType, 1, nullptr, false, this, nullptr)
+        selfParam("self", &node->selfReference, 0, nullptr, true, this, nullptr), indexType(nullptr), indexParam("index", &indexType, 1, nullptr, false, this, nullptr)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -196,7 +197,7 @@ namespace InterpretVector {
             nullptr,
             std::nullopt,
             AccessSpecifier::Public
-    ), selfParam("self", &node->selfPointer, 0, nullptr, true, this, nullptr), returnVoidType(nullptr),
+    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, nullptr), returnVoidType(nullptr),
         valueType("T", &node->typeParam, nullptr), valueParam("value", &valueType, 1, nullptr, false, this, nullptr)
     {
         params.emplace_back(&selfParam);
@@ -217,7 +218,7 @@ namespace InterpretVector {
             nullptr,
             std::nullopt,
             AccessSpecifier::Public
-    ), selfParam("self", &node->selfPointer, 0, nullptr, true, this, nullptr), returnVoidType(nullptr),
+    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, nullptr), returnVoidType(nullptr),
         indexType(nullptr), indexParam("index", &indexType, 1, nullptr, false, this, nullptr)
     {
         params.emplace_back(&selfParam);
@@ -234,7 +235,7 @@ namespace InterpretVector {
     ): StructDefinition("vector", parent_node, nullptr, AccessSpecifier::Public),
         constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
         typeParam("T", nullptr, this, 0, nullptr),
-        selfType("vector", this, nullptr), selfPointer(&selfType, nullptr)
+        selfType("vector", this, nullptr), selfReference(&selfType, nullptr)
     {
         add_annotation(AnnotationKind::CompTime);
         generic_params.emplace_back(&typeParam);

@@ -40,18 +40,18 @@ ASTNode *ExtensionFuncReceiver::child(const std::string &name) {
     return linked ? linked->child(name) : nullptr;
 }
 
-static std::string get_referenced(BaseType* type) {
-    const auto kind = type->kind();
-    if(kind == BaseTypeKind::Linked) {
-        return ((LinkedType*) type)->type;
-    } else if(kind == BaseTypeKind::Generic) {
-        return ((GenericType*) type)->referenced->type;
-    } else if(kind == BaseTypeKind::Pointer) {
-        return get_referenced(((PointerType*) type)->type);
-    } else {
-        return "";
-    }
-}
+//static std::string get_referenced(BaseType* type) {
+//    const auto kind = type->kind();
+//    if(kind == BaseTypeKind::Linked) {
+//        return ((LinkedType*) type)->type;
+//    } else if(kind == BaseTypeKind::Generic) {
+//        return ((GenericType*) type)->referenced->type;
+//    } else if(kind == BaseTypeKind::Pointer) {
+//        return get_referenced(((PointerType*) type)->type);
+//    } else {
+//        return "";
+//    }
+//}
 
 void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
 
@@ -77,9 +77,13 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
     }
     linker.scope_end();
 
-//    auto referenced = get_referenced(receiver.type.get());
-    auto linked = receiver.type->linked_node();
-    auto& type = receiver.type;
+    const auto type = receiver.type;
+    const auto pure_receiver = type->pure_type();
+    const auto receiver_kind = pure_receiver->kind();
+    if(receiver_kind != BaseTypeKind::Reference) {
+        linker.error("receiver in extension function must always be a reference", type);
+    }
+    auto linked = type->linked_node();
     if(!linked) {
         linker.error("couldn't find container in extension function ith receiver type \"" + type->representation() + "\"", (AnnotableNode*) this);
         return;

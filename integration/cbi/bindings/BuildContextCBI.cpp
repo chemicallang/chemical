@@ -12,48 +12,34 @@ int llvm_ar_main2(const std::vector<std::string> &command_args);
 #endif
 
 LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies) {
-    dispose_string _x{name};
     return self->files_module(name, path, path_len, dependencies->ptr, dependencies->size);
 }
 
 LabModule* BuildContextchemical_files_module(LabBuildContext* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies) {
-    dispose_string _x{name};
     return self->chemical_files_module(name, path, path_len, dependencies->ptr, dependencies->size);
 }
 
 LabModule* BuildContextchemical_dir_module(LabBuildContext* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies) {
-    dispose_string _x{name};
-    dispose_string _y{path};
     return self->chemical_dir_module(name, path, dependencies->ptr, dependencies->size);
 }
 
 LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies) {
-    dispose_string _x{name};
-    dispose_string _y{path};
     return self->c_file_module(name, path, dependencies->ptr, dependencies->size);
 }
 
 LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies) {
-    dispose_string _x{name};
-    dispose_string _y{path};
     return self->cpp_file_module(name, path, dependencies->ptr, dependencies->size);
 }
 
 LabModule* BuildContextobject_module(LabBuildContext* self, chem::string* name, chem::string* path) {
-    dispose_string _x{name};
-    dispose_string _y{path};
     return self->obj_file_module(name, path);
 }
 
 LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, chem::string* c_path, chem::string* output_path) {
-    dispose_string _x{c_path};
-    dispose_string _y{output_path};
     return self->translate_to_chemical(c_path, output_path);
 }
 
 LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string* name, ModuleArrayRef* dependencies, chem::string* output_dir) {
-    dispose_string _x{name};
-    dispose_string _y{output_dir};
     return self->translate_to_c(name, dependencies->ptr, dependencies->size, output_dir);
 }
 
@@ -70,13 +56,10 @@ LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string* name, LabModu
 }
 
 void BuildContextadd_object(LabBuildContext* self, LabJob* job, chem::string* path) {
-    dispose_string _x{path};
     job->linkables.emplace_back(path->copy());
 }
 
 bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string* alias, chem::string* path) {
-    dispose_string _x{alias};
-    dispose_string _y{path};
     return self->declare_user_alias(job, alias->to_std_string(), path->to_std_string());
 }
 
@@ -121,7 +104,6 @@ bool BuildContextundefine(LabBuildContext* self, LabJob* job, chem::string* name
 }
 
 int BuildContextlaunch_executable(LabBuildContext* self, chem::string* path, bool same_window) {
-    dispose_string _x{path};
     auto copied = path->to_std_string();
     copied = absolute_path(copied);
     if(same_window) {
@@ -136,7 +118,6 @@ void BuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), void* 
 }
 
 int BuildContextlink_objects(LabBuildContext* self, StringArrayRef* string_arr, chem::string* output_path) {
-    dispose_string _x{output_path};
     std::vector<chem::string> linkables;
     for(auto i = 0; i < string_arr->size; i++) {
         linkables.emplace_back(string_arr->ptr[i].copy());

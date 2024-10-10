@@ -1682,7 +1682,7 @@ void CSTConverter::visitArrayType(CSTToken* arrayType) {
         arrayType->tokens[2]->accept(this);
         val = value();
     }
-    auto arraySize = (val && val->value_type() == ValueType::Int) ? val->as_int() : -1;
+    auto arraySize = (val && val->value_type() == ValueType::Int) ? val->get_the_int() : -1;
     put_type(new (local<ArrayType>()) ArrayType(elem_type, arraySize, arrayType), arrayType);
 }
 
@@ -1827,7 +1827,7 @@ void CSTConverter::visitArrayValue(CSTToken* arrayValue) {
                 if (char_op(arrayValue->tokens[i]) != ',') {
                     arrayValue->tokens[i]->accept(this);
                     // consume the value
-                    sizes.emplace_back(value()->as_int());
+                    sizes.emplace_back(value()->get_the_int());
                 }
                 i++;
             }

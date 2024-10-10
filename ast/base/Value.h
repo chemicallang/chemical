@@ -30,15 +30,13 @@ class FunctionDeclaration;
 
 class InterfaceDefinition;
 
-class StructValue;
-
 class VarInitStatement;
-
-class FunctionCall;
 
 class BaseType;
 
 class ASTDiagnoser;
+
+class WrapValue;
 
 /**
  * @brief Base class for all values in the AST.
@@ -243,7 +241,7 @@ public:
     /**
      * is this value a function call
      */
-    bool is_func_call();
+    bool is_chain_func_call();
 
     /**
      * check if this value is a reference and moved
@@ -525,7 +523,7 @@ public:
      * just a helper method, to evaluate a value as a boolean
      */
     inline bool evaluated_bool(InterpretScope& scope) {
-        return evaluated_value(scope)->as_bool();
+        return evaluated_value(scope)->get_the_bool();
     }
 
     /**
@@ -538,43 +536,38 @@ public:
     /**
      * a function to be overridden by char values to return actual values
      */
-    char as_char();
+    char get_the_char();
 
     /**
      * a function to be overridden by bool values to return actual values
      */
-    bool as_bool();
+    bool get_the_bool();
 
     /**
      * will get the string from the value
      * this usually works on string values
      */
-    std::string as_string();
+    std::string get_the_string();
 
     /**
      * a function to be overridden by values that can return int
      */
-    int as_int();
+    int get_the_int();
 
     /**
      * will return a unsigned int representation
      */
-    unsigned as_uint();
+    unsigned get_the_uint();
 
     /**
      * a function to be overridden by values that can return float
      */
-    float as_float();
+    float get_the_float();
 
     /**
      * a function to be overridden by values that can return double
      */
-    double as_double();
-
-    /**
-     * as string value
-     */
-    StringValue* as_string_value();
+    double get_the_double();
 
     /**
      * a function to be overridden by number value to return itself
@@ -584,79 +577,9 @@ public:
     }
 
     /**
-     * check if identifier
-     */
-    static constexpr inline bool is_identifier(ValueKind k) {
-        return k == ValueKind::Identifier;
-    }
-
-    /**
-     * a function to be overridden by identifier
-     */
-    VariableIdentifier* as_identifier() {
-        return is_identifier(val_kind()) ? (VariableIdentifier*) this : nullptr;
-    }
-
-    /**
-     * get dereference value
-     */
-    DereferenceValue* as_deref_value() {
-        return val_kind() == ValueKind::DereferenceValue ? (DereferenceValue*) this : nullptr;
-    }
-
-    /**
-     * a function to be overridden by values that can return struct
-     */
-    StructValue* as_struct() {
-        return val_kind() == ValueKind::StructValue ? (StructValue*) this : nullptr;
-    }
-
-    /**
-     * a function to be overridden by values that can return array value
-     */
-    ArrayValue* as_array_value() {
-        return val_kind() == ValueKind::ArrayValue ? (ArrayValue*) this : nullptr;
-    }
-
-    /**
-     * check is function call
-     */
-    static constexpr inline bool isFunctionCall(ValueKind k) {
-        return k == ValueKind::FunctionCall;
-    }
-
-    /**
-     * return if value is a function call
-     */
-    FunctionCall* as_func_call() {
-        return isFunctionCall(val_kind()) ? (FunctionCall*) this : nullptr;
-    }
-
-    /**
-     * check if is index operator
-     */
-    static constexpr inline bool isIndexOperator(ValueKind k) {
-        return k == ValueKind::IndexOperator;
-    }
-
-    /**
-     * return if value is an index operator
-     */
-    IndexOperator* as_index_op() {
-        return isIndexOperator(val_kind()) ? (IndexOperator*) this : nullptr;
-    }
-
-    /**
      * return if value is a access chain
      */
     virtual AccessChain* as_access_chain() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a variant call
-     */
-    virtual VariantCall* as_variant_call() {
         return nullptr;
     }
 
@@ -679,6 +602,462 @@ public:
      * virtual default destructor
      */
     virtual ~Value();
+
+    // --------------------------------------------
+    // ------- isValue methods begin here ---------
+    // --------------------------------------------
+
+    static constexpr inline bool isInt(ValueKind k) {
+        return k == ValueKind::Int;
+    }
+
+    static constexpr inline bool isUInt(ValueKind k) {
+        return k == ValueKind::UInt;
+    }
+
+    static constexpr inline bool isChar(ValueKind k) {
+        return k == ValueKind::Char;
+    }
+
+    static constexpr inline bool isUChar(ValueKind k) {
+        return k == ValueKind::UChar;
+    }
+
+    static constexpr inline bool isShort(ValueKind k) {
+        return k == ValueKind::Short;
+    }
+
+    static constexpr inline bool isUShort(ValueKind k) {
+        return k == ValueKind::UShort;
+    }
+
+    static constexpr inline bool isLong(ValueKind k) {
+        return k == ValueKind::Long;
+    }
+
+    static constexpr inline bool isULong(ValueKind k) {
+        return k == ValueKind::ULong;
+    }
+
+    static constexpr inline bool isBigInt(ValueKind k) {
+        return k == ValueKind::BigInt;
+    }
+
+    static constexpr inline bool isUBigInt(ValueKind k) {
+        return k == ValueKind::UBigInt;
+    }
+
+    static constexpr inline bool isInt128(ValueKind k) {
+        return k == ValueKind::Int128;
+    }
+
+    static constexpr inline bool isUInt128(ValueKind k) {
+        return k == ValueKind::UInt128;
+    }
+
+    static constexpr inline bool isFloat(ValueKind k) {
+        return k == ValueKind::Float;
+    }
+
+    static constexpr inline bool isDouble(ValueKind k) {
+        return k == ValueKind::Double;
+    }
+
+    static constexpr inline bool isBool(ValueKind k) {
+        return k == ValueKind::Bool;
+    }
+
+    static constexpr inline bool isString(ValueKind k) {
+        return k == ValueKind::String;
+    }
+
+    static constexpr inline bool isExpression(ValueKind k) {
+        return k == ValueKind::Expression;
+    }
+
+    static constexpr inline bool isArrayValue(ValueKind k) {
+        return k == ValueKind::ArrayValue;
+    }
+
+    static constexpr inline bool isStructValue(ValueKind k) {
+        return k == ValueKind::StructValue;
+    }
+
+    static constexpr inline bool isLambdaFunc(ValueKind k) {
+        return k == ValueKind::LambdaFunc;
+    }
+
+    static constexpr inline bool isIfValue(ValueKind k) {
+        return k == ValueKind::IfValue;
+    }
+
+    static constexpr inline bool isSwitchValue(ValueKind k) {
+        return k == ValueKind::SwitchValue;
+    }
+
+    static constexpr inline bool isLoopValue(ValueKind k) {
+        return k == ValueKind::LoopValue;
+    }
+
+    static constexpr inline bool isNumberValue(ValueKind k) {
+        return k == ValueKind::NumberValue;
+    }
+
+    static constexpr inline bool isIsValue(ValueKind k) {
+        return k == ValueKind::IsValue;
+    }
+
+    static constexpr inline bool isDereferenceValue(ValueKind k) {
+        return k == ValueKind::DereferenceValue;
+    }
+
+    static constexpr inline bool isRetStructParamValue(ValueKind k) {
+        return k == ValueKind::RetStructParamValue;
+    }
+
+    static constexpr inline bool isCastedValue(ValueKind k) {
+        return k == ValueKind::CastedValue;
+    }
+
+    static constexpr inline bool isIdentifier(ValueKind k) {
+        return k == ValueKind::Identifier;
+    }
+
+    static constexpr inline bool isIndexOperator(ValueKind k) {
+        return k == ValueKind::IndexOperator;
+    }
+
+    static constexpr inline bool isFunctionCall(ValueKind k) {
+        return k == ValueKind::FunctionCall;
+    }
+
+    static constexpr inline bool isNegativeValue(ValueKind k) {
+        return k == ValueKind::NegativeValue;
+    }
+
+    static constexpr inline bool isNotValue(ValueKind k) {
+        return k == ValueKind::NotValue;
+    }
+
+    static constexpr inline bool isNullValue(ValueKind k) {
+        return k == ValueKind::NullValue;
+    }
+
+    static constexpr inline bool isSizeOfValue(ValueKind k) {
+        return k == ValueKind::SizeOfValue;
+    }
+
+    static constexpr inline bool isVariantCall(ValueKind k) {
+        return k == ValueKind::VariantCall;
+    }
+
+    static constexpr inline bool isVariantCase(ValueKind k) {
+        return k == ValueKind::VariantCase;
+    }
+
+    static constexpr inline bool isAddrOfValue(ValueKind k) {
+        return k == ValueKind::AddrOfValue;
+    }
+
+    static constexpr inline bool isWrapValue(ValueKind k) {
+        return k == ValueKind::WrapValue;
+    }
+
+    // --------------------------------------------
+    // ------- as_value methods begin here ---------
+    // --------------------------------------------
+
+    inline IntValue* as_int_value() {
+        return isInt(val_kind()) ? ((IntValue*) this) : nullptr;
+    }
+
+    inline UIntValue* as_uint_value() {
+        return isUInt(val_kind()) ? ((UIntValue*) this) : nullptr;
+    }
+
+    inline CharValue* as_char_value() {
+        return isChar(val_kind()) ? ((CharValue*) this) : nullptr;
+    }
+
+    inline UCharValue* as_uchar() {
+        return isUChar(val_kind()) ? ((UCharValue*) this) : nullptr;
+    }
+
+    inline ShortValue* as_short() {
+        return isShort(val_kind()) ? ((ShortValue*) this) : nullptr;
+    }
+
+    inline UShortValue* as_ushort() {
+        return isUShort(val_kind()) ? ((UShortValue*) this) : nullptr;
+    }
+
+    inline LongValue* as_long() {
+        return isLong(val_kind()) ? ((LongValue*) this) : nullptr;
+    }
+
+    inline ULongValue* as_ulong() {
+        return isULong(val_kind()) ? ((ULongValue*) this) : nullptr;
+    }
+
+    inline BigIntValue* as_bigint() {
+        return isBigInt(val_kind()) ? ((BigIntValue*) this) : nullptr;
+    }
+
+    inline UBigIntValue* as_ubigint() {
+        return isUBigInt(val_kind()) ? ((UBigIntValue*) this) : nullptr;
+    }
+
+    inline Int128Value* as_int128() {
+        return isInt128(val_kind()) ? ((Int128Value*) this) : nullptr;
+    }
+
+    inline UInt128Value* as_uint128() {
+        return isUInt128(val_kind()) ? ((UInt128Value*) this) : nullptr;
+    }
+
+    inline FloatValue* as_float_value() {
+        return isFloat(val_kind()) ? ((FloatValue*) this) : nullptr;
+    }
+
+    inline DoubleValue* as_double_value() {
+        return isDouble(val_kind()) ? ((DoubleValue*) this) : nullptr;
+    }
+
+    inline BoolValue* as_bool_value() {
+        return isBool(val_kind()) ? ((BoolValue*) this) : nullptr;
+    }
+
+    inline StringValue* as_string_value() {
+        return isString(val_kind()) ? ((StringValue*) this) : nullptr;
+    }
+
+    inline Expression* as_expression() {
+        return isExpression(val_kind()) ? ((Expression*) this) : nullptr;
+    }
+
+    inline ArrayValue* as_array_value() {
+        return isArrayValue(val_kind()) ? ((ArrayValue*) this) : nullptr;
+    }
+
+    inline StructValue* as_struct_value() {
+        return isStructValue(val_kind()) ? ((StructValue*) this) : nullptr;
+    }
+
+    inline LambdaFunction* as_lambda_func() {
+        return isLambdaFunc(val_kind()) ? ((LambdaFunction*) this) : nullptr;
+    }
+
+    inline NumberValue* as_number_value() {
+        return isNumberValue(val_kind()) ? ((NumberValue*) this) : nullptr;
+    }
+
+    inline IsValue* as_is_value() {
+        return isIsValue(val_kind()) ? ((IsValue*) this) : nullptr;
+    }
+
+    inline DereferenceValue* as_deref_value() {
+        return isDereferenceValue(val_kind()) ? ((DereferenceValue*) this) : nullptr;
+    }
+
+    inline RetStructParamValue* as_ret_struct_param_value() {
+        return isRetStructParamValue(val_kind()) ? ((RetStructParamValue*) this) : nullptr;
+    }
+
+    inline CastedValue* as_casted_value() {
+        return isCastedValue(val_kind()) ? ((CastedValue*) this) : nullptr;
+    }
+
+    inline VariableIdentifier* as_identifier() {
+        return isIdentifier(val_kind()) ? ((VariableIdentifier*) this) : nullptr;
+    }
+
+    inline IndexOperator* as_index_op() {
+        return isIndexOperator(val_kind()) ? ((IndexOperator*) this) : nullptr;
+    }
+
+    inline FunctionCall* as_func_call() {
+        return isFunctionCall(val_kind()) ? ((FunctionCall*) this) : nullptr;
+    }
+
+    inline NegativeValue* as_negative_value() {
+        return isNegativeValue(val_kind()) ? ((NegativeValue*) this) : nullptr;
+    }
+
+    inline NotValue* as_not_value() {
+        return isNotValue(val_kind()) ? ((NotValue*) this) : nullptr;
+    }
+
+    inline NullValue* as_null_value() {
+        return isNullValue(val_kind()) ? ((NullValue*) this) : nullptr;
+    }
+
+    inline SizeOfValue* as_sizeof_value() {
+        return isSizeOfValue(val_kind()) ? ((SizeOfValue*) this) : nullptr;
+    }
+
+    inline VariantCall* as_variant_call() {
+        return isVariantCall(val_kind()) ? ((VariantCall*) this) : nullptr;
+    }
+
+    inline VariantCase* as_variant_case() {
+        return isVariantCase(val_kind()) ? ((VariantCase*) this) : nullptr;
+    }
+
+    inline AddrOfValue* as_addr_of_value() {
+        return isAddrOfValue(val_kind()) ? ((AddrOfValue*) this) : nullptr;
+    }
+
+    inline WrapValue* as_wrap_value() {
+        return isWrapValue(val_kind()) ? ((WrapValue*) this) : nullptr;
+    }
+
+    // --------------------------------------------
+    // ------- as_value_unsafe methods begin here ---------
+    // --------------------------------------------
+
+    inline IntValue* as_int_unsafe() {
+        return ((IntValue*) this);
+    }
+
+    inline UIntValue* as_uint_unsafe() {
+        return ((UIntValue*) this);
+    }
+
+    inline CharValue* as_char_unsafe() {
+        return ((CharValue*) this);
+    }
+
+    inline UCharValue* as_uchar_unsafe() {
+        return ((UCharValue*) this);
+    }
+
+    inline ShortValue* as_short_unsafe() {
+        return ((ShortValue*) this);
+    }
+
+    inline UShortValue* as_ushort_unsafe() {
+        return ((UShortValue*) this);
+    }
+
+    inline LongValue* as_long_unsafe() {
+        return ((LongValue*) this);
+    }
+
+    inline ULongValue* as_ulong_unsafe() {
+        return ((ULongValue*) this);
+    }
+
+    inline BigIntValue* as_bigint_unsafe() {
+        return ((BigIntValue*) this);
+    }
+
+    inline UBigIntValue* as_ubigint_unsafe() {
+        return ((UBigIntValue*) this);
+    }
+
+    inline Int128Value* as_int128_unsafe() {
+        return ((Int128Value*) this);
+    }
+
+    inline UInt128Value* as_uint128_unsafe() {
+        return ((UInt128Value*) this);
+    }
+
+    inline FloatValue* as_float_unsafe() {
+        return ((FloatValue*) this);
+    }
+
+    inline DoubleValue* as_double_unsafe() {
+        return ((DoubleValue*) this);
+    }
+
+    inline BoolValue* as_bool_unsafe() {
+        return ((BoolValue*) this);
+    }
+
+    inline StringValue* as_string_unsafe() {
+        return ((StringValue*) this);
+    }
+
+    inline Expression* as_expression_unsafe() {
+        return ((Expression*) this);
+    }
+
+    inline ArrayValue* as_array_value_unsafe() {
+        return ((ArrayValue*) this);
+    }
+
+    inline StructValue* as_struct_value_unsafe() {
+        return ((StructValue*) this);
+    }
+
+    inline LambdaFunction* as_lambda_func_unsafe() {
+        return ((LambdaFunction*) this);
+    }
+
+    inline NumberValue* as_number_value_unsafe() {
+        return ((NumberValue*) this);
+    }
+
+    inline IsValue* as_is_value_unsafe() {
+        return ((IsValue*) this);
+    }
+
+    inline DereferenceValue* as_dereference_value_unsafe() {
+        return ((DereferenceValue*) this);
+    }
+
+    inline RetStructParamValue* as_ret_struct_param_value_unsafe() {
+        return ((RetStructParamValue*) this);
+    }
+
+    inline CastedValue* as_casted_value_unsafe() {
+        return ((CastedValue*) this);
+    }
+
+    inline VariableIdentifier* as_identifier_unsafe() {
+        return ((VariableIdentifier*) this);
+    }
+
+    inline IndexOperator* as_index_op_unsafe() {
+        return ((IndexOperator*) this);
+    }
+
+    inline FunctionCall* as_func_call_unsafe() {
+        return ((FunctionCall*) this);
+    }
+
+    inline NegativeValue* as_negative_value_unsafe() {
+        return ((NegativeValue*) this);
+    }
+
+    inline NotValue* as_not_value_unsafe() {
+        return ((NotValue*) this);
+    }
+
+    inline NullValue* as_null_value_unsafe() {
+        return ((NullValue*) this);
+    }
+
+    inline SizeOfValue* as_sizeof_value_unsafe() {
+        return ((SizeOfValue*) this);
+    }
+
+    inline VariantCall* as_variant_call_unsafe() {
+        return ((VariantCall*) this);
+    }
+
+    inline VariantCase* as_variant_case_unsafe() {
+        return ((VariantCase*) this);
+    }
+
+    inline AddrOfValue* as_addr_of_value_unsafe() {
+        return ((AddrOfValue*) this);
+    }
+
+    inline WrapValue* as_wrap_value_unsafe() {
+        return ((WrapValue*) this);
+    }
 
 };
 

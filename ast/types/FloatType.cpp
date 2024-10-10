@@ -9,7 +9,7 @@ bool FloatType::can_promote(Value *value) {
 
 Value *FloatType::promote(Value *value) {
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        return new FloatValue((float) value->as_int(), value->cst_token());
+        return new FloatValue((float) value->get_the_int(), value->cst_token());
     } else {
         return nullptr;
     }

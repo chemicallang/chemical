@@ -910,7 +910,7 @@ void InitBlock::code_gen(Codegen &gen) {
             auto call = val->as_func_call();
             auto called_struct = call->parent_val->linked_node();
             if(call->values.size() == 1) {
-                auto struc_val = call->values[0]->as_struct();
+                auto struc_val = call->values[0]->as_struct_value();
                 if(struc_val && struc_val->linked_node() == called_struct) {
                     // initializing directly using a struct
                     auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);

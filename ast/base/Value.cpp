@@ -413,7 +413,7 @@ bool Value::is_ref() {
     return false;
 }
 
-bool Value::is_func_call() {
+bool Value::is_chain_func_call() {
     auto chain = as_access_chain();
     if(chain && chain->values.back()->as_func_call() != nullptr) {
         return true;
@@ -516,23 +516,23 @@ Value* Value::copy(ASTAllocator& allocator) {
     return nullptr;
 }
 
-unsigned Value::as_uint() {
+unsigned Value::get_the_uint() {
     return ((UIntValue*) this)->value;
 }
 
-char Value::as_char() {
+char Value::get_the_char() {
     return ((CharValue*) this)->value;
 }
 
-bool Value::as_bool() {
+bool Value::get_the_bool() {
     return ((BoolValue*) this)->value;
 }
 
-std::string Value::as_string() {
+std::string Value::get_the_string() {
     return ((StringValue*) this)->value;
 }
 
-int Value::as_int() {
+int Value::get_the_int() {
     switch(val_kind()) {
         case ValueKind::Int:
             return ((IntValue*) this)->value;
@@ -547,20 +547,12 @@ int Value::as_int() {
     }
 }
 
-float Value::as_float() {
+float Value::get_the_float() {
     return ((FloatValue*) this)->value;
 }
 
-double Value::as_double() {
+double Value::get_the_double() {
     return ((DoubleValue*) this)->value;
-}
-
-StringValue* Value::as_string_value() {
-    if(val_kind() == ValueKind::String) {
-        return (StringValue*) this;
-    } else {
-        return nullptr;
-    }
 }
 
 Value* Value::get_first_value_from_value_node(ASTNode* node) {

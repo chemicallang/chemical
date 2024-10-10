@@ -140,7 +140,7 @@ llvm::Value* arg_value(
     }
     const auto value = value_ptr;
     llvm::Value* argValue = nullptr;
-    if((func_param->type->get_direct_linked_struct() || func_param->type->get_direct_linked_variant()) && (value->reference() && value->value_type() == ValueType::Struct) && !(value->as_struct() || value->as_array_value() || value->as_variant_call())) {
+    if((func_param->type->get_direct_linked_struct() || func_param->type->get_direct_linked_variant()) && (value->reference() && value->value_type() == ValueType::Struct) && !(value->as_struct_value() || value->as_array_value() || value->as_variant_call())) {
         argValue = value->llvm_pointer(gen);
     } else {
         if(i != -1) {
@@ -477,7 +477,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         if(!val) {
             return nullptr;
         }
-        auto as_struct = val->as_struct();
+        auto as_struct = val->as_struct_value();
         if(as_struct) {
             if(!returnedStruct) {
                 returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);

@@ -107,12 +107,12 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     }
 #ifdef DEBUG
     try {
-        return parent->index(scope, value->evaluated_value(scope)->as_int());
+        return parent->index(scope, value->evaluated_value(scope)->get_the_int());
     } catch (...) {
         std::cerr << "[InterpretError] index operator only support's integer indexes at the moment";
     }
 #endif
-    parent->index(scope, value->evaluated_value(scope)->as_int());
+    parent->index(scope, value->evaluated_value(scope)->get_the_int());
     return nullptr;
 }
 

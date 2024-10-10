@@ -184,7 +184,7 @@ namespace InterpretVector {
     }
 
     Value *InterpretVectorGet::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        return static_cast<InterpretVectorVal*>(parent_val)->values[call->values[0]->evaluated_value(*call_scope)->as_int()]->scope_value(*call_scope);
+        return static_cast<InterpretVectorVal*>(parent_val)->values[call->values[0]->evaluated_value(*call_scope)->get_the_int()]->scope_value(*call_scope);
     }
 
     InterpretVectorPush::InterpretVectorPush(InterpretVectorNode* node) : FunctionDeclaration(
@@ -225,7 +225,7 @@ namespace InterpretVector {
     }
     Value *InterpretVectorRemove::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
         auto& ref = static_cast<InterpretVectorVal*>(parent_val)->values;
-        ref.erase(ref.begin() + call->values[0]->evaluated_value(*call_scope)->as_int());
+        ref.erase(ref.begin() + call->values[0]->evaluated_value(*call_scope)->get_the_int());
         return nullptr;
     }
 
@@ -342,7 +342,7 @@ public:
         }
         switch(val_type) {
             case ValueType::String:
-                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->as_string().length(), nullptr);
+                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->get_the_string().length(), nullptr);
             case ValueType::Array:
                 return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->as_array_value()->array_size(), nullptr);
             default:
@@ -561,7 +561,7 @@ public:
         auto val = call->values[0]->evaluated_value(*call_scope);
         if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
         auto& definitions = call_scope->global->build_compiler->current_job->definitions;
-        auto found = definitions.find(val->as_string());
+        auto found = definitions.find(val->get_the_string());
         return new (call_scope->allocate<BoolValue>()) BoolValue(found != definitions.end(), nullptr);
     }
 };

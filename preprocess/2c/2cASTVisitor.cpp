@@ -2206,11 +2206,6 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
         //    write(';');
     }
     declare_struct_def_only(def);
-    // TODO remove this if
-    if(def->requires_destructor() && def->destructor_func() == nullptr) {
-        auto decl = def->create_destructor(visitor.allocator);
-        decl->make_destructor(visitor.allocator, def);
-    }
     for(auto& func : def->functions()) {
         if(def->get_overriding_interface(func) == nullptr) {
             declare_contained_func(this, func, struct_name_str(visitor, def) + func->name, false);

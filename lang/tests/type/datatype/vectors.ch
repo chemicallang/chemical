@@ -11,7 +11,7 @@ struct VecDestructibleChild {
     var i : int
     @implicit
     @copy
-    func copy(&self, other : *VecDestructibleChild) {
+    func copy(&self, &other) {
         i = other.i
     }
     @delete

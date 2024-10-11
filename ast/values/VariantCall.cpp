@@ -4,6 +4,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/base/BaseType.h"
+#include "ast/types/GenericType.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantDefinition.h"
@@ -245,20 +246,23 @@ bool VariantCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
 
 void VariantCall::set_created_type(ASTAllocator& allocator) {
     const auto member = chain->linked_node()->as_variant_member();
-    const auto largest_member = member->parent_node->largest_member();
+    const auto parent_node = member->parent_node;
+    const auto largest_member = parent_node->largest_member();
     if(largest_member == member) {
-        cached_type = member->parent_node->create_value_type(allocator);
+        cached_type = parent_node->create_value_type(allocator);
     } else {
         // TODO when it's not the largest member, we must create the type so that
         //  it reflects that, so user can't assign other members that are smaller than this member
-        cached_type = member->parent_node->create_value_type(allocator);
+        cached_type = parent_node->create_value_type(allocator);
+    }
+    if(!parent_node->generic_params.empty()) {
+        const auto gen_type = ((GenericType*) cached_type);
+        gen_type->generic_iteration = generic_iteration;
     }
 }
 
 BaseType* VariantCall::create_type(ASTAllocator& allocator) {
-    if(!cached_type) {
-        set_created_type(allocator);
-    }
+    set_created_type(allocator);
     return cached_type;
 }
 

@@ -670,9 +670,16 @@ BaseType* MembersContainer::create_linked_type(const std::string& name, ASTAlloc
         return linked_type;
     } else {
         const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(linked_type, {});
-        for(auto& param : generic_params) {
-            gen_type->types.emplace_back(new (allocator.allocate<LinkedType>()) LinkedType(param->identifier, param, nullptr));
-        }
+//        if(active_iteration == 0) {
+            // strut Thing<T> => Thing<T> where T references is linked with original type parameter T
+            for (auto& param: generic_params) {
+                gen_type->types.emplace_back(new(allocator.allocate<LinkedType>()) LinkedType(param->identifier, param, nullptr));
+            }
+//        } else {
+//            for (auto& param: generic_params) {
+//                gen_type->types.emplace_back(param->known_type());
+//            }
+//        }
         return gen_type;
     }
 }

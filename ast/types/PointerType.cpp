@@ -2,6 +2,7 @@
 
 #include "PointerType.h"
 #include "StringType.h"
+#include "ast/base/Value.h"
 #include "LiteralType.h"
 #include "ArrayType.h"
 #include <memory>
@@ -57,14 +58,19 @@ BaseType* PointerType::pure_type() {
     return this;
 }
 
-bool ReferenceType::satisfies(BaseType *given) {
+bool ReferenceType::satisfies(BaseType* given, Value* value) {
     const auto givenKind = given->kind();
     if(givenKind == BaseTypeKind::Reference) {
         const auto ref = ((ReferenceType*) given);
         return type->satisfies(ref->type) && (!is_mutable || ref->is_mutable);
     }
-    if(is_mutable && !given->is_mutable(givenKind)) {
+    if(is_mutable && !(given->is_mutable(givenKind) || value->is_ref_l_value())) {
         return false;
     }
     return type->satisfies(given);
+}
+
+bool ReferenceType::satisfies(ASTAllocator &allocator, Value *value) {
+    const auto val_type = value->create_type(allocator);
+    return val_type != nullptr && satisfies(val_type->pure_type(), value);
 }

@@ -530,7 +530,7 @@ public struct ASTBuilder {
 
     func make_variant_member(&self, name : *string, parent_node : *VariantDefinition, token : *CSTToken) : *VariantMember
 
-    func make_variant_member_param(&self, name : *string, index : uint, type : *BaseType, defValue : *Value, parent_node : *VariantMember, token : *CSTToken) : *VariantMemberParam
+    func make_variant_member_param(&self, name : *string, index : uint, is_const : bool, type : *BaseType, defValue : *Value, parent_node : *VariantMember, token : *CSTToken) : *VariantMemberParam
 
 
 }

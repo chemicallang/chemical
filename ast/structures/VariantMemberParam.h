@@ -15,10 +15,12 @@ public:
     VariantMember* parent_node;
     unsigned index;
     CSTToken* token;
+    bool is_const;
 
     VariantMemberParam(
         std::string name,
         unsigned index,
+        bool is_const,
         BaseType* type,
         Value* def_value,
         VariantMember* parent_node,

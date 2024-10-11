@@ -242,7 +242,7 @@ public:
      * this checks if this value is mutable
      * basically something that you can assign to
      */
-    bool check_is_mutable(FunctionType* func_type, ASTAllocator& allocator, bool nested);
+    bool check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, bool assigning);
 
     /**
      * is this value a function call

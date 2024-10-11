@@ -1463,7 +1463,8 @@ void CSTConverter::visitVariantMember(CSTToken* variant_member) {
     const auto member = new (local<VariantMember>()) VariantMember(str_token(variant_member->tokens[0]), (VariantDefinition*) parent_node, variant_member);
     auto result = function_params(this, nullptr, variant_member->tokens, 2);
     for(auto& value : result.params) {
-        member->values[value->name] =  new (local<VariantMemberParam>()) VariantMemberParam(value->name, value->index, value->type, value->defValue ? value->defValue : nullptr, member, value->token);
+        // TODO allow user to make variant member param const
+        member->values[value->name] =  new (local<VariantMemberParam>()) VariantMemberParam(value->name, value->index, false, value->type, value->defValue ? value->defValue : nullptr, member, value->token);
     }
     put_node(member, variant_member);
 }
@@ -1574,12 +1575,7 @@ void CSTConverter::visitPointerType(CSTToken* cst) {
     const auto ptr_type = new (local<PointerType>()) PointerType(elem_type, cst);
     if(is_pointer_before){
         const auto child_tok = cst->tokens[1];
-        const auto qualified_mutable = get_is_qual_mutable(child_tok);
-        if(qualified_mutable) {
-            ptr_type->is_mutable = true;
-        } else {
-            ptr_type->make_mutable_on_child();
-        }
+        ptr_type->is_mutable = get_is_qual_mutable(child_tok);
     }
     put_type(ptr_type, cst);
 }
@@ -1598,12 +1594,7 @@ void CSTConverter::visitReferenceType(CSTToken* cst) {
     const auto ref_type = new (local<ReferenceType>()) ReferenceType(elem_type, cst);
     if(is_pointer_before) {
         const auto child_tok = cst->tokens[1];
-        const auto qualified_mutable = get_is_qual_mutable(child_tok);
-        if(qualified_mutable) {
-            ref_type->is_mutable = true;
-        } else {
-            ref_type->make_mutable_on_child();
-        }
+        ref_type->is_mutable = get_is_qual_mutable(child_tok);
     }
     put_type(ref_type, cst);
 }

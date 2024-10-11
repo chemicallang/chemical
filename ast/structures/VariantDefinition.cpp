@@ -469,16 +469,17 @@ BaseTypeKind VariantMember::type_kind() const {
 VariantMemberParam::VariantMemberParam(
     std::string name,
     unsigned index,
+    bool is_const,
     BaseType* type,
     Value* def_value,
     VariantMember* parent_node,
     CSTToken* token
-) : name(std::move(name)), index(index), type(type), def_value(def_value), parent_node(parent_node), token(token) {
+) : name(std::move(name)), index(index), type(type), def_value(def_value), parent_node(parent_node), token(token), is_const(is_const) {
 
 }
 
 VariantMemberParam* VariantMemberParam::copy(ASTAllocator& allocator) {
-    return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent_node, token);
+    return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, is_const, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent_node, token);
 }
 
 void VariantMemberParam::declare_and_link(SymbolResolver &linker) {

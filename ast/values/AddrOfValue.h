@@ -16,6 +16,7 @@ public:
     Value* value;
     CSTToken* token;
     PointerType _ptr_type;
+    bool is_value_mutable = false;
 
     explicit AddrOfValue(Value* value, CSTToken* token);
 
@@ -33,13 +34,7 @@ public:
 
     AddrOfValue *copy(ASTAllocator& allocator) override;
 
-//    hybrid_ptr<BaseType> get_base_type() override {
-//        return hybrid_ptr<BaseType> { new PointerType(value->create_type(), nullptr) };
-//    }
-
-    BaseType* create_type(ASTAllocator& allocator) override {
-        return new (allocator.allocate<PointerType>()) PointerType(value->create_type(allocator), nullptr);
-    }
+    BaseType* create_type(ASTAllocator& allocator) override;
 
     BaseType* known_type() override {
         return &_ptr_type;

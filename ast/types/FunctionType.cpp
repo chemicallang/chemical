@@ -175,7 +175,7 @@ void FunctionType::assign_params() {
 BaseFunctionParam* FunctionType::get_self_param() {
     if(!params.empty()) {
         auto& param = params[0];
-        if(param->name == "this" || param->name == "self") {
+        if(param->is_implicit && (param->name == "self" || param->name == "this")) {
             return param;
         }
     }

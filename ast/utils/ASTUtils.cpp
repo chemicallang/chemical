@@ -48,7 +48,7 @@ void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& r
     FunctionCall imp_call(std::vector<Value*>{}, nullptr);
     imp_call.parent_val = &id;
     imp_call.values.emplace_back(value);
-    imp_call.find_link_in_parent(&id, resolver, nullptr, false);
+    imp_call.find_link_in_parent(nullptr, &id, resolver, nullptr, false);
     const auto replaced = imp_call.values[0];
 #ifdef DEBUG
     if(replaced != value) {

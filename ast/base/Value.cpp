@@ -430,8 +430,9 @@ bool Value::check_is_mutable(FunctionType* func_type, ASTAllocator& allocator, b
                         return !linked->as_var_init_unsafe()->is_const;
                     }
                 }
-                case ASTNodeKind::FunctionParam: {
-                    const auto type = linked->as_func_param()->type;
+                case ASTNodeKind::FunctionParam:
+                case ASTNodeKind::ExtensionFuncReceiver: {
+                    const auto type = linked->as_base_func_param_unsafe()->type;
                     return type->is_mutable(type->kind());
                 }
                 case ASTNodeKind::VariantCaseVariable: {

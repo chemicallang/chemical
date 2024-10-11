@@ -87,6 +87,7 @@ public:
     void link_constructor(SymbolResolver &resolver);
 
     bool find_link_in_parent(
+            ChainValue* first_value,
             ChainValue* grandpa,
             ChainValue *parent,
             SymbolResolver &resolver,
@@ -94,8 +95,8 @@ public:
             bool link_implicit_constructor
     );
 
-    bool find_link_in_parent(ChainValue* grandpa, ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
-        return find_link_in_parent(grandpa, parent, resolver, expected_type, true);
+    bool find_link_in_parent(ChainValue* first_value, ChainValue* grandpa, ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
+        return find_link_in_parent(first_value, grandpa, parent, resolver, expected_type, true);
     }
 
     bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) override {
@@ -104,7 +105,7 @@ public:
         const auto parent = parent_index >= 0 ? values[parent_index] : nullptr;
         if(parent) {
             const auto grandpa_index = parent_index -1;
-            return find_link_in_parent(grandpa_index >= 0 ? values[grandpa_index] : nullptr, parent, linker, expected_type);
+            return find_link_in_parent(values[0], grandpa_index >= 0 ? values[grandpa_index] : nullptr, parent, linker, expected_type);
         } else {
             return link(linker, (Value*&) values[index], expected_type);
         }

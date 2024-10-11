@@ -848,7 +848,7 @@ void FunctionCall::relink_parent(ChainValue *parent) {
     parent_val = parent;
 }
 
-bool FunctionCall::find_link_in_parent(ChainValue* grandpa, ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
+bool FunctionCall::find_link_in_parent(ChainValue* first_value, ChainValue* grandpa, ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
     parent_val = parent;
     FunctionDeclaration* func_decl = safe_linked_func();
     if(func_decl) {
@@ -856,12 +856,20 @@ bool FunctionCall::find_link_in_parent(ChainValue* grandpa, ChainValue* parent, 
             resolver.error("unsafe function with name should be called in an unsafe block", this);
         }
         const auto self_param = func_decl->get_self_param();
-        if(self_param && !grandpa) {
-            const auto arg_self = resolver.current_func_type->get_self_param();
-            if(!arg_self) {
-                resolver.error("cannot call function without an implicit self arg which is not present", this);
-            } else if(self_param->type->is_mutable(BaseTypeKind::Reference) && !arg_self->type->is_mutable(BaseTypeKind::Reference)) {
-                resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
+        if(self_param) {
+            if(grandpa) {
+                if(self_param->type->is_mutable(BaseTypeKind::Reference)) {
+                    if(!first_value->check_is_mutable(resolver.current_func_type, resolver.allocator, false)) {
+                        resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
+                    }
+                }
+            } else {
+                const auto arg_self = resolver.current_func_type->get_self_param();
+                if(!arg_self) {
+                    resolver.error("cannot call function without an implicit self arg which is not present", this);
+                } else if(self_param->type->is_mutable(BaseTypeKind::Reference) && !arg_self->type->is_mutable(BaseTypeKind::Reference)) {
+                    resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
+                }
             }
         }
     }

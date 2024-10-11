@@ -13,12 +13,12 @@ public:
     ASTNode *linked;
     bool is_mutable;
 
-    LinkedType(std::string type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(nullptr) {
+    LinkedType(std::string type, CSTToken* token, bool is_mutable = false) : type(std::move(type)), TokenizedBaseType(token), linked(nullptr), is_mutable(is_mutable) {
 
     }
 
     [[deprecated]]
-    LinkedType(std::string type, CSTToken* token, ASTNode* linked) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
+    LinkedType(std::string type, CSTToken* token, ASTNode* linked, bool is_mutable = false) : type(std::move(type)), TokenizedBaseType(token), linked(linked), is_mutable(is_mutable) {
 
     }
 

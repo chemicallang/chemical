@@ -64,7 +64,10 @@ bool ReferenceType::satisfies(BaseType* given, Value* value) {
         const auto ref = ((ReferenceType*) given);
         return type->satisfies(ref->type) && (!is_mutable || ref->is_mutable);
     }
-    if(is_mutable && !(given->is_mutable(givenKind) || value->is_ref_l_value())) {
+    if(givenKind == BaseTypeKind::IntN) {
+        return value->is_ref_l_value();
+    }
+    if(is_mutable && !given->is_mutable(givenKind)) {
         return false;
     }
     return type->satisfies(given);

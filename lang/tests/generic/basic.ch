@@ -39,7 +39,7 @@ func mul_int_pair(pair_gen : PairGen<int, int, int>) : int {
     return pair_gen.a * pair_gen.b;
 }
 
-func <T, U, V> (pair : *PairGen<T, U, V>) ext_div() : V {
+func <T, U, V> (pair : &PairGen<T, U, V>) ext_div() : V {
     return pair.a / pair.b;
 }
 

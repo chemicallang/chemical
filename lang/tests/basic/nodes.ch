@@ -1,4 +1,5 @@
 import "../test.ch"
+import "./switch/basic.ch"
 
 interface UnInheritedInterface {
     // this method should be removed from final code_gen
@@ -57,6 +58,10 @@ struct Point : Calculator {
         return self.x * self.y;
     }
 
+}
+
+func give_point_ptr_sum(p : *Point) : int {
+    return p.x + p.y;
 }
 
 func (point : &Point) double_sum() : int {
@@ -157,115 +162,7 @@ func test_nodes() {
        } while(j != 5);
        return j == 5;
     });
-    test("switch statement", () => {
-       var j = 0;
-       switch(j) {
-            0 => {
-                return true;
-            }
-            1 => {
-                return false;
-            }
-            default => {
-                return false;
-            }
-       }
-    });
-    test("switch statement with multiple cases - 1", () => {
-       var j = 0;
-       switch(j) {
-            0 | 1 => {
-                return true;
-            }
-            default => {
-                return false;
-            }
-       }
-    });
-    test("switch statement with multiple cases - 2", () => {
-       var j = 1;
-       switch(j) {
-            0 | 1 => {
-                return true;
-            }
-            default => {
-                return false;
-            }
-       }
-    });
-    test("switch statement with multiple cases - 3", () => {
-       var j = 3;
-       switch(j) {
-            0 | 1 => {
-                return false;
-            }
-            default => {
-                return true;
-            }
-       }
-    });
-    test("switch statement with multiple cases with default - 1", () => {
-       var j = 0;
-       switch(j) {
-            0 | 1 | default => {
-                return true;
-            }
-            3 => {
-                return false;
-            }
-       }
-    });
-    test("switch statement with multiple cases with default - 2", () => {
-       var j = 3;
-       switch(j) {
-            0 | 1 | default => {
-                return false;
-            }
-            3 => {
-                return true;
-            }
-       }
-    });
-    test("switch statement with multiple cases with default - 3", () => {
-       var j = 4;
-       switch(j) {
-            0 | 1 | default => {
-                return true;
-            }
-            3 => {
-                return false;
-            }
-       }
-    });
-    test("switch statement case keyword is optional", () => {
-        var j = 0;
-        switch(j) {
-            0 => {
-                return true;
-            }
-            1 => {
-                return false;
-            }
-            default => {
-                return false;
-            }
-        }
-    })
-    test("switch doesn't fallthrough by default", () => {
-        var j = 0;
-        switch(j) {
-            0 => {
-                j += 1;
-            }
-            1 => {
-                j += 1;
-            }
-            default => {
-                j += 1
-            }
-        }
-        return j == 1;
-    })
+    test_switch_statement();
     test("struct value initialization", () => {
         var p = Point {
             x : 5,
@@ -273,6 +170,12 @@ func test_nodes() {
         };
         return p.x == 5 && p.y == 6;
     });
+    /**
+    // TODO this doesn't make (sometimes)
+    test("struct value pointer can be passed using direct struct", () => {
+        return give_point_ptr_sum(&Point { a : 10, b : 23 }) == 33;
+    })
+    **/
     test("struct functions without self ref", () => {
          var p = Point {
              x : 0,
@@ -434,20 +337,6 @@ func test_nodes() {
     test("single statement if statement works - 2", () => {
         if(true) return true; else return false;
     })
-    test("switch statement can have single statement instead of block - 1", () => {
-        var i = 0;
-        switch(i) {
-            0 => return true
-            default => return false
-        }
-    })
-    test("switch statement can have single statement instead of block - 2", () => {
-        var i = 0;
-        switch(i) {
-            0 => return true;
-            default => return false;
-        }
-    })
     test("if statement can be used as a value - 1", () => {
         var val = true;
         var i = if(val) 5 else 6
@@ -477,22 +366,6 @@ func test_nodes() {
         var val = false;
         var i = if(val) create_pair_point(10, 20) else create_pair_point(5, 2);
         return i.x == 5 && i.y == 2;
-    })
-    test("switch statement can be used as a value - 1", () => {
-        var val = 45;
-        var i = switch(val) {
-             45 => 5
-             default => 6
-        }
-        return i == 5;
-    })
-    test("switch statement can be used as a value - 2", () => {
-        var val = 50;
-        var i = switch(val) {
-             45 => 5
-             default => 6
-        }
-        return i == 6;
     })
     test("switch as a value works with function calls - 1", () => {
         var val = 45;

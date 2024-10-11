@@ -44,7 +44,7 @@ bool PointerType::satisfies(BaseType *given) {
 BaseType* PointerType::pure_type() {
     const auto pure_child = type->pure_type();
     if(pure_child && pure_child != type) {
-        auto ptr = new PointerType(pure_child, token);
+        auto ptr = new PointerType(pure_child, token, is_mutable);
         pures.emplace_back(ptr);
         return ptr;
 //        pures.emplace_back(std::make_unique<PointerType>(hybrid_ptr<BaseType>{ pure_child, false }, token));

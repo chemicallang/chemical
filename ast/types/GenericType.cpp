@@ -18,10 +18,6 @@ GenericType::GenericType(LinkedType* referenced, int16_t generic_itr) : referenc
 
 }
 
-GenericType::GenericType(std::string base, CSTToken* token) : referenced(new LinkedType(std::move(base), token)) {
-
-}
-
 CSTToken* GenericType::cst_token() {
     return referenced->cst_token();
 }

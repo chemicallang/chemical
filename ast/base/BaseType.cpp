@@ -290,25 +290,6 @@ int16_t BaseType::set_generic_iteration(int16_t iteration) {
 
 bool BaseType::make_mutable(BaseTypeKind k) {
     switch(k) {
-        case BaseTypeKind::Linked:
-            ((LinkedType*) this)->is_mutable = true;
-            return true;
-        case BaseTypeKind::Generic:
-            ((GenericType*) this)->referenced->is_mutable = true;
-            return true;
-        case BaseTypeKind::Dynamic:{
-            const auto ref = ((DynamicType*) this)->referenced;
-            const auto ref_kind = ref->kind();
-            if(ref_kind == BaseTypeKind::Linked) {
-                ((LinkedType*) ref)->is_mutable = true;
-                return true;
-            } else if(ref_kind == BaseTypeKind::Generic) {
-                ((GenericType*) ref)->referenced->is_mutable = true;
-                return true;
-            } else {
-                return false;
-            }
-        }
         case BaseTypeKind::Pointer: {
             ((PointerType*) this)->is_mutable = true;
             const auto ref = ((PointerType*) this)->type;
@@ -320,6 +301,13 @@ bool BaseType::make_mutable(BaseTypeKind k) {
             return ref->make_mutable(ref->kind());
         }
         default:
+            // this method is called before symbol resolution, linked types are not linked
+            // linked types usually ref a struct / union / variant / interface which are mutable
+            // unless linked types ref a typealias, whose internal type we cannot make mutable
+            // all other int n types are determined to be mutable on the basis of 'var' keyword in var init
+            // or in struct member, basically their variable's value is changeable
+            // mutable means change that can be done within a struct is possible
+            // and var means directly changing a storage location to hold a different value is possible
             return true;
     }
 }
@@ -327,12 +315,10 @@ bool BaseType::make_mutable(BaseTypeKind k) {
 bool BaseType::is_mutable(BaseTypeKind k) {
     switch(k) {
         case BaseTypeKind::Linked:
-            return ((LinkedType*) this)->is_mutable;
         case BaseTypeKind::Generic:
-            return ((GenericType*) this)->referenced->is_mutable;
         case BaseTypeKind::Dynamic: {
-            const auto ref = ((DynamicType*) this)->referenced;
-            return ref->is_mutable(ref->kind());
+            // direct struct / union / variant / interface are all mutable
+            return true;
         }
         case BaseTypeKind::Pointer:
             return ((PointerType*) this)->is_mutable;

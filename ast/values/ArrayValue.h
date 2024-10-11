@@ -70,7 +70,7 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
-    llvm::Value *llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) override;
+    llvm::Value *llvm_arg_value(Codegen &gen, BaseType* expected_type) override;
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 

@@ -356,8 +356,8 @@ bool Value::add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, co
 #endif
 }
 
-llvm::Value* Value::llvm_arg_value(Codegen& gen, FunctionCall* call, unsigned int index) {
-    return llvm_value(gen, call->get_arg_type(index));
+llvm::Value* Value::llvm_arg_value(Codegen& gen, BaseType* expected_type) {
+    return llvm_value(gen, expected_type);
 }
 
 /**

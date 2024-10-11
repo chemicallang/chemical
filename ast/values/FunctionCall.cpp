@@ -158,9 +158,9 @@ llvm::Value* arg_value(
         argValue = value->llvm_pointer(gen);
     } else {
         if(i != -1) {
-            argValue = value->llvm_arg_value(gen, call, i);
+            argValue = value->llvm_arg_value(gen, param_type);
         } else {
-            argValue = value->llvm_value(gen,func_param->type);
+            argValue = value->llvm_value(gen, param_type);
         }
     }
     if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {

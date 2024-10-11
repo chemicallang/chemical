@@ -29,6 +29,11 @@ func take_int_ref(a : &int) : int {
     return *a;
 }
 
+variant OptRefInt {
+    Some(i : &int)
+    None()
+}
+
 func test_references() {
     test("integer references are passed as function arguments automatically", () => {
         var i = 3
@@ -38,6 +43,18 @@ func test_references() {
         var i = 45;
         var r = ReferencableInt { i : i }
         return take_int_ref(r.i) == 45;
+    })
+    test("integer references can be stored in variants automatically", () => {
+        var i = 32
+        var o = OptRefInt.Some(i)
+        switch(o) {
+            OptRefInt.Some(i) => {
+                return take_int_ref(i) == 32
+            }
+            OptRefInt.None() => {
+                return false;
+            }
+        }
     })
     test("struct can be passed to functions as reference", () => {
         var r = ReferencableStruct { i : 99 }

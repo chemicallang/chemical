@@ -35,7 +35,6 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
         inst = allocaInst;
     }
 
-    auto& current_func_type = *gen.current_func_type;
     for (const auto &value: values) {
         auto& value_ptr = value.second->value;
         auto variable = definition->variable_type_index(value.first);
@@ -43,26 +42,37 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
         } else {
 
-            // replace values that call implicit constructors
+            std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+            const auto elem_index = is_union() ? 0 : variable.first;
+
             auto implicit = variable.second->implicit_constructor_for(gen.allocator, value_ptr);
             if(implicit) {
+                // replace values that call implicit constructors
                 value_ptr = call_with_arg(implicit, value_ptr, gen.allocator);
+            } else {
+                const auto type_kind = variable.second->kind();
+                if(type_kind == BaseTypeKind::Reference) {
+                    // store pointer only, since user want's a reference
+                    auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, elem_index);
+                    const auto ref_pointer = value_ptr->llvm_pointer(gen);
+                    gen.builder->CreateStore(ref_pointer, elementPtr);
+                    continue;
+                }
             }
 
-            std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
             bool moved = false;
             if(value_ptr->is_ref_moved()) {
                 // since it will be moved, we will std memcpy it into current pointer
-                auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, is_union() ? 0 : variable.first);
+                auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, elem_index);
                 moved = gen.move_by_memcpy(variable.second, value_ptr, elementPtr, value_ptr->llvm_value(gen));
             }
             if(!moved) {
                 if (gen.requires_memcpy_ref_struct(variable.second, value_ptr)) {
-                    auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, is_union() ? 0 : variable.first);
+                    auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, elem_index);
                     gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr));
                 } else {
                     // couldn't move struct
-                    value_ptr->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
+                    value_ptr->store_in_struct(gen, this, inst, parent_type, idx, elem_index, variable.second);
                 }
             }
         }

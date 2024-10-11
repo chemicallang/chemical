@@ -448,7 +448,7 @@ bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value
 }
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value) {
-    if(type && type->kind() == BaseTypeKind::Reference) {
+    if(type && type->kind() == BaseTypeKind::Reference && !value->is_stored_pointer()) {
         write('&');
     }
     if(!implicit_mutate_value_default(*this, type, value)) {
@@ -486,7 +486,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             visitor.write(" = ");
             visitor.write('*');
         }
-        if(param->type->is_reference(param_type_kind) || is_struct_param || is_variant_param) {
+        if((param->type->is_reference(param_type_kind) && !val->is_stored_pointer()) || is_struct_param || is_variant_param) {
             auto allocated = visitor.local_allocated.find(val);
             visitor.write('&');
             if(allocated != visitor.local_allocated.end()) {

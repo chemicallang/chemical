@@ -31,30 +31,39 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
     auto itr = member->values.begin();
     for(auto& value_ptr : values) {
 
-        // replace calls to implicit constructor with actual calls
-        auto implicit_constructor = itr->second->type->implicit_constructor_for(gen.allocator, value_ptr);
+        const auto param = itr->second;
+        const auto param_type = param->type;
+
+        auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
         if (implicit_constructor) {
+            // replace calls to implicit constructor with actual calls
             value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator);
+        } else {
+            if(param_type->kind() == BaseTypeKind::Reference) {
+                // store reference when it's a implicit reference
+                std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
+                auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
+                const auto val = value_ptr->llvm_pointer(gen);
+                gen.builder->CreateStore(val, elementPtr);
+                continue;
+            }
         }
 
         auto& value = *value_ptr;
-        const auto param = member->values.begin() + i;
-        auto& param_type = *param->second->type;
         bool moved = false;
         if(value_ptr->is_ref_moved()) {
             // since it will be moved, we will std memcpy it into current pointer
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
             auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idx, i);
-            moved = gen.move_by_memcpy(&param_type, value_ptr, elementPtr, value_ptr->llvm_value(gen));
+            moved = gen.move_by_memcpy(param_type, value_ptr, elementPtr, value_ptr->llvm_value(gen));
         }
         if(!moved) {
-            if(gen.requires_memcpy_ref_struct(&param_type, value_ptr)) {
+            if(gen.requires_memcpy_ref_struct(param_type, value_ptr)) {
                 std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
                 auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
                 gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr));
             } else {
-                value.store_in_struct(gen, this, data_ptr, struct_type, {gen.builder->getInt32(0)}, i,
-                                      &param_type);
+                value.store_in_struct(gen, this, data_ptr, struct_type, {gen.builder->getInt32(0)}, i, param_type);
             }
         }
         itr++;

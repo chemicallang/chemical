@@ -104,8 +104,6 @@ public:
 
     bool primitive() override;
 
-    bool reference() override;
-
     bool compile_time_computable() override;
 
     void interpret(InterpretScope &scope) override;

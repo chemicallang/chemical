@@ -105,10 +105,6 @@ BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
 //    }
 //}
 
-bool VariableIdentifier::reference() {
-    return true;
-}
-
 void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) {
 #ifdef DEBUG
     if (parent == nullptr) {

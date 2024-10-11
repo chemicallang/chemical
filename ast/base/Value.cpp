@@ -551,6 +551,17 @@ bool Value::is_ref_moved() {
     return false;
 }
 
+bool Value::reference() {
+    const auto kind = val_kind();
+    switch(kind) {
+        case ValueKind::AccessChain:
+        case ValueKind::Identifier:
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool Value::requires_memcpy_ref_struct(BaseType* known_type) {
     // is referencing another struct, that is non movable and must be mem copied into the pointer
     const auto chain = as_access_chain();

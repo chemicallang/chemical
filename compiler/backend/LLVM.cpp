@@ -391,8 +391,11 @@ llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<Ch
 
 llvm::Type *DereferenceValue::llvm_type(Codegen &gen) {
     auto addr = value->create_type(gen.allocator);
-    if(addr->kind() == BaseTypeKind::Pointer) {
+    const auto addr_kind = addr->kind();
+    if(addr_kind == BaseTypeKind::Pointer) {
         return ((PointerType*) (addr))->type->llvm_type(gen);
+    } else if(addr_kind == BaseTypeKind::Reference) {
+        return ((ReferenceType*) (addr))->type->llvm_type(gen);
     } else {
         gen.error("De-referencing a value that is not a pointer " + value->representation(), this);
         return nullptr;

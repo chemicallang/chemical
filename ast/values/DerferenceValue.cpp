@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "DereferenceValue.h"
+#include "ast/types/ReferenceType.h"
 
 DereferenceValue::DereferenceValue(
         Value* value,
@@ -15,8 +16,11 @@ bool DereferenceValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType 
 
 BaseType* DereferenceValue::create_type(ASTAllocator& allocator) {
     auto addr = value->create_type(allocator);
-    if(addr->kind() == BaseTypeKind::Pointer) {
+    const auto addr_kind = addr->kind();
+    if(addr_kind == BaseTypeKind::Pointer) {
         return ((PointerType*) addr)->type->copy(allocator);
+    } else if(addr_kind == BaseTypeKind::Reference) {
+        return ((ReferenceType*) addr)->type->copy(allocator);
     } else {
         // TODO cannot report error here, the type cannot be created because the linked type is not a pointer
         return nullptr;

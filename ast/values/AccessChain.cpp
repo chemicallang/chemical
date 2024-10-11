@@ -143,10 +143,6 @@ bool AccessChain::primitive() {
     return false;
 }
 
-bool AccessChain::reference() {
-    return true;
-}
-
 bool AccessChain::compile_time_computable() {
     for(auto& value : values) {
         if(!value->compile_time_computable()) {

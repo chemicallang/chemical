@@ -58,12 +58,12 @@ BaseType* PointerType::pure_type() {
 }
 
 bool ReferenceType::satisfies(BaseType *given) {
-    const auto kind = given->kind();
-    if(kind == BaseTypeKind::Reference) {
+    const auto givenKind = given->kind();
+    if(givenKind == BaseTypeKind::Reference) {
         const auto ref = ((ReferenceType*) given);
         return type->satisfies(ref->type) && (!is_mutable || ref->is_mutable);
     }
-    if(is_mutable && !given->is_mutable(given->kind())) {
+    if(is_mutable && !given->is_mutable(givenKind)) {
         return false;
     }
     return type->satisfies(given);

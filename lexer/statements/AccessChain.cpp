@@ -72,7 +72,7 @@ bool Lexer::lexAccessChain(bool lexStruct, bool lex_as_node) {
 bool Lexer::lexAccessChainOrAddrOf(bool lexStruct) {
     if(lexOperatorToken('&')) {
         auto start = tokens_size() - 1;
-        if(lexAccessChain(false)) {
+        if(lexAccessChain(true)) {
             compound_from(start, LexTokenType::CompAddrOf);
         } else {
             error("expected a value after '&' for address of");

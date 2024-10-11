@@ -31,7 +31,7 @@ public:
         return type == ValueType::Struct;
     }
 
-    bool satisfies(ASTAllocator &allocator, Value *value) override;
+    bool satisfies(BaseType *type) override;
 
     [[nodiscard]]
     ValueType value_type() const override {

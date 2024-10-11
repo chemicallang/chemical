@@ -24,8 +24,22 @@ void AssignStatement::declare_and_link(SymbolResolver &linker) {
     if(lhs->link_assign(linker, lhs, nullptr)) {
         BaseType* value_type = lhs->create_type(linker.allocator);
         if(value->link(linker, value, value_type)) {
-            if (!value_type->satisfies(linker.allocator, value)) {
-                linker.unsatisfied_type_err(value, value_type);
+            switch(assOp){
+                case Operation::Assignment:
+                    if (!value_type->satisfies(linker.allocator, value)) {
+                        linker.unsatisfied_type_err(value, value_type);
+                    }
+                    break;
+                case Operation::Addition:
+                case Operation::Subtraction:
+                    if(value_type->kind() == BaseTypeKind::Pointer) {
+                        if(value->val_kind() != ValueKind::NumberValue) {
+                            linker.unsatisfied_type_err(value, value_type);
+                        }
+                    } else if (!value_type->satisfies(linker.allocator, value)) {
+                        linker.unsatisfied_type_err(value, value_type);
+                    }
+                    break;
             }
         }
         auto id = lhs->as_identifier();

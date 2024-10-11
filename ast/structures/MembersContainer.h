@@ -309,6 +309,12 @@ public:
     bool contains_func(const std::string& name);
 
     /**
+     * this creates a linked type to this members container, so that
+     * generic parameters are accounted for
+     */
+    BaseType* create_linked_type(const std::string& name, ASTAllocator& allocator);
+
+    /**
      * this generic type is registered as a subscriber of this generic node
      */
     void subscribe(GenericType *subscriber) override {

@@ -308,16 +308,7 @@ uint64_t VariantDefinition::byte_size(bool is64Bit) {
 }
 
 BaseType* VariantDefinition::create_value_type(ASTAllocator& allocator) {
-    const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(name, this, nullptr);
-    if(generic_params.empty()) {
-        return linked_type;
-    } else {
-        const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(linked_type, {});
-        for(auto& param : generic_params) {
-            gen_type->types.emplace_back(new (allocator.allocate<LinkedType>()) LinkedType(param->identifier, param, nullptr));
-        }
-        return gen_type;
-    }
+    return create_linked_type(name, allocator);
 }
 
 //hybrid_ptr<BaseType> VariantDefinition::get_value_type() {

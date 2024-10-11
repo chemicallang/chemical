@@ -546,6 +546,10 @@ llvm::Type *AddrOfValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *AddrOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+    const auto struct_value = value->as_struct_value();
+    if(struct_value) {
+        return struct_value->llvm_allocate(gen, "", nullptr);
+    }
     return value->llvm_pointer(gen);
 }
 

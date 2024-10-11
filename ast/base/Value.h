@@ -393,7 +393,7 @@ public:
      * this method is called by function call to get the parameter value for this Value
      * if this class defines specific behavior for function call, it should override this method
      */
-    virtual llvm::Value* llvm_arg_value(Codegen& gen, FunctionCall* call, unsigned int index);
+    virtual llvm::Value* llvm_arg_value(Codegen& gen, BaseType* expected_type);
 
     /**
      * this method is called by return statement to get the return value for this Value

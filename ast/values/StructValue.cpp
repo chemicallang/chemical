@@ -186,7 +186,7 @@ llvm::Value* StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, V
     return nullptr;
 }
 
-llvm::Value *StructValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {
+llvm::Value *StructValue::llvm_arg_value(Codegen &gen, BaseType* expected_type) {
     return llvm_allocate(gen, "", nullptr);
 }
 

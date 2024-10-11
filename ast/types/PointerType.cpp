@@ -63,5 +63,8 @@ bool ReferenceType::satisfies(BaseType *given) {
         const auto ref = ((ReferenceType*) given);
         return type->satisfies(ref->type) && (!is_mutable || ref->is_mutable);
     }
+    if(is_mutable && !given->is_mutable(given->kind())) {
+        return false;
+    }
     return type->satisfies(given);
 }

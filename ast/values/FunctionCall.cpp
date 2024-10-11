@@ -848,11 +848,22 @@ void FunctionCall::relink_parent(ChainValue *parent) {
     parent_val = parent;
 }
 
-bool FunctionCall::find_link_in_parent(ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
+bool FunctionCall::find_link_in_parent(ChainValue* grandpa, ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
     parent_val = parent;
     FunctionDeclaration* func_decl = safe_linked_func();
-    if(func_decl && func_decl->has_annotation(AnnotationKind::Unsafe) && resolver.safe_context) {
-        resolver.error("unsafe function with name should be called in an unsafe block", this);
+    if(func_decl) {
+        if(func_decl->has_annotation(AnnotationKind::Unsafe) && resolver.safe_context) {
+            resolver.error("unsafe function with name should be called in an unsafe block", this);
+        }
+        const auto self_param = func_decl->get_self_param();
+        if(self_param && !grandpa) {
+            const auto arg_self = resolver.current_func_type->get_self_param();
+            if(!arg_self) {
+                resolver.error("cannot call function without an implicit self arg which is not present", this);
+            } else if(self_param->type->is_mutable(BaseTypeKind::Reference) && !arg_self->type->is_mutable(BaseTypeKind::Reference)) {
+                resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
+            }
+        }
     }
     int16_t prev_itr;
     relink_multi_func(resolver.allocator, &resolver);

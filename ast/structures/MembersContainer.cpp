@@ -664,6 +664,19 @@ bool MembersContainer::contains_func(const std::string& name) {
     return indexes.find(name) != indexes.end();
 }
 
+BaseType* MembersContainer::create_linked_type(const std::string& name, ASTAllocator& allocator) {
+    const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(name, this, nullptr);
+    if(generic_params.empty()) {
+        return linked_type;
+    } else {
+        const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(linked_type, {});
+        for(auto& param : generic_params) {
+            gen_type->types.emplace_back(new (allocator.allocate<LinkedType>()) LinkedType(param->identifier, param, nullptr));
+        }
+        return gen_type;
+    }
+}
+
 bool MembersContainer::extends_node(ASTNode* other) {
     if(!inherited.empty()) {
         const auto otherKind = other->kind();

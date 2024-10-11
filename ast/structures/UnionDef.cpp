@@ -103,7 +103,7 @@ BaseType *UnnamedUnion::copy(ASTAllocator& allocator) const {
 }
 
 BaseType* UnionDef::create_value_type(ASTAllocator& allocator) {
-    return copy(allocator);
+    return create_linked_type(name, allocator);
 }
 
 BaseType* UnionDef::known_type() {

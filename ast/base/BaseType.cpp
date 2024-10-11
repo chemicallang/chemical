@@ -182,10 +182,6 @@ std::unique_ptr<Value> BaseType::promote_unique(Value* value) {
     return std::unique_ptr<Value>(promote(value));
 }
 
-bool BaseType::is_reference(BaseTypeKind k) {
-    return k == BaseTypeKind::Reference;
-}
-
 ASTNode* BaseType::get_direct_linked_node(BaseTypeKind kind) {
     switch(kind) {
         case BaseTypeKind::Linked:

@@ -461,9 +461,7 @@ public:
     /**
      * return true if this value is a reference (VariableIdentifier)
      */
-    virtual bool reference() {
-        return false;
-    }
+    bool reference();
 
     /**
      * This method is overridden by primitive values like int, float... to return true

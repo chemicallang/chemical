@@ -134,13 +134,28 @@ llvm::Value* arg_value(
         Value* value_ptr,
         int i
 ) {
-    auto implicit_constructor = func_param->type->implicit_constructor_for(gen.allocator, value_ptr);
+    const auto param_type = func_param->type;
+    const auto param_type_kind = param_type->kind();
+
+    auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
     if (implicit_constructor) {
         value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator);
     }
-    const auto value = value_ptr;
     llvm::Value* argValue = nullptr;
-    if((func_param->type->get_direct_linked_struct() || func_param->type->get_direct_linked_variant()) && (value->reference() && value->value_type() == ValueType::Struct) && !(value->as_struct_value() || value->as_array_value() || value->as_variant_call())) {
+
+    const auto value = value_ptr;
+    const auto value_kind = value->val_kind();
+
+    const auto linked = param_type->get_direct_linked_node();
+    const auto is_stored_decl = linked && ASTNode::isStoredStructDecl(linked->kind());
+
+    const auto is_param_ref = param_type->is_reference(param_type_kind);
+
+    if(
+        is_param_ref || (
+            (param_type->get_direct_linked_struct() || param_type->get_direct_linked_variant()) &&
+            (value->reference() && value->value_type() == ValueType::Struct) && !(value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue || value_kind == ValueKind::VariantCall)
+    )) {
         argValue = value->llvm_pointer(gen);
     } else {
         if(i != -1) {

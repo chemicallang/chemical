@@ -278,7 +278,9 @@ public:
     /**
      * check if this represents a reference
      */
-    bool is_reference(BaseTypeKind k);
+    bool is_reference(BaseTypeKind k) {
+        return k == BaseTypeKind::Reference;
+    }
 
     /**
      * helper function

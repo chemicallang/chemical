@@ -21,7 +21,15 @@ variant ReferencableStructOpt {
     None()
 }
 
+func take_int_ref(a : &int) : int {
+    return *a;
+}
+
 func test_references() {
+    test("integer references are taken automatically", () => {
+        var i = 3
+        return take_int_ref(i) == 3;
+    })
     test("struct can be passed to functions as reference", () => {
         var r = ReferencableStruct { i : 99 }
         return take_ref(r) == 99;

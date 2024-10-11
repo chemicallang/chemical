@@ -317,6 +317,10 @@ bool BaseType::is_mutable(BaseTypeKind k) {
             // direct struct / union / variant / interface are all mutable
             return true;
         }
+        case BaseTypeKind::Array: {
+            // array types are mutable
+            return true;
+        }
         case BaseTypeKind::Linked: {
             const auto linked = ((LinkedType*) this)->linked;
             const auto linked_kind = linked->kind();

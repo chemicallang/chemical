@@ -4,9 +4,9 @@ struct Destructible {
 
     var data : int
 
-    var count : *int
+    var count : *mut int
 
-    var lamb : (count : *int) => void;
+    var lamb : (count : *mut int) => void;
 
     @clear
     func clear(&self) {
@@ -55,25 +55,25 @@ struct Holder1 {
     var thing : Destructible
 }
 
-func create_destructible(count : *int, data : int) : Destructible {
+func create_destructible(count : *mut int, data : int) : Destructible {
     return Destructible {
        data : data,
        count : count,
-       lamb : (count : *int) => {
+       lamb : (count : *mut int) => {
            *count = *count + 1;
        }
     }
 }
 
-func destruct_inc_count(count : *int) {
+func destruct_inc_count(count : *mut int) {
     *count = *count + 1;
 }
 
-func destructible_but_last_if(count : *int, data : int) {
+func destructible_but_last_if(count : *mut int, data : int) {
     var d = Destructible {
        data : data,
        count : count,
-       lamb : (count : *int) => {
+       lamb : (count : *mut int) => {
            *count = *count + 1;
        }
     }
@@ -85,11 +85,11 @@ func destructible_but_last_if(count : *int, data : int) {
     }
 }
 
-func destructible_but_last_if_returns(count : *int, data : int) {
+func destructible_but_last_if_returns(count : *mut int, data : int) {
     var d = Destructible {
        data : data,
        count : count,
-       lamb : (count : *int) => {
+       lamb : (count : *mut int) => {
            *count = *count + 1;
        }
     }
@@ -103,10 +103,10 @@ func destructible_but_last_if_returns(count : *int, data : int) {
     }
 }
 
-func test_destruction_at_early_return(count : *int, early_return : bool) {
+func test_destruction_at_early_return(count : *mut int, early_return : bool) {
     var d = Destructible {
        count : count,
-       lamb : (count : *int) => {
+       lamb : (count : *mut int) => {
            *count = *count + 1;
        },
        data : 9990
@@ -116,17 +116,17 @@ func test_destruction_at_early_return(count : *int, early_return : bool) {
     }
     var z = Destructible {
        count : count,
-       lamb : (count : *int) => {
+       lamb : (count : *mut int) => {
            *count = *count + 1;
        },
        data : 9990
     }
 }
 
-func test_conditional_destruction(count : *int, condition : bool) {
+func test_conditional_destruction(count : *mut int, condition : bool) {
     var d = Destructible {
        count : count,
-       lamb : (count : *int) => {
+       lamb : (count : *mut int) => {
            *count = *count + 1;
        },
        data : 9990
@@ -134,7 +134,7 @@ func test_conditional_destruction(count : *int, condition : bool) {
     if(condition) {
         var z = Destructible {
            count : count,
-           lamb : (count : *int) => {
+           lamb : (count : *mut int) => {
                *count = *count + 1;
            },
            data : 9990
@@ -151,7 +151,7 @@ func test_return_struct_param(d : Destructible) : Destructible {
     return d;
 }
 
-func send_lambda_struct(data : int, count : *int, lamb : (d : Destructible) => void) {
+func send_lambda_struct(data : int, count : *mut int, lamb : (d : Destructible) => void) {
     lamb(Destructible {
         data : data,
         count : count,
@@ -199,10 +199,10 @@ func test_return_variant_param(d : OptDestructible) : OptDestructible {
     return d;
 }
 
-func test_variant_destruction_at_early_return(count : *int, early_return : bool) {
+func test_variant_destruction_at_early_return(count : *mut int, early_return : bool) {
     var d = OptDestructible.Some(Destructible {
         count : count,
-        lamb : (count : *int) => {
+        lamb : (count : *mut int) => {
             *count = *count + 1;
         },
         data : 9990
@@ -212,17 +212,17 @@ func test_variant_destruction_at_early_return(count : *int, early_return : bool)
     }
     var z = OptDestructible.Some(Destructible {
         count : count,
-        lamb : (count : *int) => {
+        lamb : (count : *mut int) => {
             *count = *count + 1;
         },
         data : 9990
      })
 }
 
-func test_variant_conditional_destruction(count : *int, condition : bool) {
+func test_variant_conditional_destruction(count : *mut int, condition : bool) {
     var d = OptDestructible.Some(Destructible {
         count : count,
-        lamb : (count : *int) => {
+        lamb : (count : *mut int) => {
             *count = *count + 1;
         },
         data : 9990
@@ -230,7 +230,7 @@ func test_variant_conditional_destruction(count : *int, condition : bool) {
     if(condition) {
         var z = OptDestructible.Some(Destructible {
             count : count,
-            lamb : (count : *int) => {
+            lamb : (count : *mut int) => {
                 *count = *count + 1;
             },
             data : 9990
@@ -247,7 +247,7 @@ func test_destructors() {
             var d = Destructible {
                 data : 892,
                 count : &count,
-                lamb : (count : *int) => {
+                lamb : (count : *mut int) => {
                     *count = *count + 1;
                 }
             }
@@ -271,7 +271,7 @@ func test_destructors() {
             var d : Destructible;
             d.data = 426
             d.count = &count;
-            d.lamb = (count : *int) => {
+            d.lamb = (count : *mut int) => {
                 *count = *count + 1;
             }
             data_usable = d.data == 426;
@@ -314,7 +314,7 @@ func test_destructors() {
         if(count == 0) {
             var d : Destructible
             d.count = &count;
-            d.lamb = (count : *int) => {
+            d.lamb = (count : *mut int) => {
                 *count = *count + 1;
             }
             var x : *Destructible
@@ -328,11 +328,11 @@ func test_destructors() {
         if(count == 0) {
             var arr = {}Destructible(10);
             var i = 0;
-            var ptr : *Destructible;
+            var ptr : *mut Destructible;
             while(i < 10) {
                 ptr = &arr[i];
                 ptr.count = &count;
-                ptr.lamb = (count : *int) => {
+                ptr.lamb = (count : *mut int) => {
                     *count = *count + 1;
                 }
                 i++;
@@ -345,11 +345,11 @@ func test_destructors() {
         if(count == 0) {
             var arr : Destructible[10];
             var i = 0;
-            var ptr : *Destructible;
+            var ptr : *mut Destructible;
             while(i < 10) {
                 ptr = &arr[i];
                 ptr.count = &count;
-                ptr.lamb = (count : *int) => {
+                ptr.lamb = (count : *mut int) => {
                     *count = *count + 1;
                 }
                 i++;
@@ -382,7 +382,7 @@ func test_destructors() {
             test_struct_param_destructor(
                 Destructible {
                     count : &count,
-                    lamb : (count : *int) => {
+                    lamb : (count : *mut int) => {
                         *count = *count + 1;
                     },
                     data : 9990
@@ -510,7 +510,7 @@ func test_destructors() {
             const x = OptDestructible.Some(Destructible {
                 data : 892,
                 count : &count,
-                lamb : (count : *int) => {
+                lamb : (count : *mut int) => {
                     *count = *count + 1;
                 }
             })
@@ -532,7 +532,7 @@ func test_destructors() {
                 OptDestructible.Some(
                     Destructible {
                         count : &count,
-                        lamb : (count : *int) => {
+                        lamb : (count : *mut int) => {
                             *count = *count + 1;
                         },
                         data : 9990

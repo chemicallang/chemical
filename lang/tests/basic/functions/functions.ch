@@ -29,7 +29,7 @@ struct MemLamb {
 
 }
 
-func (mem : *MemLamb) ext_func_test() : TestStruct1 {
+func (mem : &MemLamb) ext_func_test() : TestStruct1 {
     return TestStruct1 {
         x : 300,
         y : 300

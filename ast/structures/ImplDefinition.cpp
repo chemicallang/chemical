@@ -77,13 +77,18 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
     return 0;
 }
 
-void ImplDefinition::declare_and_link(SymbolResolver &linker) {
+void ImplDefinition::declare_top_level(SymbolResolver &linker) {
     interface_type->link(linker);
     if(struct_type) {
         struct_type->link(linker);
     }
+    const auto linked = interface_type->linked_node()->as_interface_def();
+    linked->register_impl(this);
+}
+
+void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     auto& interface_name = interface_type->linked_name();
-    auto linked = interface_type->linked_node()->as_interface_def();
+    const auto linked = interface_type->linked_node()->as_interface_def();
     if(!linked) {
         linker.error("couldn't find interface by name " + interface_name + " for implementation", interface_type);
         return;
@@ -108,7 +113,6 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     }
     MembersContainer::declare_and_link_no_scope(linker);
     linker.scope_end();
-    linked->register_impl(this);
     if(struct_linked) {
         // adding all methods of this implementation to struct
         struct_linked->adopt(this);

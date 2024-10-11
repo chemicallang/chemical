@@ -48,6 +48,11 @@ public:
         return 0;
     }
 
+    bool get_is_const() override {
+        // TODO allow user to mark unnamed structs const
+        return false;
+    }
+
     BaseDefMember* copy_member(ASTAllocator &allocator) override;
 
     VariablesContainer *copy_container(ASTAllocator& allocator) override;

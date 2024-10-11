@@ -45,6 +45,10 @@ public:
 
     BaseDefMember *copy_member(ASTAllocator& allocator) override;
 
+    bool get_is_const() override {
+        return true;
+    }
+
     void accept(Visitor *visitor) override;
 
     void declare_top_level(SymbolResolver &linker) override;

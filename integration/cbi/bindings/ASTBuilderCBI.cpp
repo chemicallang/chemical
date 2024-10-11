@@ -481,8 +481,8 @@ VariantMember* ASTBuildermake_variant_member(CSTConverter* converter, chem::stri
     return new (converter->local<VariantMember>()) VariantMember(name->to_std_string(), parent_node, token);
 }
 
-VariantMemberParam* ASTBuildermake_variant_member_param(CSTConverter* converter, chem::string* name, unsigned int index, BaseType* type, Value* defValue, VariantMember* parent_node, CSTToken* token) {
-    return new (converter->local<VariantMemberParam>()) VariantMemberParam(name->to_std_string(), index, type, defValue, parent_node, token);
+VariantMemberParam* ASTBuildermake_variant_member_param(CSTConverter* converter, chem::string* name, unsigned int index, bool is_const, BaseType* type, Value* defValue, VariantMember* parent_node, CSTToken* token) {
+    return new (converter->local<VariantMemberParam>()) VariantMemberParam(name->to_std_string(), index, is_const, type, defValue, parent_node, token);
 }
 
 // ------------------------------AST Methods begin here-----------------------------------------------

@@ -6,6 +6,7 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
+#include "compiler/SymbolResolver.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/NumberValue.h"
@@ -415,58 +416,90 @@ bool Value::is_ref() {
     return false;
 }
 
-bool Value::check_is_mutable(FunctionType* func_type, ASTAllocator& allocator, bool nested) {
+bool is_node_mutable(ASTNode* node, FunctionType* func_type, SymbolResolver& resolver, bool assigning) {
+    const auto linked_kind = node->kind();
+    switch(linked_kind) {
+        case ASTNodeKind::VarInitStmt:{
+            if(!assigning) {
+                const auto type = node->as_var_init_unsafe()->create_value_type(resolver.allocator);
+                return type->is_mutable(type->kind());
+            } else {
+                return !node->as_var_init_unsafe()->is_const;
+            }
+        }
+        case ASTNodeKind::FunctionParam:
+        case ASTNodeKind::ExtensionFuncReceiver: {
+            if(assigning) return false;
+            const auto type = node->as_base_func_param_unsafe()->type;
+            return type->is_mutable(type->kind());
+        }
+        case ASTNodeKind::VariantCaseVariable: {
+            const auto member_param = node->as_variant_case_var_unsafe()->member_param;
+            if(assigning) {
+                return !member_param->is_const;
+            } else {
+                const auto type = member_param->type;
+                return type->is_mutable(type->kind());
+            }
+        }
+        case ASTNodeKind::StructMember:
+        case ASTNodeKind::UnnamedUnion:
+        case ASTNodeKind::UnnamedStruct: {
+            if(assigning) {
+                return !node->as_base_def_member_unsafe()->get_is_const();
+            } else {
+                const auto self_param = func_type->get_self_param();
+                if (self_param) {
+                    return self_param->type->is_mutable(self_param->type->kind());
+                } else {
+                    const auto func = func_type->as_function();
+                    // constructor takes a mutable reference by default
+                    return func->has_annotation(AnnotationKind::Constructor);
+                }
+            }
+        }
+        default:
+            return false;
+    }
+}
+
+bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, bool assigning) {
     const auto kind = val_kind();
     switch(kind) {
         case ValueKind::Identifier: {
-            const auto linked = as_identifier_unsafe()->linked;
-            const auto linked_kind = linked->kind();
-            switch(linked_kind) {
-                case ASTNodeKind::VarInitStmt:{
-                    if(nested) {
-                        const auto type = linked->as_var_init_unsafe()->create_value_type(allocator);
-                        return type->is_mutable(type->kind());
-                    } else {
-                        return !linked->as_var_init_unsafe()->is_const;
-                    }
-                }
-                case ASTNodeKind::FunctionParam:
-                case ASTNodeKind::ExtensionFuncReceiver: {
-                    const auto type = linked->as_base_func_param_unsafe()->type;
-                    return type->is_mutable(type->kind());
-                }
-                case ASTNodeKind::VariantCaseVariable: {
-                    const auto type = linked->as_variant_case_var_unsafe()->member_param->type;
-                    return type->is_mutable(type->kind());
-                }
-                case ASTNodeKind::StructMember:
-                case ASTNodeKind::UnnamedUnion:
-                case ASTNodeKind::UnnamedStruct: {
-                    const auto self_param = func_type->get_self_param();
-                    if(self_param) {
-                        return self_param->type->is_mutable(self_param->type->kind());
-                    } else {
-                        const auto func = func_type->as_function();
-                        // constructor takes a mutable reference by default
-                        return func->has_annotation(AnnotationKind::Constructor);
-                    }
-                }
-                default:
-                    return false;
+            const auto id = as_identifier_unsafe();
+            if(assigning) {
+                return is_node_mutable(id->linked, func_type, resolver, assigning);
+            } else {
+                const auto type = id->linked->create_value_type(resolver.allocator);
+                return type->is_mutable(type->kind());
             }
         }
         case ValueKind::AccessChain: {
             const auto chain = as_access_chain();
-            const auto func_call = chain->values.back()->as_func_call();
-            if(func_call) {
-                const auto value_type = chain->create_type(allocator);
-                return value_type->is_mutable(value_type->kind());
-            } else {
-                return chain->values.front()->check_is_mutable(func_type, allocator, true);
+            auto& chain_values = chain->values;
+            unsigned i = 0;
+            const auto chain_size = chain_values.size();
+            const auto last_ind = chain_size - 1;
+            while(i < chain_size) {
+                const auto value = chain_values[i];
+                if(i == last_ind) {
+                    const auto last_kind = value->val_kind();
+                    const auto is_last_id = last_kind == ValueKind::Identifier;
+                    if(!value->check_is_mutable(func_type, resolver, assigning && is_last_id)) {
+                        return false;
+                    }
+                } else {
+                    if(!value->check_is_mutable(func_type, resolver, false)) {
+                        return false;
+                    }
+                }
+                i++;
             }
+            return true;
         }
         case ValueKind::DereferenceValue: {
-            return as_dereference_value_unsafe()->value->check_is_mutable(func_type, allocator, true);
+            return as_dereference_value_unsafe()->value->check_is_mutable(func_type, resolver, false);
         }
         default:
             return false;

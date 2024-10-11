@@ -311,6 +311,6 @@ extern "C" {
 
     VariantMember* ASTBuildermake_variant_member(CSTConverter* converter, chem::string* name, VariantDefinition* parent_node, CSTToken* token);
 
-    VariantMemberParam* ASTBuildermake_variant_member_param(CSTConverter* converter, chem::string* name, unsigned int index, BaseType* type, Value* defValue, VariantMember* parent_node, CSTToken* token);
+    VariantMemberParam* ASTBuildermake_variant_member_param(CSTConverter* converter, chem::string* name, unsigned int index, bool is_const, BaseType* type, Value* defValue, VariantMember* parent_node, CSTToken* token);
 
 }

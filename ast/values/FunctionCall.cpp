@@ -859,7 +859,7 @@ bool FunctionCall::find_link_in_parent(ChainValue* first_value, ChainValue* gran
         if(self_param) {
             if(grandpa) {
                 if(self_param->type->is_mutable(BaseTypeKind::Reference)) {
-                    if(!first_value->check_is_mutable(resolver.current_func_type, resolver.allocator, true)) {
+                    if(!first_value->check_is_mutable(resolver.current_func_type, resolver, false)) {
                         resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
                     }
                 }

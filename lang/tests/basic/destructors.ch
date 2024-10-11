@@ -51,6 +51,14 @@ func create_long_gen_dest(data : long, count : *int, lamb : (count : *int) => vo
     }
 }
 
+func create_short_gen_dest(data : short, count : *int, lamb : (count : *int) => void) : GenDestruct<short> {
+    return GenDestruct<short> {
+        data : data,
+        count : count,
+        lamb : lamb
+    }
+}
+
 struct Holder1 {
     var thing : Destructible
 }
@@ -457,7 +465,7 @@ func test_destructors() {
     test("generic struct destructor is called when passed to a function - 2", () => {
         var count = 0;
         if(count == 0) {
-            take_gen_destruct_short(create_long_gen_dest(343, &count, destruct_inc_count));
+            take_gen_destruct_short(create_short_gen_dest(343, &count, destruct_inc_count));
         }
         return count == 1;
     })

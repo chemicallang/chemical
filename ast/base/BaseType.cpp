@@ -314,17 +314,31 @@ bool BaseType::make_mutable(BaseTypeKind k) {
 
 bool BaseType::is_mutable(BaseTypeKind k) {
     switch(k) {
-        case BaseTypeKind::Linked:
         case BaseTypeKind::Generic:
-        case BaseTypeKind::Dynamic: {
+        case BaseTypeKind::Dynamic:
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Union: {
             // direct struct / union / variant / interface are all mutable
             return true;
+        }
+        case BaseTypeKind::Linked: {
+            const auto linked = ((LinkedType*) this)->linked;
+            const auto linked_kind = linked->kind();
+            if(linked_kind == ASTNodeKind::TypealiasStmt) {
+                const auto actual = linked->as_typealias_unsafe()->actual_type;
+                return actual->is_mutable(actual->kind());
+            } else {
+                // direct struct / union / variant / interface are all mutable
+                return true;
+            }
         }
         case BaseTypeKind::Pointer:
             return ((PointerType*) this)->is_mutable;
         case BaseTypeKind::Reference:
             return ((ReferenceType*) this)->is_mutable;
         default:
+            // int n types aren't mutable, their mutability is checked based on 'var' keyword
+            // 'var' means variable can be changed, 'mut' means variable can be changed within (members of struct)
             return false;
     }
 }

@@ -8,7 +8,7 @@ public struct string {
             var length : size_t
         } constant;
         struct {
-            var data : *char;
+            var data : *mut char;
             var length : size_t;
             var capacity : size_t;
         } heap;

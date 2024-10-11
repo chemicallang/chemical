@@ -27,7 +27,7 @@ func exe_dir_file(ctx : *BuildContext, exe_name : *string, file_name : *string, 
     return exe_dir;
 }
 
-func gen_ir(ctx : *BuildContext, exe_name : *string, module : *Module) {
+func gen_ir(ctx : *BuildContext, exe_name : *string, module : *mut Module) {
     module.llvm_ir_path = exe_dir_path(ctx, exe_name)
     module.llvm_ir_path.append_str(&module.name);
     module.llvm_ir_path.append_char_ptr(".ll")
@@ -35,13 +35,13 @@ func gen_ir(ctx : *BuildContext, exe_name : *string, module : *Module) {
 }
 
 struct JobAndContext {
-    var ctx : *BuildContext
-    var job : *LabJob
+    var ctx : *mut BuildContext
+    var job : *mut LabJob
 }
 
 var jc : JobAndContext
 
-func build(ctx : *BuildContext) {
+func build(ctx : *mut BuildContext) {
 
     const debug = true;
     if(debug) {
@@ -126,7 +126,7 @@ func build(ctx : *BuildContext) {
     jc.ctx = ctx;
     jc.job = exe_job;
     ctx.on_finished((data : *void) => {
-        const jx = data as *JobAndContext
+        const jx = data as *mut JobAndContext
         if(jx.job.status == LabJobStatus.Success) {
             jx.ctx.launch_executable(jx.job.abs_path.copy(), true);
         }

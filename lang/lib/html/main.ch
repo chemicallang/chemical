@@ -20,7 +20,7 @@ func (provider : &SourceProvider) read_tag_name() : string {
     var str = string();
     while(true) {
         const c = provider.peek();
-        if(isalnum(c) || c == '_' || c == '-' || c == ':') {
+        if(isalnum(c as int) || c == '_' || c == '-' || c == ':') {
             str.append(c);
         } else {
             break;
@@ -29,7 +29,7 @@ func (provider : &SourceProvider) read_tag_name() : string {
     return str;
 }
 
-func (html : &HtmlLexer) put_next_token() {
+func (html : &mut HtmlLexer) put_next_token() {
     var c = html.provider.peek();
     switch(c) {
         '<' => {
@@ -55,7 +55,7 @@ func (html : &HtmlLexer) put_next_token() {
         }
         default => {
             if(html.has_lt) {
-                if(isalpha(c)) {
+                if(isalpha(c as int)) {
                     const tag_name = html.provider.read_tag_name();
                     html.put_token(tag_name, LexTokenType.Keyword);
                 } else {

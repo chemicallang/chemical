@@ -809,11 +809,17 @@ void RepresentationVisitor::visit(LongType *func) {
 
 void RepresentationVisitor::visit(PointerType *type) {
     write('*');
+    if(type->is_mutable) {
+        write("mut ");
+    }
     type->type->accept(this);
 }
 
 void RepresentationVisitor::visit(ReferenceType *type) {
     write('&');
+    if(type->is_mutable) {
+        write("mut ");
+    }
     type->type->accept(this);
 }
 

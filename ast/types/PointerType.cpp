@@ -6,6 +6,7 @@
 #include "ArrayType.h"
 #include <memory>
 #include "VoidType.h"
+#include "ReferenceType.h"
 
 const PointerType PointerType::void_ptr_instance((BaseType*) &VoidType::instance, nullptr);
 
@@ -33,6 +34,9 @@ bool PointerType::satisfies(BaseType *given) {
     }
     const auto pointer = given_pure->pointer_type(other_kind);
     if(pointer && pointer->type) {
+        if(!pointer->is_mutable && is_mutable) {
+            return false;
+        }
         if(type_kind == BaseTypeKind::Void) {
             return true;
         }
@@ -51,4 +55,13 @@ BaseType* PointerType::pure_type() {
 //        return pures.back().get();
     }
     return this;
+}
+
+bool ReferenceType::satisfies(BaseType *given) {
+    const auto kind = given->kind();
+    if(kind == BaseTypeKind::Reference) {
+        const auto ref = ((ReferenceType*) given);
+        return type->satisfies(ref->type) && (!is_mutable || ref->is_mutable);
+    }
+    return type->satisfies(given);
 }

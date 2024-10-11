@@ -56,37 +56,37 @@ public enum CBIImportKind {
 public struct BuildContext {
 
     // support's paths with .o, .c and .ch extensions
-    func files_module (&self, name : &string, paths : **string, paths_len : uint, dependencies : ArrayRef<*Module>) : *Module;
+    func files_module (&self, name : &string, paths : **string, paths_len : uint, dependencies : ArrayRef<*Module>) : *mut Module;
 
     // when paths only contain chemical files
-    func chemical_files_module (&self, name : &string, paths : **string, paths_len : uint, dependencies : ArrayRef<*Module>) : *Module;
+    func chemical_files_module (&self, name : &string, paths : **string, paths_len : uint, dependencies : ArrayRef<*Module>) : *mut Module;
 
     // directory module
-    func chemical_dir_module (&self, name : &string, path : &string, dependencies : ArrayRef<*Module>) : *Module
+    func chemical_dir_module (&self, name : &string, path : &string, dependencies : ArrayRef<*Module>) : *mut Module
 
     // a single .c file
-    func c_file_module (&self, name : &string, path : &string, dependencies : ArrayRef<*Module>) : *Module
+    func c_file_module (&self, name : &string, path : &string, dependencies : ArrayRef<*Module>) : *mut Module
 
     // a single .cpp file
-    func cpp_file_module (&self, name : &string, path : &string, dependencies : ArrayRef<*Module>) : *Module
+    func cpp_file_module (&self, name : &string, path : &string, dependencies : ArrayRef<*Module>) : *mut Module
 
     // a single .o file
-    func object_module (&self, name : &string, path : &string) : *Module
+    func object_module (&self, name : &string, path : &string) : *mut Module
 
     // translate a c file to chemical
-    func translate_to_chemical (&self, c_path : &string, output_path : &string) : *LabJob;
+    func translate_to_chemical (&self, c_path : &string, output_path : &string) : *mut LabJob;
 
     // translate a chemical module to c file
-    func translate_to_c (&self, name : &string, dependencies : ArrayRef<*Module>, output_dir : &string) : *LabJob
+    func translate_to_c (&self, name : &string, dependencies : ArrayRef<*Module>, output_dir : &string) : *mut LabJob
 
     // build executable using module dependencies
-    func build_exe (&self, name : *string, dependencies : ArrayRef<*Module>) : *LabJob;
+    func build_exe (&self, name : *string, dependencies : ArrayRef<*Module>) : *mut LabJob;
 
     // build a dynamic library using executable dependencies
-    func build_dynamic_lib (&self, name : *string, dependencies : ArrayRef<*Module>) : *LabJob;
+    func build_dynamic_lib (&self, name : *string, dependencies : ArrayRef<*Module>) : *mut LabJob;
 
     // build a cbi by given name, that can be used to integrate with compiler
-    func build_cbi (&self, name : *string, entry : *Module, dependencies : ArrayRef<*Module>) : *LabJob
+    func build_cbi (&self, name : *string, entry : *Module, dependencies : ArrayRef<*Module>) : *mut LabJob
 
     // add a linkable object (.o file)
     func add_object (&self, job : *LabJob, path : &string) : void;
@@ -138,21 +138,21 @@ public struct BuildContext {
 
 }
 
-func (ctx : &BuildContext) chemical_file_module(name : &string, path : string, dependencies : ArrayRef<*Module>) : *Module {
+func (ctx : &BuildContext) chemical_file_module(name : &string, path : string, dependencies : ArrayRef<*Module>) : *mut Module {
     const path_ptr = &path;
     return ctx.chemical_files_module(name, &path_ptr, 1, dependencies);
 }
 
-func (ctx : &BuildContext) file_module(name : &string, path : string, dependencies : ArrayRef<*Module>) : *Module {
+func (ctx : &BuildContext) file_module(name : &string, path : string, dependencies : ArrayRef<*Module>) : *mut Module {
     const path_ptr = &path;
     return ctx.files_module(name, &path_ptr, 1, dependencies);
 }
 
-func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &string) : *LabJob {
+func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &string) : *mut LabJob {
     return ctx.translate_to_c(string("ToCJob"), { module }, output_dir);
 }
 
-func (ctx : &BuildContext) translate_file_to_c(chem_path : &string, output_path : &string) : *LabJob {
+func (ctx : &BuildContext) translate_file_to_c(chem_path : &string, output_path : &string) : *mut LabJob {
     var mod = ctx.file_module(string("TempChem"), chem_path, {});
     return ctx.translate_mod_to_c(mod, output_path);
 }

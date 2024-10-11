@@ -38,11 +38,6 @@ public:
     GenericType(LinkedType* referenced, int16_t generic_itr);
 
     /**
-     * constructor
-     */
-    GenericType(std::string base, CSTToken* token);
-
-    /**
      * cst token
      */
     CSTToken* cst_token() override;

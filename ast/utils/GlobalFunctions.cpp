@@ -168,6 +168,7 @@ namespace InterpretVector {
     }
 
 
+    // TODO interpret vector get should return a reference to T
     InterpretVectorGet::InterpretVectorGet(InterpretVectorNode* node) : FunctionDeclaration(
             "get",
             std::vector<FunctionParam*> {},

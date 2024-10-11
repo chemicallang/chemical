@@ -368,7 +368,7 @@ void CSTConverter::visitFunctionParam(CSTToken* param) {
     if (is_char_op(paramTokens[0], '&')) { // implicit parameter
         const auto is_mutable = is_keyword(paramTokens[1], "mut");
         const auto name_token = paramTokens[is_mutable ? 2 : 1];
-        const auto ref_to_linked  = new (local<ReferenceType>()) ReferenceType(new (local<LinkedType>()) LinkedType(name_token->value(), nullptr, name_token, is_mutable), name_token, is_mutable);;
+        const auto ref_to_linked  = new (local<ReferenceType>()) ReferenceType(new (local<LinkedType>()) LinkedType(name_token->value(), nullptr, name_token), name_token, is_mutable);;
         const auto paramDecl = new (local<FunctionParam>()) FunctionParam(name_token->value(), ref_to_linked, param_index, nullptr, true, current_func_type, param);
         put_node(paramDecl, param);
         return;
@@ -1536,6 +1536,20 @@ void CSTConverter::visitTryCatch(CSTToken* tryCatch) {
     put_node(try_catch, tryCatch);
 }
 
+// (mut x) <-- first token is a keyword 'mut'
+// (dyn (mut x)) <--- second token is a qualified type that has 'mut'
+bool get_is_qual_mutable(CSTToken* tok) {
+    if(tok->type() == LexTokenType::CompQualifiedType) {
+        if(is_keyword(tok->tokens[0], "mut")) {
+            return true;
+        } else {
+            return get_is_qual_mutable(tok->tokens[1]);
+        }
+    } else {
+        return false;
+    }
+}
+
 /**
  * *mut Phone <-- direct linked type made mutable, ptr before type finds the linked type, makes itself mutable \n
  * *mut dyn Phone <-- mut finds dynamic type, get's the linked type, makes it mutable, ptr before type, finds the dynamic type, makes it self mutable based on it's child linked type \n
@@ -1560,7 +1574,8 @@ void CSTConverter::visitPointerType(CSTToken* cst) {
     const auto ptr_type = new (local<PointerType>()) PointerType(elem_type, cst);
     if(is_pointer_before){
         const auto child_tok = cst->tokens[1];
-        if(child_tok->type() == LexTokenType::CompQualifiedType && is_keyword(child_tok->tokens[0], "mut")) {
+        const auto qualified_mutable = get_is_qual_mutable(child_tok);
+        if(qualified_mutable) {
             ptr_type->is_mutable = true;
         } else {
             ptr_type->make_mutable_on_child();
@@ -1583,7 +1598,8 @@ void CSTConverter::visitReferenceType(CSTToken* cst) {
     const auto ref_type = new (local<ReferenceType>()) ReferenceType(elem_type, cst);
     if(is_pointer_before) {
         const auto child_tok = cst->tokens[1];
-        if(child_tok->type() == LexTokenType::CompQualifiedType && is_keyword(child_tok->tokens[0], "mut")) {
+        const auto qualified_mutable = get_is_qual_mutable(child_tok);
+        if(qualified_mutable) {
             ref_type->is_mutable = true;
         } else {
             ref_type->make_mutable_on_child();
@@ -1593,7 +1609,8 @@ void CSTConverter::visitReferenceType(CSTToken* cst) {
 }
 
 void CSTConverter::visitGenericType(CSTToken* cst) {
-    const auto& base = str_token(cst->tokens[0]);
+    const auto ref_tok = cst->tokens[0];
+    const auto& base = str_token(ref_tok);
     if(base == "literal" && cst->tokens.size() == 4) {
         const auto id = cst->tokens[2];
         BaseType* child_type;
@@ -1610,7 +1627,7 @@ void CSTConverter::visitGenericType(CSTToken* cst) {
         put_type(new (local<LiteralType>()) LiteralType(child_type, cst), cst);
         return;
     }
-    auto generic_type = new (local<GenericType>()) GenericType(base, cst);
+    auto generic_type = new (local<GenericType>()) GenericType(new (local<LinkedType>()) LinkedType(base, nullptr, ref_tok));
     unsigned i = 1;
     while(i < cst->tokens.size()) {
         if(cst->tokens[i]->is_type()) {

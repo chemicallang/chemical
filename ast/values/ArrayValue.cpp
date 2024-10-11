@@ -42,11 +42,18 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
     bool moved = false;
     for (size_t i = 0; i < values.size(); ++i) {
 
-        // replace values that are calls to implicit constructor
-        if(def) {
-            const auto implicit = def->implicit_constructor_func(gen.allocator, values[i]);
-            if(implicit) {
-                values[i] = call_with_arg(implicit, values[i], gen.allocator);
+        const auto implicit = def ? def->implicit_constructor_func(gen.allocator, values[i]) : nullptr;
+        if(implicit) {
+            // replace values that are calls to implicit constructor
+            values[i] = call_with_arg(implicit, values[i], gen.allocator);
+        } else {
+            if(known_child_t && known_child_t->kind() == BaseTypeKind::Reference) {
+                // store pointer only, since user want's a reference
+                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+                auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
+                const auto ref_pointer = values[i]->llvm_pointer(gen);
+                gen.builder->CreateStore(ref_pointer, elementPtr);
+                continue;
             }
         }
 

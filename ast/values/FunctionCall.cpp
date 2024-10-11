@@ -147,13 +147,12 @@ llvm::Value* arg_value(
     const auto value_kind = value->val_kind();
 
     const auto linked = param_type->get_direct_linked_node();
-    const auto is_stored_decl = linked && ASTNode::isStoredStructDecl(linked->kind());
 
     const auto is_param_ref = param_type->is_reference(param_type_kind);
 
     if(
         is_param_ref || (
-            (param_type->get_direct_linked_struct() || param_type->get_direct_linked_variant()) &&
+            linked && ASTNode::isStoredStructDecl(linked->kind()) &&
             (value->reference() && value->value_type() == ValueType::Struct) && !(value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue || value_kind == ValueKind::VariantCall)
     )) {
         argValue = value->llvm_pointer(gen);

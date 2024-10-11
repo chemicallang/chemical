@@ -35,11 +35,11 @@ bool LinkedType::satisfies(ValueType value_type) {
 
 bool LinkedType::satisfies(BaseType *other) {
     const auto other_kind = other->kind();
-    if(other_kind == BaseTypeKind::Linked) {
-        return linked == ((LinkedType*) other)->linked;
-    }
     if(!linked) {
         return false;
+    }
+    if(other_kind == BaseTypeKind::Linked && linked == ((LinkedType*) other)->linked) {
+        return true;
     }
     const auto linked_kind = linked->kind();
     switch(linked_kind) {

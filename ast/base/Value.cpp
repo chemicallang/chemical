@@ -416,50 +416,74 @@ bool Value::is_ref() {
     return false;
 }
 
-bool is_node_mutable(ASTNode* node, FunctionType* func_type, SymbolResolver& resolver, bool assigning) {
+bool is_node_assignable(ASTNode* node) {
     const auto linked_kind = node->kind();
     switch(linked_kind) {
         case ASTNodeKind::VarInitStmt:{
-            if(!assigning) {
-                const auto type = node->as_var_init_unsafe()->create_value_type(resolver.allocator);
-                return type->is_mutable(type->kind());
-            } else {
-                return !node->as_var_init_unsafe()->is_const;
-            }
+            return !node->as_var_init_unsafe()->is_const;
         }
         case ASTNodeKind::FunctionParam:
         case ASTNodeKind::ExtensionFuncReceiver: {
-            if(assigning) return false;
+            return false;
+        }
+        case ASTNodeKind::VariantCaseVariable: {
+            const auto member_param = node->as_variant_case_var_unsafe()->member_param;
+            return !member_param->is_const;
+        }
+        case ASTNodeKind::StructMember:
+        case ASTNodeKind::UnnamedUnion:
+        case ASTNodeKind::UnnamedStruct: {
+            return !node->as_base_def_member_unsafe()->get_is_const();
+        }
+        default:
+            return false;
+    }
+}
+
+bool is_node_mutable(ASTNode* node, FunctionType* func_type, SymbolResolver& resolver) {
+    const auto linked_kind = node->kind();
+    switch(linked_kind) {
+        case ASTNodeKind::VarInitStmt:{
+            const auto type = node->as_var_init_unsafe()->create_value_type(resolver.allocator);
+            return type->is_mutable(type->kind());
+        }
+        case ASTNodeKind::FunctionParam:
+        case ASTNodeKind::ExtensionFuncReceiver: {
             const auto type = node->as_base_func_param_unsafe()->type;
             return type->is_mutable(type->kind());
         }
         case ASTNodeKind::VariantCaseVariable: {
             const auto member_param = node->as_variant_case_var_unsafe()->member_param;
-            if(assigning) {
-                return !member_param->is_const;
-            } else {
-                const auto type = member_param->type;
-                return type->is_mutable(type->kind());
-            }
+            const auto type = member_param->type;
+            return type->is_mutable(type->kind());
         }
         case ASTNodeKind::StructMember:
         case ASTNodeKind::UnnamedUnion:
         case ASTNodeKind::UnnamedStruct: {
-            if(assigning) {
-                return !node->as_base_def_member_unsafe()->get_is_const();
+            const auto self_param = func_type->get_self_param();
+            if (self_param) {
+                return self_param->type->is_mutable(self_param->type->kind());
             } else {
-                const auto self_param = func_type->get_self_param();
-                if (self_param) {
-                    return self_param->type->is_mutable(self_param->type->kind());
-                } else {
-                    const auto func = func_type->as_function();
-                    // constructor takes a mutable reference by default
-                    return func->has_annotation(AnnotationKind::Constructor);
-                }
+                const auto func = func_type->as_function();
+                // constructor takes a mutable reference by default
+                return func->has_annotation(AnnotationKind::Constructor);
             }
         }
         default:
             return false;
+    }
+}
+
+bool Value::is_ref_l_value() {
+    const auto kind = val_kind();
+    switch(kind) {
+        case ValueKind::StructValue:
+        case ValueKind::VariantCall:
+            return true;
+        default: {
+            const auto linked = linked_node();
+            return linked && is_node_assignable(linked);
+        }
     }
 }
 
@@ -469,7 +493,7 @@ bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, 
         case ValueKind::Identifier: {
             const auto id = as_identifier_unsafe();
             if(assigning) {
-                return is_node_mutable(id->linked, func_type, resolver, assigning);
+                return is_node_assignable(id->linked);
             } else {
                 const auto type = id->linked->create_value_type(resolver.allocator);
                 return type->is_mutable(type->kind());

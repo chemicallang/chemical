@@ -245,6 +245,11 @@ public:
     bool check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, bool assigning);
 
     /**
+     * is this value an l value, in C++ l values are those that have backing storage
+     */
+    bool is_ref_l_value();
+
+    /**
      * is this value a function call
      */
     bool is_chain_func_call();

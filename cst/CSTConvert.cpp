@@ -668,26 +668,46 @@ void CSTConverter::visitMalformedInput(CSTToken *token) {
 
 Value* convertNumber_unsafe(ASTAllocator& alloc, NumberToken* token, ValueType value_type, bool is64Bit) {
     switch(value_type) {
-        case ValueType::Int:
-            return new (alloc.allocate<IntValue>()) IntValue(std::stoi(token->value()), token);
-        case ValueType::UInt:
-            return new (alloc.allocate<UIntValue>()) UIntValue(std::stoi(token->value()), token);
-        case ValueType::Short:
-            return new (alloc.allocate<ShortValue>()) ShortValue(std::stoi(token->value()), token);
-        case ValueType::UShort:
-            return new (alloc.allocate<UShortValue>()) UShortValue(std::stoi(token->value()), token);
-        case ValueType::Long:
-            return new (alloc.allocate<LongValue>()) LongValue(std::stol(token->value()), is64Bit, token);
-        case ValueType::ULong:
-            return new (alloc.allocate<ULongValue>()) ULongValue(std::stoul(token->value()), is64Bit, token);
-        case ValueType::BigInt:
-            return new (alloc.allocate<BigIntValue>()) BigIntValue(std::stoll(token->value()), token);
-        case ValueType::UBigInt:
-            return new (alloc.allocate<UBigIntValue>()) UBigIntValue(std::stoull(token->value()), token);
-        case ValueType::Float:
-            return new (alloc.allocate<FloatValue>()) FloatValue(std::stof(token->value()), token);
-        case ValueType::Double:
-            return new (alloc.allocate<DoubleValue>()) DoubleValue(std::stod(token->value()), token);
+        case ValueType::Int: {
+            const auto real_value = std::stoi(token->value());
+            return new(alloc.allocate<IntValue>()) IntValue(real_value, token);
+        }
+        case ValueType::UInt: {
+            const auto real_value = std::stoi(token->value());
+            return new(alloc.allocate<UIntValue>()) UIntValue(real_value, token);
+        }
+        case ValueType::Short: {
+            const auto real_value = std::stoi(token->value());
+            return new(alloc.allocate<ShortValue>()) ShortValue(real_value, token);
+        }
+        case ValueType::UShort: {
+            const auto real_value = std::stoi(token->value());
+            return new(alloc.allocate<UShortValue>()) UShortValue(real_value, token);
+        }
+        case ValueType::Long: {
+            const auto real_value = std::stol(token->value());
+            return new(alloc.allocate<LongValue>()) LongValue(real_value, is64Bit, token);
+        }
+        case ValueType::ULong: {
+            const auto real_value = std::stoul(token->value());
+            return new(alloc.allocate<ULongValue>()) ULongValue(real_value, is64Bit, token);
+        }
+        case ValueType::BigInt: {
+            const auto real_value = std::stoll(token->value());
+            return new(alloc.allocate<BigIntValue>()) BigIntValue(real_value, token);
+        }
+        case ValueType::UBigInt: {
+            const auto real_value = std::stoull(token->value());
+            return new(alloc.allocate<UBigIntValue>()) UBigIntValue(real_value, token);
+        }
+        case ValueType::Float: {
+            const auto real_value = std::stof(token->value());
+            return new(alloc.allocate<FloatValue>()) FloatValue(real_value, token);
+        }
+        case ValueType::Double: {
+            const auto real_value = std::stod(token->value());
+            return new(alloc.allocate<DoubleValue>()) DoubleValue(real_value, token);
+        }
         default:
             return nullptr;
     }

@@ -42,7 +42,9 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     } else {
         initializer = nullptr;
     }
-    llvm_ptr = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, linkage, initializer, runtime_name_fast());
+    const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, linkage, initializer, runtime_name_fast());
+    global->setDSOLocal(true);
+    llvm_ptr = global;
 }
 
 void VarInitStatement::code_gen(Codegen &gen) {

@@ -6,6 +6,7 @@
 #include <clang/AST/Attr.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/Type.h>
+#include <llvm/ADT/APFloat.h>
 #include <clang/AST/RecordLayout.h>
 #include "ast/base/ASTNode.h"
 #include "ast/base/BaseType.h"
@@ -26,6 +27,21 @@
 #include "ast/types/VoidType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/PointerType.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/DoubleValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/BigIntValue.h"
+#include "ast/values/UBigIntValue.h"
+#include "ast/values/UShortValue.h"
+#include "ast/values/UCharValue.h"
+#include "ast/values/LongValue.h"
+#include "ast/values/ULongValue.h"
+#include "ast/values/Expression.h"
+#include "ast/values/VariableIdentifier.h"
+#include "ast/values/IntValue.h"
+#include "ast/values/UIntValue.h"
+#include "ast/values/ShortValue.h"
+#include "ast/values/NumberValue.h"
 #include "compiler/ClangCodegen.h"
 #include <clang/AST/Decl.h>
 #include <clang/AST/Mangle.h>
@@ -161,19 +177,196 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
     return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(decl->getNameAsString(), type, parent_node, nullptr);
 }
 
-Expression* CTranslator::make_expr(clang::Expr* expr) {
-    error("UNIMPLEMENTED: cannot create an expression at the moment");
+std::optional<Operation> convert_to_op(clang::BinaryOperatorKind kind) {
+    switch(kind) {
+        case clang::BinaryOperatorKind::BO_PtrMemD: // ".*"
+            return std::nullopt;
+        case clang::BinaryOperatorKind::BO_PtrMemI: // "->*"
+            return std::nullopt;
+        case clang::BinaryOperatorKind::BO_Mul: // "*"
+            return Operation::Multiplication;
+        case clang::BinaryOperatorKind::BO_Div: // "/"
+            return Operation::Division;
+        case clang::BinaryOperatorKind::BO_Rem: // "%"
+            return Operation::Modulus;
+        case clang::BinaryOperatorKind::BO_Add: // "+"
+            return Operation::Addition;
+        case clang::BinaryOperatorKind::BO_Sub: // "-"
+            return Operation::Subtraction;
+        case clang::BinaryOperatorKind::BO_Shl: // "<<"
+            return Operation::LeftShift;
+        case clang::BinaryOperatorKind::BO_Shr: // ">>"
+            return Operation::RightShift;
+        case clang::BinaryOperatorKind::BO_Cmp: // "<=>"
+            return std::nullopt;
+        case clang::BinaryOperatorKind::BO_LT: // "<"
+            return Operation::LessThan;
+        case clang::BinaryOperatorKind::BO_GT: // ">"
+            return Operation::GreaterThan;
+        case clang::BinaryOperatorKind::BO_LE: // "<="
+            return Operation::LessThanOrEqual;
+        case clang::BinaryOperatorKind::BO_GE: // ">="
+            return Operation::GreaterThanOrEqual;
+        case clang::BinaryOperatorKind::BO_EQ: // "=="
+            return Operation::IsEqual;
+        case clang::BinaryOperatorKind::BO_NE: // "!="
+            return Operation::IsNotEqual;
+        case clang::BinaryOperatorKind::BO_And: // "&"
+            return Operation::BitwiseAND;
+        case clang::BinaryOperatorKind::BO_Xor: // "^"
+            return Operation::BitwiseXOR;
+        case clang::BinaryOperatorKind::BO_Or: // "|"
+            return Operation::BitwiseOR;
+        case clang::BinaryOperatorKind::BO_LAnd: // "&&"
+            return Operation::LogicalAND;
+        case clang::BinaryOperatorKind::BO_LOr: // "||"
+            return Operation::LogicalOR;
+        case clang::BinaryOperatorKind::BO_Assign: // "="
+            return Operation::Assignment;
+        case clang::BinaryOperatorKind::BO_MulAssign: // "*="
+            return Operation::MultiplyBy;
+        case clang::BinaryOperatorKind::BO_DivAssign: // "/="
+            return Operation::DivideBy;
+        case clang::BinaryOperatorKind::BO_RemAssign: // "%="
+            return Operation::ModuloBy;
+        case clang::BinaryOperatorKind::BO_AddAssign: // "+="
+            return Operation::AddTo;
+        case clang::BinaryOperatorKind::BO_SubAssign: // "-="
+            return Operation::SubtractFrom;
+        case clang::BinaryOperatorKind::BO_ShlAssign: // "<<="
+            return Operation::ShiftLeftBy;
+        case clang::BinaryOperatorKind::BO_ShrAssign: // ">>="
+            return Operation::ShiftRightBy;
+        case clang::BinaryOperatorKind::BO_AndAssign: // "&="
+            return Operation::ANDWith;
+        case clang::BinaryOperatorKind::BO_XorAssign: // "^="
+            return std::nullopt;
+        case clang::BinaryOperatorKind::BO_OrAssign: // "|="
+            return std::nullopt;
+        case clang::BinaryOperatorKind::BO_Comma: // ","
+            return std::nullopt;
+        default:
+            return std::nullopt;
+    }
+}
+
+Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, CSTToken* token = nullptr) {
+    switch(bitWidth) {
+        case 1:
+            return new (alloc.allocate<BoolValue>()) BoolValue((bool) value, token);
+        case 8:
+            if(is_signed) {
+                return new (alloc.allocate<CharValue>()) CharValue((char) value, token);
+            } else {
+                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, token);
+            }
+        case 16:
+            if(is_signed) {
+                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, token);
+            } else {
+                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, token);
+            }
+        case 32:
+            if(is_signed) {
+                return new (alloc.allocate<IntValue>()) IntValue((int) value, token);
+            } else {
+                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, token);
+            }
+        case 64:
+            if(is_signed) {
+                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, token);
+            } else {
+                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, token);
+            }
+        default:
+#ifdef DEBUG
+    throw std::runtime_error("value couldn't be created");
+#endif
+            return nullptr;
+    }
+}
+
+Value* CTranslator::make_expr(clang::Expr* expr) {
+    if (auto* intLiteral = llvm::dyn_cast<clang::IntegerLiteral>(expr)) {
+        // Handle integer literals
+        const auto is_signed = intLiteral->getType()->isSignedIntegerType();
+        auto value = intLiteral->getValue();
+        const auto bitWidth = value.getBitWidth();
+        auto real_val = value.getLimitedValue();
+        return convert_to_number(allocator, is64Bit, bitWidth, is_signed, real_val, nullptr);
+    } else if (auto* floatLiteral = llvm::dyn_cast<clang::FloatingLiteral>(expr)) {
+        // Handle floating-point literals
+        llvm::APFloat value = floatLiteral->getValue();
+        const clang::BuiltinType* builtinType = floatLiteral->getType()->getAs<clang::BuiltinType>();
+        if (builtinType->getKind() == clang::BuiltinType::Float) {
+            // Single precision (float)
+            auto floatValue = value.convertToFloat();
+            return new (allocator.allocate<FloatValue>()) FloatValue(floatValue, nullptr);
+        } else {
+            // Double precision
+            auto doubleValue = value.convertToDouble();
+            return new (allocator.allocate<DoubleValue>()) DoubleValue(doubleValue, nullptr);
+        }
+    } else if (auto* boolLiteral = llvm::dyn_cast<clang::CXXBoolLiteralExpr>(expr)) {
+        bool value = boolLiteral->getValue();
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, nullptr);
+    } else if (auto* declRef = llvm::dyn_cast<clang::DeclRefExpr>(expr)) {
+        clang::ValueDecl* decl = declRef->getDecl();
+        std::string name = decl->getNameAsString();
+        auto found = declarations.find(decl);
+        if(found != declarations.end()) {
+            const auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(name, nullptr, false);
+            id->linked = found->second;
+            return id;
+        } else {
+            return nullptr;
+        }
+    } else {
+        // Handle other expression types as needed
+        // Placeholder for more complex expressions like binary operations, function calls, etc.
+        // Example for binary operation
+        if (auto* binOp = llvm::dyn_cast<clang::BinaryOperator>(expr)) {
+            const auto lhs = make_expr(binOp->getLHS());
+            const auto rhs = make_expr(binOp->getRHS());
+            const auto opt = convert_to_op(binOp->getOpcode());
+            if(opt.has_value()) {
+                return new (allocator.allocate<Expression>()) Expression(lhs, rhs, opt.value(), is64Bit, nullptr);
+            } else {
+                return nullptr;
+            }
+        }
+    }
+
+    // If the expression type is not handled, return nullptr or throw an error
     return nullptr;
 }
 
 VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     auto type = decl->getType();
     auto made_type = make_type(&type);
-    auto initial_value = (Value*) make_expr(decl->getInit());
-    if(!made_type || !initial_value) {
+    if(!made_type) {
         return nullptr;
     }
-    return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, decl->getNameAsString(), made_type, initial_value, parent_node, nullptr);
+    AccessSpecifier specifier;
+    auto info = decl->getLinkageAndVisibility();
+    switch(info.getLinkage()) {
+        case clang::NoLinkage:
+        case clang::VisibleNoLinkage:
+            specifier = AccessSpecifier::Private;
+            break;
+        case clang::ModuleLinkage:
+        case clang::InternalLinkage:
+            specifier = AccessSpecifier::Internal;
+            specifier = AccessSpecifier::Internal;
+            break;
+        case clang::ExternalLinkage:
+        case clang::UniqueExternalLinkage:
+            specifier = AccessSpecifier::Public;
+            break;
+    }
+    const auto initializer = decl->getInit();
+    auto initial_value = initializer ? (Value*) make_expr(initializer) : nullptr;
+    return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, decl->getNameAsString(), made_type, initial_value, parent_node, nullptr, specifier);
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {

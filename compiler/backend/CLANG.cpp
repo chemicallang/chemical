@@ -170,7 +170,7 @@ VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     auto type = decl->getType();
     auto made_type = make_type(&type);
     auto initial_value = (Value*) make_expr(decl->getInit());
-    if(!made_type && !initial_value) {
+    if(!made_type || !initial_value) {
         return nullptr;
     }
     return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, decl->getNameAsString(), made_type, initial_value, parent_node, nullptr);

@@ -303,8 +303,10 @@ void RepresentationVisitor::visit(FunctionDeclaration *decl) {
         i++;
     }
     write(')');
-    write(" : ");
-    decl->returnType->accept(this);
+    if(decl->returnType->kind() != BaseTypeKind::Void) {
+        write(" : ");
+        decl->returnType->accept(this);
+    }
     write(' ');
     if (decl->body.has_value()) {
         scope(this, decl->body.value());
@@ -403,12 +405,18 @@ void RepresentationVisitor::write(AccessSpecifier specifier) {
     }
 }
 
+void write_gen_params(RepresentationVisitor& visitor, StructDefinition* def) {
+    if(!def->generic_params.empty()) {
+        visitor.write('<');
+        visitor.comma_separated_accept(def->generic_params);
+        visitor.write('>');
+    }
+}
+
 void RepresentationVisitor::visit(StructDefinition *def) {
     write("struct ");
     write(def->name);
-    write('<');
-    comma_separated_accept(def->generic_params);
-    write('>');
+    write_gen_params(*this, def);
     if(!def->inherited.empty()) {
         write(" : ");
         unsigned i = 0;

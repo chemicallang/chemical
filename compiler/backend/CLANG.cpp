@@ -47,10 +47,19 @@ BaseType* decl_type(CTranslator& translator, clang::Decl* decl, std::string name
     if(found != translator.declarations.end()) {
         return new (translator.allocator.allocate<LinkedType>()) LinkedType(std::move(name), found->second, nullptr);
     } else {
-        auto cDecl = translator.node_makers[decl->getKind()](&translator, decl);
-//        const auto cDecl = translator.make_struct(decl);
-        translator.before_nodes.emplace_back(cDecl);
-        return new (translator.allocator.allocate<LinkedType>()) LinkedType(std::move(name), cDecl, nullptr);
+        return nullptr;
+//        const auto maker = translator.node_makers[decl->getKind()];
+//        if(maker) {
+//            auto cDecl = maker(&translator, decl);
+//            if(cDecl) {
+//                translator.before_nodes.emplace_back(cDecl);
+//                return new(translator.allocator.allocate<LinkedType>()) LinkedType(std::move(name), cDecl, nullptr);
+//            } else {
+//                return nullptr;
+//            };
+//        } else {
+//            return nullptr;
+//        }
     }
 }
 
@@ -58,16 +67,14 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     auto canonical = type->getCanonicalType();
     auto ptr = type->getTypePtr();
     auto canon_ptr = canonical.getTypePtr();
-    if(type->isConstQualified()) {
-        type->removeLocalConst();
-    }
+    const auto is_mutable = !type->isConstQualified();
     if(ptr->isPointerType()) {
         auto point = ptr->getPointeeType();
         auto pointee = make_type(&point);
         if(!pointee) {
             return nullptr;
         }
-        return new (allocator.allocate<PointerType>()) PointerType(pointee, nullptr);
+        return new (allocator.allocate<PointerType>()) PointerType(pointee, nullptr, is_mutable);
     }
 //    if(canon_ptr != ptr) { // reference
 //        if(canon_ptr->isRecordType()) {

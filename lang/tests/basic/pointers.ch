@@ -5,6 +5,10 @@ struct PMC22 {
     var b : int
 }
 
+func ret_ptr_to_int22(ptr : *mut int) : *mut int {
+    return ptr;
+}
+
 func test_pointer_math() {
     test("assignment using a pointer works", () => {
         var i = 2;
@@ -67,5 +71,10 @@ func test_pointer_math() {
         const k = j + 1;
         const d = k - 1;
         return d.a == 22 && d.b == 33;
+    })
+    test("can assign to a pointer returned from function call", () => {
+        var i = 20;
+        *ret_ptr_to_int22(&i) = 20;
+        return i == 20;
     })
 }

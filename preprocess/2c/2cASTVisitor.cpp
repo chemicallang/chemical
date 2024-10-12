@@ -1431,7 +1431,10 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
         visitor.write(';');
         visitor.new_line_and_indent();
     }
+    const auto prev_nested = visitor.nested_value;
+    visitor.nested_value = true;
     assign->lhs->accept(&visitor);
+    visitor.nested_value = prev_nested;
     visitor.write(' ');
     if(assign->assOp != Operation::Assignment) {
         visitor.write(to_string(assign->assOp));

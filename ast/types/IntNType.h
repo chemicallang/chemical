@@ -21,6 +21,20 @@ public:
     virtual unsigned int num_bits() const = 0;
 
     /**
+     * check if this is character type
+     */
+    bool is_char_type() {
+        return num_bits() == 8 && value_type() == ValueType::Char;
+    }
+
+    /**
+     * check if this is character type
+     */
+    bool is_uchar_type() {
+        return num_bits() == 8 && value_type() == ValueType::UChar;
+    }
+
+    /**
      * helper
      */
     inline unsigned int number() const {

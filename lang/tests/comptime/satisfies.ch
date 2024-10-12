@@ -379,6 +379,8 @@ func test_satisfies() {
         return compiler::satisfies(T, U)
     })
     /**
+    TODO make sure this works, currently const declarations return linked types which are considered
+        always mutable
     test("direct structs with const declaration don't satisfy reference mutable types", () => {
         typealias T = &mut EmptySatisfies
         const U = EmptySatisfies {}

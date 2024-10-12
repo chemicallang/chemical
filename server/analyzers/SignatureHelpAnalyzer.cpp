@@ -10,15 +10,13 @@
 #include "cst/utils/CSTUtils.h"
 #include "SignatureHelpAnalyzer.h"
 
-SignatureHelpAnalyzer::SignatureHelpAnalyzer() : allocator(nullptr, 0, 0) {
+SignatureHelpAnalyzer::SignatureHelpAnalyzer(Position position) : CaretPositionAnalyzer(position), allocator(nullptr, 0, 0) {
 
 }
 
 void SignatureHelpAnalyzer::visit(Scope *scope) {
     // we will only visit a scope, if the cursor position is inside it
-    const auto start = scope->token->start_token();
-    const auto end = scope->token->end_token();
-    if(start->position().is_behind(cursor_pos) && end->position().is_ahead(cursor_pos)){
+    if(is_caret_inside(scope->token)) {
         CommonVisitor::visit(scope);
     }
 }
@@ -48,15 +46,12 @@ void SignatureHelpAnalyzer::visit(FunctionCall *call) {
 }
 
 void SignatureHelpAnalyzer::analyze(
-    ASTImportUnitRef& result,
-    const lsPosition& position
+    ASTImportUnitRef& result
 ) {
     // no signature information available
     if(result.files.empty()) {
         return;
     }
-
-    cursor_pos = Position { .line = position.line, .character = position.character };
 
     // getting the last file and visiting every node in it
     auto last = result.files.back();

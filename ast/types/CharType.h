@@ -45,7 +45,7 @@ public:
     }
 
     bool satisfies(BaseType *type) override {
-        return type->kind() == kind();
+        return type->kind() == BaseTypeKind::Char;
     }
 
     [[nodiscard]]

@@ -70,7 +70,7 @@ public:
 
     [[nodiscard]]
     BaseTypeKind type_kind() const override {
-        return BaseTypeKind::Char;
+        return BaseTypeKind::IntN;
     }
 
 };

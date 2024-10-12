@@ -37,4 +37,54 @@ func test_satisfies() {
         typealias T = ubigint;
         return compiler::satisfies(T, T);
     })
+    test("unsigned types (not) satisfy each other - 1", () => {
+        typealias T = uchar;
+        typealias U = uint
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("unsigned types satisfy each other - 2", () => {
+        typealias T = ushort;
+        typealias U = uint
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
+    })
+    test("unsigned types satisfy each other - 3", () => {
+        typealias T = ubigint;
+        typealias U = ulong
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
+    })
+    test("unsigned types satisfy each other - 4", () => {
+        typealias T = ulong;
+        typealias U = ushort
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
+    })
+    test("unsigned types satisfy each other - 5", () => {
+        typealias T = ushort;
+        typealias U = ubigint
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
+    })
+    test("signed types (not) satisfy each other - 1", () => {
+        typealias T = char;
+        typealias U = int
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types satisfy each other - 2", () => {
+        typealias T = short;
+        typealias U = int
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
+    })
+    test("signed types satisfy each other - 3", () => {
+        typealias T = bigint;
+        typealias U = long
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
+    })
+    test("signed types satisfy each other - 4", () => {
+        typealias T = long;
+        typealias U = short
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
+    })
+    test("signed types satisfy each other - 5", () => {
+        typealias T = short;
+        typealias U = bigint
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
+    })
 }

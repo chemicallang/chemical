@@ -8,6 +8,7 @@
 #include <memory>
 #include "VoidType.h"
 #include "ReferenceType.h"
+#include "IntNType.h"
 
 const PointerType PointerType::void_ptr_instance((BaseType*) &VoidType::instance, nullptr);
 

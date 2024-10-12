@@ -32,9 +32,13 @@ public:
         return type == ValueType::UChar;
     }
 
+    bool satisfies(BaseType *type) override {
+        return type->kind() == BaseTypeKind::UChar;
+    }
+
     [[nodiscard]]
     BaseTypeKind kind() const override {
-        return BaseTypeKind::IntN;
+        return BaseTypeKind::UChar;
     }
 
     [[nodiscard]]

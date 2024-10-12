@@ -196,6 +196,16 @@ func test_satisfies() {
         typealias U = *int
         return compiler::satisfies(U, T)
     })
+    test("immutable pointer struct types do not satisfy mutable pointer struct types", () => {
+        typealias T = *mut BaseSatisfies11
+        typealias U = *BaseSatisfies11
+        return !compiler::satisfies(T, U)
+    })
+    test("mutable pointer struct types satisfy immutable pointer struct types", () => {
+        typealias T = *mut BaseSatisfies11
+        typealias U = *BaseSatisfies11
+        return compiler::satisfies(U, T)
+    })
     test("intN pointer types satisfy other intN pointer types - 1", () => {
         typealias T = *int
         typealias U = *long

@@ -216,4 +216,47 @@ func test_satisfies() {
         typealias U = *long
         return compiler::satisfies(T, U)
     })
+    test("intN reference types satisfy", () => {
+        typealias T = &int
+        return compiler::satisfies(T, T)
+    })
+    test("struct reference types satisfy", () => {
+        typealias T = &BaseSatisfies11
+        return compiler::satisfies(T, T)
+    })
+    test("derived struct reference types satisfy base struct reference types but not the other way around", () => {
+        typealias T = &DerivedSatisfies11
+        typealias U = &BaseSatisfies11
+        return compiler::satisfies(U, T) && !compiler::satisfies(T, U)
+    })
+    test("immutable reference types do not satisfy mutable reference types", () => {
+        typealias T = &mut int
+        typealias U = &int
+        return !compiler::satisfies(T, U)
+    })
+    test("mutable reference types satisfy immutable reference types", () => {
+        typealias T = &mut int
+        typealias U = &int
+        return compiler::satisfies(U, T)
+    })
+    test("immutable reference struct types do not satisfy mutable reference struct types", () => {
+        typealias T = &mut BaseSatisfies11
+        typealias U = &BaseSatisfies11
+        return !compiler::satisfies(T, U)
+    })
+    test("mutable reference struct types satisfy immutable reference struct types", () => {
+        typealias T = &mut BaseSatisfies11
+        typealias U = &BaseSatisfies11
+        return compiler::satisfies(U, T)
+    })
+    test("intN reference types satisfy other intN reference types - 1", () => {
+        typealias T = &int
+        typealias U = &long
+        return compiler::satisfies(T, U)
+    })
+    test("intN reference types satisfy other intN reference types - 1", () => {
+        typealias T = &int
+        typealias U = &long
+        return compiler::satisfies(T, U)
+    })
 }

@@ -67,6 +67,11 @@ func test_satisfies() {
         typealias U = ubigint
         return compiler::satisfies(T, U) && compiler::satisfies(U, T)
     })
+    test("signed types (not) satisfy each other - 0", () => {
+        typealias T = bool;
+        typealias U = int
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
     test("signed types (not) satisfy each other - 1", () => {
         typealias T = char;
         typealias U = int

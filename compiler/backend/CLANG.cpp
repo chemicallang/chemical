@@ -167,11 +167,26 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
     // do not create a typealias for when user typedef's a struct with same name
     const auto type_kind = type->kind();
     if(type_kind == BaseTypeKind::Linked) {
-        const auto linked = ((LinkedType*) type)->linked;
+        const auto linked_type = (LinkedType*) type;
+        const auto linked = linked_type->linked;
         const auto node_id = linked->ns_node_identifier();
         if(node_id == decl->getName()) {
             return nullptr;
         }
+
+
+        // typealias for a struct where struct is unnamed
+        if(linked_type->type.empty()) {
+            const auto linked_kind = linked->kind();
+            if(linked_kind == ASTNodeKind::StructDecl) {
+                const auto node = linked->as_struct_def_unsafe();
+                if(node->name.empty()) {
+                    node->name = decl->getName();
+                    return nullptr;
+                }
+            }
+        }
+
     }
 
     return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(decl->getNameAsString(), type, parent_node, nullptr);
@@ -373,6 +388,9 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
     // skip builtins
     if(func_decl->getName().starts_with("__")) {
         return nullptr;
+    }
+    if(func_decl->getName() == "_atoflt") {
+        int i = 0;
     }
     // Check if the declaration is for the printf function
     // Extract function parameters

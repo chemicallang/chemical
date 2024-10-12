@@ -719,10 +719,6 @@ void RepresentationVisitor::visit(NullValue *nullValue) {
     write("null");
 }
 
-void RepresentationVisitor::visit(TernaryValue *ternary) {
-
-}
-
 void RepresentationVisitor::visit(LambdaFunction *lamb) {
     write('[');
     unsigned i = 0;
@@ -832,7 +828,7 @@ void RepresentationVisitor::visit(ReferenceType *type) {
 }
 
 void RepresentationVisitor::visit(LinkedType *type) {
-    write(type->type);
+    write(type->linked->ns_node_identifier());
 }
 
 void RepresentationVisitor::visit(ShortType *func) {
@@ -953,15 +949,15 @@ void RepresentationVisitor::visit(SizeOfValue *size_of) {
 }
 
 void RepresentationVisitor::visit(RetStructParamValue *paramVal) {
-
+    write("[UnimplementedRetStructParamValue]");
 }
 
 void RepresentationVisitor::visit(UsingStmt *usingStmt) {
-    write("using ");
+    write("using [TODO Unimplemented]");
 }
 
 void RepresentationVisitor::visit(LinkedValueType *ref_type) {
-
+    write("[UnimplementedLinkedValueType]");
 }
 
 void RepresentationVisitor::visit(UCharType *uchar) {
@@ -976,15 +972,15 @@ void RepresentationVisitor::visit(LiteralType *type) {
 }
 
 void RepresentationVisitor::visit(UnnamedStruct *def) {
-
+    write("[UnimplementedUnnamedStruct]");
 }
 
 void RepresentationVisitor::visit(UnnamedUnion *def) {
-
+    write("[UnimplementedUnnamedUnion]");
 }
 
 void RepresentationVisitor::visit(UnionDef *def) {
-
+    write("[UnimplementedUnionDef]");
 }
 
 void RepresentationVisitor::visit(ExtensionFunction *extensionFunc) {
@@ -1012,5 +1008,5 @@ void RepresentationVisitor::visit(UCharValue *charVal) {
 }
 
 void RepresentationVisitor::visit(UnionType *unionType) {
-
+    write("[UnimplementedUnionType]");
 }

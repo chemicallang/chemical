@@ -219,8 +219,6 @@ public:
 
     void visit(NullValue* nullValue) override;
 
-    void visit(TernaryValue* ternary) override;
-
     void visit(LambdaFunction* func) override;
 
     void visit(AnyType* func) override;

@@ -605,10 +605,10 @@ public:
         const auto first = val_one->linked_node();
         const auto second = val_two->linked_node();
         if(!first || !second) return get_bool(call_scope, false);
-        const auto first_kind = first->kind();
-        const auto second_kind = second->kind();
-        if(first_kind == ASTNodeKind::TypealiasStmt && second_kind == ASTNodeKind::TypealiasStmt) {
-            return get_bool(call_scope, first->known_type()->satisfies(second->known_type()));
+        const auto first_type = first->known_type();
+        const auto second_type = second->known_type();
+        if(first_type && second_type) {
+            return get_bool(call_scope, first_type->satisfies(second_type));
         } else {
             return get_bool(call_scope, false);
         }

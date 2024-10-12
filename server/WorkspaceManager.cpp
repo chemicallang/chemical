@@ -13,6 +13,7 @@
 #include "LibLsp/lsp/textDocument/completion.h"
 #include "LibLsp/lsp/textDocument/document_link.h"
 #include "LibLsp/lsp/textDocument/inlayHint.h"
+#include "LibLsp/lsp/textDocument/signature_help.h"
 #include "server/analyzers/CompletionItemAnalyzer.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "LibLsp/lsp/textDocument/did_change.h"
@@ -31,6 +32,7 @@
 #include "compiler/lab/LabBuildContext.h"
 #include "compiler/lab/LabBuildCompilerOptions.h"
 #include "server/analyzers/InlayHintAnalyzer.h"
+#include "server/analyzers/SignatureHelpAnalyzer.h"
 
 #define DEBUG_REPLACE false
 
@@ -200,11 +202,21 @@ td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
 }
 
 td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
-    const auto abs_path =canonical(uri.GetAbsolutePath().path);
+    const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto result = get_ast_import_unit(abs_path, cancel_request);
     InlayHintAnalyzer analyzer;
     td_inlayHint::response rsp;
     rsp.result = analyzer.analyze(result, compiler_exe_path(), lsp_exe_path);
+    return std::move(rsp);
+}
+
+td_signatureHelp::response WorkspaceManager::get_signature_help(const lsDocumentUri& uri, const lsPosition& position) {
+    const auto abs_path = canonical(uri.GetAbsolutePath().path);
+    auto result = get_ast_import_unit(abs_path, cancel_request);
+    SignatureHelpAnalyzer analyzer;
+    td_signatureHelp::response rsp;
+    analyzer.analyze(result, position);
+    rsp.result = std::move(analyzer.help);
     return std::move(rsp);
 }
 

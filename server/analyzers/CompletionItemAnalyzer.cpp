@@ -332,8 +332,8 @@ void CompletionItemAnalyzer::visit(ForLoop *loop) {
 
 void CompletionItemAnalyzer::visit(SwitchStatement *stmt) {
     for(auto& caseBody : stmt->scopes) {
-        if(is_caret_inside(caseBody.second.cst_token())) {
-            caseBody.second.accept(this);
+        if(is_caret_inside(caseBody.cst_token())) {
+            caseBody.accept(this);
         }
     }
 }

@@ -38,6 +38,10 @@ namespace td_inlayHint {
     struct response;
 }
 
+namespace td_signatureHelp {
+    struct response;
+}
+
 struct lsDocumentUri;
 struct lsDocumentLink;
 struct SemanticToken;

@@ -247,6 +247,11 @@ public:
     td_inlayHint::response get_hints(const lsDocumentUri& uri);
 
     /**
+     * get signature help response
+     */
+    td_signatureHelp::response get_signature_help(const lsDocumentUri& uri, const lsPosition& position);
+
+    /**
      * it has to copy all the diagnostics to a request before sending
      * the request is done async
      */

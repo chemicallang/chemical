@@ -522,6 +522,8 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/utils/WorkspaceImportGraphImporter.h
         server/analyzers/InlayHintAnalyzer.h
         server/analyzers/InlayHintAnalyzer.cpp
+        server/analyzers/SignatureHelpAnalyzer.h
+        server/analyzers/SignatureHelpAnalyzer.cpp
 )
 
 # Add an executable target for the second executable

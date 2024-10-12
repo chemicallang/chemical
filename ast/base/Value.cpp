@@ -397,6 +397,11 @@ uint64_t Value::byte_size(bool is64Bit) {
 #endif
 }
 
+BaseType* Value::get_stored_value_type() {
+    auto linked = linked_node();
+    return linked ? linked->get_stored_value_type(linked->kind()) : nullptr;
+}
+
 // stored pointer into a variable, that must be loaded, before using
 bool Value::is_stored_ptr_or_ref() {
     auto linked = linked_node();

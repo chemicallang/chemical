@@ -134,6 +134,12 @@ public:
     bool is_exported();
 
     /**
+     * type is only returned if the value is guaranteed to be stored in a storage location
+     * function param is not a storage location, however var decl, struct member, variant member param qualify
+     */
+    BaseType* get_stored_value_type(ASTNodeKind k);
+
+    /**
      * is this node storing a pointer, stored pointer must be loaded
      * before use
      */

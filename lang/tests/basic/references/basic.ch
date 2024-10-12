@@ -33,6 +33,10 @@ func give_int_ref_32(a : &mut int) : &mut int {
     return a;
 }
 
+func give_ref_struct_ref(r : &mut ReferencableStruct) : &mut ReferencableStruct {
+    return r;
+}
+
 variant OptRefInt {
     Some(i : &int)
     None()
@@ -85,9 +89,14 @@ func test_references() {
             }
         }
     })
-    test("can assign to a int n reference type", () => {
+    test("can assign to a int n reference", () => {
         var i = 0;
         give_int_ref_32(i) = 43
         return i == 43;
+    })
+    test("can assign to a struct type reference", () => {
+        var p = ReferencableStruct { i : 32 }
+        give_ref_struct_ref(p) = ReferencableStruct { i : 98 }
+        return p.i == 98
     })
 }

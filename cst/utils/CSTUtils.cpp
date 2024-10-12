@@ -113,12 +113,9 @@ token_with_parent get_token_at_position(CSTToken* container, std::vector<CSTToke
 
 CSTToken* get_token_at_position(std::vector<CSTToken*>& tokens, const Position& position) {
     unsigned i = 0;
-    CSTToken* token;
-    while(i < tokens.size()) {
-        token = tokens[i];
-        if(token->compound() && token->tokens.size() == 1) {
-            token = token->tokens[0];
-        }
+    const auto tokens_size = tokens.size();
+    while(i < tokens_size) {
+        const auto token = tokens[i];
         if(token->compound()) {
             if(!position.is_behind(token->start_token()->position()) && is_behind_end_of(position, token->end_token())) {
                 return get_token_at_position(token->tokens, position);

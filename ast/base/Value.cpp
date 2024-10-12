@@ -505,10 +505,15 @@ bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, 
             unsigned i = 0;
             const auto chain_size = chain_values.size();
             const auto last_ind = chain_size - 1;
+            const auto last = chain_values[last_ind];
+            const auto last_kind = last->val_kind();
+            if(last_kind == ValueKind::FunctionCall) {
+                const auto type = last->create_type(resolver.allocator);
+                return type->is_mutable(type->kind());
+            }
             while(i < chain_size) {
                 const auto value = chain_values[i];
                 if(i == last_ind) {
-                    const auto last_kind = value->val_kind();
                     if(last_kind == ValueKind::IndexOperator) {
                         // array types are mutable, no need to check last type's value type
                         return true;

@@ -16,6 +16,7 @@
 #include "LibLsp/lsp/textDocument/inlayHint.h"
 #include "LibLsp/lsp/textDocument/references.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
+#include "LibLsp/lsp/textDocument/signature_help.h"
 #include <boost/program_options.hpp>
 #include <iostream>
 
@@ -232,6 +233,9 @@ public:
                     capabilities.inlayHintProvider = std::pair< optional<bool>, optional<InlayHintOptions> >();
                     capabilities.inlayHintProvider->first = true;
                 }
+                if (!clientPreferences->isSignatureHelpDynamicRegistrationSupported()) {
+                    capabilities.signatureHelpProvider = lsSignatureHelpOptions {};
+                }
 //				if (!clientPreferences->isReferencesDynamicRegistered())
 //				{
 //					capabilities.referencesProvider = option;
@@ -346,6 +350,9 @@ public:
             if (clientPreferences->isSemanticHighlightingSupported()) {
                 collectRegisterCapability(td_semanticTokens_full::request::kMethodInfo);
             }
+            if (clientPreferences->isSignatureHelpSupported()) {
+                collectRegisterCapability(td_signatureHelp::request::kMethodInfo);
+            }
 
             Req_ClientRegisterCapability::request request;
             for (auto &it: registeredCapabilities) {
@@ -445,6 +452,15 @@ public:
                 return need_initialize_error.value();
             }
             return manager.get_hints(req.params.textDocument.uri);
+        });
+        _sp.registerHandler([&](const td_signatureHelp::request &req,
+                                const CancelMonitor &monitor)
+                                    -> lsp::ResponseOrError<td_signatureHelp::response> {
+            _log.log(lsp::Log::Level::INFO, "td_signatureHelp");
+            if (need_initialize_error) {
+                return need_initialize_error.value();
+            }
+            return manager.get_signature_help(req.params.textDocument.uri, req.params.position);
         });
         _sp.registerHandler([&](const td_inlayHintResolve::request &req,
                                 const CancelMonitor &monitor)

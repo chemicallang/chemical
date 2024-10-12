@@ -1,5 +1,15 @@
 import "../test.ch"
 
+struct BaseSatisfies11 {
+    var x : int
+    var y : int
+    var z : int
+}
+
+struct DerivedSatisfies11 : BaseSatisfies11 {
+
+}
+
 func test_satisfies() {
     test("uchar types satisfy", () => {
         typealias T = uchar;
@@ -96,5 +106,11 @@ func test_satisfies() {
         typealias T = short;
         typealias U = bigint
         return compiler::satisfies(T, U) && compiler::satisfies(U, T)
+    })
+    test("struct types satisfy", () => {
+        return compiler::satisfies(BaseSatisfies11, BaseSatisfies11)
+    })
+    test("derived struct types satisfy base but not the other way around", () => {
+        return compiler::satisfies(BaseSatisfies11, DerivedSatisfies11) && !compiler::satisfies(DerivedSatisfies11, BaseSatisfies11)
     })
 }

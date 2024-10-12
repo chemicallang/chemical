@@ -69,6 +69,7 @@ void print_help() {
                  "--lto               -[empty]      force link time optimization\n"
                  "--assertions        -[empty]      enable assertions on generated code\n"
                  "--debug-ir          -[empty]      output llvm ir, even with errors, for debugging\n"
+                 "--ignore-errors     -[empty]      ignore any errors that happen and compile any way\n"
                  "--arg-[arg]         -arg-[arg]    can be used to provide arguments to build.lab\n"
 //                 "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
@@ -305,6 +306,7 @@ int main(int argc, char *argv[]) {
         opts->print_ig = options.option("print-ig", "pr-ig").has_value();
         opts->verbose = verbose;
         opts->resources_path = get_resources_path();
+        opts->ignore_errors = options.option("ignore-errors", "ignore-errors").has_value();
         opts->isCBIEnabled = !options.option("no-cbi").has_value();
         if(options.option("lto").has_value()) {
             opts->def_lto_on = true;

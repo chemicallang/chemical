@@ -568,65 +568,113 @@ public:
     }
 };
 
-//class InterpretIsPtrNull : public FunctionDeclaration {
-//public:
-//
-//    BoolType boolType;
-//    AnyType anyType;
-//    PointerType ptrType;
-//    FunctionParam valueParam;
-//
-//    NullValue nullVal;
-//
-//    explicit InterpretIsPtrNull(ASTNode* parent_node) : FunctionDeclaration(
-//            "isNull",
-//            std::vector<FunctionParam*> {},
-//            &boolType,
-//            false,
-//            parent_node,
-//            nullptr,
-//            std::nullopt,
-//              AccessSpecifier::Public
-//    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
-//        valueParam("value", &ptrType, 0, nullptr, this, nullptr)
-//    {
-//        annotations.emplace_back(AnnotationKind::CompTime);
-//        params.emplace_back(&valueParam);
-//    }
-//    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-//        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, nullptr));
-//    }
-//};
-//
-//class InterpretIsPtrNotNull : public FunctionDeclaration {
-//public:
-//
-//    BoolType boolType;
-//    AnyType anyType;
-//    PointerType ptrType;
-//    FunctionParam valueParam;
-//
-//    NullValue nullVal;
-//
-//    explicit InterpretIsPtrNotNull(ASTNode* parent_node) : FunctionDeclaration(
-//            "isNotNull",
-//            std::vector<FunctionParam*> {},
-//            &boolType,
-//            false,
-//            parent_node,
-//            nullptr,
-//            std::nullopt,
-//              AccessSpecifier::Public
-//    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
-//        valueParam("value", &ptrType, 0, nullptr, this, nullptr)
-//    {
-//        annotations.emplace_back(AnnotationKind::CompTime);
-//        params.emplace_back(&valueParam);
-//    }
-//    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-//        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, false, nullptr));
-//    }
-//};
+class InterpretSatisfies : public FunctionDeclaration {
+public:
+
+    BoolType returnType;
+    AnyType anyType;
+    FunctionParam valueParam;
+    FunctionParam valueParam2;
+
+    explicit InterpretSatisfies(ASTNode* parent_node) : FunctionDeclaration(
+            "satisfies",
+            std::vector<FunctionParam*> {},
+            &returnType,
+            false,
+            parent_node,
+            nullptr,
+            std::nullopt,
+            AccessSpecifier::Public
+    ), returnType(nullptr), anyType(nullptr),
+    valueParam("value", &anyType, 0, nullptr, false, this, nullptr),
+    valueParam2("value2", &anyType, 1, nullptr, false, this, nullptr) {
+        add_annotation(AnnotationKind::CompTime);
+        params.emplace_back(&valueParam);
+        params.emplace_back(&valueParam2);
+    }
+    inline Value* get_bool(InterpretScope *call_scope, bool value) {
+        return new (call_scope->allocate<BoolValue>()) BoolValue(value, nullptr);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.size() != 2) {
+            call_scope->error("wrong arguments size given to compiler::satisfies function", call);
+            return nullptr;
+        }
+        const auto val_one = call->values[0];
+        const auto val_two = call->values[1];
+        const auto first = val_one->linked_node();
+        const auto second = val_two->linked_node();
+        if(!first || !second) return get_bool(call_scope, false);
+        const auto first_kind = first->kind();
+        const auto second_kind = second->kind();
+        if(first_kind == ASTNodeKind::TypealiasStmt && second_kind == ASTNodeKind::TypealiasStmt) {
+            return get_bool(call_scope, first->known_type()->satisfies(second->known_type()));
+        } else {
+            return get_bool(call_scope, false);
+        }
+    }
+};
+
+
+class InterpretIsPtrNull : public FunctionDeclaration {
+public:
+
+    BoolType boolType;
+    AnyType anyType;
+    PointerType ptrType;
+    FunctionParam valueParam;
+
+    NullValue nullVal;
+
+    explicit InterpretIsPtrNull(ASTNode* parent_node) : FunctionDeclaration(
+            "isNull",
+            std::vector<FunctionParam*> {},
+            &boolType,
+            false,
+            parent_node,
+            nullptr,
+            std::nullopt,
+              AccessSpecifier::Public
+    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
+        valueParam("value", &ptrType, 0, nullptr, false, this, nullptr)
+    {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        params.emplace_back(&valueParam);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, nullptr));
+    }
+};
+
+class InterpretIsPtrNotNull : public FunctionDeclaration {
+public:
+
+    BoolType boolType;
+    AnyType anyType;
+    PointerType ptrType;
+    FunctionParam valueParam;
+
+    NullValue nullVal;
+
+    explicit InterpretIsPtrNotNull(ASTNode* parent_node) : FunctionDeclaration(
+            "isNotNull",
+            std::vector<FunctionParam*> {},
+            &boolType,
+            false,
+            parent_node,
+            nullptr,
+            std::nullopt,
+              AccessSpecifier::Public
+    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
+        valueParam("value", &ptrType, 0, nullptr, false, this, nullptr)
+    {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        params.emplace_back(&valueParam);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, false, nullptr));
+    }
+};
 
 class InterpretMemCopy : public FunctionDeclaration {
 public:
@@ -693,17 +741,20 @@ public:
     InterpretIsClang isClangFn;
     InterpretSize sizeFn;
     InterpretVector::InterpretVectorNode vectorNode;
+    InterpretSatisfies satisfiesFn;
 
     CompilerNamespace(
 
     ) : Namespace("compiler", nullptr, nullptr, AccessSpecifier::Public),
         printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
-        isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this)
+        isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this),
+        satisfiesFn(this)
     {
 
         add_annotation(AnnotationKind::CompTime);
         nodes = {
-            &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode
+            &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
+            &satisfiesFn
         };
 
     }
@@ -727,11 +778,16 @@ public:
 class PtrNamespace : public Namespace {
 public:
 
+    InterpretIsPtrNull isNullFn;
+    InterpretIsPtrNotNull isNotNullFn;
+
     explicit PtrNamespace(
             ASTNode* parent_node
-    ) : Namespace("ptr", parent_node, nullptr, AccessSpecifier::Public) {
+    ) : Namespace("ptr", parent_node, nullptr, AccessSpecifier::Public),
+        isNullFn(this), isNotNullFn(this)
+    {
         add_annotation(AnnotationKind::CompTime);
-        nodes = { };
+        nodes = { &isNullFn, &isNotNullFn };
     }
 
 };

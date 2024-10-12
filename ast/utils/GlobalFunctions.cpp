@@ -602,13 +602,9 @@ public:
         }
         const auto val_one = call->values[0];
         const auto val_two = call->values[1];
-        const auto first = val_one->linked_node();
-        const auto second = val_two->linked_node();
-        if(!first || !second) return get_bool(call_scope, false);
-        const auto first_type = first->known_type();
-        const auto second_type = second->known_type();
-        if(first_type && second_type) {
-            return get_bool(call_scope, first_type->satisfies(second_type));
+        const auto first_type = val_one->known_type();
+        if(first_type) {
+            return get_bool(call_scope, first_type->satisfies(call_scope->allocator, val_two, false));
         } else {
             return get_bool(call_scope, false);
         }

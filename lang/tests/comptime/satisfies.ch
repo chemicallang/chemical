@@ -299,4 +299,64 @@ func test_satisfies() {
         typealias U = &long
         return !compiler::satisfies(T, U)
     })
+    test("direct int n types do not satisfy reference int n types without backing storage - 1", () => {
+        typealias T = &int
+        typealias U = int
+        return !compiler::satisfies(T, U)
+    })
+    test("direct int n types do not satisfy reference int n types without backing storage - 2", () => {
+        typealias T = &int
+        typealias U = long
+        return !compiler::satisfies(T, U)
+    })
+    test("direct int n types do not satisfy reference int n types without backing storage - 3", () => {
+        typealias T = &uint
+        typealias U = uint
+        return !compiler::satisfies(T, U)
+    })
+    test("direct int n types do not satisfy reference int n types without backing storage - 4", () => {
+        typealias T = &uint
+        typealias U = ulong
+        return !compiler::satisfies(T, U)
+    })
+    test("direct int n types satisfy reference int n types with backing storage - 1", () => {
+        typealias T = &int
+        var U : int = 0
+        return compiler::satisfies(T, U)
+    })
+    test("direct int n types satisfy reference int n types with backing storage - 2", () => {
+        typealias T = &int
+        var U : long = 0
+        return compiler::satisfies(T, U)
+    })
+    test("direct int n types satisfy reference int n types with backing storage - 3", () => {
+        typealias T = &uint
+        var U : uint = 0
+        return compiler::satisfies(T, U)
+    })
+    test("direct int n types satisfy reference int n types with backing storage - 4", () => {
+        typealias T = &uint
+        var U : ulong = 0
+        return compiler::satisfies(T, U)
+    })
+    test("constant int n declarations do not qualify as backing storage for reference types - 1", () => {
+        typealias T = &int
+        const U : int = 0
+        return !compiler::satisfies(T, U)
+    })
+    test("constant int n declarations do not qualify as backing storage for reference types - 2", () => {
+        typealias T = &int
+        const U : long = 0
+        return !compiler::satisfies(T, U)
+    })
+    test("constant int n declarations do not qualify as backing storage for reference types - 3", () => {
+        typealias T = &uint
+        const U : uint = 0
+        return !compiler::satisfies(T, U)
+    })
+    test("constant int n declarations do not qualify as backing storage for reference types - 4", () => {
+        typealias T = &uint
+        const U : ulong = 0
+        return !compiler::satisfies(T, U)
+    })
 }

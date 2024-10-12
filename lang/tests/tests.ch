@@ -32,6 +32,7 @@ import "basic/modules1.ch"
 import "basic/modules.ch"
 import "basic/moves.ch"
 import "comptime/is_value.ch"
+import "comptime/satisfies.ch"
 import "cbi/html/basic.ch"
 
 public func main() : int {
@@ -70,6 +71,7 @@ public func main() : int {
     test_moves();
     test_html();
     test_references();
+    test_satisfies();
     print_test_stats();
     return 0;
 }

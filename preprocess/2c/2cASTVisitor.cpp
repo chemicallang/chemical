@@ -447,8 +447,8 @@ bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value
     });
 }
 
-void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value) {
-    if(type && type->kind() == BaseTypeKind::Reference && !value->is_stored_pointer()) {
+void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
+    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_ptr_or_ref()) {
         write('&');
     }
     if(!implicit_mutate_value_default(*this, type, value)) {
@@ -486,7 +486,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             visitor.write(" = ");
             visitor.write('*');
         }
-        if((param->type->is_reference(param_type_kind) && !val->is_stored_pointer()) || is_struct_param || is_variant_param) {
+        if((param->type->is_reference(param_type_kind) && !val->is_stored_ptr_or_ref()) || is_struct_param || is_variant_param) {
             auto allocated = visitor.local_allocated.find(val);
             visitor.write('&');
             if(allocated != visitor.local_allocated.end()) {
@@ -500,9 +500,9 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             base_type->accept(&visitor);
             visitor.write("[]");
             visitor.write(')');
-            visitor.accept_mutating_value(param->type, val);
+            visitor.accept_mutating_value(param->type, val, false);
         } else {
-            visitor.accept_mutating_value(param->type, val);
+            visitor.accept_mutating_value(param->type, val, false);
         }
         if(is_memcpy_ref_str) {
             visitor.write(';');
@@ -775,7 +775,7 @@ void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier,
         write_type_post_id(visitor, type);
     }
     visitor.write(" = ");
-    visitor.accept_mutating_value(type, value);
+    visitor.accept_mutating_value(type, value, true);
     visitor.write(';');
 }
 
@@ -1269,7 +1269,7 @@ void CBeforeStmtVisitor::visit(VariantCall *call) {
         visitor.write(value.second->name);
         visitor.write(" = ");
         const auto& val = call->values[i];
-        visitor.accept_mutating_value(value.second->type, val);
+        visitor.accept_mutating_value(value.second->type, val, false);
         visitor.write(", ");
         i++;
     }
@@ -1433,6 +1433,9 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     }
     const auto prev_nested = visitor.nested_value;
     visitor.nested_value = true;
+    if(type->is_reference()) {
+        visitor.write('*');
+    }
     assign->lhs->accept(&visitor);
     visitor.nested_value = prev_nested;
     visitor.write(' ');
@@ -1441,7 +1444,7 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     }
     visitor.write('=');
     visitor.write(' ');
-    visitor.accept_mutating_value(type, assign->value);
+    visitor.accept_mutating_value(type, assign->value, true);
 }
 
 void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
@@ -2720,7 +2723,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
             val->accept(this);
         }
     } else {
-        accept_mutating_value(type, val);
+        accept_mutating_value(type, val, false);
     }
 }
 
@@ -3646,7 +3649,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
         }, [&]() {
             auto prev = visitor.nested_value;
             visitor.nested_value = true;
-            if(!values[end - 2]->is_stored_pointer()) {
+            if(!values[end - 2]->is_stored_ptr_or_ref()) {
                 visitor.write('&');
             }
             access_chain(visitor, values, start, end - 2);
@@ -4126,7 +4129,7 @@ void ToCAstVisitor::visit(ArrayValue *arr) {
     nested_value = true;
     const auto elem_type = arr->element_type(allocator);
     while(i < arr->values.size()) {
-        accept_mutating_value(elem_type, arr->values[i]);
+        accept_mutating_value(elem_type, arr->values[i], false);
         if(i != arr->values.size() - 1) {
             write(',');
         }
@@ -4175,7 +4178,7 @@ void ToCAstVisitor::visit(StructValue *val) {
         write('.');
         write(value.first);
         write(" = ");
-        accept_mutating_value(member ? member->known_type() : nullptr, value.second->value);
+        accept_mutating_value(member ? member->known_type() : nullptr, value.second->value, false);
     }
     for(auto& var : val->linked_extendable()->variables) {
         auto found = val->values.find(var.first);
@@ -4191,7 +4194,7 @@ void ToCAstVisitor::visit(StructValue *val) {
                 write('.');
                 write(var.first);
                 write(" = ");
-                accept_mutating_value(member ? member->known_type() : nullptr, defValue);
+                accept_mutating_value(member ? member->known_type() : nullptr, defValue, false);
             } else if(val->linked_kind != ASTNodeKind::UnionDecl) {
                 error("no default value present for '" + var.first + "' in struct value", val);
             }
@@ -4204,12 +4207,20 @@ void ToCAstVisitor::visit(StructValue *val) {
     }
 }
 
+void deref_id(ToCAstVisitor& visitor, VariableIdentifier* identifier) {
+    visitor.write('(');
+    visitor.write('*');
+    visitor.write(identifier->value);
+    visitor.write(')');
+}
+
+bool should_deref_node(ASTNode* node) {
+    return node && ASTNode::isStoredStructDecl(node->kind());
+}
+
 bool write_id_accessor(ToCAstVisitor& visitor, VariableIdentifier* identifier, ASTNode* node) {
-    if (node && ASTNode::isStoredStructDecl(node->kind())) {
-        visitor.write('(');
-        visitor.write('*');
-        visitor.write(identifier->value);
-        visitor.write(')');
+    if (should_deref_node(node)) {
+        deref_id(visitor, identifier);
         return true;
     } else {
         return false;
@@ -4266,7 +4277,8 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
         const auto type_kind = type.kind();
         if(type_kind == BaseTypeKind::Reference) {
             const auto d_linked = ((ReferenceType&) type).type->get_direct_linked_node();
-            if(write_id_accessor(*this, identifier, d_linked)) {
+            if(should_deref_node(d_linked)) {
+                deref_id(*this, identifier);
                 return;
             }
         } else {

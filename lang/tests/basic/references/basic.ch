@@ -29,6 +29,10 @@ func take_int_ref(a : &int) : int {
     return *a;
 }
 
+func give_int_ref_32(a : &mut int) : &mut int {
+    return a;
+}
+
 variant OptRefInt {
     Some(i : &int)
     None()
@@ -80,5 +84,10 @@ func test_references() {
                 return false;
             }
         }
+    })
+    test("can assign to a int n reference type", () => {
+        var i = 0;
+        give_int_ref_32(i) = 43
+        return i == 43;
     })
 }

@@ -137,7 +137,20 @@ public:
      * is this node storing a pointer, stored pointer must be loaded
      * before use
      */
-    bool is_stored_pointer();
+    bool is_stored_ptr_or_ref(ASTNodeKind k);
+
+    /**
+     * this checks if it's any pointer, like in function params
+     * which doesn't have a backing storage location
+     */
+    bool is_ptr_or_ref(ASTNodeKind k);
+
+    /**
+     * a helper function, check if this is a stored pointer
+     */
+    bool is_stored_ptr_or_ref() {
+        return is_stored_ptr_or_ref(kind());
+    }
 
     /**
      * check if the given type is movable

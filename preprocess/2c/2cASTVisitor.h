@@ -271,7 +271,7 @@ public:
      * implicitly, this can be called, this will account for mutating values
      * @see lang/docs/notes/MutatingValue.md
      */
-    void accept_mutating_value(BaseType* type, Value* value);
+    void accept_mutating_value(BaseType* type, Value* value, bool assigning_value);
 
     /**
      * this should be called before calling translate

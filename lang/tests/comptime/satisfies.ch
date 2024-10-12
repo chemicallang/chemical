@@ -1,5 +1,9 @@
 import "../test.ch"
 
+struct EmptySatisfies {
+
+}
+
 struct BaseSatisfies11 {
     var x : int
     var y : int
@@ -358,5 +362,37 @@ func test_satisfies() {
         typealias T = &uint
         const U : ulong = 0
         return !compiler::satisfies(T, U)
+    })
+    test("direct structs always satisfy reference immutable types", () => {
+        typealias T = &EmptySatisfies
+        typealias U = EmptySatisfies
+        return compiler::satisfies(T, U)
+    })
+    test("direct structs always satisfy reference mutable types", () => {
+        typealias T = &mut EmptySatisfies
+        typealias U = EmptySatisfies
+        return compiler::satisfies(T, U)
+    })
+    test("direct structs with const declaration always satisfy reference immutable types", () => {
+        typealias T = &EmptySatisfies
+        const U = EmptySatisfies {}
+        return compiler::satisfies(T, U)
+    })
+    /**
+    test("direct structs with const declaration don't satisfy reference mutable types", () => {
+        typealias T = &mut EmptySatisfies
+        const U = EmptySatisfies {}
+        return !compiler::satisfies(T, U)
+    })
+    **/
+    test("direct structs with var declaration always satisfy reference immutable types", () => {
+        typealias T = &EmptySatisfies
+        var U = EmptySatisfies {}
+        return compiler::satisfies(T, U)
+    })
+    test("direct structs with var declaration always satisfy reference mutable types", () => {
+        typealias T = &mut EmptySatisfies
+        var U = EmptySatisfies {}
+        return compiler::satisfies(T, U)
     })
 }

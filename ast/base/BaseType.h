@@ -200,7 +200,7 @@ public:
     /**
      * whether the given value satisfies the current type
      */
-    virtual bool satisfies(ASTAllocator& allocator, Value* value);
+    virtual bool satisfies(ASTAllocator& allocator, Value* value, bool assignment);
 
     /**
      * pointer type returns pointer type

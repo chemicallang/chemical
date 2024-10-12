@@ -21,7 +21,7 @@ public:
         return underlying->satisfies(type);
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value) override;
+    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) override;
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);

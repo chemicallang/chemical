@@ -58,22 +58,23 @@ BaseType* PointerType::pure_type() {
     return this;
 }
 
-bool ReferenceType::satisfies(BaseType* given, Value* value) {
+bool ReferenceType::satisfies(BaseType* given, Value* value, bool assignment) {
     const auto givenKind = given->kind();
     if(givenKind == BaseTypeKind::Reference) {
         const auto ref = ((ReferenceType*) given);
         return type->satisfies(ref->type) && (!is_mutable || ref->is_mutable);
     }
-    if(givenKind == BaseTypeKind::IntN) {
+    // when assigning to a ref, we don't require l value
+    if(!assignment && givenKind == BaseTypeKind::IntN) {
         return value->is_ref_l_value();
     }
-    if(is_mutable && !given->is_mutable(givenKind)) {
+    if(!assignment && is_mutable && !given->is_mutable(givenKind)) {
         return false;
     }
     return type->satisfies(given);
 }
 
-bool ReferenceType::satisfies(ASTAllocator &allocator, Value *value) {
+bool ReferenceType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
     const auto val_type = value->create_type(allocator);
-    return val_type != nullptr && satisfies(val_type->pure_type(), value);
+    return val_type != nullptr && satisfies(val_type->pure_type(), value, assignment);
 }

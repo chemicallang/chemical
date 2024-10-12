@@ -389,7 +389,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
                 current_func_type.mark_moved_value(linker.allocator, val.second->value, mem_type, linker);
                 if(implicit) {
                     link_with_implicit_constructor(implicit, linker, val_ptr);
-                } else if(!mem_type->satisfies(linker.allocator, value)) {
+                } else if(!mem_type->satisfies(linker.allocator, value, false)) {
                     linker.unsatisfied_type_err(value, mem_type);
                 }
             }

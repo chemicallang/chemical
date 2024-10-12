@@ -44,8 +44,8 @@ bool StringType::satisfies(BaseType *type) {
     return type->kind() == BaseTypeKind::String;
 }
 
-bool LiteralType::satisfies(ASTAllocator& allocator, Value* value) {
-    return !value->reference() && underlying->satisfies(allocator, value);
+bool LiteralType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
+    return !value->reference() && underlying->satisfies(allocator, value, false);
 }
 
 bool IntNType::satisfies(BaseType* type) {

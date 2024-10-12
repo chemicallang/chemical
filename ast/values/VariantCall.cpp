@@ -204,7 +204,7 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
         auto implicit_constructor = type->implicit_constructor_for(linker.allocator, value);
         if (implicit_constructor) {
             link_with_implicit_constructor(implicit_constructor, linker, value);
-        } else if(!type->satisfies(linker.allocator, value)) {
+        } else if(!type->satisfies(linker.allocator, value, false)) {
             linker.unsatisfied_type_err(value, type);
         }
         i++;

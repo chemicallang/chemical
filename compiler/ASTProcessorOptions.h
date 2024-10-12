@@ -42,6 +42,11 @@ public:
     bool isCBIEnabled = true;
 
     /**
+     * allows to ignore errors during compilation
+     */
+    bool ignore_errors = false;
+
+    /**
      * the target triple, which codegen is for
      */
     std::string target_triple;

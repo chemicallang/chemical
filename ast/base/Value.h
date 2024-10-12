@@ -231,7 +231,12 @@ public:
     /**
      * check if this value is a stored pointer
      */
-    bool is_stored_pointer();
+    bool is_stored_ptr_or_ref();
+
+    /**
+     * check if this value is a pointer or reference
+     */
+    bool is_ptr_or_ref();
 
     /**
      * check if this value is a reference

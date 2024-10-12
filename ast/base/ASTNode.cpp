@@ -135,8 +135,8 @@ bool ASTNode::is_exported() {
     return specifier() == AccessSpecifier::Public;
 }
 
-bool ASTNode::is_stored_pointer() {
-    switch(kind()) {
+bool ASTNode::is_stored_ptr_or_ref(ASTNodeKind k) {
+    switch(k) {
         case ASTNodeKind::StructMember:
             return as_struct_member_unsafe()->type->is_pointer_or_ref();
         case ASTNodeKind::VariantCaseVariable:
@@ -154,6 +154,16 @@ bool ASTNode::is_stored_pointer() {
         }
         default:
             return false;
+    }
+}
+
+bool ASTNode::is_ptr_or_ref(ASTNodeKind k) {
+    switch(k) {
+        case ASTNodeKind::FunctionParam:
+        case ASTNodeKind::ExtensionFuncReceiver:
+            return as_base_func_param_unsafe()->type->is_pointer_or_ref();
+        default:
+            return is_stored_ptr_or_ref(k);
     }
 }
 

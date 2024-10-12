@@ -24,6 +24,34 @@ void print_usage() {
     std::cout << usage;
 }
 
+// Custom hash functor
+struct StringHash {
+    using is_transparent = void; // Enables heterogeneous lookup
+    std::size_t operator()(const std::string& str) const noexcept {
+        return std::hash<std::string>{}(str);
+    }
+    std::size_t operator()(const std::string_view& str) const noexcept {
+        return std::hash<std::string_view>{}(str);
+    }
+};
+
+// Custom equality functor
+struct StringEqual {
+    using is_transparent = void; // Enables heterogeneous lookup
+    bool operator()(const std::string& lhs, const std::string& rhs) const noexcept {
+        return lhs == rhs;
+    }
+    bool operator()(const std::string_view& lhs, std::string_view rhs) const noexcept {
+        return lhs == rhs;
+    }
+    bool operator()(const std::string& lhs, std::string_view rhs) const noexcept {
+        return lhs == rhs;
+    }
+    bool operator()(const std::string_view& lhs, const std::string& rhs) const noexcept {
+        return lhs == rhs;
+    }
+};
+
 struct CmdOptions {
 
     /**
@@ -35,7 +63,7 @@ struct CmdOptions {
      * where if another option is encountered after an option, the first is stored with value true
      * if arguments are encountered without options before them, they are stored with "" as values
      */
-    tsl::ordered_map<std::string, std::string> options;
+    tsl::ordered_map<std::string, std::string, StringHash, StringEqual> options;
 
     /**
      * just prints the command to cout
@@ -114,7 +142,7 @@ struct CmdOptions {
      * @param small_opt the small option key used with -x (single dash)
      * @return
      */
-    std::optional<std::string> option(const std::string& opt, const std::string& small_opt = "", bool consume = true) {
+    std::optional<std::string> option(const std::string_view& opt, const std::string_view& small_opt = "", bool consume = true) {
         auto whole = options.find(opt);
         if(whole == options.end()) {
             if(small_opt.empty()) {
@@ -124,12 +152,14 @@ struct CmdOptions {
             if(half == options.end()) {
                 return std::nullopt;
             } else {
-                auto value = std::move(half->second);
+                // take the string forcefully
+                auto value = std::move(const_cast<std::string&>(half->second));
                 if(consume) options.erase(half);
                 return value;
             }
         } else {
-            auto value = std::move(whole->second);
+            // take the string forcefully
+            auto value = std::move(const_cast<std::string&>(whole->second));
             if(consume) options.erase(whole);
             return value;
         }

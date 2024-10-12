@@ -152,8 +152,6 @@ class NullValue;
 
 class NumberValue;
 
-class TernaryValue;
-
 class SizeOfValue;
 
 class LambdaFunction;
@@ -551,10 +549,6 @@ public:
 
     virtual void visit(NullValue* nullValue) {
         visitCommonValue((Value*) nullValue);
-    }
-
-    virtual void visit(TernaryValue* ternary) {
-        visitCommonValue((Value*) ternary);
     }
 
     virtual void visit(SizeOfValue* size_of) {

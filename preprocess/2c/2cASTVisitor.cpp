@@ -4398,10 +4398,6 @@ void ToCAstVisitor::visit(ValueNode *node) {
     write(';');
 }
 
-void ToCAstVisitor::visit(TernaryValue *ternary) {
-
-}
-
 void ToCAstVisitor::visit(LambdaFunction *func) {
     auto found = declarer->aliases.find(func);
     if(found != declarer->aliases.end()) {

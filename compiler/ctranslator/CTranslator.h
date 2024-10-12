@@ -52,6 +52,12 @@ public:
     std::vector<CTranslatorError> errors;
 
     /**
+     * is 64bit
+     * TODO set this properly
+     */
+    bool is64Bit = true;
+
+    /**
      * type makers functions vector
      * enum BuiltinType::Kind, this enum is used as an index on this vector
      * last enum entry is being used as size of the vector
@@ -113,7 +119,7 @@ public:
     /**
      * makes an expression from the given clang's expression
      */
-    Expression* make_expr(clang::Expr* expr);
+    Value* make_expr(clang::Expr* expr);
 
     /**
      * when provided a pointer to function declaration

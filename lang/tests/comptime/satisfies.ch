@@ -211,10 +211,30 @@ func test_satisfies() {
         typealias U = *long
         return compiler::satisfies(T, U)
     })
-    test("intN pointer types satisfy other intN pointer types - 1", () => {
+    test("intN pointer types satisfy other intN pointer types - 2", () => {
         typealias T = *int
         typealias U = *long
         return compiler::satisfies(T, U)
+    })
+    test("intN pointer types satisfy other intN pointer types - 3", () => {
+        typealias T = *uint
+        typealias U = *ulong
+        return compiler::satisfies(T, U)
+    })
+    test("intN pointer types satisfy other intN pointer types - 4", () => {
+        typealias T = *uint
+        typealias U = *ulong
+        return compiler::satisfies(T, U)
+    })
+    test("intN pointer types satisfy other intN pointer types - 5", () => {
+        typealias T = *int
+        typealias U = *ulong
+        return !compiler::satisfies(T, U)
+    })
+    test("intN pointer types satisfy other intN pointer types - 6", () => {
+        typealias T = *uint
+        typealias U = *long
+        return !compiler::satisfies(T, U)
     })
     test("intN reference types satisfy", () => {
         typealias T = &int
@@ -254,9 +274,29 @@ func test_satisfies() {
         typealias U = &long
         return compiler::satisfies(T, U)
     })
-    test("intN reference types satisfy other intN reference types - 1", () => {
+    test("intN reference types satisfy other intN reference types - 2", () => {
         typealias T = &int
         typealias U = &long
         return compiler::satisfies(T, U)
+    })
+    test("intN reference types satisfy other intN reference types - 3", () => {
+        typealias T = &uint
+        typealias U = &ulong
+        return compiler::satisfies(T, U)
+    })
+    test("intN reference types satisfy other intN reference types - 4", () => {
+        typealias T = &uint
+        typealias U = &ulong
+        return compiler::satisfies(T, U)
+    })
+    test("intN reference types do not satisfy other intN reference types - 5", () => {
+        typealias T = &int
+        typealias U = &ulong
+        return !compiler::satisfies(T, U)
+    })
+    test("intN reference types do not satisfy other intN reference types - 6", () => {
+        typealias T = &uint
+        typealias U = &long
+        return !compiler::satisfies(T, U)
     })
 }

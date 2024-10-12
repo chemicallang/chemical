@@ -9,10 +9,11 @@
 #include "ast/utils/CommonVisitor.h"
 #include "LspCpp/include/LibLsp/lsp/textDocument/signature_help.h"
 #include "LspCpp/include/LibLsp/lsp/lsPosition.h"
+#include "CaretPositionAnalyzer.h"
 
 class ASTResult;
 
-class SignatureHelpAnalyzer : public CommonVisitor {
+class SignatureHelpAnalyzer : public CommonVisitor, public CaretPositionAnalyzer {
 public:
 
     // this allocator is disposed
@@ -24,21 +25,16 @@ public:
     lsSignatureHelp help;
 
     /**
-     * the position of the cursor
-     */
-    Position cursor_pos;
-
-    /**
      * constructor
      */
-    SignatureHelpAnalyzer();
+    SignatureHelpAnalyzer(Position position);
 
     /**
      * this function analyzes the import unit, in which last file is the one which contains the
      * token where user asked to goto def
      * It will provide locations, where that symbol has definition
      */
-    void analyze(ASTImportUnitRef& result, const lsPosition& position);
+    void analyze(ASTImportUnitRef& result);
 
     void visit(Scope *scope) override;
 

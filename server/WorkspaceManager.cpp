@@ -189,7 +189,8 @@ td_completion::response WorkspaceManager::get_completion(
     auto unit = get_ast_import_unit(can_path, cancel_request);
     CompletionItemAnalyzer analyzer({ line, character });
     td_completion::response rsp;
-    rsp.result = analyzer.analyze(unit);
+    analyzer.analyze(unit);
+    rsp.result = std::move(analyzer.list);
     return std::move(rsp);
 }
 
@@ -213,9 +214,9 @@ td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
 td_signatureHelp::response WorkspaceManager::get_signature_help(const lsDocumentUri& uri, const lsPosition& position) {
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto result = get_ast_import_unit(abs_path, cancel_request);
-    SignatureHelpAnalyzer analyzer;
+    SignatureHelpAnalyzer analyzer({ .line = position.line, .character = position.character });
     td_signatureHelp::response rsp;
-    analyzer.analyze(result, position);
+    analyzer.analyze(result);
     rsp.result = std::move(analyzer.help);
     return std::move(rsp);
 }

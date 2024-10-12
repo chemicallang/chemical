@@ -485,7 +485,7 @@ FunctionDeclaration* MembersContainer::constructor_func(ASTAllocator& allocator,
 
 FunctionDeclaration* MembersContainer::implicit_constructor_func(ASTAllocator& allocator, Value* value) {
     for (const auto & function : functions()) {
-        if(function->has_annotation(AnnotationKind::Implicit) && function->params.size() == 1 && function->params[0]->type->satisfies(allocator, value)) {
+        if(function->has_annotation(AnnotationKind::Implicit) && function->params.size() == 1 && function->params[0]->type->satisfies(allocator, value, false)) {
             return function;
         }
     }

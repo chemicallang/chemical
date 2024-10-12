@@ -145,7 +145,7 @@ bool FunctionType::satisfy_args(ASTAllocator& allocator, std::vector<Value*>& fo
     }
     unsigned i = offset; // first argument for implicit self
     while(i < params.size()) {
-        if(!params[i]->type->satisfies(allocator, forArgs[i - offset])) {
+        if(!params[i]->type->satisfies(allocator, forArgs[i - offset], false)) {
             return false;
         }
         i++;

@@ -39,7 +39,7 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker) {
                 link_with_implicit_constructor(implicit, linker, value);
                 return;
             }
-            if(!func_type->returnType->satisfies(linker.allocator, value)) {
+            if(!func_type->returnType->satisfies(linker.allocator, value, false)) {
                 linker.unsatisfied_type_err(value, func_type->returnType);
             }
         }

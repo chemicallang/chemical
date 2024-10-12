@@ -26,7 +26,7 @@ void AssignStatement::declare_and_link(SymbolResolver &linker) {
         if(value->link(linker, value, value_type)) {
             switch(assOp){
                 case Operation::Assignment:
-                    if (!value_type->satisfies(linker.allocator, value)) {
+                    if (!value_type->satisfies(linker.allocator, value, true)) {
                         linker.unsatisfied_type_err(value, value_type);
                     }
                     break;
@@ -36,7 +36,7 @@ void AssignStatement::declare_and_link(SymbolResolver &linker) {
                         if(value->val_kind() != ValueKind::NumberValue) {
                             linker.unsatisfied_type_err(value, value_type);
                         }
-                    } else if (!value_type->satisfies(linker.allocator, value)) {
+                    } else if (!value_type->satisfies(linker.allocator, value, true)) {
                         linker.unsatisfied_type_err(value, value_type);
                     }
                     break;

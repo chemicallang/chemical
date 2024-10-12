@@ -297,7 +297,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
         linker.declare(identifier, this);
     }
     if(type && value) {
-        if(!type->satisfies(linker.allocator, value)) {
+        if(!type->satisfies(linker.allocator, value, false)) {
             linker.unsatisfied_type_err(value, type);
         }
         const auto as_array = value->as_array_value();

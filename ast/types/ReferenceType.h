@@ -54,13 +54,13 @@ public:
         return type->satisfies(value_type);
     }
 
-    bool satisfies(BaseType* given, Value* value);
+    bool satisfies(BaseType* given, Value* value, bool assignment);
 
     bool satisfies(BaseType *given) override {
-        return satisfies(given, nullptr);
+        return satisfies(given, nullptr, false);
     }
 
-    bool satisfies(ASTAllocator &allocator, Value *value) override;
+    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) override;
 
     bool is_same(BaseType *other) override {
         return other->kind() == kind() && static_cast<ReferenceType *>(other)->type->is_same(type);

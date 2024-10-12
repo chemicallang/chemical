@@ -107,10 +107,94 @@ func test_satisfies() {
         typealias U = bigint
         return compiler::satisfies(T, U) && compiler::satisfies(U, T)
     })
+    test("signed types do not satisfy unsigned and vice versa - 1", () => {
+        typealias T = int
+        typealias U = uint
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 2", () => {
+        typealias T = long
+        typealias U = ulong
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 3", () => {
+        typealias T = bigint
+        typealias U = ubigint
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 4", () => {
+        typealias T = short
+        typealias U = ushort
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 5", () => {
+        typealias T = char
+        typealias U = uchar
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 6", () => {
+        typealias T = long
+        typealias U = uint
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 7", () => {
+        typealias T = ubigint
+        typealias U = int
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 7", () => {
+        typealias T = uint
+        typealias U = bigint
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 8", () => {
+        typealias T = ushort
+        typealias U = bigint
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 9", () => {
+        typealias T = ulong
+        typealias U = short
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 9", () => {
+        typealias T = long
+        typealias U = ushort
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
+    test("signed types do not satisfy unsigned and vice versa - 10", () => {
+        typealias T = ubigint
+        typealias U = long
+        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+    })
     test("struct types satisfy", () => {
         return compiler::satisfies(BaseSatisfies11, BaseSatisfies11)
     })
     test("derived struct types satisfy base but not the other way around", () => {
         return compiler::satisfies(BaseSatisfies11, DerivedSatisfies11) && !compiler::satisfies(DerivedSatisfies11, BaseSatisfies11)
+    })
+    test("intN pointer types satisfy", () => {
+        typealias T = *int
+        return compiler::satisfies(T, T)
+    })
+    test("immutable pointer types do not satisfy mutable pointer types", () => {
+        typealias T = *mut int
+        typealias U = *int
+        return !compiler::satisfies(T, U)
+    })
+    test("mutable pointer types satisfy immutable pointer types", () => {
+        typealias T = *mut int
+        typealias U = *int
+        return compiler::satisfies(U, T)
+    })
+    test("intN pointer types satisfy other intN pointer types - 1", () => {
+        typealias T = *int
+        typealias U = *long
+        return compiler::satisfies(T, U)
+    })
+    test("intN pointer types satisfy other intN pointer types - 1", () => {
+        typealias T = *int
+        typealias U = *long
+        return compiler::satisfies(T, U)
     })
 }

@@ -370,7 +370,7 @@ void SourceProvider::readIdentifier(std::string& str) {
 void SourceProvider::readAnnotationIdentifier(chem::string* str) {
     auto p = peek();
     if (std::isalpha(p) || p == '_') {
-        while (std::isalnum(p) || p == '_' || p == ':') {
+        while (std::isalnum(p) || p == '_' || p == ':' || p == '.') {
             str->append(readCharacter());
             p = peek();
         }

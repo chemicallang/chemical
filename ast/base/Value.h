@@ -229,6 +229,13 @@ public:
     }
 
     /**
+     * type is only returned when the value is stored in a storage location
+     * like var decl, struct member, variant member param qualify
+     * function param for example doesn't qualify
+     */
+    BaseType* get_stored_value_type();
+
+    /**
      * check if this value is a stored pointer
      */
     bool is_stored_ptr_or_ref();

@@ -135,26 +135,31 @@ bool ASTNode::is_exported() {
     return specifier() == AccessSpecifier::Public;
 }
 
-bool ASTNode::is_stored_ptr_or_ref(ASTNodeKind k) {
+BaseType* ASTNode::get_stored_value_type(ASTNodeKind k) {
     switch(k) {
         case ASTNodeKind::StructMember:
-            return as_struct_member_unsafe()->type->is_pointer_or_ref();
+            return as_struct_member_unsafe()->type;
         case ASTNodeKind::VariantCaseVariable:
-            return as_variant_case_var_unsafe()->member_param->type->is_pointer_or_ref();
+            return as_variant_case_var_unsafe()->member_param->type;
         case ASTNodeKind::VarInitStmt: {
             const auto init = as_var_init_unsafe();
             if(init->is_const) {
-                return false;
+                return nullptr;
             }
             if (init->type) {
-                return init->type->is_pointer_or_ref();
+                return init->type;
             } else {
-                return init->value->is_pointer_or_ref();
+                return init->value->get_stored_value_type();
             }
         }
         default:
-            return false;
+            return nullptr;
     }
+}
+
+bool ASTNode::is_stored_ptr_or_ref(ASTNodeKind k) {
+    const auto type = get_stored_value_type(k);
+    return type != nullptr && type->is_pointer_or_ref();
 }
 
 bool ASTNode::is_ptr_or_ref(ASTNodeKind k) {

@@ -448,7 +448,7 @@ bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value
 }
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
-    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_ptr_or_ref()) {
+    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_stored_ptr_or_ref()) {
         write('&');
     }
     if(!implicit_mutate_value_default(*this, type, value)) {
@@ -4277,10 +4277,10 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
         const auto type_kind = type.kind();
         if(type_kind == BaseTypeKind::Reference) {
             const auto d_linked = ((ReferenceType&) type).type->get_direct_linked_node();
-            if(should_deref_node(d_linked)) {
+//            if(should_deref_node(d_linked)) {
                 deref_id(*this, identifier);
                 return;
-            }
+//            }
         } else {
             const auto d_linked = type.get_direct_linked_node(type_kind);
             if(write_id_accessor(*this, identifier, d_linked)) {
@@ -4347,7 +4347,12 @@ void ToCAstVisitor::visit(RetStructParamValue *paramVal) {
 }
 
 void ToCAstVisitor::visit(DereferenceValue *casted) {
-    write('*');
+    const auto known = casted->value->known_type();
+    // TODO this check is not needed once llvm backend supports automatically de-referencing references
+    //      allows de-referencing references
+    if(!known || !known->is_reference()) {
+        write('*');
+    }
     casted->value->accept(this);
 }
 

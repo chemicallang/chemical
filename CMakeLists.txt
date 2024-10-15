@@ -550,6 +550,7 @@ set(COMPILER_SOURCES
         utils/ProcessUtils.h
         compiler/ClangCodegen.h
         preprocess/2c/SubVisitor.h
+        compiler/backend/ClangStuff.h
 )
 
 # add Compiler executable

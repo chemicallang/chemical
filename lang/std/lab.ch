@@ -78,12 +78,6 @@ public struct BuildContext {
     // allows to include c header in the module
     func include_header(&self, module : *mut Module, header : &string);
 
-    // allows to include a system header in the module
-    func include_system_header(&self, module : *mut Module, header : &string);
-
-    // you can use this to include chemical file in the module
-    func include_chemical_file(&self, module : *mut Module, file : &string);
-
     // translate a c file to chemical
     func translate_to_chemical (&self, c_path : &string, output_path : &string) : *mut LabJob;
 
@@ -175,28 +169,6 @@ func (ctx : &BuildContext) include_headers(module : *mut Module, headers : Array
     while(i < total) {
         var ele = headers.get(i);
         ctx.include_header(module, *ele);
-        i++;
-    }
-}
-
-// allows to include system headers in the module
-func (ctx : &BuildContext) include_system_headers(module : *mut Module, headers : ArrayRef<string>) {
-    var i = 0;
-    const total = headers.size();
-    while(i < total) {
-        var ele = headers.get(i);
-        ctx.include_system_header(module, *ele);
-        i++;
-    }
-}
-
-// you can use this to include chemical files in the module
-func (ctx : &BuildContext) include_chemical_files(module : *mut Module, files : ArrayRef<string>) {
-    var i = 0;
-    const total = files.size();
-    while(i < total) {
-        var ele = files.get(i);
-        ctx.include_chemical_file(module, *ele);
         i++;
     }
 }

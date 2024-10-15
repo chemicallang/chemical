@@ -400,15 +400,19 @@ void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
     }
 }
 
+inline void create_or_declare_fn(Codegen& gen, FunctionDeclaration* decl) {
+    if (decl->body.has_value()) {
+        create_fn(gen, decl);
+    } else {
+        declare_fn(gen, decl);
+    }
+}
+
 void FunctionDeclaration::code_gen_declare_normal(Codegen& gen) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    if (body.has_value()) {
-        create_fn(gen, this);
-    } else {
-        declare_fn(gen, this);
-    }
+    create_or_declare_fn(gen, this);
     gen.current_function = nullptr;
 }
 
@@ -481,14 +485,14 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) 
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    create_fn(gen, this);
+    create_or_declare_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, VariantDefinition* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    create_fn(gen, this);
+    create_or_declare_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl) {

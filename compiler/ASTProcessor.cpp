@@ -19,16 +19,8 @@
 #include "integration/cbi/bindings/CBI.h"
 #include "preprocess/RepresentationVisitor.h"
 #include <filesystem>
-
 #ifdef COMPILER_BUILD
-
-std::vector<ASTNode*> TranslateC(
-        ASTAllocator& allocator,
-        const char *exe_path,
-        const char *abs_path,
-        const char *resources_path
-);
-
+#include "compiler/backend/ClangStuff.h"
 #endif
 
 ASTImportResultExt concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor) {

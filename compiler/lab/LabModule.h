@@ -8,6 +8,11 @@
 #include "integration/cbi/model/FlatIGFile.h"
 #include "std/chem_string.h"
 
+struct LabModuleHeader {
+    chem::string path;
+    bool is_known_system_header;
+};
+
 struct LabModule {
 
     // type of the module
@@ -26,6 +31,8 @@ struct LabModule {
     chem::string llvm_ir_path;
     // if not empty, module's assembly is written to at this path
     chem::string asm_path;
+    // these headers are imported before any other files are processed
+    std::vector<chem::string> headers;
     // this path point to a c (.c, .h) file, a chemical file, a directory or a build.lab
     // depends on the type of module
     std::vector<chem::string> paths;

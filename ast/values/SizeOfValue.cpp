@@ -7,12 +7,8 @@
 #include "compiler/SymbolResolver.h"
 #include "ULongValue.h"
 
-SizeOfValue::SizeOfValue(BaseType* for_type, CSTToken* token) : for_type(for_type), UBigIntValue(0, token) {
+SizeOfValue::SizeOfValue(BaseType* for_type, CSTToken* token) : for_type(for_type), token(token) {
 
-}
-
-void SizeOfValue::calculate_size(bool is64Bit) {
-    value = for_type->byte_size(is64Bit);
 }
 
 bool SizeOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {

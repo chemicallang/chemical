@@ -11,6 +11,13 @@ func relative_path(path : string) : string {
     return dir;
 }
 
+func build_dir_path(ctx : *BuildContext, path : *string) : string {
+    const new_path = ctx.build_path();
+    new_path.append('/')
+    new_path.append_str(path);
+    return new_path;
+}
+
 func exe_dir_path(ctx : *BuildContext, exe_name : *string) : string {
     const new_path = ctx.build_path();
     new_path.append('/');
@@ -88,6 +95,7 @@ func build(ctx : *mut BuildContext) {
     const do_one_job = true;
 
     if(do_llvm_ir) {
+        // gen_ir(ctx, &exe_name, std_module);
         gen_ir(ctx, &exe_name, module);
     }
 

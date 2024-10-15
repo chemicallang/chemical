@@ -791,25 +791,17 @@ void freeCharPointers(char **begin, char **end) {
 
 std::vector<ASTNode*> TranslateC(
         ASTAllocator& allocator,
-        const char *exe_path,
-        const char *abs_path,
+        std::vector<std::string>& args,
         const char *resources_path
 ) {
-//    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
-    std::vector<std::string> args;
-    args.emplace_back(exe_path);
-    args.emplace_back(abs_path);
+    //    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
     clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags(
             clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions));
     ErrorMsg *errors;
     unsigned long errors_len = 0;
-
     char **args_begin;
     char **args_end;
-
-    // Convert vector to char** pointers
     convertToCharPointers(args, &args_begin, &args_end);
-
     auto unit = ClangLoadFromCommandLine(
             const_cast<const char **>(args_begin),
             const_cast<const char **>(args_end),
@@ -844,4 +836,16 @@ std::vector<ASTNode*> TranslateC(
         std::cerr << err.message << std::endl;
     }
     return std::move(translator.nodes);
+}
+
+std::vector<ASTNode*> TranslateC(
+        ASTAllocator& allocator,
+        const char *exe_path,
+        const char *abs_path,
+        const char *resources_path
+) {
+    std::vector<std::string> args;
+    args.emplace_back(exe_path);
+    args.emplace_back(abs_path);
+    return TranslateC(allocator, args, resources_path);
 }

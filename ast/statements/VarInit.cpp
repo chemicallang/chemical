@@ -169,7 +169,7 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
             return llvm_pointer(gen);
         }
     } else {
-        const auto k_type = known_type();
+        const auto k_type = create_value_type(gen.allocator);
         if(k_type->value_type() == ValueType::Struct) {
             return llvm_pointer(gen);
         }

@@ -228,6 +228,11 @@ bool SymbolResolver::declare_function_quietly(const std::string& name, FunctionD
 void SymbolResolver::declare(const std::string &name, ASTNode *node) {
     declare_quietly(name, node);
     auto& scope = *current.back();
+#ifdef DEBUG
+    if(name.empty()) {
+        std::cerr << rang::fg::red << "empty symbol being declared" << rang::fg::reset << std::endl;
+    }
+#endif
     if(scope.kind == SymResScopeKind::File) { // only top level scope symbols are disposed at module's end
         dispose_module_symbols.emplace_back(&scope, name);
     }
@@ -244,6 +249,11 @@ void SymbolResolver::declare_file_disposable(const std::string &name, ASTNode *n
 void SymbolResolver::declare_function(const std::string& name, FunctionDeclaration* declaration) {
     const auto new_sym = declare_function_quietly(name, declaration);
     auto& scope = *current.back();
+#ifdef DEBUG
+    if(name.empty()) {
+        std::cerr << rang::fg::red << "empty symbol being declared" << rang::fg::reset << std::endl;
+    }
+#endif
     if(new_sym && scope.kind == SymResScopeKind::File) { // only top level scope symbols are disposed at module's end
         dispose_module_symbols.emplace_back(&scope, name);
     }

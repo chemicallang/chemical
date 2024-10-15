@@ -573,6 +573,10 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_ty
     return gen.current_function->getArg(0);
 }
 
+llvm::Type* SizeOfValue::llvm_type(Codegen &gen) {
+    return gen.builder->getInt64Ty();
+}
+
 llvm::Value* SizeOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto type = for_type->llvm_type(gen);
     return gen.builder->getInt64(gen.module->getDataLayout().getTypeAllocSize(type));

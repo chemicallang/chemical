@@ -34,12 +34,7 @@
 #include "lexer/model/CompilerBinder.h"
 
 #ifdef COMPILER_BUILD
-std::vector<ASTNode*> TranslateC(
-    ASTAllocator& allocator,
-    const char *exe_path,
-    const char *abs_path,
-    const char *resources_path
-);
+#include "compiler/backend/ClangStuff.h"
 #endif
 
 #ifdef DEBUG
@@ -385,6 +380,39 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         // this is a temporary vector containing absolute paths to files imported from other modules in this module
         // we only populate this, if job is cbi, then we ask binder to import these symbols while compiling
         std::vector<std::string_view> imports_from_other_mods;
+
+#ifdef COMPILER_BUILD
+        // importing c headers of the module before processing files
+        if(!mod->headers.empty()) {
+            // args to clang
+            std::vector<std::string> args;
+            args.emplace_back(options->exe_path);
+            for(auto& header: mod->headers) {
+                args.emplace_back("-include");
+                args.emplace_back(header.to_std_string());
+            }
+            auto nodes = TranslateC(*mod_allocator, args, options->resources_path.c_str());
+            // symbol resolving c nodes, really fast -- just declaring their id's
+            resolver.file_scope_start();
+            for(auto& node : nodes) {
+                resolver.declare(node->ns_node_identifier(), node);
+            }
+            resolver.dispose_module_symbols_now(mod->name.to_std_string());
+            // writing c headers output, if user asked
+            if(!mod->out_translated_headers.empty()) {
+                std::ofstream out_file;
+                auto out_view = mod->out_translated_headers.to_view();
+                out_file.open(out_view);
+                if(out_file.is_open()) {
+                    RepresentationVisitor visitor(out_file);
+                    visitor.translate(nodes);
+                    out_file.close();
+                } else {
+                    std::cerr << rang::fg::red << "[BuildLab] couldn't open file '" << out_view << "' for writing translated headers" << rang::fg::reset << std::endl;
+                }
+            }
+        }
+#endif
 
         // sequentially compile each file
         i = 0;

@@ -52,7 +52,90 @@ struct StringEqual {
     }
 };
 
+enum class CmdOptionType {
+    // a simple option is an option with a single value
+    // -enable true
+    Simple,
+    // an option with multiple values, that will appear multiple times
+    // -file a.c -file b.c -file c.c
+    MultiValued,
+    // a sub command, after this option occurs, every other option is put into a vector of arguments
+    SubCommand
+};
+
+struct CmdOption {
+
+    CmdOptionType type;
+
+    union {
+
+        struct {
+            std::optional<std::string> value;
+        } simple;
+
+        struct {
+            std::vector<std::string> values;
+        } multi_value;
+
+    };
+
+    CmdOption(CmdOptionType type) : type(type) {
+        switch(type) {
+            case CmdOptionType::Simple:
+                new (&simple.value) std::optional<std::string>(std::nullopt);
+                break;
+            case CmdOptionType::MultiValued:
+            case CmdOptionType::SubCommand:
+                new (&multi_value.values) std::vector<std::string>();
+                break;
+        }
+    }
+
+    CmdOption(CmdOption&& other) : type(other.type) {
+        switch(type) {
+            case CmdOptionType::Simple:
+                new(&simple.value) std::optional<std::string>(other.simple.value);
+                break;
+            case CmdOptionType::MultiValued:
+            case CmdOptionType::SubCommand:
+                new(&multi_value.values) std::vector(std::move(other.multi_value.values));
+                break;
+        }
+    }
+
+    void put_value(const std::string_view& value) {
+        switch(type) {
+            case CmdOptionType::Simple:
+                simple.value = value;
+                break;
+            case CmdOptionType::MultiValued:
+            case CmdOptionType::SubCommand:
+                multi_value.values.emplace_back(value);
+                break;
+        }
+    }
+
+    ~CmdOption() {
+        switch(type) {
+            case CmdOptionType::Simple:
+                simple.value.~optional();
+                break;
+            case CmdOptionType::MultiValued:
+            case CmdOptionType::SubCommand:
+                multi_value.values.~vector();
+                break;
+        }
+    }
+
+};
+
 struct CmdOptions {
+
+    /**
+     * this contains the data for every option
+     * when we encounter an option, we check this map to see what kind of option it is
+     */
+    std::unordered_map<std::string_view, CmdOption> data;
 
     /**
      * This must not be empty ! argument keys stored in options map have "" values
@@ -64,6 +147,11 @@ struct CmdOptions {
      * if arguments are encountered without options before them, they are stored with "" as values
      */
     tsl::ordered_map<std::string, std::string, StringHash, StringEqual> options;
+
+    /**
+     * options having multiple values are taken out of options and stored in this map instead
+     */
+    tsl::ordered_map<std::string, std::vector<std::string>, StringHash, StringEqual> multi_val_options;
 
     /**
      * just prints the command to cout
@@ -186,6 +274,15 @@ struct CmdOptions {
         return args;
     }
 
+    void put_option(const std::string_view& option, const std::string_view& value) {
+        auto found = data.find(option);
+        if(found != data.end()) {
+            found->second.put_value(value);
+        } else {
+            options[std::string(option)] = value;
+        }
+    }
+
     /**
      * parses arguments / options into the options map
      * @param argc arg count
@@ -206,7 +303,7 @@ struct CmdOptions {
             bool found = false;
             for(const auto& sub : subcommands) {
                 if(sub == x) {
-                    if(add_subcommand) options[sub] = defOptValue;
+                    if(add_subcommand) put_option(sub, defOptValue);
                     found = true;
                     break;
                 }
@@ -215,13 +312,13 @@ struct CmdOptions {
             // check if it's -option
             if (x[0] == '-') {
                 if(!option.empty()) {
-                    options[option] = defOptValue;
+                    put_option(option, defOptValue);
                 }
                 option = (x[1] == '-') ? (x + 2) : (x + 1);
             } else {
                 // it's a value for the previous option
                 if(!option.empty()) {
-                    options[option] = x;
+                    put_option(option, x);
                     option = "";
                 } else {
                     // it's a argument
@@ -231,7 +328,7 @@ struct CmdOptions {
             i++;
         }
         if(!option.empty()) {
-            options[option] = defOptValue;
+            put_option(option, defOptValue);
         }
         return args;
     }

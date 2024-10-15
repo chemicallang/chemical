@@ -1,5 +1,5 @@
-import "./string.ch"
-import "./array_ref.ch"
+import "@std/string.ch"
+import "@std/array_ref.ch"
 
 public enum ModuleType {
     File,

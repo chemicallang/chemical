@@ -116,6 +116,9 @@ bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
     auto f = firstValue->link(linker, firstValue);
     auto s = secondValue->link(linker, secondValue);
     auto result = f && s;
+    if(firstValue->val_kind() == ValueKind::SizeOfValue) {
+        int i = 0;
+    }
     // ast allocator is being used
     // it's unknown when this expression should be disposed
     // file level / module level allocator should be used, when this expression belongs to a function

@@ -434,7 +434,6 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
 }
 
 llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
-    created_type = create_type(gen.allocator);
     auto firstType = firstValue->create_type(gen.allocator);
     auto secondType = secondValue->create_type(gen.allocator);
     auto first_pure = firstType->pure_type();

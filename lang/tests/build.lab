@@ -1,4 +1,4 @@
-import "@std/lab.ch"
+import "../lib/lab/lab.ch"
 
 func curr_dir() : string {
     const curr_path_str = string(#file:path{});

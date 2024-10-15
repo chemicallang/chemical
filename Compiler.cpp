@@ -204,6 +204,20 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
     return 0;
 }
 
+void register_options(CmdOptions& options) {
+    options.data.emplace("include", CmdOption(CmdOptionType::MultiValued));
+//    options.data.emplace("cc", CmdOption(CmdOptionType::SubCommand));
+//    options.data.emplace("ar", CmdOption(CmdOptionType::SubCommand));
+//    options.data.emplace("configure", CmdOption(CmdOptionType::SubCommand));
+//    options.data.emplace("linker", CmdOption(CmdOptionType::SubCommand));
+}
+
+void take_include_options(LabModule& module, CmdOptions& options) {
+    for(auto& value : options.data.find("include")->second.multi_value.values) {
+        module.headers.emplace_back(value);
+    }
+}
+
 int main(int argc, char *argv[]) {
 
 #ifdef COMPILER_BUILD
@@ -215,6 +229,7 @@ int main(int argc, char *argv[]) {
 
     // parsing the command
     CmdOptions options;
+    register_options(options);
     auto args = options.parse_cmd_options(argc, argv, 1, {"cc", "ar", "configure", "linker"});
 
     // check if configure is called
@@ -384,6 +399,7 @@ int main(int argc, char *argv[]) {
         if(output.has_value() && output.value().ends_with(".c")) {
             LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_folder), { }, { });
             LabModule module(LabModuleType::Files, chem::string("[BuildLabFile]"), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), { }, { });
+            take_include_options(module, options);
             module.paths.emplace_back(args[0]);
             job.dependencies.emplace_back(&module);
             return compiler.do_job_allocating(&job);
@@ -446,6 +462,8 @@ int main(int argc, char *argv[]) {
     }
 
     LabModule module(LabModuleType::Files);
+    take_include_options(module, options);
+
     std::vector<std::unique_ptr<LabModule>> dependencies;
     for(auto& arg : args) {
         if(arg.ends_with(".c")) {

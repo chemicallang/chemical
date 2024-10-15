@@ -4,7 +4,7 @@ import "./std.ch"
 public struct ArrayRef<T> {
 
     var data : *T
-    var size : size_t
+    var _size : size_t
 
     @implicit
     @comptime
@@ -24,8 +24,16 @@ public struct ArrayRef<T> {
     func constructor(array_ptr : *T, array_size : size_t) {
         init {
             data(array_ptr)
-            size(array_size)
+            _size(array_size)
         }
+    }
+
+    func get(&self, loc : size_t) : *T {
+        return data + loc;
+    }
+
+    func size(&self) : size_t {
+        return _size;
     }
 
 }

@@ -35,6 +35,18 @@ LabModule* BuildContextobject_module(LabBuildContext* self, chem::string* name, 
     return self->obj_file_module(name, path);
 }
 
+void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string* header) {
+
+}
+
+void BuildContextinclude_system_header(LabBuildContext* self, LabModule* module, chem::string* header) {
+
+}
+
+void BuildContextinclude_chemical_file(LabBuildContext* self, LabModule* module, chem::string* header) {
+
+}
+
 LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, chem::string* c_path, chem::string* output_path) {
     return self->translate_to_chemical(c_path, output_path);
 }

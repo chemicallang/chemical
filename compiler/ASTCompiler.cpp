@@ -3,10 +3,10 @@
 #include "Codegen.h"
 #include "preprocess/ShrinkingVisitor.h"
 #include "utils/Benchmark.h"
-#include "ASTCompiler.h"
+#include "ASTProcessor.h"
 #include "compiler/SymbolResolver.h"
 
-void ASTCompiler::compile_nodes(
+void ASTProcessor::compile_nodes(
         Codegen& gen,
         Scope& import_res,
         const FlatIGFile &file
@@ -34,7 +34,7 @@ void ASTCompiler::compile_nodes(
     }
 }
 
-void ASTCompiler::declare_nodes(
+void ASTProcessor::declare_nodes(
         Codegen& gen,
         Scope& import_res,
         const FlatIGFile &file

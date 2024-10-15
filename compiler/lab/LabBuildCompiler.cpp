@@ -22,7 +22,6 @@
 #include "ctpl.h"
 #include "compiler/InvokeUtils.h"
 #include "utils/PathUtils.h"
-#include "compiler/ASTCompiler.h"
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
 #include <filesystem>
@@ -207,7 +206,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
-    ASTCompiler processor(options, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
+    ASTProcessor processor(options, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
     Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
     LLVMBackendContext g_context(&gen);
     CodegenEmitterOptions emitter_options;
@@ -778,7 +777,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, &lab_allocator, &lab_allocator);
 
     // the processor that does everything for build.lab files only
-    ASTCompiler lab_processor(
+    ASTProcessor lab_processor(
             options,
             &lab_resolver,
             binder,

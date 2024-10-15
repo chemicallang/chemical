@@ -31,6 +31,11 @@ void build_context_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
         { "BuildContextc_file_module", (void*) BuildContextc_file_module },
         { "BuildContextcpp_file_module", (void*) BuildContextcpp_file_module },
         { "BuildContextobject_module", (void*) BuildContextobject_module },
+
+        { "BuildContextinclude_header", (void*) BuildContextinclude_header },
+        { "BuildContextinclude_system_header", (void*) BuildContextinclude_system_header },
+        { "BuildContextinclude_chemical_file", (void*) BuildContextinclude_chemical_file },
+
         { "BuildContexttranslate_to_chemical", (void*) BuildContexttranslate_to_chemical },
         { "BuildContexttranslate_to_c", (void*) BuildContexttranslate_to_c },
         { "BuildContextbuild_exe", (void*) BuildContextbuild_exe },

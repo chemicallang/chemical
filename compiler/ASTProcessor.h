@@ -190,6 +190,28 @@ public:
         const FlatIGFile& file
     );
 
+#ifdef COMPILER_BUILD
+
+    /**
+     * compile nodes using code generator
+     */
+    void compile_nodes(
+        Codegen& gen,
+        Scope& import_res,
+        const FlatIGFile &file
+    );
+
+    /**
+     * compile nodes using code generator
+     */
+    void declare_nodes(
+        Codegen& gen,
+        Scope& import_res,
+        const FlatIGFile &file
+    );
+
+#endif
+
 };
 
 /**

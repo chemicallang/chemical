@@ -1,7 +1,7 @@
 import "../../../std/array_ref.ch"
 
 func array_ref_size(array : ArrayRef<int>) : size_t {
-    return array.size;
+    return array.size();
 }
 
 func array_ref_at(array : ArrayRef<int>, ind : int) : int {

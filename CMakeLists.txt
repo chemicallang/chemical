@@ -546,7 +546,6 @@ set(COMPILER_SOURCES
         compiler/chem_clang.cpp
         compiler/backend/LLVM.cpp
         compiler/ASTCompiler.cpp
-        compiler/ASTCompiler.h
         compiler/llvm-ar.cpp
         utils/ProcessUtils.h
         compiler/ClangCodegen.h

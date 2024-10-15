@@ -15,6 +15,8 @@ public struct Module {
     var name : string
     // a path can be given, to output the translated C file (if any)
     var out_c_path : string
+    // a path can be given, to output a single translated headers file (if any)
+    var out_translated_headers : string
     // the bitcode file path for this module
     var bitcode_path : string;
     // the object file path for this module
@@ -72,6 +74,15 @@ public struct BuildContext {
 
     // a single .o file
     func object_module (&self, name : &string, path : &string) : *mut Module
+
+    // allows to include c header in the module
+    func include_header(&self, module : *mut Module, header : &string);
+
+    // allows to include a system header in the module
+    func include_system_header(&self, module : *mut Module, header : &string);
+
+    // you can use this to include chemical file in the module
+    func include_chemical_file(&self, module : *mut Module, file : &string);
 
     // translate a c file to chemical
     func translate_to_chemical (&self, c_path : &string, output_path : &string) : *mut LabJob;
@@ -155,4 +166,37 @@ func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &st
 func (ctx : &BuildContext) translate_file_to_c(chem_path : &string, output_path : &string) : *mut LabJob {
     var mod = ctx.file_module(string("TempChem"), chem_path, {});
     return ctx.translate_mod_to_c(mod, output_path);
+}
+
+// allows to include headers in the module
+func (ctx : &BuildContext) include_headers(module : *mut Module, headers : ArrayRef<string>) {
+    var i = 0;
+    const total = headers.size();
+    while(i < total) {
+        var ele = headers.get(i);
+        ctx.include_header(module, *ele);
+        i++;
+    }
+}
+
+// allows to include system headers in the module
+func (ctx : &BuildContext) include_system_headers(module : *mut Module, headers : ArrayRef<string>) {
+    var i = 0;
+    const total = headers.size();
+    while(i < total) {
+        var ele = headers.get(i);
+        ctx.include_system_header(module, *ele);
+        i++;
+    }
+}
+
+// you can use this to include chemical files in the module
+func (ctx : &BuildContext) include_chemical_files(module : *mut Module, files : ArrayRef<string>) {
+    var i = 0;
+    const total = files.size();
+    while(i < total) {
+        var ele = files.get(i);
+        ctx.include_chemical_file(module, *ele);
+        i++;
+    }
 }

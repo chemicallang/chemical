@@ -27,9 +27,9 @@ public:
     std::vector<GenericType*> subscribers;
     /**
      * generic parameters pretend to be different types on different iterations, iterations are number of usages
-     * that we determined during symbol resolution, by default zero means no active
+     * that we determined during symbol resolution
      */
-    int16_t active_iteration = 0;
+    int16_t active_iteration = -1;
     /**
      * the iterations for which functions have been declared
      * this is an index, so next starts at this index

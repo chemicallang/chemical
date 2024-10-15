@@ -38,7 +38,7 @@ public:
     /**
      * if this is a generic function (it has generic parameters), generic parameters
      * pretend to be different types on different iterations, iterations are number of usages
-     * that we determined during symbol resolution, by default zero means no active
+     * that we determined during symbol resolution
      */
     int16_t active_iteration = 0;
     /**

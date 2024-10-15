@@ -333,7 +333,7 @@ void llvm_func_def_attr(llvm::Function* func) {
 
 void FunctionDeclaration::set_llvm_data(llvm::Value* func_callee, llvm::FunctionType* func_type) {
 #ifdef DEBUG
-    if(active_iteration > llvm_data.size()) {
+    if(active_iteration > (int) llvm_data.size()) {
         throw std::runtime_error("decl's generic active iteration is greater than total llvm_data size");
     }
 #endif

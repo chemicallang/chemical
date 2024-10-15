@@ -391,13 +391,19 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 args.emplace_back("-include");
                 args.emplace_back(header.to_std_string());
             }
+            args.emplace_back("-x");
+            args.emplace_back("c");
+#ifdef WIN32
+            args.emplace_back("NUL");
+#else
+            args.emplace_back("/dev/null");
+#endif
             auto nodes = TranslateC(*mod_allocator, args, options->resources_path.c_str());
             // symbol resolving c nodes, really fast -- just declaring their id's
             resolver.file_scope_start();
             for(auto& node : nodes) {
-                resolver.declare(node->ns_node_identifier(), node);
+                resolver.declare_node(node->ns_node_identifier(), node, node->specifier(), true);
             }
-            resolver.dispose_module_symbols_now(mod->name.to_std_string());
             // writing c headers output, if user asked
             if(!mod->out_translated_headers.empty()) {
                 std::ofstream out_file;

@@ -35,7 +35,7 @@ AtReplaceResult std_path_resolver(ImportPathHandler& handler, const std::string&
             stdLib = libsStd;
         } else {
             // debug executable launched in a sub folder of this project
-            stdLib = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/std");
+            stdLib = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/libs/std");
         }
 #else
         stdLib = resolve_rel_parent_path_str(handler.compiler_exe_path, "libs/std");

@@ -1,4 +1,4 @@
-import "../../../std/vector.ch"
+import "@std/vector.ch"
 
 struct VecConcreteChild {
     var a : int

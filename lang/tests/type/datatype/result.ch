@@ -1,5 +1,5 @@
 import "../../test.ch"
-import "../../../std/result.ch"
+import "@std/result.ch"
 
 enum ErrType {
     Simple,

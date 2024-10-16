@@ -1,4 +1,4 @@
-import "../../../std/array_ref.ch"
+import "@std/array_ref.ch"
 
 func array_ref_size(array : ArrayRef<int>) : size_t {
     return array.size();

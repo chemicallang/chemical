@@ -1,4 +1,4 @@
-import "../std/std.ch"
+import "@std/std.ch"
 
 const ANSI_COLOR_RESET = "\x1b[0m"
 const ANSI_COLOR_RED = "\x1b[31m"

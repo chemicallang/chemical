@@ -139,6 +139,17 @@ int LabBuildCompiler::do_job(LabJob* job) {
     return return_int;
 }
 
+void import_in_module(std::vector<ASTNode*>& nodes, SymbolResolver& resolver, const std::string& path) {
+    resolver.file_scope_start();
+    for(auto node : nodes) {
+        const auto requested_specifier = node->specifier();
+        const auto specifier = requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier;
+        resolver.declare_node(node->ns_node_identifier(), node, specifier, true);
+    }
+    resolver.print_diagnostics(path, "SymRes");
+    resolver.diagnostics.clear();
+}
+
 int LabBuildCompiler::process_modules(LabJob* exe) {
 
     const auto job_type = exe->type;
@@ -384,6 +395,21 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         // we only populate this, if job is cbi, then we ask binder to import these symbols while compiling
         std::vector<std::string_view> imports_from_other_mods;
 
+        // importing files user imported using includes
+        if(!mod->includes.empty()) {
+            for(auto& include : mod->includes) {
+                const auto& abs_path = include.to_std_string();
+                auto imported_file = processor.import_chemical_file(abs_path);
+                auto& nodes = imported_file.unit.scope.nodes;
+                import_in_module(nodes, resolver, abs_path);
+#ifdef COMPILER_BUILD
+                processor.compile_nodes(gen, nodes, abs_path);
+#else
+                processor.translate_to_c(c_visitor, nodes, abs_path);
+#endif
+            }
+        }
+
 #ifdef COMPILER_BUILD
         // importing c headers of the module before processing files
         if(!mod->headers.empty()) {
@@ -403,12 +429,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #endif
             auto nodes = TranslateC(*mod_allocator, args, options->resources_path.c_str());
             // symbol resolving c nodes, really fast -- just declaring their id's as less than public specifier
-            resolver.file_scope_start();
-            for(auto node : nodes) {
-                const auto requested_specifier = node->specifier();
-                const auto specifier = requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier;
-                resolver.declare_node(node->ns_node_identifier(), node, specifier, true);
-            }
+            import_in_module(nodes, resolver, mod->name.to_std_string() + ":headers");
             // declaring the nodes fast using code generator
             for(auto node : nodes) {
                 node->code_gen_declare(gen);

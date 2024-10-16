@@ -199,15 +199,83 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
     }
 }
 
+ASTImportResultExt ASTProcessor::import_chemical_file(const std::string& abs_path) {
+
+    std::ostringstream out;
+    ASTUnit unit;
+
+    if (options->verbose) {
+        out << "[IGGraph] Begin Compilation " << abs_path << '\n';
+    }
+
+    std::unique_ptr<BenchmarkResults> bm_results;
+
+    // lex the file
+    SourceProvider provider(nullptr);
+    Lexer lexer(provider, &binder);
+//        if(options->isCBIEnabled) {
+//            bind_lexer_cbi(lexer_cbi.get(), &lexer);
+//        }
+
+    if(options->benchmark) {
+        bm_results = std::make_unique<BenchmarkResults>();
+        benchLexFile(&lexer, abs_path, *bm_results);
+        print_benchmarks(out, "Lex", bm_results.get());
+    } else {
+        lexFile(&lexer, abs_path);
+    }
+    for (const auto &err: lexer.diagnostics) {
+        err.ansi(std::cerr, abs_path, "Lexer") << std::endl;
+    }
+    if (options->print_cst) {
+        printTokens(lexer.unit.tokens);
+    }
+    if (lexer.has_errors) {
+        return { ASTImportResult { std::move(unit), std::move(lexer.unit), false, false }, std::move(out.str()) };
+    }
+
+    // convert the tokens
+    if(options->benchmark) {
+        bm_results->benchmark_begin();
+    }
+
+    CSTConverter converter(
+            abs_path,
+            options->is64Bit,
+            options->target_triple,
+            resolver->comptime_scope,
+            binder,
+            job_allocator,
+            mod_allocator,
+            file_allocator
+    );
+    converter.isCBIEnabled = options->isCBIEnabled;
+    converter.convert(lexer.unit.tokens);
+    if(options->benchmark) {
+        bm_results->benchmark_end();
+        print_benchmarks(out, "Cst2Ast", bm_results.get());
+    }
+    for (const auto &err: converter.diagnostics) {
+        err.ansi(std::cerr, abs_path, "Converter") << std::endl;
+    }
+    unit = converter.take_unit();
+    if (options->print_representation) {
+        out << "[Representation]\n" << unit.scope.representation() << '\n';
+    }
+
+    return { ASTImportResult { std::move(unit), std::move(lexer.unit), true, false }, std::move(out.str()) };
+
+}
+
 ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
     auto& abs_path = file.abs_path;
 
     auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
 
-    std::ostringstream out;
-
     if (is_c_file) {
+
+        std::ostringstream out;
 
         ASTUnit unit;
 
@@ -256,68 +324,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
     } else {
 
-        ASTUnit unit;
-
-        if (options->verbose) {
-            out << "[IGGraph] Begin Compilation " << abs_path << '\n';
-        }
-
-        std::unique_ptr<BenchmarkResults> bm_results;
-
-        // lex the file
-        SourceProvider provider(nullptr);
-        Lexer lexer(provider, &binder);
-//        if(options->isCBIEnabled) {
-//            bind_lexer_cbi(lexer_cbi.get(), &lexer);
-//        }
-
-        if(options->benchmark) {
-            bm_results = std::make_unique<BenchmarkResults>();
-            benchLexFile(&lexer, abs_path, *bm_results);
-            print_benchmarks(out, "Lex", bm_results.get());
-        } else {
-            lexFile(&lexer, abs_path);
-        }
-        for (const auto &err: lexer.diagnostics) {
-            err.ansi(std::cerr, abs_path, "Lexer") << std::endl;
-        }
-        if (options->print_cst) {
-            printTokens(lexer.unit.tokens);
-        }
-        if (lexer.has_errors) {
-            return { ASTImportResult { std::move(unit), std::move(lexer.unit), false, false }, std::move(out.str()) };
-        }
-
-        // convert the tokens
-        if(options->benchmark) {
-            bm_results->benchmark_begin();
-        }
-
-        CSTConverter converter(
-                file.abs_path,
-                options->is64Bit,
-                options->target_triple,
-                resolver->comptime_scope,
-                binder,
-                job_allocator,
-                mod_allocator,
-                file_allocator
-        );
-        converter.isCBIEnabled = options->isCBIEnabled;
-        converter.convert(lexer.unit.tokens);
-        if(options->benchmark) {
-            bm_results->benchmark_end();
-            print_benchmarks(out, "Cst2Ast", bm_results.get());
-        }
-        for (const auto &err: converter.diagnostics) {
-            err.ansi(std::cerr, abs_path, "Converter") << std::endl;
-        }
-        unit = converter.take_unit();
-        if (options->print_representation) {
-            out << "[Representation]\n" << unit.scope.representation() << '\n';
-        }
-
-        return { ASTImportResult { std::move(unit), std::move(lexer.unit), true, false }, std::move(out.str()) };
+        return import_chemical_file(file.abs_path);
 
     }
 
@@ -325,8 +332,8 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
 void ASTProcessor::translate_to_c(
         ToCAstVisitor& visitor,
-        Scope& import_res,
-        const FlatIGFile& file
+        std::vector<ASTNode*>& nodes,
+        const std::string& abs_path
 ) {
     // translating the nodes
     std::unique_ptr<BenchmarkResults> bm_results;
@@ -340,13 +347,13 @@ void ASTProcessor::translate_to_c(
         imported_generics.emplace_back(node.first);
     }
     visitor.translate(imported_generics);
-    visitor.translate(import_res.nodes);
+    visitor.translate(nodes);
     if(options->benchmark) {
         bm_results->benchmark_end();
         std::cout << "[2cTranslation] " << " Completed " << bm_results->representation() << std::endl;
     }
     if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(file.abs_path, "2cTranslation");
+        visitor.print_diagnostics(abs_path, "2cTranslation");
         std::cout << std::endl;
     }
     visitor.reset_errors();

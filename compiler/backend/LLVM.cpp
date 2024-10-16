@@ -1155,11 +1155,19 @@ llvm::Type *EnumDeclaration::llvm_type(Codegen &gen) {
 // ----------- Members
 
 llvm::Value *EnumMember::llvm_load(Codegen &gen) {
-    return gen.builder->getInt32(index);
+    if(init_value) {
+        return init_value->llvm_value(gen, nullptr);
+    } else {
+        return gen.builder->getInt32(index);
+    }
 }
 
 llvm::Type *EnumMember::llvm_type(Codegen &gen) {
-    return gen.builder->getInt32Ty();
+    if(init_value) {
+        return init_value->llvm_type(gen);
+    } else {
+        return gen.builder->getInt32Ty();
+    }
 }
 
 // ------------ Structures

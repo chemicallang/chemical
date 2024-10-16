@@ -235,7 +235,7 @@ namespace InterpretVector {
         ASTNode* parent_node
     ): StructDefinition("vector", parent_node, nullptr, AccessSpecifier::Public),
         constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
-        typeParam("T", nullptr, this, 0, nullptr),
+        typeParam("T", nullptr, nullptr, this, 0, nullptr),
         selfType("vector", this, nullptr), selfReference(&selfType, nullptr)
     {
         add_annotation(AnnotationKind::CompTime);

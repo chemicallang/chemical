@@ -1076,12 +1076,13 @@ ASTNode *BaseFunctionParam::child(const std::string &name) {
 
 GenericTypeParameter::GenericTypeParameter(
         std::string identifier,
+        BaseType* at_least_type,
         BaseType* def_type,
         ASTNode* parent_node,
         unsigned param_index,
         CSTToken* token
-) : identifier(std::move(identifier)),
-def_type(def_type), parent_node(parent_node), param_index(param_index), token(token) {
+) : identifier(std::move(identifier)), at_least_type(at_least_type),
+    def_type(def_type), parent_node(parent_node), param_index(param_index), token(token) {
 
 }
 

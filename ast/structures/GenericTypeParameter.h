@@ -8,6 +8,7 @@ class GenericTypeParameter : public ASTNode {
 public:
 
     std::string identifier;
+    BaseType* at_least_type;
     BaseType* def_type;
     std::vector<BaseType*> usage;
     int16_t active_iteration = -1; // <-- index of active type in usage vector
@@ -20,6 +21,7 @@ public:
      */
     GenericTypeParameter(
         std::string identifier,
+        BaseType* at_least_type,
         BaseType* def_type,
         ASTNode* parent_node,
         unsigned param_index,

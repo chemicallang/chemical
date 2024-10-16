@@ -442,20 +442,27 @@ void convert_generic_list(
     ASTNode* parent_node
 ) {
     unsigned i = 1;
-    unsigned inc = 0;
     GenericTypeParameter* parameter;
     while(i < compound->tokens.size() && compound->tokens[i]->is_identifier()) {
+        BaseType* at_least_type = nullptr;
         BaseType* def_type = nullptr;
+        auto name_tok = compound->tokens[i];
+        if(is_char_op(compound->tokens[i + 1], ':')) {
+            i++;
+            compound->tokens[i + 1]->accept(converter);
+            at_least_type = converter->type();
+            i++;
+        }
         if(is_char_op(compound->tokens[i + 1], '=')) {
             compound->tokens[i + 2]->accept(converter);
             def_type = converter->type();
-            inc = 4;
+            // 4 -> +1 -> '=' , +2 -> 'type' , +3 -> ',' , +4 -> next identifier
+            i += 4;
         } else {
-            inc = 2;
+            i += 2;
         }
-        parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(str_token(compound->tokens[i]), def_type, parent_node, generic_list.size(), compound->tokens[i]);
+        parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(str_token(name_tok), at_least_type, def_type, parent_node, generic_list.size(), name_tok);
         generic_list.emplace_back(parameter);
-        i += inc; // 4 -> +1 -> '=' , +2 -> 'type' , +3 -> ',' , +4 -> next identifier
     }
 }
 

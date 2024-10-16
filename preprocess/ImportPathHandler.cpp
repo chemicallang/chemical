@@ -11,7 +11,7 @@ AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::stri
     std::string dir = handler.headers_dir(headerPath);
     if (dir.empty()) {
         // trying to resolve a cached header instead
-        auto expected_cached = resolve_sibling(handler.compiler_exe_path, "libs/system/" + headerPath + ".ch");
+        auto expected_cached = resolve_sibling(handler.exe_path, "libs/system/" + headerPath + ".ch");
         if(std::filesystem::exists(expected_cached)) {
             return { expected_cached };
         } else {
@@ -29,13 +29,13 @@ AtReplaceResult std_path_resolver(ImportPathHandler& handler, const std::string&
         stdLib = handler.std_lib_path;
     } else {
 #ifdef DEBUG
-        const auto libsStd = resolve_sibling(handler.compiler_exe_path, "libs/std");
+        const auto libsStd = resolve_sibling(handler.exe_path, "libs/std");
         if(std::filesystem::exists(libsStd)) {
             // debug executable launched in a folder that contains libs/std
             stdLib = libsStd;
         } else {
             // debug executable launched in a sub folder of this project
-            stdLib = resolve_sibling(resolve_parent_path(handler.compiler_exe_path), "lang/std");
+            stdLib = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/std");
         }
 #else
         stdLib = resolve_rel_parent_path_str(handler.compiler_exe_path, "libs/std");
@@ -46,7 +46,7 @@ AtReplaceResult std_path_resolver(ImportPathHandler& handler, const std::string&
 #ifndef DEBUG
         std::string stdLib = "libs/std";
 #endif
-        return AtReplaceResult { "", "couldn't find std library at path '" + stdLib + "' relative to '" + handler.compiler_exe_path + "'" };
+        return AtReplaceResult { "", "couldn't find std library at path '" + stdLib + "' relative to '" + handler.exe_path + "'" };
     } else {
         auto replaced = resolve_rel_child_path_str(stdLib, filePath);
         if(replaced.empty()) {
@@ -57,16 +57,18 @@ AtReplaceResult std_path_resolver(ImportPathHandler& handler, const std::string&
     }
 }
 
-ImportPathHandler::ImportPathHandler(std::string compiler_exe_path) : compiler_exe_path(std::move(compiler_exe_path)) {
+ImportPathHandler::ImportPathHandler(std::string compiler_exe_path) : exe_path(std::move(compiler_exe_path)) {
     path_resolvers["system"] = system_path_resolver;
     path_resolvers["std"] = std_path_resolver;
 }
 
 std::string ImportPathHandler::headers_dir(const std::string &header) {
 
+#ifdef COMPILER_BUILD
     if(system_headers_paths.empty()) {
-        system_headers_paths = std::move(::system_headers_path(compiler_exe_path));
+        system_headers_paths = ::system_headers_path(exe_path);
     }
+#endif
 
     return ::headers_dir(system_headers_paths, header);
 

@@ -19,4 +19,12 @@ std::string resources_path_rel_to_exe(const std::string& exe_path);
 std::string canonical_path(const std::string& path);
 
 // resolve relative paths (relative to current working directory)
+std::string absolute_path(const std::string_view& relative);
+
+// resolve relative paths (relative to current working directory)
 std::string absolute_path(const std::string& relative);
+
+/**
+ * get our actual compiler (clang based) executable path relative to tiny cc
+ */
+std::string compiler_exe_path_relative_to_tcc(const std::string& exe_path);

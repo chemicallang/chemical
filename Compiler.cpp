@@ -205,13 +205,27 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
 }
 
 const auto include_cmd_desc = "include a c header or a chemical file in compilation";
+const auto cc_cmd_desc = "invokes the cc tool";
+const auto configure_cmd_desc = "configures the compiler for this OS";
+const auto linker_cmd_desc = "invoke the linker to link libraries";
+const auto ar_cmd_desc = "invoke the ar tool to archive libraries";
+const auto dlltool_cmd_desc = "invoke the dlltool to archive libraries";
+const auto ranlib_cmd_desc = "invoke the llvm ranlib tool";
+const auto lib_cmd_desc = "invoke the llvm lib tool";
 
 void register_options(CmdOptions& options) {
-    options.so_data.emplace("include", CmdOption(CmdOptionType::MultiValued, include_cmd_desc));
+    options.data.emplace("include", CmdOption(CmdOptionType::MultiValued, include_cmd_desc));
+    options.data.emplace("cc", CmdOption(CmdOptionType::SubCommand, cc_cmd_desc));
+    options.data.emplace("configure", CmdOption(CmdOptionType::SubCommand, configure_cmd_desc));
+    options.data.emplace("linker", CmdOption(CmdOptionType::SubCommand, linker_cmd_desc));
+    options.data.emplace("ar", CmdOption(CmdOptionType::SubCommand, ar_cmd_desc));
+    options.data.emplace("dlltool", CmdOption(CmdOptionType::SubCommand, dlltool_cmd_desc));
+    options.data.emplace("ranlib", CmdOption(CmdOptionType::SubCommand, ranlib_cmd_desc));
+    options.data.emplace("lib", CmdOption(CmdOptionType::SubCommand, lib_cmd_desc));
 }
 
 void take_include_options(LabModule& module, CmdOptions& options) {
-    for(auto& value : options.so_data.find("include")->second.multi_value.values) {
+    for(auto& value : options.data.find("include")->second.multi_value.values) {
         if(value.ends_with(".ch")) {
             module.paths.emplace_back(std::string(value));
         } else {
@@ -232,12 +246,12 @@ int main(int argc, char *argv[]) {
     // parsing the command
     CmdOptions options;
     register_options(options);
-    options.parse_cmd_options(argc, argv, 1, {"cc", "ar", "configure", "linker"});
+    options.parse_cmd_options(argc, argv, 1);
     auto& args = options.arguments;
 
     // check if configure is called
-    auto config_option = options.option("configure");
-    if(config_option.has_value()) {
+    auto& config_cmd_opt = options.cmd_opt("configure");
+    if(config_cmd_opt.has_multi_value()) {
         return configure_exe(options, argc, argv);
     }
 
@@ -247,11 +261,12 @@ int main(int argc, char *argv[]) {
     }
 
 #ifdef COMPILER_BUILD
-    auto llvm_tool = [](int argc, char** argv, CmdOptions& options, const std::string& option) -> int {
-        auto llvm_dll_tool = options.option(option, option);
-        if(llvm_dll_tool.has_value()) {
-            auto subc = options.collect_subcommand(argc, argv, option);
-            subc.insert(subc.begin(), "dlltool");
+    auto llvm_tool = [](int argc, char** argv, CmdOptions& options, const std::string_view& option) -> int {
+        auto& cmd_opt = options.cmd_opt(option);
+        if(cmd_opt.has_multi_value() && !cmd_opt.multi_value.values.empty()) {
+            std::vector<std::string> subc;
+            subc.emplace_back(option);
+            cmd_opt.put_multi_value_vec(subc);
             return llvm_ar_main2(subc);
         } else {
             return -999;
@@ -269,10 +284,11 @@ int main(int argc, char *argv[]) {
 
 #ifdef COMPILER_BUILD
     // use raw clang
-    auto rawclang = options.option("cc", "cc");
-    if(rawclang.has_value()) {
-        auto subc = options.collect_subcommand(argc, argv, "cc");
-        subc.insert(subc.begin(), argv[0]);
+    auto& cc_cmd_opt = options.cmd_opt("cc");
+    if(!cc_cmd_opt.multi_value.values.empty()) {
+        std::vector<std::string> subc;
+        subc.emplace_back(argv[0]);
+        cc_cmd_opt.put_multi_value_vec(subc);
 //        std::cout << "rclg  : ";
 //        for(const auto& sub : subc) {
 //            std::cout << sub;

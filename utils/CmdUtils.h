@@ -53,9 +53,13 @@ struct StringEqual {
 };
 
 enum class CmdOptionType {
-    // a simple option is an option with a single value
-    // -enable true
-    Simple,
+    // a small option is an option with a smaller key
+    // for example -o for output, it has a single dash in front
+    SmallOption,
+    // a large option is an option with a larger key
+    // for example --output for output
+    // large options usually have double dashes in front
+    LargeOption,
     // an option with multiple values, that will appear multiple times
     // -file a.c -file b.c -file c.c
     MultiValued,
@@ -76,37 +80,77 @@ struct CmdOption {
 
         struct {
             std::vector<std::string_view> values;
+            bool has_value;
         } multi_value;
 
     };
 
     CmdOption(CmdOptionType type, std::string_view description) : type(type), description(description) {
         switch(type) {
-            case CmdOptionType::Simple:
+            case CmdOptionType::SmallOption:
+            case CmdOptionType::LargeOption:
                 new (&simple.value) std::optional<std::string_view>(std::nullopt);
                 break;
             case CmdOptionType::MultiValued:
             case CmdOptionType::SubCommand:
                 new (&multi_value.values) std::vector<std::string_view>();
+                multi_value.has_value = false;
                 break;
         }
     }
 
     CmdOption(CmdOption&& other) : type(other.type), description(other.description) {
         switch(type) {
-            case CmdOptionType::Simple:
+            case CmdOptionType::SmallOption:
+            case CmdOptionType::LargeOption:
                 new(&simple.value) std::optional<std::string_view>(other.simple.value);
                 break;
             case CmdOptionType::MultiValued:
             case CmdOptionType::SubCommand:
                 new(&multi_value.values) std::vector(std::move(other.multi_value.values));
+                multi_value.has_value = other.multi_value.has_value;
                 break;
+        }
+    }
+
+    /**
+     * TODO: avoid this function
+     */
+    void put_multi_value_vec(std::vector<std::string>& args) {
+        for(auto& value : multi_value.values) {
+            args.emplace_back(value);
+        }
+    }
+
+    /**
+     * calling this method is not recommended if the option is not known to be a multi valued option
+     */
+    inline bool has_multi_value() {
+        return multi_value.has_value;
+    }
+
+    /**
+     * take sub command if interested
+     */
+    bool take_subcommand(int& i, int argc, char *argv[]) {
+        if(type == CmdOptionType::SubCommand) {
+            multi_value.has_value = true;
+            // skip one argument, this is probably the command name
+            i++;
+            while(i < argc) {
+                multi_value.values.emplace_back(argv[i]);
+                i++;
+            }
+            return true;
+        } else {
+            return false;
         }
     }
 
     void put_value(const std::string_view& value) {
         switch(type) {
-            case CmdOptionType::Simple:
+            case CmdOptionType::SmallOption:
+            case CmdOptionType::LargeOption:
                 simple.value = value;
                 break;
             case CmdOptionType::MultiValued:
@@ -118,7 +162,8 @@ struct CmdOption {
 
     ~CmdOption() {
         switch(type) {
-            case CmdOptionType::Simple:
+            case CmdOptionType::SmallOption:
+            case CmdOptionType::LargeOption:
                 simple.value.~optional();
                 break;
             case CmdOptionType::MultiValued:
@@ -133,16 +178,10 @@ struct CmdOption {
 struct CmdOptions {
 
     /**
-     * this contains the data for every small option, a small option is like -o where large opt is --output
+     * this contains the data for every option
      * when we encounter an option, we check this map to see what kind of option it is
      */
-    std::unordered_map<std::string_view, CmdOption> so_data;
-
-    /**
-     * this contains the data for every large option, a small option is like -o where large opt is --output
-     * when we encounter an option, we check this map to see what kind of option it is
-     */
-    std::unordered_map<std::string_view, CmdOption> lo_data;
+    std::unordered_map<std::string_view, CmdOption> data;
 
     /**
      * arguments, when a value doesn't have an option for example file1.h -include file.h
@@ -236,6 +275,44 @@ struct CmdOptions {
     }
 
     /**
+     * this method should only be called, if cmd option is known to exist
+     */
+    CmdOption& cmd_opt(const std::string_view& opt) {
+        return data.find(opt)->second;
+    }
+
+    /**
+     * get the single value for the given arg
+     */
+    std::optional<std::string_view> new_opt(const std::string_view& opt, std::string_view& small_opt) {
+        if(!opt.empty()) {
+            auto found = data.find(opt);
+            if(found != data.end()) {
+                return found->second.simple.value;
+            } else {
+                // todo remove this
+                auto next_found = options.find(opt);
+                if(next_found != options.end()) {
+                    return next_found->second;
+                }
+            }
+        }
+        if(!small_opt.empty()) {
+            auto found = data.find(small_opt);
+            if(found != data.end()) {
+                return found->second.simple.value;
+            } else {
+                // todo remove this
+                auto next_found = options.find(small_opt);
+                if(next_found != options.end()) {
+                    return next_found->second;
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    /**
      * gives the value for a option for example
      * cmd --x file
      * give opt (x) to this function to get the value (file)
@@ -287,9 +364,9 @@ struct CmdOptions {
         return args;
     }
 
-    void put_option(const std::string_view& option, const std::string_view& value) {
-        auto found = so_data.find(option);
-        if(found != so_data.end()) {
+    void put_option(const std::string_view& option, bool is_large_opt, const std::string_view& value) {
+        auto found = data.find(option);
+        if(found != data.end()) {
             found->second.put_value(value);
         } else {
             options[std::string(option)] = value;
@@ -306,42 +383,99 @@ struct CmdOptions {
      * for example clang x -o file.o, x here is a argument
      * @return the first args, cmd file.o file.o1, these file.o and file.o1 are returned
      */
-    void parse_cmd_options(int argc, char *argv[], int skip = 0, const std::vector<std::string>& subcommands = {}, bool add_subcommand = true) {
-        int i = skip;
+    void parse_cmd_options(int argc, char *argv[], int skip = 0) {
+
         std::string_view option;
+        bool is_option_large_opt = false;
+
+        int i = skip;
         while (i < argc) {
-            auto x = argv[i];
-            // check if it's a subcommand
-            bool found = false;
-            for(const auto& sub : subcommands) {
-                if(sub == x) {
-                    if(add_subcommand) put_option(sub, defOptValue);
-                    found = true;
-                    break;
-                }
+
+            const auto user_arg = std::string_view(argv[i]);
+
+            const auto has_dash_in_front = user_arg[0] == '-';
+            const auto has_at_least_size_2 = user_arg.size() > 1;
+
+            const auto source_opt = has_dash_in_front && !has_at_least_size_2;
+            if(source_opt) {
+                // cannot handle source option at the moment
+                i++;
+                continue;
             }
-            if(found) break;
-            // check if it's -option
-            if (x[0] == '-') {
-                if(!option.empty()) {
-                    put_option(option, defOptValue);
-                }
-                option = (x[1] == '-') ? (x + 2) : (x + 1);
-            } else {
-                // it's a value for the previous option
-                if(!option.empty()) {
-                    put_option(option, x);
-                    option = "";
+
+            if(has_at_least_size_2) {
+
+                if(has_dash_in_front) {
+
+                    const auto is_large_opt = user_arg[1] == '-';
+                    const auto option_key_offset = is_large_opt ? 2 : 1;
+                    const auto option_key = std::string_view(argv[i] + option_key_offset,user_arg.size() - option_key_offset);
+
+                    if (!option.empty()) {
+                        // has an option, however user writes another option
+                        // put previous option with a default value first
+                        put_option(option, is_option_large_opt, defOptValue);
+                    }
+
+                    // set this option as current opt
+                    option = option_key;
+                    is_option_large_opt = is_large_opt;
+
                 } else {
-                    // it's a argument
-                    arguments.emplace_back(x);
+                    if(option.empty()) {
+                        auto found = data.find(user_arg);
+                        if(found != data.end()) {
+                            auto& opt = found->second;
+                            if(!opt.take_subcommand(i, argc, argv)) {
+
+                                // TODO: error given option does not take sub arguments
+
+                            }
+                        } else {
+                            // an argument = has no option, no dash in front, not registered cmd option
+                            arguments.emplace_back(user_arg);
+                        }
+                    } else {
+                        // value for an option = has an option, value with no dash in front
+                        put_option(option, is_option_large_opt, user_arg);
+                        option = "";
+                        is_option_large_opt = false;
+                    }
                 }
+
+            } else {
+
+                if(option.empty()) {
+
+                    // probably a sub command, no dash in front, only size 1, no option
+                    auto found = data.find(user_arg);
+                    if (found != data.end()) {
+                        auto& opt = found->second;
+                        if(!opt.take_subcommand(i, argc, argv)) {
+
+                            // TODO: error given option does not take sub arguments
+
+                        }
+                    } else {
+
+                        // TODO: error unknown option given
+
+                    }
+
+                } else {
+
+                    put_option(option, is_option_large_opt, user_arg);
+
+                }
+
             }
             i++;
         }
+
         if(!option.empty()) {
-            put_option(option, defOptValue);
+            put_option(option, is_option_large_opt, defOptValue);
         }
+
     }
 
 };

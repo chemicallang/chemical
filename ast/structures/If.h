@@ -23,6 +23,8 @@ public:
     CSTToken* token;
     bool is_computable = false;
     bool resolved_condition = true;
+    // after resolving computed value, we store the scope, so we can visit it
+    std::optional<Scope*> computed_scope = std::nullopt;
 
     /**
      * @brief Construct a new IfStatement object.

@@ -181,7 +181,7 @@ public:
      * translate a c file to chemical
      */
     LabJob* translate_to_chemical(
-        chem::string* c_path,
+        LabModule* module,
         chem::string* out_path
     );
 

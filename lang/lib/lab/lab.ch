@@ -78,8 +78,8 @@ public struct BuildContext {
     // allows to include c header in the module
     func include_header(&self, module : *mut Module, header : &string);
 
-    // translate a c file to chemical
-    func translate_to_chemical (&self, c_path : &string, output_path : &string) : *mut LabJob;
+    // translate a module to chemical
+    func translate_to_chemical (&self, module : *mut Module, output_path : &string) : *mut LabJob;
 
     // translate a chemical module to c file
     func translate_to_c (&self, name : &string, dependencies : ArrayRef<*Module>, output_dir : &string) : *mut LabJob
@@ -151,6 +151,11 @@ func (ctx : &BuildContext) chemical_file_module(name : &string, path : &string, 
 func (ctx : &BuildContext) file_module(name : &string, path : &string, dependencies : ArrayRef<*Module>) : *mut Module {
     const path_ptr = &path;
     return ctx.files_module(name, &path_ptr, 1, dependencies);
+}
+
+func (ctx : &BuildContext) translate_file_to_chemical (c_path : &string, output_path : &string) : *mut LabJob {
+    const mod = ctx.file_module(string("CFile"), c_path, {  });
+    return ctx.translate_to_chemical(mod, output_path);
 }
 
 func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &string) : *mut LabJob {

@@ -43,15 +43,20 @@ void IfStatement::code_gen(Codegen &gen) {
 
 void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
 
-    if(is_computable) {
-        auto condition_val = get_condition_const((InterpretScope&) gen.comptime_scope);
-        if(condition_val.has_value()) {
-            auto scope = get_evaluated_scope((InterpretScope&) gen.comptime_scope, &gen, condition_val.value());
-            if (scope) {
-                scope->code_gen(gen);
-            }
-            return;
+    if(computed_scope.has_value()) {
+        auto scope = computed_scope.value();
+        if(scope) {
+            scope->code_gen(gen);
         }
+        return;
+//        auto condition_val = get_condition_const((InterpretScope&) gen.comptime_scope);
+//        if(condition_val.has_value()) {
+//            auto scope = get_evaluated_scope((InterpretScope&) gen.comptime_scope, &gen, condition_val.value());
+//            if (scope) {
+//                scope->code_gen(gen);
+//            }
+//            return;
+//        }
     }
 
     // compare
@@ -241,6 +246,7 @@ void IfStatement::declare_top_level(SymbolResolver &linker) {
         auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
         if(condition_val.has_value()) {
             auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
+            computed_scope = eval;
             if (eval) {
                 eval->declare_top_level(linker);
             }
@@ -256,9 +262,17 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     }
     if(is_computable || compile_time_computable()) {
         is_computable = true;
+        if(computed_scope.has_value()) {
+            auto scope = computed_scope.value();
+            if(scope) {
+                scope->declare_and_link(linker);
+            }
+            return;
+        }
         auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
         if(condition_val.has_value()) {
             auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
+            computed_scope = eval;
             if (eval) {
                 eval->declare_and_link(linker);
             }

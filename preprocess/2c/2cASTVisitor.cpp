@@ -2508,7 +2508,11 @@ void CValueDeclarationVisitor::visit(StructMember *member) {
 }
 
 void CValueDeclarationVisitor::visit(IfStatement *stmt) {
-    if(stmt->is_computable) {
+    if(stmt->computed_scope.has_value()) {
+        auto scope = stmt->computed_scope.value();
+        if(scope) {
+            scope->accept(this);
+        }
         return;
     }
     CommonVisitor::visit(stmt);
@@ -3245,15 +3249,12 @@ void ToCAstVisitor::visit(ExtensionFunction *decl) {
 
 void ToCAstVisitor::visit(IfStatement *decl) {
     // generating code for compile time if statements
-    if(decl->is_computable) {
-        auto condition_val = decl->get_condition_const(comptime_scope);
-        if(condition_val.has_value()) {
-            auto scope = decl->get_evaluated_scope(comptime_scope, this, condition_val.value());
-            if (scope) {
-                scope->accept(this);
-            }
-            return;
+    if(decl->computed_scope.has_value()) {
+        auto scope = decl->computed_scope.value();
+        if(scope) {
+            scope->accept(this);
         }
+        return;
     }
     // generating code for normal if statements
     write("if(");

@@ -285,7 +285,7 @@ extern "C" {
 
     FunctionParam* ASTBuildermake_function_param(CSTConverter* converter, chem::string* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, CSTToken* token);
 
-    GenericTypeParameter* ASTBuildermake_generic_param(CSTConverter* converter, chem::string* name, BaseType* def_type, ASTNode* parent_node, unsigned int index, CSTToken* token);
+    GenericTypeParameter* ASTBuildermake_generic_param(CSTConverter* converter, chem::string* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, CSTToken* token);
 
     IfStatement* ASTBuildermake_if_stmt(CSTConverter* converter, Value* condition, bool is_value, ASTNode* parent_node, CSTToken* token);
 

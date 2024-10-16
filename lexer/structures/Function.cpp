@@ -150,14 +150,22 @@ bool Lexer::lexGenericParametersList() {
                 break;
             }
             lexWhitespaceToken();
+            if(lexOperatorToken(':')) {
+                lexWhitespaceToken();
+                if(!lexTypeTokens()) {
+                    error("expected a type after ':' in generic parameter list");
+                    return true;
+                }
+                lexWhitespaceToken();
+            }
             if(lexOperatorToken('=')) {
                 lexWhitespaceToken();
                 if(!lexTypeTokens()) {
                     error("expected a default type after '=' in generic parameter list");
                     return true;
                 }
+                lexWhitespaceToken();
             }
-            lexWhitespaceToken();
             if(!lexOperatorToken(',')) {
                 break;
             }

@@ -429,8 +429,8 @@ FunctionParam* ASTBuildermake_function_param(CSTConverter* converter, chem::stri
     return new (converter->local<FunctionParam>()) FunctionParam(name->to_std_string(), type, index, value, implicit, decl, token);
 }
 
-GenericTypeParameter* ASTBuildermake_generic_param(CSTConverter* converter, chem::string* name, BaseType* def_type, ASTNode* parent_node, unsigned int index, CSTToken* token) {
-    return new (converter->local<GenericTypeParameter>()) GenericTypeParameter(name->to_std_string(), def_type, parent_node, index, token);
+GenericTypeParameter* ASTBuildermake_generic_param(CSTConverter* converter, chem::string* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, CSTToken* token) {
+    return new (converter->local<GenericTypeParameter>()) GenericTypeParameter(name->to_std_string(), at_least_type, def_type, parent_node, index, token);
 }
 
 IfStatement* ASTBuildermake_if_stmt(CSTConverter* converter, Value* condition, bool is_value, ASTNode* parent_node, CSTToken* token) {

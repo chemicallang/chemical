@@ -496,7 +496,7 @@ public struct ASTBuilder {
 
     func make_enum_decl(&self, name : *string, specifier : AccessSpecifier, parent_node : *ASTNode, token : *CSTToken) : *EnumDeclaration
 
-    func make_enum_member(&self, name : *string, index : uint, init_value : Value*, parent_node : *EnumDeclaration, token : *CSTToken) : *EnumMember
+    func make_enum_member(&self, name : *string, index : uint, init_value : *Value, parent_node : *EnumDeclaration, token : *CSTToken) : *EnumMember
 
     func make_for_loop(&self, initializer : *VarInitStatement, conditionExpr : *Value, incrementerExpr : *ASTNode, parent_node : *ASTNode, token : *CSTToken) : *ForLoop
 
@@ -504,7 +504,7 @@ public struct ASTBuilder {
 
     func make_function_param(&self, name : *string, type : *BaseType, index : uint, value : *Value, implicit : bool, decl : *FunctionType, token : *CSTToken) : *FunctionParam
 
-    func make_generic_param(&self, name : *string, def_type : *BaseType, parent_node : *ASTNode, index : uint, token : *CSTToken) : *GenericTypeParameter
+    func make_generic_param(&self, name : *string, at_least_type : *BaseType, def_type : *BaseType, parent_node : *ASTNode, index : uint, token : *CSTToken) : *GenericTypeParameter
 
     func make_if_stmt(&self, condition : *Value, is_value : bool, parent_node : *ASTNode, token : *CSTToken) : *IfStatement
 

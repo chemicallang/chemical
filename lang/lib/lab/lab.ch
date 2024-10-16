@@ -54,7 +54,7 @@ public enum CBIImportKind {
     Lexer
 }
 
-@compiler:interface
+@compiler.interface
 public struct BuildContext {
 
     // support's paths with .o, .c and .ch extensions

@@ -7,7 +7,7 @@ public struct Position {
     var character : uint
 }
 
-@compiler:interface
+@compiler.interface
 public struct CSTToken {
 
     func get_value(&self, into : *string);

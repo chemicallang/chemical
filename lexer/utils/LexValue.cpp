@@ -59,7 +59,7 @@ bool Lexer::lexAccessChainValueToken() {
     return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken();
 }
 
-bool Lexer::lexSwitchCaseValue() {
+bool Lexer::lexConstantValue() {
     return lexCharToken() || lexStringToken() || lexNumberToken() || lexBoolToken() ||
            lexNull() || lexAccessChainOrAddrOf() || lexAnnotationMacro();
 }

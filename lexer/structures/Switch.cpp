@@ -8,7 +8,7 @@ bool Lexer::lexMultipleSwitchCaseValues() {
         if(has_single) {
             lexWhitespaceToken();
         }
-        if(lexWSKeywordToken("default", ':') || lexSwitchCaseValue()) {
+        if(lexWSKeywordToken("default", ':') || lexConstantValue()) {
             has_single = true;
         }
         lexWhitespaceToken();

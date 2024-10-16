@@ -413,8 +413,8 @@ EnumDeclaration* ASTBuildermake_enum_decl(CSTConverter* converter, chem::string*
     return new (converter->local<EnumDeclaration>()) EnumDeclaration(name->to_std_string(), {}, parent_node, token, specifier);
 }
 
-EnumMember* ASTBuildermake_enum_member(CSTConverter* converter, chem::string* name, unsigned int index, EnumDeclaration* parent_node, CSTToken* token) {
-    return new (converter->local<EnumMember>()) EnumMember(name->data(), index, parent_node, token);
+EnumMember* ASTBuildermake_enum_member(CSTConverter* converter, chem::string* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, CSTToken* token) {
+    return new (converter->local<EnumMember>()) EnumMember(name->data(), index, init_value, parent_node, token);
 }
 
 ForLoop* ASTBuildermake_for_loop(CSTConverter* converter, VarInitStatement* initializer, Value* conditionExpr, ASTNode* incrementerExpr, ASTNode* parent_node, CSTToken* token) {

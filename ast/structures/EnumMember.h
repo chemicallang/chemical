@@ -44,7 +44,6 @@ public:
 
     llvm::Value *llvm_load(Codegen &gen) override;
 
-
     llvm::Type *llvm_type(Codegen &gen) override;
 
 #endif

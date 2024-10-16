@@ -3852,7 +3852,12 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, 
             } else {
                 if(current->linked_node()->as_enum_decl() != nullptr) {
                     if(visitor.inline_enum_member_access) {
-                        visitor.write(std::to_string(next->linked_node()->as_enum_member()->index));
+                        auto member = next->linked_node()->as_enum_member();
+                        if(member->init_value) {
+                            member->init_value->accept(&visitor);
+                        } else {
+                            visitor.write(std::to_string(member->index));
+                        }
                         start++;
                     } else {
                         auto found = visitor.declarer->aliases.find(next->linked_node()->as_enum_member());

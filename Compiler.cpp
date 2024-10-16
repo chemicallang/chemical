@@ -402,12 +402,12 @@ int main(int argc, char *argv[]) {
             LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_folder), { }, { });
             LabModule module(LabModuleType::Files, chem::string("[BuildLabFile]"), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), { }, { });
             take_include_options(module, options);
-            module.paths.emplace_back(args[0]);
+            module.paths.emplace_back(std::string(args[0]));
             job.dependencies.emplace_back(&module);
             return compiler.do_job_allocating(&job);
         }
 
-        LabBuildContext context(&compiler_opts, args[0]);
+        LabBuildContext context(&compiler_opts, std::string(args[0]));
         prepare_options(&compiler_opts);
         compiler_opts.def_mode = mode;
 
@@ -417,7 +417,7 @@ int main(int argc, char *argv[]) {
                 context.build_args[opt.first.substr(4)] = opt.second;
             }
         }
-        return compiler.build_lab_file(context, args[0]);
+        return compiler.build_lab_file(context, std::string(args[0]));
     }
 
     // compilation
@@ -471,15 +471,15 @@ int main(int argc, char *argv[]) {
         if(arg.ends_with(".c")) {
             auto dep = new LabModule(LabModuleType::CFile);
             dependencies.emplace_back(dep);
-            dep->paths.emplace_back(arg);
+            dep->paths.emplace_back(std::string(arg));
             module.dependencies.emplace_back(dep);
         } else if(arg.ends_with(".o")) {
             auto dep = new LabModule(LabModuleType::ObjFile);
             dependencies.emplace_back(dep);
-            dep->paths.emplace_back(arg);
+            dep->paths.emplace_back(std::string(arg));
             module.dependencies.emplace_back(dep);
         } else {
-            module.paths.emplace_back(arg);
+            module.paths.emplace_back(std::string(arg));
         }
     }
 

@@ -300,9 +300,9 @@ struct CmdOptions {
      * for example clang x -o file.o, x here is a argument
      * @return the first args, cmd file.o file.o1, these file.o and file.o1 are returned
      */
-    std::vector<std::string> parse_cmd_options(int argc, char *argv[], int skip = 0, const std::vector<std::string>& subcommands = {}, bool add_subcommand = true) {
+    std::vector<std::string_view> parse_cmd_options(int argc, char *argv[], int skip = 0, const std::vector<std::string>& subcommands = {}, bool add_subcommand = true) {
         int i = skip;
-        std::vector<std::string> args;
+        std::vector<std::string_view> args;
         std::string_view option;
         while (i < argc) {
             auto x = argv[i];

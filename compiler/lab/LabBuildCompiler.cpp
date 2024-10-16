@@ -401,8 +401,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             auto nodes = TranslateC(*mod_allocator, args, options->resources_path.c_str());
             // symbol resolving c nodes, really fast -- just declaring their id's
             resolver.file_scope_start();
-            for(auto& node : nodes) {
+            for(auto node : nodes) {
                 resolver.declare_node(node->ns_node_identifier(), node, node->specifier(), true);
+            }
+            // declaring the nodes fast using code generator
+            for(auto node : nodes) {
+                node->code_gen_declare(gen);
             }
             // writing c headers output, if user asked
             if(!mod->out_translated_headers.empty()) {

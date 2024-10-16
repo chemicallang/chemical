@@ -11,14 +11,16 @@ public:
     std::string name;
     unsigned int index;
     EnumDeclaration* parent_node;
+    Value* init_value;
     CSTToken* token;
 
     EnumMember(
-        const std::string& name,
+        std::string  name,
         unsigned int index,
+        Value* init_value,
         EnumDeclaration* parent_node,
         CSTToken* token
-    ) : name(name), index(index), parent_node(parent_node), token(token) {
+    ) : name(std::move(name)), index(index), init_value(init_value), parent_node(parent_node), token(token) {
 
     }
 

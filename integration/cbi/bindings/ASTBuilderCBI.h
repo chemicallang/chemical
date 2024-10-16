@@ -277,7 +277,7 @@ extern "C" {
 
     EnumDeclaration* ASTBuildermake_enum_decl(CSTConverter* converter, chem::string* name, AccessSpecifier specifier, ASTNode* parent_node, CSTToken* token);
 
-    EnumMember* ASTBuildermake_enum_member(CSTConverter* converter, chem::string* name, unsigned int index, EnumDeclaration* parent_node, CSTToken* token);
+    EnumMember* ASTBuildermake_enum_member(CSTConverter* converter, chem::string* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, CSTToken* token);
 
     ForLoop* ASTBuildermake_for_loop(CSTConverter* converter, VarInitStatement* initializer, Value* conditionExpr, ASTNode* incrementerExpr, ASTNode* parent_node, CSTToken* token);
 

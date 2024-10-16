@@ -729,7 +729,7 @@ public:
     /**
      * lexes a value token for switch
      */
-    bool lexSwitchCaseValue();
+    bool lexConstantValue();
 
     /**
      * lexes multiple switch case values separated with '|'

@@ -381,7 +381,7 @@ bool LexerlexValueToken(Lexer* lexer)  {
 }
 
 bool LexerlexSwitchCaseValue(Lexer* lexer)  {
-    return lexer->lexSwitchCaseValue();
+    return lexer->lexConstantValue();
 }
 
 bool LexerlexAccessChainValueToken(Lexer* lexer)  {

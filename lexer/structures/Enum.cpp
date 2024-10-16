@@ -11,6 +11,10 @@ bool Lexer::lexEnumBlockTokens() {
         lexWhitespaceAndNewLines();
         if(lexIdentifierToken()) {
             lexWhitespaceToken();
+            if(lexOperatorToken('=') && !lexConstantValue()) {
+                error("expected a value after '=' operator");
+                return false;
+            }
             if(lexOperatorToken(',')) {
                 continue;
             } else {
@@ -38,7 +42,6 @@ bool Lexer::lexEnumStructureTokens(unsigned start) {
             return true;
         }
         if(!lexEnumBlockTokens()) {
-            error("expected an enum block for declaring an enum");
             return true;
         }
         if(!lexOperatorToken('}')) {

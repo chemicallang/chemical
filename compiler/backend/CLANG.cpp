@@ -132,12 +132,58 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     };
 }
 
+Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, CSTToken* token = nullptr) {
+    switch(bitWidth) {
+        case 1:
+            return new (alloc.allocate<BoolValue>()) BoolValue((bool) value, token);
+        case 8:
+            if(is_signed) {
+                return new (alloc.allocate<CharValue>()) CharValue((char) value, token);
+            } else {
+                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, token);
+            }
+        case 16:
+            if(is_signed) {
+                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, token);
+            } else {
+                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, token);
+            }
+        case 32:
+            if(is_signed) {
+                return new (alloc.allocate<IntValue>()) IntValue((int) value, token);
+            } else {
+                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, token);
+            }
+        case 64:
+            if(is_signed) {
+                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, token);
+            } else {
+                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, token);
+            }
+        default:
+#ifdef DEBUG
+            throw std::runtime_error("value couldn't be created");
+#endif
+            return nullptr;
+    }
+}
+
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
     auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(decl->getNameAsString(), {}, parent_node, nullptr);
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
     unsigned index = 0;
     for(auto mem : decl->enumerators()) {
-        enum_decl->members[mem->getNameAsString()] = new (allocator.allocate<EnumMember>()) EnumMember(mem->getNameAsString(), index, enum_decl, nullptr);
+        Value* mem_value = nullptr;
+        auto init_expr = mem->getInitExpr();
+        if(init_expr) {
+            mem_value = make_expr(init_expr);
+        } else {
+            const auto& init_val = mem->getInitVal();
+            auto bitWidth = init_val.getBitWidth();
+            auto value = init_val.getLimitedValue();
+            mem_value = convert_to_number(allocator, is64Bit, bitWidth, init_val.isSigned(), value, nullptr);
+        }
+        enum_decl->members[mem->getNameAsString()] = new (allocator.allocate<EnumMember>()) EnumMember(mem->getNameAsString(), index, mem_value, enum_decl, nullptr);
         index++;
     }
     return enum_decl;
@@ -262,42 +308,6 @@ std::optional<Operation> convert_to_op(clang::BinaryOperatorKind kind) {
             return std::nullopt;
         default:
             return std::nullopt;
-    }
-}
-
-Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, CSTToken* token = nullptr) {
-    switch(bitWidth) {
-        case 1:
-            return new (alloc.allocate<BoolValue>()) BoolValue((bool) value, token);
-        case 8:
-            if(is_signed) {
-                return new (alloc.allocate<CharValue>()) CharValue((char) value, token);
-            } else {
-                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, token);
-            }
-        case 16:
-            if(is_signed) {
-                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, token);
-            } else {
-                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, token);
-            }
-        case 32:
-            if(is_signed) {
-                return new (alloc.allocate<IntValue>()) IntValue((int) value, token);
-            } else {
-                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, token);
-            }
-        case 64:
-            if(is_signed) {
-                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, token);
-            } else {
-                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, token);
-            }
-        default:
-#ifdef DEBUG
-    throw std::runtime_error("value couldn't be created");
-#endif
-            return nullptr;
     }
 }
 

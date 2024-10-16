@@ -93,7 +93,7 @@ Codegen::Codegen(
     }
 }
 
-bool Codegen::is_arch_64bit(const std::string& target_triple) {
+bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
     // Parse the target triple string
     llvm::Triple triple(target_triple);
     // Extract architecture information

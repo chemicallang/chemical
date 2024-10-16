@@ -666,15 +666,21 @@ int main(int argc, char *argv[]) {
     }
 
     CmdOptions options;
-    auto args = options.parse_cmd_options(argc, argv, 1);
+    CmdOption cmd_data[] = {
+            CmdOption("resources", "res", CmdOptionType::SingleValue, "path to the resources directory of the compiler"),
+            CmdOption("port", "port", CmdOptionType::SingleValue, "the port at which lsp should run"),
+            CmdOption("watch-parent-process", "", CmdOptionType::NoValue, "should watch the parent process"),
+    };
+    options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
+    options.parse_cmd_options(argc, argv, 1);
     bool enable_watch_parent_process = false;
-    if (options.option("watch-parent-process", "wpp").has_value()) {
+    if (options.has_value("watch-parent-process")) {
         enable_watch_parent_process = true;
     }
     std::string user_agent = std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async";
     std::string port = "5007";
     {
-        auto port_opt = options.option("port");
+        auto port_opt = options.option_new("port");
         if(port_opt.has_value()) {
             port = port_opt.value();
         }
@@ -684,9 +690,9 @@ int main(int argc, char *argv[]) {
 //        return 1;
 //    }
     Server server(user_agent, port, enable_watch_parent_process, argv[0]);
-    auto resources_path = options.option_e("resources", "res");
-    if(!resources_path.empty()) {
-        server.manager.overridden_resources_path = resources_path;
+    auto& resources = options.option_new("resources", "res");
+    if(resources.has_value() && !resources.value().empty()) {
+        server.manager.overridden_resources_path = resources.value();
     }
 
     auto ret = server.esc_event.wait();

@@ -402,10 +402,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             args.emplace_back("/dev/null");
 #endif
             auto nodes = TranslateC(*mod_allocator, args, options->resources_path.c_str());
-            // symbol resolving c nodes, really fast -- just declaring their id's
+            // symbol resolving c nodes, really fast -- just declaring their id's as less than public specifier
             resolver.file_scope_start();
             for(auto node : nodes) {
-                resolver.declare_node(node->ns_node_identifier(), node, node->specifier(), true);
+                const auto requested_specifier = node->specifier();
+                const auto specifier = requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier;
+                resolver.declare_node(node->ns_node_identifier(), node, specifier, true);
             }
             // declaring the nodes fast using code generator
             for(auto node : nodes) {

@@ -187,14 +187,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     std::cout << std::endl << rang::bg::reset << rang::fg::reset;
 
     std::string exe_build_dir = exe->build_dir.to_std_string();
-#ifdef DEBUG
-    if(exe_build_dir.empty()) {
-        throw std::runtime_error("job's build directory cannot be empty");
-    }
-#endif
-    // create the build directory for this executable
-    if (!std::filesystem::exists(exe_build_dir)) {
-        std::filesystem::create_directory(exe_build_dir);
+    if(!exe_build_dir.empty()) {
+        // create the build directory for this executable
+        if (!std::filesystem::exists(exe_build_dir)) {
+            std::filesystem::create_directory(exe_build_dir);
+        }
     }
 
     // an interpretation scope for interpreting compile time function calls

@@ -11,9 +11,12 @@ bool Lexer::lexEnumBlockTokens() {
         lexWhitespaceAndNewLines();
         if(lexIdentifierToken()) {
             lexWhitespaceToken();
-            if(lexOperatorToken('=') && !lexConstantValue()) {
-                error("expected a value after '=' operator");
-                return false;
+            if(lexOperatorToken('=')) {
+                lexWhitespaceToken();
+                if(!lexConstantValue()) {
+                    error("expected a value after '=' operator");
+                    return false;
+                }
             }
             if(lexOperatorToken(',')) {
                 continue;

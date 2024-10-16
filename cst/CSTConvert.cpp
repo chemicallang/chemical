@@ -617,10 +617,12 @@ void CSTConverter::visitEnumDecl(CSTToken* decl) {
         if(tok->is_identifier()) {
             auto name = str_token(tok);
             Value* init_value = nullptr;
-            if(is_char_op(decl->tokens[i], '=')) {
+            if(is_char_op(decl->tokens[i + 1], '=')) {
+                i++;
                 auto value_tok = decl->tokens[i + 1];
                 value_tok->accept(this);
                 init_value = value();
+                i++;
             }
             enum_decl->members[name] = new (alloc.allocate<EnumMember>()) EnumMember(name, position++, init_value, enum_decl, tok);
             if (is_char_op(decl->tokens[i + 1], ',')) {

@@ -183,8 +183,12 @@ void RepresentationVisitor::indent() {
     }
 }
 
-void RepresentationVisitor::write(const std::string& value) {
+void RepresentationVisitor::write(std::string& value) {
     output.write(value.c_str(), value.size());
+}
+
+void RepresentationVisitor::write(const std::string_view& view) {
+    output.write(view.data(), view.size());
 }
 
 void RepresentationVisitor::visit(VarInitStatement *init) {
@@ -286,6 +290,7 @@ void RepresentationVisitor::visit(FunctionParam *param) {
 }
 
 void RepresentationVisitor::visit(FunctionDeclaration *decl) {
+    write_ws(decl->specifier);
     write("func ");
     write(decl->name);
     write('(');
@@ -388,20 +393,19 @@ void RepresentationVisitor::visit(Scope *scope) {
     top_level_node = prev;
 }
 
-void RepresentationVisitor::write(AccessSpecifier specifier) {
+bool RepresentationVisitor::write(AccessSpecifier specifier) {
     switch(specifier) {
         case AccessSpecifier::Private:
             write("private");
-            return;
+            return true;
         case AccessSpecifier::Public:
             write("public");
-            return;
+            return true;
         case AccessSpecifier::Protected:
             write("protected");
-            return;
+            return true;
         case AccessSpecifier::Internal:
-            write("internal");
-            return;
+            return false;
     }
 }
 
@@ -414,6 +418,7 @@ void write_gen_params(RepresentationVisitor& visitor, StructDefinition* def) {
 }
 
 void RepresentationVisitor::visit(StructDefinition *def) {
+    write_ws(def->specifier);
     write("struct ");
     write(def->name);
     write_gen_params(*this, def);
@@ -478,6 +483,7 @@ void RepresentationVisitor::visit(StructMember *member) {
 }
 
 void RepresentationVisitor::visit(TypealiasStatement *stmt) {
+    write_ws(stmt->specifier);
     write("typealias ");
     write(stmt->identifier);
     write(" = ");
@@ -924,6 +930,7 @@ void RepresentationVisitor::visit(VariantCase *chain) {
 }
 
 void RepresentationVisitor::visit(VariantDefinition *variant_def) {
+    write_ws(variant_def->specifier);
     write("variant ");
     write(variant_def->name);
     write('{');
@@ -984,6 +991,7 @@ void RepresentationVisitor::visit(UnionDef *def) {
 }
 
 void RepresentationVisitor::visit(ExtensionFunction *extensionFunc) {
+    write_ws(extensionFunc->specifier);
     write("func ");
     extensionFunc->receiver.accept(this);
     write(' ');

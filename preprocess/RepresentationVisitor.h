@@ -76,7 +76,12 @@ public:
     /**
      * used to write a string to a stream
      */
-    void write(const std::string& value);
+    void write(std::string& value);
+
+    /**
+     * write this string view to the stream
+     */
+    void write(const std::string_view& view);
 
     /**
      * this should be called before calling translate
@@ -89,9 +94,18 @@ public:
     void translate(std::vector<ASTNode*>& nodes);
 
     /**
-     * access specifier
+     * access specifier is written and true is returned if written
      */
-    void write(AccessSpecifier specifier);
+    bool write(AccessSpecifier specifier);
+
+    /**
+     * writes the access specifier and if written, writes a space
+     */
+    void write_ws(AccessSpecifier specifier) {
+        if(write(specifier)) {
+            write(' ');
+        }
+    }
 
     /**
      * comma separated

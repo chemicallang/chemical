@@ -1,5 +1,5 @@
 import "../../test.ch"
-import "../../../std/option.ch"
+import "@std/option.ch"
 
 func get_optional_int(some : bool) : Option<int> {
     if(some) {

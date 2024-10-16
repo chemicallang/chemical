@@ -1,4 +1,4 @@
-@compiler:interface
+@compiler.interface
 public struct PtrVec {
 
     func _get(&self, i : uint) : *void;

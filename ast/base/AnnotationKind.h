@@ -6,11 +6,14 @@
 
 enum class AnnotationKind {
 
-    // Inline or Size related annotations
+    // Inline related annotations
     Inline,
     AlwaysInline,
     NoInline,
     InlineHint,
+    // compiler inline is the strictest inline
+    CompilerInline,
+    // Size related annotations
     OptSize,
     MinSize,
 

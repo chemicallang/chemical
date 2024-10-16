@@ -333,7 +333,7 @@ struct VariantMember : ASTNode {
 
 struct VariantMemberParam : ASTNode {}
 
-@compiler:interface
+@compiler.interface
 public struct ASTBuilder {
 
     func make_any_type(&self, token : *CSTToken) : *AnyType

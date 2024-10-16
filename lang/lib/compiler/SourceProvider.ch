@@ -4,7 +4,7 @@ import "@std/string.ch"
 /**
  * provides access to the source code provided by the user
  */
-@compiler:interface
+@compiler.interface
 struct SourceProvider {
 
     /**

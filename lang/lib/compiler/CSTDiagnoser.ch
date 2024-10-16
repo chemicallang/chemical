@@ -12,7 +12,7 @@ public enum DiagSeverity {
     Hint
 }
 
-@compiler:interface
+@compiler.interface
 public struct CSTDiagnoser {
 
     func put_diagnostic(&self, msg : &string, start : *CSTToken, end : *CSTToken, severity : DiagSeverity);

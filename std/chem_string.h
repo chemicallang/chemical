@@ -376,9 +376,7 @@ namespace chem {
 
         [[nodiscard]]
         std::string to_std_string() const {
-            const auto d = data();
-            if(!d) return "";
-            return { d };
+            return std::string(to_view());
         }
 
         [[nodiscard]]

@@ -145,6 +145,11 @@ public:
     std::vector<FlatIGFile> determine_mod_imports(LabModule* module);
 
     /**
+     * import chemical file with absolute path to it
+     */
+    ASTImportResultExt import_chemical_file(const std::string& absolute_path);
+
+    /**
      * lex, parse and resolve symbols in file and return Scope containing nodes
      * without performing any symbol resolution
      */
@@ -166,9 +171,21 @@ public:
      */
     void translate_to_c(
         ToCAstVisitor& visitor,
-        Scope& import_res,
-        const FlatIGFile& file
+        std::vector<ASTNode*>& import_res,
+        const std::string& file
     );
+
+    /**
+     * translates given import result to c using visitor
+     * doesn't perform symbol resolution
+     */
+    inline void translate_to_c(
+            ToCAstVisitor& visitor,
+            Scope& import_res,
+            const FlatIGFile& file
+    ) {
+        translate_to_c(visitor, import_res.nodes, file.abs_path);
+    }
 
     /**
      * declare the nodes in C, this is called
@@ -196,10 +213,21 @@ public:
      * compile nodes using code generator
      */
     void compile_nodes(
+            Codegen& gen,
+            std::vector<ASTNode*>& nodes,
+            const std::string& abs_path
+    );
+
+    /**
+     * compile nodes using code generator
+     */
+    inline void compile_nodes(
         Codegen& gen,
         Scope& import_res,
         const FlatIGFile &file
-    );
+    ) {
+        compile_nodes(gen, import_res.nodes, file.abs_path);
+    }
 
     /**
      * compile nodes using code generator

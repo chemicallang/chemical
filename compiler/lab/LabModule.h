@@ -31,6 +31,9 @@ struct LabModule {
     chem::string llvm_ir_path;
     // if not empty, module's assembly is written to at this path
     chem::string asm_path;
+    // includes are chemical files included in the modules
+    // these files are imported in the module by the compiler
+    std::vector<chem::string> includes;
     // these headers are imported before any other files are processed
     std::vector<chem::string> headers;
     // this path point to a c (.c, .h) file, a chemical file, a directory or a build.lab

@@ -39,6 +39,13 @@ int llvm_ar_main2(const std::vector<std::string> &command_args);
 
 #endif
 
+void print_usage() {
+    std::string usage = "chemical <input_file> -o <output_file>\n\n";
+    usage += "<input_file> a chemical file path with .ch extension relative to current executable\n";
+    usage += "<output_file> a .o (object) file or a .ll (llvm ir) file\n";
+    std::cout << usage;
+}
+
 void print_help() {
     std::cout << "[Chemical] "
                  #ifdef COMPILER_BUILD
@@ -212,17 +219,30 @@ const auto ar_cmd_desc = "invoke the ar tool to archive libraries";
 const auto dlltool_cmd_desc = "invoke the dlltool to archive libraries";
 const auto ranlib_cmd_desc = "invoke the llvm ranlib tool";
 const auto lib_cmd_desc = "invoke the llvm lib tool";
-
-void register_options(CmdOptions& options) {
-    options.data.emplace("include", CmdOption(CmdOptionType::MultiValued, include_cmd_desc));
-    options.data.emplace("cc", CmdOption(CmdOptionType::SubCommand, cc_cmd_desc));
-    options.data.emplace("configure", CmdOption(CmdOptionType::SubCommand, configure_cmd_desc));
-    options.data.emplace("linker", CmdOption(CmdOptionType::SubCommand, linker_cmd_desc));
-    options.data.emplace("ar", CmdOption(CmdOptionType::SubCommand, ar_cmd_desc));
-    options.data.emplace("dlltool", CmdOption(CmdOptionType::SubCommand, dlltool_cmd_desc));
-    options.data.emplace("ranlib", CmdOption(CmdOptionType::SubCommand, ranlib_cmd_desc));
-    options.data.emplace("lib", CmdOption(CmdOptionType::SubCommand, lib_cmd_desc));
-}
+const auto mode_cmd_desc = "mode: debug, debug_quick, release_small, release_fast";
+const auto version_cmd_desc = "get the version of the compiler";
+const auto help_cmd_desc = "get help for command line options";
+const auto benchmark_cmd_desc = "benchmark the compilation process";
+const auto print_ast_desc = "print representation of the ast";
+const auto print_cst_desc = "print representation of the cst";
+const auto print_ig_desc = "print representation of the import graph";
+const auto verbose_desc = "verbose enables complete logging";
+const auto ignore_errors_desc = "ignore certain errors during compilation";
+const auto lto_desc = "enable link time optimization";
+const auto assertions_desc = "enable assertions for checking of generated code";
+const auto no_pie_desc = "disable position independent code";
+const auto target_desc = "the target for which code is being generated";
+const auto jit_desc = "just in time compile the given input";
+const auto output_desc = "the output at which file(s) will be generated";
+const auto resources_desc = "the path to resources directory required";
+const auto ignore_extension_desc = "compiler will ignore the extension of the file";
+const auto ll_out_desc = "specify output path for .ll (llvm ir) file";
+const auto bc_out_desc = "specify output path for .bc (bitcode) file";
+const auto obj_out_desc = "specify output path for .o (object) file";
+const auto asm_out_desc = "specify output path for .s (assembly) file";
+const auto bin_out_desc = "specify output path for binary file";
+const auto debug_ir_desc = "set debug mode for generated llvm ir";
+const auto dash_c_desc = "generate objects without linking them into final executable";
 
 void take_include_options(LabModule& module, CmdOptions& options) {
     for(auto& value : options.data.find("include")->second.multi_value.values) {
@@ -245,7 +265,41 @@ int main(int argc, char *argv[]) {
 
     // parsing the command
     CmdOptions options;
-    register_options(options);
+    CmdOption cmd_data[] = {
+        CmdOption("include", CmdOptionType::MultiValued, include_cmd_desc),
+        CmdOption("cc", CmdOptionType::SubCommand, cc_cmd_desc),
+        CmdOption("configure", CmdOptionType::SubCommand, configure_cmd_desc),
+        CmdOption("linker", CmdOptionType::SubCommand, linker_cmd_desc),
+        CmdOption("ar", CmdOptionType::SubCommand, ar_cmd_desc),
+        CmdOption("dlltool", CmdOptionType::SubCommand, dlltool_cmd_desc),
+        CmdOption("ranlib", CmdOptionType::SubCommand, ranlib_cmd_desc),
+        CmdOption("lib", CmdOptionType::SubCommand, lib_cmd_desc),
+        CmdOption("mode", "m", CmdOptionType::SingleValue, mode_cmd_desc),
+        CmdOption("version", CmdOptionType::NoValue, version_cmd_desc),
+        CmdOption("help", CmdOptionType::NoValue, help_cmd_desc),
+        CmdOption("benchmark", "bm", CmdOptionType::NoValue, benchmark_cmd_desc),
+        CmdOption("print-ast", "pr-ast", CmdOptionType::NoValue, print_ast_desc),
+        CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue, print_cst_desc),
+        CmdOption("print-ig", "pr-ig", CmdOptionType::NoValue, print_ig_desc),
+        CmdOption("verbose", "v", CmdOptionType::NoValue, verbose_desc),
+        CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue, ignore_errors_desc),
+        CmdOption("lto", CmdOptionType::NoValue, lto_desc),
+        CmdOption("assertions", CmdOptionType::NoValue, assertions_desc),
+        CmdOption("no-pie", "no-pie", CmdOptionType::NoValue, no_pie_desc),
+        CmdOption("target", "t", CmdOptionType::SingleValue, target_desc),
+        CmdOption("jit", "jit", CmdOptionType::NoValue, jit_desc),
+        CmdOption("output", "o", CmdOptionType::SingleValue, output_desc),
+        CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
+        CmdOption("ignore-extension", CmdOptionType::NoValue, ignore_extension_desc),
+        CmdOption("out-ll", CmdOptionType::SingleValue, ll_out_desc),
+        CmdOption("out-bc", CmdOptionType::SingleValue, bc_out_desc),
+        CmdOption("out-obj", CmdOptionType::SingleValue, obj_out_desc),
+        CmdOption("out-asm", CmdOptionType::SingleValue, asm_out_desc),
+        CmdOption("out-bin", CmdOptionType::SingleValue, bin_out_desc),
+        CmdOption("debug-ir", CmdOptionType::NoValue, debug_ir_desc),
+        CmdOption("", "c", CmdOptionType::NoValue, dash_c_desc),
+    };
+    options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);
     auto& args = options.arguments;
 
@@ -255,7 +309,7 @@ int main(int argc, char *argv[]) {
         return configure_exe(options, argc, argv);
     }
 
-    if(options.option("version", "v").has_value()) {
+    if(options.has_value("version")) {
         std::cout << "Chemical v" << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << std::endl;
         return 0;
     }
@@ -298,14 +352,9 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    auto verbose = options.option("verbose", "v").has_value();
-    if(verbose) {
-        std::cout << "[Command] ";
-        options.print();
-        std::cout << std::endl;
-    }
+    auto verbose = options.has_value("verbose", "v");
 
-    if(options.option("help", "help").has_value()) {
+    if(options.has_value("help")) {
         print_help();
         return 0;
     }
@@ -316,38 +365,36 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    bool jit = options.option("jit", "jit").has_value();
-    auto output = options.option("output", "o");
-    auto res = options.option("res", "res");
-    auto dash_c = options.option("", "c");
+    bool jit = options.has_value("jit", "jit");
+    auto& output = options.option_new("output", "o");
+    auto& res = options.option_new("resources", "res");
+    auto& dash_c = options.option_new("", "c");
 
-    auto get_resources_path = [&res, &argv]() -> std::string{
-        auto resources_path = res.has_value() ? res.value() : resources_path_rel_to_exe(std::string(argv[0]));
+    auto get_resources_path = [&res, &argv]() -> std::string {
+        auto resources_path = res.has_value() ? std::string(res.value()) : resources_path_rel_to_exe(std::string(argv[0]));
         if(resources_path.empty()) {
             std::cerr << "[Compiler] Couldn't locate resources path relative to compiler's executable" << std::endl;
-        } else if(!res.has_value()) {
-            res.emplace(resources_path);
         }
         return resources_path;
     };
 
     auto prepare_options = [&](LabBuildCompilerOptions* opts) -> void {
-        opts->benchmark = options.option("benchmark", "bm").has_value();
-        opts->print_representation = options.option("print-ast", "pr-ast").has_value();
-        opts->print_cst = options.option("print-cst", "pr-cst").has_value();
-        opts->print_ig = options.option("print-ig", "pr-ig").has_value();
+        opts->benchmark = options.has_value("benchmark", "bm");
+        opts->print_representation = options.has_value("print-ast", "pr-ast");
+        opts->print_cst = options.has_value("print-cst", "pr-cst");
+        opts->print_ig = options.has_value("print-ig", "pr-ig");
         opts->verbose = verbose;
         opts->resources_path = get_resources_path();
-        opts->ignore_errors = options.option("ignore-errors", "ignore-errors").has_value();
-        opts->isCBIEnabled = !options.option("no-cbi").has_value();
-        if(options.option("lto").has_value()) {
+        opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
+//        opts->isCBIEnabled = !options.option("no-cbi").has_value();
+        if(options.has_value("lto")) {
             opts->def_lto_on = true;
         }
-        if(options.option("assertions").has_value()) {
+        if(options.has_value("assertions")) {
             opts->def_assertions_on = true;
         }
 #ifdef COMPILER_BUILD
-        if(options.option("no-pie", "no-pie").has_value()) {
+        if(options.has_value("no-pie", "no-pie")) {
             opts->no_pie = true;
         }
 #endif
@@ -356,7 +403,7 @@ int main(int argc, char *argv[]) {
 #ifdef COMPILER_BUILD
 
     // get and print target
-    auto target = options.option("target", "t");
+    auto& target = options.option_new("target", "t");
     if (!target.has_value()) {
         target.emplace(llvm::sys::getDefaultTargetTriple());
     }
@@ -379,7 +426,7 @@ int main(int argc, char *argv[]) {
     OutputMode mode = OutputMode::Debug;
 
     // configuring output mode from command line
-    auto mode_opt = options.option("mode", "m");
+    auto& mode_opt = options.option_new("mode", "m");
     if(mode_opt.has_value()) {
         if(mode_opt.value() == "debug") {
             // ignore
@@ -410,7 +457,7 @@ int main(int argc, char *argv[]) {
     if(args[0].ends_with(".lab")) {
 
 
-        LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
+        LabBuildCompilerOptions compiler_opts(argv[0], std::string(target.value()), is64Bit);
         CompilerBinder binder(argv[0]);
         LabBuildCompiler compiler(binder, &compiler_opts);
 
@@ -431,38 +478,39 @@ int main(int argc, char *argv[]) {
         // giving build args to lab build context
         for(auto& opt : options.options) {
             if(opt.first.starts_with("arg-")) {
-                context.build_args[opt.first.substr(4)] = opt.second;
+                context.build_args[opt.first.data() + 4] = opt.second;
             }
         }
         return compiler.build_lab_file(context, std::string(args[0]));
     }
 
     // compilation
-    LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
+    LabBuildCompilerOptions compiler_opts(argv[0], std::string(target.value()), is64Bit);
     CompilerBinder binder(argv[0]);
     LabBuildCompiler compiler(binder, &compiler_opts);
     prepare_options(&compiler_opts);
     compiler_opts.def_mode = mode;
 
-    auto ll_out = options.option("out-ll");
-    auto bc_out = options.option("out-bc");
-    auto obj_out = options.option("out-obj");
-    auto asm_out = options.option("out-asm");
-    auto bin_out = options.option("out-bin");
+    auto& ll_out = options.option_new("out-ll");
+    auto& bc_out = options.option_new("out-bc");
+    auto& obj_out = options.option_new("out-obj");
+    auto& asm_out = options.option_new("out-asm");
+    auto& bin_out = options.option_new("out-bin");
 
-    // should the obj file be deleted after linking
-    bool temporary_obj = false;
+    // if not empty, this file will be removed at the end
+    std::string_view temporary_obj;
 
     if(output.has_value()) {
-        if(!options.option("ignore-extension").has_value()) {
+        if(!options.has_value("ignore-extension")) {
+            auto& output_val = output.value();
             // determining output file based on extension
-            if (endsWith(output.value(), ".o")) {
+            if (output_val.ends_with(".o")) {
                 obj_out.emplace(output.value());
-            } else if (endsWith(output.value(), ".s")) {
+            } else if (output_val.ends_with(".s")) {
                 asm_out.emplace(output.value());
-            } else if (endsWith(output.value(), ".ll")) {
+            } else if (output_val.ends_with(".ll")) {
                 ll_out.emplace(output.value());
-            } else if (endsWith(output.value(), ".bc")) {
+            } else if (output_val.ends_with(".bc")) {
                 bc_out.emplace(output.value());
             } else if(!bin_out.has_value()) {
                 bin_out.emplace(output.value());
@@ -474,14 +522,17 @@ int main(int argc, char *argv[]) {
         bin_out.emplace("compiled");
     }
 
-    // have object file output for the binary we are outputting
-    if (!obj_out.has_value() && bin_out.has_value()) {
-        obj_out.emplace(bin_out.value() + ".o");
-        temporary_obj = !dash_c.has_value();
-    }
-
     LabModule module(LabModuleType::Files);
     take_include_options(module, options);
+
+    // have object file output for the binary we are outputting
+    if (!obj_out.has_value() && bin_out.has_value()) {
+        module.object_path.append(bin_out.value());
+        module.object_path.append(std::string_view(".o"));
+        if(!dash_c.has_value()) {
+            temporary_obj = module.object_path.to_view();
+        }
+    }
 
     std::vector<std::unique_ptr<LabModule>> dependencies;
     for(auto& arg : args) {
@@ -503,7 +554,7 @@ int main(int argc, char *argv[]) {
     // files to emit
     if(ll_out.has_value()) {
         module.llvm_ir_path.append(ll_out.value());
-        if (options.option("debug-ir").has_value()) {
+        if (options.has_value("debug-ir")) {
             compiler_opts.debug_ir = true;
         }
     }
@@ -526,12 +577,12 @@ int main(int argc, char *argv[]) {
     }
     job.dependencies.emplace_back(&module);
     if(output.has_value()) {
-        job.abs_path.append(output.value());
+        job.abs_path.append(std::string(output.value()));
     }
     auto return_int = compiler.do_job_allocating(&job);
 
     // delete object file which was linked
-    if(temporary_obj) {
+    if(!temporary_obj.empty()) {
         try {
             std::filesystem::remove(obj_out.value());
         } catch (const std::filesystem::filesystem_error &ex) {

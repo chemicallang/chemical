@@ -119,7 +119,7 @@ public:
     /**
      * determine whether the system we are compiling for is 64bit or 32bit
      */
-    static bool is_arch_64bit(const std::string &target_triple);
+    static bool is_arch_64bit(const std::string_view &target_triple);
 
     /**
      * provides a caster_index, which can be used to store or retrieve a caster

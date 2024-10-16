@@ -93,6 +93,10 @@ namespace chem {
             }
         }
 
+        explicit string(const std::string_view& view) : string(view.data(), view.size()) {
+
+        }
+
         explicit string(const std::string& value) : string(value.data(), value.size()) {
 
         }
@@ -205,6 +209,10 @@ namespace chem {
 
         void append(const string* value){
             append(value->data(), value->size());
+        }
+
+        void append(const std::string_view& str) {
+            append(str.data(), str.size());
         }
 
         void append(const std::string& str) {

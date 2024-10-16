@@ -17,49 +17,11 @@ inline std::string cmd_error(const std::string& err) {
     return ANSI_COLOR_RED + err + ANSI_COLOR_RESET;
 }
 
-void print_usage() {
-    std::string usage = "chemical <input_file> -o <output_file>\n\n";
-    usage += "<input_file> a chemical file path with .ch extension relative to current executable\n";
-    usage += "<output_file> a .o (object) file or a .ll (llvm ir) file\n";
-    std::cout << usage;
-}
-
-// Custom hash functor
-struct StringHash {
-    using is_transparent = void; // Enables heterogeneous lookup
-    std::size_t operator()(const std::string& str) const noexcept {
-        return std::hash<std::string>{}(str);
-    }
-    std::size_t operator()(const std::string_view& str) const noexcept {
-        return std::hash<std::string_view>{}(str);
-    }
-};
-
-// Custom equality functor
-struct StringEqual {
-    using is_transparent = void; // Enables heterogeneous lookup
-    bool operator()(const std::string& lhs, const std::string& rhs) const noexcept {
-        return lhs == rhs;
-    }
-    bool operator()(const std::string_view& lhs, std::string_view rhs) const noexcept {
-        return lhs == rhs;
-    }
-    bool operator()(const std::string& lhs, std::string_view rhs) const noexcept {
-        return lhs == rhs;
-    }
-    bool operator()(const std::string_view& lhs, const std::string& rhs) const noexcept {
-        return lhs == rhs;
-    }
-};
-
 enum class CmdOptionType {
-    // a small option is an option with a smaller key
-    // for example -o for output, it has a single dash in front
-    SmallOption,
-    // a large option is an option with a larger key
-    // for example --output for output
-    // large options usually have double dashes in front
-    LargeOption,
+    // an option that doesn't require a value --help, --version
+    NoValue,
+    // an option that requires a single value, --mode debug
+    SingleValue,
     // an option with multiple values, that will appear multiple times
     // -file a.c -file b.c -file c.c
     MultiValued,
@@ -69,8 +31,11 @@ enum class CmdOptionType {
 
 struct CmdOption {
 
+    std::string_view large_opt;
+    std::string_view small_opt;
     CmdOptionType type;
     std::string_view description;
+    bool user_used_large_opt = false;
 
     union {
 
@@ -85,10 +50,10 @@ struct CmdOption {
 
     };
 
-    CmdOption(CmdOptionType type, std::string_view description) : type(type), description(description) {
+    CmdOption(std::string_view large_opt, std::string_view small_opt, CmdOptionType type, std::string_view description) : large_opt(large_opt), small_opt(small_opt), type(type), description(description) {
         switch(type) {
-            case CmdOptionType::SmallOption:
-            case CmdOptionType::LargeOption:
+            case CmdOptionType::NoValue:
+            case CmdOptionType::SingleValue:
                 new (&simple.value) std::optional<std::string_view>(std::nullopt);
                 break;
             case CmdOptionType::MultiValued:
@@ -99,10 +64,14 @@ struct CmdOption {
         }
     }
 
-    CmdOption(CmdOption&& other) : type(other.type), description(other.description) {
+    inline CmdOption(std::string_view large_opt, CmdOptionType type, std::string_view description) : CmdOption(large_opt, "", type, description) {
+
+    }
+
+    CmdOption(CmdOption&& other) : large_opt(other.large_opt), small_opt(other.small_opt), type(other.type), description(other.description) {
         switch(type) {
-            case CmdOptionType::SmallOption:
-            case CmdOptionType::LargeOption:
+            case CmdOptionType::NoValue:
+            case CmdOptionType::SingleValue:
                 new(&simple.value) std::optional<std::string_view>(other.simple.value);
                 break;
             case CmdOptionType::MultiValued:
@@ -147,10 +116,11 @@ struct CmdOption {
         }
     }
 
-    void put_value(const std::string_view& value) {
+    void put_value(const std::string_view& value, bool is_large_opt) {
         switch(type) {
-            case CmdOptionType::SmallOption:
-            case CmdOptionType::LargeOption:
+            case CmdOptionType::NoValue:
+            case CmdOptionType::SingleValue:
+                user_used_large_opt = is_large_opt;
                 simple.value = value;
                 break;
             case CmdOptionType::MultiValued:
@@ -162,8 +132,8 @@ struct CmdOption {
 
     ~CmdOption() {
         switch(type) {
-            case CmdOptionType::SmallOption:
-            case CmdOptionType::LargeOption:
+            case CmdOptionType::SingleValue:
+            case CmdOptionType::NoValue:
                 simple.value.~optional();
                 break;
             case CmdOptionType::MultiValued:
@@ -181,7 +151,7 @@ struct CmdOptions {
      * this contains the data for every option
      * when we encounter an option, we check this map to see what kind of option it is
      */
-    std::unordered_map<std::string_view, CmdOption> data;
+    std::unordered_map<std::string_view, CmdOption&> data;
 
     /**
      * arguments, when a value doesn't have an option for example file1.h -include file.h
@@ -192,85 +162,29 @@ struct CmdOptions {
     /**
      * This must not be empty ! argument keys stored in options map have "" values
      */
-    std::string defOptValue = "true";
+    std::string_view defOptValue = "true";
     /**
      * The map of options (--option) and arguments (--option argument)
      * where if another option is encountered after an option, the first is stored with value true
      * if arguments are encountered without options before them, they are stored with "" as values
      */
-    tsl::ordered_map<std::string, std::string, StringHash, StringEqual> options;
+    tsl::ordered_map<std::string_view, std::string_view> options;
 
     /**
-     * options having multiple values are taken out of options and stored in this map instead
+     * register the given options array
      */
-    tsl::ordered_map<std::string, std::vector<std::string>, StringHash, StringEqual> multi_val_options;
-
-    /**
-     * just prints the command to cout
-     */
-    void print(std::ostream& out = std::cout) {
-        for(const auto& opt : options) {
-            if(opt.second.empty()) {
-                out << opt.first << ' ';
-            } else {
-                out << '-' << opt.first << ' ' << opt.second << ' ';
+    void register_options(CmdOption options_data[], unsigned size) {
+        data.reserve(size);
+        unsigned i = 0;
+        while(i < size) {
+            auto& d = options_data[i];
+            if(!d.large_opt.empty()) {
+                data.emplace(d.large_opt, d);
             }
-        }
-    }
-
-    /**
-     * prints unconsumed options as errs
-     */
-    void print_unhandled() {
-        if(!options.empty()) {
-            std::cerr << ANSI_COLOR_RED << "unhandled arguments given -> ";
-        }
-        print(std::cerr);
-        std::cerr << ANSI_COLOR_RESET;
-    }
-
-    /**
-     * counts only the arguments
-     * @return
-     */
-    unsigned int count_args(){
-        unsigned int i = 0;
-        for(const auto& x : options) {
-            if(x.second.empty()) {
-                i++;
+            if(!d.small_opt.empty()) {
+                data.emplace(d.small_opt, d);
             }
-        }
-        return i;
-    }
-
-    /**
-     * when a argument of multi is encountered for example
-     * cmd -m file.o file.o1
-     * when -m is encountered file.o and file.o1 are collected into the vector and returned
-     * @param multi
-     * @return
-     */
-    std::vector<std::string> collect_multi(const std::string& multi) {
-        std::vector<std::string> args;
-        auto found = options.find(multi);
-        while(found != options.end()) {
-            if(found->second.empty()) {
-                args.emplace_back(found->first);
-            } else {
-                break;
-            }
-            found++;
-        }
-        args.shrink_to_fit();
-        return args;
-    }
-
-    std::optional<std::pair<std::string, std::string>> at(unsigned i) {
-        const auto itr = options.begin() + i;
-        if(itr != options.end()) {
-            return std::pair<std::string, std::string> { itr->first, itr->second };
-        } else {
-            return std::nullopt;
+            i++;
         }
     }
 
@@ -282,94 +196,59 @@ struct CmdOptions {
     }
 
     /**
-     * get the single value for the given arg
+     * get pointer to the single option's value
      */
-    std::optional<std::string_view> new_opt(const std::string_view& opt, std::string_view& small_opt) {
+    std::optional<std::string_view>* single_opt_val_ptr(const std::string_view& opt, const std::string_view& small_opt) {
         if(!opt.empty()) {
             auto found = data.find(opt);
             if(found != data.end()) {
-                return found->second.simple.value;
-            } else {
-                // todo remove this
-                auto next_found = options.find(opt);
-                if(next_found != options.end()) {
-                    return next_found->second;
-                }
+                return &found->second.simple.value;
             }
         }
         if(!small_opt.empty()) {
             auto found = data.find(small_opt);
             if(found != data.end()) {
-                return found->second.simple.value;
-            } else {
-                // todo remove this
-                auto next_found = options.find(small_opt);
-                if(next_found != options.end()) {
-                    return next_found->second;
-                }
+                return &found->second.simple.value;
             }
         }
-        return std::nullopt;
+        return nullptr;
     }
 
     /**
-     * gives the value for a option for example
-     * cmd --x file
-     * give opt (x) to this function to get the value (file)
-     * @param opt the complete option key used with --x (double dashes)
-     * @param small_opt the small option key used with -x (single dash)
-     * @return
+     * check if option has value
      */
-    std::optional<std::string> option(const std::string_view& opt, const std::string_view& small_opt = "", bool consume = true) {
-        auto whole = options.find(opt);
-        if(whole == options.end()) {
-            if(small_opt.empty()) {
-                return std::nullopt;
-            }
-            auto half = options.find(small_opt);
-            if(half == options.end()) {
-                return std::nullopt;
-            } else {
-                // take the string forcefully
-                auto value = std::move(const_cast<std::string&>(half->second));
-                if(consume) options.erase(half);
-                return value;
-            }
-        } else {
-            // take the string forcefully
-            auto value = std::move(const_cast<std::string&>(whole->second));
-            if(consume) options.erase(whole);
-            return value;
-        }
+    bool has_value(const std::string_view& opt, const std::string_view& small_opt) {
+        auto value = single_opt_val_ptr(opt, small_opt);
+        return value->has_value();
     }
 
-    std::string option_e(const std::string& opt, const std::string& small_opt, bool consume = true) {
-        auto got = option(opt, small_opt, consume);
-        return got.has_value() ? got.value() : "";
+    /**
+     * check if option has value
+     */
+    bool has_value(const std::string_view& opt) {
+        return has_value(opt, "");
     }
 
-    std::vector<std::string> collect_subcommand(int argc, char *argv[], const std::string& subcommand, int skip = 0, bool consume = true) {
-        int i = skip;
-        std::vector<std::string> args;
-        bool collect = false;
-        while (i < argc) {
-            auto x = argv[i];
-            if (!collect && strncmp(x, subcommand.c_str(), subcommand.size()) == 0) {
-                collect = true;
-            } else if(collect) {
-                args.emplace_back(x);
-            }
-            i++;
-        }
-        return args;
+    /**
+     * check a single option
+     */
+    std::optional<std::string_view>& option_new(const std::string_view& opt, const std::string_view& small_opt) {
+        return *single_opt_val_ptr(opt, small_opt);
+    }
+
+    /**
+     * check a single option
+     */
+    std::optional<std::string_view>& option_new(const std::string_view& opt) {
+        return *single_opt_val_ptr(opt, "");
     }
 
     void put_option(const std::string_view& option, bool is_large_opt, const std::string_view& value) {
         auto found = data.find(option);
         if(found != data.end()) {
-            found->second.put_value(value);
+            found->second.put_value(value, is_large_opt);
         } else {
-            options[std::string(option)] = value;
+            options[option] = value;
         }
     }
 

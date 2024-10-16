@@ -392,7 +392,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             args.emplace_back(options->exe_path);
             for(auto& header: mod->headers) {
                 args.emplace_back("-include");
-                args.emplace_back(header.to_std_string());
+                args.emplace_back(header.to_view());
             }
             args.emplace_back("-x");
             args.emplace_back("c");
@@ -751,7 +751,26 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
     }
     for(auto mod : job->dependencies) {
         RepresentationVisitor visitor(output);
-        auto nodes = TranslateC(*mod_allocator, options->exe_path.data(), mod->paths[0].data(), options->get_resources_path().c_str());
+        std::vector<std::string> args;
+        args.emplace_back(options->exe_path);
+        for(auto& header : mod->headers) {
+            args.emplace_back("-include");
+            args.emplace_back(header.to_view());
+        }
+        if(mod->paths.empty()) {
+            args.emplace_back("-x");
+            args.emplace_back("c");
+#ifdef WIN32
+            args.emplace_back("NUL");
+#else
+            args.emplace_back("/dev/null");
+#endif
+        } else {
+            for (auto& path: mod->paths) {
+                args.emplace_back(path.to_view());
+            }
+        }
+        auto nodes = TranslateC(*mod_allocator, args, options->get_resources_path().c_str());
         visitor.translate(nodes);
     }
     output.close();

@@ -39,8 +39,8 @@ void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::
     module->headers.emplace_back(header->copy());
 }
 
-LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, chem::string* c_path, chem::string* output_path) {
-    return self->translate_to_chemical(c_path, output_path);
+LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string* output_path) {
+    return self->translate_to_chemical(module, output_path);
 }
 
 LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string* name, ModuleArrayRef* dependencies, chem::string* output_dir) {

@@ -72,6 +72,19 @@ func build(ctx : *mut BuildContext) {
     if(is_minimal) {
         printf("Minimal Build Detected\n");
     }
+
+    const headers_path = build_dir_path(ctx, string("headers.ch"));
+    if(compiler::is_clang_based()) {
+        var str = string("")
+        var ptr_str = &str;
+        const empty_module = ctx.files_module(string("headers"), &ptr_str, 0, {  });
+        ctx.include_headers(empty_module, {
+            string("stdio.h"),
+            string("stdlib.h")
+        });
+        ctx.translate_to_chemical(empty_module, headers_path);
+    }
+
     const exe_name = string("chemical-tests");
     const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), { })
     const ext_cpp_module = ctx.cpp_file_module(string("ext_cpp"), relative_path(string("ext/file2.cpp")), { })
@@ -114,7 +127,7 @@ func build(ctx : *mut BuildContext) {
     if(do_to_ch) {
         const output_file = exe_dir_file(ctx, &exe_name, &ext_module.name, ".ch")
         const input_file = relative_path(string("ext/file.c"))
-        ctx.translate_to_chemical(input_file, output_file);
+        ctx.translate_file_to_chemical(input_file, output_file);
     }
 
     if(do_c) {

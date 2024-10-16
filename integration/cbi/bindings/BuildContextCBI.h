@@ -37,7 +37,7 @@ extern "C" {
 
     void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string* header);
 
-    LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, chem::string* c_path, chem::string* output_path);
+    LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string* output_path);
 
     LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string* name, ModuleArrayRef* dependencies, chem::string* output_dir);
 

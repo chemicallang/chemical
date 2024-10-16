@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "SelfInvocation.h"
+#include "utils/PathUtils.h"
 #include <iostream>
 #include <sstream>
 #include <filesystem>

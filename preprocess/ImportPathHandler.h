@@ -26,7 +26,7 @@ public:
     /**
      * path to the compiler's executable
      */
-    std::string compiler_exe_path;
+    std::string exe_path;
 
     /**
      * these are the resolved places where system headers paths exist

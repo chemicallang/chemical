@@ -244,8 +244,13 @@ const auto bin_out_desc = "specify output path for binary file";
 const auto debug_ir_desc = "set debug mode for generated llvm ir";
 const auto dash_c_desc = "generate objects without linking them into final executable";
 
+std::vector<std::string_view>& get_includes(CmdOptions& options) {
+    return options.data.find("include")->second.multi_value.values;
+}
+
 void take_include_options(LabModule& module, CmdOptions& options) {
-    for(auto& value : options.data.find("include")->second.multi_value.values) {
+    auto& includes = get_includes(options);
+    for(auto& value : includes) {
         if(value.ends_with(".ch")) {
             module.paths.emplace_back(std::string(value));
         } else {
@@ -359,7 +364,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    if(args.empty()) {
+    if(args.empty() && get_includes(options).empty()) {
         std::cerr << rang::fg::red << "no input given\n\n" << rang::fg::reset;
         print_usage();
         return 1;

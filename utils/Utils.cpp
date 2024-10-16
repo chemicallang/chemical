@@ -74,8 +74,16 @@ std::string canonical_path(const std::string& path) {
     }
 };
 
+std::string absolute_path(const std::string_view& relative) {
+    return std::filesystem::absolute(relative).string();
+}
+
 std::string absolute_path(const std::string& relative) {
     return std::filesystem::absolute(relative).string();
+}
+
+std::string compiler_exe_path_relative_to_tcc(const std::string& exe_path) {
+    return resolve_sibling(exe_path, chemical_exe_PATH_name());
 }
 
 #ifdef _WIN32

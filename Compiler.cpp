@@ -213,9 +213,9 @@ void register_options(CmdOptions& options) {
 void take_include_options(LabModule& module, CmdOptions& options) {
     for(auto& value : options.so_data.find("include")->second.multi_value.values) {
         if(value.ends_with(".ch")) {
-            module.paths.emplace_back(value);
+            module.paths.emplace_back(std::string(value));
         } else {
-            module.headers.emplace_back(value);
+            module.headers.emplace_back(std::string(value));
         }
     }
 }
@@ -232,7 +232,8 @@ int main(int argc, char *argv[]) {
     // parsing the command
     CmdOptions options;
     register_options(options);
-    auto args = options.parse_cmd_options(argc, argv, 1, {"cc", "ar", "configure", "linker"});
+    options.parse_cmd_options(argc, argv, 1, {"cc", "ar", "configure", "linker"});
+    auto& args = options.arguments;
 
     // check if configure is called
     auto config_option = options.option("configure");

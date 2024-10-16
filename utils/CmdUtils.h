@@ -71,11 +71,11 @@ struct CmdOption {
     union {
 
         struct {
-            std::optional<std::string> value;
+            std::optional<std::string_view> value;
         } simple;
 
         struct {
-            std::vector<std::string> values;
+            std::vector<std::string_view> values;
         } multi_value;
 
     };
@@ -83,11 +83,11 @@ struct CmdOption {
     CmdOption(CmdOptionType type, std::string_view description) : type(type), description(description) {
         switch(type) {
             case CmdOptionType::Simple:
-                new (&simple.value) std::optional<std::string>(std::nullopt);
+                new (&simple.value) std::optional<std::string_view>(std::nullopt);
                 break;
             case CmdOptionType::MultiValued:
             case CmdOptionType::SubCommand:
-                new (&multi_value.values) std::vector<std::string>();
+                new (&multi_value.values) std::vector<std::string_view>();
                 break;
         }
     }
@@ -95,7 +95,7 @@ struct CmdOption {
     CmdOption(CmdOption&& other) : type(other.type), description(other.description) {
         switch(type) {
             case CmdOptionType::Simple:
-                new(&simple.value) std::optional<std::string>(other.simple.value);
+                new(&simple.value) std::optional<std::string_view>(other.simple.value);
                 break;
             case CmdOptionType::MultiValued:
             case CmdOptionType::SubCommand:
@@ -143,6 +143,12 @@ struct CmdOptions {
      * when we encounter an option, we check this map to see what kind of option it is
      */
     std::unordered_map<std::string_view, CmdOption> lo_data;
+
+    /**
+     * arguments, when a value doesn't have an option for example file1.h -include file.h
+     * here file1.h is an argument, where file.h is a value for the option -include
+     */
+    std::vector<std::string_view> arguments;
 
     /**
      * This must not be empty ! argument keys stored in options map have "" values
@@ -300,9 +306,8 @@ struct CmdOptions {
      * for example clang x -o file.o, x here is a argument
      * @return the first args, cmd file.o file.o1, these file.o and file.o1 are returned
      */
-    std::vector<std::string_view> parse_cmd_options(int argc, char *argv[], int skip = 0, const std::vector<std::string>& subcommands = {}, bool add_subcommand = true) {
+    void parse_cmd_options(int argc, char *argv[], int skip = 0, const std::vector<std::string>& subcommands = {}, bool add_subcommand = true) {
         int i = skip;
-        std::vector<std::string_view> args;
         std::string_view option;
         while (i < argc) {
             auto x = argv[i];
@@ -329,7 +334,7 @@ struct CmdOptions {
                     option = "";
                 } else {
                     // it's a argument
-                    args.emplace_back(x);
+                    arguments.emplace_back(x);
                 }
             }
             i++;
@@ -337,7 +342,6 @@ struct CmdOptions {
         if(!option.empty()) {
             put_option(option, defOptValue);
         }
-        return args;
     }
 
 };

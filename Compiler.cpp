@@ -204,17 +204,19 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
     return 0;
 }
 
+const auto include_cmd_desc = "include a c header or a chemical file in compilation";
+
 void register_options(CmdOptions& options) {
-    options.data.emplace("include", CmdOption(CmdOptionType::MultiValued));
-//    options.data.emplace("cc", CmdOption(CmdOptionType::SubCommand));
-//    options.data.emplace("ar", CmdOption(CmdOptionType::SubCommand));
-//    options.data.emplace("configure", CmdOption(CmdOptionType::SubCommand));
-//    options.data.emplace("linker", CmdOption(CmdOptionType::SubCommand));
+    options.so_data.emplace("include", CmdOption(CmdOptionType::MultiValued, include_cmd_desc));
 }
 
 void take_include_options(LabModule& module, CmdOptions& options) {
-    for(auto& value : options.data.find("include")->second.multi_value.values) {
-        module.headers.emplace_back(value);
+    for(auto& value : options.so_data.find("include")->second.multi_value.values) {
+        if(value.ends_with(".ch")) {
+            module.paths.emplace_back(value);
+        } else {
+            module.headers.emplace_back(value);
+        }
     }
 }
 

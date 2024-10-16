@@ -66,6 +66,7 @@ enum class CmdOptionType {
 struct CmdOption {
 
     CmdOptionType type;
+    std::string_view description;
 
     union {
 
@@ -79,7 +80,7 @@ struct CmdOption {
 
     };
 
-    CmdOption(CmdOptionType type) : type(type) {
+    CmdOption(CmdOptionType type, std::string_view description) : type(type), description(description) {
         switch(type) {
             case CmdOptionType::Simple:
                 new (&simple.value) std::optional<std::string>(std::nullopt);
@@ -91,7 +92,7 @@ struct CmdOption {
         }
     }
 
-    CmdOption(CmdOption&& other) : type(other.type) {
+    CmdOption(CmdOption&& other) : type(other.type), description(other.description) {
         switch(type) {
             case CmdOptionType::Simple:
                 new(&simple.value) std::optional<std::string>(other.simple.value);
@@ -132,10 +133,16 @@ struct CmdOption {
 struct CmdOptions {
 
     /**
-     * this contains the data for every option
+     * this contains the data for every small option, a small option is like -o where large opt is --output
      * when we encounter an option, we check this map to see what kind of option it is
      */
-    std::unordered_map<std::string_view, CmdOption> data;
+    std::unordered_map<std::string_view, CmdOption> so_data;
+
+    /**
+     * this contains the data for every large option, a small option is like -o where large opt is --output
+     * when we encounter an option, we check this map to see what kind of option it is
+     */
+    std::unordered_map<std::string_view, CmdOption> lo_data;
 
     /**
      * This must not be empty ! argument keys stored in options map have "" values
@@ -275,8 +282,8 @@ struct CmdOptions {
     }
 
     void put_option(const std::string_view& option, const std::string_view& value) {
-        auto found = data.find(option);
-        if(found != data.end()) {
+        auto found = so_data.find(option);
+        if(found != so_data.end()) {
             found->second.put_value(value);
         } else {
             options[std::string(option)] = value;
@@ -296,7 +303,7 @@ struct CmdOptions {
     std::vector<std::string> parse_cmd_options(int argc, char *argv[], int skip = 0, const std::vector<std::string>& subcommands = {}, bool add_subcommand = true) {
         int i = skip;
         std::vector<std::string> args;
-        std::string option;
+        std::string_view option;
         while (i < argc) {
             auto x = argv[i];
             // check if it's a subcommand

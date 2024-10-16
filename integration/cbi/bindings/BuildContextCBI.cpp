@@ -36,7 +36,11 @@ LabModule* BuildContextobject_module(LabBuildContext* self, chem::string* name, 
 }
 
 void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string* header) {
-    module->headers.emplace_back(header->copy());
+    module->headers.emplace_back(header->to_view());
+}
+
+void BuildContextinclude_file(LabBuildContext* self, LabModule* module, chem::string* abs_path) {
+    module->includes.emplace_back(abs_path->to_view());
 }
 
 LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string* output_path) {

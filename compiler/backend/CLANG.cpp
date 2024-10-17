@@ -815,28 +815,16 @@ clang::QualType ReferenceType::clang_type(clang::ASTContext &context) {
 //--------------------------------------------------------------------------
 
 // Function to convert std::vector<std::string> to char**
-void convertToCharPointers(const std::vector<std::string> &args, char ***begin, char ***end) {
+void convertToCharPointers(const std::vector<std::string> &args, const char ***begin, const char ***end) {
     // Allocate memory for the array of char pointers
-    char **argv = new char *[args.size()];
-
-    // Copy each string from the vector to the array
+    const char** argv = new const char* [args.size()];
+    // Get c_str for each string basically
     for (size_t i = 0; i < args.size(); ++i) {
-        // Allocate memory for the C-style string and copy the content
-        argv[i] = new char[args[i].size() + 1]; // +1 for null terminator
-        std::strcpy(argv[i], args[i].c_str());
+        argv[i] = args[i].c_str();
     }
-
     // Set begin and end pointers
     *begin = argv;
     *end = argv + args.size();
-}
-
-// Function to free memory allocated for char** pointers
-void freeCharPointers(char **begin, char **end) {
-    for (char **it = begin; it != end; ++it) {
-        delete[] *it; // Free memory for each C-style string
-    }
-    delete[] begin; // Free memory for the array of char pointers
 }
 
 CTranslator::CTranslator(
@@ -890,12 +878,21 @@ void CTranslator::translate(
     }
 }
 
+void CTranslator::translate(
+        const char *exe_path,
+        const char *abs_path,
+        const char *resources_path
+) {
+    const char* args[] = { exe_path, abs_path };
+    translate(args, args + 2, resources_path);
+}
+
 void CTranslator::translate(std::vector<std::string>& args, const char* resources_path) {
-    char **args_begin;
-    char **args_end;
+    const char **args_begin;
+    const char **args_end;
     convertToCharPointers(args, &args_begin, &args_end);
-    translate(const_cast<const char**>(args_begin), const_cast<const char**>(args_end), resources_path);
-    freeCharPointers(args_begin, args_end);
+    translate(args_begin, args_end, resources_path);
+    delete[] args_begin;
 }
 
 std::vector<ASTNode*> TranslateC(

@@ -577,10 +577,12 @@ void CTranslator::translate(clang::ASTUnit *unit) {
     const auto check = check_decls_across_invocations;
     // translating declarations
     auto tud = unit->getASTContext().getTranslationUnitDecl();
-    for (auto decl: tud->decls()) {
-        if(check) {
+    if(check) {
+        for (auto decl: tud->decls()) {
             translate_checking(decl, source_man);
-        } else {
+        }
+    } else {
+        for (auto decl: tud->decls()) {
             translate_no_check(decl);
         }
     }

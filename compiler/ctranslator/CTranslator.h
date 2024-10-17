@@ -158,6 +158,20 @@ public:
     void translate(std::vector<std::string>& args, const char* resources_path);
 
     /**
+     * a helper method to translate
+     */
+    inline void translate(
+        const char *exe_path,
+        const char *abs_path,
+        const char *resources_path
+    ) {
+        std::vector<std::string> args;
+        args.emplace_back(exe_path);
+        args.emplace_back(abs_path);
+        translate(args, resources_path);
+    }
+
+    /**
      * when given a c qualified type, it constructs a chemical type
      */
     BaseType* make_type(clang::QualType* type);

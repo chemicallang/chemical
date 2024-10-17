@@ -21,6 +21,7 @@
 #include <filesystem>
 #ifdef COMPILER_BUILD
 #include "compiler/backend/ClangStuff.h"
+#include "compiler/ctranslator/CTranslator.h"
 #endif
 
 ASTImportResultExt concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor) {
@@ -40,11 +41,21 @@ ASTProcessor::ASTProcessor(
         ASTProcessorOptions* options,
         SymbolResolver* resolver,
         CompilerBinder& binder,
+#ifdef COMPILER_BUILD
+        CTranslator* translator,
+#endif
         ASTAllocator& job_allocator,
         ASTAllocator& mod_allocator,
         ASTAllocator& file_allocator
 ) : options(options), resolver(resolver), path_handler(options->exe_path), binder(binder),
-    job_allocator(job_allocator), mod_allocator(mod_allocator), file_allocator(file_allocator) {
+    job_allocator(job_allocator), mod_allocator(mod_allocator),
+#ifdef COMPILER_BUILD
+        translator(translator),
+#endif
+    file_allocator(file_allocator)
+
+{
+
 }
 
 void put_import_graph(ImportPathHandler& handler, std::vector<IGFile>& files, const std::vector<std::string>& paths) {
@@ -283,9 +294,15 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
             out << "[IGGraph] Translating C " << abs_path << '\n';
         }
 
-#if defined(COMPILER_BUILD) && defined(CLANG_LIBS)
+#ifdef COMPILER_BUILD
 
-        unit.scope.nodes = TranslateC(mod_allocator, options->exe_path.c_str(), abs_path.c_str(), options->resources_path.c_str());
+        translator->translate(
+            options->exe_path.c_str(),
+            abs_path.c_str(),
+        options->resources_path.c_str()
+        );
+
+        unit.scope.nodes = std::move(translator->nodes);
 
         // a system file is being translated, we will write it to libs/system folder
         if(file.import_path.starts_with("@system")) {

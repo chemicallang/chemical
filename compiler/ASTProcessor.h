@@ -27,6 +27,12 @@ class ShrinkingVisitor;
 
 class ToCAstVisitor;
 
+#ifdef COMPILER_BUILD
+
+class CTranslator;
+
+#endif
+
 /**
  * when a file is processed using ASTProcessor, it results in this result
  */
@@ -93,6 +99,15 @@ public:
      */
     SymbolResolver* resolver;
 
+#ifdef COMPILER_BUILD
+
+    /**
+     * translator is used to translate c files during import
+     */
+    CTranslator* const translator;
+
+#endif
+
     /**
      * it's a container of AST diagnostics
      * this is here because c file's errors are ignored because they contain unresolvable symbols
@@ -121,6 +136,9 @@ public:
             ASTProcessorOptions* options,
             SymbolResolver* resolver,
             CompilerBinder& binder,
+#ifdef COMPILER_BUILD
+            CTranslator* translator,
+#endif
             ASTAllocator& job_allocator,
             ASTAllocator& mod_allocator,
             ASTAllocator& file_allocator

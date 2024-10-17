@@ -905,16 +905,5 @@ std::vector<ASTNode*> TranslateC(
     return std::move(translator.nodes);
 }
 
-std::vector<ASTNode*> TranslateC(
-        ASTAllocator& allocator,
-        const char *exe_path,
-        const char *abs_path,
-        const char *resources_path
-) {
-    std::vector<std::string> args;
-    args.emplace_back(exe_path);
-    args.emplace_back(abs_path);
-    return TranslateC(allocator, args, resources_path);
-}
 
 CTranslator::~CTranslator() = default;

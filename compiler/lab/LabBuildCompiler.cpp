@@ -35,7 +35,6 @@
 #include "compiler/SelfInvocation.h"
 
 #ifdef COMPILER_BUILD
-#include "compiler/backend/ClangStuff.h"
 #include "compiler/ctranslator/CTranslator.h"
 #endif
 
@@ -215,7 +214,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #ifdef COMPILER_BUILD
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
-    CTranslator cTranslator(job_alloc);
+    CTranslator cTranslator(job_alloc, options->is64Bit);
     ASTProcessor processor(options, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
     Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
     LLVMBackendContext g_context(&gen);
@@ -276,6 +275,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     int mod_index = -1;
     for(auto mod : dependencies) {
         mod_index++;
+
+#ifdef COMPILER_BUILD
+        // let c translator know that a new module has begin
+        // so it can re-declare imported c headers
+        cTranslator.module_begin();
+#endif
 
         auto found = generated.find(mod);
         if(found != generated.end() && job_type != LabJobType::ToCTranslation) {
@@ -428,7 +433,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #else
             args.emplace_back("/dev/null");
 #endif
-            auto nodes = TranslateC(*mod_allocator, args, options->resources_path.c_str());
+            // set checking for declarations to false, since this is a new module (so none have been included, we are also using a single invocation)
+            // this will improve performance (since it hashes their locations), and reliability (since locations sometimes can't be found)
+            auto prev_check = cTranslator.check_decls_across_invocations;
+            cTranslator.check_decls_across_invocations = false;
+            // translate
+            cTranslator.translate(args, options->resources_path.c_str());
+            cTranslator.check_decls_across_invocations = prev_check;
+            auto& nodes = cTranslator.nodes;
             // symbol resolving c nodes, really fast -- just declaring their id's as less than public specifier
             import_in_module(nodes, resolver, mod->name.to_std_string() + ":headers");
             // declaring the nodes fast using code generator
@@ -794,7 +806,13 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
                 args.emplace_back(path.to_view());
             }
         }
-        auto nodes = TranslateC(*mod_allocator, args, options->get_resources_path().c_str());
+        // the c translator we will use
+        CTranslator cTranslator(*mod_allocator, options->is64Bit);
+        // we will only do a single invocation
+        cTranslator.check_decls_across_invocations = false;
+        cTranslator.translate(args, options->get_resources_path().c_str());
+        // get the nodes
+        auto& nodes = cTranslator.nodes;
         visitor.translate(nodes);
     }
     output.close();
@@ -862,7 +880,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
 #ifdef COMPILER_BUILD
     // a single c translator is used to translate c files
-    CTranslator cTranslator(lab_allocator);
+    CTranslator cTranslator(lab_allocator, options->is64Bit);
 #endif
 
     // the processor that does everything for build.lab files only

@@ -457,6 +457,20 @@ std::string get_decl_name(const clang::Decl* decl) {
     return "<unnamed>";
 }
 
+std::size_t hash_decl(clang::Decl* decl, clang::SourceManager& SM, clang::SourceLocation loc) {
+    if(loc.isInvalid()) return 0;
+    const auto Decomposed = SM.getDecomposedLoc(loc);
+    const auto fileID = Decomposed.first;
+    const auto fileEntry = SM.getFileEntryForID(fileID);
+    if(!fileEntry) return 0;
+    const auto& unId = fileEntry->getUniqueID();
+    std::size_t seed = 0;
+    // we don't hash the unId.getDevice, maybe it would be useful someday
+    seed ^= std::hash<uint64_t>()(unId.getFile()) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    seed ^= std::hash<unsigned int>()(Decomposed.second) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    return seed;
+}
+
 void print_loc_for_decl(clang::Decl* decl, clang::SourceManager& SM) {
     clang::SourceLocation loc = decl->getLocation();
     if (loc.isInvalid()) {
@@ -465,12 +479,14 @@ void print_loc_for_decl(clang::Decl* decl, clang::SourceManager& SM) {
     }
 
     // Retrieve the file ID and the file name
-    clang::FileID fileID = SM.getFileID(loc);
+    auto decomposed = SM.getDecomposedLoc(loc);
+    clang::FileID fileID = decomposed.first;
     const clang::FileEntry* fileEntry = SM.getFileEntryForID(fileID);
     if (!fileEntry) {
         std::cerr << "Cannot find file entry for the location" << std::endl;
         return;
     }
+    const auto& unId = fileEntry->getUniqueID();
 
     std::string filename = fileEntry->getName().str();
 
@@ -480,35 +496,92 @@ void print_loc_for_decl(clang::Decl* decl, clang::SourceManager& SM) {
         filetype = "header file";
     }
 
-    SM.getFileOffset(loc);
+    const auto offset = decomposed.second;
 
     unsigned line = SM.getSpellingLineNumber(loc);
     unsigned column = SM.getSpellingColumnNumber(loc);
 
-    std::cout << "Defined " <<  get_decl_name(decl) << " in " << filetype << ": " << filename << ":" << line << ":" << column << " with raw encoding " << loc.getRawEncoding() << std::endl;
+    std::cout << "Defined " <<  get_decl_name(decl) << " in " << filetype << ": " << filename << ":" << line << ":" << column << " e: " << loc.getRawEncoding() << " f: " << fileID.getHashValue() << " unId: " << unId.getDevice() << ':' << unId.getFile() << " uid: " << fileEntry->getUID() << " o: " << offset << std::endl;
 
 //    std::cout << "Declaration is defined in " << filetype << ": " << filename << std::endl;
 }
 
-void Translate(CTranslator *translator, clang::ASTUnit *unit) {
+void invalid_loc_err(clang::Decl* decl, clang::SourceManager& SM, clang::SourceLocation loc) {
+    unsigned line = SM.getSpellingLineNumber(loc);
+    unsigned column = SM.getSpellingColumnNumber(loc);
+    clang::FileID fileID = SM.getFileID(loc);
+    const clang::FileEntry* fileEntry = SM.getFileEntryForID(fileID);
+    const auto& unId = fileEntry->getUniqueID();
+    if (!fileEntry) {
+        std::cerr << "Cannot find file entry for the location" << std::endl;
+        return;
+    }
+    std::string filename = fileEntry->getName().str();
+    // Determine if it is a header or source file based on extension
+    std::string filetype = "source file";
+    if (filename.find(".h") != std::string::npos || filename.find(".hpp") != std::string::npos) {
+        filetype = "header file";
+    }
+    std::cout << "invalid location for " <<  get_decl_name(decl) << " in " << filetype << ": " << filename << ":" << line << ":" << column << " e: " << loc.getRawEncoding() << " f: " << fileID.getHashValue() << " unId: " << unId.getDevice() << ':' << unId.getFile() << " uid: " << fileEntry->getUID() << std::endl;
+}
+
+void CTranslator::translate_no_check(clang::Decl* decl) {
+    auto maker = node_makers[decl->getKind()];
+    if(maker) {
+        auto node = maker(this, decl);
+        if (node) {
+            declarations[decl] = node;
+            nodes.emplace_back(node);
+        }
+    } else {
+        error("couldn't convert decl with kind " + std::to_string(decl->getKind()) + " & kind name " + decl->getDeclKindName());
+    }
+}
+
+void CTranslator::translate_checking(clang::Decl* decl, clang::SourceManager& sourceMan) {
+    const auto hashed_decl = hash_decl(decl, sourceMan, decl->getLocation());
+    if(hashed_decl == 0) {
+        return;
+    }
+    // check if node has already been translated and resuse that
+    auto translated_pair = translated_map.find(hashed_decl);
+    if (translated_pair != translated_map.end()) {
+        const auto node = translated_pair->second;
+        declarations[decl] = node;
+        // check node has not been declared in this module before
+        auto found = declared_in_module.find(node);
+        if (found == declared_in_module.end()) {
+            nodes.emplace_back(node);
+            declared_in_module[node] = true;
+        }
+        return;
+    }
+    auto maker = node_makers[decl->getKind()];
+    if(maker) {
+        auto node = maker(this, decl);
+        if (node) {
+            declarations[decl] = node;
+            translated_map[hashed_decl] = node;
+            declared_in_module[node] = true;
+            nodes.emplace_back(node);
+        }
+    } else {
+        error("couldn't convert decl with kind " + std::to_string(decl->getKind()) + " & kind name " + decl->getDeclKindName());
+    }
+}
+
+void CTranslator::translate(clang::ASTUnit *unit) {
     // set current unit
-    translator->current_unit = unit;
-    // translate each node
+    current_unit = unit;
+    auto& source_man = unit->getSourceManager();
+    const auto check = check_decls_across_invocations;
+    // translating declarations
     auto tud = unit->getASTContext().getTranslationUnitDecl();
     for (auto decl: tud->decls()) {
-        auto maker = translator->node_makers[decl->getKind()];
-        if(maker) {
-            auto node = maker(translator, decl);
-            if (node) {
-                translator->declarations[decl] = node;
-                for (auto bNode: translator->before_nodes) {
-                    translator->nodes.emplace_back(bNode);
-                }
-                translator->before_nodes.clear();
-                translator->nodes.emplace_back(node);
-            }
+        if(check) {
+            translate_checking(decl, source_man);
         } else {
-            translator->error("couldn't convert decl with kind " + std::to_string(decl->getKind()) + " & kind name " + decl->getDeclKindName());
+            translate_no_check(decl);
         }
     }
 }
@@ -828,8 +901,9 @@ void convertToCharPointers(const std::vector<std::string> &args, const char ***b
 }
 
 CTranslator::CTranslator(
-    ASTAllocator& allocator
-) : allocator(allocator),
+    ASTAllocator& allocator,
+    bool is64Bit
+) : allocator(allocator), is64Bit(is64Bit),
     diags_engine(clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions))
 {
     init_type_makers();
@@ -841,6 +915,7 @@ void CTranslator::translate(
         const char** args_end,
         const char* resources_path
 ) {
+    std::lock_guard guard(translation_mutex);
     //    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
     ErrorMsg *errorMsg;
     unsigned long errors_len = 0;
@@ -866,16 +941,16 @@ void CTranslator::translate(
         diags_engine->Reset();
         return;
     }
-    Translate(this, unit);
+    translate(unit);
     // dedupe the nodes
     top_level_dedupe(nodes);
     delete unit;
-    if (!errors.empty()) {
-        std::cerr << std::to_string(errors.size()) << " errors occurred when translating C files" << std::endl;
-    }
-    for (const auto &err : errors) {
-        std::cerr << err.message << std::endl;
-    }
+//    if (!errors.empty()) {
+//        std::cerr << std::to_string(errors.size()) << " errors occurred when translating C files" << std::endl;
+//    }
+//    for (const auto &err : errors) {
+//        std::cerr << err.message << std::endl;
+//    }
 }
 
 void CTranslator::translate(
@@ -894,16 +969,5 @@ void CTranslator::translate(std::vector<std::string>& args, const char* resource
     translate(args_begin, args_end, resources_path);
     delete[] args_begin;
 }
-
-std::vector<ASTNode*> TranslateC(
-        ASTAllocator& allocator,
-        std::vector<std::string>& args,
-        const char *resources_path
-) {
-    CTranslator translator(allocator);
-    translator.translate(args, resources_path);
-    return std::move(translator.nodes);
-}
-
 
 CTranslator::~CTranslator() = default;

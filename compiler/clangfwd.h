@@ -14,4 +14,5 @@ namespace clang {
     class VarDecl;
     class Expr;
     class ASTContext;
+    class SourceManager;
 }

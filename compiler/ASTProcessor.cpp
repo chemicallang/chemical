@@ -20,7 +20,6 @@
 #include "preprocess/RepresentationVisitor.h"
 #include <filesystem>
 #ifdef COMPILER_BUILD
-#include "compiler/backend/ClangStuff.h"
 #include "compiler/ctranslator/CTranslator.h"
 #endif
 
@@ -299,7 +298,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         translator->translate(
             options->exe_path.c_str(),
             abs_path.c_str(),
-        options->resources_path.c_str()
+            options->resources_path.c_str()
         );
 
         unit.scope.nodes = std::move(translator->nodes);

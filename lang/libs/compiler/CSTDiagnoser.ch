@@ -1,6 +1,8 @@
 import "./CSTToken.ch"
 import "@std/string.ch"
 
+using namespace std;
+
 public enum DiagSeverity {
     // Reports an error.
     Error,

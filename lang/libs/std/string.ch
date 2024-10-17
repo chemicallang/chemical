@@ -1,5 +1,7 @@
 import "./std.ch"
 
+public namespace std {
+
 public struct string {
 
     union {
@@ -285,5 +287,7 @@ public struct string {
             free(storage.heap.data);
         }
     }
+
+}
 
 }

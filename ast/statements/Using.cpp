@@ -22,7 +22,7 @@ UsingStmt::UsingStmt(
 
 }
 
-void UsingStmt::declare_and_link(SymbolResolver &linker) {
+void UsingStmt::declare_top_level(SymbolResolver &linker) {
     chain.declare_and_link(linker);
     auto linked = chain.linked_node();
     if(!linked) {
@@ -33,7 +33,16 @@ void UsingStmt::declare_and_link(SymbolResolver &linker) {
     if(is_namespace) {
         auto ns = linked->as_namespace();
         if(ns) {
-            for(const auto node : ns->nodes) {
+//            for(const auto node : ns->nodes) {
+//                auto& id = node->ns_node_identifier();
+//                if(no_propagate) {
+//                    linker.declare_file_disposable(id, node);
+//                } else {
+//                    linker.declare(id, node);
+//                }
+//            }
+            for(auto& node_pair : ns->extended) {
+                const auto node = node_pair.second;
                 auto& id = node->ns_node_identifier();
                 if(no_propagate) {
                     linker.declare_file_disposable(id, node);

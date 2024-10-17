@@ -1,5 +1,7 @@
 import "@std/array_ref.ch"
 
+using namespace std;
+
 func array_ref_size(array : ArrayRef<int>) : size_t {
     return array.size();
 }

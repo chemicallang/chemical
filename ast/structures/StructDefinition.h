@@ -104,6 +104,8 @@ public:
 
     void declare_top_level(SymbolResolver &linker) override;
 
+    void redeclare_top_level(SymbolResolver &linker) override;
+
     void declare_and_link(SymbolResolver &linker) override;
 
     ASTNode *child(const std::string &name) override;

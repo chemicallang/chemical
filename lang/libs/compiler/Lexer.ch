@@ -3,6 +3,8 @@ import "./LexTokenType.ch"
 import "./CSTToken.ch"
 import "./CSTDiagnoser.ch"
 
+using namespace std;
+
 @compiler.interface
 struct Lexer : CSTDiagnoser {
 

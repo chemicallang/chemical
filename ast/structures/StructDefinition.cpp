@@ -383,6 +383,10 @@ void StructDefinition::declare_top_level(SymbolResolver &linker) {
     is_direct_init = has_annotation(AnnotationKind::DirectInit);
 }
 
+void StructDefinition::redeclare_top_level(SymbolResolver &linker) {
+    linker.declare(name, this);
+}
+
 void StructDefinition::declare_and_link(SymbolResolver &linker) {
     auto& allocator = specifier == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     bool has_destructor = false;

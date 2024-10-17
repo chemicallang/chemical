@@ -20,6 +20,19 @@ void ASTAny::interpret(InterpretScope &scope) {
 #endif
 }
 
+std::string to_string(AccessSpecifier specifier) {
+    switch(specifier) {
+        case AccessSpecifier::Private:
+            return "private";
+        case AccessSpecifier::Public:
+            return "public";
+        case AccessSpecifier::Protected:
+            return "protected";
+        case AccessSpecifier::Internal:
+            return "internal";
+    }
+}
+
 std::string ASTAny::representation() {
     switch (any_kind()) {
         case ASTAnyKind::Value:

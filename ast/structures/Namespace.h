@@ -11,6 +11,8 @@ private:
 
     void declare_node(SymbolResolver& linker, ASTNode* node, const std::string& node_id);
 
+    void declare_extended_in_linker(SymbolResolver& linker);
+
 public:
 
     std::string name;

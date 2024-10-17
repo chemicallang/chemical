@@ -1190,9 +1190,14 @@ void CSTConverter::visitThrow(CSTToken* throwStmt) {
 }
 
 void CSTConverter::visitNamespace(CSTToken* ns) {
-    auto spec = specifier_token(ns->tokens[0]);
-    auto pNamespace = new (global<Namespace>()) Namespace(str_token(ns->tokens[spec.has_value() ? 2 : 1]), parent_node, ns, def_specifier(spec));
+    const auto spec = specifier_token(ns->tokens[0]);
+    const auto specifier = def_specifier(spec);
+    auto& alloc = allocator(specifier);
+    auto pNamespace = new (alloc.allocate<Namespace>()) Namespace(str_token(ns->tokens[spec.has_value() ? 2 : 1]), parent_node, ns, specifier);
+    const auto prev_alloc = local_allocator;
+    local_allocator = &alloc;
     pNamespace->nodes = take_comp_body_nodes(this, ns, pNamespace);
+    local_allocator = prev_alloc;
     put_node(pNamespace, ns);
 }
 

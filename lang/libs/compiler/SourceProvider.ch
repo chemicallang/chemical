@@ -1,6 +1,8 @@
 import "./Operation.ch"
 import "@std/string.ch"
 
+using namespace std;
+
 /**
  * provides access to the source code provided by the user
  */

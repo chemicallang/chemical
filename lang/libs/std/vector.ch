@@ -1,5 +1,7 @@
 import "./std.ch"
 
+public namespace std {
+
 public struct vector<T> {
 
     var data_ptr : *mut T
@@ -106,5 +108,7 @@ public struct vector<T> {
         data_size = 0;
         data_cap = 0;
     }
+
+}
 
 }

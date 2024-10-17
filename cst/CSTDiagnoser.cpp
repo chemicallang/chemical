@@ -8,7 +8,7 @@
 void CSTDiagnoser::real_diagnostic(const std::string_view& message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
     if (severity == DiagSeverity::Error) {
 #ifdef DEBUG
-        std::cerr << rang::fg::red << "[Debug_Error] " << message << rang::fg::reset << std::endl;
+        std::cerr << rang::fg::red << "[Debug_Error] " << message << " at path/to/filename/here" << ":" << start->position().representation() << rang::fg::reset << std::endl;
 #endif
         has_errors = true;
     }

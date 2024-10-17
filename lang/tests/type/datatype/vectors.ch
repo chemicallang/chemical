@@ -1,5 +1,7 @@
 import "@std/vector.ch"
 
+using namespace std;
+
 struct VecConcreteChild {
     var a : int
     var b : int

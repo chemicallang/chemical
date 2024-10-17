@@ -141,7 +141,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
 
 void import_in_module(std::vector<ASTNode*>& nodes, SymbolResolver& resolver, const std::string& path) {
     resolver.file_scope_start();
-    for(auto node : nodes) {
+    for(const auto node : nodes) {
         const auto requested_specifier = node->specifier();
         const auto specifier = requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier;
         resolver.declare_node(node->ns_node_identifier(), node, specifier, true);
@@ -428,7 +428,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             // symbol resolving c nodes, really fast -- just declaring their id's as less than public specifier
             import_in_module(nodes, resolver, mod->name.to_std_string() + ":headers");
             // declaring the nodes fast using code generator
-            for(auto node : nodes) {
+            for(const auto node : nodes) {
                 node->code_gen_declare(gen);
             }
             // writing c headers output, if user asked

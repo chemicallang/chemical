@@ -166,7 +166,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     }
     if(is_c_file) {
         resolver->override_symbols = true;
-        for(auto& node : scope.nodes) {
+        for(const auto node : scope.nodes) {
             resolver->declare(node->ns_node_identifier(), node);
         }
         resolver->override_symbols = false;

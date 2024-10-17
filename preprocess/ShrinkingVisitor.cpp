@@ -9,7 +9,7 @@
 #include "ast/structures/Namespace.h"
 
 void ShrinkingVisitor::visit(std::vector<ASTNode*>& nodes) {
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         node->accept(this);
     }
 }

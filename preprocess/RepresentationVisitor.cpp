@@ -144,7 +144,7 @@ void RepresentationVisitor::translate(std::vector<ASTNode*>& nodes) {
 //    }
 
     // writing
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         new_line_and_indent();
         node->accept(this);
     }
@@ -386,7 +386,7 @@ void RepresentationVisitor::visit(InterfaceDefinition *def) {
 void RepresentationVisitor::visit(Scope *scope) {
     auto prev = top_level_node;
     top_level_node = false;
-    for(auto& node : scope->nodes) {
+    for(const auto node : scope->nodes) {
         new_line_and_indent();
         node->accept(this);
     }
@@ -533,7 +533,7 @@ void RepresentationVisitor::visit(Namespace *ns) {
     space();
     write('{');
     indentation_level++;
-    for(auto& node : ns->nodes) {
+    for(const auto node : ns->nodes) {
         new_line_and_indent();
         node->accept(this);
     }

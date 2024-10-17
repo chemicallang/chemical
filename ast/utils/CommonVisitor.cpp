@@ -93,7 +93,7 @@ void CommonVisitor::visit(LambdaFunction *func) {
 void CommonVisitor::visit(Scope *scope) {
     auto prev = is_top_level_node;
     is_top_level_node = false;
-    for(auto& node : scope->nodes) {
+    for(const auto node : scope->nodes) {
         node->accept(this);
     }
     is_top_level_node = prev;
@@ -189,7 +189,7 @@ void CommonVisitor::visit(DoWhileLoop *loop) {
 }
 
 void CommonVisitor::visit(Namespace *ns) {
-    for(auto& node : ns->nodes){
+    for(const auto node : ns->nodes){
         node->accept(this);
     }
 }

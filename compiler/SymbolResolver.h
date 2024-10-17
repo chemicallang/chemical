@@ -10,6 +10,8 @@
 
 class ASTNode;
 
+class AnnotableNode;
+
 class FunctionType;
 
 class AccessChain;

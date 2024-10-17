@@ -7,6 +7,10 @@
 #include "ast/base/AccessSpecifier.h"
 
 class Namespace : public AnnotableNode {
+private:
+
+    void declare_node(SymbolResolver& linker, ASTNode* node, const std::string& node_id);
+
 public:
 
     std::string name;

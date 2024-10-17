@@ -4,6 +4,7 @@
 #include "ast/base/ASTNode.h"
 #include "SymbolResolver.h"
 #include "ast/values/AccessChain.h"
+#include "ast/structures/Namespace.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "rang.hpp"

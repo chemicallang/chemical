@@ -1,6 +1,8 @@
 import "../../test.ch"
 import "@std/string.ch"
 
+using namespace std;
+
 struct Str {
     var value : *char
 }

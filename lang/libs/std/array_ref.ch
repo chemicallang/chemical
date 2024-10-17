@@ -1,6 +1,8 @@
 import "./vector.ch"
 import "./std.ch"
 
+public namespace std {
+
 public struct ArrayRef<T> {
 
     var data : *T
@@ -35,5 +37,7 @@ public struct ArrayRef<T> {
     func size(&self) : size_t {
         return _size;
     }
+
+}
 
 }

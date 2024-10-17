@@ -1,6 +1,8 @@
 import "../../test.ch"
 import "@std/result.ch"
 
+using namespace std;
+
 enum ErrType {
     Simple,
     Complex

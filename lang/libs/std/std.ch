@@ -37,7 +37,3 @@ public func quick_exit(code : int)
 public func abort()
 public void perror(error_message : *char)
 **/
-
-public namespace std {
-
-}

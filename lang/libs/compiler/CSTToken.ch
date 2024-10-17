@@ -2,6 +2,8 @@ import "ASTVisitor.ch"
 import "./LexTokenType.ch"
 import "./PtrVec.ch"
 
+using namespace std;
+
 public struct Position {
     var line : uint
     var character : uint

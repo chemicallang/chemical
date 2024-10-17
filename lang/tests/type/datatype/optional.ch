@@ -1,6 +1,8 @@
 import "../../test.ch"
 import "@std/option.ch"
 
+using namespace std;
+
 func get_optional_int(some : bool) : Option<int> {
     if(some) {
         return Option.Some(32)

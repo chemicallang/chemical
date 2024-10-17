@@ -1,6 +1,8 @@
 import "@std/string.ch"
 import "@std/array_ref.ch"
 
+using namespace std;
+
 public enum ModuleType {
     File,
     CFile,

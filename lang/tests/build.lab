@@ -1,5 +1,7 @@
 import "../libs/lab/lab.ch"
 
+using namespace std;
+
 func curr_dir() : string {
     const curr_path_str = string(#file:path{});
     return curr_path_str.substring(0, curr_path_str.size() - 9)

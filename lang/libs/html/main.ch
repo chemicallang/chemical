@@ -2,6 +2,8 @@ import "../compiler/Lexer.ch"
 import "../compiler/CSTConverter.ch"
 import "@system/ctype.h"
 
+using namespace std;
+
 struct HtmlLexer {
 
     var lexer : *Lexer

@@ -1,6 +1,8 @@
 import "AccessSpecifier.ch"
 import "./CSTToken.ch"
 
+using namespace std;
+
 // The Base Structs
 
 struct ASTNode {}

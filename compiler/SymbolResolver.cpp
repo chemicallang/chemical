@@ -22,7 +22,7 @@ SymbolResolver::SymbolResolver(
 }
 
 void SymbolResolver::dup_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node) {
-    std::string err("duplicate symbol being declared " + name + " symbol already exists");
+    std::string err("duplicate symbol being declared, symbol '" + name + "' already exists");
 //    err.append("\nprevious : " + previous->representation() + "\n");
 //    err.append("new : " + new_node->representation() + "\n");
     error(err, new_node);

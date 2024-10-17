@@ -12,6 +12,15 @@ Namespace::Namespace(
 
 }
 
+void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const std::string& node_id) {
+    auto found = extended.find(node_id);
+    if(found == extended.end()) {
+        extended[node_id] = node;
+    } else {
+        linker.dup_sym_error(node_id, found->second, node);
+    }
+}
+
 void Namespace::declare_top_level(SymbolResolver &linker) {
     auto previous = linker.find(name);
     if(previous) {
@@ -19,18 +28,12 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
         if(root) {
 
         } else {
-            linker.error("a node exists by same name, the namespace with name '" + name + "' couldn't be created", this);
+            linker.dup_sym_error(name, previous, this);
         }
     } else {
         linker.declare_node(name, this, specifier, false);
         for(const auto node : nodes) {
-            const auto node_id = node->ns_node_identifier();
-            auto found = extended.find(node_id);
-            if(found == extended.end()) {
-                extended[node_id] = node;
-            } else {
-                linker.dup_sym_error(node_id, found->second, node);
-            }
+            declare_node(linker, node, node->ns_node_identifier());
         }
     }
 }
@@ -43,13 +46,7 @@ void Namespace::declare_and_link(SymbolResolver &linker) {
         }
         for(const auto node : nodes) {
             node->declare_top_level(linker);
-            const auto node_id = node->ns_node_identifier();
-            auto found = root->extended.find(node_id);
-            if(found == root->extended.end()) {
-                root->extended[node_id] = node;
-            } else {
-                linker.dup_sym_error(node_id, found->second, node);
-            }
+            root->declare_node(linker, node, node->ns_node_identifier());
         }
     } else {
         for(const auto node : nodes) {

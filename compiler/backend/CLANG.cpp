@@ -450,6 +450,46 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
     return decl;
 }
 
+std::string get_decl_name(const clang::Decl* decl) {
+    if (const auto* namedDecl = llvm::dyn_cast<clang::NamedDecl>(decl)) {
+        return namedDecl->getNameAsString();
+    }
+    return "<unnamed>";
+}
+
+void print_loc_for_decl(clang::Decl* decl, clang::SourceManager& SM) {
+    clang::SourceLocation loc = decl->getLocation();
+    if (loc.isInvalid()) {
+        std::cerr << "Invalid source location" << std::endl;
+        return;
+    }
+
+    // Retrieve the file ID and the file name
+    clang::FileID fileID = SM.getFileID(loc);
+    const clang::FileEntry* fileEntry = SM.getFileEntryForID(fileID);
+    if (!fileEntry) {
+        std::cerr << "Cannot find file entry for the location" << std::endl;
+        return;
+    }
+
+    std::string filename = fileEntry->getName().str();
+
+    // Determine if it is a header or source file based on extension
+    std::string filetype = "source file";
+    if (filename.find(".h") != std::string::npos || filename.find(".hpp") != std::string::npos) {
+        filetype = "header file";
+    }
+
+    SM.getFileOffset(loc);
+
+    unsigned line = SM.getSpellingLineNumber(loc);
+    unsigned column = SM.getSpellingColumnNumber(loc);
+
+    std::cout << "Defined " <<  get_decl_name(decl) << " in " << filetype << ": " << filename << ":" << line << ":" << column << " with raw encoding " << loc.getRawEncoding() << std::endl;
+
+//    std::cout << "Declaration is defined in " << filetype << ": " << filename << std::endl;
+}
+
 void Translate(CTranslator *translator, clang::ASTUnit *unit) {
     // set current unit
     translator->current_unit = unit;
@@ -799,52 +839,72 @@ void freeCharPointers(char **begin, char **end) {
     delete[] begin; // Free memory for the array of char pointers
 }
 
+CTranslator::CTranslator(
+    ASTAllocator& allocator
+) : allocator(allocator),
+    diags_engine(clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions))
+{
+    init_type_makers();
+    init_node_makers();
+}
+
+void CTranslator::translate(
+        const char** args_begin,
+        const char** args_end,
+        const char* resources_path
+) {
+    //    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
+    ErrorMsg *errorMsg;
+    unsigned long errors_len = 0;
+    auto unit = ClangLoadFromCommandLine(
+            args_begin,
+            args_end,
+            &errorMsg,
+            &errors_len,
+            resources_path,
+            diags_engine
+    );
+    if(errors_len > 0) {
+        std::cerr << std::to_string(errors_len) << " errors occurred when loading C files" << std::endl;
+        unsigned i = 0;
+        while (i < errors_len) {
+            const auto err = errorMsg + i;
+            std::cerr << err->msg_ptr << " at " << err->filename_ptr << ":" << err->line << ":" << err->column << std::endl;
+            i++;
+        }
+    }
+    if (!unit) {
+        diags_engine->dump();
+        diags_engine->Reset();
+        return;
+    }
+    Translate(this, unit);
+    // dedupe the nodes
+    top_level_dedupe(nodes);
+    delete unit;
+    if (!errors.empty()) {
+        std::cerr << std::to_string(errors.size()) << " errors occurred when translating C files" << std::endl;
+    }
+    for (const auto &err : errors) {
+        std::cerr << err.message << std::endl;
+    }
+}
+
+void CTranslator::translate(std::vector<std::string>& args, const char* resources_path) {
+    char **args_begin;
+    char **args_end;
+    convertToCharPointers(args, &args_begin, &args_end);
+    translate(const_cast<const char**>(args_begin), const_cast<const char**>(args_end), resources_path);
+    freeCharPointers(args_begin, args_end);
+}
+
 std::vector<ASTNode*> TranslateC(
         ASTAllocator& allocator,
         std::vector<std::string>& args,
         const char *resources_path
 ) {
-    //    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
-    clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags(
-            clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions));
-    ErrorMsg *errors;
-    unsigned long errors_len = 0;
-    char **args_begin;
-    char **args_end;
-    convertToCharPointers(args, &args_begin, &args_end);
-    auto unit = ClangLoadFromCommandLine(
-            const_cast<const char **>(args_begin),
-            const_cast<const char **>(args_end),
-            &errors,
-            &errors_len,
-            resources_path,
-            diags
-    );
-    freeCharPointers(args_begin, args_end);
-    if (!unit) {
-        std::cerr << std::to_string(errors_len) << " errors occurred when loading C files" << std::endl;
-        unsigned i = 0;
-        ErrorMsg *err;
-        while (i < errors_len) {
-            err = errors + i;
-            std::cerr << err->msg_ptr << " at " << err->filename_ptr << ":" << err->line << ":" << err->column
-                      << std::endl;
-            i++;
-        }
-        diags.get()->dump();
-        return {};
-    }
     CTranslator translator(allocator);
-    Translate(&translator, unit);
-    // dedupe the nodes
-    top_level_dedupe(translator.nodes);
-    delete unit;
-    if (!translator.errors.empty()) {
-        std::cerr << std::to_string(translator.errors.size()) << " errors occurred when translating C files" << std::endl;
-    }
-    for (const auto &err: translator.errors) {
-        std::cerr << err.message << std::endl;
-    }
+    translator.translate(args, resources_path);
     return std::move(translator.nodes);
 }
 
@@ -859,3 +919,5 @@ std::vector<ASTNode*> TranslateC(
     args.emplace_back(abs_path);
     return TranslateC(allocator, args, resources_path);
 }
+
+CTranslator::~CTranslator() = default;

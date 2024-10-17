@@ -10,6 +10,7 @@
 #include "compiler/clangfwd.h"
 #include "compiler/chem_clang.h"
 #include "ast/base/Visitor.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 
 class CTranslator;
 
@@ -34,6 +35,10 @@ struct CTranslatorError {
     std::string message;
 };
 
+namespace clang {
+    class DiagnosticsEngine;
+}
+
 /**
  * The point of this class to provide storage for translation process
  * for example storage for indexed types, errors and stuff
@@ -45,6 +50,12 @@ public:
      * the reference to allocator
      */
     ASTAllocator& allocator;
+
+    /**
+     * the diagnostics engine is used to collect diagnostics from clang across
+     * multiple invocations
+     */
+    llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags_engine;
 
     /**
      * errors that occurred during translation
@@ -74,6 +85,19 @@ public:
      * this is the result after translation
      */
     std::vector<ASTNode*> nodes;
+
+    /**
+     * when we translate a declaration, we store it here on this map
+     * we can reuse this declarations everywhere, these nodes are retained for
+     * the duration this translator is retained
+     */
+    std::unordered_map<uint32_t, ASTNode*> translated_map;
+
+    /**
+     * these nodes have been declared in module, so must not be declared again
+     * we only check nodes that we re-use from translated_map
+     */
+    std::unordered_map<ASTNode*, bool> declared_in_module;
 
     /**
      * a map between clang declarations that we translated to our nodes
@@ -110,6 +134,28 @@ public:
      * initializes node makers
      */
     void init_node_makers();
+
+    /**
+     * whenever a module begins this function should be called to make
+     * the translate re-import the declarations from headers that aren't imported
+     * in this module
+     */
+    void module_begin();
+
+    /**
+     * translate using given arguments
+     * prefer this method, because it's faster
+     */
+    void translate(
+        const char** args_begin,
+        const char** args_end,
+        const char* resources_path
+    );
+
+    /**
+     * translate unit using given arguments
+     */
+    void translate(std::vector<std::string>& args, const char* resources_path);
 
     /**
      * when given a c qualified type, it constructs a chemical type
@@ -151,5 +197,10 @@ public:
      * put an error in errors, called when an error occurs during translation
      */
     void error(const std::string& err);
+
+    /**
+     * destructor
+     */
+    ~CTranslator();
 
 };

@@ -12,6 +12,8 @@ class ASTAllocator;
 
 class LabBuildContext;
 
+class CTranslator;
+
 /**
  * lab build compiler, doesn't relate to building a .lab file
  * it provides easy methods to do what can be done with a .lab file

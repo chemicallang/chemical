@@ -36,6 +36,7 @@
 
 #ifdef COMPILER_BUILD
 #include "compiler/backend/ClangStuff.h"
+#include "compiler/ctranslator/CTranslator.h"
 #endif
 
 #ifdef DEBUG
@@ -212,7 +213,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
-    ASTProcessor processor(options, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
+    auto& job_alloc = *job_allocator;
+    // a single c translator across this entire job
+    CTranslator cTranslator(job_alloc);
+    ASTProcessor processor(options, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
     Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
     LLVMBackendContext g_context(&gen);
     CodegenEmitterOptions emitter_options;
@@ -856,11 +860,19 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     // creating symbol resolver for build.lab files only
     SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, &lab_allocator, &lab_allocator);
 
+#ifdef COMPILER_BUILD
+    // a single c translator is used to translate c files
+    CTranslator cTranslator(lab_allocator);
+#endif
+
     // the processor that does everything for build.lab files only
     ASTProcessor lab_processor(
             options,
             &lab_resolver,
             binder,
+#ifdef COMPILER_BUILD
+            &cTranslator,
+#endif
             lab_allocator,
             lab_allocator, // lab allocator is being used as a module level allocator
             lab_allocator

@@ -19,11 +19,6 @@
 #include "ast/types/UInt128Type.h"
 #include "ast/types/Int128Type.h"
 
-CTranslator::CTranslator(ASTAllocator& allocator) : allocator(allocator) {
-    init_type_makers();
-    init_node_makers();
-}
-
 void CTranslator::init_type_makers() {
     type_makers[ZigClangBuiltinTypeOCLImage1dRO] = nullptr;
     type_makers[ZigClangBuiltinTypeOCLImage1dArrayRO] = nullptr;
@@ -623,6 +618,10 @@ void CTranslator::init_node_makers() {
     node_makers[ZigClangDeclStaticAssert] = nullptr;
     node_makers[ZigClangDeclTopLevelStmt] = nullptr;
     node_makers[ZigClangDeclTranslationUnit] = nullptr;
+}
+
+void CTranslator::module_begin() {
+    declared_in_module.clear();
 }
 
 void CTranslator::error(const std::string& err) {

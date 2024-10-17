@@ -122,8 +122,9 @@ void scope(RepresentationVisitor* visitor, Scope& scope) {
 }
 
 void write_encoded(RepresentationVisitor* visitor, const std::string& value) {
+    auto& out = visitor->output;
     for(char c : value) {
-        visitor->write(escape_encode(c));
+        write_escape_encoded(out, c);
     }
 }
 
@@ -600,7 +601,7 @@ void RepresentationVisitor::visit(DoubleValue *val) {
 
 void RepresentationVisitor::visit(CharValue *val) {
     if(!interpret_representation) write('\'');
-    write(escape_encode(val->value));
+    write_escape_encoded(output, val->value);
     if(!interpret_representation) write('\'');
 }
 

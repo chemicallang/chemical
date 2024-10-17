@@ -5,7 +5,5 @@
 
 void write_escape_encoded(std::ostream& stream, char value);
 
-std::string escape_encode(char value);
-
 //range : [min, max]
 int random(int min, int max);

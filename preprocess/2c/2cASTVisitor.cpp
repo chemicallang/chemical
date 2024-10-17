@@ -140,8 +140,9 @@ void scope(ToCAstVisitor& visitor, Scope& scope) {
 }
 
 void write_encoded(ToCAstVisitor& visitor, const std::string& value) {
+    auto& out = *visitor.output;
     for(char c : value) {
-        visitor.write(escape_encode(c));
+        write_escape_encoded(out, c);
     }
 }
 
@@ -4110,7 +4111,7 @@ void ToCAstVisitor::visit(DoubleValue *val) {
 
 void ToCAstVisitor::visit(CharValue *val) {
     write('\'');
-    write(escape_encode(val->value));
+    write_escape_encoded(*output, val->value);
     write('\'');
 }
 

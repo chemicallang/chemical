@@ -1,6 +1,9 @@
 // Copyright (c) Qinetik 2024.
 
 #include <string>
+#include <iosfwd>
+
+void write_escape_encoded(std::ostream& stream, char value);
 
 std::string escape_encode(char value);
 

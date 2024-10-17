@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <mutex>
 #include "ast/base/BaseType.h"
 #include "compiler/clangfwd.h"
 #include "compiler/chem_clang.h"
@@ -52,6 +53,12 @@ public:
     ASTAllocator& allocator;
 
     /**
+     * a single invocation is expected,
+     * c translator cannot be used for multiple invocations
+     */
+    std::mutex translation_mutex;
+
+    /**
      * the diagnostics engine is used to collect diagnostics from clang across
      * multiple invocations
      */
@@ -63,10 +70,16 @@ public:
     std::vector<CTranslatorError> errors;
 
     /**
-     * is 64bit
-     * TODO set this properly
+     * is translating for target 64bit
      */
-    bool is64Bit = true;
+    bool is64Bit;
+
+    /**
+     * this can be set to false, when there's only a single invocation
+     * of translate, in multiple invocations, headers are checked in each module
+     * whether declared or not
+     */
+    bool check_decls_across_invocations = true;
 
     /**
      * type makers functions vector
@@ -91,7 +104,7 @@ public:
      * we can reuse this declarations everywhere, these nodes are retained for
      * the duration this translator is retained
      */
-    std::unordered_map<uint32_t, ASTNode*> translated_map;
+    std::unordered_map<std::size_t, ASTNode*> translated_map;
 
     /**
      * these nodes have been declared in module, so must not be declared again
@@ -113,7 +126,7 @@ public:
      * these are nodes that should be added before adding a node
      * these nodes were created by translation
      */
-    std::vector<ASTNode*> before_nodes;
+//    std::vector<ASTNode*> before_nodes;
 
     /**
      * nodes being added belong to this parent node
@@ -123,7 +136,7 @@ public:
     /**
      * constructor
      */
-    CTranslator(ASTAllocator& allocator);
+    CTranslator(ASTAllocator& allocator, bool is64Bit);
 
     /**
      * initializes type makers
@@ -141,6 +154,21 @@ public:
      * in this module
      */
     void module_begin();
+
+    /**
+     * declaration will be translated without checking for declared or not in other headers
+     */
+    void translate_no_check(clang::Decl* decl);
+
+    /**
+     * declaration will be checked whether declared or not in other headers
+     */
+    void translate_checking(clang::Decl* decl, clang::SourceManager& sourceMan);
+
+    /**
+     * translate the given clang ast unit
+     */
+    void translate(clang::ASTUnit* unit);
 
     /**
      * translate using given arguments

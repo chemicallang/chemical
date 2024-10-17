@@ -76,17 +76,17 @@ void Scope::declare_and_link(SymbolResolver &linker) {
 }
 
 void Scope::link_sequentially(SymbolResolver &linker) {
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         node->declare_top_level(linker);
         node->declare_and_link(linker);
     }
 }
 
 void Scope::link_asynchronously(SymbolResolver &linker) {
-    for (auto &node: nodes) {
+    for (const auto node: nodes) {
         node->declare_top_level(linker);
     }
-    for (auto &node: nodes) {
+    for (const auto node: nodes) {
         node->declare_and_link(linker);
     }
 }
@@ -106,7 +106,7 @@ bool LoopBlock::link(SymbolResolver &linker, Value* &value_ptr, BaseType *expect
 
 Value* get_first_broken(Scope* body) {
     Value* value = nullptr;
-    for(auto& node : body->nodes) {
+    for(const auto node : body->nodes) {
         const auto k = node->kind();
         if(k == ASTNodeKind::BreakStmt) {
             return node->as_break_stmt_unsafe()->value;
@@ -227,7 +227,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker) {
     }
     container = mems_container;
     // now taking out initializers
-    for(auto& node : scope.nodes) {
+    for(const auto node : scope.nodes) {
         auto chain = node->as_access_chain();
         if(!chain) {
             linker.error("expected members of init block to be initializer call", (ASTNode*) chain);

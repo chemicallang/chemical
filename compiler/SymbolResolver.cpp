@@ -305,7 +305,7 @@ void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {
     imported_generic.clear();
     file_scope_start();
     scope.link_asynchronously(*this);
-    for(auto& node : scope.nodes) {
+    for(const auto node : scope.nodes) {
         auto found = imported_generic.find(node);
         if(found != imported_generic.end()) {
             imported_generic.erase(found);

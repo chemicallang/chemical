@@ -23,8 +23,14 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
         }
     } else {
         linker.declare_node(name, this, specifier, false);
-        for(auto& node : nodes) {
-            extended[node->ns_node_identifier()] = node;
+        for(const auto node : nodes) {
+            const auto node_id = node->ns_node_identifier();
+            auto found = extended.find(node_id);
+            if(found == extended.end()) {
+                extended[node_id] = node;
+            } else {
+                linker.dup_sym_error(node_id, found->second, node);
+            }
         }
     }
 }
@@ -35,16 +41,22 @@ void Namespace::declare_and_link(SymbolResolver &linker) {
         for(auto& node : root->extended) {
             node.second->redeclare_top_level(linker);
         }
-        for(auto& node : nodes) {
+        for(const auto node : nodes) {
             node->declare_top_level(linker);
-            root->extended[node->ns_node_identifier()] = node;
+            const auto node_id = node->ns_node_identifier();
+            auto found = root->extended.find(node_id);
+            if(found == root->extended.end()) {
+                root->extended[node_id] = node;
+            } else {
+                linker.dup_sym_error(node_id, found->second, node);
+            }
         }
     } else {
-        for(auto& node : nodes) {
+        for(const auto node : nodes) {
             node->declare_top_level(linker);
         }
     }
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         node->declare_and_link(linker);
     }
     linker.scope_end();

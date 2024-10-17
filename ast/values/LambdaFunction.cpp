@@ -101,7 +101,7 @@ LambdaFunction::LambdaFunction(
 }
 
 BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         if(node->as_return() != nullptr) {
             auto returnStmt = node->as_return();
             if(returnStmt->value) {

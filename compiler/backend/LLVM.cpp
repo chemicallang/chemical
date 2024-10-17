@@ -878,7 +878,7 @@ void BreakStatement::code_gen(Codegen &gen) {
 }
 
 void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         node->code_gen_declare(gen);
     }
     int i = 0;
@@ -1176,7 +1176,7 @@ void Namespace::code_gen_declare(Codegen &gen) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         node->code_gen_declare(gen);
     }
 }
@@ -1185,7 +1185,7 @@ void Namespace::code_gen(Codegen &gen) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         node->code_gen(gen);
     }
 }
@@ -1194,7 +1194,7 @@ void Namespace::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         node->code_gen(gen, scope, index);
     }
 }
@@ -1203,7 +1203,7 @@ void Namespace::code_gen_external_declare(Codegen &gen) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    for(auto& node : nodes) {
+    for(const auto node : nodes) {
         node->code_gen_external_declare(gen);
     }
 }

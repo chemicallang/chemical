@@ -2164,7 +2164,7 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
 
 void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
     if(ns->has_annotation(AnnotationKind::CompTime)) return;
-    for(auto& node : ns->nodes) {
+    for(const auto node : ns->nodes) {
         node->accept(this);
     }
 }
@@ -3298,7 +3298,7 @@ void ToCAstVisitor::visit(InterfaceDefinition *def) {
 void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     auto prev = top_level_node;
     top_level_node = false;
-    for(auto& node : scope->nodes) {
+    for(const auto node : scope->nodes) {
         new_line_and_indent();
         node->accept(before_stmt.get());
         node->accept(this);
@@ -3426,7 +3426,7 @@ void ToCAstVisitor::visit(UnionDef *def) {
 }
 
 void ToCAstVisitor::visit(Namespace *ns) {
-    for(auto& node : ns->nodes) {
+    for(const auto node : ns->nodes) {
         node->accept(this);
     }
 }

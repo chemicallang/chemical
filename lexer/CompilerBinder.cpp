@@ -195,7 +195,7 @@ BinderResult CompilerBinder::compile(
         auto unit = processor.shrinked_unit.find(abs_path);
         if(unit != processor.shrinked_unit.end()) {
             auto& nodes = unit->second.scope.nodes;
-            for(auto& node : nodes) {
+            for(const auto node : nodes) {
                 declare_node(*this, node, state, sym_map);
             }
         }

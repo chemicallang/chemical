@@ -33,7 +33,7 @@ void UsingStmt::declare_and_link(SymbolResolver &linker) {
     if(is_namespace) {
         auto ns = linked->as_namespace();
         if(ns) {
-            for(auto& node : ns->nodes) {
+            for(const auto node : ns->nodes) {
                 auto& id = node->ns_node_identifier();
                 if(no_propagate) {
                     linker.declare_file_disposable(id, node);

@@ -301,7 +301,7 @@ void CompletionItemAnalyzer::visit(ArrayValue *arrayValue) {
 }
 
 void CompletionItemAnalyzer::visit(Scope *scope) {
-    for(auto node : scope->nodes) {
+    for(const auto node : scope->nodes) {
         const auto token = node->cst_token();
         if(is_caret_ahead(token)) {
             put_node(this, node);
@@ -477,7 +477,7 @@ void CompletionItemAnalyzer::analyze(ASTImportUnitRef& unit) {
         } else {
             current_file = nullptr;
         }
-        for(auto& node : file_nodes) {
+        for(const auto node : file_nodes) {
             put_node(this, node);
         }
         i--;

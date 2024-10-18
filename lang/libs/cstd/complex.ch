@@ -1,4 +1,9 @@
 // TODO complex types haven't been defined yet
+// so here's what windows uses
+// %struct._C_double_complex = type { [2 x double] }
+// %struct._C_float_complex = type { [2 x float] }
+// %struct._C_ldouble_complex = type { [2 x double] }
+// and linux probably differs on it, so we need to do this carefully
 public typealias float_complex = float;
 public typealias double_complex = double;
 public typealias float128_complex = float128;
@@ -17,7 +22,7 @@ The expressions are suitable for use as initializers for objects with static or 
 @comptime
 public func CMPLXF(real : float, imag : float) : float_complex {
     // TODO this
-    return 0.0;
+    return 0.0f;
 }
 
 /**
@@ -41,7 +46,7 @@ public func CMPLX(real : double, imag : double) : double_complex {
 @comptime
 public func CMPLXL(real : float128, imag : float128) : float128_complex {
     // TODO this
-    return 0.0;
+    return 0.0f;
 }
 
 /**
@@ -280,7 +285,7 @@ public func cpow(x : double_complex, y : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by cexp(y*clog(x)), except that the implementation is allowed to treat special cases more carefully.
  * @see https://en.cppreference.com/w/c/numeric/complex/cpow
  */
-public func cpowl( long double complex x, long double complex y ) : float128_complex
+public func cpowl(x : float128_complex, y : float128_complex) : float128_complex
 
 /**
  * TODO create a cpow macro that works on different complex types

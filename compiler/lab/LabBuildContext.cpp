@@ -142,9 +142,10 @@ LabModule* LabBuildContext::files_module(
 
 LabJob* LabBuildContext::translate_to_chemical(
         LabModule* module,
-        chem::string* out_path
+        chem::string* out_path,
+        bool in_parts
 ) {
-    auto job = new LabJob(LabJobType::ToChemicalTranslation, chem::string("ToChemicalJob"));
+    auto job = new LabJob(in_parts ? LabJobType::ToChemicalTranslationInParts : LabJobType::ToChemicalTranslation, chem::string("ToChemicalJob"));
     executables.emplace_back(job);
     job->abs_path.append(out_path);
     job->dependencies.emplace_back(module);

@@ -992,12 +992,14 @@ clang::ASTUnit* CTranslator::get_unit(
         diags_engine->Reset();
         return nullptr;
     }
-//    if (!errors.empty()) {
-//        std::cerr << std::to_string(errors.size()) << " errors occurred when translating C files" << std::endl;
-//    }
-//    for (const auto &err : errors) {
-//        std::cerr << err.message << std::endl;
-//    }
+#ifdef DEBUG
+    if (!errors.empty()) {
+        std::cerr << std::to_string(errors.size()) << " errors occurred when translating C files" << std::endl;
+    }
+    for (const auto &err : errors) {
+        std::cerr << err.message << std::endl;
+    }
+#endif
     return unit;
 }
 

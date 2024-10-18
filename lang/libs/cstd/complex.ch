@@ -10,12 +10,12 @@
 public typealias float_complex = bigint;
 
 // double complex is being passed as pointer to struct
-struct double_complex {
+public struct double_complex {
     var real : double
     var imag : double
 }
 
-struct float128_complex {
+public struct float128_complex {
     var real : float128
     var imag : float128
 }
@@ -393,7 +393,7 @@ public func ccosl(z : float128_complex) : float128_complex
  * Errors and special cases are handled as if the operation is implemented by -i * ctanh(i*z), where i is the imaginary unit.
  * @see https://en.cppreference.com/w/c/numeric/complex/ctan
  */
-func ctanf(z : float_complex) : float_complex
+public func ctanf(z : float_complex) : float_complex
 
 /**
  * Computes the complex tangent of z.
@@ -401,7 +401,7 @@ func ctanf(z : float_complex) : float_complex
  * Errors and special cases are handled as if the operation is implemented by -i * ctanh(i*z), where i is the imaginary unit.
  * @see https://en.cppreference.com/w/c/numeric/complex/ctan
  */
-func ctan(z : double_complex) : double_complex
+public func ctan(z : double_complex) : double_complex
 
 /**
  * Computes the complex tangent of z.
@@ -409,7 +409,7 @@ func ctan(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -i * ctanh(i*z), where i is the imaginary unit.
  * @see https://en.cppreference.com/w/c/numeric/complex/ctan
  */
-func ctanl(z : float128_complex) : float128_complex
+public func ctanl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a tan macro that works on different complex types
@@ -422,7 +422,7 @@ func ctanl(z : float128_complex) : float128_complex
  * Errors and special cases are handled as if the operation is implemented by -I * casinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/casin
  */
-func casinf(z : float_complex) : float_complex
+public func casinf(z : float_complex) : float_complex
 
 /**
  * Computes the complex arc sine of z with branch cuts outside the interval [−1,+1] along the real axis.
@@ -430,7 +430,7 @@ func casinf(z : float_complex) : float_complex
  * Errors and special cases are handled as if the operation is implemented by -I * casinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/casin
  */
-func casin(z : double_complex) : double_complex
+public func casin(z : double_complex) : double_complex
 
 /**
  * Computes the complex arc sine of z with branch cuts outside the interval [−1,+1] along the real axis.
@@ -438,7 +438,7 @@ func casin(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -I * casinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/casin
  */
-func casinl(z : float128_complex) : float128_complex
+public func casinl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a asin macro that works on different complex types
@@ -450,21 +450,21 @@ func casinl(z : float128_complex) : float128_complex
  * @return If no errors occur, complex arc cosine of z is returned, in the range a strip unbounded along the imaginary axis and in the interval [0; π] along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacos
  */
-func cacosf(z : float_complex) : float_complex
+public func cacosf(z : float_complex) : float_complex
 
 /**
  * Computes the complex arc cosine of z with branch cuts outside the interval [−1,+1] along the real axis.
  * @return If no errors occur, complex arc cosine of z is returned, in the range a strip unbounded along the imaginary axis and in the interval [0; π] along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacos
  */
-func cacos(z : double_complex) : double_complex
+public func cacos(z : double_complex) : double_complex
 
 /**
  * Computes the complex arc cosine of z with branch cuts outside the interval [−1,+1] along the real axis.
  * @return If no errors occur, complex arc cosine of z is returned, in the range a strip unbounded along the imaginary axis and in the interval [0; π] along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacos
  */
-func cacosl(z : float128_complex) : float128_complex
+public func cacosl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a acos macro that works on different complex types
@@ -477,7 +477,7 @@ func cacosl(z : float128_complex) : float128_complex
  * Errors and special cases are handled as if the operation is implemented by -I * catanh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/catan
  */
-func catanf(z : float_complex) : float_complex
+public func catanf(z : float_complex) : float_complex
 
 /**
  * Computes the complex arc tangent of z with branch cuts outside the interval [−i,+i] along the imaginary axis.
@@ -485,7 +485,7 @@ func catanf(z : float_complex) : float_complex
  * Errors and special cases are handled as if the operation is implemented by -I * catanh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/catan
  */
-func catan(z : double_complex) : double_complex
+public func catan(z : double_complex) : double_complex
 
 /**
  * Computes the complex arc tangent of z with branch cuts outside the interval [−i,+i] along the imaginary axis.
@@ -493,7 +493,7 @@ func catan(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -I * catanh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/catan
  */
-func catanl(z : float128_complex) : float128_complex
+public func catanl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a atan macro that works on different complex types
@@ -505,21 +505,21 @@ func catanl(z : float128_complex) : float128_complex
  * @return If no errors occur, complex hyperbolic sine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/csinh
  */
-func csinhf(z : float_complex) : float_complex
+public func csinhf(z : float_complex) : float_complex
 
 /**
  * Computes the complex hyperbolic sine of z.
  * @return If no errors occur, complex hyperbolic sine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/csinh
  */
-func csinh(z : double_complex) : double_complex
+public func csinh(z : double_complex) : double_complex
 
 /**
  * Computes the complex hyperbolic sine of z.
  * @return If no errors occur, complex hyperbolic sine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/csinh
  */
-func csinhl(z : float128_complex) : float128_complex
+public func csinhl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a sinh macro that works on different complex types
@@ -531,21 +531,21 @@ func csinhl(z : float128_complex) : float128_complex
  * @return If no errors occur, complex hyperbolic cosine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ccosh
  */
-func ccoshf(z : float_complex) : float_complex
+public func ccoshf(z : float_complex) : float_complex
 
 /**
  * Computes the complex hyperbolic cosine of z.
  * @return If no errors occur, complex hyperbolic cosine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ccosh
  */
-func ccosh(z : double_complex) : double_complex
+public func ccosh(z : double_complex) : double_complex
 
 /**
  * Computes the complex hyperbolic cosine of z.
  * @return If no errors occur, complex hyperbolic cosine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ccosh
  */
-func ccoshl(z : float128_complex) : float128_complex
+public func ccoshl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a cosh macro that works on different complex types
@@ -557,21 +557,21 @@ func ccoshl(z : float128_complex) : float128_complex
  * @return If no errors occur, complex hyperbolic tangent of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ctanh
  */
-func ctanhf(z : float_complex) : float_complex
+public func ctanhf(z : float_complex) : float_complex
 
 /**
  * Computes the complex hyperbolic tangent of z.
  * @return If no errors occur, complex hyperbolic tangent of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ctanh
  */
-func ctanh(z : double_complex) : double_complex
+public func ctanh(z : double_complex) : double_complex
 
 /**
  * Computes the complex hyperbolic tangent of z.
  * @return If no errors occur, complex hyperbolic tangent of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ctanh
  */
-func ctanhl(z : float128_complex) : float128_complex
+public func ctanhl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a tanh macro that works on different complex types
@@ -583,21 +583,21 @@ func ctanhl(z : float128_complex) : float128_complex
  * @return If no errors occur, the complex arc hyperbolic sine of z is returned, in the range of a strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/casinh
  */
-func casinhf(z : float_complex) : float_complex
+public func casinhf(z : float_complex) : float_complex
 
 /**
  * Computes the complex arc hyperbolic sine of z with branch cuts outside the interval [−i; +i] along the imaginary axis.
  * @return If no errors occur, the complex arc hyperbolic sine of z is returned, in the range of a strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/casinh
  */
-func casinh(z : double_complex) : double_complex
+public func casinh(z : double_complex) : double_complex
 
 /**
  * Computes the complex arc hyperbolic sine of z with branch cuts outside the interval [−i; +i] along the imaginary axis.
  * @return If no errors occur, the complex arc hyperbolic sine of z is returned, in the range of a strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/casinh
  */
-func casinhl(z : float128_complex) : float128_complex
+public func casinhl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a asinh macro that works on different complex types
@@ -609,21 +609,21 @@ func casinhl(z : float128_complex) : float128_complex
  * @return The complex arc hyperbolic cosine of z in the interval [0; ∞) along the real axis and in the interval [−iπ; +iπ] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacosh
  */
-func cacoshf(z : float_complex) : float_complex
+public func cacoshf(z : float_complex) : float_complex
 
 /**
  * Computes complex arc hyperbolic cosine of a complex value z with branch cut at values less than 1 along the real axis.
  * @return The complex arc hyperbolic cosine of z in the interval [0; ∞) along the real axis and in the interval [−iπ; +iπ] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacosh
  */
-func cacosh(z : double_complex) : double_complex
+public func cacosh(z : double_complex) : double_complex
 
 /**
  * Computes complex arc hyperbolic cosine of a complex value z with branch cut at values less than 1 along the real axis.
  * @return The complex arc hyperbolic cosine of z in the interval [0; ∞) along the real axis and in the interval [−iπ; +iπ] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacosh
  */
-func cacoshl(z : float128_complex) : float128_complex
+public func cacoshl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a acosh macro that works on different complex types
@@ -635,21 +635,21 @@ func cacoshl(z : float128_complex) : float128_complex
  * @return If no errors occur, the complex arc hyperbolic tangent of z is returned, in the range of a half-strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/catanh
  */
-func catanhf(z : float_complex) : float_complex
+public func catanhf(z : float_complex) : float_complex
 
 /**
  * Computes the complex arc hyperbolic tangent of z with branch cuts outside the interval [−1; +1] along the real axis.
  * @return If no errors occur, the complex arc hyperbolic tangent of z is returned, in the range of a half-strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/catanh
  */
-func catanh(z : double_complex) : double_complex
+public func catanh(z : double_complex) : double_complex
 
 /**
  * Computes the complex arc hyperbolic tangent of z with branch cuts outside the interval [−1; +1] along the real axis.
  * @return If no errors occur, the complex arc hyperbolic tangent of z is returned, in the range of a half-strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/catanh
  */
-func catanhl(z : float128_complex) : float128_complex
+public func catanhl(z : float128_complex) : float128_complex
 
 /**
  * TODO create a atanh macro that works on different complex types

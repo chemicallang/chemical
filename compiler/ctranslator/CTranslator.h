@@ -188,6 +188,28 @@ public:
 
     /**
      * translate using given arguments
+     * and get the ASTUnit
+     * CAUTION: ASTUnit must be freed, It also doesn't use a mutex
+     * which must be used when translating
+     */
+    clang::ASTUnit* get_unit(
+            const char** args_begin,
+            const char** args_end,
+            const char* resources_path
+    );
+
+    /**
+     * get unit helper function,
+     * CAUTION: ASTUnit must be freed, it also doesn't use a mutex
+     */
+    clang::ASTUnit* get_unit(
+        const char* exe_path,
+        const char* abs_path,
+        const char* resources_path
+    );
+
+    /**
+     * translate using given arguments
      * prefer this method, because it's faster
      */
     void translate(
@@ -210,6 +232,31 @@ public:
      * translate unit using given arguments
      */
     void translate(std::vector<std::string>& args, const char* resources_path);
+
+    /**
+     * a helper function to get unit for a single header file
+     * CAUTION: just like get_unit, it returns a released pointer and doesn't use
+     * a mutex
+     */
+    clang::ASTUnit* get_unit_for_header(
+        const std::string_view& exe_path,
+        const std::string_view& header_path,
+        const char* resources_path
+    );
+
+    /**
+     * the files you need translated, these are individual files that will be translated
+     * one by one, even the headers will be translated one by one, the returned vector
+     * is guaranteed to contain vectors for all headers and files
+     * headers vector allow you to type header like 'stdio.h' without the absolute path
+     * so we can translate it
+     */
+    std::vector<std::vector<CTPart>> translate_with_parts(
+        const char* exe_path,
+        std::vector<std::string>& headers,
+        std::vector<std::string>& files,
+        const char* resources_path
+    );
 
     /**
      * when given a c qualified type, it constructs a chemical type

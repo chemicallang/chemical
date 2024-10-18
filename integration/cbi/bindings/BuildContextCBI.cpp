@@ -43,8 +43,8 @@ void BuildContextinclude_file(LabBuildContext* self, LabModule* module, chem::st
     module->includes.emplace_back(abs_path->to_view());
 }
 
-LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string* output_path) {
-    return self->translate_to_chemical(module, output_path);
+LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string* output_path, bool in_parts) {
+    return self->translate_to_chemical(module, output_path, in_parts);
 }
 
 LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string* name, ModuleArrayRef* dependencies, chem::string* output_dir) {

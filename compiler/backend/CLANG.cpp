@@ -599,6 +599,18 @@ std::string part_name_with_no(const std::string& path_str, unsigned int no) {
     return (directory / new_filename).string();
 }
 
+bool is_unit_empty(std::vector<ASTNode*>& decls) {
+    if(decls.empty()) return true;
+    // only imports mus be present in an empty unit
+    for(auto decl : decls) {
+        const auto kind = decl->kind();
+        if(kind != ASTNodeKind::ImportStmt) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void CTranslator::translate_with_parts(clang::ASTUnit* unit, const std::string& unit_path, tsl::ordered_map<std::string, CTPart>& parts) {
 
     // set current unit
@@ -650,7 +662,7 @@ void CTranslator::translate_with_parts(clang::ASTUnit* unit, const std::string& 
                 // this declaration and move on to the next one
                 continue;
             }
-            if(!current_file_decls.empty()) {
+            if(!is_unit_empty(current_file_decls)) {
                 std::string part_path;
                 // since declarations exist, so before we put an import
                 // statement, we must dispatch these declarations into it's own file
@@ -677,12 +689,12 @@ void CTranslator::translate_with_parts(clang::ASTUnit* unit, const std::string& 
             has_import_for_skipped_part = file_name;
         }
 
-        if(current_file_name.empty() && current_file_decls.empty()) {
+        if(current_file_name.empty() && is_unit_empty(current_file_decls)) {
             // initial file name
             current_file_name = file_name;
             current_file_part_no = 1;
         } else if(file_name != current_file_name) {
-            if(current_file_decls.empty()) {
+            if(is_unit_empty(current_file_decls)) {
                 // filename has changed, no declarations present in previous file
                 // so just changing the file name
                 current_file_name = file_name;
@@ -713,7 +725,8 @@ void CTranslator::translate_with_parts(clang::ASTUnit* unit, const std::string& 
         translate_checking(decl, source_man);
         // insert the translated declaration to our vector
         current_file_decls.insert(current_file_decls.end(), nodes.begin(), nodes.end());
-
+        // clear the nodes, since we took them
+        nodes.clear();
     }
 
     if(!current_file_decls.empty()) {
@@ -1073,12 +1086,11 @@ CTranslator::CTranslator(
     init_node_makers();
 }
 
-void CTranslator::translate(
+clang::ASTUnit* CTranslator::get_unit(
         const char** args_begin,
         const char** args_end,
         const char* resources_path
 ) {
-    std::lock_guard guard(translation_mutex);
     //    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
     ErrorMsg *errorMsg;
     unsigned long errors_len = 0;
@@ -1095,25 +1107,51 @@ void CTranslator::translate(
         unsigned i = 0;
         while (i < errors_len) {
             const auto err = errorMsg + i;
-            std::cerr << err->msg_ptr << " at " << err->filename_ptr << ":" << err->line << ":" << err->column << std::endl;
+            if(err->filename_ptr) {
+                std::cerr << err->msg_ptr << " at " << err->filename_ptr << ":" << err->line << ":" << err->column << std::endl;
+            } else {
+                std::cerr << err->msg_ptr << std::endl;
+            }
             i++;
         }
     }
     if (!unit) {
         diags_engine->dump();
         diags_engine->Reset();
-        return;
+        return nullptr;
     }
-    translate(unit);
-    // dedupe the nodes
-    top_level_dedupe(nodes);
-    delete unit;
 //    if (!errors.empty()) {
 //        std::cerr << std::to_string(errors.size()) << " errors occurred when translating C files" << std::endl;
 //    }
 //    for (const auto &err : errors) {
 //        std::cerr << err.message << std::endl;
 //    }
+    return unit;
+}
+
+clang::ASTUnit* CTranslator::get_unit(
+        const char* exe_path,
+        const char* abs_path,
+        const char* resources_path
+) {
+    const char* args[] = { exe_path, abs_path };
+    return get_unit(args, args + 2, resources_path);
+}
+
+void CTranslator::translate(
+        const char** args_begin,
+        const char** args_end,
+        const char* resources_path
+) {
+    std::lock_guard guard(translation_mutex);
+    // we delete the unit instantly (we don't need it)
+    const auto unit = get_unit(args_begin, args_end, resources_path);
+    // actual translation
+    translate(unit);
+    // dedupe the nodes
+    top_level_dedupe(nodes);
+    // delete the unit (not needed, we already translated)
+    delete unit;
 }
 
 void CTranslator::translate(
@@ -1131,6 +1169,64 @@ void CTranslator::translate(std::vector<std::string>& args, const char* resource
     convertToCharPointers(args, &args_begin, &args_end);
     translate(args_begin, args_end, resources_path);
     delete[] args_begin;
+}
+
+clang::ASTUnit* CTranslator::get_unit_for_header(
+        const std::string_view& exe_path,
+        const std::string_view& header_path,
+        const char* resources_path
+) {
+    std::vector<std::string> args;
+    args.emplace_back(exe_path);
+    args.emplace_back("-include");
+    args.emplace_back(header_path);
+    args.emplace_back("-x");
+    args.emplace_back("c");
+#ifdef WIN32
+    args.emplace_back("NUL");
+#else
+    args.emplace_back("/dev/null");
+#endif
+    const char **args_begin;
+    const char **args_end;
+    convertToCharPointers(args, &args_begin, &args_end);
+    const auto unit = get_unit(args_begin, args_end, resources_path);
+    delete[] args_begin;
+    return unit;
+}
+
+std::vector<std::vector<CTPart>> CTranslator::translate_with_parts(
+    const char* exe_path,
+    std::vector<std::string>& headers,
+    std::vector<std::string>& files,
+    const char* resources_path
+) {
+    std::lock_guard guard(translation_mutex);
+    const auto headers_size = headers.size();
+    const auto total_size = headers_size + files.size();
+    std::vector<std::vector<CTPart>> parts_container(total_size);
+    // parts are cached on this map
+    tsl::ordered_map<std::string, CTPart> parts;
+    unsigned i = 0;
+    while(i < total_size) {
+        const auto is_header = i < headers_size;
+        auto& file = is_header ? headers[i] : files[i];
+        const auto unit = is_header ? (
+            get_unit_for_header(exe_path, file, resources_path)
+        ) : (
+            get_unit(exe_path, file.c_str(), resources_path)
+        );
+        auto begin = parts.end();
+        translate_with_parts(unit, file, parts);
+        auto& container = parts_container[i];
+        while(begin != parts.end()) {
+            container.emplace_back(begin->second);
+            begin++;
+        }
+        delete unit;
+        i++;
+    }
+    return parts_container;
 }
 
 CTranslator::~CTranslator() = default;

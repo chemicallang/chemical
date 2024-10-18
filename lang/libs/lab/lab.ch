@@ -33,7 +33,10 @@ public enum LabJobType {
     Executable,
     Library,
     ToCTranslation,
-    ToChemicalTranslation
+    ToChemicalTranslation,
+    ToChemicalTranslationInParts,
+    ProcessingOnly,
+    CBI
 }
 
 public enum LabJobStatus {
@@ -84,7 +87,7 @@ public struct BuildContext {
     func include_file(&self, module : *mut Module, abs_path : &string);
 
     // translate a module to chemical
-    func translate_to_chemical (&self, module : *mut Module, output_path : &string) : *mut LabJob;
+    func translate_to_chemical (&self, module : *mut Module, output_path : &string, in_parts : bool) : *mut LabJob;
 
     // translate a chemical module to c file
     func translate_to_c (&self, name : &string, dependencies : ArrayRef<*Module>, output_dir : &string) : *mut LabJob
@@ -160,7 +163,7 @@ func (ctx : &BuildContext) file_module(name : &string, path : &string, dependenc
 
 func (ctx : &BuildContext) translate_file_to_chemical (c_path : &string, output_path : &string) : *mut LabJob {
     const mod = ctx.file_module(string("CFile"), c_path, {  });
-    return ctx.translate_to_chemical(mod, output_path);
+    return ctx.translate_to_chemical(mod, output_path, false);
 }
 
 func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &string) : *mut LabJob {

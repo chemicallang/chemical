@@ -94,6 +94,11 @@ public:
     int do_library_job(LabJob* job);
 
     /**
+     * translate c to chemical in parts
+     */
+    int do_to_chemical_parts_job(LabJob* job);
+
+    /**
      * does job to translate c to chemical
      */
     int do_to_chemical_job(LabJob* job);

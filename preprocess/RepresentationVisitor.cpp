@@ -783,6 +783,10 @@ void RepresentationVisitor::visit(FloatType *func) {
     write("float");
 }
 
+void RepresentationVisitor::visit(Float128Type *type) {
+    write("float128");
+}
+
 void RepresentationVisitor::visit(FunctionType *type) {
     write('(');
     unsigned i = 0;

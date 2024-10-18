@@ -22,44 +22,59 @@ AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::stri
     return {(std::filesystem::path(dir) / headerPath).string(), ""};
 }
 
-AtReplaceResult std_path_resolver(ImportPathHandler& handler, const std::string& importPath, unsigned int slash) {
+AtReplaceResult lib_path_resolver(
+    const std::string& lib_name,
+    ImportPathHandler& handler,
+    const std::string& importPath,
+    unsigned int slash
+) {
     auto filePath = importPath.substr(slash + 1);
     std::string stdLib;
     if(!handler.std_lib_path.empty()) {
         stdLib = handler.std_lib_path;
     } else {
+        const auto lib_path = "libs/" + lib_name;
 #ifdef DEBUG
-        const auto libsStd = resolve_sibling(handler.exe_path, "libs/std");
+        const auto libsStd = resolve_sibling(handler.exe_path, lib_path);
         if(std::filesystem::exists(libsStd)) {
             // debug executable launched in a folder that contains libs/std
             stdLib = libsStd;
         } else {
             // debug executable launched in a sub folder of this project
-            stdLib = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/libs/std");
+            stdLib = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/" + lib_path);
         }
 #else
-        stdLib = resolve_rel_parent_path_str(handler.compiler_exe_path, "libs/std");
+        stdLib = resolve_rel_parent_path_str(handler.compiler_exe_path, lib_path);
         handler.std_lib_path = stdLib;
 #endif
     }
     if(stdLib.empty()) {
 #ifndef DEBUG
-        std::string stdLib = "libs/std";
+        std::string stdLib = "libs/" + lib_name;
 #endif
-        return AtReplaceResult { "", "couldn't find std library at path '" + stdLib + "' relative to '" + handler.exe_path + "'" };
+        return AtReplaceResult { "", "couldn't find " + lib_name + " library at path '" + stdLib + "' relative to '" + handler.exe_path + "'" };
     } else {
         auto replaced = resolve_rel_child_path_str(stdLib, filePath);
         if(replaced.empty()) {
-            return AtReplaceResult { "", "couldn't find file '" + filePath + "' in std library at path '" + stdLib + "'" };
+            return AtReplaceResult { "", "couldn't find file '" + filePath + "' in " + lib_name + " library at path '" + stdLib + "'" };
         } else {
             return AtReplaceResult { replaced, "" };
         }
     }
 }
 
+AtReplaceResult std_path_resolver(ImportPathHandler& handler, const std::string& importPath, unsigned int slash) {
+    return lib_path_resolver("std", handler, importPath, slash);
+}
+
+AtReplaceResult cstd_path_resolver(ImportPathHandler& handler, const std::string& importPath, unsigned int slash) {
+    return lib_path_resolver("cstd", handler, importPath, slash);
+}
+
 ImportPathHandler::ImportPathHandler(std::string compiler_exe_path) : exe_path(std::move(compiler_exe_path)) {
     path_resolvers["system"] = system_path_resolver;
     path_resolvers["std"] = std_path_resolver;
+    path_resolvers["cstd"] = cstd_path_resolver;
 }
 
 std::string ImportPathHandler::headers_dir(const std::string &header) {

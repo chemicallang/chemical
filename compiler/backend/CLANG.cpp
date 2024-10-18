@@ -25,6 +25,7 @@
 #include "ast/statements/Import.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
+#include "ast/types/Float128Type.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/PointerType.h"
@@ -912,6 +913,10 @@ clang::QualType DoubleType::clang_type(clang::ASTContext &context) {
 
 clang::QualType FloatType::clang_type(clang::ASTContext &context) {
     return context.FloatTy;
+}
+
+clang::QualType Float128Type::clang_type(clang::ASTContext &context) {
+    return context.LongDoubleTy;
 }
 
 clang::QualType VoidType::clang_type(clang::ASTContext &context) {

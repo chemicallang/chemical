@@ -494,6 +494,7 @@ set(COMMON_SOURCES
         ast/statements/ProvideStmt.cpp
         integration/cbi/bindings/CSTDiagnoserCBI.h
         integration/cbi/bindings/CSTDiagnoserCBI.cpp
+        ast/types/Float128Type.h
 )
 
 # Chemical LSP Executable Target

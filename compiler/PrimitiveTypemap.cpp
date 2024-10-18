@@ -7,6 +7,7 @@
 #include "ast/types/UCharType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
+#include "ast/types/Float128Type.h"
 #include "ast/types/IntType.h"
 #include "ast/types/UIntType.h"
 #include "ast/types/ShortType.h"
@@ -78,12 +79,16 @@ namespace TypeMakers {
         return new (allocator.allocate<UBigIntType>()) UBigIntType(token);
     }
 
-    BaseType *make___int128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {
+    BaseType *make_int128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {
         return new (allocator.allocate<Int128Type>()) Int128Type(token);
     }
 
-    BaseType *make___uint128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {
+    BaseType *make_uint128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {
         return new (allocator.allocate<UInt128Type>()) UInt128Type(token);
+    }
+
+    BaseType *make_float128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {
+        return new (allocator.allocate<Float128Type>()) Float128Type(token);
     }
 
     BaseType *make_string_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {

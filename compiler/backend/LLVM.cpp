@@ -4,6 +4,7 @@
 #include "compiler/llvmimpl.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/TargetParser/Triple.h>
 #include "ast/base/ASTNode.h"
 #include "ast/types/AnyType.h"
 #include "ast/values/RetStructParamValue.h"
@@ -15,6 +16,7 @@
 #include "ast/types/UCharType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
+#include "ast/types/Float128Type.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/PointerType.h"
@@ -104,6 +106,22 @@ llvm::Type *IntNType::llvm_type(Codegen &gen) {
         gen.error("Couldn't get intN type for int:" + std::to_string(num_bits()), this);
     }
     return ty;
+}
+
+llvm::Type *Float128Type::llvm_type(Codegen &gen) {
+    // TODO store target triple better
+    auto targetTriple = llvm::Triple(gen.module->getTargetTriple());
+    const auto archType = targetTriple.getArch();
+    if (archType == llvm::Triple::x86 || archType == llvm::Triple::x86_64) {
+        // On x86 and x86-64, use 80-bit extended precision
+        return llvm::Type::getX86_FP80Ty(*gen.ctx);
+    } else if (targetTriple.isPPC64()) {
+        // On PowerPC 64, use 128-bit floating point
+        return llvm::Type::getPPC_FP128Ty(*gen.ctx);
+    } else {
+        // Default to double if long double is not distinctly supported
+        return llvm::Type::getFP128Ty(*gen.ctx);
+    }
 }
 
 llvm::Type *PointerType::llvm_type(Codegen &gen) {

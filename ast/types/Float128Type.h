@@ -25,7 +25,7 @@ public:
 
     [[nodiscard]]
     BaseTypeKind kind() const override {
-        return BaseTypeKind::Float;
+        return BaseTypeKind::Float128;
     }
 
     [[nodiscard]]

@@ -4486,6 +4486,10 @@ void ToCAstVisitor::visit(FloatType *func) {
     write("float");
 }
 
+void ToCAstVisitor::visit(Float128Type* func) {
+    write("long double");
+}
+
 void ToCAstVisitor::visit(FunctionType *type) {
     if(type->isCapturing) {
         write(fat_pointer_type);

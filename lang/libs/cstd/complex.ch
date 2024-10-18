@@ -1,12 +1,24 @@
+
 // TODO complex types haven't been defined yet
 // so here's what windows uses
 // %struct._C_double_complex = type { [2 x double] }
 // %struct._C_float_complex = type { [2 x float] }
 // %struct._C_ldouble_complex = type { [2 x double] }
-// and linux probably differs on it, so we need to do this carefully
-public typealias float_complex = float;
-public typealias double_complex = double;
-public typealias float128_complex = float128;
+// TODO these functions should be tested
+
+// float complex is being passed as i64 in @crealf(i64)
+public typealias float_complex = bigint;
+
+// double complex is being passed as pointer to struct
+struct double_complex {
+    var real : double
+    var imag : double
+}
+
+struct float128_complex {
+    var real : float128
+    var imag : float128
+}
 
 /**
 Each of these macros expands to an expression that evaluates to the value of the specified complex type, with the real part having the value of real (converted to the specified argument type) and the imaginary part having the value of imag (converted to the specified argument type)
@@ -22,7 +34,7 @@ The expressions are suitable for use as initializers for objects with static or 
 @comptime
 public func CMPLXF(real : float, imag : float) : float_complex {
     // TODO this
-    return 0.0f;
+    return 0;
 }
 
 /**
@@ -33,8 +45,7 @@ public func CMPLXF(real : float, imag : float) : float_complex {
  */
 @comptime
 public func CMPLX(real : double, imag : double) : double_complex {
-    // TODO this
-    return 0.0;
+    return double_complex { real : real, imag : imag }
 }
 
 /**
@@ -45,8 +56,7 @@ public func CMPLX(real : double, imag : double) : double_complex {
  */
 @comptime
 public func CMPLXL(real : float128, imag : float128) : float128_complex {
-    // TODO this
-    return 0.0f;
+    return float128_complex { real : real, imag : imag }
 }
 
 /**

@@ -249,6 +249,8 @@ public:
 
     void visit(FloatType* func) override;
 
+    void visit(Float128Type *type) override;
+
     void visit(FunctionType* func) override;
 
     void visit(GenericType* func) override;

@@ -47,9 +47,11 @@ namespace TypeMakers {
 
     BaseType *make_ubigint_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make___int128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_int128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make___uint128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_uint128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
+
+    BaseType *make_float128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
     BaseType *make_string_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
@@ -70,8 +72,9 @@ namespace TypeMakers {
             {"ulong",     TypeMakers::make_ulong_type},
             {"bigint",    TypeMakers::make_bigint_type},
             {"ubigint",   TypeMakers::make_ubigint_type},
-            {"__int128",  TypeMakers::make___int128_type},
-            {"__uint128", TypeMakers::make___uint128_type},
+            {"int128",  TypeMakers::make_int128_type},
+            {"uint128", TypeMakers::make_uint128_type},
+            {"float128", TypeMakers::make_float128_type},
 //            {"string",    TypeMakers::make_string_type},
             {"void",      TypeMakers::make_void_type},
     };

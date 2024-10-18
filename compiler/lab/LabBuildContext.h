@@ -182,8 +182,7 @@ public:
      */
     LabJob* translate_to_chemical(
         LabModule* module,
-        chem::string* out_path,
-        bool in_parts
+        chem::string* out_path
     );
 
     /**

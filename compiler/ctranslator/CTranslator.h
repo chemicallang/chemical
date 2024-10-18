@@ -41,14 +41,6 @@ namespace clang {
     class DiagnosticsEngine;
 }
 
-struct CTPart {
-
-    std::string file_name;
-
-    std::vector<ASTNode*> nodes;
-
-};
-
 /**
  * The point of this class to provide storage for translation process
  * for example storage for indexed types, errors and stuff
@@ -175,13 +167,6 @@ public:
     void translate_checking(clang::Decl* decl, clang::SourceManager& sourceMan);
 
     /**
-     * we will translate unit to parts, parts
-     * are a way to generate multiple files from a single unit
-     * each file is a header or a source file's declarations that we extracted
-     */
-    void translate_with_parts(clang::ASTUnit* unit, const std::string& unit_path, tsl::ordered_map<std::string, CTPart>& parts);
-
-    /**
      * translate the given clang ast unit
      */
     void translate(clang::ASTUnit* unit);
@@ -241,20 +226,6 @@ public:
     clang::ASTUnit* get_unit_for_header(
         const std::string_view& exe_path,
         const std::string_view& header_path,
-        const char* resources_path
-    );
-
-    /**
-     * the files you need translated, these are individual files that will be translated
-     * one by one, even the headers will be translated one by one, the returned vector
-     * is guaranteed to contain vectors for all headers and files
-     * headers vector allow you to type header like 'stdio.h' without the absolute path
-     * so we can translate it
-     */
-    std::vector<std::vector<CTPart>> translate_with_parts(
-        const char* exe_path,
-        std::vector<std::string>& headers,
-        std::vector<std::string>& files,
         const char* resources_path
     );
 

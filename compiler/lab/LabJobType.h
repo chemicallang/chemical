@@ -25,12 +25,6 @@ enum class LabJobType : int {
     ToChemicalTranslation,
 
     /**
-     * This job basically emits multiple chemical files, dividing
-     * the input into multiple parts which is imported
-     */
-    ToChemicalTranslationInParts,
-
-    /**
      * This means do not link, only process the modules
      */
     ProcessingOnly,

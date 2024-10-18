@@ -22,6 +22,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/VarInit.h"
+#include "ast/statements/Import.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
 #include "ast/types/VoidType.h"
@@ -45,6 +46,8 @@
 #include "compiler/ClangCodegen.h"
 #include <clang/AST/Decl.h>
 #include <clang/AST/Mangle.h>
+#include "utils/PathUtils.h"
+#include <filesystem>
 #include "compiler/Codegen.h"
 
 struct ErrorMsg {
@@ -568,6 +571,164 @@ void CTranslator::translate_checking(clang::Decl* decl, clang::SourceManager& so
     } else {
         error("couldn't convert decl with kind " + std::to_string(decl->getKind()) + " & kind name " + decl->getDeclKindName());
     }
+}
+
+std::string get_file_name_for_decl(clang::Decl* decl, clang::SourceManager& SM) {
+    clang::SourceLocation loc = decl->getLocation();
+    if (loc.isInvalid()) {
+        return "";
+    }
+    // Retrieve the file ID and the file name
+    auto decomposed = SM.getDecomposedLoc(loc);
+    clang::FileID fileID = decomposed.first;
+    const clang::FileEntry* fileEntry = SM.getFileEntryForID(fileID);
+    if (!fileEntry) {
+        return "";
+    }
+    return fileEntry->getName().str();
+}
+
+std::string part_name_with_no(const std::string& path_str, unsigned int no) {
+    std::filesystem::path file_path(path_str);
+    auto directory = file_path.parent_path();
+    std::string stem = file_path.stem().string(); // Filename without extension
+    std::string extension = file_path.extension().string(); // File extension
+    // Construct the new filename
+    std::string new_filename = stem + "-" + std::to_string(no) + extension;
+    // Construct the new path
+    return (directory / new_filename).string();
+}
+
+void CTranslator::translate_with_parts(clang::ASTUnit* unit, const std::string& unit_path, tsl::ordered_map<std::string, CTPart>& parts) {
+
+    // set current unit
+    current_unit = unit;
+    auto& source_man = unit->getSourceManager();
+
+    // this corresponds to the header / source file name for which unit is for
+    // we can create arbitrary parts of this file using it's name
+    // for example unit_name-part1.ch unit_name-part2.ch
+    const auto& unit_name = unit_path;
+    // the parts created for this unit
+    unsigned int unit_part_no = 1;
+    // the parts created for the current file
+    unsigned int current_file_part_no = 1;
+
+    // the current file name is the one that contains declarations
+    std::string current_file_name;
+    std::vector<ASTNode*> current_file_decls;
+
+    // when this is true, and we've found declaration that has already a part
+    // we will not put an import statement for that part into the current_file_decls
+    std::string has_import_for_skipped_part;
+
+    auto tud = unit->getASTContext().getTranslationUnitDecl();
+    for(auto decl : tud->decls()) {
+
+        auto file_name = get_file_name_for_decl(decl, source_man);
+        if(file_name.empty()) {
+            // couldn't get the file name, we skip this declaration
+            // we probably shouldn't skip (as long as it works)
+            continue;
+        }
+
+        // do we have declarations present for the given file
+        auto found_part = parts.find(file_name);
+        if(found_part != parts.end()) {
+            // calculate the parent path to this file (in which we are importing)
+            std::string parent_path;
+            if(current_file_name.empty()) {
+                // we must give this file an arbitrary name
+                parent_path = std::filesystem::path(unit_name).parent_path().string();
+            } else {
+                parent_path = std::filesystem::path(current_file_name).parent_path().string();
+            }
+            // found a part that contains declarations for the given file
+            // we must skip declarations for the current file
+            if(has_import_for_skipped_part == file_name) {
+                // since we already have an import for the skipped part, we just ignore
+                // this declaration and move on to the next one
+                continue;
+            }
+            if(!current_file_decls.empty()) {
+                std::string part_path;
+                // since declarations exist, so before we put an import
+                // statement, we must dispatch these declarations into it's own file
+                if(current_file_name.empty()) {
+                    // we must give this file an arbitrary name
+                    part_path = part_name_with_no(unit_name, unit_part_no++);
+                } else {
+                    part_path = part_name_with_no(current_file_name, current_file_part_no++);
+                }
+                parts[part_path] = { part_path, std::move(current_file_decls) };
+                // an import statement for this part we've created
+                const auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement(
+                        std::filesystem::relative(part_path, parent_path).string(),
+                        {}, nullptr, nullptr
+                );
+                current_file_decls.emplace_back(stmt);
+            }
+            // since we are skipping a part that has already been done, we must import that
+            const auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement(
+                std::filesystem::relative(file_name, parent_path).string(),
+                {}, nullptr, nullptr
+            );
+            current_file_decls.emplace_back(stmt);
+            has_import_for_skipped_part = file_name;
+        }
+
+        if(current_file_name.empty() && current_file_decls.empty()) {
+            // initial file name
+            current_file_name = file_name;
+            current_file_part_no = 1;
+        } else if(file_name != current_file_name) {
+            if(current_file_decls.empty()) {
+                // filename has changed, no declarations present in previous file
+                // so just changing the file name
+                current_file_name = file_name;
+                // setting the part no to 1 as well, so created parts for this file begin again
+                current_file_part_no = 1;
+            } else {
+                // filename has changed, declarations were present in the previous file
+                if(current_file_name.empty()) {
+                    // previous file name is empty, however declarations were present
+                    // we shouldn't reach this place
+#ifdef DEBUG
+                    throw std::runtime_error("CTranslator: EMPTY_FILE_NAME_1 has declarations present");
+#else
+                    std::cerr << "CTranslator: EMPTY_FILE_NAME_1 has declarations present" << std::endl;
+#endif
+                } else {
+                    // previous file name exists, declarations were present, we must write
+                    // we must create a part for those declarations
+                    parts[current_file_name] = { .file_name = current_file_name, .nodes = std::move(current_file_decls) };
+                    // setting new file now (after creating the part)
+                    current_file_name = file_name;
+                    current_file_part_no = 1;
+                }
+            }
+        }
+
+        // translate the declaration
+        translate_checking(decl, source_man);
+        // insert the translated declaration to our vector
+        current_file_decls.insert(current_file_decls.end(), nodes.begin(), nodes.end());
+
+    }
+
+    if(!current_file_decls.empty()) {
+        if(current_file_name.empty()) {
+#ifdef DEBUG
+            throw std::runtime_error("CTranslator: EMPTY_FILE_NAME_2 has declarations present");
+#else
+            std::cerr << "CTranslator: EMPTY_FILE_NAME_2 has declarations present" << std::endl;
+#endif
+        } else {
+            // put into it's own part
+            parts[current_file_name] = { .file_name = current_file_name, .nodes = std::move(current_file_decls) };
+        }
+    }
+
 }
 
 void CTranslator::translate(clang::ASTUnit *unit) {

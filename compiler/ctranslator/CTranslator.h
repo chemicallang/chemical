@@ -12,6 +12,7 @@
 #include "compiler/chem_clang.h"
 #include "ast/base/Visitor.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "ordered_map.h"
 
 class CTranslator;
 
@@ -39,6 +40,14 @@ struct CTranslatorError {
 namespace clang {
     class DiagnosticsEngine;
 }
+
+struct CTPart {
+
+    std::string file_name;
+
+    std::vector<ASTNode*> nodes;
+
+};
 
 /**
  * The point of this class to provide storage for translation process
@@ -164,6 +173,13 @@ public:
      * declaration will be checked whether declared or not in other headers
      */
     void translate_checking(clang::Decl* decl, clang::SourceManager& sourceMan);
+
+    /**
+     * we will translate unit to parts, parts
+     * are a way to generate multiple files from a single unit
+     * each file is a header or a source file's declarations that we extracted
+     */
+    void translate_with_parts(clang::ASTUnit* unit, const std::string& unit_path, tsl::ordered_map<std::string, CTPart>& parts);
 
     /**
      * translate the given clang ast unit

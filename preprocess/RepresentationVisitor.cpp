@@ -232,8 +232,11 @@ void RepresentationVisitor::visit(ContinueStatement *continueStatement) {
     write("continue;");
 }
 
-void RepresentationVisitor::visit(ImportStatement *importStatement) {
-    // leave imports alone
+void RepresentationVisitor::visit(ImportStatement *stmt) {
+    write("import ");
+    write('\'');
+    write(stmt->filePath);
+    write('\'');
 }
 
 void RepresentationVisitor::visit(ReturnStatement *returnStatement) {

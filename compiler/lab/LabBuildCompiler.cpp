@@ -128,9 +128,6 @@ int LabBuildCompiler::do_job(LabJob* job) {
         case LabJobType::ToChemicalTranslation:
             return_int = do_to_chemical_job(job);
             break;
-        case LabJobType::ToChemicalTranslationInParts:
-            return_int = do_to_chemical_parts_job(job);
-            break;
     }
     if(job->status == LabJobStatus::Launched) {
         if(return_int == 0) {
@@ -778,49 +775,6 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
     }
     // link will automatically detect the extension at the end
     return link(job->linkables, job->abs_path.to_std_string());
-}
-
-int LabBuildCompiler::do_to_chemical_parts_job(LabJob* job) {
-#ifdef COMPILER_BUILD
-    for(auto mod : job->dependencies) {
-        std::vector<std::string> headers;
-        for(auto& header : mod->headers) {
-            headers.emplace_back(header.to_view());
-        }
-        std::vector<std::string> files;
-        for (auto& path: mod->paths) {
-            files.emplace_back(path.to_view());
-        }
-        CTranslator cTranslator(*mod_allocator, options->is64Bit);
-        auto parts_container = cTranslator.translate_with_parts(options->exe_path.c_str(), headers, files, options->resources_path.c_str());
-        unsigned i = 0;
-        const auto headers_size = headers.size();
-        const auto total_size = headers_size + files.size();
-        while(i < total_size) {
-            auto& parts = parts_container[i];
-            for(auto& part : parts) {
-                std::filesystem::path part_path(part.file_name);
-                const auto parent_path = part_path.parent_path();
-                auto out_path = job->abs_path.to_view() / part_path.filename();
-                out_path.replace_extension(".ch");
-                std::ofstream stream;
-                stream.open(out_path);
-                if(!stream.is_open()) {
-                    std::cerr << rang::fg::red << "[BuildLab] " << "couldn't open the file for writing translated chemical from c at '" << out_path << '\'' << rang::fg::reset << std::endl;
-                    continue;
-                }
-                RepresentationVisitor visitor(stream);
-                visitor.translate(part.nodes);
-                stream.close();
-            }
-            i++;
-        }
-    }
-    return 0;
-#else
-    std::cerr << "Translating c files to chemical can only be done by the compiler executable, please check using compiler::is_clang_based() in build.lab" << std::endl;
-    return 1;
-#endif
 }
 
 int LabBuildCompiler::do_to_chemical_job(LabJob* job) {

@@ -75,7 +75,7 @@ func build(ctx : *mut BuildContext) {
         printf("Minimal Build Detected\n");
     }
 
-    const headers_path = build_dir_path(ctx, string("cstd"));
+    const headers_path = build_dir_path(ctx, string("headers.ch"));
     if(compiler::is_clang_based()) {
         var str = string("")
         var ptr_str = &str;
@@ -84,7 +84,7 @@ func build(ctx : *mut BuildContext) {
             string("stdio.h"),
             string("stdlib.h")
         });
-        ctx.translate_to_chemical(empty_module, headers_path, true);
+        ctx.translate_to_chemical(empty_module, headers_path);
     }
 
     const exe_name = string("chemical-tests");

@@ -1421,3 +1421,699 @@ func lgamma(arg : double) : double
  * @see https://en.cppreference.com/w/c/numeric/math/lgamma
  */
 func lgammal(arg : float128) : float128
+
+/**
+ * Computes the smallest integer value not less than arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the smallest integer value not less than arg, that is ⌈arg⌉, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/ceil
+ */
+func ceilf(arg : float) : float
+
+/**
+ * Computes the smallest integer value not less than arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the smallest integer value not less than arg, that is ⌈arg⌉, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/ceil
+ */
+func ceil(arg : double) : double
+
+/**
+ * Computes the smallest integer value not less than arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the smallest integer value not less than arg, that is ⌈arg⌉, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/ceil
+ */
+func ceill(arg : float128) : float128
+
+/**
+ * Computes the largest integer value not greater than arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the largest integer value not greater than arg, that is ⌊arg⌋, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/floor
+ */
+func floorf(arg : float) : float
+
+/**
+ * Computes the largest integer value not greater than arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the largest integer value not greater than arg, that is ⌊arg⌋, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/floor
+ */
+func floor(arg : double) : double
+
+/**
+ * Computes the largest integer value not greater than arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the largest integer value not greater than arg, that is ⌊arg⌋, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/floor
+ */
+func floorl(arg : float128) : float128
+
+/**
+ * Computes the nearest integer not greater in magnitude than arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value not greater in magnitude than arg (in other words, arg rounded towards zero), is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/trunc
+ */
+func truncf(arg : float) : float
+
+/**
+ * Computes the nearest integer not greater in magnitude than arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value not greater in magnitude than arg (in other words, arg rounded towards zero), is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/trunc
+ */
+func trunc(arg : double) : double
+
+/**
+ * Computes the nearest integer not greater in magnitude than arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value not greater in magnitude than arg (in other words, arg rounded towards zero), is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/trunc
+ */
+func truncl(arg : float128) : float128
+
+/**
+ * Computes the nearest integer value to arg (in floating-point format), rounding halfway cases away from zero, regardless of the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ */
+func roundf(arg : float) : float
+
+/**
+ * Computes the nearest integer value to arg (in floating-point format), rounding halfway cases away from zero, regardless of the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ */
+func round(arg : double) : double
+
+/**
+ * Computes the nearest integer value to arg (in floating-point format), rounding halfway cases away from zero, regardless of the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ */
+func roundl(arg : float128) : float128
+
+/**
+ * Computes the nearest integer value to arg (in integer format), rounding halfway cases away from zero, regardless of the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ */
+func lroundf(arg : float) : long
+
+/**
+ * Computes the nearest integer value to arg (in integer format), rounding halfway cases away from zero, regardless of the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ */
+func lround(arg : double) : long
+
+/**
+ * Computes the nearest integer value to arg (in integer format), rounding halfway cases away from zero, regardless of the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ */
+func lroundl(arg : float128) : long
+
+/**
+ * Type-generic macros: If arg has type long double, roundl, lroundl, llroundl is called. Otherwise, if arg has integer type or the type double, round, lround, llround is called. Otherwise, roundf, lroundf, llroundf is called, respectively.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ */
+func llroundf(arg : float) : bigint
+
+/**
+ * Type-generic macros: If arg has type long double, roundl, lroundl, llroundl is called. Otherwise, if arg has integer type or the type double, round, lround, llround is called. Otherwise, roundf, lroundf, llroundf is called, respectively.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ */
+func llround(arg : double) : bigint
+
+/**
+ * Type-generic macros: If arg has type long double, roundl, lroundl, llroundl is called. Otherwise, if arg has integer type or the type double, round, lround, llround is called. Otherwise, roundf, lroundf, llroundf is called, respectively.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ */
+func llroundl(arg : float128) : bigint
+
+/**
+ * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return The nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/nearbyint
+ */
+func nearbyintf(arg : float) : float
+
+/**
+ * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return The nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/nearbyint
+ */
+func nearbyint(arg : double) : double
+
+/**
+ * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return The nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/nearbyint
+ */
+func nearbyintl(arg : float128) : float128
+
+/**
+ * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ */
+func rintf(arg : float) : float
+
+/**
+ * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ */
+func rint(arg : double) : double
+
+/**
+ * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ */
+func rintl(arg : float128) : float128
+
+/**
+ * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ */
+func lrintf(arg : float) : long
+
+/**
+ * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ */
+func lrint(arg : double) : long
+
+/**
+ * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ */
+func lrintl(arg : float128) : long
+
+/**
+ * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ */
+func llrintf(arg : float) : bigint
+
+/**
+ * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ */
+func llrint(arg : double) : bigint
+
+/**
+ * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ */
+func llrintl(arg : float128) : bigint
+
+/**
+ * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
+ * @parm arg	-	floating-point value
+ * @parm exp	-	pointer to integer value to store the exponent to
+ * @return If arg is zero, returns zero and stores zero in *exp.
+ *         Otherwise (if arg is not zero), if no errors occur, returns the value x in the range (-1;-0.5], [0.5; 1) and stores an integer value in *exp such that x×2(*exp)=arg.
+ *         If the value to be stored in *exp is outside the range of int, the behavior is unspecified.
+ *         If arg is not a floating-point number, the behavior is unspecified.
+ * @see https://en.cppreference.com/w/c/numeric/math/frexp
+ */
+func frexpf(arg : float, exp : int*) : float
+
+/**
+ * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
+ * @parm arg	-	floating-point value
+ * @parm exp	-	pointer to integer value to store the exponent to
+ * @return If arg is zero, returns zero and stores zero in *exp.
+ *         Otherwise (if arg is not zero), if no errors occur, returns the value x in the range (-1;-0.5], [0.5; 1) and stores an integer value in *exp such that x×2(*exp)=arg.
+ *         If the value to be stored in *exp is outside the range of int, the behavior is unspecified.
+ *         If arg is not a floating-point number, the behavior is unspecified.
+ * @see https://en.cppreference.com/w/c/numeric/math/frexp
+ */
+func frexp(arg : double, exp : int*) : double
+
+/**
+ * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
+ * @parm arg	-	floating-point value
+ * @parm exp	-	pointer to integer value to store the exponent to
+ * @return If arg is zero, returns zero and stores zero in *exp.
+ *         Otherwise (if arg is not zero), if no errors occur, returns the value x in the range (-1;-0.5], [0.5; 1) and stores an integer value in *exp such that x×2(*exp)=arg.
+ *         If the value to be stored in *exp is outside the range of int, the behavior is unspecified.
+ *         If arg is not a floating-point number, the behavior is unspecified.
+ * @see https://en.cppreference.com/w/c/numeric/math/frexp
+ */
+func frexpl(arg : float128, exp : int*) : float128
+
+/**
+ * Multiplies a floating-point value arg by the number 2 raised to the exp power.
+ * @param arg	-	floating-point value
+ * @param exp	-	integer value
+ * @return If no errors occur, arg multiplied by 2 to the power of exp (arg×2exp) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/ldexp
+ */
+func ldexpf(arg : float, exp : int) : float
+
+/**
+ * Multiplies a floating-point value arg by the number 2 raised to the exp power.
+ * @param arg	-	floating-point value
+ * @param exp	-	integer value
+ * @return If no errors occur, arg multiplied by 2 to the power of exp (arg×2exp) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/ldexp
+ */
+func ldexp(arg : double, exp : int) : double
+
+/**
+ * Multiplies a floating-point value arg by the number 2 raised to the exp power.
+ * @param arg	-	floating-point value
+ * @param exp	-	integer value
+ * @return If no errors occur, arg multiplied by 2 to the power of exp (arg×2exp) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/ldexp
+ */
+func ldexpl(arg : float128, exp : int) : float128
+
+/**
+ * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
+ * @param arg	-	floating-point value
+ * @param iptr	-	pointer to floating-point value to store the integral part to
+ * @return If no errors occur, returns the fractional part of arg with the same sign as arg. The integral part is put into the value pointed to by iptr.
+ * The sum of the returned value and the value stored in *iptr gives arg (allowing for rounding).
+ * @see https://en.cppreference.com/w/c/numeric/math/modf
+ */
+func modff(arg : float, iptr : float*) : float
+
+/**
+ * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
+ * @param arg	-	floating-point value
+ * @param iptr	-	pointer to floating-point value to store the integral part to
+ * @return If no errors occur, returns the fractional part of arg with the same sign as arg. The integral part is put into the value pointed to by iptr.
+ * The sum of the returned value and the value stored in *iptr gives arg (allowing for rounding).
+ * @see https://en.cppreference.com/w/c/numeric/math/modf
+ */
+func modf(arg : double, iptr : double*) : double
+
+/**
+ * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
+ * @param arg	-	floating-point value
+ * @param iptr	-	pointer to floating-point value to store the integral part to
+ * @return If no errors occur, returns the fractional part of arg with the same sign as arg. The integral part is put into the value pointed to by iptr.
+ * The sum of the returned value and the value stored in *iptr gives arg (allowing for rounding).
+ * @see https://en.cppreference.com/w/c/numeric/math/modf
+ */
+func modfl(arg : float128, iptr : float128*) : float128
+
+/**
+ * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
+ * @param arg	-	floating-point value
+ * @param exp	-	integer value
+ * @return If no errors occur, arg multiplied by FLT_RADIX to the power of exp (arg×FLT_RADIXexp) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/scalbn
+ */
+func scalbnf(arg : float, exp : int) : float
+
+/**
+ * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
+ * @param arg	-	floating-point value
+ * @param exp	-	integer value
+ * @return If no errors occur, arg multiplied by FLT_RADIX to the power of exp (arg×FLT_RADIXexp) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/scalbn
+ */
+func scalbn(arg : double, exp : int) : double
+
+/**
+ * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
+ * @param arg	-	floating-point value
+ * @param exp	-	integer value
+ * @return If no errors occur, arg multiplied by FLT_RADIX to the power of exp (arg×FLT_RADIXexp) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/scalbn
+ */
+func scalbnl(arg : float128, exp : int) : float128
+
+/**
+ * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
+ * @param arg	-	floating-point value
+ * @param exp	-	integer value
+ * @return If no errors occur, arg multiplied by FLT_RADIX to the power of exp (arg×FLT_RADIXexp) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/scalbn
+ */
+func scalblnf(arg : float, exp : long) : float
+
+/**
+ * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
+ * @param arg	-	floating-point value
+ * @param exp	-	integer value
+ * @return If no errors occur, arg multiplied by FLT_RADIX to the power of exp (arg×FLT_RADIXexp) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/scalbn
+ */
+func scalbln(arg : double, exp : long) : double
+
+/**
+ * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
+ * @param arg	-	floating-point value
+ * @param exp	-	integer value
+ * @return If no errors occur, arg multiplied by FLT_RADIX to the power of exp (arg×FLT_RADIXexp) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/scalbn
+ */
+func scalblnl(arg : float128, exp : long) : float128
+
+/**
+ * Extracts the value of the unbiased exponent from the floating-point argument arg, and returns it as a signed integer value.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the unbiased exponent of arg is returned as a signed int value.
+ *         If arg is zero, FP_ILOGB0 is returned.
+ *         If arg is infinite, INT_MAX is returned.
+ *         If arg is a NaN, FP_ILOGBNAN is returned.
+ *         If the correct result is greater than INT_MAX or smaller than INT_MIN, the return value is unspecified and a domain error or range error may occur.
+ * @see https://en.cppreference.com/w/c/numeric/math/ilogb
+ */
+func ilogbf(arg : float) : int
+
+/**
+ * Extracts the value of the unbiased exponent from the floating-point argument arg, and returns it as a signed integer value.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the unbiased exponent of arg is returned as a signed int value.
+ *         If arg is zero, FP_ILOGB0 is returned.
+ *         If arg is infinite, INT_MAX is returned.
+ *         If arg is a NaN, FP_ILOGBNAN is returned.
+ *         If the correct result is greater than INT_MAX or smaller than INT_MIN, the return value is unspecified and a domain error or range error may occur.
+ * @see https://en.cppreference.com/w/c/numeric/math/ilogb
+ */
+func ilogb(arg : double) : int
+
+/**
+ * Extracts the value of the unbiased exponent from the floating-point argument arg, and returns it as a signed integer value.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the unbiased exponent of arg is returned as a signed int value.
+ *         If arg is zero, FP_ILOGB0 is returned.
+ *         If arg is infinite, INT_MAX is returned.
+ *         If arg is a NaN, FP_ILOGBNAN is returned.
+ *         If the correct result is greater than INT_MAX or smaller than INT_MIN, the return value is unspecified and a domain error or range error may occur.
+ * @see https://en.cppreference.com/w/c/numeric/math/ilogb
+ */
+func ilogbl(arg : float128) : int
+
+/**
+ * TODO these macros
+ * #define FP_ILOGB0    // implementation-defined
+ * #define FP_ILOGBNAN  // implementation-defined
+ * @see https://en.cppreference.com/w/c/numeric/math/ilogb
+ */
+
+/**
+ * First, converts both arguments to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned.
+ * @param from, to	-	floating-point values
+ * @return If no errors occur, the next representable value of from in the direction of to. is returned. If from equals to, then to is returned, converted to the type of the function.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned (with the same sign as from).
+ *         If a range error occurs due to underflow, the correct result is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/nextafter
+ */
+func nextafterf(from : float, to : float) : float
+
+/**
+ * First, converts both arguments to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned.
+ * @param from, to	-	floating-point values
+ * @return If no errors occur, the next representable value of from in the direction of to. is returned. If from equals to, then to is returned, converted to the type of the function.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned (with the same sign as from).
+ *         If a range error occurs due to underflow, the correct result is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/nextafter
+ */
+func nextafter(from : double, to : double) : double
+
+/**
+ * First, converts both arguments to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned.
+ * @param from, to	-	floating-point values
+ * @return If no errors occur, the next representable value of from in the direction of to. is returned. If from equals to, then to is returned, converted to the type of the function.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned (with the same sign as from).
+ *         If a range error occurs due to underflow, the correct result is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/nextafter
+ */
+func nextafterl(from : float128, to : float128) : float128
+
+/**
+ * First, converts the first argument to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned, converted from long double to the return type of the function without loss of range or precision.
+ * @param from, to	-	floating-point values
+ * @return If no errors occur, the next representable value of from in the direction of to. is returned. If from equals to, then to is returned, converted to the type of the function.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned (with the same sign as from).
+ *         If a range error occurs due to underflow, the correct result is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/nextafter
+ */
+func nexttowardf(from : float, to : float128) : float
+
+/**
+ * First, converts the first argument to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned, converted from long double to the return type of the function without loss of range or precision.
+ * @param from, to	-	floating-point values
+ * @return If no errors occur, the next representable value of from in the direction of to. is returned. If from equals to, then to is returned, converted to the type of the function.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned (with the same sign as from).
+ *         If a range error occurs due to underflow, the correct result is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/nextafter
+ */
+func nexttoward(from : double, to : float128) : double
+
+/**
+ * First, converts the first argument to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned, converted from long double to the return type of the function without loss of range or precision.
+ * @param from, to	-	floating-point values
+ * @return If no errors occur, the next representable value of from in the direction of to. is returned. If from equals to, then to is returned, converted to the type of the function.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned (with the same sign as from).
+ *         If a range error occurs due to underflow, the correct result is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/nextafter
+ */
+func nexttowardl(from : float128, to : float128) : float128
+
+/**
+ * Extracts the value of the unbiased radix-independent exponent from the floating-point argument arg, and returns it as a floating-point value.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the unbiased exponent of arg is returned as a signed floating-point value.
+ *         If a domain error occurs, an implementation-defined value is returned.
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/logb
+ */
+func logbf(arg : float) : float
+
+/**
+ * Extracts the value of the unbiased radix-independent exponent from the floating-point argument arg, and returns it as a floating-point value.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the unbiased exponent of arg is returned as a signed floating-point value.
+ *         If a domain error occurs, an implementation-defined value is returned.
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/logb
+ */
+func logb(arg : double) : double
+
+/**
+ * Extracts the value of the unbiased radix-independent exponent from the floating-point argument arg, and returns it as a floating-point value.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the unbiased exponent of arg is returned as a signed floating-point value.
+ *         If a domain error occurs, an implementation-defined value is returned.
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/logb
+ */
+func logbl(arg : float128) : float128
+
+/**
+ * Composes a floating-point value with the magnitude of x and the sign of y.
+ * @param x, y	-	floating-point values
+ * @return If no errors occur, the floating-point value with the magnitude of x and the sign of y is returned.
+ *         If x is NaN, then NaN with the sign of y is returned.
+ *         If y is -0, the result is only negative if the implementation supports the signed zero consistently in arithmetic operations.
+ * @see https://en.cppreference.com/w/c/numeric/math/copysign
+ */
+func copysignf(x : float, y : float) : float
+
+/**
+ * Composes a floating-point value with the magnitude of x and the sign of y.
+ * @param x, y	-	floating-point values
+ * @return If no errors occur, the floating-point value with the magnitude of x and the sign of y is returned.
+ *         If x is NaN, then NaN with the sign of y is returned.
+ *         If y is -0, the result is only negative if the implementation supports the signed zero consistently in arithmetic operations.
+ * @see https://en.cppreference.com/w/c/numeric/math/copysign
+ */
+func copysign(x : double, y : double) : double
+
+/**
+ * Composes a floating-point value with the magnitude of x and the sign of y.
+ * @param x, y	-	floating-point values
+ * @return If no errors occur, the floating-point value with the magnitude of x and the sign of y is returned.
+ *         If x is NaN, then NaN with the sign of y is returned.
+ *         If y is -0, the result is only negative if the implementation supports the signed zero consistently in arithmetic operations.
+ * @see https://en.cppreference.com/w/c/numeric/math/copysign
+ */
+func copysignl(x : float128, y : float128) : float128
+
+/**
+ * TODO macro fpclassify
+ * #define fpclassify(arg)
+ * @see https://en.cppreference.com/w/c/numeric/math/fpclassify
+ */
+
+/**
+ * TODO macro isfinite
+ * #define isfinite(arg)
+ * @see https://en.cppreference.com/w/c/numeric/math/isfinite
+ */
+
+/**
+ * TODO macro isinf
+ * #define isinf(arg)
+ * @see https://en.cppreference.com/w/c/numeric/math/isinf
+ */
+
+/**
+ * TODO macro isnan
+ * #define isnan(arg)
+ * @see https://en.cppreference.com/w/c/numeric/math/isnan
+ */
+
+/**
+ * TODO macro isnormal
+ * #define isnormal(arg)
+ * @see https://en.cppreference.com/w/c/numeric/math/isnormal
+ */
+
+/**
+ * TODO macro signbit
+ * #define signbit( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/signbit
+ */
+
+/**
+ * TODO macro isgreater
+ * #define isgreater(x, y)
+ * @see https://en.cppreference.com/w/c/numeric/math/isgreater
+ */
+
+/**
+ * TODO macro isgreaterequal
+ * #define isgreaterequal(x, y)
+ * @see https://en.cppreference.com/w/c/numeric/math/isgreaterequal
+ */
+
+/**
+ * TODO macro isless
+ * #define isless(x, y)
+ * @see https://en.cppreference.com/w/c/numeric/math/isless
+ */
+
+
+/**
+ * TODO macro islessequal
+ * #define islessequal(x, y)
+ * @see https://en.cppreference.com/w/c/numeric/math/islessequal
+ */
+
+/**
+ * TODO macro islessgreater
+ * #define islessgreater(x, y)
+ * @see https://en.cppreference.com/w/c/numeric/math/islessgreater
+ */
+
+/**
+ * TODO macro isunordered
+ * #define isunordered(x, y)
+ * @see https://en.cppreference.com/w/c/numeric/math/isunordered
+ */
+
+/**
+ * @see https://en.cppreference.com/w/c/numeric/math/float_t
+ */
+typealias float_t = float
+
+/**
+ * @see https://en.cppreference.com/w/c/numeric/math/float_t
+ */
+typealais double_t = double
+
+/**
+ * @see https://en.cppreference.com/w/c/types/limits/FLT_EVAL_METHOD
+ * @see https://en.cppreference.com/w/c/numeric/math/float_t
+ */
+@comptime
+const FLT_EVAL_METHOD = 0
+
+/**
+ * TODO these macros
+ * #define HUGE_VALF //implementation defined
+ * #define HUGE_VAL  //implementation defined
+ * #define HUGE_VALL //implementation defined
+ * @see https://en.cppreference.com/w/c/numeric/math/HUGE_VAL
+ */
+
+/**
+ * TODO these macros
+ * #define INFINITY // implementation defined
+ * @see https://en.cppreference.com/w/c/numeric/math/INFINITY
+ */
+
+/**
+ * TODO these macros
+ * #define NAN // implementation defined
+ * @see https://en.cppreference.com/w/c/numeric/math/NAN
+ */
+
+/**
+ * TODO these macros
+ * #define MATH_ERRNO
+ * #define MATH_ERREXCEPT
+ * #define math_errhandling
+ * @see https://en.cppreference.com/w/c/numeric/math/math_errhandling
+ */
+
+/**
+ * TODO these macros
+ * #define FP_NORMAL    // implementation defined
+ * #define FP_SUBNORMAL // implementation defined
+ * #define FP_ZERO      // implementation defined
+ * #define FP_INFINITE  // implementation defined
+ * #define FP_NAN       // implementation defined
+ * @see https://en.cppreference.com/w/c/numeric/math/FP_categories
+ */

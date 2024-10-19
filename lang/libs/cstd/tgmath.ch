@@ -221,3 +221,136 @@
  * @see https://en.cppreference.com/w/c/numeric/math/tgamma
  * Type-generic macro: If arg has type long double, tgammal is called. Otherwise, if arg has integer type or the type double, tgamma is called. Otherwise, tgammaf is called.
  */
+
+/**
+ * TODO macro ceil
+ * #define ceil( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/ceil
+ * Type-generic macro: If arg has type long double, ceill is called. Otherwise, if arg has integer type or the type double, ceil is called. Otherwise, ceilf is called.
+ */
+
+/**
+ * TODO macro floor
+ * #define floor( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/floor
+ * Type-generic macro: If arg has type long double, floorl is called. Otherwise, if arg has integer type or the type double, floor is called. Otherwise, floorf is called.
+ */
+
+/**
+ * TODO macro trunc
+ * #define trunc( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/trunc
+ * Type-generic macro: If arg has type long double, truncl is called. Otherwise, if arg has integer type or the type double, trunc is called. Otherwise, truncf is called.
+ */
+
+/**
+ * TODO macro round
+ * #define round( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ * Type-generic macros: If arg has type long double, roundl, lroundl, llroundl is called. Otherwise, if arg has integer type or the type double, round, lround, llround is called. Otherwise, roundf, lroundf, llroundf is called, respectively.
+ */
+
+/**
+ * TODO macro lround
+ * #define lround( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ * Type-generic macros: If arg has type long double, roundl, lroundl, llroundl is called. Otherwise, if arg has integer type or the type double, round, lround, llround is called. Otherwise, roundf, lroundf, llroundf is called, respectively.
+ */
+
+/**
+ * TODO macro llround
+ * #define llround( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/round
+ * Type-generic macros: If arg has type long double, roundl, lroundl, llroundl is called. Otherwise, if arg has integer type or the type double, round, lround, llround is called. Otherwise, roundf, lroundf, llroundf is called, respectively.
+ */
+
+/**
+ * TODO macro nearbyint
+ * #define nearbyint( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/nearbyint
+ * Type-generic macro: If arg has type long double, nearbyintl is called. Otherwise, if arg has integer type or the type double, nearbyint is called. Otherwise, nearbyintf is called, respectively.
+ */
+
+/**
+ * TODO macro rint
+ * #define rint( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ * Type-generic macros: If arg has type long double, rintl, lrintl, llrintl is called. Otherwise, if arg has integer type or the type double, rint, lrint, llrint is called. Otherwise, rintf, lrintf, llrintf is called, respectively.
+ */
+
+/**
+ * TODO macro lrint
+ * #define lrint( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ * Type-generic macros: If arg has type long double, rintl, lrintl, llrintl is called. Otherwise, if arg has integer type or the type double, rint, lrint, llrint is called. Otherwise, rintf, lrintf, llrintf is called, respectively.
+ */
+
+/**
+ * TODO macro llrint
+ * #define llrint( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/rint
+ * Type-generic macros: If arg has type long double, rintl, lrintl, llrintl is called. Otherwise, if arg has integer type or the type double, rint, lrint, llrint is called. Otherwise, rintf, lrintf, llrintf is called, respectively.
+ */
+
+/**
+ * TODO macro frexp
+ * #define frexp( arg, exp )
+ * @see https://en.cppreference.com/w/c/numeric/math/frexp
+ * Type-generic macro: If arg has type long double, frexpl is called. Otherwise, if arg has integer type or the type double, frexp is called. Otherwise, frexpf is called, respectively.
+ */
+
+/**
+ * TODO macro ldexp
+ * #define ldexp( arg, exp )
+ * @see https://en.cppreference.com/w/c/numeric/math/ldexp
+ * Type-generic macro: If arg has type long double, ldexpl is called. Otherwise, if arg has integer type or the type double, ldexp is called. Otherwise, ldexpf is called, respectively.
+ */
+
+/**
+ * TODO macro scalbn
+ * #define scalbn( arg, exp )
+ * @see https://en.cppreference.com/w/c/numeric/math/scalbn
+ * Type-generic macros: If arg has type long double, scalbnl or scalblnl is called. Otherwise, if arg has integer type or the type double, scalbn or scalbln is called. Otherwise, scalbnf or scalblnf is called, respectively.
+ */
+
+/**
+ * TODO macro scalbln
+ * #define scalbln( arg, exp )
+ * @see https://en.cppreference.com/w/c/numeric/math/scalbn
+ * Type-generic macros: If arg has type long double, scalbnl or scalblnl is called. Otherwise, if arg has integer type or the type double, scalbn or scalbln is called. Otherwise, scalbnf or scalblnf is called, respectively.
+ */
+
+/**
+ * TODO macro ilogb
+ * #define ilogb( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/ilogb
+ * Type-generic macros: If arg has type long double, ilogbl is called. Otherwise, if arg has integer type or the type double, ilogb is called. Otherwise, ilogbf is called.
+ */
+
+/**
+ * TODO macro nextafter
+ * #define nextafter(from, to)
+ * @see https://en.cppreference.com/w/c/numeric/math/nextafter
+ * Type-generic macro: If any argument has type long double, nextafterl is called. Otherwise, if any argument has integer type or has type double, nextafter is called. Otherwise, nextafterf is called.
+ */
+
+/**
+ * TODO macro nexttoward
+ * #define nexttoward(from, to)
+ * @see https://en.cppreference.com/w/c/numeric/math/nextafter
+ * Type-generic macro: If the argument from has type long double, nexttowardl is called. Otherwise, if from has integer type or the type double, nexttoward is called. Otherwise, nexttowardf is called.
+ */
+
+/**
+ * TODO macro logb
+ * #define logb( arg )
+ * @see https://en.cppreference.com/w/c/numeric/math/logb
+ * Type-generic macros: If arg has type long double, logbl is called. Otherwise, if arg has integer type or the type double, logb is called. Otherwise, logbf is called.
+ */
+
+/**
+ * TODO macro copysign
+ * #define copysign(x, y)
+ * @see https://en.cppreference.com/w/c/numeric/math/copysign
+ * Type-generic macro: If any argument has type long double, copysignl is called. Otherwise, if any argument has integer type or has type double, copysign is called. Otherwise, copysignf is called.
+ */

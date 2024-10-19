@@ -371,3 +371,1053 @@ func nand64(arg : *char) : _Decimal64
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
 func nand128(arg : *char) : _Decimal128
+
+/**
+ * Computes e (Euler's number, 2.7182818...) raised to the given power arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the base-e exponential of arg (earg) is returned.
+ *         If a range error occurs due to overflow, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/exp
+ */
+func expf(arg : float) : float
+
+/**
+ * Computes e (Euler's number, 2.7182818...) raised to the given power arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the base-e exponential of arg (earg) is returned.
+ *         If a range error occurs due to overflow, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/exp
+ */
+func exp(arg : double) : double
+
+/**
+ * Computes e (Euler's number, 2.7182818...) raised to the given power arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the base-e exponential of arg (earg) is returned.
+ *         If a range error occurs due to overflow, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/exp
+ */
+func expl(arg : float128 ) : float128
+
+/**
+ * Computes 2 raised to the given power n.
+ * @param n	-	floating-point value
+ * @return If no errors occur, the base-2 exponential of n (2n) is returned.
+ *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/exp2
+ */
+func exp2f(n : float) : float
+
+/**
+ * Computes 2 raised to the given power n.
+ * @param n	-	floating-point value
+ * @return If no errors occur, the base-2 exponential of n (2n) is returned.
+ *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/exp2
+ */
+func exp2(n : double)  : double
+
+/**
+ * Computes 2 raised to the given power n.
+ * @param n	-	floating-point value
+ * @return If no errors occur, the base-2 exponential of n (2n) is returned.
+ *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/exp2
+ */
+float128 exp2l(n : float128) : float128
+
+/**
+ * Computes the e (Euler's number, 2.7182818) raised to the given power arg, minus 1.0. This function is more accurate than the expression exp(arg)-1.0 if arg is close to zero.
+ * @param arg	-	floating-point value
+ * @return If no errors occur earg -1 is returned.
+ *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/expm1
+ */
+func expm1f(arg : float) : float
+
+/**
+ * Computes the e (Euler's number, 2.7182818) raised to the given power arg, minus 1.0. This function is more accurate than the expression exp(arg)-1.0 if arg is close to zero.
+ * @param arg	-	floating-point value
+ * @return If no errors occur earg -1 is returned.
+ *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/expm1
+ */
+func expm1(arg : double) : double
+
+/**
+ * Computes the e (Euler's number, 2.7182818) raised to the given power arg, minus 1.0. This function is more accurate than the expression exp(arg)-1.0 if arg is close to zero.
+ * @param arg	-	floating-point value
+ * @return If no errors occur earg -1 is returned.
+ *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/expm1
+ */
+func expm1l(arg : float128) : float128
+
+/**
+ * Computes the natural (base e) logarithm of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the natural (base-e) logarithm of arg (ln(arg) or loge(arg)) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log
+ */
+func logf(arg : float) : float
+
+/**
+ * Computes the natural (base e) logarithm of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the natural (base-e) logarithm of arg (ln(arg) or loge(arg)) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log
+ */
+func log(arg : double) : double
+
+/**
+ * Computes the natural (base e) logarithm of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the natural (base-e) logarithm of arg (ln(arg) or loge(arg)) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log
+ */
+func logl(arg : float128) : float128
+
+/**
+ * Computes the common (base-10) logarithm of arg.
+ * @param floating-point value
+ * @return If no errors occur, the common (base-10) logarithm of arg (log10(arg) or lg(arg)) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log10
+ */
+func log10f(arg : float) : float
+
+/**
+ * Computes the common (base-10) logarithm of arg.
+ * @param floating-point value
+ * @return If no errors occur, the common (base-10) logarithm of arg (log10(arg) or lg(arg)) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log10
+ */
+func log10(arg : double) : double
+
+/**
+ * Computes the common (base-10) logarithm of arg.
+ * @param floating-point value
+ * @return If no errors occur, the common (base-10) logarithm of arg (log10(arg) or lg(arg)) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log10
+ */
+func log10l(arg : float128) : float128
+
+/**
+ * Computes the base 2 logarithm of arg.
+ * @param arg	-	floating point value
+ * @return If no errors occur, the base-2 logarithm of arg (log2(arg) or lb(arg)) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log2
+ */
+func log2f(arg : float) : float
+
+/**
+ * Computes the base 2 logarithm of arg.
+ * @param arg	-	floating point value
+ * @return If no errors occur, the base-2 logarithm of arg (log2(arg) or lb(arg)) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log2
+ */
+func log2(arg : double) : double
+
+/**
+ * Computes the base 2 logarithm of arg.
+ * @param arg	-	floating point value
+ * @return If no errors occur, the base-2 logarithm of arg (log2(arg) or lb(arg)) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log2
+ */
+func log2l(arg : float128) : float128
+
+/**
+ * Computes the natural (base e) logarithm of 1 + arg. This function is more precise than the expression log(1 + arg) if arg is close to zero.
+ * @param arg	-	floating-point value
+ * @return If no errors occur ln(1 + arg) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log1p
+ */
+func log1pf(arg : float) : float
+
+/**
+ * Computes the natural (base e) logarithm of 1 + arg. This function is more precise than the expression log(1 + arg) if arg is close to zero.
+ * @param arg	-	floating-point value
+ * @return If no errors occur ln(1 + arg) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log1p
+ */
+func log1p(arg : double) : double
+
+/**
+ * Computes the natural (base e) logarithm of 1 + arg. This function is more precise than the expression log(1 + arg) if arg is close to zero.
+ * @param arg	-	floating-point value
+ * @return If no errors occur ln(1 + arg) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/log1p
+ */
+func log1pl(arg :float128) : float128
+
+/**
+ * Computes the value of base raised to the power exponent
+ * @param base	-	base as floating-point value
+ * @param exponent	-	exponent as floating-point value
+ * @return If no errors occur, base raised to the power of exponent (baseexponent) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error or a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/pow
+ */
+func powf(base : float, exponent : float) : float
+
+/**
+ * Computes the value of base raised to the power exponent
+ * @param base	-	base as floating-point value
+ * @param exponent	-	exponent as floating-point value
+ * @return If no errors occur, base raised to the power of exponent (baseexponent) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error or a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/pow
+ */
+func pow(base : double, exponent : double) : double
+
+/**
+ * Computes the value of base raised to the power exponent
+ * @param base	-	base as floating-point value
+ * @param exponent	-	exponent as floating-point value
+ * @return If no errors occur, base raised to the power of exponent (baseexponent) is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error or a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/pow
+ */
+func powl(base : float128, exponent : float128) : float128
+
+/**
+ * Computes square root of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, square root of arg (√arg), is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sqrt
+ */
+func sqrtf(arg : float) : float
+
+/**
+ * Computes square root of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, square root of arg (√arg), is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sqrt
+ */
+func sqrt(arg : double) : double
+
+/**
+ * Computes square root of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, square root of arg (√arg), is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sqrt
+ */
+func sqrtl(arg : float128) : float128
+
+/**
+ * Computes the cube root of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the cube root of arg (3√arg), is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cbrt
+ */
+func cbrtf(arg : float) : float
+
+/**
+ * Computes the cube root of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the cube root of arg (3√arg), is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cbrt
+ */
+func cbrt(arg : double) : double
+
+/**
+ * Computes the cube root of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the cube root of arg (3√arg), is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cbrt
+ */
+func cbrtl(arg : float128) : float128
+
+/**
+ * Computes the square root of the sum of the squares of x and y, without undue overflow or underflow at intermediate stages of the computation.
+ * @param x, y	-	floating-point value
+ * @return If no errors occur, the hypotenuse of a right-angled triangle,√x2+y2, is returned.
+ * If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ * If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/hypot
+ */
+func hypotf(x : float, y : float) : float
+
+/**
+ * Computes the square root of the sum of the squares of x and y, without undue overflow or underflow at intermediate stages of the computation.
+ * @param x, y	-	floating-point value
+ * @return If no errors occur, the hypotenuse of a right-angled triangle,√x2+y2, is returned.
+ * If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ * If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/hypot
+ */
+func hypot(x : double, y : double) : double
+
+/**
+ * Computes the square root of the sum of the squares of x and y, without undue overflow or underflow at intermediate stages of the computation.
+ * @param x, y	-	floating-point value
+ * @return If no errors occur, the hypotenuse of a right-angled triangle,√x2+y2, is returned.
+ * If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ * If a range error due to underflow occurs, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/hypot
+ */
+func hypotl(x : float128, y : float128) : float128
+
+/**
+ * Computes the sine of arg (measured in radians).
+ * @param arg	-	floating-point value representing an angle in radians
+ * @return If no errors occur, the sine of arg (sin(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sin
+ */
+func sinf(arg : float) : float
+
+/**
+ * Computes the sine of arg (measured in radians).
+ * @param arg	-	floating-point value representing an angle in radians
+ * @return If no errors occur, the sine of arg (sin(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sin
+ */
+func sin(arg : double) : double
+
+/**
+ * Computes the sine of arg (measured in radians).
+ * @param arg	-	floating-point value representing an angle in radians
+ * @return If no errors occur, the sine of arg (sin(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sin
+ */
+func sinl(arg : float128) : float128
+
+/**
+ * Computes the sine of arg (measured in radians).
+ * @param arg	-	floating-point value representing an angle in radians
+ * @return If no errors occur, the sine of arg (sin(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sin
+ */
+func sind32(arg : _Decimal32) : _Decimal32
+
+/**
+ * Computes the sine of arg (measured in radians).
+ * @param arg	-	floating-point value representing an angle in radians
+ * @return If no errors occur, the sine of arg (sin(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sin
+ */
+func sind64(arg : _Decimal64) : _Decimal64
+
+/**
+ * Computes the sine of arg (measured in radians).
+ * @param arg	-	floating-point value representing an angle in radians
+ * @return If no errors occur, the sine of arg (sin(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sin
+ */
+func sind128(arg : _Decimal128) : _Decimal128
+
+/**
+ * Computes the cosine of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the cosine of arg (cos(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cos
+ */
+func cosf(arg : float) : float
+
+/**
+ * Computes the cosine of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the cosine of arg (cos(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cos
+ */
+func cos(arg : double) : double
+
+/**
+ * Computes the cosine of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the cosine of arg (cos(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cos
+ */
+func cosl(arg : float128) : float128
+
+/**
+ * Computes the cosine of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the cosine of arg (cos(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cos
+ */
+func cosd32(arg : _Decimal32) : _Decimal32
+
+/**
+ * Computes the cosine of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the cosine of arg (cos(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cos
+ */
+func cosd64(arg : _Decimal64) : _Decimal64
+
+/**
+ * Computes the cosine of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the cosine of arg (cos(arg)) in the range [-1 ; +1], is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cos
+ */
+func cosd128(arg : _Decimal128) : _Decimal128
+
+/**
+ * Computes the tangent of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the tangent of arg (tan(arg)) is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/tan
+ */
+func tanf(arg : float) : float
+
+/**
+ * Computes the tangent of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the tangent of arg (tan(arg)) is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/tan
+ */
+func tan(arg : double) : double
+
+/**
+ * Computes the tangent of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the tangent of arg (tan(arg)) is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/tan
+ */
+func tanl(arg : float128) : float128
+
+/**
+ * Computes the tangent of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the tangent of arg (tan(arg)) is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/tan
+ */
+func tand32(arg : _Decimal32) : _Decimal32
+
+/**
+ * Computes the tangent of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the tangent of arg (tan(arg)) is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/tan
+ */
+func tand64(arg : _Decimal64) : _Decimal64
+
+/**
+ * Computes the tangent of arg (measured in radians).
+ * @param arg	-	floating-point value representing angle in radians
+ * @return If no errors occur, the tangent of arg (tan(arg)) is returned.
+ *         The result may have little or no significance if the magnitude of arg is large.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/tan
+ */
+func tand128(arg : _Decimal128) : _Decimal128
+
+/**
+ * Computes the principal values of the arc sine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc sine of arg (arcsin(arg)) in the range [-π2; +π2], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/asin
+ */
+func asinf(arg : float) : float
+
+/**
+ * Computes the principal values of the arc sine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc sine of arg (arcsin(arg)) in the range [-π2; +π2], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/asin
+ */
+func asin(arg : double) : double
+
+/**
+ * Computes the principal values of the arc sine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc sine of arg (arcsin(arg)) in the range [-π2; +π2], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/asin
+ */
+func asinl(arg : float128) : float128
+
+/**
+ * Computes the principal values of the arc sine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc sine of arg (arcsin(arg)) in the range [-π2; +π2], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/asin
+ */
+func asind32(arg : _Decimal32) : _Decimal32
+
+/**
+ * Computes the principal values of the arc sine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc sine of arg (arcsin(arg)) in the range [-π2; +π2], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/asin
+ */
+func asind64(arg : _Decimal64) : _Decimal64
+
+/**
+ * Computes the principal values of the arc sine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc sine of arg (arcsin(arg)) in the range [-π2; +π2], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/asin
+ */
+func asind128(arg : _Decimal128) : _Decimal128
+
+/**
+ * Computes the principal value of the arc cosine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc cosine of arg (arccos(arg)) in the range [0 ; π], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/acos
+ */
+func acosf(arg : float) : float
+
+/**
+ * Computes the principal value of the arc cosine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc cosine of arg (arccos(arg)) in the range [0 ; π], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/acos
+ */
+func acos(arg : double) : double
+
+/**
+ * Computes the principal value of the arc cosine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc cosine of arg (arccos(arg)) in the range [0 ; π], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/acos
+ */
+func acosl(arg : float128) : float128
+
+/**
+ * Computes the principal value of the arc cosine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc cosine of arg (arccos(arg)) in the range [0 ; π], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/acos
+ */
+func acosd32(arg : _Decimal32) : _Decimal32
+
+/**
+ * Computes the principal value of the arc cosine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc cosine of arg (arccos(arg)) in the range [0 ; π], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/acos
+ */
+func acosd64(arg : _Decimal64) : _Decimal64
+
+/**
+ * Computes the principal value of the arc cosine of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc cosine of arg (arccos(arg)) in the range [0 ; π], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/acos
+ */
+func acosd128(arg : _Decimal128) : _Decimal128
+
+/**
+ * Computes the principal value of the arc tangent of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc tangent of arg (arctan(arg)) in the range [-π2; +π2] radians, is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan
+ */
+func atanf(arg : float) : float
+
+/**
+ * Computes the principal value of the arc tangent of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc tangent of arg (arctan(arg)) in the range [-π2; +π2] radians, is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan
+ */
+func atan(arg : double) : double
+
+/**
+ * Computes the principal value of the arc tangent of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc tangent of arg (arctan(arg)) in the range [-π2; +π2] radians, is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan
+ */
+func atanl(arg : float128) : float128
+
+/**
+ * Computes the principal value of the arc tangent of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc tangent of arg (arctan(arg)) in the range [-π2; +π2] radians, is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan
+ */
+func atand32(arg : _Decimal32) : _Decimal32
+
+/**
+ * Computes the principal value of the arc tangent of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc tangent of arg (arctan(arg)) in the range [-π2; +π2] radians, is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan
+ */
+func atand64(arg : _Decimal64) : _Decimal64
+
+/**
+ * Computes the principal value of the arc tangent of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the arc tangent of arg (arctan(arg)) in the range [-π2; +π2] radians, is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan
+ */
+func atand128(arg : _Decimal128) : _Decimal128
+
+/**
+ * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
+ * @param x, y	-	floating-point value
+ * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan2
+ */
+func atan2f(y : float, x : float ) : float
+
+/**
+ * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
+ * @param x, y	-	floating-point value
+ * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan2
+ */
+func atan2(y : double, x : double ) : double
+
+/**
+ * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
+ * @param x, y	-	floating-point value
+ * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan2
+ */
+func atan2l(y : float128, x : float128 ) : float128
+
+/**
+ * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
+ * @param x, y	-	floating-point value
+ * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan2
+ */
+func atan2d32(y : _Decimal32, x : _Decimal32 ) : _Decimal32
+
+/**
+ * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
+ * @param x, y	-	floating-point value
+ * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan2
+ */
+func atan2d64(y : _Decimal64, x : _Decimal64 ) : _Decimal64
+
+/**
+ * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
+ * @param x, y	-	floating-point value
+ * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atan2
+ */
+func atan2d128(y : _Decimal128, x : _Decimal128 ) : _Decimal128
+
+/**
+ * Computes hyperbolic sine of arg.
+ * @param arg	-	floating-point value representing a hyperbolic angle
+ * @return If no errors occur, the hyperbolic sine of arg (sinh(arg), or earg-e-arg2) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sinh
+ */
+func sinhf(arg : float) : float
+
+/**
+ * Computes hyperbolic sine of arg.
+ * @param arg	-	floating-point value representing a hyperbolic angle
+ * @return If no errors occur, the hyperbolic sine of arg (sinh(arg), or earg-e-arg2) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sinh
+ */
+func sinh(arg : double) : double
+
+/**
+ * Computes hyperbolic sine of arg.
+ * @param arg	-	floating-point value representing a hyperbolic angle
+ * @return If no errors occur, the hyperbolic sine of arg (sinh(arg), or earg-e-arg2) is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/sinh
+ */
+func sinhl(arg : float128) : float128
+
+/**
+ * Computes the hyperbolic cosine of arg.
+ * @param arg	-	floating-point value representing a hyperbolic angle
+ * @return If no errors occur, the hyperbolic cosine of arg (cosh(arg), or earg+e-arg2) is returned.
+ *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cosh
+ */
+func coshf(arg : float) : float
+
+/**
+ * Computes the hyperbolic cosine of arg.
+ * @param arg	-	floating-point value representing a hyperbolic angle
+ * @return If no errors occur, the hyperbolic cosine of arg (cosh(arg), or earg+e-arg2) is returned.
+ *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cosh
+ */
+func cosh(arg : double) : double
+
+/**
+ * Computes the hyperbolic cosine of arg.
+ * @param arg	-	floating-point value representing a hyperbolic angle
+ * @return If no errors occur, the hyperbolic cosine of arg (cosh(arg), or earg+e-arg2) is returned.
+ *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/cosh
+ */
+func coshl(arg : float128) : float128
+
+/**
+ * Computes the hyperbolic tangent of arg.
+ * @param arg	-	floating-point value representing a hyperbolic angle
+ * @return If no errors occur, the hyperbolic tangent of arg (tanh(arg), or earg-e-argearg+e-arg) is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/tanh
+ */
+func tanhf(arg : float) : float
+
+/**
+ * Computes the hyperbolic tangent of arg.
+ * @param arg	-	floating-point value representing a hyperbolic angle
+ * @return If no errors occur, the hyperbolic tangent of arg (tanh(arg), or earg-e-argearg+e-arg) is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/tanh
+ */
+func tanh(arg : double) : double
+
+/**
+ * Computes the hyperbolic tangent of arg.
+ * @param arg	-	floating-point value representing a hyperbolic angle
+ * @return If no errors occur, the hyperbolic tangent of arg (tanh(arg), or earg-e-argearg+e-arg) is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/tanh
+ */
+func tanhl(arg : float128) : float128
+
+/**
+ * Computes the inverse hyperbolic sine of arg.
+ * @param arg	-	floating-point value representing the area of a hyperbolic sector
+ * @return If no errors occur, the inverse hyperbolic sine of arg (sinh-1 (arg), or arsinh(arg)), is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/asinh
+ */
+func asinhf(arg : float) : float
+
+/**
+ * Computes the inverse hyperbolic sine of arg.
+ * @param arg	-	floating-point value representing the area of a hyperbolic sector
+ * @return If no errors occur, the inverse hyperbolic sine of arg (sinh-1 (arg), or arsinh(arg)), is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/asinh
+ */
+func asinh(arg : double) : double
+
+/**
+ * Computes the inverse hyperbolic sine of arg.
+ * @param arg	-	floating-point value representing the area of a hyperbolic sector
+ * @return If no errors occur, the inverse hyperbolic sine of arg (sinh-1 (arg), or arsinh(arg)), is returned.
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/asinh
+ */
+func asinhl(arg : float128) : float128
+
+/**
+ * Computes the inverse hyperbolic cosine of arg.
+ * @param arg	-	floating-point value representing the area of a hyperbolic sector
+ * @return If no errors occur, the inverse hyperbolic cosine of arg (cosh-1 (arg), or arcosh(arg)) on the interval [0, +∞], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ * @see https://en.cppreference.com/w/c/numeric/math/acosh
+ */
+func acoshf(arg : float) : float
+
+/**
+ * Computes the inverse hyperbolic cosine of arg.
+ * @param arg	-	floating-point value representing the area of a hyperbolic sector
+ * @return If no errors occur, the inverse hyperbolic cosine of arg (cosh-1 (arg), or arcosh(arg)) on the interval [0, +∞], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ * @see https://en.cppreference.com/w/c/numeric/math/acosh
+ */
+func acosh(arg : double) : double
+
+/**
+ * Computes the inverse hyperbolic cosine of arg.
+ * @param arg	-	floating-point value representing the area of a hyperbolic sector
+ * @return If no errors occur, the inverse hyperbolic cosine of arg (cosh-1 (arg), or arcosh(arg)) on the interval [0, +∞], is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ * @see https://en.cppreference.com/w/c/numeric/math/acosh
+ */
+func acoshl(arg : float128) : float128
+
+/**
+ * Computes the inverse hyperbolic tangent of arg.
+ * @param arg	-	floating_point value representing the area of a hyperbolic sector
+ * @return If no errors occur, the inverse hyperbolic tangent of arg (tanh-1 (arg), or artanh(arg)), is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned (with the correct sign).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atanh
+ */
+func atanhf(arg : float) : float
+
+/**
+ * Computes the inverse hyperbolic tangent of arg.
+ * @param arg	-	floating_point value representing the area of a hyperbolic sector
+ * @return If no errors occur, the inverse hyperbolic tangent of arg (tanh-1 (arg), or artanh(arg)), is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned (with the correct sign).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atanh
+ */
+func atanh(arg : double) : double
+
+/**
+ * Computes the inverse hyperbolic tangent of arg.
+ * @param arg	-	floating_point value representing the area of a hyperbolic sector
+ * @return If no errors occur, the inverse hyperbolic tangent of arg (tanh-1 (arg), or artanh(arg)), is returned.
+ *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
+ *         If a pole error occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned (with the correct sign).
+ *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/atanh
+ */
+func atanhl(arg : float128) : float128
+
+/**
+ * Computes the error function of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, value of the error function of arg, that is2√π∫arg0e−t2dt, is returned. If a range error occurs due to underflow, the correct result (after rounding), that is2⋅arg√π, is returned.
+ * @see https://en.wikipedia.org/wiki/Error_function
+ * @see https://en.cppreference.com/w/c/numeric/math/erf
+ */
+func erff(arg : float) : float
+
+/**
+ * Computes the error function of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, value of the error function of arg, that is2√π∫arg0e−t2dt, is returned. If a range error occurs due to underflow, the correct result (after rounding), that is2⋅arg√π, is returned.
+ * @see https://en.wikipedia.org/wiki/Error_function
+ * @see https://en.cppreference.com/w/c/numeric/math/erf
+ */
+func erf(arg : double) : double
+
+/**
+ * Computes the error function of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, value of the error function of arg, that is 2√π∫arg0e−t2dt, is returned. If a range error occurs due to underflow, the correct result (after rounding), that is2⋅arg√π, is returned.
+ * @see https://en.wikipedia.org/wiki/Error_function
+ * @see https://en.cppreference.com/w/c/numeric/math/erf
+ */
+func erfl(arg : float128) : float128
+
+/**
+ * Computes the complementary error function of arg, that is 1.0 - erf(arg), but without loss of precision for large arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, value of the complementary error function of arg, that is 2√π∫∞arge−t2dt or1−erf(arg), is returned.If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/erfc
+ * @see https://en.wikipedia.org/wiki/Complementary_error_function
+ */
+func erfcf(arg : float) : float
+
+/**
+ * Computes the complementary error function of arg, that is 1.0 - erf(arg), but without loss of precision for large arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, value of the complementary error function of arg, that is 2√π∫∞arge−t2dt or1−erf(arg), is returned.If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/erfc
+ * @see https://en.wikipedia.org/wiki/Complementary_error_function
+ */
+func erfc(arg : double) : double
+
+/**
+ * Computes the complementary error function of arg, that is 1.0 - erf(arg), but without loss of precision for large arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, value of the complementary error function of arg, that is 2√π∫∞arge−t2dt or1−erf(arg), is returned.If a range error occurs due to underflow, the correct result (after rounding) is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/erfc
+ * @see https://en.wikipedia.org/wiki/Complementary_error_function
+ */
+func erfcl(arg : float128) : float128
+
+/**
+ * Computes the gamma function of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the value of the gamma function of arg, that is Γ(arg)=∫∞0targ−1e−tdt, is returned.
+ *         If a domain error occurs, an implementation-defined value (NaN where supported) is returned.
+ *         If a pole error occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct value (after rounding) is returned.
+ * @see https://en.wikipedia.org/wiki/Gamma_function
+ * @see https://en.cppreference.com/w/c/numeric/math/tgamma
+ */
+func tgammaf(arg : float) : float
+
+/**
+ * Computes the gamma function of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the value of the gamma function of arg, that is Γ(arg)=∫∞0targ−1e−tdt, is returned.
+ *         If a domain error occurs, an implementation-defined value (NaN where supported) is returned.
+ *         If a pole error occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct value (after rounding) is returned.
+ * @see https://en.wikipedia.org/wiki/Gamma_function
+ * @see https://en.cppreference.com/w/c/numeric/math/tgamma
+ */
+func tgamma(arg : double) : double
+
+/**
+ * Computes the gamma function of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the value of the gamma function of arg, that is Γ(arg)=∫∞0targ−1e−tdt, is returned.
+ *         If a domain error occurs, an implementation-defined value (NaN where supported) is returned.
+ *         If a pole error occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ *         If a range error due to underflow occurs, the correct value (after rounding) is returned.
+ * @see https://en.wikipedia.org/wiki/Gamma_function
+ * @see https://en.cppreference.com/w/c/numeric/math/tgamma
+ */
+func tgammal(arg : float128) : float128
+
+/**
+ * Computes the natural logarithm of the absolute value of the gamma function of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the value of the logarithm of the gamma function of arg, that is loge|∫∞0targ−1e−tdt|, is returned.
+ *         If a pole error occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/lgamma
+ */
+func lgammaf(arg : float) : float
+
+/**
+ * Computes the natural logarithm of the absolute value of the gamma function of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the value of the logarithm of the gamma function of arg, that is loge|∫∞0targ−1e−tdt|, is returned.
+ *         If a pole error occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/lgamma
+ */
+func lgamma(arg : double) : double
+
+/**
+ * Computes the natural logarithm of the absolute value of the gamma function of arg.
+ * @param arg	-	floating-point value
+ * @return If no errors occur, the value of the logarithm of the gamma function of arg, that is loge|∫∞0targ−1e−tdt|, is returned.
+ *         If a pole error occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
+ *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
+ * @see https://en.cppreference.com/w/c/numeric/math/lgamma
+ */
+func lgammal(arg : float128) : float128

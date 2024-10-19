@@ -1,3 +1,4 @@
+import "./chemical.ch"
 
 // TODO complex types haven't been defined yet
 // so here's what windows uses
@@ -15,9 +16,9 @@ public struct double_complex {
     var imag : double
 }
 
-public struct float128_complex {
-    var real : float128
-    var imag : float128
+public struct longdouble_complex {
+    var real : longdouble
+    var imag : longdouble
 }
 
 /**
@@ -55,8 +56,8 @@ public func CMPLX(real : double, imag : double) : double_complex {
  * @see https://en.cppreference.com/w/c/numeric/complex/CMPLX
  */
 @comptime
-public func CMPLXL(real : float128, imag : float128) : float128_complex {
-    return float128_complex { real : real, imag : imag }
+public func CMPLXL(real : longdouble, imag : longdouble) : longdouble_complex {
+    return longdouble_complex { real : real, imag : imag }
 }
 
 /**
@@ -75,7 +76,7 @@ public func creal(z : double_complex) : double
  * Returns the real part of z.
  * @see https://en.cppreference.com/w/c/numeric/complex/creal
  */
-public func creall(z : float128_complex ) : float128;
+public func creall(z : longdouble_complex ) : longdouble;
 
 /**
  * TODO create a creal macro that works on different complex types
@@ -98,7 +99,7 @@ public func cimag(z : double_complex) : double;
  * Returns the imaginary part of z.
  * @see https://en.cppreference.com/w/c/numeric/complex/cimag
  */
-public func cimagl(z : float128_complex ) : float128
+public func cimagl(z : longdouble_complex ) : longdouble
 
 /**
  * TODO create a cimag macro that works on different complex types
@@ -127,7 +128,7 @@ public func cabs(z : double_complex) : double
  * Errors and special cases are handled as if the function is implemented as hypot(creal(z), cimag(z))
  * @see https://en.cppreference.com/w/c/numeric/complex/cabs
  */
-public func cabsl(z : float128_complex) : float128
+public func cabsl(z : longdouble_complex) : longdouble
 
 /**
  * TODO create a cabs macro that works on different complex types
@@ -156,7 +157,7 @@ public func carg(z : double_complex) : double
  * Errors and special cases are handled as if the function is implemented as atan2(cimag(z), creal(z))
  * @see https://en.cppreference.com/w/c/numeric/complex/carg
  */
-public func cargl(z : float128_complex) : float128
+public func cargl(z : longdouble_complex) : longdouble
 
 /**
  * TODO create a carg macro that works on different complex types
@@ -185,7 +186,7 @@ public func conj(z : double_complex) : double_complex
  * @see https://en.wikipedia.org/wiki/Complex_conjugate
  * @see https://en.cppreference.com/w/c/numeric/complex/conj
  */
-public func conjl(z : float128_complex) : float128_complex
+public func conjl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a conj macro that works on different complex types
@@ -214,7 +215,7 @@ public func cproj(z : double_complex) : double_complex
  * This function is fully specified for all possible inputs and is not subject to any errors described in math_errhandling
  * @see https://en.cppreference.com/w/c/numeric/complex/cproj
  */
-public func cprojl(z : float128_complex) : float128_complex
+public func cprojl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a cproj macro that works on different complex types
@@ -240,7 +241,7 @@ public func cexp(z : double_complex) : double_complex
  * @return If no errors occur, e raised to the power of z,
  * @see https://en.cppreference.com/w/c/numeric/complex/cexp
  */
-public func cexpl(z : float128_complex) : float128_complex
+public func cexpl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a cexp macro that works on different complex types
@@ -266,7 +267,7 @@ public func clog(z : double_complex) : double_complex
  * @return If no errors occur, the complex natural logarithm of z is returned, in the range of a strip in the interval [−iπ, +iπ] along the imaginary axis and mathematically unbounded along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/clogs
  */
-public func clogl(z : float128_complex) : float128_complex
+public func clogl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a clog macro that works on different complex types
@@ -295,7 +296,7 @@ public func cpow(x : double_complex, y : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by cexp(y*clog(x)), except that the implementation is allowed to treat special cases more carefully.
  * @see https://en.cppreference.com/w/c/numeric/complex/cpow
  */
-public func cpowl(x : float128_complex, y : float128_complex) : float128_complex
+public func cpowl(x : longdouble_complex, y : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a cpow macro that works on different complex types
@@ -321,7 +322,7 @@ public func csqrt(z : double_complex) : double_complex
  * @return If no errors occur, returns the square root of z, in the range of the right half-plane, including the imaginary axis ([0; +∞) along the real axis and (−∞; +∞) along the imaginary axis.)
  * @see https://en.cppreference.com/w/c/numeric/complex/csqrt
  */
-public func csqrtl(z : float128_complex) : float128_complex
+public func csqrtl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a csqrt macro that works on different complex types
@@ -350,7 +351,7 @@ public func csin(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -I * csinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/csin
  */
-public func csinl(z : float128_complex) : float128_complex
+public func csinl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a sin macro that works on different complex types
@@ -380,7 +381,7 @@ public func ccos(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by ccosh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/ccos
  */
-public func ccosl(z : float128_complex) : float128_complex
+public func ccosl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a cos macro that works on different complex types
@@ -409,7 +410,7 @@ public func ctan(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -i * ctanh(i*z), where i is the imaginary unit.
  * @see https://en.cppreference.com/w/c/numeric/complex/ctan
  */
-public func ctanl(z : float128_complex) : float128_complex
+public func ctanl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a tan macro that works on different complex types
@@ -438,7 +439,7 @@ public func casin(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -I * casinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/casin
  */
-public func casinl(z : float128_complex) : float128_complex
+public func casinl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a asin macro that works on different complex types
@@ -464,7 +465,7 @@ public func cacos(z : double_complex) : double_complex
  * @return If no errors occur, complex arc cosine of z is returned, in the range a strip unbounded along the imaginary axis and in the interval [0; π] along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacos
  */
-public func cacosl(z : float128_complex) : float128_complex
+public func cacosl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a acos macro that works on different complex types
@@ -493,7 +494,7 @@ public func catan(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -I * catanh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/catan
  */
-public func catanl(z : float128_complex) : float128_complex
+public func catanl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a atan macro that works on different complex types
@@ -519,7 +520,7 @@ public func csinh(z : double_complex) : double_complex
  * @return If no errors occur, complex hyperbolic sine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/csinh
  */
-public func csinhl(z : float128_complex) : float128_complex
+public func csinhl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a sinh macro that works on different complex types
@@ -545,7 +546,7 @@ public func ccosh(z : double_complex) : double_complex
  * @return If no errors occur, complex hyperbolic cosine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ccosh
  */
-public func ccoshl(z : float128_complex) : float128_complex
+public func ccoshl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a cosh macro that works on different complex types
@@ -571,7 +572,7 @@ public func ctanh(z : double_complex) : double_complex
  * @return If no errors occur, complex hyperbolic tangent of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ctanh
  */
-public func ctanhl(z : float128_complex) : float128_complex
+public func ctanhl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a tanh macro that works on different complex types
@@ -597,7 +598,7 @@ public func casinh(z : double_complex) : double_complex
  * @return If no errors occur, the complex arc hyperbolic sine of z is returned, in the range of a strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/casinh
  */
-public func casinhl(z : float128_complex) : float128_complex
+public func casinhl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a asinh macro that works on different complex types
@@ -623,7 +624,7 @@ public func cacosh(z : double_complex) : double_complex
  * @return The complex arc hyperbolic cosine of z in the interval [0; ∞) along the real axis and in the interval [−iπ; +iπ] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacosh
  */
-public func cacoshl(z : float128_complex) : float128_complex
+public func cacoshl(z : longdouble_complex) : float128_complex
 
 /**
  * TODO create a acosh macro that works on different complex types

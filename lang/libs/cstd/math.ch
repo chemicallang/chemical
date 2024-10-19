@@ -1,3 +1,5 @@
+import "./chemical.ch"
+
 /**
  * Computes the absolute value of a floating-point value arg.
  * @param arg	-	floating-point value
@@ -20,14 +22,14 @@ func fabs(arg : double) : double
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
-func fabsl(arg : float128) : float128
+func fabsl(arg : longdouble) : longdouble
 
 /**
  * TODO
  */
 typealias _Decimal32 = float
 typealias _Decimal64 = double
-typealias _Decimal128 = float128
+typealias _Decimal128 = longdouble
 
 /**
  * Computes the absolute value of a floating-point value arg.
@@ -93,7 +95,7 @@ func fmod(x : double, y : double) : double
  * If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fmod
  */
-func fmodl(x : float128, y : float128) : float128
+func fmodl(x : longdouble, y : longdouble) : longdouble
 
 /**
  * TODO macro fmod
@@ -133,7 +135,7 @@ func remainder(x : double, y : double) : double
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remainder
  */
-func remainderl(x : float128, y : float128) : float128
+func remainderl(x : longdouble, y : longdouble) : longdouble
 
 /**
  * Computes the floating-point remainder of the division operation x/y as the remainder() function does. Additionally, the sign and at least the three of the last bits of x/y will be stored in quo, sufficient to determine the octant of the result within a period.
@@ -175,7 +177,7 @@ func remquo(x : double, y : double, quo : *mut int) : double
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
-func remquol(x : float128, y : float128, quo : *mut int) : float128
+func remquol(x : longdouble, y : longdouble, quo : *mut int) : longdouble
 
 /**
  * Computes (x * y) + z as if to infinite precision and rounded only once to fit the result type.
@@ -205,7 +207,7 @@ func fma(x : double, y : double, z : double) : double
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fma
  */
-func fmal(x : float128, y : float128, z : float128) : float128
+func fmal(x : longdouble, y : longdouble, z : longdouble) : longdouble
 
 /**
  * TODO these macros
@@ -238,7 +240,7 @@ func fmax(x : double, y : double) : double
  * @return If successful, returns the larger of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmax
  */
-func fmaxl(x : float128, y : float128) : float128
+func fmaxl(x : longdouble, y : longdouble) : longdouble
 
 /**
  * Returns the smaller of two floating-point arguments, treating NaNs as missing data (between a NaN and a numeric value, the numeric value is chosen).
@@ -262,7 +264,7 @@ func fmin(x : double, y : double ) : double
  * @return If successful, returns the smaller of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmin
  */
-func fminl(x : float128, y : float128) : float128
+func fminl(x : longdouble, y : longdouble) : longdouble
 
 /**
  * Returns the positive difference between x and y, that is, if x>y, returns x-y, otherwise (if x≤y), returns +0.
@@ -292,7 +294,7 @@ func fdim(x : double, y : double) : double
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fdim
  */
-func fdiml(x : float128, y : float128) : float128
+func fdiml(x : longdouble, y : longdouble) : longdouble
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -331,7 +333,7 @@ func nan(arg : *char) : double
  * If the implementation supports IEEE floating-point arithmetic (IEC 60559), it also supports quiet NaNs.
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
-func nanl(arg : *char) : float128
+func nanl(arg : *char) : longdouble
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -400,7 +402,7 @@ func exp(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/exp
  */
-func expl(arg : float128 ) : float128
+func expl(arg : longdouble ) : longdouble
 
 /**
  * Computes 2 raised to the given power n.
@@ -430,7 +432,7 @@ func exp2(n : double)  : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/exp2
  */
-float128 exp2l(n : float128) : float128
+longdouble exp2l(n : longdouble) : longdouble
 
 /**
  * Computes the e (Euler's number, 2.7182818) raised to the given power arg, minus 1.0. This function is more accurate than the expression exp(arg)-1.0 if arg is close to zero.
@@ -460,7 +462,7 @@ func expm1(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/expm1
  */
-func expm1l(arg : float128) : float128
+func expm1l(arg : longdouble) : longdouble
 
 /**
  * Computes the natural (base e) logarithm of arg.
@@ -490,7 +492,7 @@ func log(arg : double) : double
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log
  */
-func logl(arg : float128) : float128
+func logl(arg : longdouble) : longdouble
 
 /**
  * Computes the common (base-10) logarithm of arg.
@@ -520,7 +522,7 @@ func log10(arg : double) : double
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log10
  */
-func log10l(arg : float128) : float128
+func log10l(arg : longdouble) : longdouble
 
 /**
  * Computes the base 2 logarithm of arg.
@@ -550,7 +552,7 @@ func log2(arg : double) : double
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log2
  */
-func log2l(arg : float128) : float128
+func log2l(arg : longdouble) : longdouble
 
 /**
  * Computes the natural (base e) logarithm of 1 + arg. This function is more precise than the expression log(1 + arg) if arg is close to zero.
@@ -583,7 +585,7 @@ func log1p(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log1p
  */
-func log1pl(arg :float128) : float128
+func log1pl(arg :longdouble) : longdouble
 
 /**
  * Computes the value of base raised to the power exponent
@@ -619,7 +621,7 @@ func pow(base : double, exponent : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/pow
  */
-func powl(base : float128, exponent : float128) : float128
+func powl(base : longdouble, exponent : longdouble) : longdouble
 
 /**
  * Computes square root of arg.
@@ -649,7 +651,7 @@ func sqrt(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sqrt
  */
-func sqrtl(arg : float128) : float128
+func sqrtl(arg : longdouble) : longdouble
 
 /**
  * Computes the cube root of arg.
@@ -676,7 +678,7 @@ func cbrt(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cbrt
  */
-func cbrtl(arg : float128) : float128
+func cbrtl(arg : longdouble) : longdouble
 
 /**
  * Computes the square root of the sum of the squares of x and y, without undue overflow or underflow at intermediate stages of the computation.
@@ -706,7 +708,7 @@ func hypot(x : double, y : double) : double
  * If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/hypot
  */
-func hypotl(x : float128, y : float128) : float128
+func hypotl(x : longdouble, y : float128) : float128
 
 /**
  * Computes the sine of arg (measured in radians).

@@ -1,3 +1,5 @@
+import "./chemical.ch"
+
 /**
  * Interprets a floating-point value in a byte string pointed to by str.
  * Function discards any whitespace characters (as determined by isspace) until first non-whitespace character is found. Then it takes as many characters as possible to form a valid floating-point representation and converts them to a floating-point value. The valid floating-point value can be one of the following:
@@ -223,7 +225,7 @@ func strtod(str : *mut char, str_end : **mut char) : double
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
-func strtold(str : *mut char, str_end : **mut char) : float128
+func strtold(str : *mut char, str_end : **mut char) : longdouble
 
 /**
  * Converts a floating-point value to a byte string.
@@ -259,7 +261,7 @@ func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
  * @return The number of characters that would have been written had n been sufficiently large, not counting the terminating null character. Thus, the null-terminated output has been completely written if and only if the returned value is both nonnegative and less than n.
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
-func strfroml(s : *char, n : size_t, format : *char, fp : float128) : int
+func strfroml(s : *char, n : size_t, format : *char, fp : longdouble) : int
 
 /**
  * Computes the absolute value of an integer number. The behavior is undefined if the result cannot be represented by the return type.

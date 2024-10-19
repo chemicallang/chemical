@@ -260,3 +260,188 @@ func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
 func strfroml(s : *char, n : size_t, format : *char, fp : float128) : int
+
+/**
+ * Computes the absolute value of an integer number. The behavior is undefined if the result cannot be represented by the return type.
+ * @param n	-	integer value
+ * @return The absolute value of n (i.e. |n|), if it is representable.
+ * @see https://en.cppreference.com/w/c/numeric/math/abs
+ */
+func abs(n : int) : int
+
+/**
+ * Computes the absolute value of an integer number. The behavior is undefined if the result cannot be represented by the return type.
+ * @param n	-	integer value
+ * @return The absolute value of n (i.e. |n|), if it is representable.
+ * @see https://en.cppreference.com/w/c/numeric/math/abs
+ */
+func labs(n : long) : long
+
+/**
+ * Computes the absolute value of an integer number. The behavior is undefined if the result cannot be represented by the return type.
+ * @param n	-	integer value
+ * @return The absolute value of n (i.e. |n|), if it is representable.
+ * @see https://en.cppreference.com/w/c/numeric/math/abs
+ */
+func llabs(n : bigint) : bigint
+
+/**
+ * the result of div function below
+ */
+struct div_t {
+    const quot : int
+    const rem : int
+};
+
+/**
+ * Computes both the quotient and the remainder of the division of the numerator x by the denominator y.
+ * @param x, y	-	integer values
+ * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
+ * @see https://en.cppreference.com/w/c/numeric/math/div
+ */
+func div(x : int, y : int) : div_t
+
+/**
+ * the result of ldiv function below
+ */
+struct ldiv_t {
+    const quot : long;
+    const rem : long;
+};
+
+/**
+ * Computes both the quotient and the remainder of the division of the numerator x by the denominator y.
+ * @param x, y	-	integer values
+ * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
+ * @see https://en.cppreference.com/w/c/numeric/math/div
+ */
+func ldiv(x : long, y : long) : ldiv_t
+
+
+/**
+ * the result of lldiv function below
+ */
+struct lldiv_t {
+    const quot : bigint;
+    const rem : bigint;
+};
+
+/**
+ * Computes both the quotient and the remainder of the division of the numerator x by the denominator y.
+ * @param x, y	-	integer values
+ * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
+ * @see https://en.cppreference.com/w/c/numeric/math/div
+ */
+func lldiv(x : bigint, y : bigint) : lldiv_t
+
+/**
+ * Causes abnormal program termination unless SIGABRT is being caught by a signal handler passed to signal and the handler does not return.
+ * Functions passed to atexit() are not called. Whether open resources such as files are closed is implementation defined. An implementation defined status is returned to the host environment that indicates unsuccessful execution.
+ * @see https://en.cppreference.com/w/c/program/abort
+ */
+func abort();
+
+/**
+ * Causes normal program termination to occur.
+ * Several cleanup steps are performed:
+ *      functions passed to atexit are called, in reverse order of registration
+ *      all C streams are flushed and closed
+ *      files created by tmpfile are removed
+ *      control is returned to the host environment. If exit_code is zero or EXIT_SUCCESS, an implementation-defined status indicating successful termination is returned. If exit_code is EXIT_FAILURE, an implementation-defined status indicating unsuccessful termination is returned. In other cases implementation-defined status value is returned.
+ * @see https://en.cppreference.com/w/c/program/exit
+ */
+func exit(exit_code : int);
+
+/**
+ * Causes normal program termination to occur without completely cleaning the resources.
+ * Functions passed to at_quick_exit are called in reverse order of their registration. After calling the registered functions, calls _Exit(exit_code).
+ * Functions passed to atexit or signal handlers passed to signal are not called.
+ * @param exit_code	-	exit status of the program
+ * @see https://en.cppreference.com/w/c/program/quick_exit
+ */
+func quick_exit(exit_code : int)
+
+/**
+ * Causes normal program termination to occur without completely cleaning the resources.
+ * Functions passed to at_quick_exit() or atexit() are not called. Whether open streams with unwritten buffered data are flushed, open streams are closed, or temporary files are removed is implementation-defined.
+ * If exit_code is 0 or EXIT_SUCCESS, an implementation-defined status indicating successful termination is returned to the host environment. If exit_code is EXIT_FAILURE, an implementation-defined status, indicating unsuccessful termination, is returned. In other cases an implementation-defined status value is returned.
+ * @param exit_code	-	exit status of the program
+ * @see https://en.cppreference.com/w/c/program/_Exit
+ */
+func _Exit(exit_code : int)
+
+/**
+ * Registers the function pointed to by func to be called on normal program termination (via exit() or returning from main()). The functions will be called in reverse order they were registered, i.e. the function registered last will be executed first.
+ * The same function may be registered more than once.
+ * The implementation is guaranteed to support the registration of at least 32 functions. The exact limit is implementation-defined.
+ * @param func	-	pointer to a function to be called on normal program termination
+ * @return 0 if the registration succeeds, nonzero value otherwise.
+ * @see https://en.cppreference.com/w/c/program/atexit
+ */
+func atexit(func : () => void ) : int
+
+/**
+ * Registers the function pointed to by func to be called on quick program termination (via quick_exit).
+ * Calling the function from several threads does not induce a data race. The implementation is guaranteed to support the registration of at least 32 functions. The exact limit is implementation-defined.
+ * The registered functions will not be called on normal program termination. If a function need to be called in that case, atexit must be used.
+ * @param func	-	pointer to a function to be called on quick program termination
+ * @return 0 if the registration succeeds, nonzero value otherwise.
+ * @see https://en.cppreference.com/w/c/program/at_quick_exit
+ */
+func at_quick_exit(func : () => void) : int
+
+/**
+ * TODO these macros haven't been defined
+ * #define EXIT_SUCCESS // implementation defined
+ * #define EXIT_FAILURE // implementation defined
+ * @see https://en.cppreference.com/w/c/program/EXIT_status
+ */
+
+/**
+ * Calls the host environment's command processor with the parameter command. Returns an implementation-defined value (usually the value that the invoked program returns).
+ * If command is a null pointer, checks if the host environment has a command processor and returns a nonzero value if and only if the command processor exists.
+ * @param command	-	character string identifying the command to be run in the command processor. If a null pointer is given, command processor is checked for existence
+ * @return Implementation-defined value. If command is a null pointer, returns a nonzero value if and only if the command processor exists.
+ * @see https://en.cppreference.com/w/c/program/system
+ */
+func system(command : *char) : int
+
+/**
+ * Searches for an environmental variable with name name in the host-specified environment list and returns a pointer to the string that is associated with the matched environment variable. The set of environmental variables and methods of altering it are implementation-defined.
+ * This function is not required to be thread-safe. Another call to getenv, as well as a call to the POSIX functions setenv(), unsetenv(), and putenv() may invalidate the pointer returned by a previous call or modify the string obtained from a previous call.
+ * Modifying the string returned by getenv invokes undefined behavior.
+ * @param name	-	null-terminated character string identifying the name of the environmental variable to look for
+ * @return character string identifying the value of the environmental variable or null pointer if such variable is not found.
+ * @see https://en.cppreference.com/w/c/program/getenv
+ */
+func getenv(name : *char) : *mut char
+
+/**
+ * Same as (1), except that the values of the environment variable is written to the user-provided buffer value (unless null) and the number of bytes written is stored in the user-provided location *len (unless null). If the environment variable is not set in the environment, zero is written to *len (unless null) and '\0' is written to value[0] (unless null). In addition, the following errors are detected at runtime and call the currently installed constraint handler function:
+ * name is a null pointer
+ * valuesz is greater than RSIZE_MAX
+ * value is a null pointer and valuesz is not zero
+ * As with all bounds-checked functions, getenv_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdlib.h>.
+ * @param name	-	null-terminated character string identifying the name of the environmental variable to look for TODO restricted
+ * @param len	-	pointer to a user-provided location where getenv_s will store the length of the environment variable TODO restricted
+ * @param value	-	pointer to a user-provided character array where getenv_s will store the contents of the environment variable TODO restricted
+ * @param valuesz	-	maximum number of characters that getenv_s is allowed to write to dest (size of the buffer)
+ * @return zero if the environment variable was found, non-zero if it was not found or if a runtime constraint violation occurred. On any error, writes zero to *len (unless len is a null pointer).
+ * @see https://en.cppreference.com/w/c/program/getenv
+ */
+func getenv_s(
+    len : *mut size_t,
+    value : *mut char,
+    valuesz : rsize_t,
+    name : *char
+) : errno_t
+
+/**
+ * Returns the maximum alignment satisfied by the provided address. The return value can be greater than any alignment value supported by the implementation. If p is a null pointer value, ​0​ is returned to indicate that the pointer cannot be used to access an object of any type.
+ * If the return value compares is greater than or equal to alignof(T), the alignment requirement for the type T is satisfied by the pointer.
+ * A freestanding implementation needs to provide memalignment.
+ * @param p	-	pointer to query alignment
+ * @return The alignment value of p, or 0 if p is a null pointer value.
+ * @see https://en.cppreference.com/w/c/program/memalignment
+ */
+func memalignment(p : *void) : size_t

@@ -582,3 +582,9 @@ public func wcstombs(dst : *mut char, src : *wchar_t, len : size_t) : size_t
  * @see https://en.cppreference.com/w/c/string/multibyte/wcstombs
  */
 public func wcstombs_s(retval : *size_t, dst : *char, dstsz : rsize_t, src : *wchar_t, len : rsize_t);
+
+/**
+ * TODO macro MB_CUR_MAX
+ * maximum number of bytes in a multibyte character, in the current locale
+ * @see https://en.cppreference.com/w/c/string/multibyte
+ */

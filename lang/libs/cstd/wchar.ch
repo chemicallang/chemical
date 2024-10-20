@@ -260,3 +260,338 @@ public func fwscanf_s(stream : *mut FILE, format : *wchar_t, ...) : int
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
 public func swscanf_s( s : *wchar_t, format : *wchar_t, ...) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
+ * Reads the data from stdin.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param vlist	-	variable argument list containing the receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
+ * @see https://en.cppreference.com/w/c/io/vfwscanf
+ */
+public func vwscanf(format : *wchar_t, vlist : va_list) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
+ * Reads the data from file stream stream.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param vlist	-	variable argument list containing the receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
+ * @see https://en.cppreference.com/w/c/io/vfwscanf
+ */
+public func vfwscanf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
+ * Reads the data from null-terminated wide string buffer. Reaching the end of the string is equivalent to reaching the end-of-file condition for fwscanf
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param vlist	-	variable argument list containing the receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
+ * @see https://en.cppreference.com/w/c/io/vfwscanf
+ */
+public func vswscanf(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
+ * Same as (1-3), except that %c, %s, and %[ conversion specifiers each expect two arguments (the usual pointer and a value of type rsize_t indicating the size of the receiving array, which may be 1 when reading with a %lc into a single wide character) and except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      any of the arguments of pointer type is a null pointer
+ *      format, stream, or buffer is a null pointer
+ *      the number of characters that would be written by %c, %s, or %[, plus the terminating null character, would exceed the second (rsize_t) argument provided for each of those conversion specifiers
+ *      optionally, any other detectable error, such as unknown conversion specifier
+ * As with all bounds-checked functions, vwscanf_s, vfwscanf_s, and vswscanf_s are only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdio.h>.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param vlist	-	variable argument list containing the receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
+ * @see https://en.cppreference.com/w/c/io/vfwscanf
+ */
+public func vwscanf_s(format : *wchar_t, vlist : va_list) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
+ * Same as (1-3), except that %c, %s, and %[ conversion specifiers each expect two arguments (the usual pointer and a value of type rsize_t indicating the size of the receiving array, which may be 1 when reading with a %lc into a single wide character) and except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      any of the arguments of pointer type is a null pointer
+ *      format, stream, or buffer is a null pointer
+ *      the number of characters that would be written by %c, %s, or %[, plus the terminating null character, would exceed the second (rsize_t) argument provided for each of those conversion specifiers
+ *      optionally, any other detectable error, such as unknown conversion specifier
+ * As with all bounds-checked functions, vwscanf_s, vfwscanf_s, and vswscanf_s are only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdio.h>.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param vlist	-	variable argument list containing the receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
+ * @see https://en.cppreference.com/w/c/io/vfwscanf
+ */
+public func vfwscanf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
+ * Same as (1-3), except that %c, %s, and %[ conversion specifiers each expect two arguments (the usual pointer and a value of type rsize_t indicating the size of the receiving array, which may be 1 when reading with a %lc into a single wide character) and except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      any of the arguments of pointer type is a null pointer
+ *      format, stream, or buffer is a null pointer
+ *      the number of characters that would be written by %c, %s, or %[, plus the terminating null character, would exceed the second (rsize_t) argument provided for each of those conversion specifiers
+ *      optionally, any other detectable error, such as unknown conversion specifier
+ * As with all bounds-checked functions, vwscanf_s, vfwscanf_s, and vswscanf_s are only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdio.h>.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param vlist	-	variable argument list containing the receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
+ * @see https://en.cppreference.com/w/c/io/vfwscanf
+ */
+public func vswscanf_s(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : int
+
+/**
+ * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
+ * Writes the results to stdout.
+ * @param stream	-	output file stream to write to
+ * @param buffer	-	pointer to a wide character string to write to
+ * @param bufsz	-	up to bufsz - 1 wide characters may be written, plus the null terminator
+ * @param format	-	pointer to a null-terminated wide string specifying how to interpret the data
+ * @param ...	-	arguments specifying data to print. If any argument after default argument promotions is not the type expected by the corresponding conversion specifier, or if there are fewer arguments than required by format, the behavior is undefined. If there are more arguments than required by format, the extraneous arguments are evaluated and ignored.
+ * The format string consists of ordinary wide characters (except %), which are copied unchanged into the output stream, and conversion specifications. Each conversion specification has the following format:
+ *      introductory % character.
+ *      (optional) one or more flags that modify the behavior of the conversion:
+ *          -: the result of the conversion is left-justified within the field (by default it is right-justified).
+ *          +: the sign of signed conversions is always prepended to the result of the conversion (by default the result is preceded by minus only when it is negative).
+ *          space: if the result of a signed conversion does not start with a sign character, or is empty, space is prepended to the result. It is ignored if + flag is present.
+ *          #: alternative form of the conversion is performed. See the table below for exact effects otherwise the behavior is undefined.
+ *          0: for integer and floating-point number conversions, leading zeros are used to pad the field instead of space characters. For integer numbers it is ignored if the precision is explicitly specified. For other conversions using this flag results in undefined behavior. It is ignored if - flag is present.
+ *      (optional) integer value or * that specifies minimum field width. The result is padded with space characters (by default), if required, on the left when right-justified, or on the right if left-justified. In the case when * is used, the width is specified by an additional argument of type int, which appears before the argument to be converted and the argument supplying precision if one is supplied. If the value of the argument is negative, it results with the - flag specified and positive field width (Note: This is the minimum width: The value is never truncated.).
+ *      (optional) . followed by integer number or *, or neither that specifies precision of the conversion. In the case when * is used, the precision is specified by an additional argument of type int, which appears before the argument to be converted, but after the argument supplying minimum field width if one is supplied. If the value of this argument is negative, it is ignored. If neither a number nor * is used, the precision is taken as zero. See the table below for exact effects of precision.
+ *      (optional) length modifier that specifies the size of the argument (in combination with the conversion format specifier, it specifies the type of the corresponding argument).
+ *      conversion format specifier.
+ * @return Number of wide characters written if successful or negative value if an error occurred.
+ * @see https://en.cppreference.com/w/c/io/fwprintf
+ */
+public func wprintf(format : *wchar_t, ... ) : int
+
+/**
+ * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
+ * Writes the results to a file stream stream
+ * @param stream	-	output file stream to write to
+ * @param buffer	-	pointer to a wide character string to write to
+ * @param bufsz	-	up to bufsz - 1 wide characters may be written, plus the null terminator
+ * @param format	-	pointer to a null-terminated wide string specifying how to interpret the data
+ * @param ...	-	arguments specifying data to print. If any argument after default argument promotions is not the type expected by the corresponding conversion specifier, or if there are fewer arguments than required by format, the behavior is undefined. If there are more arguments than required by format, the extraneous arguments are evaluated and ignored.
+ * The format string consists of ordinary wide characters (except %), which are copied unchanged into the output stream, and conversion specifications. Each conversion specification has the following format:
+ *      introductory % character.
+ *      (optional) one or more flags that modify the behavior of the conversion:
+ *          -: the result of the conversion is left-justified within the field (by default it is right-justified).
+ *          +: the sign of signed conversions is always prepended to the result of the conversion (by default the result is preceded by minus only when it is negative).
+ *          space: if the result of a signed conversion does not start with a sign character, or is empty, space is prepended to the result. It is ignored if + flag is present.
+ *          #: alternative form of the conversion is performed. See the table below for exact effects otherwise the behavior is undefined.
+ *          0: for integer and floating-point number conversions, leading zeros are used to pad the field instead of space characters. For integer numbers it is ignored if the precision is explicitly specified. For other conversions using this flag results in undefined behavior. It is ignored if - flag is present.
+ *      (optional) integer value or * that specifies minimum field width. The result is padded with space characters (by default), if required, on the left when right-justified, or on the right if left-justified. In the case when * is used, the width is specified by an additional argument of type int, which appears before the argument to be converted and the argument supplying precision if one is supplied. If the value of the argument is negative, it results with the - flag specified and positive field width (Note: This is the minimum width: The value is never truncated.).
+ *      (optional) . followed by integer number or *, or neither that specifies precision of the conversion. In the case when * is used, the precision is specified by an additional argument of type int, which appears before the argument to be converted, but after the argument supplying minimum field width if one is supplied. If the value of this argument is negative, it is ignored. If neither a number nor * is used, the precision is taken as zero. See the table below for exact effects of precision.
+ *      (optional) length modifier that specifies the size of the argument (in combination with the conversion format specifier, it specifies the type of the corresponding argument).
+ *      conversion format specifier.
+ * @return Number of wide characters written if successful or negative value if an error occurred.
+ * @see https://en.cppreference.com/w/c/io/fwprintf
+ */
+public func fwprintf(stream : *mut FILE, format : *wchar_t, ... ) : int
+
+/**
+ * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
+ * If bufsz is greater than zero, writes the results to a wide string buffer. At most bufsz - 1 wide characters are written followed by null wide character. If bufsz is zero, nothing is written (and buffer may be a null pointer).
+ * @param stream	-	output file stream to write to
+ * @param buffer	-	pointer to a wide character string to write to
+ * @param bufsz	-	up to bufsz - 1 wide characters may be written, plus the null terminator
+ * @param format	-	pointer to a null-terminated wide string specifying how to interpret the data
+ * @param ...	-	arguments specifying data to print. If any argument after default argument promotions is not the type expected by the corresponding conversion specifier, or if there are fewer arguments than required by format, the behavior is undefined. If there are more arguments than required by format, the extraneous arguments are evaluated and ignored.
+ * The format string consists of ordinary wide characters (except %), which are copied unchanged into the output stream, and conversion specifications. Each conversion specification has the following format:
+ *      introductory % character.
+ *      (optional) one or more flags that modify the behavior of the conversion:
+ *          -: the result of the conversion is left-justified within the field (by default it is right-justified).
+ *          +: the sign of signed conversions is always prepended to the result of the conversion (by default the result is preceded by minus only when it is negative).
+ *          space: if the result of a signed conversion does not start with a sign character, or is empty, space is prepended to the result. It is ignored if + flag is present.
+ *          #: alternative form of the conversion is performed. See the table below for exact effects otherwise the behavior is undefined.
+ *          0: for integer and floating-point number conversions, leading zeros are used to pad the field instead of space characters. For integer numbers it is ignored if the precision is explicitly specified. For other conversions using this flag results in undefined behavior. It is ignored if - flag is present.
+ *      (optional) integer value or * that specifies minimum field width. The result is padded with space characters (by default), if required, on the left when right-justified, or on the right if left-justified. In the case when * is used, the width is specified by an additional argument of type int, which appears before the argument to be converted and the argument supplying precision if one is supplied. If the value of the argument is negative, it results with the - flag specified and positive field width (Note: This is the minimum width: The value is never truncated.).
+ *      (optional) . followed by integer number or *, or neither that specifies precision of the conversion. In the case when * is used, the precision is specified by an additional argument of type int, which appears before the argument to be converted, but after the argument supplying minimum field width if one is supplied. If the value of this argument is negative, it is ignored. If neither a number nor * is used, the precision is taken as zero. See the table below for exact effects of precision.
+ *      (optional) length modifier that specifies the size of the argument (in combination with the conversion format specifier, it specifies the type of the corresponding argument).
+ *      conversion format specifier.
+ * @return Number of wide characters written (not counting the terminating null wide character) if successful or negative value if an encoding error occurred or if the number of characters to be generated was equal or greater than bufsz (including when bufsz is zero).
+ * @see https://en.cppreference.com/w/c/io/fwprintf
+ */
+public func swprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, ... ) : int
+
+/**
+ * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
+ * Same as (1-3), except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      the conversion specifier %n is present in format
+ *      any of the arguments corresponding to %s is a null pointer
+ *      format or buffer is a null pointer
+ *      bufsz is zero or greater than RSIZE_MAX / sizeof(wchar_t)
+ *      encoding errors occur in any of string and character conversion specifiers
+ *      (only for swprintf_s) the number of wide characters to be written, including the null, would exceed bufsz
+ * @param stream	-	output file stream to write to
+ * @param buffer	-	pointer to a wide character string to write to
+ * @param bufsz	-	up to bufsz - 1 wide characters may be written, plus the null terminator
+ * @param format	-	pointer to a null-terminated wide string specifying how to interpret the data
+ * @param ...	-	arguments specifying data to print. If any argument after default argument promotions is not the type expected by the corresponding conversion specifier, or if there are fewer arguments than required by format, the behavior is undefined. If there are more arguments than required by format, the extraneous arguments are evaluated and ignored.
+ * The format string consists of ordinary wide characters (except %), which are copied unchanged into the output stream, and conversion specifications. Each conversion specification has the following format:
+ *      introductory % character.
+ *      (optional) one or more flags that modify the behavior of the conversion:
+ *          -: the result of the conversion is left-justified within the field (by default it is right-justified).
+ *          +: the sign of signed conversions is always prepended to the result of the conversion (by default the result is preceded by minus only when it is negative).
+ *          space: if the result of a signed conversion does not start with a sign character, or is empty, space is prepended to the result. It is ignored if + flag is present.
+ *          #: alternative form of the conversion is performed. See the table below for exact effects otherwise the behavior is undefined.
+ *          0: for integer and floating-point number conversions, leading zeros are used to pad the field instead of space characters. For integer numbers it is ignored if the precision is explicitly specified. For other conversions using this flag results in undefined behavior. It is ignored if - flag is present.
+ *      (optional) integer value or * that specifies minimum field width. The result is padded with space characters (by default), if required, on the left when right-justified, or on the right if left-justified. In the case when * is used, the width is specified by an additional argument of type int, which appears before the argument to be converted and the argument supplying precision if one is supplied. If the value of the argument is negative, it results with the - flag specified and positive field width (Note: This is the minimum width: The value is never truncated.).
+ *      (optional) . followed by integer number or *, or neither that specifies precision of the conversion. In the case when * is used, the precision is specified by an additional argument of type int, which appears before the argument to be converted, but after the argument supplying minimum field width if one is supplied. If the value of this argument is negative, it is ignored. If neither a number nor * is used, the precision is taken as zero. See the table below for exact effects of precision.
+ *      (optional) length modifier that specifies the size of the argument (in combination with the conversion format specifier, it specifies the type of the corresponding argument).
+ *      conversion format specifier.
+ * @return Number of wide characters written if successful or negative value if an error occurred.
+ * @see https://en.cppreference.com/w/c/io/fwprintf
+ */
+public func wprintf_s(format : *wchar_t, ... ) : int
+
+/**
+ * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
+ * Same as (1-3), except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      the conversion specifier %n is present in format
+ *      any of the arguments corresponding to %s is a null pointer
+ *      format or buffer is a null pointer
+ *      bufsz is zero or greater than RSIZE_MAX / sizeof(wchar_t)
+ *      encoding errors occur in any of string and character conversion specifiers
+ *      (only for swprintf_s) the number of wide characters to be written, including the null, would exceed bufsz
+ * @param stream	-	output file stream to write to
+ * @param buffer	-	pointer to a wide character string to write to
+ * @param bufsz	-	up to bufsz - 1 wide characters may be written, plus the null terminator
+ * @param format	-	pointer to a null-terminated wide string specifying how to interpret the data
+ * @param ...	-	arguments specifying data to print. If any argument after default argument promotions is not the type expected by the corresponding conversion specifier, or if there are fewer arguments than required by format, the behavior is undefined. If there are more arguments than required by format, the extraneous arguments are evaluated and ignored.
+ * The format string consists of ordinary wide characters (except %), which are copied unchanged into the output stream, and conversion specifications. Each conversion specification has the following format:
+ *      introductory % character.
+ *      (optional) one or more flags that modify the behavior of the conversion:
+ *          -: the result of the conversion is left-justified within the field (by default it is right-justified).
+ *          +: the sign of signed conversions is always prepended to the result of the conversion (by default the result is preceded by minus only when it is negative).
+ *          space: if the result of a signed conversion does not start with a sign character, or is empty, space is prepended to the result. It is ignored if + flag is present.
+ *          #: alternative form of the conversion is performed. See the table below for exact effects otherwise the behavior is undefined.
+ *          0: for integer and floating-point number conversions, leading zeros are used to pad the field instead of space characters. For integer numbers it is ignored if the precision is explicitly specified. For other conversions using this flag results in undefined behavior. It is ignored if - flag is present.
+ *      (optional) integer value or * that specifies minimum field width. The result is padded with space characters (by default), if required, on the left when right-justified, or on the right if left-justified. In the case when * is used, the width is specified by an additional argument of type int, which appears before the argument to be converted and the argument supplying precision if one is supplied. If the value of the argument is negative, it results with the - flag specified and positive field width (Note: This is the minimum width: The value is never truncated.).
+ *      (optional) . followed by integer number or *, or neither that specifies precision of the conversion. In the case when * is used, the precision is specified by an additional argument of type int, which appears before the argument to be converted, but after the argument supplying minimum field width if one is supplied. If the value of this argument is negative, it is ignored. If neither a number nor * is used, the precision is taken as zero. See the table below for exact effects of precision.
+ *      (optional) length modifier that specifies the size of the argument (in combination with the conversion format specifier, it specifies the type of the corresponding argument).
+ *      conversion format specifier.
+ * @return Number of wide characters written if successful or negative value if an error occurred.
+ * @see https://en.cppreference.com/w/c/io/fwprintf
+ */
+public func fwprintf_s(stream : *mut FILE, format : *wchar_t, ... ) : int
+
+/**
+ * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
+ * Same as (1-3), except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      the conversion specifier %n is present in format
+ *      any of the arguments corresponding to %s is a null pointer
+ *      format or buffer is a null pointer
+ *      bufsz is zero or greater than RSIZE_MAX / sizeof(wchar_t)
+ *      encoding errors occur in any of string and character conversion specifiers
+ *      (only for swprintf_s) the number of wide characters to be written, including the null, would exceed bufsz
+ * @param stream	-	output file stream to write to
+ * @param buffer	-	pointer to a wide character string to write to
+ * @param bufsz	-	up to bufsz - 1 wide characters may be written, plus the null terminator
+ * @param format	-	pointer to a null-terminated wide string specifying how to interpret the data
+ * @param ...	-	arguments specifying data to print. If any argument after default argument promotions is not the type expected by the corresponding conversion specifier, or if there are fewer arguments than required by format, the behavior is undefined. If there are more arguments than required by format, the extraneous arguments are evaluated and ignored.
+ * The format string consists of ordinary wide characters (except %), which are copied unchanged into the output stream, and conversion specifications. Each conversion specification has the following format:
+ *      introductory % character.
+ *      (optional) one or more flags that modify the behavior of the conversion:
+ *          -: the result of the conversion is left-justified within the field (by default it is right-justified).
+ *          +: the sign of signed conversions is always prepended to the result of the conversion (by default the result is preceded by minus only when it is negative).
+ *          space: if the result of a signed conversion does not start with a sign character, or is empty, space is prepended to the result. It is ignored if + flag is present.
+ *          #: alternative form of the conversion is performed. See the table below for exact effects otherwise the behavior is undefined.
+ *          0: for integer and floating-point number conversions, leading zeros are used to pad the field instead of space characters. For integer numbers it is ignored if the precision is explicitly specified. For other conversions using this flag results in undefined behavior. It is ignored if - flag is present.
+ *      (optional) integer value or * that specifies minimum field width. The result is padded with space characters (by default), if required, on the left when right-justified, or on the right if left-justified. In the case when * is used, the width is specified by an additional argument of type int, which appears before the argument to be converted and the argument supplying precision if one is supplied. If the value of the argument is negative, it results with the - flag specified and positive field width (Note: This is the minimum width: The value is never truncated.).
+ *      (optional) . followed by integer number or *, or neither that specifies precision of the conversion. In the case when * is used, the precision is specified by an additional argument of type int, which appears before the argument to be converted, but after the argument supplying minimum field width if one is supplied. If the value of this argument is negative, it is ignored. If neither a number nor * is used, the precision is taken as zero. See the table below for exact effects of precision.
+ *      (optional) length modifier that specifies the size of the argument (in combination with the conversion format specifier, it specifies the type of the corresponding argument).
+ *      conversion format specifier.
+ * @return Number of wide characters (not counting the terminating null) that were written to buffer. Returns a negative value on encoding errors and on overflow. Returns zero on all other errors.
+ * @see https://en.cppreference.com/w/c/io/fwprintf
+ */
+public func swprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, ... ) : int
+
+/**
+ * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
+ * Same as (6), except it will truncate the result to fit within the array pointed to by s.
+ *      As with all bounds-checked functions, wprintf_s, fwprintf_s, swprintf_s, and snwprintf_s are only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdio.h>.
+ * @param stream	-	output file stream to write to
+ * @param buffer	-	pointer to a wide character string to write to
+ * @param bufsz	-	up to bufsz - 1 wide characters may be written, plus the null terminator
+ * @param format	-	pointer to a null-terminated wide string specifying how to interpret the data
+ * @param ...	-	arguments specifying data to print. If any argument after default argument promotions is not the type expected by the corresponding conversion specifier, or if there are fewer arguments than required by format, the behavior is undefined. If there are more arguments than required by format, the extraneous arguments are evaluated and ignored.
+ * The format string consists of ordinary wide characters (except %), which are copied unchanged into the output stream, and conversion specifications. Each conversion specification has the following format:
+ *      introductory % character.
+ *      (optional) one or more flags that modify the behavior of the conversion:
+ *          -: the result of the conversion is left-justified within the field (by default it is right-justified).
+ *          +: the sign of signed conversions is always prepended to the result of the conversion (by default the result is preceded by minus only when it is negative).
+ *          space: if the result of a signed conversion does not start with a sign character, or is empty, space is prepended to the result. It is ignored if + flag is present.
+ *          #: alternative form of the conversion is performed. See the table below for exact effects otherwise the behavior is undefined.
+ *          0: for integer and floating-point number conversions, leading zeros are used to pad the field instead of space characters. For integer numbers it is ignored if the precision is explicitly specified. For other conversions using this flag results in undefined behavior. It is ignored if - flag is present.
+ *      (optional) integer value or * that specifies minimum field width. The result is padded with space characters (by default), if required, on the left when right-justified, or on the right if left-justified. In the case when * is used, the width is specified by an additional argument of type int, which appears before the argument to be converted and the argument supplying precision if one is supplied. If the value of the argument is negative, it results with the - flag specified and positive field width (Note: This is the minimum width: The value is never truncated.).
+ *      (optional) . followed by integer number or *, or neither that specifies precision of the conversion. In the case when * is used, the precision is specified by an additional argument of type int, which appears before the argument to be converted, but after the argument supplying minimum field width if one is supplied. If the value of this argument is negative, it is ignored. If neither a number nor * is used, the precision is taken as zero. See the table below for exact effects of precision.
+ *      (optional) length modifier that specifies the size of the argument (in combination with the conversion format specifier, it specifies the type of the corresponding argument).
+ *      conversion format specifier.
+ * @return Number of wide characters (not counting the terminating null) that would have been written to buffer had bufsz been sufficiently large, or a negative value if an error occurs. (meaning, write was successful and complete only if the return is nonnegative and less than bufsz)
+ * @see https://en.cppreference.com/w/c/io/fwprintf
+ */
+public func snwprintf_s(s : *mut wchar_t, n : rsize_t, format : *wchar_t, ... ) : int

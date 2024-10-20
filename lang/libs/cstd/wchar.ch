@@ -119,3 +119,144 @@ public func putwchar(ch : wchar_t) : wint_t
  * @see https://en.cppreference.com/w/c/io/ungetwc
  */
 public func ungetwc(ch : wint_t, stream : *mut FILE) : wint_t
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
+ * Reads the data from stdin.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param ...	-	receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
+ * @see https://en.cppreference.com/w/c/io/fwscanf
+ */
+public func wscanf(format : *wchar_t, ... ) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
+ * Reads the data from file stream stream.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param ...	-	receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
+ * @see https://en.cppreference.com/w/c/io/fwscanf
+ */
+public func fwscanf(stream : *mut FILE, format : *wchar_t, ... ) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
+ * Reads the data from null-terminated wide string buffer. Reaching the end of the string is equivalent to reaching the end-of-file condition for fwscanf
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param ...	-	receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
+ * @see https://en.cppreference.com/w/c/io/fwscanf
+ */
+public func swscanf(buffer : *wchar_t, format : *wchar_t, ... ) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
+ * Same as (1-3), except that %c, %s, and %[ conversion specifiers each expect two arguments (the usual pointer and a value of type rsize_t indicating the size of the receiving array, which may be 1 when reading with a %lc into a single wide character) and except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      any of the arguments of pointer type is a null pointer
+ *      format, stream, or buffer is a null pointer
+ *      the number of characters that would be written by %c, %s, or %[, plus the terminating null character, would exceed the second (rsize_t) argument provided for each of those conversion specifiers
+ *      optionally, any other detectable error, such as unknown conversion specifier
+ * As all bounds-checked functions, wscanf_s, fwscanf_s, and swscanf_s are only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <wchar.h>.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param ...	-	receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
+ * @see https://en.cppreference.com/w/c/io/fwscanf
+ */
+public func wscanf_s(format : *wchar_t, ...) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
+ * Same as (1-3), except that %c, %s, and %[ conversion specifiers each expect two arguments (the usual pointer and a value of type rsize_t indicating the size of the receiving array, which may be 1 when reading with a %lc into a single wide character) and except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      any of the arguments of pointer type is a null pointer
+ *      format, stream, or buffer is a null pointer
+ *      the number of characters that would be written by %c, %s, or %[, plus the terminating null character, would exceed the second (rsize_t) argument provided for each of those conversion specifiers
+ *      optionally, any other detectable error, such as unknown conversion specifier
+ * As all bounds-checked functions, wscanf_s, fwscanf_s, and swscanf_s are only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <wchar.h>.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param ...	-	receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
+ * @see https://en.cppreference.com/w/c/io/fwscanf
+ */
+public func fwscanf_s(stream : *mut FILE, format : *wchar_t, ...) : int
+
+/**
+ * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
+ * Same as (1-3), except that %c, %s, and %[ conversion specifiers each expect two arguments (the usual pointer and a value of type rsize_t indicating the size of the receiving array, which may be 1 when reading with a %lc into a single wide character) and except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      any of the arguments of pointer type is a null pointer
+ *      format, stream, or buffer is a null pointer
+ *      the number of characters that would be written by %c, %s, or %[, plus the terminating null character, would exceed the second (rsize_t) argument provided for each of those conversion specifiers
+ *      optionally, any other detectable error, such as unknown conversion specifier
+ * As all bounds-checked functions, wscanf_s, fwscanf_s, and swscanf_s are only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <wchar.h>.
+ * @param stream	-	input file stream to read from
+ * @param buffer	-	pointer to a null-terminated wide string to read from
+ * @param format	-	pointer to a null-terminated wide string specifying how to read the input
+ * @param ...	-	receiving arguments.
+ * The format string consists of
+ *      non-whitespace wide characters except %: each such character in the format string consumes exactly one identical character from the input stream, or causes the function to fail if the next character on the stream does not compare equal.
+ *      whitespace characters: any single whitespace character in the format string consumes all available consecutive whitespace characters from the input (determined as if by calling iswspace in a loop). Note that there is no difference between "\n", " ", "\t\t", or other whitespace in the format string.
+ *      conversion specifications. Each conversion specification has the following format:
+ *          introductory % character.
+ *          (optional) assignment-suppressing character *. If this option is present, the function does not assign the result of the conversion to any receiving argument.
+ *          (optional) integer number (greater than zero) that specifies maximum field width, that is, the maximum number of characters that the function is allowed to consume when doing the conversion specified by the current conversion specification. Note that %s and %[ may lead to buffer overflow if the width is not provided.
+ *          (optional) length modifier that specifies the size of the receiving argument, that is, the actual destination type. This affects the conversion accuracy and overflow rules. The default destination type is different for each conversion type (see table below).
+ *          conversion format specifier.
+ * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
+ * @see https://en.cppreference.com/w/c/io/fwscanf
+ */
+public func swscanf_s( s : *wchar_t, format : *wchar_t, ...) : int

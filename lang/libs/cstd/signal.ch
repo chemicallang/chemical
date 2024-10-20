@@ -17,7 +17,7 @@
  * @return Previous signal handler on success or SIG_ERR on failure (setting a signal handler can be disabled on some implementations).
  * @see https://en.cppreference.com/w/c/program/signal
  */
-func signal(sig : int, handler : () => int) : int
+public func signal(sig : int, handler : () => int) : int
 
 /**
  * Sends signal sig to the program. The signal handler, specified using signal(), is invoked.
@@ -25,7 +25,7 @@ func signal(sig : int, handler : () => int) : int
  * @return 0 upon success, non-zero value on failure.
  * @see https://en.cppreference.com/w/c/program/raise
  */
-func raise(sig : int) : int
+public func raise(sig : int) : int
 
 
 /**
@@ -33,7 +33,7 @@ func raise(sig : int) : int
  * An integer type which can be accessed as an atomic entity even in the presence of asynchronous interrupts made by signals.
  * @see https://en.cppreference.com/w/c/program/sig_atomic_t
  */
-typealias sig_atomic_t = int
+public typealias sig_atomic_t = int
 
 /**
  * TODO these macros haven't been done

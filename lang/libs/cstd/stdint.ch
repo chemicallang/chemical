@@ -12,7 +12,7 @@
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int8_t = char
+public typealias int8_t = char
 
 /**
  * signed integer type with width of
@@ -21,7 +21,7 @@ typealias int8_t = char
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int16_t = short
+public typealias int16_t = short
 
 /**
  * signed integer type with width of
@@ -30,7 +30,7 @@ typealias int16_t = short
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int32_t = int
+public typealias int32_t = int
 
 /**
  * signed integer type with width of
@@ -39,75 +39,75 @@ typealias int32_t = int
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int64_t = bigint
+public typealias int64_t = bigint
 
 /**
  * fastest signed integer type with width of
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int_fast8_t = char
+public typealias int_fast8_t = char
 
 /**
  * fastest signed integer type with width of
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int_fast16_t = short
+public typealias int_fast16_t = short
 
 /**
  * fastest signed integer type with width of
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int_fast32_t = int
+public typealias int_fast32_t = int
 
 /**
  * fastest signed integer type with width of
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int_fast64_t = bigint
+public typealias int_fast64_t = bigint
 
 /**
  * smallest signed integer type with width of
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int_least8_t = char
+public typealias int_least8_t = char
 
 /**
  * smallest signed integer type with width of
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int_least16_t = short
+public typealias int_least16_t = short
 
 /**
  * smallest signed integer type with width of
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int_least32_t = int
+public typealias int_least32_t = int
 
 /**
  * smallest signed integer type with width of
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias int_least64_t = bigint
+public typealias int_least64_t = bigint
 
 /**
  * maximum width integer type
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias intmax_t = bigint
+public typealias intmax_t = bigint
 
 /**
  * integer type capable of holding a pointer
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias intptr_t = bigint
+public typealias intptr_t = bigint
 
 /**
  * unsigned integer type with width of
@@ -115,7 +115,7 @@ typealias intptr_t = bigint
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint8_t = uchar
+public typealias uint8_t = uchar
 
 /**
  * unsigned integer type with width of
@@ -123,7 +123,7 @@ typealias uint8_t = uchar
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint16_t = ushort
+public typealias uint16_t = ushort
 
 /**
  * unsigned integer type with width of
@@ -131,7 +131,7 @@ typealias uint16_t = ushort
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint32_t = uint
+public typealias uint32_t = uint
 
 /**
  * unsigned integer type with width of
@@ -139,72 +139,72 @@ typealias uint32_t = uint
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint64_t = ubigint
+public typealias uint64_t = ubigint
 
 /**
  * fastest unsigned integer type with width of
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint_fast8_t = uchar
+public typealias uint_fast8_t = uchar
 
 /**
  * fastest unsigned integer type with width of
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint_fast16_t = ushort
+public typealias uint_fast16_t = ushort
 
 /**
  * fastest unsigned integer type with width of
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint_fast32_t = uint
+public typealias uint_fast32_t = uint
 
 /**
  * fastest unsigned integer type with width of
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint_fast64_t = ubigint
+public typealias uint_fast64_t = ubigint
 
 /**
  * smallest unsigned integer type with width of
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint_least8_t = uchar
+public typealias uint_least8_t = uchar
 
 /**
  * smallest unsigned integer type with width of
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint_least16_t = ushort
+public typealias uint_least16_t = ushort
 
 /**
  * smallest unsigned integer type with width of
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint_least32_t = uint
+public typealias uint_least32_t = uint
 
 /**
  * smallest unsigned integer type with width of
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uint_least64_t = ubigint
+public typealias uint_least64_t = ubigint
 
 /**
  * maximum width unsigned integer type
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uintmax_t = ubigint
+public typealias uintmax_t = ubigint
 
 /**
  * unsigned integer type capable of holding a pointer
  * @see https://en.cppreference.com/w/c/types/integer
  */
-typealias uintptr_t = ubigint
+public typealias uintptr_t = ubigint

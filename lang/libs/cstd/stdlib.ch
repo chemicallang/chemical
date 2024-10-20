@@ -22,7 +22,7 @@ import "./chemical.ch"
  * @return double value corresponding to the contents of str on success. If the converted value falls out of range of the return type, the return value is undefined. If no conversion can be performed, 0.0 is returned.
  * @see https://en.cppreference.com/w/c/string/byte/atof
  */
-func atof(str : *char) : double
+public func atof(str : *char) : double
 
 /**
  * Interprets an integer value in a byte string pointed to by str. The implied radix is always 10.
@@ -34,7 +34,7 @@ func atof(str : *char) : double
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/atoi
  */
-func atoi(str : *char) : int
+public func atoi(str : *char) : int
 
 /**
  * Interprets an integer value in a byte string pointed to by str. The implied radix is always 10.
@@ -46,7 +46,7 @@ func atoi(str : *char) : int
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/atoi
  */
-func atol(str : *char) : long
+public func atol(str : *char) : long
 
 /**
  * Interprets an integer value in a byte string pointed to by str. The implied radix is always 10.
@@ -58,7 +58,7 @@ func atol(str : *char) : long
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/atoi
  */
-func atoll(str  :*char) : bigint
+public func atoll(str  :*char) : bigint
 
 /**
  * Interprets an integer value in a byte string pointed to by str.
@@ -81,7 +81,7 @@ func atoll(str  :*char) : bigint
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtol
  */
-func strtol(str : *char, str_end : **mut char, base : int) : long
+public func strtol(str : *char, str_end : **mut char, base : int) : long
 
 /**
  * Interprets an integer value in a byte string pointed to by str.
@@ -104,7 +104,7 @@ func strtol(str : *char, str_end : **mut char, base : int) : long
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtol
  */
-func strtoll(str : *char, str_end : **mut char, base : int) : bigint
+public func strtoll(str : *char, str_end : **mut char, base : int) : bigint
 
 /**
  * Interprets an unsigned integer value in a byte string pointed to by str.
@@ -124,7 +124,7 @@ func strtoll(str : *char, str_end : **mut char, base : int) : bigint
  * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and ULONG_MAX or ULLONG_MAX is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtoul
  */
-func strtoul(str : *mut char, str_end : **mut char, base : int) : ulong
+public func strtoul(str : *mut char, str_end : **mut char, base : int) : ulong
 
 /**
  * Interprets an unsigned integer value in a byte string pointed to by str.
@@ -144,7 +144,7 @@ func strtoul(str : *mut char, str_end : **mut char, base : int) : ulong
  * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and ULONG_MAX or ULLONG_MAX is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtoul
  */
-func strtoull(str : *mut char, str_end : **mut char, base : int) : ubigint
+public func strtoull(str : *mut char, str_end : **mut char, base : int) : ubigint
 
 /**
  * Interprets a floating-point value in a byte string pointed to by str.
@@ -171,7 +171,7 @@ func strtoull(str : *mut char, str_end : **mut char, base : int) : ubigint
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
-func strtof(str : *mut char, str_end : **mut char) : float
+public func strtof(str : *mut char, str_end : **mut char) : float
 
 /**
  * Interprets a floating-point value in a byte string pointed to by str.
@@ -198,7 +198,7 @@ func strtof(str : *mut char, str_end : **mut char) : float
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
-func strtod(str : *mut char, str_end : **mut char) : double
+public func strtod(str : *mut char, str_end : **mut char) : double
 
 /**
  * Interprets a floating-point value in a byte string pointed to by str.
@@ -225,7 +225,7 @@ func strtod(str : *mut char, str_end : **mut char) : double
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
-func strtold(str : *mut char, str_end : **mut char) : longdouble
+public func strtold(str : *mut char, str_end : **mut char) : longdouble
 
 /**
  * Converts a floating-point value to a byte string.
@@ -237,7 +237,7 @@ func strtold(str : *mut char, str_end : **mut char) : longdouble
  * @return The number of characters that would have been written had n been sufficiently large, not counting the terminating null character. Thus, the null-terminated output has been completely written if and only if the returned value is both nonnegative and less than n.
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
-func strfromf(s : *char, n : size_t, format : *char, fp : float) : int
+public func strfromf(s : *char, n : size_t, format : *char, fp : float) : int
 
 /**
  * Converts a floating-point value to a byte string.
@@ -249,7 +249,7 @@ func strfromf(s : *char, n : size_t, format : *char, fp : float) : int
  * @return The number of characters that would have been written had n been sufficiently large, not counting the terminating null character. Thus, the null-terminated output has been completely written if and only if the returned value is both nonnegative and less than n.
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
-func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
+public func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
 
 /**
  * Converts a floating-point value to a byte string.
@@ -261,7 +261,7 @@ func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
  * @return The number of characters that would have been written had n been sufficiently large, not counting the terminating null character. Thus, the null-terminated output has been completely written if and only if the returned value is both nonnegative and less than n.
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
-func strfroml(s : *char, n : size_t, format : *char, fp : longdouble) : int
+public func strfroml(s : *char, n : size_t, format : *char, fp : longdouble) : int
 
 /**
  * Computes the absolute value of an integer number. The behavior is undefined if the result cannot be represented by the return type.
@@ -269,7 +269,7 @@ func strfroml(s : *char, n : size_t, format : *char, fp : longdouble) : int
  * @return The absolute value of n (i.e. |n|), if it is representable.
  * @see https://en.cppreference.com/w/c/numeric/math/abs
  */
-func abs(n : int) : int
+public func abs(n : int) : int
 
 /**
  * Computes the absolute value of an integer number. The behavior is undefined if the result cannot be represented by the return type.
@@ -277,7 +277,7 @@ func abs(n : int) : int
  * @return The absolute value of n (i.e. |n|), if it is representable.
  * @see https://en.cppreference.com/w/c/numeric/math/abs
  */
-func labs(n : long) : long
+public func labs(n : long) : long
 
 /**
  * Computes the absolute value of an integer number. The behavior is undefined if the result cannot be represented by the return type.
@@ -285,12 +285,12 @@ func labs(n : long) : long
  * @return The absolute value of n (i.e. |n|), if it is representable.
  * @see https://en.cppreference.com/w/c/numeric/math/abs
  */
-func llabs(n : bigint) : bigint
+public func llabs(n : bigint) : bigint
 
 /**
  * the result of div function below
  */
-struct div_t {
+public struct div_t {
     const quot : int
     const rem : int
 };
@@ -301,12 +301,12 @@ struct div_t {
  * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
  * @see https://en.cppreference.com/w/c/numeric/math/div
  */
-func div(x : int, y : int) : div_t
+public func div(x : int, y : int) : div_t
 
 /**
  * the result of ldiv function below
  */
-struct ldiv_t {
+public struct ldiv_t {
     const quot : long;
     const rem : long;
 };
@@ -317,13 +317,13 @@ struct ldiv_t {
  * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
  * @see https://en.cppreference.com/w/c/numeric/math/div
  */
-func ldiv(x : long, y : long) : ldiv_t
+public func ldiv(x : long, y : long) : ldiv_t
 
 
 /**
  * the result of lldiv function below
  */
-struct lldiv_t {
+public struct lldiv_t {
     const quot : bigint;
     const rem : bigint;
 };
@@ -334,14 +334,14 @@ struct lldiv_t {
  * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
  * @see https://en.cppreference.com/w/c/numeric/math/div
  */
-func lldiv(x : bigint, y : bigint) : lldiv_t
+public func lldiv(x : bigint, y : bigint) : lldiv_t
 
 /**
  * Causes abnormal program termination unless SIGABRT is being caught by a signal handler passed to signal and the handler does not return.
  * Functions passed to atexit() are not called. Whether open resources such as files are closed is implementation defined. An implementation defined status is returned to the host environment that indicates unsuccessful execution.
  * @see https://en.cppreference.com/w/c/program/abort
  */
-func abort();
+public func abort();
 
 /**
  * Causes normal program termination to occur.
@@ -352,7 +352,7 @@ func abort();
  *      control is returned to the host environment. If exit_code is zero or EXIT_SUCCESS, an implementation-defined status indicating successful termination is returned. If exit_code is EXIT_FAILURE, an implementation-defined status indicating unsuccessful termination is returned. In other cases implementation-defined status value is returned.
  * @see https://en.cppreference.com/w/c/program/exit
  */
-func exit(exit_code : int);
+public func exit(exit_code : int);
 
 /**
  * Causes normal program termination to occur without completely cleaning the resources.
@@ -361,7 +361,7 @@ func exit(exit_code : int);
  * @param exit_code	-	exit status of the program
  * @see https://en.cppreference.com/w/c/program/quick_exit
  */
-func quick_exit(exit_code : int)
+public func quick_exit(exit_code : int)
 
 /**
  * Causes normal program termination to occur without completely cleaning the resources.
@@ -370,7 +370,7 @@ func quick_exit(exit_code : int)
  * @param exit_code	-	exit status of the program
  * @see https://en.cppreference.com/w/c/program/_Exit
  */
-func _Exit(exit_code : int)
+public func _Exit(exit_code : int)
 
 /**
  * Registers the function pointed to by func to be called on normal program termination (via exit() or returning from main()). The functions will be called in reverse order they were registered, i.e. the function registered last will be executed first.
@@ -380,7 +380,7 @@ func _Exit(exit_code : int)
  * @return 0 if the registration succeeds, nonzero value otherwise.
  * @see https://en.cppreference.com/w/c/program/atexit
  */
-func atexit(func : () => void ) : int
+public func atexit(func : () => void ) : int
 
 /**
  * Registers the function pointed to by func to be called on quick program termination (via quick_exit).
@@ -390,7 +390,7 @@ func atexit(func : () => void ) : int
  * @return 0 if the registration succeeds, nonzero value otherwise.
  * @see https://en.cppreference.com/w/c/program/at_quick_exit
  */
-func at_quick_exit(func : () => void) : int
+public func at_quick_exit(func : () => void) : int
 
 /**
  * TODO these macros haven't been defined
@@ -406,7 +406,7 @@ func at_quick_exit(func : () => void) : int
  * @return Implementation-defined value. If command is a null pointer, returns a nonzero value if and only if the command processor exists.
  * @see https://en.cppreference.com/w/c/program/system
  */
-func system(command : *char) : int
+public func system(command : *char) : int
 
 /**
  * Searches for an environmental variable with name name in the host-specified environment list and returns a pointer to the string that is associated with the matched environment variable. The set of environmental variables and methods of altering it are implementation-defined.
@@ -416,7 +416,7 @@ func system(command : *char) : int
  * @return character string identifying the value of the environmental variable or null pointer if such variable is not found.
  * @see https://en.cppreference.com/w/c/program/getenv
  */
-func getenv(name : *char) : *mut char
+public func getenv(name : *char) : *mut char
 
 /**
  * Same as (1), except that the values of the environment variable is written to the user-provided buffer value (unless null) and the number of bytes written is stored in the user-provided location *len (unless null). If the environment variable is not set in the environment, zero is written to *len (unless null) and '\0' is written to value[0] (unless null). In addition, the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -431,7 +431,7 @@ func getenv(name : *char) : *mut char
  * @return zero if the environment variable was found, non-zero if it was not found or if a runtime constraint violation occurred. On any error, writes zero to *len (unless len is a null pointer).
  * @see https://en.cppreference.com/w/c/program/getenv
  */
-func getenv_s(
+public func getenv_s(
     len : *mut size_t,
     value : *mut char,
     valuesz : rsize_t,
@@ -446,4 +446,4 @@ func getenv_s(
  * @return The alignment value of p, or 0 if p is a null pointer value.
  * @see https://en.cppreference.com/w/c/program/memalignment
  */
-func memalignment(p : *void) : size_t
+public func memalignment(p : *void) : size_t

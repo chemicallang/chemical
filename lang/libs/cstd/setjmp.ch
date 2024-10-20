@@ -9,7 +9,7 @@
  * TODO jmp_bug type not defined as it's implementation is unknown
  * @see https://en.cppreference.com/w/c/program/jmp_buf
  */
-typealias jmp_buf = int
+public typealias jmp_buf = int
 
 /**
  * Loads the execution context env saved by a previous call to setjmp. This function does not return. Control is transferred to the call site of the macro setjmp that set up env. That setjmp then returns the value, passed as the status.
@@ -19,4 +19,4 @@ typealias jmp_buf = int
  * @param status	-	the value to return from setjmp. If it is equal to ​0​, 1 is used instead
  * @see https://en.cppreference.com/w/c/program/longjmp
  */
-func longjmp(env : jmp_buf, status : int);
+public func longjmp(env : jmp_buf, status : int);

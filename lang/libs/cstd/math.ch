@@ -6,7 +6,7 @@ import "./chemical.ch"
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
-func fabsf(arg : float) : float
+public func fabsf(arg : float) : float
 
 /**
  * Computes the absolute value of a floating-point value arg.
@@ -14,7 +14,7 @@ func fabsf(arg : float) : float
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
-func fabs(arg : double) : double
+public func fabs(arg : double) : double
 
 /**
  * Computes the absolute value of a floating-point value arg.
@@ -22,14 +22,14 @@ func fabs(arg : double) : double
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
-func fabsl(arg : longdouble) : longdouble
+public func fabsl(arg : longdouble) : longdouble
 
 /**
  * TODO
  */
-typealias _Decimal32 = float
-typealias _Decimal64 = double
-typealias _Decimal128 = longdouble
+public typealias _Decimal32 = float
+public typealias _Decimal64 = double
+public typealias _Decimal128 = longdouble
 
 /**
  * Computes the absolute value of a floating-point value arg.
@@ -37,7 +37,7 @@ typealias _Decimal128 = longdouble
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
-func fabsd32(arg : _Decimal32) : _Decimal32
+public func fabsd32(arg : _Decimal32) : _Decimal32
 
 /**
  * Computes the absolute value of a floating-point value arg.
@@ -45,7 +45,7 @@ func fabsd32(arg : _Decimal32) : _Decimal32
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
-func fabsd64(arg : _Decimal64) : _Decimal64
+public func fabsd64(arg : _Decimal64) : _Decimal64
 
 /**
  * Computes the absolute value of a floating-point value arg.
@@ -53,7 +53,7 @@ func fabsd64(arg : _Decimal64) : _Decimal64
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
-func fabsd128(arg : _Decimal128) : _Decimal128
+public func fabsd128(arg : _Decimal128) : _Decimal128
 
 /**
  * TODO macro fabs
@@ -71,7 +71,7 @@ func fabsd128(arg : _Decimal128) : _Decimal128
  * If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fmod
  */
-func fmodf(x : float, y : float) : float
+public func fmodf(x : float, y : float) : float
 
 /**
  * Computes the floating-point remainder of the division operation x / y.
@@ -83,7 +83,7 @@ func fmodf(x : float, y : float) : float
  * If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fmod
  */
-func fmod(x : double, y : double) : double
+public func fmod(x : double, y : double) : double
 
 /**
  * Computes the floating-point remainder of the division operation x / y.
@@ -95,7 +95,7 @@ func fmod(x : double, y : double) : double
  * If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fmod
  */
-func fmodl(x : longdouble, y : longdouble) : longdouble
+public func fmodl(x : longdouble, y : longdouble) : longdouble
 
 /**
  * TODO macro fmod
@@ -113,7 +113,7 @@ func fmodl(x : longdouble, y : longdouble) : longdouble
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remainder
  */
-func remainderf(x : float, y : float) : float
+public func remainderf(x : float, y : float) : float
 
 /**
  * Computes the IEEE remainder of the floating-point division operation x/y.
@@ -124,7 +124,7 @@ func remainderf(x : float, y : float) : float
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remainder
  */
-func remainder(x : double, y : double) : double
+public func remainder(x : double, y : double) : double
 
 /**
  * Computes the IEEE remainder of the floating-point division operation x/y.
@@ -135,7 +135,7 @@ func remainder(x : double, y : double) : double
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remainder
  */
-func remainderl(x : longdouble, y : longdouble) : longdouble
+public func remainderl(x : longdouble, y : longdouble) : longdouble
 
 /**
  * Computes the floating-point remainder of the division operation x/y as the remainder() function does. Additionally, the sign and at least the three of the last bits of x/y will be stored in quo, sufficient to determine the octant of the result within a period.
@@ -149,7 +149,7 @@ func remainderl(x : longdouble, y : longdouble) : longdouble
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
-func remquof(x : float, y : float, quo : *mut int) : float
+public func remquof(x : float, y : float, quo : *mut int) : float
 
 /**
  * Computes the floating-point remainder of the division operation x/y as the remainder() function does. Additionally, the sign and at least the three of the last bits of x/y will be stored in quo, sufficient to determine the octant of the result within a period.
@@ -163,7 +163,7 @@ func remquof(x : float, y : float, quo : *mut int) : float
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
-func remquo(x : double, y : double, quo : *mut int) : double
+public func remquo(x : double, y : double, quo : *mut int) : double
 
 /**
  * Computes the floating-point remainder of the division operation x/y as the remainder() function does. Additionally, the sign and at least the three of the last bits of x/y will be stored in quo, sufficient to determine the octant of the result within a period.
@@ -177,7 +177,7 @@ func remquo(x : double, y : double, quo : *mut int) : double
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
-func remquol(x : longdouble, y : longdouble, quo : *mut int) : longdouble
+public func remquol(x : longdouble, y : longdouble, quo : *mut int) : longdouble
 
 /**
  * Computes (x * y) + z as if to infinite precision and rounded only once to fit the result type.
@@ -187,7 +187,7 @@ func remquol(x : longdouble, y : longdouble, quo : *mut int) : longdouble
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fma
  */
-func fmaf(x : float, y : float, z : float) : float
+public func fmaf(x : float, y : float, z : float) : float
 
 /**
  * Computes (x * y) + z as if to infinite precision and rounded only once to fit the result type.
@@ -197,7 +197,7 @@ func fmaf(x : float, y : float, z : float) : float
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fma
  */
-func fma(x : double, y : double, z : double) : double
+public func fma(x : double, y : double, z : double) : double
 
 /**
  * Computes (x * y) + z as if to infinite precision and rounded only once to fit the result type.
@@ -207,7 +207,7 @@ func fma(x : double, y : double, z : double) : double
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fma
  */
-func fmal(x : longdouble, y : longdouble, z : longdouble) : longdouble
+public func fmal(x : longdouble, y : longdouble, z : longdouble) : longdouble
 
 /**
  * TODO these macros
@@ -224,7 +224,7 @@ func fmal(x : longdouble, y : longdouble, z : longdouble) : longdouble
  * @return If successful, returns the larger of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmax
  */
-func fmaxf(x : float, y : float) : float
+public func fmaxf(x : float, y : float) : float
 
 /**
  * Returns the larger of two floating-point arguments, treating NaNs as missing data (between a NaN and a numeric value, the numeric value is chosen).
@@ -232,7 +232,7 @@ func fmaxf(x : float, y : float) : float
  * @return If successful, returns the larger of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmax
  */
-func fmax(x : double, y : double) : double
+public func fmax(x : double, y : double) : double
 
 /**
  * Returns the larger of two floating-point arguments, treating NaNs as missing data (between a NaN and a numeric value, the numeric value is chosen).
@@ -240,7 +240,7 @@ func fmax(x : double, y : double) : double
  * @return If successful, returns the larger of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmax
  */
-func fmaxl(x : longdouble, y : longdouble) : longdouble
+public func fmaxl(x : longdouble, y : longdouble) : longdouble
 
 /**
  * Returns the smaller of two floating-point arguments, treating NaNs as missing data (between a NaN and a numeric value, the numeric value is chosen).
@@ -248,7 +248,7 @@ func fmaxl(x : longdouble, y : longdouble) : longdouble
  * @return If successful, returns the smaller of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmin
  */
-func fminf(x : float, y : float) : float
+public func fminf(x : float, y : float) : float
 
 /**
  * Returns the smaller of two floating-point arguments, treating NaNs as missing data (between a NaN and a numeric value, the numeric value is chosen).
@@ -256,7 +256,7 @@ func fminf(x : float, y : float) : float
  * @return If successful, returns the smaller of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmin
  */
-func fmin(x : double, y : double ) : double
+public func fmin(x : double, y : double ) : double
 
 /**
  * Returns the smaller of two floating-point arguments, treating NaNs as missing data (between a NaN and a numeric value, the numeric value is chosen).
@@ -264,7 +264,7 @@ func fmin(x : double, y : double ) : double
  * @return If successful, returns the smaller of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmin
  */
-func fminl(x : longdouble, y : longdouble) : longdouble
+public func fminl(x : longdouble, y : longdouble) : longdouble
 
 /**
  * Returns the positive difference between x and y, that is, if x>y, returns x-y, otherwise (if x≤y), returns +0.
@@ -274,7 +274,7 @@ func fminl(x : longdouble, y : longdouble) : longdouble
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fdim
  */
-func fdimf(x : float, y : float) : float
+public func fdimf(x : float, y : float) : float
 
 /**
  * Returns the positive difference between x and y, that is, if x>y, returns x-y, otherwise (if x≤y), returns +0.
@@ -284,7 +284,7 @@ func fdimf(x : float, y : float) : float
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fdim
  */
-func fdim(x : double, y : double) : double
+public func fdim(x : double, y : double) : double
 
 /**
  * Returns the positive difference between x and y, that is, if x>y, returns x-y, otherwise (if x≤y), returns +0.
@@ -294,7 +294,7 @@ func fdim(x : double, y : double) : double
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fdim
  */
-func fdiml(x : longdouble, y : longdouble) : longdouble
+public func fdiml(x : longdouble, y : longdouble) : longdouble
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -307,7 +307,7 @@ func fdiml(x : longdouble, y : longdouble) : longdouble
  * If the implementation supports IEEE floating-point arithmetic (IEC 60559), it also supports quiet NaNs.
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
-func nanf(arg : *char) : float
+public func nanf(arg : *char) : float
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -320,7 +320,7 @@ func nanf(arg : *char) : float
  * If the implementation supports IEEE floating-point arithmetic (IEC 60559), it also supports quiet NaNs.
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
-func nan(arg : *char) : double
+public func nan(arg : *char) : double
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -2068,7 +2068,7 @@ func copysignl(x : float128, y : float128) : float128
 /**
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
-typealias float_t = float
+public typealias float_t = float
 
 /**
  * @see https://en.cppreference.com/w/c/numeric/math/float_t

@@ -1251,3 +1251,262 @@ public func wcsncat_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count :
  * @see https://en.cppreference.com/w/c/string/wide/wcsxfrm
  */
 public func wcsxfrm(dest : *mut wchar_t, src : *wchar_t, count : size_t) : size_t
+
+/**
+ * Returns the length of a wide string, that is the number of non-null wide characters that precede the terminating null wide character.
+ * @param str	-	pointer to the null-terminated wide string to be examined
+ * @param strsz	-	maximum number of wide characters to examine
+ * @return The length of the null-terminated wide string str.
+ * @see https://en.cppreference.com/w/c/string/wide/wcslen
+ */
+public func wcslen(str : *wchar_t) : size_t
+
+/**
+ * Same as (1), except that the function returns zero if str is a null pointer and returns strsz if the null wide character was not found in the first strsz wide characters of src
+ * As with all bounds-checked functions, wcslen_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdio.h>..
+ * @param str	-	pointer to the null-terminated wide string to be examined
+ * @param strsz	-	maximum number of wide characters to examine
+ * @return The length of the null-terminated wide string str on success, zero if str is a null pointer, strsz if the null wide character was not found.
+ * @see https://en.cppreference.com/w/c/string/wide/wcslen
+ */
+public func wcsnlen_s(str : *wchar_t, strsz : size_t) : size_t
+
+/**
+ * Compares two null-terminated wide strings lexicographically.
+ * The sign of the result is the sign of the difference between the values of the first pair of wide characters that differ in the strings being compared.
+ * The behavior is undefined if lhs or rhs are not pointers to null-terminated wide strings.
+ * @param lhs, rhs	-	pointers to the null-terminated wide strings to compare
+ * @return Negative value if lhs appears before rhs in lexicographical order.
+ *         Zero if lhs and rhs compare equal.
+ *         Positive value if lhs appears after rhs in lexicographical order.
+ * @see https://en.cppreference.com/w/c/string/wide/wcscmp
+ */
+public func wcscmp(lhs : *wchar_t, rhs : *wchar_t) : int
+
+/**
+ * Compares at most count wide characters of two null-terminated wide strings. The comparison is done lexicographically.
+ * The sign of the result is the sign of the difference between the values of the first pair of wide characters that differ in the strings being compared.
+ * The behavior is undefined if lhs or rhs are not pointers to null-terminated strings.
+ * @param lhs, rhs	-	pointers to the null-terminated wide strings to compare
+ * @param count	-	maximum number of characters to compare
+ * @return Negative value if lhs appears before rhs in lexicographical order.
+ *         Zero if lhs and rhs compare equal.
+ *         Positive value if lhs appears after rhs in lexicographical order.
+ * @see https://en.cppreference.com/w/c/string/wide/wcsncmp
+ */
+public func wcsncmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
+
+/**
+ * Compares two null-terminated wide strings according to the collation order defined by the LC_COLLATE category of the currently installed locale.
+ * @param lhs, rhs	-	pointers to the null-terminated wide strings to compare
+ * @return Negative value if lhs is less than (precedes) rhs.
+ *          0 if lhs is equal to rhs.
+ *          Positive value if lhs is greater than (follows) rhs.
+ * @see https://en.cppreference.com/w/c/string/wide/wcscoll
+ */
+public func wcscoll(lhs : *wchar_t, rhs : *wchar_t) : int
+
+/**
+ * Finds the first occurrence of the wide character ch in the wide string pointed to by str.
+ * @param str	-	pointer to the null-terminated wide string to be analyzed
+ * @param ch	-	wide character to search for
+ * @return Pointer to the found character in str, or a null pointer if no such character is found.
+ * @see https://en.cppreference.com/w/c/string/wide/wcschr
+ */
+public func wcschr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
+
+/**
+ * TODO macro
+ *   /*QWchar_t*/ *wcschr( /*QWchar_t*/ *str, wchar_t ch );
+ * Type-generic function equivalent to (1). Let T be an unqualified wide character object type.
+ *      If str is of type const T*, the return type is const wchar_t*.
+ *      Otherwise, if str is of type T*, the return type is wchar_t*.
+ *      Otherwise, the behavior is undefined.
+ * If a macro definition of each of these generic functions is suppressed to access an actual function (e.g. if (wcschr) or a function pointer is used), the actual function declaration (1) becomes visible.
+ * @see https://en.cppreference.com/w/c/string/wide/wcschr
+ */
+
+/**
+ * Finds the last occurrence of the wide character ch in the wide string pointed to by str.
+ * @param str	-	pointer to the null-terminated wide string to be analyzed
+ * @param ch	-	wide character to search for
+ * @return Pointer to the found character in str, or a null pointer if no such character is found.
+ * @see https://en.cppreference.com/w/c/string/wide/wcsrchr
+ */
+public func wcsrchr(str : *wchar_t, ch : wchar_t) : *wchar_t
+
+/**
+ * TODO macro
+ *   /*QWchar_t*/ *wcsrchr( /*QWchar_t*/ *str, wchar_t ch );
+ * Type-generic function equivalent to (1). Let T be an unqualified wide character object type.
+ * If str is of type const T*, the return type is const wchar_t*.
+ * Otherwise, if str is of type T*, the return type is wchar_t*.
+ * Otherwise, the behavior is undefined.
+ * If a macro definition of each of these generic functions is suppressed to access an actual function (e.g. if (wcsrchr) or a function pointer is used), the actual function declaration (1) becomes visible.
+ * @see https://en.cppreference.com/w/c/string/wide/wcsrchr
+ */
+
+/**
+ * Returns the length of the maximum initial segment of the wide string pointed to by dest, that consists of only the characters found in wide string pointed to by src.
+ * @param dest	-	pointer to the null-terminated wide string to be analyzed
+ * @param src	-	pointer to the null-terminated wide string that contains the characters to search for
+ * @return The length of the maximum initial segment that contains only characters from wide string pointed to by src
+ * @see https://en.cppreference.com/w/c/string/wide/wcsspn
+ */
+public func wcsspn(dest : *wchar_t, src : *wchar_t) : size_t
+
+/**
+ * Returns the length of the maximum initial segment of the wide string pointed to by dest, that consists of only the characters not found in wide string pointed to by src.
+ * @param dest	-	pointer to the null-terminated wide string to be analyzed
+ * @param src	-	pointer to the null-terminated wide string that contains the characters to search for
+ * @return The length of the maximum initial segment that contains only characters not found in the character string pointed to by src
+ * @see https://en.cppreference.com/w/c/string/wide/wcscspn
+ */
+public func wcscspn(dest : *wchar_t, src : *wchar_t) : size_t
+
+/**
+ * Finds the first character in wide string pointed to by dest, that is also in wide string pointed to by str.
+ * @param dest	-	pointer to the null-terminated wide string to be analyzed
+ * @param src	-	pointer to the null-terminated wide string that contains the characters to search for
+ * @return Pointer to the first character in dest, that is also in str, or a null pointer if no such character exists.
+ * @see https://en.cppreference.com/w/c/string/wide/wcspbrk
+ */
+public func wcspbrk(dest : *wchar_t, str : *wchar_t) : *wchar_t
+
+/**
+ * TODO macro
+ * /*QWchar_t*/ *wcspbrk( /*QWchar_t*/ *dest, const wchar_t *str );
+ * @see https://en.cppreference.com/w/c/string/wide/wcspbrk
+ */
+
+/**
+ * Finds the first occurrence of the wide string src in the wide string pointed to by dest. The terminating null characters are not compared.
+ * @param dest	-	pointer to the null-terminated wide string to examine
+ * @param src	-	pointer to the null-terminated wide string to search for
+ * @return Pointer to the first character of the found substring in dest, or a null pointer if no such substring is found. If src points to an empty string, dest is returned.
+ * @see https://en.cppreference.com/w/c/string/wide/wcsstr
+ */
+public func wcsstr(dest : *wchar_t, src : *wchar_t) : *wchar_t
+
+/**
+ * TODO macro
+ * /*QWchar_t*/ *wcsstr( /*QWchar_t*/ *dest, const wchar_t *src );
+ * @see https://en.cppreference.com/w/c/string/wide/wcsstr
+ */
+
+/**
+ * Finds the next token in a null-terminated wide string pointed to by str. The separator characters are identified by null-terminated wide string pointed to by delim.
+ * This function is designed to be called multiples times to obtain successive tokens from the same string.
+ * If str != NULL, the call is treated as the first call to wcstok for this particular wide string. The function searches for the first wide character which is not contained in delim.
+ * If no such wide character was found, there are no tokens in str at all, and the function returns a null pointer.
+ * If such wide character was found, it is the beginning of the token. The function then searches from that point on for the first wide character that is contained in delim.
+ * If no such wide character was found, str has only one token, and future calls to wcstok will return a null pointer
+ * If such wide character was found, it is replaced by the null wide character L'\0' and the parser state (typically a pointer to the following wide character) is stored in the user-provided location *ptr.
+ * The function then returns the pointer to the beginning of the token
+ * If str == NULL, the call is treated as a subsequent call to wcstok: the function continues from where it left in the previous invocation with the same *ptr. The behavior is the same as if the pointer to the wide character that follows the last detected token is passed as str.
+ * @param str	-	pointer to the null-terminated wide string to tokenize
+ * @param delim	-	pointer to the null-terminated wide string identifying delimiters
+ * @param ptr	-	pointer to an object of type wchar_t*, which is used by both wcstok and wcstok_s to store the internal state of the parser
+ * @param strmax	-	pointer to an object which initially holds the size of str: wcstok_s stores the number of characters that remain to be examined
+ * @return Returns pointer to the beginning of the next token or null pointer if there are no more tokens.
+ * @see https://en.cppreference.com/w/c/string/wide/wcstok
+ */
+public func wcstok(str : *wchar_t, delim : *wchar_t, ptr : **mut wchar_t) : *wchar_t
+
+/**
+ * Copies exactly count successive wide characters from the wide character array pointed to by src to the wide character array pointed to by dest. If the objects overlap, the behavior is undefined. If count is zero, the function does nothing.
+ * @param dest	-	pointer to the wide character array to copy to
+ * @param src	-	pointer to the wide character array to copy from
+ * @param count	-	number of wide characters to copy
+ * @param destsz	-	max number of wide characters to write (the size of the destination buffer)
+ * @return returns a copy of dest
+ * @see https://en.cppreference.com/w/c/string/wide/wmemcpy
+ */
+public func wmemcpy(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
+
+/**
+ * Same as (1), except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      src or dest is a null pointer
+ *      destsz or count is greater than RSIZE_MAX/sizeof(wchar_t)
+ *      count is greater than destsz (overflow would occur)
+ *      overlap would occur between the source and the destination arrays
+ * As with all bounds-checked functions, wmemcpy_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <wchar.h>.
+ * @param dest	-	pointer to the wide character array to copy to
+ * @param src	-	pointer to the wide character array to copy from
+ * @param count	-	number of wide characters to copy
+ * @param destsz	-	max number of wide characters to write (the size of the destination buffer)
+ * @return returns zero on success, returns non-zero on error. Also, on error, fills the entire dst up to and not including dst+dstsz with null wide characters, L'\0' (unless dest is null or destsz is greater than RSIZE_MAX/sizeof(wchar_t))
+ */
+public func wmemcpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
+
+/**
+ * Copies exactly count successive wide characters from the wide character array pointed to by src to the wide character array pointed to by dest. If count is zero, the function does nothing. The arrays may overlap: copying takes place as if the wide characters were copied to a temporary wide character array and then copied from the temporary array to dest.
+ * @param dest	-	pointer to the wide character array to copy to
+ * @param src	-	pointer to the wide character array to copy from
+ * @param destsz	-	max number of wide characters to write (the size of the destination buffer)
+ * @param count	-	number of wide characters to copy
+ * @return Returns a copy of dest
+ * @see https://en.cppreference.com/w/c/string/wide/wmemmove
+ */
+public func wmemmove(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
+
+/**
+ * Same as (1), except that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      src or dest is a null pointer
+ *      destsz or count is greater than RSIZE_MAX / sizeof(wchar_t)
+ *      count is greater than destsz (overflow would occur)
+ *  As with all bounds-checked functions, wmemcpy_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <wchar.h>.
+ * @param dest	-	pointer to the wide character array to copy to
+ * @param src	-	pointer to the wide character array to copy from
+ * @param destsz	-	max number of wide characters to write (the size of the destination buffer)
+ * @param count	-	number of wide characters to copy
+ * @return Returns zero on success, returns non-zero on error. Also, on error, fills the entire dst up to and not including dst+dstsz with null wide characters, L'\0' (unless dest is null or destsz is greater than RSIZE_MAX/sizeof(wchar_t))
+ * @see https://en.cppreference.com/w/c/string/wide/wmemmove
+ */
+public func wmemmove_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
+
+/**
+ * Compares the first count wide characters of the wide character (or compatible integer type) arrays pointed to by lhs and rhs. The comparison is done lexicographically.
+ * The sign of the result is the sign of the difference between the values of the first pair of wide characters that differ in the arrays being compared.
+ * If count is zero, the function does nothing.
+ * @param lhs, rhs	-	pointers to the wide character arrays to compare
+ * @param count	-	number of wide characters to examine
+ * @return Negative value if the value of the first differing wide character in lhs is less than the value of the corresponding wide character in rhs: lhs precedes rhs in lexicographical order.
+ *         0 if all count wide characters of lhs and rhs are equal.
+ *         Positive value if the value of the first differing wide character in lhs is greater than the value of the corresponding wide character in rhs: rhs precedes lhs in lexicographical order.
+ * @see https://en.cppreference.com/w/c/string/wide/wmemcmp
+ */
+public func wmemcmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
+
+/**
+ * Locates the first occurrence of wide character ch in the initial count wide characters of the wide character array or integer array of compatible type, pointed to by ptr.
+ * @param ptr	-	pointer to the wide character array to be examined
+ * @param ch	-	wide character to search for
+ * @param count	-	number of wide characters to examine
+ * @return Pointer to the location of the wide character, or a null pointer if no such character is found.
+ * @see https://en.cppreference.com/w/c/string/wide/wmemchr
+ */
+public func wmemchr(ptr : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t
+
+/**
+ * Type-generic function equivalent to (1). Let T be an unqualified wide character object type.
+ * If ptr is of type const T*, the return type is const wchar_t*.
+ * Otherwise, if ptr is of type T*, the return type is wchar_t*.
+ * Otherwise, the behavior is undefined.
+ * If a macro definition of each of these generic functions is suppressed to access an actual function (e.g. if (wmemchr) or a function pointer is used), the actual function declaration (1) becomes visible.
+ * TODO macro
+ * /*QWchar_t*/ *wmemchr( /*Qwchar_t*/ *ptr, wchar_t ch, size_t count );
+ * @see https://en.cppreference.com/w/c/string/wide/wmemchr
+ */
+
+/**
+ * Copies the wide character ch into each of the first count wide characters of the wide character array (or integer array of compatible type) pointed to by dest.
+ * If overflow occurs, the behavior is undefined.
+ * If count is zero, the function does nothing.
+ * @param dest	-	pointer to the wide character array to fill
+ * @param ch	-	fill wide character
+ * @param count	-	number of wide characters to fill
+ * @return Returns a copy of dest
+ * @see https://en.cppreference.com/w/c/string/wide/wmemset
+ */
+public func wmemset(dest : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t

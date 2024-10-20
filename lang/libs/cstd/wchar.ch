@@ -971,3 +971,283 @@ public func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbst
  * @see https://en.cppreference.com/w/c/chrono/wcsftime
  */
 public func wcsftime(str : *mut wchar_t, count : size_t, format : *wchar_t, time : *tm) : size_t
+
+/**
+ * Interprets an integer value in a wide string pointed to by str.
+ * Discards any whitespace characters (as identified by calling iswspace) until the first non-whitespace character is found, then takes as many characters as possible to form a valid base-n (where n=base) integer number representation and converts them to an integer value. The valid integer value consists of the following parts:
+ *      (optional) plus or minus sign
+ *      (optional) prefix (0) indicating octal base (applies only when the base is 8 or ​0​)
+ *      (optional) prefix (0x or 0X) indicating hexadecimal base (applies only when the base is 16 or ​0​)
+ *      a sequence of digits
+ * The set of valid values for base is {0,2,3,...,36}. The set of valid digits for base-2 integers is {0,1}, for base-3 integers is {0,1,2}, and so on. For bases larger than 10, valid digits include alphabetic characters, starting from Aa for base-11 integer, to Zz for base-36 integer. The case of the characters is ignored.
+ * Additional numeric formats may be accepted by the currently installed C locale.
+ * If the value of base is ​0​, the numeric base is auto-detected: if the prefix is 0, the base is octal, if the prefix is 0x or 0X, the base is hexadecimal, otherwise the base is decimal.
+ * If the minus sign was part of the input sequence, the numeric value calculated from the sequence of digits is negated as if by unary minus in the result type.
+ * The functions sets the pointer pointed to by str_end to point to the wide character past the last character interpreted. If str_end is a null pointer, it is ignored.
+ * @param str	-	pointer to the null-terminated wide string to be interpreted
+ * @param str_end	-	pointer to a pointer to wide character
+ * @param base	-	base of the interpreted integer value
+ * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and LONG_MAX, LONG_MIN, LLONG_MAX or LLONG_MIN is returned. If no conversion can be performed, ​0​ is returned.
+ * @see https://en.cppreference.com/w/c/string/wide/wcstol
+ */
+public func wcstol(str : *wchar_t, str_end : **mut wchar_t, base : int) : long
+
+/**
+ * Interprets an integer value in a wide string pointed to by str.
+ * Discards any whitespace characters (as identified by calling iswspace) until the first non-whitespace character is found, then takes as many characters as possible to form a valid base-n (where n=base) integer number representation and converts them to an integer value. The valid integer value consists of the following parts:
+ *      (optional) plus or minus sign
+ *      (optional) prefix (0) indicating octal base (applies only when the base is 8 or ​0​)
+ *      (optional) prefix (0x or 0X) indicating hexadecimal base (applies only when the base is 16 or ​0​)
+ *      a sequence of digits
+ * The set of valid values for base is {0,2,3,...,36}. The set of valid digits for base-2 integers is {0,1}, for base-3 integers is {0,1,2}, and so on. For bases larger than 10, valid digits include alphabetic characters, starting from Aa for base-11 integer, to Zz for base-36 integer. The case of the characters is ignored.
+ * Additional numeric formats may be accepted by the currently installed C locale.
+ * If the value of base is ​0​, the numeric base is auto-detected: if the prefix is 0, the base is octal, if the prefix is 0x or 0X, the base is hexadecimal, otherwise the base is decimal.
+ * If the minus sign was part of the input sequence, the numeric value calculated from the sequence of digits is negated as if by unary minus in the result type.
+ * The functions sets the pointer pointed to by str_end to point to the wide character past the last character interpreted. If str_end is a null pointer, it is ignored.
+ * @param str	-	pointer to the null-terminated wide string to be interpreted
+ * @param str_end	-	pointer to a pointer to wide character
+ * @param base	-	base of the interpreted integer value
+ * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and LONG_MAX, LONG_MIN, LLONG_MAX or LLONG_MIN is returned. If no conversion can be performed, ​0​ is returned.
+ * @see https://en.cppreference.com/w/c/string/wide/wcstol
+ */
+public func wcstoll(str : *wchar_t, str_end : **mut wchar_t, base : int) : bigint
+
+/**
+ * Interprets an unsigned integer value in a wide string pointed to by str.
+ * Discards any whitespace characters (as identified by calling iswspace) until the first non-whitespace character is found, then takes as many characters as possible to form a valid base-n (where n=base) unsigned integer number representation and converts them to an integer value. The valid unsigned integer value consists of the following parts:
+ *      (optional) plus or minus sign
+ *      (optional) prefix (0) indicating octal base (applies only when the base is 8 or ​0​)
+ *      (optional) prefix (0x or 0X) indicating hexadecimal base (applies only when the base is 16 or ​0​)
+ *      a sequence of digits
+ * The set of valid values for base is {0,2,3,...,36}. The set of valid digits for base-2 integers is {0,1}, for base-3 integers is {0,1,2}, and so on. For bases larger than 10, valid digits include alphabetic characters, starting from Aa for base-11 integer, to Zz for base-36 integer. The case of the characters is ignored.
+ * Additional numeric formats may be accepted by the currently installed C locale.
+ * If the value of base is ​0​, the numeric base is auto-detected: if the prefix is 0, the base is octal, if the prefix is 0x or 0X, the base is hexadecimal, otherwise the base is decimal.
+ * If the minus sign was part of the input sequence, the numeric value calculated from the sequence of digits is negated as if by unary minus in the result type, which applies unsigned integer wraparound rules.
+ * The functions sets the pointer pointed to by str_end to point to the wide character past the last character interpreted. If str_end is a null pointer, it is ignored.
+ * @param str	-	pointer to the null-terminated wide string to be interpreted
+ * @param str_end	-	pointer to a pointer to a wide character.
+ * @param base	-	base of the interpreted integer value
+ * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and ULONG_MAX or ULLONG_MAX is returned. If no conversion can be performed, ​0​ is returned.
+ * @see https://en.cppreference.com/w/c/string/wide/wcstoul
+ */
+public func wcstoul(str : *wchar_t, str_end : **mut wchar_t, base : int) : ulong
+
+/**
+ * Interprets an unsigned integer value in a wide string pointed to by str.
+ * Discards any whitespace characters (as identified by calling iswspace) until the first non-whitespace character is found, then takes as many characters as possible to form a valid base-n (where n=base) unsigned integer number representation and converts them to an integer value. The valid unsigned integer value consists of the following parts:
+ *      (optional) plus or minus sign
+ *      (optional) prefix (0) indicating octal base (applies only when the base is 8 or ​0​)
+ *      (optional) prefix (0x or 0X) indicating hexadecimal base (applies only when the base is 16 or ​0​)
+ *      a sequence of digits
+ * The set of valid values for base is {0,2,3,...,36}. The set of valid digits for base-2 integers is {0,1}, for base-3 integers is {0,1,2}, and so on. For bases larger than 10, valid digits include alphabetic characters, starting from Aa for base-11 integer, to Zz for base-36 integer. The case of the characters is ignored.
+ * Additional numeric formats may be accepted by the currently installed C locale.
+ * If the value of base is ​0​, the numeric base is auto-detected: if the prefix is 0, the base is octal, if the prefix is 0x or 0X, the base is hexadecimal, otherwise the base is decimal.
+ * If the minus sign was part of the input sequence, the numeric value calculated from the sequence of digits is negated as if by unary minus in the result type, which applies unsigned integer wraparound rules.
+ * The functions sets the pointer pointed to by str_end to point to the wide character past the last character interpreted. If str_end is a null pointer, it is ignored.
+ * @param str	-	pointer to the null-terminated wide string to be interpreted
+ * @param str_end	-	pointer to a pointer to a wide character.
+ * @param base	-	base of the interpreted integer value
+ * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and ULONG_MAX or ULLONG_MAX is returned. If no conversion can be performed, ​0​ is returned.
+ * @see https://en.cppreference.com/w/c/string/wide/wcstoul
+ */
+public func wcstoull(str : *wchar_t, str_end : **mut wchar_t, base : int) : ubigint
+
+/**
+ * Interprets a floating-point value in a wide string pointed to by str.
+ * Function discards any whitespace characters (as determined by iswspace) until first non-whitespace character is found. Then it takes as many characters as possible to form a valid floating-point representation and converts them to a floating-point value. The valid floating-point value can be one of the following:
+ *      decimal floating-point expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          nonempty sequence of decimal digits optionally containing decimal-point character (as determined by the current C locale) (defines significand)
+ *          (optional) e or E followed with optional minus or plus sign and nonempty sequence of decimal digits (defines exponent to base 10)
+ *      hexadecimal floating-point expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          0x or 0X
+ *          nonempty sequence of hexadecimal digits optionally containing a decimal-point character (as determined by the current C locale) (defines significand)
+ *          (optional) p or P followed with optional minus or plus sign and nonempty sequence of decimal digits (defines exponent to base 2)
+ *      infinity expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          INF or INFINITY ignoring case
+ *      not-a-number expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          NAN or NAN(char_sequence) ignoring case of the NAN part. char_sequence can only contain digits, Latin letters, and underscores. The result is a quiet NaN floating-point value.
+ * any other expression that may be accepted by the currently installed C locale
+ * @param str	-	pointer to the null-terminated wide string to be interpreted
+ * @param str_end	-	pointer to a pointer to a wide character.
+ * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
+ * @see https://en.cppreference.com/w/c/string/wide/wcstof
+ */
+public func wcstof(str : *wchar_t, str_end : **mut wchar_t) : float
+
+/**
+ * Interprets a floating-point value in a wide string pointed to by str.
+ * Function discards any whitespace characters (as determined by iswspace) until first non-whitespace character is found. Then it takes as many characters as possible to form a valid floating-point representation and converts them to a floating-point value. The valid floating-point value can be one of the following:
+ *      decimal floating-point expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          nonempty sequence of decimal digits optionally containing decimal-point character (as determined by the current C locale) (defines significand)
+ *          (optional) e or E followed with optional minus or plus sign and nonempty sequence of decimal digits (defines exponent to base 10)
+ *      hexadecimal floating-point expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          0x or 0X
+ *          nonempty sequence of hexadecimal digits optionally containing a decimal-point character (as determined by the current C locale) (defines significand)
+ *          (optional) p or P followed with optional minus or plus sign and nonempty sequence of decimal digits (defines exponent to base 2)
+ *      infinity expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          INF or INFINITY ignoring case
+ *      not-a-number expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          NAN or NAN(char_sequence) ignoring case of the NAN part. char_sequence can only contain digits, Latin letters, and underscores. The result is a quiet NaN floating-point value.
+ * any other expression that may be accepted by the currently installed C locale
+ * @param str	-	pointer to the null-terminated wide string to be interpreted
+ * @param str_end	-	pointer to a pointer to a wide character.
+ * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
+ * @see https://en.cppreference.com/w/c/string/wide/wcstof
+ */
+public func wcstod(str : *wchar_t, str_end : **mut wchar_t) : double
+
+/**
+ * Interprets a floating-point value in a wide string pointed to by str.
+ * Function discards any whitespace characters (as determined by iswspace) until first non-whitespace character is found. Then it takes as many characters as possible to form a valid floating-point representation and converts them to a floating-point value. The valid floating-point value can be one of the following:
+ *      decimal floating-point expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          nonempty sequence of decimal digits optionally containing decimal-point character (as determined by the current C locale) (defines significand)
+ *          (optional) e or E followed with optional minus or plus sign and nonempty sequence of decimal digits (defines exponent to base 10)
+ *      hexadecimal floating-point expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          0x or 0X
+ *          nonempty sequence of hexadecimal digits optionally containing a decimal-point character (as determined by the current C locale) (defines significand)
+ *          (optional) p or P followed with optional minus or plus sign and nonempty sequence of decimal digits (defines exponent to base 2)
+ *      infinity expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          INF or INFINITY ignoring case
+ *      not-a-number expression. It consists of the following parts:
+ *          (optional) plus or minus sign
+ *          NAN or NAN(char_sequence) ignoring case of the NAN part. char_sequence can only contain digits, Latin letters, and underscores. The result is a quiet NaN floating-point value.
+ * any other expression that may be accepted by the currently installed C locale
+ * @param str	-	pointer to the null-terminated wide string to be interpreted
+ * @param str_end	-	pointer to a pointer to a wide character.
+ * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
+ * @see https://en.cppreference.com/w/c/string/wide/wcstof
+ */
+public func wcstold(str : *wchar_t, str_end : **mut wchar_t) : longdouble
+
+/**
+ * Copies the wide string pointed to by src (including the terminating null wide character) to wide character array pointed to by dest. The behavior is undefined if the dest array is not large enough. The behavior is undefined if the strings overlap.
+ * @param dest	-	pointer to the wide character array to copy to
+ * @param src	-	pointer to the null-terminated wide string to copy from
+ * @param destsz	-	maximum number of characters to write, typically the size of the destination buffer
+ * @return returns a copy of dest
+ * @see https://en.cppreference.com/w/c/string/wide/wcscpy
+ */
+public func wcscpy(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
+
+/**
+ * Same as (1), except that it may clobber the rest of the destination array with unspecified values and that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      src or dest is a null pointer
+ *      destsz is zero or greater than RSIZE_MAX / sizeof(wchar_t)
+ *      destsz is less or equal wcsnlen_s(src, destsz), in other words, truncation would occur
+ *      overlap would occur between the source and the destination strings
+ *  As with all bounds-checked functions, wcscpy_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <wchar.h>.
+ * @param dest	-	pointer to the wide character array to copy to
+ * @param src	-	pointer to the null-terminated wide string to copy from
+ * @param destsz	-	maximum number of characters to write, typically the size of the destination buffer
+ * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RMAX_SIZE / sizeof(wchar_t)).
+ * @see https://en.cppreference.com/w/c/string/wide/wcscpy
+ */
+public func wcscpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t) : errno_t
+
+/**
+ * Copies at most count characters of the wide string pointed to by src (including the terminating null wide character) to wide character array pointed to by dest.
+ * If count is reached before the entire string src was copied, the resulting wide character array is not null-terminated.
+ * If, after copying the terminating null wide character from src, count is not reached, additional null wide characters are written to dest until the total of count characters have been written.
+ * If the strings overlap, the behavior is undefined.
+ * @param dest	-	pointer to the wide character array to copy to
+ * @param src	-	pointer to the wide string to copy from
+ * @param count	-	maximum number of wide characters to copy
+ * @param destsz	-	the size of the destination buffer
+ * @return returns a copy of dest
+ * @see https://en.cppreference.com/w/c/string/wide/wcsncpy
+ */
+public func wcsncpy(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut wchar_t
+
+/**
+ * Same as (1), except that the function does not continue writing zeroes into the destination array to pad up to count, it stops after writing the terminating null character (if there was no null in the source, it writes one at dest[count] and then stops). Also, the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      src or dest is a null pointer
+ *      destsz or count is zero or greater than RSIZE_MAX/sizeof(wchar_t)
+ *      count is greater or equal destsz, but destsz is less or equal wcsnlen_s(src, count), in other words, truncation would occur
+ *      overlap would occur between the source and the destination strings
+ *  As with all bounds-checked functions, wcsncpy_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <wchar.h>.
+ * @param dest	-	pointer to the wide character array to copy to
+ * @param src	-	pointer to the wide string to copy from
+ * @param count	-	maximum number of wide characters to copy
+ * @param destsz	-	the size of the destination buffer
+ * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX/sizeof(wchar_t)) and may clobber the rest of the destination array with unspecified values.
+ * @see https://en.cppreference.com/w/c/string/wide/wcsncpy
+ */
+public func wcsncpy_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
+
+/**
+ * Appends a copy of the wide string pointed to by src to the end of the wide string pointed to by dest. The wide character src[0] replaces the null terminator at the end of dest. The resulting wide string is null-terminated. The behavior is undefined if the destination array is not large enough for the contents of both str and dest and the terminating null wide character. The behavior is undefined if the strings overlap.
+ * @param dest	-	pointer to the null-terminated wide string to append to
+ * @param src	-	pointer to the null-terminated wide string to copy from
+ * @param destsz	-	maximum number of characters to write, typically the size of the destination buffer
+ * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX/sizeof(wchar_t)).
+ * @see https://en.cppreference.com/w/c/string/wide/wcscat
+ */
+public func wcscat(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
+
+/**
+ * Same as (1), except that it may clobber the rest of the destination array (from the last character written to destsz) with unspecified values and that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      src or dest is a null pointer
+ *      destsz is zero or greater than RSIZE_MAX/sizeof(wchar_t)
+ *      there is no null terminator in the first destsz wide characters of dest
+ *      truncation would occur (the available space at the end of dest would not fit every wide character, including the null terminator, of src)
+ *      overlap would occur between the source and the destination strings
+ *  As with all bounds-checked functions, wcscat_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <wchar.h>.
+ * @param dest	-	pointer to the null-terminated wide string to append to
+ * @param src	-	pointer to the null-terminated wide string to copy from
+ * @param destsz	-	maximum number of characters to write, typically the size of the destination buffer
+ * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX/sizeof(wchar_t)).
+ * @see https://en.cppreference.com/w/c/string/wide/wcscat
+ */
+public func wcscat_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t) : errno_t
+
+/**
+ * Appends at most count wide characters from the wide string pointed to by src, stopping if the null terminator is copied, to the end of the character string pointed to by dest. The wide character src[0] replaces the null terminator at the end of dest. The null terminator is always appended in the end (so the maximum number of wide characters the function may write is count+1).
+ * The behavior is undefined if the destination array is not large enough for the contents of both str and dest and the terminating null wide character.
+ * The behavior is undefined if the strings overlap.
+ * @param dest	-	pointer to the null-terminated wide string to append to
+ * @param src	-	pointer to the null-terminated wide string to copy from
+ * @param count	-	maximum number of wide characters to copy
+ * @param destsz	-	the size of the destination buffer
+ * @return returns a copy of dest
+ */
+public func wcsncat(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut wchar_t
+
+/**
+ * Same as (1), except that this function may clobber the remainder of the destination array (from the last wide character written to destsz) and that the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      src or dest is a null pointer
+ *      destsz or count is zero or greater than RSIZE_MAX/sizeof(wchar_t)
+ *      there is no null wide character in the first destsz wide characters of dest
+ *      truncation would occur: count or the length of src, whichever is less, exceeds the space available between the null terminator of dest and destsz.
+ *      overlap would occur between the source and the destination strings
+ * As with all bounds-checked functions, wcsncat_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <wchar.h>.
+ * @param dest	-	pointer to the null-terminated wide string to append to
+ * @param src	-	pointer to the null-terminated wide string to copy from
+ * @param count	-	maximum number of wide characters to copy
+ * @param destsz	-	the size of the destination buffer
+ * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX/sizeof(wchar_t)).
+ * @see https://en.cppreference.com/w/c/string/wide/wcsncat
+ */
+public func wcsncat_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
+
+/**
+ * Transforms the null-terminated wide string pointed to by src into the implementation-defined form such that comparing two transformed strings with wcscmp gives the same result as comparing the original strings with wcscoll, in the current C locale.
+ * The first count characters of the transformed string are written to destination, including the terminating null character, and the length of the full transformed string is returned, excluding the terminating null character.
+ * If count is ​0​, then dest is allowed to be a null pointer.
+ * @param dest	-	pointer to the first element of a wide null-terminated string to write the transformed string to
+ * @param src	-	pointer to the null-terminated wide character string to transform
+ * @param count	-	maximum number of characters to output
+ * @return The length of the transformed wide string, not including the terminating null-character.
+ * @see https://en.cppreference.com/w/c/string/wide/wcsxfrm
+ */
+public func wcsxfrm(dest : *mut wchar_t, src : *wchar_t, count : size_t) : size_t

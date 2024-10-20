@@ -1,6 +1,8 @@
 // TODO thrd_t is implementation defined
 public struct thrd_t
 
+// TODO tss_t is implementation defined
+
 /**
  * TODO the values for enum members are implementation defined
  * @see https://en.cppreference.com/w/c/thread/thrd_errors

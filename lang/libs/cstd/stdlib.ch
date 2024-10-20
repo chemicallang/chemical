@@ -447,3 +447,138 @@ public func getenv_s(
  * @see https://en.cppreference.com/w/c/program/memalignment
  */
 public func memalignment(p : *void) : size_t
+
+/**
+ * Determines the size, in bytes, of the multibyte character whose first byte is pointed to by s.
+ * If s is a null pointer, resets the global conversion state and(until C23) determined whether shift sequences are used.
+ * This function is equivalent to the call mbtowc((wchar_t*)0, s, n), except that conversion state of mbtowc is unaffected.
+ * @param s	-	pointer to the multibyte character
+ * @param n	-	limit on the number of bytes in s that can be examined
+ * @return If s is not a null pointer, returns the number of bytes that are contained in the multibyte character or -1 if the first bytes pointed to by s do not form a valid multibyte character or ​0​ if s is pointing at the null charcter '\0'.
+ * If s is a null pointer, resets its internal conversion state to represent the initial shift state and(until C23) returns ​0​ if the current multibyte encoding is not state-dependent (does not use shift sequences) or a non-zero value if the current multibyte encoding is state-dependent (uses shift sequences).
+ * @see https://en.cppreference.com/w/c/string/multibyte/mblen
+ */
+public func mblen(s : *char, n : size_t) : int
+
+/**
+ * Converts a multibyte character whose first byte is pointed to by s to a wide character, written to *pwc if pwc is not null.
+ * If s is a null pointer, resets the global conversion state and determines whether shift sequences are used.
+ * @param pwc	-	pointer to the wide character for output
+ * @param s	-	pointer to the multibyte character
+ * @param n	-	limit on the number of bytes in s that can be examined
+ * @return If s is not a null pointer, returns the number of bytes that are contained in the multibyte character or -1 if the first bytes pointed to by s do not form a valid multibyte character or ​0​ if s is pointing at the null character '\0'.
+ *         If s is a null pointer, resets its internal conversion state to represent the initial shift state and returns ​0​ if the current multibyte encoding is not state-dependent (does not use shift sequences) or a non-zero value if the current multibyte encoding is state-dependent (uses shift sequences).
+ * @see https://en.cppreference.com/w/c/string/multibyte/mbtowc
+ */
+public func mbtowc(pwc : *mut wchar_t, s : *char, n : size_t) : int
+
+/**
+ * Converts a wide character wc to multibyte encoding and stores it (including any shift sequences) in the char array whose first element is pointed to by s. No more than MB_CUR_MAX characters are stored. The conversion is affected by the current locale's LC_CTYPE category.
+ * If wc is the null character, the null byte is written to s, preceded by any shift sequences necessary to restore the initial shift state.
+ * If s is a null pointer, this function resets the global conversion state and determines whether shift sequences are used.
+ * @param s	-	pointer to the character array for output
+ * @param wc	-	wide character to convert
+ * @param ssz	-	maximum number of bytes to write to s (size of the array s)
+ * @param status	-	pointer to an out-parameter where the result (length of the multibyte sequence or the shift sequence status) will be stored
+ * @return If s is not a null pointer, returns the number of bytes that are contained in the multibyte representation of wc or -1 if wc is not a valid character.
+ *         If s is a null pointer, resets its internal conversion state to represent the initial shift state and returns ​0​ if the current multibyte encoding is not state-dependent (does not use shift sequences) or a non-zero value if the current multibyte encoding is state-dependent (uses shift sequences).
+ * @see https://en.cppreference.com/w/c/string/multibyte/wctomb
+ */
+public func wctomb(s : *char, wc : wchar_t) : int
+
+/**
+ * Same as (1), except that the result is returned in the out-parameter status and the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      ssz is less than the number of bytes that would be written (unless s is null)
+ *      ssz is greater than RSIZE_MAX (unless s is null)
+ *      s is a null pointer but ssz is not zero
+ *  As with all bounds-checked functions, wctomb_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdlib.h>.
+ * @param s	-	pointer to the character array for output
+ * @param wc	-	wide character to convert
+ * @param ssz	-	maximum number of bytes to write to s (size of the array s)
+ * @param status	-	pointer to an out-parameter where the result (length of the multibyte sequence or the shift sequence status) will be stored
+ * @return zero on success, in which case the multibyte representation of wc is stored in s and its length is stored in *status, or, if s is null, the shift sequence status is stored in status). Non-zero on encoding error or runtime constraint violation, in which case (size_t)-1 is stored in *status. The value stored in *status never exceeds MB_CUR_MAX
+ * @see https://en.cppreference.com/w/c/string/multibyte/wctomb
+ */
+public func wctomb_s(status : *mut int, s : *mut char, ssz : rsize_t, wc : wchar_t) : errno_t
+
+/**
+ * Converts a multibyte character string from the array whose first element is pointed to by src to its wide character representation. Converted characters are stored in the successive elements of the array pointed to by dst. No more than len wide characters are written to the destination array.
+ *  Each character is converted as if by a call to mbtowc, except that the mbtowc conversion state is unaffected. The conversion stops if:
+ *   * The multibyte null character was converted and stored.
+ *   * An invalid (in the current C locale) multibyte character was encountered.
+ *   * The next wide character to be stored would exceed len.
+ *  If src and dst overlap, the behavior is undefined
+ * @param dst	-	pointer to wide character array where the wide string will be stored
+ * @param src	-	pointer to the first element of a null-terminated multibyte string to convert
+ * @param len	-	number of wide characters available in the array pointed to by dst
+ * @param dstsz	-	max number of wide characters that will be written (size of the dst array)
+ * @param retval	-	pointer to a size_t object where the result will be stored
+ * @return On success, returns the number of wide characters, excluding the terminating L'\0', written to the destination array. On conversion error (if invalid multibyte character was encountered), returns (size_t)-1.
+ * @see https://en.cppreference.com/w/c/string/multibyte/mbstowcs
+ */
+public func mbstowcs(dst : *mut wchar_t, src : *char, len : size_t) : size_t
+
+/**
+ *  Same as (1), except that
+ *   * conversion is as-if by mbrtowc, not mbtowc
+ *   * the function returns its result as an out-parameter retval
+ *   * if no null character was written to dst after len wide characters were written, then L'\0' is stored in dst[len], which means len+1 total wide characters are written
+ *   * if dst is a null pointer, the number of wide characters that would be produced is stored in *retval
+ *   * the function clobbers the destination array from the terminating null and until dstsz
+ *   * If src and dst overlap, the behavior is unspecified.
+ *   * the following errors are detected at runtime and call the currently installed constraint handler function:
+ *          retval or src is a null pointer
+ *          dstsz or len is greater than RSIZE_MAX/sizeof(wchar_t) (unless dst is null)
+ *          dstsz is not zero (unless dst is null)
+ *          There is no null character in the first dstsz multibyte characters in the src array and len is greater than dstsz (unless dst is null)
+ *  As with all bounds-checked functions, mbstowcs_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdlib.h>.
+ * @param dst	-	pointer to wide character array where the wide string will be stored
+ * @param src	-	pointer to the first element of a null-terminated multibyte string to convert
+ * @param len	-	number of wide characters available in the array pointed to by dst
+ * @param dstsz	-	max number of wide characters that will be written (size of the dst array)
+ * @param retval	-	pointer to a size_t object where the result will be stored
+ * @return zero on success (in which case the number of wide characters excluding terminating zero that were, or would be written to dst, is stored in *retval), non-zero on error. In case of a runtime constraint violation, stores (size_t)-1 in *retval (unless retval is null) and sets dst[0] to L'\0' (unless dst is null or dstmax is zero or greater than RSIZE_MAX)
+ * @see https://en.cppreference.com/w/c/string/multibyte/mbstowcs
+ */
+public func mbstowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_t, src : *char, len : rsize_t) : errno_t
+
+/**
+ * Converts a sequence of wide characters from the array whose first element is pointed to by src to its narrow multibyte representation that begins in the initial shift state. Converted characters are stored in the successive elements of the char array pointed to by dst. No more than len bytes are written to the destination array.
+ *  Each character is converted as if by a call to wctomb, except that the wctomb's conversion state is unaffected. The conversion stops if:
+ *   * The null character L'\0' was converted and stored. The bytes stored in this case are the unshift sequence (if necessary) followed by '\0',
+ *   * A wchar_t was found that does not correspond to a valid character in the current C locale.
+ *   * The next multibyte character to be stored would exceed len.
+ *  If src and dst overlap, the behavior is unspecified.
+ * @param dst	-	pointer to narrow character array where the multibyte character will be stored
+ * @param src	-	pointer to the first element of a null-terminated wide string to convert
+ * @param len	-	number of bytes available in the array pointed to by dst
+ * @param dstsz	-	max number of bytes that will be written (size of the dst array)
+ * @param retval	-	pointer to a size_t object where the result will be stored
+ * @return On success, returns the number of bytes (including any shift sequences, but excluding the terminating '\0') written to the character array whose first element is pointed to by dst. On conversion error (if invalid wide character was encountered), returns (size_t)-1.
+ * @see https://en.cppreference.com/w/c/string/multibyte/wcstombs
+ */
+public func wcstombs(dst : *mut char, src : *wchar_t, len : size_t) : size_t
+
+/**
+ * Same as wcstombs, except that
+ *   * conversion is as-if by wcrtomb, not wctomb
+ *   * the function returns its result as an out-parameter retval
+ *   * if the conversion stops without writing a null character, the function will store '\0' in the next byte in dst, which may be dst[len] or dst[dstsz], whichever comes first (meaning up to len+1/dstsz+1 total bytes may be written). In this case, there may be no unshift sequence written before the terminating null.
+ *   * if dst is a null pointer, the number of bytes that would be produced is stored in *retval
+ *   * the function clobbers the destination array from the terminating null and until dstsz
+ *   * If src and dst overlap, the behavior is unspecified.
+ *   * the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      retval or src is a null pointer
+ *      dstsz or len is greater than RSIZE_MAX (unless dst is null)
+ *      dstsz is not zero (unless dst is null)
+ *      len is greater than dstsz and the conversion does not encounter null or encoding error in the src array by the time dstsz is reached (unless dst is null)
+ *  As with all bounds-checked functions, wcstombs_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdlib.h>.
+ * @param dst	-	pointer to narrow character array where the multibyte character will be stored
+ * @param src	-	pointer to the first element of a null-terminated wide string to convert
+ * @param len	-	number of bytes available in the array pointed to by dst
+ * @param dstsz	-	max number of bytes that will be written (size of the dst array)
+ * @param retval	-	pointer to a size_t object where the result will be stored
+ * @return Returns zero on success (in which case the number of bytes excluding terminating zero that were, or would be written to dst, is stored in *retval), non-zero on error. In case of a runtime constraint violation, stores (size_t)-1 in *retval (unless retval is null) and sets dst[0] to '\0' (unless dst is null or dstmax is zero or greater than RSIZE_MAX)
+ * @see https://en.cppreference.com/w/c/string/multibyte/wcstombs
+ */
+public func wcstombs_s(retval : *size_t, dst : *char, dstsz : rsize_t, src : *wchar_t, len : rsize_t);

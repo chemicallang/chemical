@@ -961,3 +961,13 @@ public func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbst
  * @see https://en.cppreference.com/w/c/string/multibyte/wcsrtombs
  */
 public func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbstate_t) : size_t
+
+/**
+ * Converts the date and time information from a given calendar time time to a null-terminated wide character string str according to format string format. Up to count bytes are written.
+ * @param str	-	pointer to the first element of the wchar_t array for output
+ * @param count	-	maximum number of wide characters to write
+ * @param format	-	pointer to a null-terminated wide character string specifying the format of conversion
+ * @return Number of wide characters written into the wide character array pointed to by str not including the terminating L'\0' on success. If count was reached before the entire string could be stored, ​0​ is returned and the contents are undefined.
+ * @see https://en.cppreference.com/w/c/chrono/wcsftime
+ */
+public func wcsftime(str : *mut wchar_t, count : size_t, format : *wchar_t, time : *tm) : size_t

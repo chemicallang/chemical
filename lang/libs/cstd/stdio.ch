@@ -989,3 +989,213 @@ public func vsprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlis
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
 public func vsnprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlist : va_list) : int
+
+
+/**
+ * Returns the file position indicator for the file stream stream.
+ * If the stream is open in binary mode, the value obtained by this function is the number of bytes from the beginning of the file.
+ * If the stream is open in text mode, the value returned by this function is unspecified and is only meaningful as the input to fseek().
+ * @param stream	-	file stream to examine
+ * @return File position indicator on success or -1L if failure occurs.
+ *         On error, the errno variable is set to implementation-defined positive value.
+ * @see https://en.cppreference.com/w/c/io/ftell
+ */
+public func ftell(stream : *mut FILE) : long
+
+/**
+ * Obtains the file position indicator and the current parse state (if any) for the file stream stream and stores them in the object pointed to by pos. The value stored is only meaningful as the input to fsetpos.
+ * @param stream	-	file stream to examine
+ * @param pos	-	pointer to a fpos_t object to store the file position indicator to
+ * @return 0 upon success, nonzero value otherwise.
+ * @see https://en.cppreference.com/w/c/io/fgetpos
+ */
+public func fgetpos(stream : *mut FILE, pos : *mut fpos_t) : int
+
+/**
+ * Sets the file position indicator for the file stream stream to the value pointed to by offset.
+ * If the stream is open in binary mode, the new position is exactly offset bytes measured from the beginning of the file if origin is SEEK_SET, from the current file position if origin is SEEK_CUR, and from the end of the file if origin is SEEK_END. Binary streams are not required to support SEEK_END, in particular if additional null bytes are output.
+ * If the stream is open in text mode, the only supported values for offset are zero (which works with any origin) and a value returned by an earlier call to ftell on a stream associated with the same file (which only works with origin of SEEK_SET).
+ * If the stream is wide-oriented, the restrictions of both text and binary streams apply (result of ftell is allowed with SEEK_SET and zero offset is allowed from SEEK_SET and SEEK_CUR, but not SEEK_END).
+ * In addition to changing the file position indicator, fseek undoes the effects of ungetc and clears the end-of-file status, if applicable.
+ * If a read or write error occurs, the error indicator for the stream (ferror) is set and the file position is unaffected.
+ * @param stream	-	file stream to modify
+ * @param offset	-	number of characters to shift the position relative to origin
+ * @param origin	-	position to which offset is added. It can have one of the following values: SEEK_SET, SEEK_CUR, SEEK_END
+ * @return 0 upon success, nonzero value otherwise.
+ * @see https://en.cppreference.com/w/c/io/fseek
+ */
+public func fseek(stream : *mut FILE, offset : long, origin : int) : int
+
+/**
+ * TODO implementation defined macros
+ * #define SEEK_SET
+ * #define SEEK_CUR
+ * #define SEEK_END
+ */
+
+/**
+ * Sets the file position indicator and the multibyte parsing state (if any) for the file stream stream according to the value pointed to by pos.
+ * Besides establishing new parse state and position, a call to this function undoes the effects of ungetc and clears the end-of-file state, if it is set.
+ * If a read or write error occurs, the error indicator (ferror) for the stream is set.
+ * @param stream	-	file stream to modify
+ * @param pos	-	pointer to a fpos_t object to use as new value of file position indicator
+ * @return 0 upon success, nonzero value otherwise.
+ * @see https://en.cppreference.com/w/c/io/fsetpos
+ */
+public func fsetpos(stream : *mut FILE, pos : *fpos_t) : int
+
+/**
+ * Moves the file position indicator to the beginning of the given file stream.
+ * The function is equivalent to fseek(stream, 0, SEEK_SET);, except that end-of-file and error indicators are cleared.
+ * The function drops any effects from previous calls to ungetc.
+ * @param stream	-	file stream to modify
+ * @see https://en.cppreference.com/w/c/io/rewind
+ */
+public func rewind(stream : *mut FILE) : void
+
+/**
+ * Resets the error flags and the EOF indicator for the given file stream.
+ * @param stream	-	the file to reset the error flags for
+ * @see https://en.cppreference.com/w/c/io/clearerr
+ */
+public func clearerr(stream : *mut FILE) : void
+
+/**
+ * Checks if the end of the given file stream has been reached.
+ * @param stream	-	the file stream to check
+ * @return nonzero value if the end of the stream has been reached, otherwise ​0​
+ * @see https://en.cppreference.com/w/c/io/feof
+ */
+public func feof(stream : *mut FILE) : int
+
+/**
+ * Checks the given stream for errors.
+ * @param stream	-	the file stream to check
+ * @return Nonzero value if the file stream has errors occurred, 0 otherwise
+ * @see https://en.cppreference.com/w/c/io/ferror
+ */
+public func ferror(stream : *mut FILE) : int
+
+/**
+ * Prints a textual description of the error code currently stored in the system variable errno to stderr.
+ * The description is formed by concatenating the following components:
+ *      the contents of the null-terminated byte string pointed to by s, followed by ": " (unless s is a null pointer or the character pointed to by s is the null character)
+ *      implementation-defined error message string describing the error code stored in errno, followed by '\n'. The error message string is identical to the result of strerror(errno).
+ * @param s	-	pointer to a null-terminated string with explanatory message
+ * @see https://en.cppreference.com/w/c/io/perror
+ */
+public func perror(s : *char);
+
+/**
+ * Deletes the file identified by the character string pointed to by pathname.
+ * If the file is currently open by any process, the behavior of this function is implementation-defined. POSIX systems unlink the file name (directory entry), but the filesystem space used by the file is not reclaimed while it is open in any process and while other hard links to the file exist. Windows does not allow the file to be deleted in such cases.
+ * @param pathname	-	pointer to a null-terminated string containing the path identifying the file to delete
+ * @return 0 upon success or non-zero value on error.
+ * @see https://en.cppreference.com/w/c/io/remove
+ */
+public func remove(pathname : *char) : int
+
+/**
+ * Changes the filename of a file. The file is identified by character string pointed to by old_filename. The new filename is identified by character string pointed to by new_filename.
+ * If new_filename exists, the behavior is implementation-defined.
+ * @param old_filename	-	pointer to a null-terminated string containing the path identifying the file to rename
+ * @param new_filename	-	pointer to a null-terminated string containing the new path of the file
+ * @return 0 upon success or non-zero value on error.
+ * @see https://en.cppreference.com/w/c/io/rename
+ */
+public func rename(old_filename : *char, new_filename : *char) : int
+
+/**
+ * Creates and opens a temporary file. The file is opened as binary file for update (as if by fopen with "wb+" mode). The filename of the file is guaranteed to be unique within the filesystem. At least TMP_MAX files may be opened during the lifetime of a program (this limit may be shared with tmpnam and may be further limited by FOPEN_MAX).
+ * @return Pointer to the file stream associated with the file or null pointer if an error has occurred.
+ * @see https://en.cppreference.com/w/c/io/tmpfile
+ */
+public func tmpfile() : *mut FILE
+
+/**
+ * Same as (1), except that at least TMP_MAX_S files may be opened (the limit may be shared with tmpnam_s), and if streamptr is a null pointer, the currently installed constraint handler function is called.
+ *      As with all bounds-checked functions, tmpfile_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdio.h>.
+ * @param streamptr pointer to a pointer that will be updated by this function call
+ * @return Zero if the file was created and open successfully, non-zero if the file was not created or open or if streamptr was a null pointer. In addition, pointer to the associated file stream is stored in *streamptr on success, and a null pointer value is stored in *streamptr on error.
+ * @see https://en.cppreference.com/w/c/io/tmpfile
+ */
+public func tmpfile_s(streamptr : *mut FILE) : errno_t
+
+/**
+ * Creates a unique valid file name (no longer than L_tmpnam in length) and stores it in character string pointed to by filename. The function is capable of generating up to TMP_MAX of unique filenames, but some or all of them may be in use in the filesystem and thus not suitable return values.
+ * tmpnam and tmpnam_s modify static state (which may be shared between these functions) and are not required to be thread-safe.
+ * @param filename	-	pointer to the character array capable of holding at least L_tmpnam bytes, to be used as a result buffer. If null pointer is passed, a pointer to an internal static buffer is returned.
+ * @param filename_s	-	pointer to the character array capable of holding at least L_tmpnam_s bytes, to be used as a result buffer.
+ * @param maxsize	-	maximum number of characters the function is allowed to write (typically the size of the filename_s array).
+ * @return filename if filename was not a null pointer. Otherwise a pointer to an internal static buffer is returned. If no suitable filename can be generated, null pointer is returned.
+ * @see https://en.cppreference.com/w/c/io/tmpnam
+ */
+public func tmpnam(filename : *mut char) : *mut char
+
+/**
+ * Same as (1), except that up to TMP_MAX_S names may be generated, no longer than L_tmpnam_s in length, and the following errors are detected at runtime and call the currently installed constraint handler function:
+ *      filename_s is a null pointer
+ *      maxsize is greater than RSIZE_MAX
+ *      maxsize is less than the generated file name string
+ *  As with all bounds-checked functions, tmpnam_s is only guaranteed to be available if __STDC_LIB_EXT1__ is defined by the implementation and if the user defines __STDC_WANT_LIB_EXT1__ to the integer constant 1 before including <stdio.h>.
+ * tmpnam and tmpnam_s modify static state (which may be shared between these functions) and are not required to be thread-safe.
+ * @param filename	-	pointer to the character array capable of holding at least L_tmpnam bytes, to be used as a result buffer. If null pointer is passed, a pointer to an internal static buffer is returned.
+ * @param filename_s	-	pointer to the character array capable of holding at least L_tmpnam_s bytes, to be used as a result buffer.
+ * @param maxsize	-	maximum number of characters the function is allowed to write (typically the size of the filename_s array).
+ * @return Returns zero and writes the file name to filename_s on success. On error, returns non-zero and writes the null character to filename_s[0] (only if filename_s is not null and maxsize is not zero and is not greater than RSIZE_MAX).
+ * @see https://en.cppreference.com/w/c/io/tmpnam
+ */
+public func tmpnam_s(filename : *mut char, maxsize : rsize_t) : errno_t
+
+/**
+ * TODO these macros about tmpnam
+ * #define TMP_MAX
+ * #define TMP_MAX_S
+ * #define L_tmpnam
+ * #define L_tmpnam_s
+ * @see https://en.cppreference.com/w/c/io/tmpnam
+ */
+
+/**
+ *
+ * TODO these macros
+ *
+ * // integer constant expression of type int and negative value
+ * EOF
+ *
+ * // maximum number of files that can be open simultaneously
+ * FOPEN_MAX
+ *
+ * // size needed for an array of char to hold the longest supported file name
+ * FILENAME_MAX
+ *
+ * // size of the buffer used by setbuf
+ * BUFSIZ
+ *
+ * // argument to setvbuf indicating fully buffered I/O
+ * _IOFBF
+ * // argument to setvbuf indicating line buffered I/O
+ * _IOLBF
+ * // argument to setvbuf indicating unbuffered I/O
+ * _IONBF
+ *
+ * // argument to fseek indicating seeking from beginning of the file
+ * SEEK_SET
+ * // argument to fseek indicating seeking from the current file position
+ * SEEK_CUR
+ * // argument to fseek indicating seeking from end of the file
+ * SEEK_END
+ *
+ * // maximum number of unique filenames that can be generated by tmpnam
+ * TMP_MAX
+ * // maximum number of unique filenames that can be generated by tmpnam_s
+ * TMP_MAX_S
+ *
+ * // size needed for an array of char to hold the result of tmpnam
+ * L_tmpnam
+ * // size needed for an array of char to hold the result of tmpnam_s
+ * L_tmpnam_s
+ *
+ * @see https://en.cppreference.com/w/c/io
+ *
+ */

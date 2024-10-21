@@ -320,6 +320,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "implicit", { collect_annotation_func, AnnotationKind::Implicit }},
         { "propagate", { collect_annotation_func, AnnotationKind::Propagate }},
         { "direct_init", { collect_annotation_func, AnnotationKind::DirectInit }},
+        { "no_return", { collect_annotation_func, AnnotationKind::NoReturn }},
         { "cpp", { collect_annotation_func, AnnotationKind::Cpp }},
         { "clear", { collect_annotation_func, AnnotationKind::Clear }},
         { "copy", { collect_annotation_func, AnnotationKind::Copy }},

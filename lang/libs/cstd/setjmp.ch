@@ -19,4 +19,5 @@ public typealias jmp_buf = int
  * @param status	-	the value to return from setjmp. If it is equal to ​0​, 1 is used instead
  * @see https://en.cppreference.com/w/c/program/longjmp
  */
+@no_return
 public func longjmp(env : jmp_buf, status : int);

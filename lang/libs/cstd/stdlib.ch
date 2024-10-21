@@ -341,6 +341,7 @@ public func lldiv(x : bigint, y : bigint) : lldiv_t
  * Functions passed to atexit() are not called. Whether open resources such as files are closed is implementation defined. An implementation defined status is returned to the host environment that indicates unsuccessful execution.
  * @see https://en.cppreference.com/w/c/program/abort
  */
+@no_return
 public func abort();
 
 /**
@@ -352,6 +353,7 @@ public func abort();
  *      control is returned to the host environment. If exit_code is zero or EXIT_SUCCESS, an implementation-defined status indicating successful termination is returned. If exit_code is EXIT_FAILURE, an implementation-defined status indicating unsuccessful termination is returned. In other cases implementation-defined status value is returned.
  * @see https://en.cppreference.com/w/c/program/exit
  */
+@no_return
 public func exit(exit_code : int);
 
 /**
@@ -361,6 +363,7 @@ public func exit(exit_code : int);
  * @param exit_code	-	exit status of the program
  * @see https://en.cppreference.com/w/c/program/quick_exit
  */
+@no_return
 public func quick_exit(exit_code : int)
 
 /**
@@ -370,6 +373,7 @@ public func quick_exit(exit_code : int)
  * @param exit_code	-	exit status of the program
  * @see https://en.cppreference.com/w/c/program/_Exit
  */
+@no_return
 public func _Exit(exit_code : int)
 
 /**

@@ -85,6 +85,9 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompContinue:
             visitor->visitContinue((CSTToken*) this);
             return;
+        case LexTokenType::CompUnreachable:
+            visitor->visitUnreachable((CSTToken*) this);
+            return;
         case LexTokenType::CompThrow:
             visitor->visitThrow((CSTToken*) this);
             return;

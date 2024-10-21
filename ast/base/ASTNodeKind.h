@@ -17,6 +17,7 @@ enum class ASTNodeKind : uint8_t {
     BreakStmt,
     CommentStmt,
     ContinueStmt,
+    UnreachableStmt,
     DeleteStmt,
     ImportStmt,
     ReturnStmt,

@@ -14,6 +14,8 @@ class AssignStatement;
 
 class BreakStatement;
 
+class UnreachableStmt;
+
 class Comment;
 
 class ContinueStatement;
@@ -261,6 +263,10 @@ public:
 
     virtual void visit(BreakStatement* breakStatement) {
         visitCommon((ASTNode*) breakStatement);
+    }
+
+    virtual void visit(UnreachableStmt* stmt) {
+        visitCommon((ASTNode*) stmt);
     }
 
     virtual void visit(Comment* comment) {

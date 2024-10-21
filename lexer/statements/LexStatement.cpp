@@ -57,6 +57,7 @@ bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
            lexUnsafeBlock() ||
            (lexBreakStatement()) ||
            (lexContinueStatement()) ||
+           lexUnreachableStatement() ||
            (isLexReturnStatement && lexReturnStatement()) ||
            (lexDestructStatement()) ||
            lexThrowStatementTokens() ||
@@ -81,6 +82,7 @@ bool Lexer::lexStatementTokens() {
            (isLexImportStatement && lexImportStatement()) ||
            (lexBreakStatement()) ||
            (lexContinueStatement()) ||
+           lexUnreachableStatement() ||
            (isLexReturnStatement && lexReturnStatement()) ||
            (lexDestructStatement()) ||
            lexEnumStructureTokens() ||

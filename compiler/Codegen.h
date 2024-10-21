@@ -477,6 +477,11 @@ public:
     void CreateBr(llvm::BasicBlock *block);
 
     /**
+     * The safe version of builder.CreateUnreachable
+     */
+    void CreateUnreachable();
+
+    /**
      * The safe version of builder.CreateRet
      * this will avoid creating multiple terminator instructions
      * once you call this, no longer can you create branch, or return instructions

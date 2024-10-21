@@ -60,6 +60,7 @@
 #include "ast/statements/DestructStmt.h"
 #include "ast/structures/Namespace.h"
 #include "ast/statements/Break.h"
+#include "ast/statements/Unreachable.h"
 #include "ast/statements/Typealias.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/structures/If.h"
@@ -945,6 +946,10 @@ void CSTConverter::visitBreak(CSTToken* breakCST) {
         stmt->value = value();
     }
     put_node(stmt, breakCST);
+}
+
+void CSTConverter::visitUnreachable(CSTToken *cst) {
+    put_node(new (local<UnreachableStmt>()) UnreachableStmt(parent_node, cst), cst);
 }
 
 void CSTConverter::visitIncDec(CSTToken* incDec) {

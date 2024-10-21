@@ -39,6 +39,7 @@ enum class LexTokenType : int {
     CompAnnotation,
     CompBreak,
     CompContinue,
+    CompUnreachable,
     CompInitBlock,
     CompUnsafeBlock,
     CompThrow,

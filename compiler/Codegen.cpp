@@ -555,6 +555,13 @@ void Codegen::CreateBr(llvm::BasicBlock *block) {
     }
 }
 
+void Codegen::CreateUnreachable() {
+    if(!has_current_block_ended) {
+        builder->CreateUnreachable();
+        has_current_block_ended = true;
+    }
+}
+
 void Codegen::CreateRet(llvm::Value *value) {
     if (!has_current_block_ended) {
         builder->CreateRet(value);

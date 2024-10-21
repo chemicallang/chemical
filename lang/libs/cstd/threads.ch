@@ -104,6 +104,7 @@ public func thrd_yield()
  * @param res	-	the result value to return
  * @see https://en.cppreference.com/w/c/thread/thrd_exit
  */
+@no_return
 public func thrd_exit(res : int) : void
 
 /**

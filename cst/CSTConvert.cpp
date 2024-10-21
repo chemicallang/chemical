@@ -1781,159 +1781,174 @@ void CSTConverter::visitCharToken(CSTToken* token) {
 
 const auto unk_bit_width_err = "unknown bitwidth given for a number";
 
+template<typename T, typename K>
+K parse_hex_or_dec_num(const char* num, char** _EndPtr, T func) {
+    if(num[0] == '0' && (num[1] == 'x' || num[1] == 'X')) {
+        return func(num, _EndPtr, 16);
+    } else {
+        return func(num, _EndPtr, 10);
+    }
+}
+
+template<typename T>
+inline T parse_num(CSTConverter* converter, CSTToken* token, const char* _Ptr, T(*parseFunc)(const char* _String, char** _EndPtr, int _Radix)) {
+    int& _Errno_ref  = errno; // Nonzero cost, pay it once
+    char* _Eptr;
+    _Errno_ref               = 0;
+    const T _Ans = _CSTD parse_hex_or_dec_num<decltype(parseFunc), T>(_Ptr, &_Eptr, parseFunc);
+    if (_Ptr == _Eptr) {
+        converter->error("invalid value provided", token);
+    }
+    if (_Errno_ref == ERANGE) {
+        converter->error("argument out of range", token);
+    }
+    return _Ans;
+}
+
+template<typename T>
+inline T parse_num(CSTConverter* converter, CSTToken* token, const char* _Ptr, T(*parseFunc)(const char* _String, char** _EndPtr)) {
+    int& _Errno_ref  = errno; // Nonzero cost, pay it once
+    char* _Eptr;
+    _Errno_ref               = 0;
+    const T _Ans = parseFunc(_Ptr, &_Eptr);
+    if (_Ptr == _Eptr) {
+        converter->error("invalid value provided", token);
+    }
+    if (_Errno_ref == ERANGE) {
+        converter->error("argument out of range", token);
+    }
+    return _Ans;
+}
+
 void CSTConverter::visitNumberToken(NumberToken *token) {
-    try {
-        const auto& value = token->value();
-        const auto value_size = value.size();
-        // i8, i16, i32, i64, i128
-        // u8, u16, u32, u64, u128
-        const auto last_char = value[value_size - 1];
-        if(value_size > 2) {
-            const auto sec_last_index = value_size - 2;
-            const auto sec_last = value[sec_last_index];
-            if(sec_last == 'i') {
-                if(last_char != '8') {
-                    error(unk_bit_width_err, token);
-                }
-                put_value(
-                        new(local<CharValue>()) CharValue(
-                                (char) std::stoi(token->value().substr(0, value_size - 2)), token
-                        ),
-                        token
-                );
-                return;
-            } else if(sec_last == 'u') {
-                if(last_char != '8') {
-                    error(unk_bit_width_err, token);
-                }
-                put_value(
-                        new (local<UCharValue>()) UCharValue(
-                                (char) std::stoi(value.substr(0, value_size - 2)), token
-                        ),
-                        token
-                );
-                return;
-            } else if(value_size > 3) {
-                const auto third_last_index = value_size - 3;
-                const auto third_last = value[third_last_index];
-                const auto sec_last_view = std::string_view(value.c_str() + sec_last_index);
-                if(third_last == 'i') {
-                    if(sec_last_view == "16") {
-                        put_value(
-                            new (local<ShortValue>()) ShortValue(
-                                    (short) std::stoi(value.substr(0, value_size - 3)), token
-                            ),
-                            token
-                        );
-                        return;
-                    } else if(sec_last_view == "32") {
-                        put_value(
-                                new (local<IntValue>()) IntValue(
-                                        (int) std::stoi(value.substr(0, value_size - 3)), token
-                                ),
-                                token
-                        );
-                        return;
-                    } else {
-                        if(sec_last_view != "64") {
-                            error(unk_bit_width_err, token);
-                        }
-                        put_value(
-                                new (local<BigIntValue>()) BigIntValue(
-                                        (long long) std::stoll(value.substr(0, value_size - 3)), token
-                                ),
-                                token
-                        );
-                        return;
+    const auto& value = token->value();
+    const auto value_size = value.size();
+    const auto last_char_index = value_size - 1;
+    // i8, i16, i32, i64, i128
+    // u8, u16, u32, u64, u128
+    const auto last_char = value[last_char_index];
+    if(value_size > 2) {
+        const auto sec_last_index = value_size - 2;
+        const auto sec_last = value[sec_last_index];
+        if(sec_last == 'i') {
+            if(last_char != '8') {
+                error(unk_bit_width_err, token);
+            }
+            const auto str_value = value.substr(0, sec_last_index);
+            const auto num_value = parse_num(this, token, str_value.c_str(), strtol);
+            put_value(new (local<CharValue>()) CharValue((char) num_value, token), token);
+            return;
+        } else if(sec_last == 'u') {
+            const auto is_long = last_char == 'l' || last_char == 'L';
+            if(last_char != '8' && !is_long) {
+                error(unk_bit_width_err, token);
+            }
+            if(is_long) {
+                const auto str_value = value.substr(0, sec_last_index);
+                const auto num_value = parse_num(this, token, str_value.c_str(), strtoul);
+                put_value(new (local<ULongValue>()) ULongValue((unsigned long) num_value, is64Bit, token),token);
+            } else {
+                const auto str_value = value.substr(0, sec_last_index);
+                const auto num_value = parse_num(this, token, str_value.c_str(), strtoul);
+                put_value(new (local<UCharValue>()) UCharValue((char) num_value, token),token);
+            }
+            return;
+        } else if(value_size > 3) {
+            const auto third_last_index = value_size - 3;
+            const auto third_last = value[third_last_index];
+            const auto sec_last_view = std::string_view(value.c_str() + sec_last_index);
+            if(third_last == 'i') {
+                if(sec_last_view == "16") {
+                    const auto str_value = value.substr(0, third_last_index);
+                    const auto num_value = parse_num(this, token, str_value.c_str(), strtol);
+                    put_value(new (local<ShortValue>()) ShortValue((short) num_value, token), token);
+                    return;
+                } else if(sec_last_view == "32") {
+                    const auto str_value = value.substr(0, third_last_index);
+                    const auto num_val = parse_num(this, token, str_value.c_str(), strtol);
+                    put_value(new (local<IntValue>()) IntValue((int) num_val, token), token);
+                    return;
+                } else {
+                    if(sec_last_view != "64") {
+                        error(unk_bit_width_err, token);
                     }
-                } else if(third_last == 'u') {
-                    if(sec_last_view == "16") {
-                        put_value(
-                                new (local<UShortValue>()) UShortValue(
-                                        (short) std::stoi(value.substr(0, value_size - 3)), token
-                                ),
-                                token
-                        );
-                        return;
-                    } else if(sec_last_view == "32") {
-                        put_value(
-                                new (local<UIntValue>()) UIntValue(
-                                        (int) std::stoi(value.substr(0, value_size - 3)), token
-                                ),
-                                token
-                        );
-                        return;
-                    } else {
-                        if(sec_last_view != "64") {
-                            error(unk_bit_width_err, token);
-                        }
-                        put_value(
-                                new (local<UBigIntValue>()) UBigIntValue(
-                                        (long long) std::stoll(value.substr(0, value_size - 3)), token
-                                ),
-                                token
-                        );
-                        return;
+                    const auto str_value = value.substr(0, third_last_index);
+                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoll);
+                    put_value(new (local<BigIntValue>()) BigIntValue((long long) num_val, token), token);
+                    return;
+                }
+            } else if(third_last == 'u') {
+                if(sec_last_view == "16") {
+                    const auto str_value = value.substr(0, third_last_index);
+                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoul);
+                    put_value(new (local<UShortValue>()) UShortValue((unsigned short) num_val, token), token);
+                    return;
+                } else if(sec_last_view == "32") {
+                    const auto str_value = value.substr(0, third_last_index);
+                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoul);
+                    put_value(new (local<UIntValue>()) UIntValue((unsigned int) num_val, token), token);
+                    return;
+                } else {
+                    if(sec_last_view != "64") {
+                        error(unk_bit_width_err, token);
                     }
-                } else if(value_size > 4) {
-                    const auto third_last_view = std::string_view(value.c_str() + third_last_index);
-                    const auto fourth_last_index = value_size - 4;
-                    const auto fourth_last = value[fourth_last_index];
-                    if(fourth_last == 'i') {
-                        if(third_last_view != "128") {
-                            error(unk_bit_width_err, token);
-                        }
-                        put_value(
-                                new (local<Int128Value>()) Int128Value(
-                                        std::stoull(value.substr(0, fourth_last_index)), value[0] == '-', token
-                                ),
-                                token
-                        );
-                    } else if(fourth_last == 'u') {
-                        // TODO skipping the u128 conversion, as it requires conversion in low and high magnitudes
+                    const auto str_value = value.substr(0, third_last_index);
+                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoull);
+                    put_value(new (local<UBigIntValue>()) UBigIntValue((unsigned long long) num_val, token), token);
+                    return;
+                }
+            } else if(value_size > 4) {
+                const auto third_last_view = std::string_view(value.c_str() + third_last_index);
+                const auto fourth_last_index = value_size - 4;
+                const auto fourth_last = value[fourth_last_index];
+                if(fourth_last == 'i') {
+                    if(third_last_view != "128") {
+                        error(unk_bit_width_err, token);
+                    }
+                    const auto is_negative = value[0] == '-';
+                    const auto begin_index = is_negative ? 1 : 0;
+                    const auto str_value = value.substr(begin_index, fourth_last_index);
+                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoull);
+                    put_value(new (local<Int128Value>()) Int128Value(num_val, is_negative, token), token);
+                    return;
+                } else if(fourth_last == 'u') {
+                    // TODO skipping the u128 conversion, as it requires conversion in low and high magnitudes
 //                        if(third_last_view == "128") {
 //                            put_value(
-//                                    new (local<UInt128Value>()) UInt128Value(
-//                                            std::stoull(value.substr(0, fourth_last_index)), value[0] == '-', token
-//                                    ),
+//                                    new (local<UInt128Value>()) UInt128Value(, value[0] == '-', token),
 //                                    token
 //                            );
 //                        } else {
 //                            error(unk_bit_width_err, token);
 //                        }
-                    }
                 }
             }
         }
-        // conversion
-        switch(last_char) {
-            case 'f':
-            case 'F':
-                put_value(
-                    new (local<FloatValue>()) FloatValue(
-                            std::stof(token->value().substr(0, token->value().size() - 1)),
-                                token
-                            ),
-                    token
-                );
-                return;
-            case 'l':
-            case 'L':
-                if(value_size > 2 && value[value_size - 2] == 'u') {
-                    put_value(new (local<ULongValue>()) ULongValue(std::stoul(token->value()), is64Bit, token), token);
-                } else {
-                    put_value(new (local<LongValue>()) LongValue(std::stol(token->value()), is64Bit, token), token);
-                }
-                return;
-            default:
-                if(token->has_dot()) {
-                    put_value(new (local<DoubleValue>()) DoubleValue(std::stod(token->value()), token), token);
-                } else {
-                    put_value(new (local<NumberValue>()) NumberValue(std::stoll(token->value()), token), token);
-                }
+    }
+    // conversion
+    switch(last_char) {
+        case 'f':
+        case 'F': {
+            const auto num_value = parse_num(this, token, token->value().c_str(), strtof);
+            put_value(new (local<FloatValue>()) FloatValue(num_value, token), token);
+            return;
         }
-    } catch (...) {
-        error("invalid value provided", token);
+        case 'l':
+        case 'L': {
+            const auto num_value = parse_num(this, token, token->value().c_str(), strtol);
+            put_value(new (local<LongValue>()) LongValue(num_value, is64Bit, token), token);
+            return;
+        }
+        default: {
+            if (token->has_dot()) {
+                // TODO we should judge by the length of the string to give better value (support float128 on large doubles)
+                const auto num_value = parse_num(this, token, token->value().c_str(), strtod);
+                put_value(new(local<DoubleValue>()) DoubleValue(num_value, token), token);
+            } else {
+                const auto num_value = parse_num(this, token, token->value().c_str(), strtoll);
+                put_value(new(local<NumberValue>()) NumberValue(num_value, token), token);
+            }
+        }
     }
 }
 

@@ -333,6 +333,18 @@ public:
     }
 
     /**
+     * a number will be read into a chemical string
+     * this accepts any numbers, even hex numbers
+     */
+    void readAnyNumber(chem::string* string);
+
+    /**
+     * a number will be read into a string
+     * this accepts any numbers, even hex numbers
+     */
+    void readAnyNumber(std::string& str);
+
+    /**
      * reads a alphanumeric string
      */
     void readAlphaNum(chem::string* str);

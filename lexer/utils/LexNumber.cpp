@@ -21,7 +21,8 @@ bool Lexer::lexNumberToken() {
     if(!provider.is_peak_number_char()) {
         return false;
     }
-    auto number = provider.readNumber();
+    std::string number;
+    provider.readAnyNumber(number);
     if (!number.empty()) {
         switch(provider.peek()) {
             case 'f':

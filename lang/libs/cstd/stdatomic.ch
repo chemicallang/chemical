@@ -338,7 +338,7 @@ public func atomic_exchange_explicit(obj : *A, desired : C, order : memory_order
  * @return The result of the comparison: true if *obj was equal to *exp, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
-public func atomic_compare_exchange_strong(obj : *A, expected : C*, desired : C) : bool
+public func atomic_compare_exchange_strong(obj : *A, expected : *C, desired : C) : bool
 
 /**
  * Atomically compares the contents of memory pointed to by obj with the contents of memory pointed to by expected, and if those are bitwise equal, replaces the former with desired (performs read-modify-write operation). Otherwise, loads the actual contents of memory pointed to by obj into *expected (performs load operation).

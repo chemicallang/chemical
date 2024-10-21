@@ -1,5 +1,21 @@
 
 /**
+ * TODO fexcept_t is implementation defined
+ * @see https://en.cppreference.com/w/c/numeric/fenv
+ */
+struct fexcept_t {
+
+}
+
+/**
+ * TODO fenv_t is implementation defined
+ * @see https://en.cppreference.com/w/c/numeric/fenv
+ */
+struct fenv_t {
+
+}
+
+/**
  * Attempts to clear the floating-point exceptions that are listed in the bitmask argument excepts, which is a bitwise OR of the floating-point exception macros.
  * @param excepts	-	bitmask listing the exception flags to clear
  * @return 0 if all indicated exceptions were successfully cleared or if excepts is zero. Returns a non-zero value on error.
@@ -31,7 +47,7 @@ public func feraiseexcept(excepts : int) : int
  * @return 0 on success, non-zero otherwise.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feexceptflag
  */
-int fegetexceptflag(flagp : *mut fexcept_t, excepts : int);
+public func fegetexceptflag(flagp : *mut fexcept_t, excepts : int) : int
 
 /**
  * Attempts to copy the full contents of the floating-point exception flags that are listed in excepts from flagp into the floating-point environment. Does not raise any exceptions, only modifies the flags.

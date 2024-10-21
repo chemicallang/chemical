@@ -994,12 +994,12 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, token);
 }
 
-void FunctionParam::link_param_type(SymbolResolver &linker) {
+bool FunctionParam::link_param_type(SymbolResolver &linker) {
     if(is_implicit) {
         if(name == "self" || name == "other") { // name and other means pointers to parent node
             if(!func_type->parent_node) {
                 linker.error("couldn't get implicit self / other type", this);
-                return;
+                return false;
             }
             const auto ptr_type = ((ReferenceType*) type);
             const auto linked_type = ((LinkedType*) ptr_type->type);
@@ -1015,9 +1015,10 @@ void FunctionParam::link_param_type(SymbolResolver &linker) {
             }
             if(!parent) {
                 linker.error("couldn't get self / other implicit parameter type", this);
-                return;
+                return false;
             }
             linked_type->linked = parent;
+            return true;
         } else {
             auto found = linker.find(name);
             if(found) {
@@ -1030,18 +1031,19 @@ void FunctionParam::link_param_type(SymbolResolver &linker) {
                     const auto direct = retrieved->get_direct_linked_node();
                     if(direct && ASTNode::isStoredStructType(direct->kind())) {
                         linker.error("struct like types must be passed as references using implicit parameters with typealias, please add '&' to make it a reference", this);
-                        return;
+                        return false;
                     }
                 } else {
                     linked_type->linked = found;
                 }
             } else {
                 linker.error("couldn't get implicit parameter type", this);
-                return;
+                return false;
             }
+            return true;
         }
     } else {
-        type->link(linker);
+        return type->link(linker);
     }
 }
 
@@ -1086,8 +1088,12 @@ GenericTypeParameter::GenericTypeParameter(
 
 }
 
-void GenericTypeParameter::declare_and_link(SymbolResolver &linker) {
+void GenericTypeParameter::declare_only(SymbolResolver& linker) {
     linker.declare(identifier, this);
+}
+
+void GenericTypeParameter::declare_and_link(SymbolResolver &linker) {
+    declare_only(linker);
     if(def_type) {
         def_type->link(linker);
     }
@@ -1329,14 +1335,23 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
      *
      * Here we are not declaring parameters, just declaring generic ones, we are linking parameters
      */
+
+    bool resolved = true;
     linker.scope_start();
-    for(auto& gen_param : generic_params) {
+    for(auto gen_param : generic_params) {
         gen_param->declare_and_link(linker);
     }
-    for(auto& param : params) {
-        param->link_param_type(linker);
+    for(auto param : params) {
+        if(!param->link_param_type(linker)) {
+            resolved = false;
+        }
     }
-    returnType->link(linker);
+    if(!returnType->link(linker)) {
+        resolved = false;
+    }
+    if(resolved) {
+        data.resolved_signature_successfully = true;
+    }
     linker.scope_end();
     linker.declare_function(name, this, specifier);
 }
@@ -1358,13 +1373,13 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
-    for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+    for(auto gen_param : generic_params) {
+        gen_param->declare_only(linker);
     }
-    for (auto &param: params) {
+    for (auto param: params) {
         param->declare_and_link(linker);
     }
-    if (body.has_value()) {
+    if (body.has_value() && data.resolved_signature_successfully) {
         body->link_sequentially(linker);
     }
     linker.scope_end();

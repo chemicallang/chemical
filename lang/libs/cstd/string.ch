@@ -389,7 +389,7 @@ public func memcpy_s(dest : *mut void, destsz : rsize_t, src : *void, count : rs
  * @return Returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/byte/memmove
  */
-public func memmove(dest : *mut void, src  *void, size_t count ) : *mut void
+public func memmove(dest : *mut void, src : *void, count : size_t) : *mut void
 
 /**
  * Same as memmove, except when detecting the following errors at runtime, it zeroes out the entire destination range [dest, dest+destsz) (if both dest and destsz are valid) and calls the currently installed constraint handler function:

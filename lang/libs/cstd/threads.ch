@@ -1,5 +1,7 @@
 // TODO thrd_t is implementation defined
-public struct thrd_t
+public struct thrd_t {
+
+}
 
 // TODO tss_t is implementation defined
 
@@ -165,7 +167,7 @@ public func call_once(flag : *mut once_flag, func : () => void);
 
 /**
  * TODO typedef
- * typedef /* unspecified */ once_flag
+ * typedef unspecified once_flag
  * Complete object type capable of holding a flag used by call_once.
  * @see https://en.cppreference.com/w/c/thread/call_once
  */

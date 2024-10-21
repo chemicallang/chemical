@@ -1,3 +1,5 @@
+import "./common/atomic_types.ch"
+
 /**
  * TODO These macros are implementation defined
  * #define ATOMIC_BOOL_LOCK_FREE     // implementation-defined
@@ -13,197 +15,6 @@
  * #define ATOMIC_CHAR8_T_LOCK_FREE  // implementation-defined
  * @see https://en.cppreference.com/w/c/atomic/ATOMIC_LOCK_FREE_consts
  */
-
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_bool = bool
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_char = char
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_schar = char
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uchar = uchar
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_short = short
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_ushort = ushort
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_int = int
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uint = uint
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_long = long
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_ulong = ulong
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_llong = bigint
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_ullong = ubigint
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_char8_t = char8_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_char16_t = char16_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_char32_t = char32_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_wchar_t = wchar_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_int_least8_t = int_least8_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uint_least8_t = uint_least8_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_int_least16_t = int_least16_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uint_least16_t = uint_least16_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_int_least32_t = int_least32_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uint_least32_t = uint_least32_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_int_least64_t = int_least64_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uint_least64_t = uint_least64_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_int_fast8_t = int_fast8_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uint_fast8_t = uint_fast8_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_int_fast16_t = int_fast16_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uint_fast16_t = uint_fast16_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_int_fast32_t = int_fast32_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uint_fast32_t = uint_fast32_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_int_fast64_t = int_fast64_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uint_fast64_t = uint_fast64_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_intptr_t = intptr_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uintptr_t = uintptr_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_size_t = size_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_ptrdiff_t = ptrdiff_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_intmax_t = intmax_t
-/**
- * TODO this type should be atomic
- * @see https://en.cppreference.com/w/c/thread#Atomic_operations
- */
-typealias atomic_uintmax_t = uintmax_t
 
 /**
  * TODO atomic_flag is implementation defined
@@ -247,6 +58,13 @@ public enum memory_order {
 };
 
 /**
+ * TODO atomic type is C++ implementation defined
+ */
+public struct atomic<T> {
+
+}
+
+/**
  * Determines if the atomic operations on all objects of the type A (the type of the object pointed to by obj) are lock-free. In any given program execution, the result of calling atomic_is_lock_free is the same for all pointers of the same type.
  * This is a generic function defined for all atomic object types A. The argument is pointer to a volatile atomic type to accept addresses of both non-volatile and volatile (e.g. memory-mapped I/O) atomic objects, and volatile semantic is preserved when applying this operation to volatile atomic objects.
  * It is unspecified whether the name of a generic function is a macro or an identifier declared with external linkage. If a macro definition is suppressed in order to access an actual function (e.g. parenthesized like (atomic_is_lock_free)(...)), or a program defines an external identifier with the name of a generic function, the behavior is undefined.
@@ -254,7 +72,7 @@ public enum memory_order {
  * @return true if the operations on all objects of the type A are lock-free, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_is_lock_free
  */
-public func atomic_is_lock_free(obj : *A) : bool
+public func <A> atomic_is_lock_free(obj : *atomic<A>) : bool
 
 /**
  * Atomically replaces the value of the atomic variable pointed to by obj with desired. The operation is atomic write operation.
@@ -264,7 +82,7 @@ public func atomic_is_lock_free(obj : *A) : bool
  * @param obj	-	pointer to the atomic object to modify
  * @see https://en.cppreference.com/w/c/atomic/atomic_store
  */
-public func atomic_store(obj : *mut A, desired : C);
+public func <A, C> atomic_store(obj : *mut atomic<A>, desired : atomic<C>);
 
 /**
  * Atomically replaces the value of the atomic variable pointed to by obj with desired. The operation is atomic write operation.
@@ -275,7 +93,7 @@ public func atomic_store(obj : *mut A, desired : C);
  * @param order	-	the memory synchronization ordering for this operation
  * @see https://en.cppreference.com/w/c/atomic/atomic_store
  */
-public func atomic_store_explicit(obj : *mut A, desired : C, order : memory_order);
+public func <A, C> atomic_store_explicit(obj : *mut atomic<A>, desired : atomic<C>, order : memory_order);
 
 /**
  * Atomically loads and returns the current value of the atomic variable pointed to by obj. The operation is atomic read operation.
@@ -286,7 +104,7 @@ public func atomic_store_explicit(obj : *mut A, desired : C, order : memory_orde
  * @return The current value of the atomic variable pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_load
  */
-public func atomic_load(obj : *A) : C
+public func <A, C> atomic_load(obj : *atomic<A>) : C
 
 /**
  * Atomically loads and returns the current value of the atomic variable pointed to by obj. The operation is atomic read operation.
@@ -298,7 +116,7 @@ public func atomic_load(obj : *A) : C
  * @return The current value of the atomic variable pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_load
  */
-public func atomic_load_explicit(obj : *A, order : memory_order) : C
+public func <A, C> atomic_load_explicit(obj : *atomic<A>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with desired and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -310,7 +128,7 @@ public func atomic_load_explicit(obj : *A, order : memory_order) : C
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_exchange
  */
-public func atomic_exchange(obj : *A, desired : C) : C
+public func <A, C> atomic_exchange(obj : *atomic<A>, desired : atomic<C>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with desired and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -322,7 +140,7 @@ public func atomic_exchange(obj : *A, desired : C) : C
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_exchange
  */
-public func atomic_exchange_explicit(obj : *A, desired : C, order : memory_order) : C
+public func <A, C> atomic_exchange_explicit(obj : *atomic<A>, desired : atomic<C>, order : memory_order) : atomic<C>
 
 /**
  * Atomically compares the contents of memory pointed to by obj with the contents of memory pointed to by expected, and if those are bitwise equal, replaces the former with desired (performs read-modify-write operation). Otherwise, loads the actual contents of memory pointed to by obj into *expected (performs load operation).
@@ -338,7 +156,7 @@ public func atomic_exchange_explicit(obj : *A, desired : C, order : memory_order
  * @return The result of the comparison: true if *obj was equal to *exp, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
-public func atomic_compare_exchange_strong(obj : *A, expected : *C, desired : C) : bool
+public func <A, C> atomic_compare_exchange_strong(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>) : bool
 
 /**
  * Atomically compares the contents of memory pointed to by obj with the contents of memory pointed to by expected, and if those are bitwise equal, replaces the former with desired (performs read-modify-write operation). Otherwise, loads the actual contents of memory pointed to by obj into *expected (performs load operation).
@@ -354,7 +172,7 @@ public func atomic_compare_exchange_strong(obj : *A, expected : *C, desired : C)
  * @return The result of the comparison: true if *obj was equal to *exp, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
-public func atomic_compare_exchange_weak(obj : *A, expected : *C, desired : C) : bool
+public func <A, C> atomic_compare_exchange_weak(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>) : bool
 
 /**
  * Atomically compares the contents of memory pointed to by obj with the contents of memory pointed to by expected, and if those are bitwise equal, replaces the former with desired (performs read-modify-write operation). Otherwise, loads the actual contents of memory pointed to by obj into *expected (performs load operation).
@@ -370,7 +188,7 @@ public func atomic_compare_exchange_weak(obj : *A, expected : *C, desired : C) :
  * @return The result of the comparison: true if *obj was equal to *exp, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
-public func atomic_compare_exchange_strong_explicit(obj : *A, expected : *C, desired : C, succ : memory_order, fail : memory_order);
+public func <A, C> atomic_compare_exchange_strong_explicit(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>, succ : memory_order, fail : memory_order);
 
 /**
  * Atomically compares the contents of memory pointed to by obj with the contents of memory pointed to by expected, and if those are bitwise equal, replaces the former with desired (performs read-modify-write operation). Otherwise, loads the actual contents of memory pointed to by obj into *expected (performs load operation).
@@ -386,7 +204,7 @@ public func atomic_compare_exchange_strong_explicit(obj : *A, expected : *C, des
  * @return The result of the comparison: true if *obj was equal to *exp, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
-public func atomic_compare_exchange_weak_explicit(obj : *A, expected : *C, desired : C, succ : memory_order, fail : memory_order) : bool
+public func <A, C> atomic_compare_exchange_weak_explicit(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>, succ : memory_order, fail : memory_order) : bool
 
 /**
  * Atomically replaces the value pointed by obj with the result of addition of arg to the old value of obj, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -398,7 +216,7 @@ public func atomic_compare_exchange_weak_explicit(obj : *A, expected : *C, desir
  * @return The value held previously by the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_add
  */
-public func atomic_fetch_add(obj : *A, arg : M) : C
+public func <A, M, C> atomic_fetch_add(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of addition of arg to the old value of obj, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -411,7 +229,7 @@ public func atomic_fetch_add(obj : *A, arg : M) : C
  * @return The value held previously by the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_add
  */
-public func atomic_fetch_add_explicit(obj : *A, arg : M, order : memory_order) : C
+public func <A, M, C> atomic_fetch_add_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of subtraction of arg from the old value of obj, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -423,7 +241,7 @@ public func atomic_fetch_add_explicit(obj : *A, arg : M, order : memory_order) :
  * @return The value held previously by the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_sub
  */
-public func atomic_fetch_sub(obj : *A, arg : M) : C
+public func <A, M, C> atomic_fetch_sub(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of subtraction of arg from the old value of obj, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -436,7 +254,7 @@ public func atomic_fetch_sub(obj : *A, arg : M) : C
  * @return The value held previously by the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_sub
  */
-public func atomic_fetch_sub_explicit(obj : *A, arg : M, order : memory_order) : C
+public func <A, M, C> atomic_fetch_sub_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise OR between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -447,7 +265,7 @@ public func atomic_fetch_sub_explicit(obj : *A, arg : M, order : memory_order) :
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_or
  */
-public func atomic_fetch_or(obj : *A, arg : M) : C
+public func <A, M, C> atomic_fetch_or(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise OR between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -459,7 +277,7 @@ public func atomic_fetch_or(obj : *A, arg : M) : C
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_or
  */
-public func atomic_fetch_or_explicit(obj : *A, arg : M, order : memory_order) : C
+public func <A, M, C> atomic_fetch_or_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise XOR between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -471,7 +289,7 @@ public func atomic_fetch_or_explicit(obj : *A, arg : M, order : memory_order) : 
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_xor
  */
-public func atomic_fetch_xor(obj : *A, arg : M) : C
+public func <A, M, C> atomic_fetch_xor(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise XOR between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -483,7 +301,7 @@ public func atomic_fetch_xor(obj : *A, arg : M) : C
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_xor
  */
-public func atomic_fetch_xor_explicit(obj : *A, arg : M, order : memory_order) : C
+public func <A, M, C> atomic_fetch_xor_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise AND between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -495,7 +313,7 @@ public func atomic_fetch_xor_explicit(obj : *A, arg : M, order : memory_order) :
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_and
  */
-public func atomic_fetch_and(obj : *A, arg : M) : C
+public func <A, M, C> atomic_fetch_and(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise AND between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -507,7 +325,7 @@ public func atomic_fetch_and(obj : *A, arg : M) : C
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_and
  */
-public func atomic_fetch_and_explicit(obj : *A, arg : M, order : memory_order) : C
+public func <A, M, C> atomic_fetch_and_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically changes the state of a atomic_flag pointed to by obj to set (true) and returns the previous value. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -555,7 +373,7 @@ public func atomic_flag_clear_explicit(obj : *atomic_flag, order : memory_order)
  * @param desired	-	the value to initialize atomic object with
  * @see https://en.cppreference.com/w/c/atomic/atomic_init
  */
-public func atomic_init(obj : *A, desired : C);
+public func <A, C> atomic_init(obj : *atomic<A>, desired : atomic<C>);
 
 /**
  * TODO macro
@@ -572,7 +390,7 @@ public func atomic_init(obj : *A, desired : C);
  * @see https://en.cppreference.com/w/c/atomic/kill_dependency
  */
 @comptime
-public func kill_dependency(y : A) : A {
+public func <A> kill_dependency(y : atomic<A>) : atomic<A> {
     // TODO do something
     return y;
 }

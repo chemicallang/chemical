@@ -1,9 +1,52 @@
-// TODO thrd_t is implementation defined
+import "./time.ch"
+
+/**
+ * TODO mtx_t is implementation defined
+ * @see https://en.cppreference.com/w/c/thread
+ */
+public struct mtx_t {
+
+}
+
+/**
+ * TODO thrd_t is implementation defined
+ * @see https://en.cppreference.com/w/c/thread
+ */
 public struct thrd_t {
 
 }
 
-// TODO tss_t is implementation defined
+/**
+ * TODO cnd_t is implementation defined
+ * @see https://en.cppreference.com/w/c/thread
+ */
+public struct cnd_t {
+
+}
+
+/**
+ * TODO tss_t is implementation defined
+ * @see https://en.cppreference.com/w/c/thread
+ */
+public struct tss_t {
+
+}
+
+/**
+ * TODO tss_dtor_t is implementation defined
+ * @see https://en.cppreference.com/w/c/thread
+ */
+public struct tss_dtor_t {
+
+}
+
+/**
+ * TODO once_flag is implementation defined
+ * @see https://en.cppreference.com/w/c/thread
+ */
+public struct once_flag {
+
+}
 
 /**
  * TODO the values for enum members are implementation defined

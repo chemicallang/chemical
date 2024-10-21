@@ -8,21 +8,6 @@ struct mbstate_t {
 }
 
 /**
- * @see https://en.cppreference.com/w/c/string/multibyte/char8_t
- */
-typealias char8_t = uchar
-
-/**
- * @see https://en.cppreference.com/w/c/string/multibyte/char16_t
- */
-typealias char16_t = uint_least16_t
-
-/**
- * @see https://en.cppreference.com/w/c/string/multibyte/char32_t
- */
-typealias char32_t = uint_least32_t
-
-/**
  * Converts a narrow multibyte character to UTF-8 encoding.
  * If s is not a null pointer, inspects at most n bytes of the multibyte character string, beginning with the byte pointed to by s to determine the number of bytes necessary to complete the next multibyte character (including any shift sequences). If the function determines that the next multibyte character in s is complete and valid, converts it to UTF-8 and stores the first UTF-8 code unit in *pc8 (if pc8 is not null).
  * If UTF-8 encoding of the multibyte character in *s consists of more than one UTF-8 code unit, then after the first call to this function, *ps is updated in such a way that the next call to mbrtoc8 will write out the additional UTF-8 code units, without considering *s.

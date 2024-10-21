@@ -1,4 +1,4 @@
-import "./stdint.ch"
+import "./common/integer_types.ch"
 
 // TODO https://en.cppreference.com/w/c/types/integer
 //   a lot of macros haven't been done

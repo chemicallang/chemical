@@ -1,3 +1,5 @@
+import "./common/wchar_types.ch"
+
 /**
  * If mode > 0, attempts to make stream wide-oriented. If mode < 0, attempts to make stream byte-oriented. If mode==0, only queries the current orientation of the stream.
  * If the orientation of the stream has already been decided (by executing output or by an earlier call to fwide), this function does nothing.
@@ -7,15 +9,6 @@
  * @see https://en.cppreference.com/w/c/io/fwide
  */
 public func fwide(stream : *mut FILE, mode : int) : int
-
-/**
- * TODO wint_t is implementation defined
- */
-typealias wint_t = short;
-/**
- * TODO wchar_t is implementation defined
- */
-typealias wchar_t = short;
 
 /**
  * Reads the next wide character from the given input stream. getwc() may be implemented as a macro and may evaluate stream more than once.
@@ -36,16 +29,6 @@ public func fgetwc(stream : *mut FILE) : wint_t
  * @see https://en.cppreference.com/w/c/io/fgetwc
  */
 public func getwc(stream : *mut FILE) : wint_t
-
-/**
- * Reads at most count - 1 wide characters from the given file stream and stores them in str. The produced wide string is always null-terminated. Parsing stops if end-of-file occurs or a newline wide character is found, in which case str will contain that wide newline character.
- * @param str	-	wide string to read the characters to
- * @param count	-	the length of str
- * @param stream	-	file stream to read the data from
- * @return str on success, a null pointer on an error
- * @see https://en.cppreference.com/w/c/io/fgetws
- */
-public func fgetws(str : *mut wchar_t, count : int, stream : *mut FILE) : *mut wchar_t
 
 /**
  * Reads at most count - 1 wide characters from the given file stream and stores them in str. The produced wide string is always null-terminated. Parsing stops if end-of-file occurs or a newline wide character is found, in which case str will contain that wide newline character.
@@ -960,7 +943,7 @@ public func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbst
  * @return Returns zero on success (in which case the number of bytes excluding terminating zero that were, or would be written to dst, is stored in *retval), non-zero on error. In case of a runtime constraint violation, stores (size_t)-1 in *retval (unless retval is null) and sets dst[0] to '\0' (unless dst is null or dstmax is zero or greater than RSIZE_MAX)
  * @see https://en.cppreference.com/w/c/string/multibyte/wcsrtombs
  */
-public func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbstate_t) : size_t
+public func wcsrtombs_s(retval : *mut size_t, dst : *mut char, dstsz : rsize_t, src : **wchar_t, len : rsize_t, ps : *mut mbstate_t) : errno_t
 
 /**
  * Converts the date and time information from a given calendar time time to a null-terminated wide character string str according to format string format. Up to count bytes are written.

@@ -2664,6 +2664,10 @@ void ToCAstVisitor::visit(ContinueStatement *continueStatement) {
     write("continue;");
 }
 
+void ToCAstVisitor::visit(UnreachableStmt *stmt) {
+    write("unreachable();");
+}
+
 void ToCAstVisitor::visit(UnsafeBlock *block) {
     block->scope.accept(this);
 }

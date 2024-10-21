@@ -37,6 +37,10 @@ public:
         visitCompoundCommon(continueCst);
     }
 
+    virtual void visitUnreachable(CSTToken *cst) {
+        visitCompoundCommon(cst);
+    }
+
     virtual void visitBreak(CSTToken *breakCST) {
         visitCompoundCommon(breakCST);
     }

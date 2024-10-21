@@ -457,6 +457,11 @@ public:
     bool lexBreakStatement();
 
     /**
+     * lexes a unreachable statement
+     */
+    bool lexUnreachableStatement();
+
+    /**
      * lexes a single typealias statement
      */
     bool lexTypealiasStatement(unsigned start);

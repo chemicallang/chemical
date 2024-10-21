@@ -27,6 +27,15 @@ bool Lexer::lexBreakStatement() {
     }
 }
 
+bool Lexer::lexUnreachableStatement() {
+    if(lexWSKeywordToken("unreachable", ';')) {
+        compound_from(tokens_size(), LexTokenType::CompUnreachable);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexForBlockTokens() {
 
     if (!lexWSKeywordToken("for", '(')) {

@@ -315,6 +315,8 @@ public:
 
     void visit(ContinueStatement* continueStatement) override;
 
+    void visit(UnreachableStmt *stmt) override;
+
     void visit(UnsafeBlock *block) override;
 
     void visit(ImportStatement* importStatement) override;

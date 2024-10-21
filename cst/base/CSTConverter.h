@@ -282,6 +282,8 @@ public:
 
     void visitBreak(CSTToken* breakCST) override;
 
+    void visitUnreachable(CSTToken *cst) override;
+
     void visitFunctionParam(CSTToken* param) override;
 
     void visitFunction(CSTToken* function) override;

@@ -47,6 +47,7 @@
 #include "ast/values/ValueNode.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/statements/Continue.h"
+#include "ast/statements/Unreachable.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Break.h"
@@ -805,6 +806,10 @@ unsigned int AccessChain::store_in_array(
 
 void ContinueStatement::code_gen(Codegen &gen) {
     gen.CreateBr(gen.current_loop_continue);
+}
+
+void UnreachableStmt::code_gen(Codegen &gen) {
+    gen.CreateUnreachable();
 }
 
 void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {

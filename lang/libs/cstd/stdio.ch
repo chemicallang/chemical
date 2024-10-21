@@ -1,3 +1,4 @@
+import "./common/arg_types.ch"
 import "./common/std_types.ch"
 
 /**

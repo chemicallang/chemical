@@ -5,10 +5,23 @@
 #include "ast/base/Value.h"
 
 /**
- * This class is a
+ * This class is the base class for integer type value
+ * except bool which could be considered an integer type but
+ * doesn't inherit int num value
  */
 class IntNumValue : public Value {
 public:
+
+    /**
+     * create a int num value
+     */
+    static IntNumValue* create_number(
+            ASTAllocator& alloc,
+            unsigned int bitWidth,
+            bool is_signed,
+            uint64_t value,
+            CSTToken* token = nullptr
+    );
 
     /**
      * provide the number of bits used by this value

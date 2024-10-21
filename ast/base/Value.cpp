@@ -9,6 +9,13 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/BoolValue.h"
+#include "ast/values/BigIntValue.h"
+#include "ast/values/UBigIntValue.h"
+#include "ast/values/Int128Value.h"
+#include "ast/values/UInt128Value.h"
+#include "ast/values/ShortValue.h"
+#include "ast/values/UShortValue.h"
+#include "ast/values/UCharValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/DoubleValue.h"
@@ -632,6 +639,46 @@ Value* Value::find_in(InterpretScope& scope, Value* parent) {
     std::cerr << "Value::find_in called on base value " + representation();
 #endif
     return nullptr;
+}
+
+IntNumValue* IntNumValue::create_number(ASTAllocator& alloc, unsigned int bitWidth, bool is_signed, uint64_t value, CSTToken* token) {
+    switch(bitWidth) {
+        case 8:
+            if(is_signed) {
+                return new (alloc.allocate<CharValue>()) CharValue((char) value, token);
+            } else {
+                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, token);
+            }
+        case 16:
+            if(is_signed) {
+                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, token);
+            } else {
+                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, token);
+            }
+        case 32:
+            if(is_signed) {
+                return new (alloc.allocate<IntValue>()) IntValue((int) value, token);
+            } else {
+                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, token);
+            }
+        case 64:
+            if(is_signed) {
+                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, token);
+            } else {
+                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, token);
+            }
+        case 128:
+            if(is_signed) {
+                return new (alloc.allocate<Int128Value>()) Int128Value(value, false, token);
+            } else {
+                return new (alloc.allocate<UInt128Value>()) UInt128Value(value, false, token);
+            }
+        default:
+#ifdef DEBUG
+            throw std::runtime_error("value couldn't be created");
+#endif
+            return nullptr;
+    }
 }
 
 void Value::set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op) {

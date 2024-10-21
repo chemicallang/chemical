@@ -38,6 +38,8 @@
 #include "ast/values/UCharValue.h"
 #include "ast/values/LongValue.h"
 #include "ast/values/ULongValue.h"
+#include "ast/values/Int128Value.h"
+#include "ast/values/UInt128Value.h"
 #include "ast/values/Expression.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/IntValue.h"
@@ -136,40 +138,8 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     };
 }
 
-Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, CSTToken* token = nullptr) {
-    switch(bitWidth) {
-        case 1:
-            return new (alloc.allocate<BoolValue>()) BoolValue((bool) value, token);
-        case 8:
-            if(is_signed) {
-                return new (alloc.allocate<CharValue>()) CharValue((char) value, token);
-            } else {
-                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, token);
-            }
-        case 16:
-            if(is_signed) {
-                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, token);
-            } else {
-                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, token);
-            }
-        case 32:
-            if(is_signed) {
-                return new (alloc.allocate<IntValue>()) IntValue((int) value, token);
-            } else {
-                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, token);
-            }
-        case 64:
-            if(is_signed) {
-                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, token);
-            } else {
-                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, token);
-            }
-        default:
-#ifdef DEBUG
-            throw std::runtime_error("value couldn't be created");
-#endif
-            return nullptr;
-    }
+inline Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, CSTToken* token = nullptr) {
+    return IntNumValue::create_number(alloc, bitWidth, is_signed, value, token);
 }
 
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {

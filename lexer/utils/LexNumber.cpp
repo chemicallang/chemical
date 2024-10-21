@@ -29,6 +29,14 @@ bool Lexer::lexNumberToken() {
             case 'l':
             case 'L':
                 number += provider.readCharacter();
+                break;
+            case 'i':
+            case 'u':
+                // i16, i32, i64, i128
+                // u16, u32, u64, u128
+                number += provider.readCharacter();
+                provider.readNumber(number);
+                break;
         }
         emplace(LexTokenType::Number, backPosition(number.length()), number);
         return true;

@@ -100,7 +100,7 @@ public:
     [[nodiscard]]
     FunctionParam *copy(ASTAllocator& allocator) const;
 
-    void link_param_type(SymbolResolver &linker);
+    bool link_param_type(SymbolResolver &linker);
 
     void declare_and_link(SymbolResolver &linker) override;
 

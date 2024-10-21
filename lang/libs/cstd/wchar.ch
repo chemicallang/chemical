@@ -139,7 +139,7 @@ public func ungetwc(ch : wint_t, stream : *mut FILE) : wint_t
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-public func wscanf(format : *wchar_t, ... ) : int
+public func wscanf(format : *wchar_t, _ : any... ) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -160,7 +160,7 @@ public func wscanf(format : *wchar_t, ... ) : int
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-public func fwscanf(stream : *mut FILE, format : *wchar_t, ... ) : int
+public func fwscanf(stream : *mut FILE, format : *wchar_t, _ : any... ) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -181,7 +181,7 @@ public func fwscanf(stream : *mut FILE, format : *wchar_t, ... ) : int
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-public func swscanf(buffer : *wchar_t, format : *wchar_t, ... ) : int
+public func swscanf(buffer : *wchar_t, format : *wchar_t, _ : any... ) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -207,7 +207,7 @@ public func swscanf(buffer : *wchar_t, format : *wchar_t, ... ) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-public func wscanf_s(format : *wchar_t, ...) : int
+public func wscanf_s(format : *wchar_t, _ : any...) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -233,7 +233,7 @@ public func wscanf_s(format : *wchar_t, ...) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-public func fwscanf_s(stream : *mut FILE, format : *wchar_t, ...) : int
+public func fwscanf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -259,7 +259,7 @@ public func fwscanf_s(stream : *mut FILE, format : *wchar_t, ...) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-public func swscanf_s( s : *wchar_t, format : *wchar_t, ...) : int
+public func swscanf_s( s : *wchar_t, format : *wchar_t, _ : any...) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -425,7 +425,7 @@ public func vswscanf_s(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : 
  * @return Number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-public func wprintf(format : *wchar_t, ... ) : int
+public func wprintf(format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -450,7 +450,7 @@ public func wprintf(format : *wchar_t, ... ) : int
  * @return Number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-public func fwprintf(stream : *mut FILE, format : *wchar_t, ... ) : int
+public func fwprintf(stream : *mut FILE, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -475,7 +475,7 @@ public func fwprintf(stream : *mut FILE, format : *wchar_t, ... ) : int
  * @return Number of wide characters written (not counting the terminating null wide character) if successful or negative value if an encoding error occurred or if the number of characters to be generated was equal or greater than bufsz (including when bufsz is zero).
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-public func swprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, ... ) : int
+public func swprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -506,7 +506,7 @@ public func swprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, .
  * @return Number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-public func wprintf_s(format : *wchar_t, ... ) : int
+public func wprintf_s(format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -537,7 +537,7 @@ public func wprintf_s(format : *wchar_t, ... ) : int
  * @return Number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-public func fwprintf_s(stream : *mut FILE, format : *wchar_t, ... ) : int
+public func fwprintf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -568,7 +568,7 @@ public func fwprintf_s(stream : *mut FILE, format : *wchar_t, ... ) : int
  * @return Number of wide characters (not counting the terminating null) that were written to buffer. Returns a negative value on encoding errors and on overflow. Returns zero on all other errors.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-public func swprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, ... ) : int
+public func swprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -594,7 +594,7 @@ public func swprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t
  * @return Number of wide characters (not counting the terminating null) that would have been written to buffer had bufsz been sufficiently large, or a negative value if an error occurs. (meaning, write was successful and complete only if the return is nonnegative and less than bufsz)
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-public func snwprintf_s(s : *mut wchar_t, n : rsize_t, format : *wchar_t, ... ) : int
+public func snwprintf_s(s : *mut wchar_t, n : rsize_t, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -700,7 +700,7 @@ public func vswprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, 
  * @return The number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-public func vwprintf_s(format : *wchar_t, vlist : va_list : int
+public func vwprintf_s(format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -731,7 +731,7 @@ public func vwprintf_s(format : *wchar_t, vlist : va_list : int
  * @return number of wide characters transmitted to the output stream or negative value if an output error, a runtime constraints violation error, or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-public func vfwprintf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list : int
+public func vfwprintf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -762,7 +762,7 @@ public func vfwprintf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list :
  * @return number of wide characters written to buffer, not counting the null wide character (which is always written as long as buffer is not a null pointer and bufsz is not zero and not greater than RSIZE_MAX/sizeof(wchar_t)), or zero on runtime constraint violations, and negative value on encoding errors.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-public func vswprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list : int
+public func vswprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -788,7 +788,7 @@ public func vswprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_
  * @return number of wide characters not including the terminating null character (which is always written as long as buffer is not a null pointer and bufsz is not zero and not greater than RSIZE_MAX/sizeof(wchar_t)), which would have been written to buffer if bufsz was ignored, or a negative value if a runtime constraints violation or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-public func vsnwprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list : int
+public func vsnwprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list) : int
 
 /**
  * If ps is not a null pointer, the mbsinit function determines whether the pointed-to mbstate_t object describes the initial conversion state.
@@ -1317,7 +1317,7 @@ public func wcschr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
 
 /**
  * TODO macro
- *   /*QWchar_t*/ *wcschr( /*QWchar_t*/ *str, wchar_t ch );
+ *   //QWchar_t// *wcschr( //QWchar_t// *str, wchar_t ch );
  * Type-generic function equivalent to (1). Let T be an unqualified wide character object type.
  *      If str is of type const T*, the return type is const wchar_t*.
  *      Otherwise, if str is of type T*, the return type is wchar_t*.
@@ -1337,7 +1337,7 @@ public func wcsrchr(str : *wchar_t, ch : wchar_t) : *wchar_t
 
 /**
  * TODO macro
- *   /*QWchar_t*/ *wcsrchr( /*QWchar_t*/ *str, wchar_t ch );
+ *   //QWchar_t// *wcsrchr( //QWchar_t// *str, wchar_t ch );
  * Type-generic function equivalent to (1). Let T be an unqualified wide character object type.
  * If str is of type const T*, the return type is const wchar_t*.
  * Otherwise, if str is of type T*, the return type is wchar_t*.
@@ -1375,7 +1375,7 @@ public func wcspbrk(dest : *wchar_t, str : *wchar_t) : *wchar_t
 
 /**
  * TODO macro
- * /*QWchar_t*/ *wcspbrk( /*QWchar_t*/ *dest, const wchar_t *str );
+ * //QWchar_t// *wcspbrk( //QWchar_t// *dest, const wchar_t *str );
  * @see https://en.cppreference.com/w/c/string/wide/wcspbrk
  */
 
@@ -1390,7 +1390,7 @@ public func wcsstr(dest : *wchar_t, src : *wchar_t) : *wchar_t
 
 /**
  * TODO macro
- * /*QWchar_t*/ *wcsstr( /*QWchar_t*/ *dest, const wchar_t *src );
+ * //QWchar_t// *wcsstr( //QWchar_t// *dest, const wchar_t *src );
  * @see https://en.cppreference.com/w/c/string/wide/wcsstr
  */
 
@@ -1495,7 +1495,7 @@ public func wmemchr(ptr : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t
  * Otherwise, the behavior is undefined.
  * If a macro definition of each of these generic functions is suppressed to access an actual function (e.g. if (wmemchr) or a function pointer is used), the actual function declaration (1) becomes visible.
  * TODO macro
- * /*QWchar_t*/ *wmemchr( /*Qwchar_t*/ *ptr, wchar_t ch, size_t count );
+ * //QWchar_t// *wmemchr( //Qwchar_t// *ptr, wchar_t ch, size_t count );
  * @see https://en.cppreference.com/w/c/string/wide/wmemchr
  */
 

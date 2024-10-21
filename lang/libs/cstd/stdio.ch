@@ -33,7 +33,7 @@ struct fpos_t {
  * @return If successful, returns a pointer to the new file stream. The stream is fully buffered unless filename refers to an interactive device. On error, returns a null pointer. POSIX requires that errno be set in this case.
  * @see https://en.cppreference.com/w/c/io/fopen
  */
-public func *fopen(filename : *char, mode : *char) : FILE
+public func fopen(filename : *char, mode : *char) : *FILE
 
 /**
  * Same as fopen, except that the pointer to the file stream is written to streamptr and the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -271,7 +271,7 @@ public func ungetc(ch : int, stream : *mut FILE) : int
  * @return Number of receiving arguments successfully assigned (which may be zero in case a matching failure occurred before the first receiving argument was assigned), or EOF if input failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-public func scanf(format : *char, _ : ... ) : int
+public func scanf(format : *char, _ : any... ) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -292,7 +292,7 @@ public func scanf(format : *char, _ : ... ) : int
  * @return Number of receiving arguments successfully assigned (which may be zero in case a matching failure occurred before the first receiving argument was assigned), or EOF if input failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-public func fscanf(stream : *mut FILE, format : *char, _ : ... ) : int
+public func fscanf(stream : *mut FILE, format : *char, _ : any... ) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -313,7 +313,7 @@ public func fscanf(stream : *mut FILE, format : *char, _ : ... ) : int
  * @return Number of receiving arguments successfully assigned (which may be zero in case a matching failure occurred before the first receiving argument was assigned), or EOF if input failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-public func sscanf(buffer : *char, format : *char, _ : ... ) : int
+public func sscanf(buffer : *char, format : *char, _ : any... ) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -339,7 +339,7 @@ public func sscanf(buffer : *char, format : *char, _ : ... ) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-public func scanf_s(format : *char, ...) : int
+public func scanf_s(format : *char, _ : any...) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -365,7 +365,7 @@ public func scanf_s(format : *char, ...) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-public func fscanf_s(stream : *mut FILE, format : *char, _ : ...) : int
+public func fscanf_s(stream : *mut FILE, format : *char, _ : any...) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -391,7 +391,7 @@ public func fscanf_s(stream : *mut FILE, format : *char, _ : ...) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-public func sscanf_s(buffer : *char, format : *char, _ : ...) : int
+public func sscanf_s(buffer : *char, format : *char, _ : any...) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.

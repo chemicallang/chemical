@@ -624,7 +624,7 @@ public func cacosh(z : double_complex) : double_complex
  * @return The complex arc hyperbolic cosine of z in the interval [0; ∞) along the real axis and in the interval [−iπ; +iπ] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacosh
  */
-public func cacoshl(z : longdouble_complex) : float128_complex
+public func cacoshl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a acosh macro that works on different complex types
@@ -650,7 +650,7 @@ public func catanh(z : double_complex) : double_complex
  * @return If no errors occur, the complex arc hyperbolic tangent of z is returned, in the range of a half-strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/catanh
  */
-public func catanhl(z : float128_complex) : float128_complex
+public func catanhl(z : longdouble_complex) : longdouble_complex
 
 /**
  * TODO create a atanh macro that works on different complex types

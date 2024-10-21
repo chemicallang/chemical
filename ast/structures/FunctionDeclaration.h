@@ -21,6 +21,16 @@
 
 class ExtendableMembersContainerNode;
 
+/**
+ * Function declaration's bool data
+ */
+struct FuncDeclBoolData {
+    /**
+     * set to true after declare_top_level, if signature resolved successfully
+     */
+    bool resolved_signature_successfully = false;
+};
+
 class FunctionDeclaration : public AnnotableNode, public FunctionType {
 private:
     Value *interpretReturn = nullptr;
@@ -58,6 +68,8 @@ public:
 #ifdef COMPILER_BUILD
     std::vector<std::pair<llvm::Value*, llvm::FunctionType*>> llvm_data;
 #endif
+
+    FuncDeclBoolData data;
 
     /**
      * constructor

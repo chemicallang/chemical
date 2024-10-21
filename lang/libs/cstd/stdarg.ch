@@ -1,5 +1,11 @@
 
 /**
+ * TODO typealias va_list
+ * @see https://en.cppreference.com/w/c/variadic/va_list
+ */
+public typealias va_list = int
+
+/**
  * The va_start macro enables access to the variable arguments following the named argument parmN(until C23).
  * va_start shall be invoked with an instance to a valid va_list object ap before any calls to va_arg.
  * Only the first argument passed to va_start is evaluated. Any additional arguments are neither expanded nor used in any way.
@@ -7,19 +13,13 @@
  * @param parmN	-	the named parameter preceding the first variable parameter
  * @see https://en.cppreference.com/w/c/variadic/va_start
  */
-public func va_start(ap : va_list, parmN : ... );
+public func va_start(ap : va_list, parmN : any... );
 
 /**
  * TODO macro
  * T va_arg( va_list ap, T );
  * @see https://en.cppreference.com/w/c/variadic/va_arg
  */
-
-/**
- * TODO typealias va_list
- * @see https://en.cppreference.com/w/c/variadic/va_list
- */
-public typealias va_list = int
 
 /**
  * The va_copy macro copies src to dest.

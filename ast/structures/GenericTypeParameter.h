@@ -40,6 +40,8 @@ public:
         visitor->visit(this);
     }
 
+    void declare_only(SymbolResolver& linker);
+
     void declare_and_link(SymbolResolver &linker) override;
 
     void register_usage(ASTAllocator& allocator, BaseType* type);

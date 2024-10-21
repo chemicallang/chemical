@@ -13,4 +13,4 @@
  * might contain different implementation, which change based on platform
  * so this is just to account for that
  */
-public typealias longdouble = longdouble
+public typealias longdouble = float128

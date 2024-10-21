@@ -15,7 +15,7 @@ typealias char8_t = uchar
 /**
  * @see https://en.cppreference.com/w/c/string/multibyte/char16_t
  */
-typealias char16_t uint_least16_t
+typealias char16_t = uint_least16_t
 
 /**
  * @see https://en.cppreference.com/w/c/string/multibyte/char32_t
@@ -57,7 +57,7 @@ public func mbrtoc8(pc8 : *mut char8_t, s : *char, n : size_t, ps : *mut mbstate
  *         If c8 is invalid (does not contribute to a sequence of char8_t corresponding to a valid multibyte character), the value of the macro EILSEQ is stored in errno, (size_t)-1 is returned, and the conversion state is unspecified.
  * @see https://en.cppreference.com/w/c/string/multibyte/c8rtomb
  */
-public func c8rtomb(s ; *mut char, c8 : char8_t, ps : *mut mbstate_t) : size_t
+public func c8rtomb(s : *mut char, c8 : char8_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Converts a single code point from its narrow multibyte character representation to its variable-length 16-bit wide character representation (typically, UTF-16).
@@ -78,7 +78,7 @@ public func c8rtomb(s ; *mut char, c8 : char8_t, ps : *mut mbstate_t) : size_t
  *         (size_t)-1 if encoding error occurs. Nothing is written to *pc16, the value EILSEQ is stored in errno and the value of *ps is unspecified.
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrtoc16
  */
-public func mbrtoc16(pc16 : *mut char16_t, s : *char, n ; size_t, ps : *mut mbstate_t) : size_t
+public func mbrtoc16(pc16 : *mut char16_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Converts a single code point from its variable-length 16-bit wide character representation (typically, UTF-16) to its narrow multibyte character representation.
@@ -130,4 +130,4 @@ public func mbrtoc32(pc32 : *mut char32_t, s : *char, n : size_t, ps : *mut mbst
  *         On failure (if c32 is not a valid 32-bit wide character), returns -1, stores EILSEQ in errno, and leaves *ps in unspecified state.
  * @see https://en.cppreference.com/w/c/string/multibyte/c32rtomb
  */
-public func c32rtomb(s ; *mut char, c32 : char32_t, ps : *mut mbstate_t) : size_t
+public func c32rtomb(s : *mut char, c32 : char32_t, ps : *mut mbstate_t) : size_t

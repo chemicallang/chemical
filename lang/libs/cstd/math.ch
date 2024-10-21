@@ -298,9 +298,9 @@ public func fdiml(x : longdouble, y : longdouble) : longdouble
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
- * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call /*strtoX*/("NAN(n-char-sequence)", (char**)NULL);.
- * The call nan("") is equivalent to the call /*strtoX*/("NAN()", (char**)NULL);.
- * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call /*strtoX*/("NAN", (char**)NULL);.
+ * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call //strtoX//("NAN(n-char-sequence)", (char**)NULL);.
+ * The call nan("") is equivalent to the call //strtoX//("NAN()", (char**)NULL);.
+ * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call //strtoX//("NAN", (char**)NULL);.
  * The parsing function is strtof.
  * @param arg	-	narrow character string identifying the contents of a NaN
  * @return The quiet NaN value that corresponds to the identifying string arg or zero if the implementation does not support quiet NaNs.
@@ -311,9 +311,9 @@ public func nanf(arg : *char) : float
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
- * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call /*strtoX*/("NAN(n-char-sequence)", (char**)NULL);.
- * The call nan("") is equivalent to the call /*strtoX*/("NAN()", (char**)NULL);.
- * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call /*strtoX*/("NAN", (char**)NULL);.
+ * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call //strtoX//("NAN(n-char-sequence)", (char**)NULL);.
+ * The call nan("") is equivalent to the call //strtoX//("NAN()", (char**)NULL);.
+ * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call //strtoX//("NAN", (char**)NULL);.
  * The parsing function is strtod.
  * @param arg	-	narrow character string identifying the contents of a NaN
  * @return The quiet NaN value that corresponds to the identifying string arg or zero if the implementation does not support quiet NaNs.
@@ -324,9 +324,9 @@ public func nan(arg : *char) : double
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
- * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call /*strtoX*/("NAN(n-char-sequence)", (char**)NULL);.
- * The call nan("") is equivalent to the call /*strtoX*/("NAN()", (char**)NULL);.
- * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call /*strtoX*/("NAN", (char**)NULL);.
+ * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call //strtoX//("NAN(n-char-sequence)", (char**)NULL);.
+ * The call nan("") is equivalent to the call //strtoX//("NAN()", (char**)NULL);.
+ * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call //strtoX//("NAN", (char**)NULL);.
  * The parsing function is strtold.
  * @param arg	-	narrow character string identifying the contents of a NaN
  * @return The quiet NaN value that corresponds to the identifying string arg or zero if the implementation does not support quiet NaNs.
@@ -337,9 +337,9 @@ func nanl(arg : *char) : longdouble
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
- * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call /*strtoX*/("NAN(n-char-sequence)", (char**)NULL);.
- * The call nan("") is equivalent to the call /*strtoX*/("NAN()", (char**)NULL);.
- * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call /*strtoX*/("NAN", (char**)NULL);.
+ * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call //strtoX//("NAN(n-char-sequence)", (char**)NULL);.
+ * The call nan("") is equivalent to the call //strtoX//("NAN()", (char**)NULL);.
+ * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call //strtoX//("NAN", (char**)NULL);.
  * The parsing function is strtod32.
  * @param arg	-	narrow character string identifying the contents of a NaN
  * @return The quiet NaN value that corresponds to the identifying string arg or zero if the implementation does not support quiet NaNs.
@@ -350,9 +350,9 @@ func nand32(arg : *char) : _Decimal32
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
- * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call /*strtoX*/("NAN(n-char-sequence)", (char**)NULL);.
- * The call nan("") is equivalent to the call /*strtoX*/("NAN()", (char**)NULL);.
- * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call /*strtoX*/("NAN", (char**)NULL);.
+ * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call //strtoX//("NAN(n-char-sequence)", (char**)NULL);.
+ * The call nan("") is equivalent to the call //strtoX//("NAN()", (char**)NULL);.
+ * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call //strtoX//("NAN", (char**)NULL);.
  * The parsing function is strtod64.
  * @param arg	-	narrow character string identifying the contents of a NaN
  * @return The quiet NaN value that corresponds to the identifying string arg or zero if the implementation does not support quiet NaNs.
@@ -363,9 +363,9 @@ func nand64(arg : *char) : _Decimal64
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
- * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call /*strtoX*/("NAN(n-char-sequence)", (char**)NULL);.
- * The call nan("") is equivalent to the call /*strtoX*/("NAN()", (char**)NULL);.
- * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call /*strtoX*/("NAN", (char**)NULL);.
+ * The call nan("n-char-sequence"), where n-char-sequence is a sequence of digits, Latin letters, and underscores, is equivalent to the call //strtoX//("NAN(n-char-sequence)", (char**)NULL);.
+ * The call nan("") is equivalent to the call //strtoX//("NAN()", (char**)NULL);.
+ * The call nan("string"), where string is neither an n-char-sequence nor an empty string, is equivalent to the call //strtoX//("NAN", (char**)NULL);.
  * The parsing function is strtod128.
  * @param arg	-	narrow character string identifying the contents of a NaN
  * @return The quiet NaN value that corresponds to the identifying string arg or zero if the implementation does not support quiet NaNs.
@@ -432,7 +432,7 @@ func exp2(n : double)  : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/exp2
  */
-longdouble exp2l(n : longdouble) : longdouble
+public func exp2l(n : longdouble) : longdouble
 
 /**
  * Computes the e (Euler's number, 2.7182818) raised to the given power arg, minus 1.0. This function is more accurate than the expression exp(arg)-1.0 if arg is close to zero.
@@ -1674,7 +1674,7 @@ func llrintl(arg : float128) : bigint
  *         If arg is not a floating-point number, the behavior is unspecified.
  * @see https://en.cppreference.com/w/c/numeric/math/frexp
  */
-func frexpf(arg : float, exp : int*) : float
+func frexpf(arg : float, exp : *int) : float
 
 /**
  * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
@@ -1686,7 +1686,7 @@ func frexpf(arg : float, exp : int*) : float
  *         If arg is not a floating-point number, the behavior is unspecified.
  * @see https://en.cppreference.com/w/c/numeric/math/frexp
  */
-func frexp(arg : double, exp : int*) : double
+func frexp(arg : double, exp : *int) : double
 
 /**
  * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
@@ -1698,7 +1698,7 @@ func frexp(arg : double, exp : int*) : double
  *         If arg is not a floating-point number, the behavior is unspecified.
  * @see https://en.cppreference.com/w/c/numeric/math/frexp
  */
-func frexpl(arg : float128, exp : int*) : float128
+func frexpl(arg : float128, exp : *int) : float128
 
 /**
  * Multiplies a floating-point value arg by the number 2 raised to the exp power.
@@ -1741,7 +1741,7 @@ func ldexpl(arg : float128, exp : int) : float128
  * The sum of the returned value and the value stored in *iptr gives arg (allowing for rounding).
  * @see https://en.cppreference.com/w/c/numeric/math/modf
  */
-func modff(arg : float, iptr : float*) : float
+func modff(arg : float, iptr : *float) : float
 
 /**
  * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
@@ -1751,7 +1751,7 @@ func modff(arg : float, iptr : float*) : float
  * The sum of the returned value and the value stored in *iptr gives arg (allowing for rounding).
  * @see https://en.cppreference.com/w/c/numeric/math/modf
  */
-func modf(arg : double, iptr : double*) : double
+func modf(arg : double, iptr : *double) : double
 
 /**
  * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
@@ -1761,7 +1761,7 @@ func modf(arg : double, iptr : double*) : double
  * The sum of the returned value and the value stored in *iptr gives arg (allowing for rounding).
  * @see https://en.cppreference.com/w/c/numeric/math/modf
  */
-func modfl(arg : float128, iptr : float128*) : float128
+func modfl(arg : float128, iptr : *float128) : float128
 
 /**
  * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
@@ -2073,14 +2073,14 @@ public typealias float_t = float
 /**
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
-typealais double_t = double
+public typealias double_t = double
 
 /**
  * @see https://en.cppreference.com/w/c/types/limits/FLT_EVAL_METHOD
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
 @comptime
-const FLT_EVAL_METHOD = 0
+public const FLT_EVAL_METHOD = 0
 
 /**
  * TODO these macros

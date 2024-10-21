@@ -1,3 +1,5 @@
+import "./common/std_types.ch"
+
 /**
  * TODO FILE object is implementation defined
  * Each FILE object denotes a C stream.

@@ -1,3 +1,20 @@
+import "./common/wchar_types.ch"
+
+/**
+ * TODO wctype_t is implementation defined
+ * @see https://en.cppreference.com/w/c/string/wide
+ */
+public struct wctype_t {
+
+}
+
+/**
+ * TODO wctrans_t is implementation defined
+ * @see https://en.cppreference.com/w/c/string/wide
+ */
+public struct wctrans_t {
+
+}
 
 /**
  * Checks if the given wide character is an alphanumeric character, i.e. either a number (0123456789), an uppercase letter (ABCDEFGHIJKLMNOPQRSTUVWXYZ), a lowercase letter (abcdefghijklmnopqrstuvwxyz) or any alphanumeric character specific to the current locale.

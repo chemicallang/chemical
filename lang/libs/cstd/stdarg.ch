@@ -1,9 +1,4 @@
-
-/**
- * TODO typealias va_list
- * @see https://en.cppreference.com/w/c/variadic/va_list
- */
-public typealias va_list = int
+import "./common/arg_types.ch"
 
 /**
  * The va_start macro enables access to the variable arguments following the named argument parmN(until C23).

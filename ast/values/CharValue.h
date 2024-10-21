@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include "ast/base/Value.h"
+#include "ast/values/IntNumValue.h"
 #include "ast/types/CharType.h"
 
 /**
  * @brief Class representing a character value.
  */
-class CharValue : public Value {
+class CharValue : public IntNumValue {
 public:
 
     char value; ///< The character value.
@@ -25,6 +25,19 @@ public:
      */
     CharValue(char value, CSTToken* token) : value(value), token(token) {
 
+    }
+
+    unsigned int get_num_bits() override {
+        return 8;
+    }
+
+    [[nodiscard]]
+    int64_t get_num_value() const override {
+        return value;
+    }
+
+    bool is_unsigned() override {
+        return false;
     }
 
     CSTToken* cst_token() override {

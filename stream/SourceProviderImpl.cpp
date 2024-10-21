@@ -286,13 +286,7 @@ void SourceProvider::readUnsignedInt(std::string& str) {
     }
 }
 
-bool keep_reading(const char c, bool& appearedDot, bool& first_char) {
-    if (first_char) {
-        first_char = false;
-        if (c == '-') {
-            return true;
-        }
-    }
+bool keep_reading(const char c, bool& appearedDot) {
     if (c >= '0' && c <= '9') {
         return true;
     } else if (c == '.' && !appearedDot) {
@@ -306,9 +300,10 @@ bool keep_reading(const char c, bool& appearedDot, bool& first_char) {
 void SourceProvider::readNumber(chem::string* string) {
     const auto p = peek();
     if (p != '-' && !std::isdigit(p)) return;
+    // read the first character
+    string->append(readCharacter());
     auto appearedDot = false;
-    auto first_char = true;
-    while (!eof() && keep_reading(peek(), appearedDot, first_char)) {
+    while (!eof() && keep_reading(peek(), appearedDot)) {
         string->append(readCharacter());
     }
 }
@@ -316,9 +311,10 @@ void SourceProvider::readNumber(chem::string* string) {
 void SourceProvider::readNumber(std::string& str) {
     const auto p = peek();
     if (p != '-' && !std::isdigit(p)) return;
+    // read the first character
+    str.append(1, readCharacter());
     auto appearedDot = false;
-    auto first_char = true;
-    while (!eof() && keep_reading(peek(), appearedDot, first_char)) {
+    while (!eof() && keep_reading(peek(), appearedDot)) {
         str.append(1, readCharacter());
     }
 }

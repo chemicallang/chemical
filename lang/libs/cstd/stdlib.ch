@@ -1,3 +1,5 @@
+import "./common/std_types.ch"
+import "./common/wchar_types.ch"
 import "./chemical.ch"
 
 /**

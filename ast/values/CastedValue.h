@@ -28,6 +28,10 @@ public:
 
     CastedValue *copy(ASTAllocator& allocator) override;
 
+    Value* evaluated_value(InterpretScope &scope) override {
+        return value->evaluated_value(scope);
+    }
+
 //    hybrid_ptr<BaseType> get_base_type() override {
 //        return hybrid_ptr<BaseType> { type.get(), false };
 //    }

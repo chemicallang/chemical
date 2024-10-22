@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "VariableIdentifier.h"
-
 #include <memory>
 #include "compiler/SymbolResolver.h"
 #include "ast/values/AccessChain.h"
@@ -117,6 +116,8 @@ void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Valu
     parent->set_child_value(value, next_value, op);
 }
 
+Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl);
+
 void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) {
 
     // iterator for previous value
@@ -159,9 +160,7 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
 
         // get the previous value, perform operation on it
         auto prevValue = itr.first->second;
-        nextValue = ExpressionEvaluators::ExpressionEvaluatorsMap.at(
-            ExpressionEvaluators::index(prevValue->value_type(), prevValue->value_type(), op)
-        )(itr.second, prevValue, newValue);
+        nextValue = evaluate(itr.second, op, prevValue, newValue);
 
     }
 

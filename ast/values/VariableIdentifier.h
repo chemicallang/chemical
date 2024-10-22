@@ -9,7 +9,6 @@
 #include <utility>
 #include "ast/base/ChainValue.h"
 #include "ast/statements/VarInit.h"
-#include "ast/utils/ExpressionEvaluator.h"
 
 #ifdef COMPILER_BUILD
 

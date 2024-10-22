@@ -3,6 +3,7 @@
 #include "VarInit.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/types/ArrayType.h"
+#include "ast/values/StringValue.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/types/GenericType.h"
 #include "ast/structures/StructDefinition.h"

@@ -115,9 +115,6 @@ bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
     auto f = firstValue->link(linker, firstValue);
     auto s = secondValue->link(linker, secondValue);
     auto result = f && s;
-    if(firstValue->val_kind() == ValueKind::SizeOfValue) {
-        int i = 0;
-    }
     // ast allocator is being used
     // it's unknown when this expression should be disposed
     // file level / module level allocator should be used, when this expression belongs to a function
@@ -134,6 +131,76 @@ bool Expression::computed() {
     return true;
 }
 
+int64_t operate(Operation op, int64_t first, int64_t second) {
+    switch(op) {
+        case Operation::Addition:
+            return first + second;
+        case Operation::Subtraction:
+            return first - second;
+        case Operation::Multiplication:
+            return first * second;
+        case Operation::Division:
+            return first / second;
+        case Operation::IsEqual:
+            return first == second;
+        case Operation::IsNotEqual:
+            return first != second;
+        case Operation::GreaterThan:
+            return first > second;
+        case Operation::LessThan:
+            return first < second;
+        case Operation::GreaterThanOrEqual:
+            return first >= second;
+        case Operation::LessThanOrEqual:
+            return first <= second;
+        case Operation::Modulus:
+            return first % second;
+        case Operation::LeftShift:
+            return first << second;
+        case Operation::RightShift:
+            return first >> second;
+        default:
+#ifdef DEBUG
+        throw std::runtime_error("UNKNOWN INTERPRET OPERATION");
+#endif
+            return 0;
+    }
+}
+
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, bool is64Bit);
+
+ValueKind determine_output(Operation op, ValueKind first, ValueKind second) {
+    switch(op) {
+        case Operation::IsEqual:
+        case Operation::IsNotEqual:
+        case Operation::GreaterThan:
+        case Operation::GreaterThanOrEqual:
+        case Operation::LessThan:
+        case Operation::LessThanOrEqual:
+            return ValueKind::Bool;
+        default:
+            return first > second ? first : second;
+    }
+}
+
+Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl) {
+    const auto fKind = fEvl->val_kind();
+    const auto sKind = sEvl->val_kind();
+    if(fKind >= ValueKind::IntNStart && fKind <= ValueKind::IntNEnd && sKind >= ValueKind::IntNStart && sKind <= ValueKind::IntNEnd) {
+        // both values are int num values
+        const auto first = (IntNumValue*) fEvl;
+        const auto second = (IntNumValue*) sEvl;
+        const auto answer = operate(operation, first->get_num_value(), second->get_num_value());
+        // TODO is64Bit is always true here
+        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer, true);
+    } else {
+#ifdef DEBUG
+        throw std::runtime_error("OPERATION BETWEEN VALUES OF UNKNOWN KIND");
+#endif
+        return nullptr;
+    }
+}
+
 /**
  * evaluates both values and returns the result as unique_tr to Value
  * @return
@@ -141,17 +208,7 @@ bool Expression::computed() {
 Value *Expression::evaluate(InterpretScope &scope) {
     auto fEvl = firstValue->evaluated_value(scope);
     auto sEvl = secondValue->evaluated_value(scope);
-    auto index = ExpressionEvaluators::index(fEvl->value_type(), sEvl->value_type(), operation);
-    auto found = ExpressionEvaluators::ExpressionEvaluatorsMap.find(index);
-    if (found != ExpressionEvaluators::ExpressionEvaluatorsMap.end()) {
-        return ExpressionEvaluators::ExpressionEvaluatorsMap.at(index)(scope, fEvl, sEvl);
-    } else {
-        scope.error(
-                "Cannot evaluate expression as the method with index " + std::to_string(index) +
-                " does not exist, for value types " + to_string(fEvl->value_type()) + " and " +
-                to_string(sEvl->value_type()), this);
-        return nullptr;
-    }
+    return ::evaluate(scope, operation, fEvl, sEvl);
 }
 
 Expression *Expression::copy(ASTAllocator& allocator) {

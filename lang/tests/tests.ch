@@ -18,6 +18,7 @@ import "basic/destructors.ch"
 import "nodes/union.ch"
 import "nodes/namespaces.ch"
 import "comptime/basic.ch"
+import "comptime/expressions.ch"
 import "comptime/vector.ch"
 import "basic/external.ch"
 import "generic/basic.ch"
@@ -55,6 +56,7 @@ public func main() : int {
     test_unions();
     test_namespaces();
     test_comptime();
+    test_comptime_expressions();
     test_compiler_vector();
     test_external_functions();
     test_basic_generics();

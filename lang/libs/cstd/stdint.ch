@@ -33,10 +33,10 @@ const INT32_MAX = 2147483647i32
 const INT64_MAX = 9223372036854775807i64
 
 @comptime
-const UINT8_MAX = 0xffui8
+const UINT8_MAX = 0xffu8
 
 @comptime
-const UINT16_MAX = 0xffffui16
+const UINT16_MAX = 0xffffu16
 
 @comptime
 const UINT32_MAX = 0xffffffffu32

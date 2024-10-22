@@ -1838,7 +1838,7 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
             const auto num_value = parse_num(this, token, str_value.c_str(), strtol);
             put_value(new (local<CharValue>()) CharValue((char) num_value, token), token);
             return;
-        } else if(sec_last == 'u') {
+        } else if(sec_last == 'u' || sec_last == 'U') {
             const auto is_long = last_char == 'l' || last_char == 'L';
             if(last_char != '8' && !is_long) {
                 error(unk_bit_width_err, token);

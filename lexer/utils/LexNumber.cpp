@@ -31,8 +31,17 @@ bool Lexer::lexNumberToken() {
             case 'L':
                 number += provider.readCharacter();
                 break;
-            case 'i':
             case 'u':
+            case 'U':{
+                number += provider.readCharacter();
+                const auto p = provider.peek();
+                if(p == 'i') {
+                    number += provider.readCharacter();
+                }
+                provider.readNumber(number);
+                break;
+            }
+            case 'i':
                 // i16, i32, i64, i128
                 // u16, u32, u64, u128
                 number += provider.readCharacter();

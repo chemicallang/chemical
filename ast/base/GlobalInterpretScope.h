@@ -34,6 +34,11 @@ public:
     const std::string target_triple;
 
     /**
+     * the current function call is the last one
+     */
+    std::vector<FunctionCall*> call_stack;
+
+    /**
      * a pointer to build compiler is stored, so compile time
      * function calls can talk to the compiler (get definitions)
      */

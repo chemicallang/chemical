@@ -1397,8 +1397,12 @@ Value *FunctionDeclaration::call(
     Value* parent,
     bool evaluate_refs
 ) {
-    InterpretScope fn_scope(nullptr, call_scope->global);
-    return call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs, call_obj);
+    const auto global = call_scope->global;
+    global->call_stack.emplace_back(call_obj);
+    InterpretScope fn_scope(nullptr, global);
+    const auto value = call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs, call_obj);
+    global->call_stack.pop_back();
+    return value;
 }
 
 // called by the return statement

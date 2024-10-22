@@ -33,6 +33,13 @@ bool Lexer::lexImportStatement() {
         if(lexWhitespaceToken() && lexWSKeywordToken("as")) {
             if(!lexIdentifierToken()) {
                 error("expected identifier after 'as' in import statement");
+                return true;
+            }
+        }
+        if(lexWhitespaceToken() && lexWSKeywordToken("if")) {
+            if(!lexIdentifierToken()) {
+                error("Expected identifier after 'if' in import statement");
+                return true;
             }
         }
         compound_from(start, LexTokenType::CompImport);
@@ -43,15 +50,15 @@ bool Lexer::lexImportStatement() {
             if (lexWSKeywordToken("from")) {
                 if (!lexStringToken()) {
                     error("expected path after 'from' in import statement");
-                    return false;
+                    return true;
                 }
             } else {
                 error("expected keyword 'from' after the identifier");
-                return false;
+                return true;
             }
         } else {
             error("expected a string path in import statement or identifier(s) after the 'import' keyword");
-            return false;
+            return true;
         }
         compound_from(start, LexTokenType::CompImport);
     }

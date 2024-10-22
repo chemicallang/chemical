@@ -522,7 +522,7 @@ public:
     BoolType boolType;
 
     explicit InterpretIsClang(ASTNode* parent_node) : FunctionDeclaration(
-            "is_clang_based",
+            "is_clang",
             std::vector<FunctionParam*> {},
             &boolType,
             false,

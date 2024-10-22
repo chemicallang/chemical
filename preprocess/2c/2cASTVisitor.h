@@ -4,7 +4,6 @@
 
 #include "ast/base/Visitor.h"
 #include "compiler/ASTDiagnoser.h"
-#include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/ASTAny.h"
 #include <iosfwd>
 #include <string>
@@ -12,6 +11,9 @@
 #include <memory>
 #include <unordered_map>
 #include "CTopLevelDeclVisitor.h"
+
+class GlobalInterpretScope;
+class ASTAllocator;
 
 class CTopLevelDeclarationVisitor;
 class CValueDeclarationVisitor;

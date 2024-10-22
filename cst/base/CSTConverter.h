@@ -8,7 +8,6 @@
 #include <unordered_map>
 #include <string>
 #include "utils/fwd/functional.h"
-#include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/Annotation.h"
 #include "ast/base/ASTUnit.h"
 
@@ -25,9 +24,10 @@ class FunctionParam;
 
 class BaseType;
 
-
+class GlobalInterpretScope;
 
 class CSTConverter;
+
 class MembersContainer;
 
 /**

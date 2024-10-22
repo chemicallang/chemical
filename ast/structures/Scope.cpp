@@ -2,7 +2,6 @@
 
 #include "Scope.h"
 #include <iostream>
-#include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/LoopBlock.h"
 #include "ast/structures/InitBlock.h"
 #include "ast/structures/MembersContainer.h"

@@ -13,10 +13,12 @@
 #include <iostream>
 
 GlobalInterpretScope::GlobalInterpretScope(
+    std::string target_triple,
     BackendContext* context,
     LabBuildCompiler* buildCompiler,
     ASTAllocator& allocator
-) : InterpretScope(nullptr, this), backend_context(context), build_compiler(buildCompiler), allocator(allocator) {
+) : InterpretScope(nullptr, this), target_triple(std::move(target_triple)),
+    backend_context(context), build_compiler(buildCompiler), allocator(allocator) {
 
 }
 
@@ -38,3 +40,5 @@ void GlobalInterpretScope::clean() {
     InterpretScope::clean();
     diagnostics.clear();
 }
+
+GlobalInterpretScope::~GlobalInterpretScope() = default;

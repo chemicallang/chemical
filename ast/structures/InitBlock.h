@@ -4,6 +4,7 @@
 
 #include "ast/base/ASTNode.h"
 #include "ast/structures/Scope.h"
+#include <unordered_map>
 
 struct InitBlockInitializerValue {
     bool is_inherited_type;

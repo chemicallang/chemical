@@ -23,9 +23,7 @@ void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const std::s
 
 void Namespace::declare_extended_in_linker(SymbolResolver& linker) {
     for(const auto& node_pair : extended) {
-        const auto node = node_pair.second;
-        const auto& id = node->ns_node_identifier();
-        linker.declare(id, node);
+        linker.declare(node_pair.first, node_pair.second);
     }
 }
 
@@ -50,8 +48,6 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
         }
     } else {
         linker.declare_node(name, this, specifier, false);
-        // we clear extended because we have compiler namespace which is re-declared multiple times in different jobs
-        extended.clear();
         // we do not check for duplicate symbols here, because nodes are being declared first time
         for(const auto node : nodes) {
             extended[node->ns_node_identifier()] = node;

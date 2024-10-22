@@ -11,7 +11,6 @@
 #include "utils/Environment.h"
 #include "utils/Utils.h"
 #include "compiler/InvokeUtils.h"
-#include "ast/base/GlobalInterpretScope.h"
 #include "compiler/Codegen.h"
 #include "compiler/SymbolResolver.h"
 #include "utils/CmdUtils.h"

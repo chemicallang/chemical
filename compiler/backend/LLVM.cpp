@@ -66,6 +66,7 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/types/FunctionType.h"
 #include "ast/utils/ASTUtils.h"
+#include "compiler/lab/TargetData.h"
 
 // -------------------- Types
 
@@ -676,7 +677,7 @@ llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type, llvm
     std::unordered_map<uint16_t, int16_t> active;
     set_generic_iterations(gen.allocator,active);
     const auto last_ind = values.size() - 1;
-    auto& last = values[last_ind];
+    const auto last = values[last_ind];
     llvm::Value* value;
     if(parent_pointer) {
         value = last->access_chain_value(gen, values, last_ind, destructibles, expected_type, *parent_pointer);

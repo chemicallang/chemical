@@ -12,6 +12,7 @@
 #include "compiler/ASTDiagnoser.h"
 #include <vector>
 #include <memory>
+#include "compiler/lab/TargetData.h"
 
 class BackendContext;
 
@@ -27,6 +28,12 @@ class GlobalInterpretScope : public InterpretScope, public ASTDiagnoser {
 public:
 
     /**
+     * the target triple given by the user
+     * this is what we're generating code for
+     */
+    const std::string target_triple;
+
+    /**
      * a pointer to build compiler is stored, so compile time
      * function calls can talk to the compiler (get definitions)
      */
@@ -37,12 +44,6 @@ public:
      * function calls can generate code based on the backend
      */
     BackendContext* backend_context;
-
-    /**
-     * this global container is allocated when prepare top level namespaces is called
-     * we deallocate it when this interpret scope dies
-     */
-    GlobalContainer* container = nullptr;
 
     /**
      * Currently InterpretScope
@@ -61,6 +62,7 @@ public:
      * The constructor
      */
     explicit GlobalInterpretScope(
+        std::string target_triple,
         BackendContext* backendContext,
         LabBuildCompiler* buildCompiler,
         ASTAllocator& allocator
@@ -78,9 +80,25 @@ public:
     GlobalInterpretScope(GlobalInterpretScope&& global) = default;
 
     /**
-     * this will prepare std and compiler namespace and put it in this symbol resolver
+     * a container is created, which will be disposed, user is responsible for it's
+     * ownership
      */
-    void prepare_top_level_namespaces(SymbolResolver& resolver);
+    GlobalContainer* create_container(SymbolResolver& resolver);
+
+    /**
+     * this global container will be binded to this symbol resolver
+     */
+    void rebind_container(SymbolResolver& resolver, GlobalContainer* container);
+
+    /**
+     * the given containe will be disposed
+     */
+    static void dispose_container(GlobalContainer* container);
+
+    /**
+     * a target data, that user allocates can be used to get information about the target triple
+     */
+    void prepare_target_data(TargetData& data);
 
     /**
      * cleans the scope

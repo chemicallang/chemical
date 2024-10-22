@@ -7,7 +7,6 @@
 #include "lexer/Lexi.h"
 #include "utils/Utils.h"
 #include "ast/utils/ExpressionEvaluator.h"
-#include "ast/base/GlobalInterpretScope.h"
 #include "cst/base/CSTConverter.h"
 #include "compiler/SymbolResolver.h"
 #include <chrono>

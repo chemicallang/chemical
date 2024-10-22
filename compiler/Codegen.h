@@ -17,8 +17,12 @@
 #include "OutputMode.h"
 #include <unordered_map>
 #include "CodegenEmitterOptions.h"
-#include "ast/base/GlobalInterpretScope.h"
 #include "ClangCodegen.h"
+#include "utils/fwd/functional.h"
+
+class ASTAllocator;
+
+class GlobalInterpretScope;
 
 class Codegen;
 

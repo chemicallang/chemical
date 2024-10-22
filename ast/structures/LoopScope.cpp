@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "LoopScope.h"
-#include "ast/base/GlobalInterpretScope.h"
 
 void LoopScope::interpret(InterpretScope &scope) {
     for (const auto &node: nodes) {

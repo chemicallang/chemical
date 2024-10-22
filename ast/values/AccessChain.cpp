@@ -144,8 +144,21 @@ bool AccessChain::primitive() {
 }
 
 bool AccessChain::compile_time_computable() {
-    for(auto& value : values) {
-        if(!value->compile_time_computable()) {
+    // first value should always be compile time computable
+    // a.b <--- a should be a compile time computable var init
+    // 'b' here is a member of struct, where 'a' is the struct value
+    // 'b' doesn't need to be compile time computable
+    if(!values.front()->compile_time_computable()) {
+        return false;
+    }
+    // nested functions should also be compile time computable
+    // a.b() <--- b should be compile time computable
+    // a.b().c() <--- c should also be compile time computable
+    // one day we'd allow c to be not compile time computable, so if 'b' returns a struct
+    // at compile time, 'c' can process it
+    for(const auto value : values) {
+        const auto val_kind = value->val_kind();
+        if(val_kind == ValueKind::FunctionCall && !value->compile_time_computable()) {
             return false;
         }
     }

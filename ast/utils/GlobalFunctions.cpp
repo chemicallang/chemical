@@ -542,6 +542,121 @@ public:
     }
 };
 
+class InterpretGetLineNo : public FunctionDeclaration {
+public:
+
+    UBigIntType uIntType;
+
+    explicit InterpretGetLineNo() : FunctionDeclaration(
+            "get_line_no",
+            std::vector<FunctionParam*> {},
+            &uIntType,
+            false,
+            nullptr,
+            nullptr,
+            std::nullopt,
+            AccessSpecifier::Public
+    ), uIntType(nullptr) {
+        add_annotation(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        const auto token = call->token->start_token();
+        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(token->lineNumber() + 1, nullptr);
+    }
+
+};
+
+class InterpretGetCharacterNo : public FunctionDeclaration {
+public:
+
+    UBigIntType uIntType;
+
+    explicit InterpretGetCharacterNo() : FunctionDeclaration(
+            "get_char_no",
+            std::vector<FunctionParam*> {},
+            &uIntType,
+            false,
+            nullptr,
+            nullptr,
+            std::nullopt,
+            AccessSpecifier::Public
+    ), uIntType(nullptr) {
+        add_annotation(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        const auto token = call->token->start_token();
+        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(token->lineCharNumber() + 1, nullptr);
+    }
+
+};
+
+FunctionCall* get_runtime_call(GlobalInterpretScope* global) {
+    if(global->call_stack.empty()) {
+        return nullptr;
+    } else {
+        // first comptime function call
+        return global->call_stack.front();
+    }
+}
+
+class InterpretGetRuntimeLineNo : public FunctionDeclaration {
+public:
+
+    UBigIntType uIntType;
+
+    explicit InterpretGetRuntimeLineNo() : FunctionDeclaration(
+            "get_runtime_line_no",
+            std::vector<FunctionParam*> {},
+            &uIntType,
+            false,
+            nullptr,
+            nullptr,
+            std::nullopt,
+            AccessSpecifier::Public
+    ), uIntType(nullptr) {
+        add_annotation(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        const auto global = call_scope->global;;
+        const auto runtime_call = get_runtime_call(global);
+        if(runtime_call) {
+            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(runtime_call->token->start_token()->lineNumber() + 1, nullptr);
+        } else {
+            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, nullptr);
+        }
+    }
+
+};
+
+class InterpretGetRuntimeCharacterNo : public FunctionDeclaration {
+public:
+
+    UBigIntType uIntType;
+
+    explicit InterpretGetRuntimeCharacterNo() : FunctionDeclaration(
+            "get_runtime_char_no",
+            std::vector<FunctionParam*> {},
+            &uIntType,
+            false,
+            nullptr,
+            nullptr,
+            std::nullopt,
+            AccessSpecifier::Public
+    ), uIntType(nullptr) {
+        add_annotation(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *self_call, Value *parent_val, bool evaluate_refs) override {
+        const auto global = call_scope->global;;
+        const auto runtime_call = get_runtime_call(global);
+        if(runtime_call) {
+            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(runtime_call->token->start_token()->lineCharNumber() + 1, nullptr);
+        } else {
+            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, nullptr);
+        }
+    }
+
+};
+
 class InterpretDefined : public FunctionDeclaration {
 public:
 
@@ -743,6 +858,11 @@ public:
     InterpretVector::InterpretVectorNode vectorNode;
     InterpretSatisfies satisfiesFn;
 
+    InterpretGetLineNo get_line_no;
+    InterpretGetCharacterNo get_char_no;
+    InterpretGetRuntimeLineNo get_runtime_line_no;
+    InterpretGetRuntimeCharacterNo get_runtime_char_no;
+
     CompilerNamespace(
 
     ) : Namespace("compiler", nullptr, nullptr, AccessSpecifier::Public),
@@ -754,7 +874,7 @@ public:
         add_annotation(AnnotationKind::CompTime);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
-            &satisfiesFn
+            &satisfiesFn, &get_line_no, &get_char_no, &get_runtime_line_no, &get_runtime_char_no
         };
 
     }

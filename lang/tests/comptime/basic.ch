@@ -136,6 +136,11 @@ struct CompTimeCounter {
     }
 }
 
+@comptime
+func get_line_no() : ubigint {
+
+}
+
 func test_comptime() {
     test("test comptime sum works", () => {
         return comptime_sum(3, 6) == 9;

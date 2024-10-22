@@ -44,6 +44,8 @@ public:
         return new (allocator.allocate<NegativeValue>()) NegativeValue(value->copy(allocator), token);
     }
 
+    Value* evaluated_value(InterpretScope &scope) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;

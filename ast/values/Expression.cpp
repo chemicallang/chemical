@@ -167,8 +167,6 @@ int64_t operate(Operation op, int64_t first, int64_t second) {
     }
 }
 
-Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, bool is64Bit);
-
 ValueKind determine_output(Operation op, ValueKind first, ValueKind second) {
     switch(op) {
         case Operation::IsEqual:
@@ -191,8 +189,7 @@ Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* 
         const auto first = (IntNumValue*) fEvl;
         const auto second = (IntNumValue*) sEvl;
         const auto answer = operate(operation, first->get_num_value(), second->get_num_value());
-        // TODO is64Bit is always true here
-        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer, true);
+        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer);
     } else {
 #ifdef DEBUG
         throw std::runtime_error("OPERATION BETWEEN VALUES OF UNKNOWN KIND");

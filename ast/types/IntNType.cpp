@@ -2,6 +2,7 @@
 
 #include "IntNType.h"
 #include "IntType.h"
+#include "ast/base/InterpretScope.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ShortValue.h"
@@ -14,6 +15,8 @@
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/Int128Value.h"
 #include "ast/values/UInt128Value.h"
+#include "ast/values/NumberValue.h"
+#include "ast/values/BoolVAlue.h"
 
 const IntType IntType::instance(nullptr);
 const BigIntType BigIntType::instance(nullptr);
@@ -75,4 +78,40 @@ Value *Int128Type::create(int64_t value) {
 
 Value *UInt128Type::create(int64_t value) {
     return new UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, nullptr);
+}
+
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, bool is64Bit) {
+    switch(kind) {
+        case ValueKind::Char:
+            return new (scope.allocate<CharValue>()) CharValue((char) value, nullptr);
+        case ValueKind::Short:
+            return new (scope.allocate<ShortValue>()) ShortValue((short) value, nullptr);
+        case ValueKind::Int:
+            return new (scope.allocate<IntValue>()) IntValue((int) value, nullptr);
+        case ValueKind::Long:
+            return new (scope.allocate<LongValue>()) LongValue((long) value, is64Bit, nullptr);
+        case ValueKind::BigInt:
+            return new (scope.allocate<BigIntValue>()) BigIntValue((long long) value, nullptr);
+        case ValueKind::Int128:
+            // TODO int128 is_negative is always false
+            return new (scope.allocate<Int128Value>()) Int128Value((uint64_t) value, false, nullptr);
+        case ValueKind::UChar:
+            return new (scope.allocate<UCharValue>()) UCharValue((char) value, nullptr);
+        case ValueKind::UShort:
+            return new (scope.allocate<UShortValue>()) UShortValue((short) value, nullptr);
+        case ValueKind::UInt:
+            return new (scope.allocate<UIntValue>()) UIntValue((int) value, nullptr);
+        case ValueKind::ULong:
+            return new (scope.allocate<ULongValue>()) ULongValue((long) value, is64Bit, nullptr);
+        case ValueKind::UBigInt:
+            return new (scope.allocate<UBigIntValue>()) UBigIntValue((long long) value, nullptr);
+        case ValueKind::UInt128:
+            return new (scope.allocate<UInt128Value>()) UInt128Value((uint64_t) value, false, nullptr);
+        case ValueKind::Bool:
+            return new (scope.allocate<BoolValue>()) BoolValue(value, nullptr);
+        case ValueKind::NumberValue:
+            return new (scope.allocate<NumberValue>()) NumberValue(value, nullptr);
+        default:
+            return nullptr;
+    }
 }

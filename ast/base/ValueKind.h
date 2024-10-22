@@ -9,19 +9,23 @@
  */
 enum class ValueKind : uint8_t {
 
-    // integer number values start here
-    Int,
-    UInt,
+    // integer types
+    // signed integer types
     Char,
-    UChar,
     Short,
-    UShort,
+    Int,
     Long,
-    ULong,
     BigInt,
-    UBigInt,
     Int128,
+    // unsigned integer types
+    UChar,
+    UShort,
+    UInt,
+    ULong,
+    UBigInt,
     UInt128,
+    // unsigned integers end
+    NumberValue,
     // integer number values end here
 
     Float,
@@ -35,7 +39,6 @@ enum class ValueKind : uint8_t {
     IfValue,
     SwitchValue,
     LoopValue,
-    NumberValue,
     IsValue,
     DereferenceValue,
     RetStructParamValue,
@@ -54,7 +57,11 @@ enum class ValueKind : uint8_t {
     WrapValue,
     Malformed,
 
-    IntNStart = Int,
-    IntNEnd = UInt128,
+    SignedIntNStart = Char,
+    SignedIntNEnd = Int128,
+    UnsignedIntNStart = UChar,
+    UnsignedIntNEnd = UInt128,
+    IntNStart = Char,
+    IntNEnd = NumberValue,
 
 };

@@ -687,6 +687,35 @@ public:
     }
 };
 
+// function is used to error out at compile time
+class InterpretError : public FunctionDeclaration {
+public:
+
+    VoidType voidType;
+    StringType stringType;
+    FunctionParam valueParam;
+
+    explicit InterpretError() : FunctionDeclaration(
+            "error",
+            std::vector<FunctionParam*> {},
+            &voidType,
+            false,
+            nullptr,
+            nullptr,
+            std::nullopt,
+            AccessSpecifier::Public
+    ), voidType(nullptr), stringType(nullptr), valueParam("value", &stringType, 0, nullptr, false, this, nullptr) {
+        add_annotation(AnnotationKind::CompTime);
+        params.emplace_back(&valueParam);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
+        auto val = call->values[0]->evaluated_value(*call_scope);
+        if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
+        call_scope->error(val->get_the_string(), call);
+    }
+};
+
 class InterpretSatisfies : public FunctionDeclaration {
 public:
 
@@ -862,6 +891,7 @@ public:
     InterpretGetCharacterNo get_char_no;
     InterpretGetRuntimeLineNo get_runtime_line_no;
     InterpretGetRuntimeCharacterNo get_runtime_char_no;
+    InterpretError error_fn;
 
     CompilerNamespace(
 
@@ -874,7 +904,7 @@ public:
         add_annotation(AnnotationKind::CompTime);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
-            &satisfiesFn, &get_line_no, &get_char_no, &get_runtime_line_no, &get_runtime_char_no
+            &satisfiesFn, &get_line_no, &get_char_no, &get_runtime_line_no, &get_runtime_char_no, &error_fn
         };
 
     }

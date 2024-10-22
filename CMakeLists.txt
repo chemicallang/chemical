@@ -171,9 +171,7 @@ set(COMMON_SOURCES
         ast/values/Negative.h
         ast/base/InterpretScope.h
         ast/base/ValueType.h
-        ast/utils/ExpressionEvaluator.h
         ast/utils/ValueType.cpp
-        ast/utils/ExpressionEvaluator.cpp
         ast/base/GlobalInterpretScope.h
         ast/base/InterpretScope.cpp
         ast/base/GlobalInterpretScope.cpp

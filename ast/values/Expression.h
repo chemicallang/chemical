@@ -8,7 +8,6 @@
 
 #include "ast/base/Value.h"
 #include "ast/utils/Operation.h"
-#include "ast/utils/ExpressionEvaluator.h"
 #include <memory>
 
 class Expression : public Value {

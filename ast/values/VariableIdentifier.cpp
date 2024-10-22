@@ -61,11 +61,14 @@ bool VariableIdentifier::compile_time_computable() {
     if(!linked) return false;
     switch(linked->kind()) {
         case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::ExtensionFunctionDecl:
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::NamespaceDecl:
         case ASTNodeKind::UnionDecl:
         case ASTNodeKind::VariantDecl:
             return true;
+        case ASTNodeKind::VarInitStmt:
+            return linked->as_var_init_unsafe()->has_annotation(AnnotationKind::CompTime);
         default:
             return false;
     }

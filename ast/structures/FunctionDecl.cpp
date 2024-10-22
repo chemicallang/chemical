@@ -3,7 +3,6 @@
 #include <memory>
 
 #include "FunctionParam.h"
-#include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/StructDefinition.h"

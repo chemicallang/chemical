@@ -4,6 +4,7 @@
 #include "LabBuildCompiler.h"
 #include "preprocess/ImportGraphMaker.h"
 #include "ast/types/LinkedType.h"
+#include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "utils/Benchmark.h"
 #include "Utils.h"
@@ -195,7 +196,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     }
 
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(nullptr, this, *job_allocator);
+    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator);
 
     // a new symbol resolver for every executable
     SymbolResolver resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
@@ -229,8 +230,15 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
-    // allow user the compiler (namespace) functions in @comptime
-    global.prepare_top_level_namespaces(resolver);
+    if(container) {
+        // bind global container that contains namespaces like std and compiler
+        // reusing it, if we created it before
+        global.rebind_container(resolver, container);
+    } else {
+        // allow user the compiler (namespace) functions in @comptime
+        // we create the new global container here once
+        container = global.create_container(resolver);
+    }
 
     if(use_tcc) {
         // clear build.lab c output
@@ -873,7 +881,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     ShrinkingVisitor shrinker;
 
     // a global interpret scope required to evaluate compile time things
-    GlobalInterpretScope global(nullptr, this, lab_allocator);
+    GlobalInterpretScope global(options->target_triple, nullptr, this, lab_allocator);
 
     // creating symbol resolver for build.lab files only
     SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, &lab_allocator, &lab_allocator);
@@ -912,7 +920,13 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     global.backend_context = &c_context;
 
     // allow user the compiler (namespace) functions in @comptime
-    global.prepare_top_level_namespaces(lab_resolver);
+    if(container) {
+        // reuse already created container
+        global.rebind_container(lab_resolver, container);
+    } else {
+        // create a new container, once
+        container = global.create_container(lab_resolver);
+    }
 
     // preparing translation
     c_visitor.prepare_translate();
@@ -1150,4 +1164,8 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     return job_result;
 
+}
+
+LabBuildCompiler::~LabBuildCompiler() {
+    GlobalInterpretScope::dispose_container(container);
 }

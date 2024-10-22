@@ -17,6 +17,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/VariableIdentifier.h"
 #include "ast/values/FunctionCall.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/Namespace.h"
@@ -33,6 +34,9 @@
 #include "ast/types/UIntType.h"
 #include "ast/values/NullValue.h"
 #include "ast/types/ReferenceType.h"
+#ifdef COMPILER_BUILD
+#include "llvm/TargetParser/Triple.h"
+#endif
 
 namespace InterpretVector {
 
@@ -806,7 +810,52 @@ public:
 
 };
 
-class DefValue : public Value {
+class DefDecl : public StructDefinition {
+public:
+
+    DefDecl() : StructDefinition(
+            "Def", nullptr, nullptr, AccessSpecifier::Public
+    ) {
+        add_annotation(AnnotationKind::CompTime);
+    }
+
+};
+
+class DefValue : public StructValue {
+public:
+
+    LinkedType id;
+
+    DefValue(DefDecl *defDecl) : StructValue(
+            &id,
+            {},
+            defDecl,
+            nullptr,
+            nullptr
+    ), id("Def", defDecl, nullptr) {}
+
+};
+
+struct DefThing {
+
+    DefDecl decl;
+    DefValue defValue;
+    VarInitStatement defStmt;
+
+    DefThing() : defValue(&decl), defStmt(true, "def", defValue.refType, &defValue, nullptr, nullptr, AccessSpecifier::Public) {
+        defStmt.add_annotation(AnnotationKind::CompTime);
+    }
+
+    void declare_value(ASTAllocator& allocator, const std::string& name, BaseType* type, Value* value) {
+        const auto member = new (allocator.allocate<StructMember>()) StructMember(name, type, nullptr, &decl, nullptr, true);
+        decl.variables[name] = member;
+        const auto init = new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(name, value, &defValue, member);
+        defValue.values[name] = init;
+    }
+
+    inline void declare_value(ASTAllocator& allocator, const std::string& name, Value* value) {
+        declare_value(allocator, name, value->create_type(allocator), value);
+    }
 
 };
 
@@ -814,20 +863,269 @@ struct GlobalContainer {
     CompilerNamespace compiler_namespace;
     StdNamespace std_namespace;
     InterpretDefined defined;
+    DefThing defThing;
 };
 
-void GlobalInterpretScope::prepare_top_level_namespaces(SymbolResolver& resolver) {
-    container = new GlobalContainer;
-    auto& global_fns = *container;
-    global_fns.compiler_namespace.declare_top_level(resolver);
-    global_fns.compiler_namespace.declare_and_link(resolver);
-    global_fns.std_namespace.declare_top_level(resolver);
-    global_fns.std_namespace.declare_and_link(resolver);
-    global_fns.defined.declare_top_level(resolver);
-    global_fns.defined.declare_and_link(resolver);
+#ifdef COMPILER_BUILD
+
+void init_target_data(llvm::Triple& triple, TargetData& data) {
+
+    // Check for Windows
+    if (triple.isOSWindows()) {
+        data.is_windows = true;
+        if (triple.getArch() == llvm::Triple::x86) {
+            data.is_win32 = true;
+        } else if (triple.getArch() == llvm::Triple::x86_64) {
+            data.is_win64 = true;
+        }
+    }
+
+    // Check for Linux
+    if (triple.isOSLinux()) {
+        data.is_linux = true;
+        data.is_unix = true;
+    }
+
+    // Check for macOS
+    if (triple.isMacOSX()) {
+        data.is_macos = true;
+        data.is_unix = true;
+    }
+
+    // Check for FreeBSD
+    if (triple.isOSFreeBSD()) {
+        data.is_freebsd = true;
+        data.is_unix = true;
+    }
+
+    // Check for Android
+    if (triple.isAndroid()) {
+        data.is_android = true;
+        data.is_unix = true;
+    }
+
+    // Check for Cygwin
+    if (triple.isOSCygMing()) {
+        data.is_cygwin = true;
+        data.is_unix = true;
+    }
+
+    // Check for architecture
+    switch(triple.getArch()) {
+        case llvm::Triple::x86_64:
+            data.is_x86_64 = true;
+            break;
+        case llvm::Triple::x86:
+            data.is_i386 = true;
+            break;
+        case llvm::Triple::arm:
+            data.is_arm = true;
+            break;
+        case llvm::Triple::aarch64:
+            data.is_aarch64 = true;
+            break;
+        default:
+            break;
+    }
+
 }
 
-GlobalInterpretScope::~GlobalInterpretScope() {
+void GlobalInterpretScope::prepare_target_data(TargetData& data) {
+    auto triple = llvm::Triple(target_triple);
+    init_target_data(triple, data);
+}
+
+#else
+
+// this puts the target data of the current executable
+void prepare_executable_target_data(TargetData& data) {
+#ifdef _WIN32
+    data.is_windows = true;
+    data.is_win32 = true;
+#endif
+
+#ifdef _WIN64
+    data.is_windows = true;
+    data.is_win64 = true;
+#endif
+
+#ifdef __linux__
+    data.is_linux = true;
+    data.is_unix = true;
+#endif
+
+#ifdef __APPLE__
+    data.is_macos = true;
+    data.is_unix = true;
+#endif
+
+#ifdef __FreeBSD__
+    data.is_freebsd = true;
+    data.is_unix = true;
+#endif
+
+#ifdef __ANDROID__
+    data.is_android = true;
+    data.is_unix = true;
+#endif
+
+#ifdef __CYGWIN__
+    data.is_cygwin = true;
+    data.is_unix = true;
+#endif
+
+#ifdef __MINGW32__
+    data.is_mingw32 = true;
+    data.is_win32 = true;
+    data.is_windows = true;
+#endif
+
+#ifdef __MINGW64__
+    data.is_mingw64 = true;
+    data.is_win64 = true;
+    data.is_windows = true;
+#endif
+
+#ifdef __GNUC__
+    data.is_gcc = true;
+#endif
+
+// Detect architecture using predefined macros
+#ifdef __x86_64__
+    data.is_x86_64 = true;
+#endif
+
+#ifdef __i386__
+    data.is_i386 = true;
+#endif
+
+#ifdef __arm__
+    data.is_arm = true;
+#endif
+
+#ifdef __aarch64__
+    data.is_aarch64 = true;
+#endif
+}
+
+void GlobalInterpretScope::prepare_target_data(TargetData& data) {
+
+    // Split the target string by '-'
+    std::vector<std::string> parts;
+    std::istringstream stream(target_triple);
+    std::string part;
+    while (std::getline(stream, part, '-')) {
+        parts.push_back(part);
+    }
+
+    if (parts.size() < 3) {
+        prepare_executable_target_data(data);
+        return;  // Invalid target string format
+    }
+
+    std::string arch = parts[0];
+    std::string sys = parts[2];
+
+    // Determine architecture
+    if (arch == "x86_64") {
+        data.is_x86_64 = true;
+    } else if (arch == "i386") {
+        data.is_i386 = true;
+    } else if (arch == "arm") {
+        data.is_arm = true;
+    } else if (arch == "aarch64") {
+        data.is_aarch64 = true;
+    }
+
+    // Determine operating system
+    if (sys == "linux") {
+        data.is_linux = true;
+        data.is_unix = true;
+    } else if (sys == "windows") {
+        data.is_win32 = true;
+        data.is_windows = true;
+    } else if (sys == "darwin") {
+        data.is_macos = true;
+        data.is_unix = true;
+    } else if (sys == "freebsd") {
+        data.is_freebsd = true;
+        data.is_unix = true;
+    } else if (sys == "android") {
+        data.is_android = true;
+        data.is_unix = true;
+    } else if (sys == "cygwin") {
+        data.is_cygwin = true;
+        data.is_unix = true;
+    } else if (sys == "mingw32") {
+        data.is_mingw32 = true;
+        data.is_win32 = true;
+        data.is_windows = true;
+    } else if (sys == "mingw64") {
+        data.is_win64 = true;
+        data.is_windows = true;
+    }
+
+}
+
+#endif
+
+BoolValue* boolValue(ASTAllocator& allocator, bool value) {
+    return new (allocator.allocate<BoolValue>()) BoolValue(value, nullptr);
+}
+
+void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr) {
+    auto& container = *container_ptr;
+
+    container.compiler_namespace.extended.clear();
+    container.std_namespace.extended.clear();
+
+    container.compiler_namespace.declare_top_level(resolver);
+    container.std_namespace.declare_top_level(resolver);
+
+    resolver.declare(container.defined.name, &container.defined);
+    resolver.declare(container.defThing.decl.name, &container.defThing.decl);
+    resolver.declare(container.defThing.defStmt.identifier, &container.defThing.defStmt);
+
+}
+
+GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver) {
+
+    const auto container_ptr = new GlobalContainer;
+    auto& container = *container_ptr;
+
+    container.compiler_namespace.declare_top_level(resolver);
+    container.std_namespace.declare_top_level(resolver);
+    container.defined.declare_top_level(resolver);
+
+    // definitions using defThing
+    container.defThing.decl.declare_top_level(resolver);
+    container.defThing.defStmt.declare_top_level(resolver);
+    values["def"] = &container.defThing.defValue;
+
+    TargetData targetData;
+    prepare_target_data(targetData);
+
+    // declaring native definitions like windows and stuff
+    const auto boolType = new (allocator.allocate<BoolType>()) BoolType(nullptr);
+    container.defThing.declare_value(allocator, "windows", boolType, boolValue(allocator, targetData.is_windows));
+    container.defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, targetData.is_win32));
+    container.defThing.declare_value(allocator, "win64", boolType, boolValue(allocator, targetData.is_win64));
+    container.defThing.declare_value(allocator, "linux", boolType, boolValue(allocator, targetData.is_linux));
+    container.defThing.declare_value(allocator, "macos", boolType, boolValue(allocator, targetData.is_macos));
+    container.defThing.declare_value(allocator, "freebsd", boolType, boolValue(allocator, targetData.is_freebsd));
+    container.defThing.declare_value(allocator, "unix", boolType, boolValue(allocator, targetData.is_unix));
+    container.defThing.declare_value(allocator, "android", boolType, boolValue(allocator, targetData.is_android));
+    container.defThing.declare_value(allocator, "cygwin", boolType, boolValue(allocator, targetData.is_cygwin));
+    container.defThing.declare_value(allocator, "mingw32", boolType, boolValue(allocator, targetData.is_mingw32));
+    container.defThing.declare_value(allocator, "x86_64", boolType, boolValue(allocator, targetData.is_x86_64));
+    container.defThing.declare_value(allocator, "i386", boolType, boolValue(allocator, targetData.is_i386));
+    container.defThing.declare_value(allocator, "arm", boolType, boolValue(allocator, targetData.is_arm));
+    container.defThing.declare_value(allocator, "aarch64", boolType, boolValue(allocator, targetData.is_aarch64));
+
+    return container_ptr;
+}
+
+void GlobalInterpretScope::dispose_container(GlobalContainer* container) {
     delete container;
 }
 

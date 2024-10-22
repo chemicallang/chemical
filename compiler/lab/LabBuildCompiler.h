@@ -14,6 +14,8 @@ class LabBuildContext;
 
 class CTranslator;
 
+struct GlobalContainer;
+
 /**
  * lab build compiler, doesn't relate to building a .lab file
  * it provides easy methods to do what can be done with a .lab file
@@ -49,6 +51,11 @@ public:
      * the build context that is being used to build
      */
     LabBuildContext* build_context;
+
+    /**
+     * the global container contains namespaces like std and compiler
+     */
+    GlobalContainer* container = nullptr;
 
     /**
      * a pointer to current job
@@ -127,5 +134,10 @@ public:
      * will build the lab file
      */
     int build_lab_file(LabBuildContext& context, const std::string& path);
+
+    /**
+     * the destructor
+     */
+    ~LabBuildCompiler();
 
 };

@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "Expression.h"
-#include "ast/base/GlobalInterpretScope.h"
 #include "IntNumValue.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/BoolType.h"

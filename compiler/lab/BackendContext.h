@@ -16,6 +16,9 @@
 class BackendContext {
 public:
 
+    /**
+     * performs a mem cpy on lhs and rhs using the backend
+     */
     virtual void mem_copy(Value* lhs, Value* rhs) = 0;
 
 };

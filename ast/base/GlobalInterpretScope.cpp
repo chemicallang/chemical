@@ -38,5 +38,3 @@ void GlobalInterpretScope::clean() {
     InterpretScope::clean();
     diagnostics.clear();
 }
-
-GlobalInterpretScope::~GlobalInterpretScope() = default;

@@ -806,21 +806,29 @@ public:
 
 };
 
+class DefValue : public Value {
+
+};
+
 struct GlobalContainer {
     CompilerNamespace compiler_namespace;
     StdNamespace std_namespace;
     InterpretDefined defined;
 };
 
-GlobalContainer global_fns;
-
 void GlobalInterpretScope::prepare_top_level_namespaces(SymbolResolver& resolver) {
+    container = new GlobalContainer;
+    auto& global_fns = *container;
     global_fns.compiler_namespace.declare_top_level(resolver);
     global_fns.compiler_namespace.declare_and_link(resolver);
     global_fns.std_namespace.declare_top_level(resolver);
     global_fns.std_namespace.declare_and_link(resolver);
     global_fns.defined.declare_top_level(resolver);
     global_fns.defined.declare_and_link(resolver);
+}
+
+GlobalInterpretScope::~GlobalInterpretScope() {
+    delete container;
 }
 
 //void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {

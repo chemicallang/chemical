@@ -21,6 +21,8 @@ class Namespace;
 
 class SymbolResolver;
 
+struct GlobalContainer;
+
 class GlobalInterpretScope : public InterpretScope, public ASTDiagnoser {
 public:
 
@@ -35,6 +37,12 @@ public:
      * function calls can generate code based on the backend
      */
     BackendContext* backend_context;
+
+    /**
+     * this global container is allocated when prepare top level namespaces is called
+     * we deallocate it when this interpret scope dies
+     */
+    GlobalContainer* container = nullptr;
 
     /**
      * Currently InterpretScope

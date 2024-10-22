@@ -5,6 +5,8 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/LongType.h"
+#include "ast/values/DoubleValue.h"
+#include "ast/values/FloatValue.h"
 #include "compiler/SymbolResolver.h"
 
 void Expression::replace_number_values(BaseType* firstType, BaseType* secondType) {
@@ -167,6 +169,36 @@ int64_t operate(Operation op, int64_t first, int64_t second) {
     }
 }
 
+double operate(Operation op, double first, double second) {
+    switch(op) {
+        case Operation::Addition:
+            return first + second;
+        case Operation::Subtraction:
+            return first - second;
+        case Operation::Multiplication:
+            return first * second;
+        case Operation::Division:
+            return first / second;
+        case Operation::IsEqual:
+            return first == second;
+        case Operation::IsNotEqual:
+            return first != second;
+        case Operation::GreaterThan:
+            return first > second;
+        case Operation::LessThan:
+            return first < second;
+        case Operation::GreaterThanOrEqual:
+            return first >= second;
+        case Operation::LessThanOrEqual:
+            return first <= second;
+        default:
+#ifdef DEBUG
+            throw std::runtime_error("UNKNOWN INTERPRET OPERATION");
+#endif
+            return 0;
+    }
+}
+
 ValueKind determine_output(Operation op, ValueKind first, ValueKind second) {
     switch(op) {
         case Operation::IsEqual:
@@ -189,6 +221,11 @@ Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* 
         const auto first = (IntNumValue*) fEvl;
         const auto second = (IntNumValue*) sEvl;
         const auto answer = operate(operation, first->get_num_value(), second->get_num_value());
+        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer);
+    } else if(fKind == ValueKind::Double || fKind == ValueKind::Float || sKind == ValueKind::Double || sKind == ValueKind::Float) {
+        const auto first = get_double_value(fEvl, fKind);
+        const auto second = get_double_value(sEvl, sKind);
+        const auto answer = operate(operation, first, second);
         return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer);
     } else {
 #ifdef DEBUG

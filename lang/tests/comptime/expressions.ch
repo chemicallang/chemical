@@ -46,14 +46,12 @@ func test_comptime_expressions() {
     test("comptime: Expression with negative numbers", () => {
         return #eval { (-3 * (-4 + 2)) == 6 }
     });
-    /**
     test("comptime: double with integer addition", () => {
         return #eval { 4 + 1.5 == 5.5 }
     });
     test("comptime: Expression with decimal numbers", () => {
         return #eval { (1.5 * (4 + 1.5)) == 8.25 }
     });
-    **/
     test("comptime: Expression with variables", () => {
         var a = 5;
         var b = 3;

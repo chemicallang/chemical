@@ -16,7 +16,9 @@
 #include "ast/values/Int128Value.h"
 #include "ast/values/UInt128Value.h"
 #include "ast/values/NumberValue.h"
-#include "ast/values/BoolVAlue.h"
+#include "ast/values/DoubleValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/BoolValue.h"
 
 const IntType IntType::instance(nullptr);
 const BigIntType BigIntType::instance(nullptr);
@@ -82,6 +84,31 @@ Value *UInt128Type::create(int64_t value) {
 
 constexpr inline bool isExe64Bit() {
     return sizeof(void*) == 8;
+}
+
+double get_double_value(Value* value, ValueKind k) {
+    if(k == ValueKind::Double) {
+        return (double) ((DoubleValue*) value)->value;
+    } else if(k == ValueKind::Float) {
+        return (double) ((FloatValue*) value)->value;
+    } else if(k >= ValueKind::IntNStart && k <= ValueKind::IntNEnd) {
+        return (double) ((IntNumValue*) value)->get_num_value();
+    } else {
+        return 0;
+    }
+}
+
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value) {
+    switch(kind) {
+        case ValueKind::Double:
+            return new (scope.allocate<DoubleValue>()) DoubleValue((double) value, nullptr);
+        case ValueKind::Float:
+            return new (scope.allocate<FloatValue>()) FloatValue((float) value, nullptr);
+        case ValueKind::Bool:
+            return new (scope.allocate<BoolValue>()) BoolValue((int) value, nullptr);
+        default:
+            return nullptr;
+    }
 }
 
 Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value) {

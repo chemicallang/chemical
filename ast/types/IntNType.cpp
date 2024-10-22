@@ -80,7 +80,11 @@ Value *UInt128Type::create(int64_t value) {
     return new UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, nullptr);
 }
 
-Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, bool is64Bit) {
+constexpr inline bool isExe64Bit() {
+    return sizeof(void*) == 8;
+}
+
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value) {
     switch(kind) {
         case ValueKind::Char:
             return new (scope.allocate<CharValue>()) CharValue((char) value, nullptr);
@@ -89,7 +93,7 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, bool i
         case ValueKind::Int:
             return new (scope.allocate<IntValue>()) IntValue((int) value, nullptr);
         case ValueKind::Long:
-            return new (scope.allocate<LongValue>()) LongValue((long) value, is64Bit, nullptr);
+            return new (scope.allocate<LongValue>()) LongValue((long) value, isExe64Bit(), nullptr);
         case ValueKind::BigInt:
             return new (scope.allocate<BigIntValue>()) BigIntValue((long long) value, nullptr);
         case ValueKind::Int128:
@@ -102,7 +106,7 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, bool i
         case ValueKind::UInt:
             return new (scope.allocate<UIntValue>()) UIntValue((int) value, nullptr);
         case ValueKind::ULong:
-            return new (scope.allocate<ULongValue>()) ULongValue((long) value, is64Bit, nullptr);
+            return new (scope.allocate<ULongValue>()) ULongValue((long) value, isExe64Bit(), nullptr);
         case ValueKind::UBigInt:
             return new (scope.allocate<UBigIntValue>()) UBigIntValue((long long) value, nullptr);
         case ValueKind::UInt128:

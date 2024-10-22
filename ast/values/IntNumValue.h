@@ -4,6 +4,8 @@
 
 #include "ast/base/Value.h"
 
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value);
+
 /**
  * This class is the base class for integer type value
  * except bool which could be considered an integer type but

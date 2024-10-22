@@ -43,11 +43,9 @@ func test_comptime_expressions() {
     test("comptime: Nested brackets", () => {
         return #eval { (((4 * 2) + 3) * (10 / 5)) == 22 }
     });
-    /**
     test("comptime: Expression with negative numbers", () => {
         return #eval { (-3 * (-4 + 2)) == 6 }
     });
-    **/
     /**
     test("comptime: double with integer addition", () => {
         return #eval { 4 + 1.5 == 5.5 }
@@ -70,11 +68,9 @@ func test_comptime_expressions() {
     test("comptime: Longer expression with mixed operations", () => {
         return #eval { (2 * (3 + 4) / 2 - (7 % 3) + 5) == 11 }
     });
-    /**
     test("comptime: Expression with nested brackets and subtraction", () => {
         return #eval { (10 - (2 * (3 + 4) / 2) + (7 % 3) - 5) == -1 }
     });
-    **/
     test("comptime: Expression with multiple division and subtraction", () => {
         return #eval { (100 / 5 / 2 - 4 / 2 - 3) == 5 }
     });
@@ -90,20 +86,16 @@ func test_comptime_expressions() {
     test("comptime: Expression with consecutive subtraction", () => {
         return #eval { (20 - 5 - 4 - 3 - 2 - 1) == 5 }
     });
-    /**
     test("comptime: Expression with mixed operations and negative numbers", () => {
         return #eval { (10 - (-3 * (4 + 2)) + 8 / 2) == 32 }
     });
-    **/
     test("comptime: Expression with complex nested operations", () => {
         return #eval { ((10 * (5 + (3 * 2) - 4 / 2)) - (2 * (7 % 3))) == 88 }
     });
     test("comptime: Expression with repeated brackets", () => {
         return #eval { (((((2 + 3) * 4) / 2) - 1) + ((((8 / 2) + 1) * 3) - 2)) == 22 }
     });
-    /**
     test("comptime: Negative braced expression", () => {
         return #eval { -(2 + 3) == -5 }
     });
-    **/
 }

@@ -105,9 +105,13 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         case clang::Type::Adjusted:
             error("TODO: type with class Adjusted");
             break;
-        case clang::Type::Decayed:
-            error("TODO: type with class Decayed");
-            break;
+        case clang::Type::Decayed: {
+            const auto decayed = ptr->getAs<clang::DecayedType>();
+            auto origType = decayed->getOriginalType();
+            const auto made = make_type(&origType);
+            if(!made) return nullptr;
+            return made;
+        }
         case clang::Type::ConstantArray:{
             const auto arrayType = llvm::dyn_cast<clang::ConstantArrayType>(ptr);
             auto elemType = arrayType->getElementType();
@@ -118,9 +122,13 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         case clang::Type::DependentSizedArray:
             error("TODO: type with class DependentSizedArray");
             break;
-        case clang::Type::IncompleteArray:
-            error("TODO: type with class IncompleteArray");
-            break;
+        case clang::Type::IncompleteArray:{
+            const auto incomplete_arr = llvm::dyn_cast<clang::IncompleteArrayType>(ptr);
+            auto elemType = incomplete_arr->getElementType();
+            const auto element_type = make_type(&elemType);
+            if(!element_type) return nullptr;
+            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, -1, nullptr);
+        }
         case clang::Type::VariableArray:
             error("TODO: type with class VariableArray");
             break;
@@ -190,9 +198,14 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto named_type = elab->getNamedType();
             return make_type(&named_type);
         }
-        case clang::Type::FunctionNoProto:
-            error("TODO: type with class FunctionNoProto");
-            break;
+        case clang::Type::FunctionNoProto:{
+            const auto protoType = ptr->getAs<clang::FunctionNoProtoType>();
+            auto retType = protoType->getReturnType();
+            const auto returnType = make_type(&retType);
+            if(!returnType) return nullptr;
+            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType({}, returnType, false, false, nullptr, nullptr);
+            return functionType;
+        }
         case clang::Type::FunctionProto:{
             const auto protoType = ptr->getAs<clang::FunctionProtoType>();
             auto retType = protoType->getReturnType();
@@ -270,9 +283,11 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         case clang::Type::SubstTemplateTypeParm:
             error("TODO: type with class SubstTemplateTypeParm");
             break;
-        case clang::Type::Enum:
-            error("TODO: type with class Enum");
-            break;
+        case clang::Type::Enum:{
+            const auto enumType = ptr->getAs<clang::EnumType>();
+            const auto decl = enumType->getDecl();
+            return decl_type(*this, decl, decl->getNameAsString());
+        }
         case clang::Type::Record: {
             const auto record_decl = ptr->getAsRecordDecl();
             return decl_type(*this, record_decl, record_decl->getNameAsString());

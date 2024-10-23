@@ -22,6 +22,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/LinkedType.h"
+#include "ast/types/LongDoubleType.h"
 #include "ast/types/UnionType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
@@ -112,6 +113,24 @@ llvm::Type *IntNType::llvm_type(Codegen &gen) {
 
 llvm::Type *Float128Type::llvm_type(Codegen &gen) {
     // TODO store target triple better
+    auto targetTriple = llvm::Triple(gen.module->getTargetTriple());
+    const auto archType = targetTriple.getArch();
+    if (archType == llvm::Triple::x86 || archType == llvm::Triple::x86_64) {
+        // On x86 and x86-64, use 80-bit extended precision
+        return llvm::Type::getX86_FP80Ty(*gen.ctx);
+    } else if (targetTriple.isPPC64()) {
+        // On PowerPC 64, use 128-bit floating point
+        return llvm::Type::getPPC_FP128Ty(*gen.ctx);
+    } else {
+        // Default to double if long double is not distinctly supported
+        return llvm::Type::getFP128Ty(*gen.ctx);
+    }
+}
+
+llvm::Type *LongDoubleType::llvm_type(Codegen &gen) {
+    // TODO store target triple better
+    // TODO long double does not use float 128, maybe in some cases
+    // TODO clang uses different type for long double
     auto targetTriple = llvm::Triple(gen.module->getTargetTriple());
     const auto archType = targetTriple.getArch();
     if (archType == llvm::Triple::x86 || archType == llvm::Triple::x86_64) {

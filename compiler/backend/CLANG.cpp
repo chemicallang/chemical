@@ -24,6 +24,7 @@
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Import.h"
 #include "ast/types/DoubleType.h"
+#include "ast/types/LongDoubleType.h"
 #include "ast/types/FloatType.h"
 #include "ast/types/Float128Type.h"
 #include "ast/types/VoidType.h"
@@ -90,14 +91,6 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     auto ptr = type->getTypePtr();
     auto canon_ptr = canonical.getTypePtr();
     const auto is_mutable = !type->isConstQualified();
-    if(ptr->isPointerType()) {
-        auto point = ptr->getPointeeType();
-        auto pointee = make_type(&point);
-        if(!pointee) {
-            return nullptr;
-        }
-        return new (allocator.allocate<PointerType>()) PointerType(pointee, nullptr, is_mutable);
-    }
 //    if(canon_ptr != ptr) { // reference
 //        if(canon_ptr->isRecordType()) {
 //            return make_type(&canonical);
@@ -106,36 +99,215 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
 //        auto str = type->getAsString();
 //        return new (allocator.allocate<LinkedType>()) LinkedType(str, nullptr);
 //    }
-    if(ptr->isBuiltinType()) {
-        auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
-        const auto type_maker = type_makers[builtIn->getKind()];
-        if(type_maker) {
-            return type_maker(allocator, builtIn);
-        } else {
-            error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str() + " with actual " + type->getAsString());
-            return nullptr;
+    const auto typeClass = ptr->getTypeClass();
+    switch(typeClass) {
+        case clang::Type::Adjusted:
+            error("TODO: type with class Adjusted");
+            break;
+        case clang::Type::Decayed:
+            error("TODO: type with class Decayed");
+            break;
+        case clang::Type::ConstantArray:{
+            const auto arrayType = llvm::dyn_cast<clang::ConstantArrayType>(ptr);
+            auto elemType = arrayType->getElementType();
+            const auto element_type = make_type(&elemType);
+            if(!element_type) return nullptr;
+            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, (int) arrayType->getSize().getLimitedValue(), nullptr);
         }
-    } else if(ptr->isRecordType()){
-        const auto record_decl = ptr->getAsRecordDecl();
-        return decl_type(*this, record_decl, record_decl->getNameAsString());
-    } else if(ptr->isTypedefNameType()){
-        const auto type_def_type = ptr->getAs<clang::TypedefType>();
-        const auto decl = type_def_type->getDecl();
-        return decl_type(*this, decl, decl->getNameAsString());
+        case clang::Type::DependentSizedArray:
+            error("TODO: type with class DependentSizedArray");
+            break;
+        case clang::Type::IncompleteArray:
+            error("TODO: type with class IncompleteArray");
+            break;
+        case clang::Type::VariableArray:
+            error("TODO: type with class VariableArray");
+            break;
+        case clang::Type::Atomic:
+            error("TODO: type with class Atomic");
+            break;
+        case clang::Type::Attributed:{
+            const auto attr = ptr->getAs<clang::AttributedType>();
+            // TODO handle the attribute kind
+            auto equivalentType = attr->getEquivalentType();
+            return make_type(&equivalentType);
+        }
+        case clang::Type::BTFTagAttributed:
+            error("TODO: type with class BTFTagAttributed");
+            break;
+        case clang::Type::BitInt:
+            error("TODO: type with class BitInt");
+            break;
+        case clang::Type::BlockPointer:
+            error("TODO: type with class BlockPointer");
+            break;
+        case clang::Type::Builtin:{
+            auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
+            const auto type_maker = type_makers[builtIn->getKind()];
+            if(type_maker) {
+                return type_maker(allocator, builtIn);
+            } else {
+                error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str() + " with actual " + type->getAsString());
+                return nullptr;
+            }
+        }
+        case clang::Type::Complex:
+            error("TODO: type with class Complex");
+            break;
+        case clang::Type::Decltype:
+            error("TODO: type with class Decltype");
+            break;
+        case clang::Type::Auto:
+            error("TODO: type with class Auto");
+            break;
+        case clang::Type::DeducedTemplateSpecialization:
+            error("TODO: type with class DeducedTemplateSpecialization");
+            break;
+        case clang::Type::DependentAddressSpace:
+            error("TODO: type with class DependentAddressSpace");
+            break;
+        case clang::Type::DependentBitInt:
+            error("TODO: type with class DependentBitInt");
+            break;
+        case clang::Type::DependentName:
+            error("TODO: type with class DependentName");
+            break;
+        case clang::Type::DependentSizedExtVector:
+            error("TODO: type with class DependentSizedExtVector");
+            break;
+        case clang::Type::DependentTemplateSpecialization:
+            error("TODO: type with class DependentTemplateSpecialization");
+            break;
+        case clang::Type::DependentVector:
+            error("TODO: type with class DependentVector");
+            break;
+        case clang::Type::Elaborated:{
+            const auto elab = ptr->getAs<clang::ElaboratedType>();
+            auto named_type = elab->getNamedType();
+            return make_type(&named_type);
+        }
+        case clang::Type::FunctionNoProto:
+            error("TODO: type with class FunctionNoProto");
+            break;
+        case clang::Type::FunctionProto:{
+            const auto protoType = ptr->getAs<clang::FunctionProtoType>();
+            auto retType = protoType->getReturnType();
+            const auto returnType = make_type(&retType);
+            if(!returnType) return nullptr;
+            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType({}, returnType, protoType->isVariadic(), false, nullptr, nullptr);
+            unsigned i = 0;
+            for(auto paramType : protoType->getParamTypes()) {
+                auto param_type = make_type(&paramType);
+                if(!param_type) {
+                    return nullptr;
+                }
+                const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam("", param_type, i, nullptr, false, functionType, nullptr);
+                functionType->params.emplace_back(param);
+                i++;
+            }
+            return functionType;
+        }
+        case clang::Type::InjectedClassName:
+            error("TODO: type with class InjectedClassName");
+            break;
+        case clang::Type::MacroQualified:
+            error("TODO: type with class MacroQualified");
+            break;
+        case clang::Type::ConstantMatrix:
+            error("TODO: type with class ConstantMatrix");
+            break;
+        case clang::Type::DependentSizedMatrix:
+            error("TODO: type with class DependentSizedMatrix");
+            break;
+        case clang::Type::MemberPointer:
+            error("TODO: type with class MemberPointer");
+            break;
+        case clang::Type::ObjCObjectPointer:
+            error("TODO: type with class ObjCObjectPointer");
+            break;
+        case clang::Type::ObjCObject:
+            error("TODO: type with class ObjCObject");
+            break;
+        case clang::Type::ObjCInterface:
+            error("TODO: type with class ObjCInterface");
+            break;
+        case clang::Type::ObjCTypeParam:
+            error("TODO: type with class ObjCTypeParam");
+            break;
+        case clang::Type::PackExpansion:
+            error("TODO: type with class PackExpansion");
+            break;
+        case clang::Type::Paren:{
+            const auto parenType = ptr->getAs<clang::ParenType>();
+            auto innerType = parenType->getInnerType();
+            return make_type(&innerType);
+        }
+        case clang::Type::Pipe:
+            error("TODO: type with class Pipe");
+            break;
+        case clang::Type::Pointer: {
+            const auto ptrType = ptr->getAs<clang::PointerType>();
+            auto point = ptrType->getPointeeType();
+            auto pointee = make_type(&point);
+            if(!pointee) {
+                return nullptr;
+            }
+            return new (allocator.allocate<PointerType>()) PointerType(pointee, nullptr, is_mutable);
+        }
+        case clang::Type::LValueReference:
+            error("TODO: type with class LValueReference");
+            break;
+        case clang::Type::RValueReference:
+            error("TODO: type with class RValueReference");
+            break;
+        case clang::Type::SubstTemplateTypeParmPack:
+            error("TODO: type with class SubstTemplateTypeParmPack");
+            break;
+        case clang::Type::SubstTemplateTypeParm:
+            error("TODO: type with class SubstTemplateTypeParm");
+            break;
+        case clang::Type::Enum:
+            error("TODO: type with class Enum");
+            break;
+        case clang::Type::Record: {
+            const auto record_decl = ptr->getAsRecordDecl();
+            return decl_type(*this, record_decl, record_decl->getNameAsString());
+        }
+        case clang::Type::TemplateSpecialization:
+            error("TODO: type with class TemplateSpecialization");
+            break;
+        case clang::Type::TemplateTypeParm:
+            error("TODO: type with class TemplateTypeParm");
+            break;
+        case clang::Type::TypeOfExpr:
+            error("TODO: type with class TypeOfExpr");
+            break;
+        case clang::Type::TypeOf:
+            error("TODO: type with class TypeOf");
+            break;
+        case clang::Type::Typedef: {
+            const auto type_def_type = ptr->getAs<clang::TypedefType>();
+            const auto decl = type_def_type->getDecl();
+            return decl_type(*this, decl, decl->getNameAsString());
+        }
+        case clang::Type::UnaryTransform:
+            error("TODO: type with class UnaryTransform");
+            break;
+        case clang::Type::UnresolvedUsing:
+            error("TODO: type with class UnresolvedUsing");
+            break;
+        case clang::Type::Using:
+            error("TODO: type with class Using");
+            break;
+        case clang::Type::Vector:
+            error("TODO: type with class Vector");
+            break;
+        case clang::Type::ExtVector:
+            error("TODO: type with class ExtVector");
+            break;
     }
-//    else if(ptr->isArrayType()) { // couldn't make use of it
-//        auto point = ptr->getAsArrayTypeUnsafe();
-//        auto elem_type = point->getElementType();
-//        auto pointee = new_type(translator, &elem_type);
-//        if(!pointee) {
-//            return nullptr;
-//        }
-//        return new ArrayType(std::unique_ptr<BaseType>(pointee), -1);
-//    }
-    else {
-        error("unknown type given to new_type with representation " + type->getAsString());
-        return nullptr;
-    };
+    error("unhandled type with representation " + type->getAsString());
+    return nullptr;
 }
 
 inline Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, CSTToken* token = nullptr) {
@@ -886,6 +1058,10 @@ clang::QualType FloatType::clang_type(clang::ASTContext &context) {
 }
 
 clang::QualType Float128Type::clang_type(clang::ASTContext &context) {
+    return context.Float128Ty;
+}
+
+clang::QualType LongDoubleType::clang_type(clang::ASTContext &context) {
     return context.LongDoubleTy;
 }
 
@@ -965,9 +1141,9 @@ clang::ASTUnit* CTranslator::get_unit(
 #ifdef DEBUG
     if (!errors.empty()) {
         std::cerr << std::to_string(errors.size()) << " errors occurred when translating C files" << std::endl;
-    }
-    for (const auto &err : errors) {
-        std::cerr << err.message << std::endl;
+        for (const auto &err : errors) {
+            std::cerr << err.message << std::endl;
+        }
     }
 #endif
     return unit;

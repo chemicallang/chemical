@@ -3,6 +3,7 @@
 #include "FloatType.h"
 #include "ast/values/FloatValue.h"
 #include "Float128Type.h"
+#include "LongDoubleType.h"
 
 bool FloatType::can_promote(Value *value) {
     return value->primitive() && value->value_type() == ValueType::Int;
@@ -21,6 +22,19 @@ bool Float128Type::can_promote(Value *value) {
 }
 
 Value *Float128Type::promote(Value *value) {
+    // TODO promote it to a float 128 type instead
+    if(value->primitive() && value->value_type() == ValueType::Int) {
+        return new FloatValue((float) value->get_the_int(), value->cst_token());
+    } else {
+        return nullptr;
+    }
+}
+
+bool LongDoubleType::can_promote(Value *value) {
+    return value->primitive() && value->value_type() == ValueType::Int;
+}
+
+Value *LongDoubleType::promote(Value *value) {
     // TODO promote it to a float 128 type instead
     if(value->primitive() && value->value_type() == ValueType::Int) {
         return new FloatValue((float) value->get_the_int(), value->cst_token());

@@ -1241,6 +1241,7 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) 
     scope.prepare_target_data(targetData);
     // declaring native definitions like windows and stuff
     auto& allocator = scope.allocator;
+    // we change the global interpret scope for each job, so we must redeclare def value
     scope.values["def"] = &defThing.defValue;
     const auto boolType = new (allocator.allocate<BoolType>()) BoolType(nullptr);
     defThing.declare_value(allocator, "is64Bit", boolType, boolValue(allocator, targetData.is_64Bit));

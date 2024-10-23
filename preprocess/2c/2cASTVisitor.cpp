@@ -193,8 +193,10 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const std::string& id)
         func_type_with_id(visitor, type->function_type(), id);
     } else {
         type->accept(&visitor);
-        visitor.space();
-        visitor.write(id);
+        if(!id.empty() && id != "_") {
+            visitor.space();
+            visitor.write(id);
+        }
         write_type_post_id(visitor, type);
     }
 }
@@ -4507,6 +4509,10 @@ void ToCAstVisitor::visit(FloatType *func) {
 }
 
 void ToCAstVisitor::visit(Float128Type* func) {
+    write("__float128");
+}
+
+void ToCAstVisitor::visit(LongDoubleType *type) {
     write("long double");
 }
 

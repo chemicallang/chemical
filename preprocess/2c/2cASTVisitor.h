@@ -489,6 +489,8 @@ public:
 
     void visit(Float128Type* func) override;
 
+    void visit(LongDoubleType *type) override;
+
     void visit(FunctionType* func) override;
 
     void visit(GenericType* func) override;

@@ -288,7 +288,11 @@ void RepresentationVisitor::visit(ForLoop *forLoop) {
 }
 
 void RepresentationVisitor::visit(FunctionParam *param) {
-    write(param->name);
+    if(param->name.empty()) {
+        write('-');
+    } else {
+        write(param->name);
+    }
     write(" : ");
     param->type->accept(this);
 }
@@ -785,6 +789,10 @@ void RepresentationVisitor::visit(FloatType *func) {
 
 void RepresentationVisitor::visit(Float128Type *type) {
     write("float128");
+}
+
+void RepresentationVisitor::visit(LongDoubleType *type) {
+    write("longdouble");
 }
 
 void RepresentationVisitor::visit(FunctionType *type) {

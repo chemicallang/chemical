@@ -174,6 +174,8 @@ class FloatType;
 
 class Float128Type;
 
+class LongDoubleType;
+
 class FunctionType;
 
 class GenericType;
@@ -600,6 +602,10 @@ public:
     }
 
     virtual void visit(Float128Type* type) {
+        visitCommonType((BaseType*) type);
+    }
+
+    virtual void visit(LongDoubleType* type) {
         visitCommonType((BaseType*) type);
     }
 

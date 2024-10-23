@@ -9,6 +9,9 @@
 #include "ast/types/LongType.h"
 #include "ast/types/BigIntType.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/UCharType.h"
+#include "ast/types/Float128Type.h"
+#include "ast/types/LongDoubleType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/UShortType.h"
@@ -422,7 +425,9 @@ void CTranslator::init_type_makers() {
         return new (allocator.allocate<BoolType>()) BoolType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeChar_U] = nullptr;
-    type_makers[ZigClangBuiltinTypeUChar] = nullptr;
+    type_makers[ZigClangBuiltinTypeUChar] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<UCharType>()) UCharType(nullptr);
+    };;
     type_makers[ZigClangBuiltinTypeWChar_U] = nullptr;
     type_makers[ZigClangBuiltinTypeChar8] = nullptr;
     type_makers[ZigClangBuiltinTypeChar16] = nullptr;
@@ -493,10 +498,14 @@ void CTranslator::init_type_makers() {
     type_makers[ZigClangBuiltinTypeDouble] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return new (allocator.allocate<DoubleType>()) DoubleType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeLongDouble] = nullptr;
+    type_makers[ZigClangBuiltinTypeLongDouble] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<LongDoubleType>()) LongDoubleType(nullptr);
+    };
     type_makers[ZigClangBuiltinTypeFloat16] = nullptr;
     type_makers[ZigClangBuiltinTypeBFloat16] = nullptr;
-    type_makers[ZigClangBuiltinTypeFloat128] = nullptr;
+    type_makers[ZigClangBuiltinTypeFloat128] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<Float128Type>()) Float128Type(nullptr);
+    };
     type_makers[ZigClangBuiltinTypeIbm128] = nullptr;
     type_makers[ZigClangBuiltinTypeNullPtr] = nullptr;
     type_makers[ZigClangBuiltinTypeObjCId] = nullptr;
@@ -626,8 +635,8 @@ void CTranslator::module_begin() {
 
 void CTranslator::error(const std::string& err) {
 // this can be turned on if exceptions are occurring and there's output in console
-//#ifdef DEBUG
-//    std::cerr << "[CTranslator] Debug error :" << err << std::endl;
-//#endif
+#ifdef DEBUG
+    std::cerr << "[CTranslator] Debug error :" << err << std::endl;
+#endif
     errors.emplace_back(err);
 }

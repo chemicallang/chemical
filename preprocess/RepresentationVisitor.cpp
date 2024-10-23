@@ -60,6 +60,7 @@
 #include "ast/types/ShortType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
+#include "ast/types/ComplexType.h"
 #include "ast/types/UBigIntType.h"
 #include "ast/types/UInt128Type.h"
 #include "ast/types/UIntType.h"
@@ -793,6 +794,11 @@ void RepresentationVisitor::visit(Float128Type *type) {
 
 void RepresentationVisitor::visit(LongDoubleType *type) {
     write("longdouble");
+}
+
+void RepresentationVisitor::visit(ComplexType *type) {
+    write("complex ");
+    type->elem_type->accept(this);
 }
 
 void RepresentationVisitor::visit(FunctionType *type) {

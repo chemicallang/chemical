@@ -450,7 +450,9 @@ void CTranslator::init_type_makers() {
     type_makers[ZigClangBuiltinTypeChar_S] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return new (allocator.allocate<CharType>()) CharType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeSChar] = nullptr;
+    type_makers[ZigClangBuiltinTypeSChar] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<CharType>()) CharType(nullptr);
+    };
     type_makers[ZigClangBuiltinTypeWChar_S] = nullptr;
     type_makers[ZigClangBuiltinTypeShort] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return new (allocator.allocate<ShortType>()) ShortType(nullptr);

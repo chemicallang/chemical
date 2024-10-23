@@ -27,6 +27,7 @@
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/ComplexType.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/CharValue.h"
 #include "ast/values/DoubleValue.h"
@@ -143,6 +144,11 @@ llvm::Type *LongDoubleType::llvm_type(Codegen &gen) {
         // Default to double if long double is not distinctly supported
         return llvm::Type::getFP128Ty(*gen.ctx);
     }
+}
+
+llvm::Type *ComplexType::llvm_type(Codegen &gen) {
+    // TODO dummy type, we should be compatible with C
+    return gen.builder->getFloatTy();
 }
 
 llvm::Type *PointerType::llvm_type(Codegen &gen) {

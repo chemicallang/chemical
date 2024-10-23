@@ -18,6 +18,7 @@
 #include "ast/types/UBigIntType.h"
 #include "ast/types/Int128Type.h"
 #include "ast/types/UInt128Type.h"
+#include "ast/types/LongDoubleType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/VoidType.h"
 
@@ -45,6 +46,10 @@ namespace TypeMakers {
 
     BaseType *make_float_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {
         return new (allocator.allocate<FloatType>()) FloatType(token);
+    }
+
+    BaseType *make_long_double_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {
+        return new (allocator.allocate<LongDoubleType>()) LongDoubleType(token);
     }
 
     BaseType *make_int_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {

@@ -1,5 +1,3 @@
-import "./chemical.ch"
-
 // TODO complex types haven't been defined yet
 // so here's what windows uses
 // %struct._C_double_complex = type { [2 x double] }

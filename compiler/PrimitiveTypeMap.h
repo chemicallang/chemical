@@ -31,6 +31,8 @@ namespace TypeMakers {
 
     BaseType *make_float_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
+    BaseType *make_long_double_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
+
     BaseType *make_int_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
     BaseType *make_uint_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
@@ -64,6 +66,7 @@ namespace TypeMakers {
             {"uchar",      TypeMakers::make_uchar_type},
             {"double",    TypeMakers::make_double_type},
             {"float",     TypeMakers::make_float_type},
+            {"longdouble",     TypeMakers::make_long_double_type},
             {"int",       TypeMakers::make_int_type},
             {"uint",      TypeMakers::make_uint_type},
             {"short",     TypeMakers::make_short_type},

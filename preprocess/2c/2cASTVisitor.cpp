@@ -66,6 +66,7 @@
 #include "ast/types/UBigIntType.h"
 #include "ast/types/UInt128Type.h"
 #include "ast/types/UIntType.h"
+#include "ast/types/ComplexType.h"
 #include "ast/types/ULongType.h"
 #include "ast/types/UShortType.h"
 #include "ast/types/VoidType.h"
@@ -4514,6 +4515,11 @@ void ToCAstVisitor::visit(Float128Type* func) {
 
 void ToCAstVisitor::visit(LongDoubleType *type) {
     write("long double");
+}
+
+void ToCAstVisitor::visit(ComplexType *type) {
+    write("_Complex ");
+    type->elem_type->accept(this);
 }
 
 void ToCAstVisitor::visit(FunctionType *type) {

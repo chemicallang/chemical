@@ -172,6 +172,8 @@ class DoubleType;
 
 class FloatType;
 
+class ComplexType;
+
 class Float128Type;
 
 class LongDoubleType;
@@ -475,6 +477,10 @@ public:
 
     virtual void visit(DoubleValue* doubleVal) {
         visitCommonValue((Value*) doubleVal);
+    }
+
+    virtual void visit(ComplexType* complexType) {
+        visitCommonValue((Value*) complexType);
     }
 
     virtual void visit(CharValue* charVal) {

@@ -27,6 +27,7 @@
 #include "ast/types/LongDoubleType.h"
 #include "ast/types/FloatType.h"
 #include "ast/types/Float128Type.h"
+#include "ast/types/ComplexType.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/PointerType.h"
@@ -151,9 +152,12 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
                 return nullptr;
             }
         }
-        case clang::Type::Complex:
-            error("TODO: type with class Complex");
-            break;
+        case clang::Type::Complex:{
+            const auto complexType = ptr->getAs<clang::ComplexType>();
+            auto elemType = complexType->getElementType();
+            auto element_type = make_type(&elemType);
+            return new (allocator.allocate<ComplexType>()) ComplexType(element_type, nullptr);
+        }
         case clang::Type::Decltype:
             error("TODO: type with class Decltype");
             break;
@@ -1063,6 +1067,10 @@ clang::QualType Float128Type::clang_type(clang::ASTContext &context) {
 
 clang::QualType LongDoubleType::clang_type(clang::ASTContext &context) {
     return context.LongDoubleTy;
+}
+
+clang::QualType ComplexType::clang_type(clang::ASTContext &context) {
+    return context.getComplexType(elem_type->clang_type(context));
 }
 
 clang::QualType VoidType::clang_type(clang::ASTContext &context) {

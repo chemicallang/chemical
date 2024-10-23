@@ -491,6 +491,8 @@ public:
 
     void visit(LongDoubleType *type) override;
 
+    void visit(ComplexType *type) override;
+
     void visit(FunctionType* func) override;
 
     void visit(GenericType* func) override;

@@ -27,6 +27,9 @@ enum class BaseTypeKind : uint8_t {
     Double,
     Float,
     LongDouble,
+
+    Complex,
+
     Float128,
     Function,
     Generic,

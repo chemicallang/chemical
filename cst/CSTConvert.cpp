@@ -230,11 +230,8 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
         { "file:path", [](CSTConverter* converter, CSTToken* container) {
             converter->put_value(new (converter->local<StringValue>()) StringValue(converter->path, container), container);
         }},
-        {"target:is64bit", [](CSTConverter* converter, CSTToken* container) {
-            converter->put_value(new (converter->local<BoolValue>()) BoolValue(converter->is64Bit, container), container);
-        }},
         {"sizeof", [](CSTConverter* converter, CSTToken*  container) {
-            auto& tok = container->tokens[2];
+            const auto tok = container->tokens[2];
             if(tok->is_type()) {
                 tok->accept(converter);
                 auto value = new (converter->local<SizeOfValue>()) SizeOfValue(converter->type(), tok);

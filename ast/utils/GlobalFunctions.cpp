@@ -1003,6 +1003,11 @@ struct DefThing {
         defValue.values[name] = init;
     }
 
+    void clear_values() {
+        decl.variables.clear();
+        defValue.values.clear();
+    }
+
     inline void declare_value(ASTAllocator& allocator, const std::string& name, Value* value) {
         declare_value(allocator, name, value->create_type(allocator), value);
     }
@@ -1020,12 +1025,14 @@ struct GlobalContainer {
 
 void init_target_data(llvm::Triple& triple, TargetData& data) {
 
+    const auto arhType = triple.getArch();
+
     // Check for Windows
     if (triple.isOSWindows()) {
         data.is_windows = true;
-        if (triple.getArch() == llvm::Triple::x86) {
+        if (arhType == llvm::Triple::x86) {
             data.is_win32 = true;
-        } else if (triple.getArch() == llvm::Triple::x86_64) {
+        } else if (arhType == llvm::Triple::x86_64) {
             data.is_win64 = true;
         }
     }
@@ -1060,8 +1067,12 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
         data.is_unix = true;
     }
 
+    if(triple.isArch64Bit()) {
+        data.is_64Bit = true;
+    }
+
     // Check for architecture
-    switch(triple.getArch()) {
+    switch(arhType) {
         case llvm::Triple::x86_64:
             data.is_x86_64 = true;
             break;
@@ -1098,6 +1109,8 @@ void prepare_executable_target_data(TargetData& data) {
     data.is_windows = true;
     data.is_win64 = true;
 #endif
+
+    data.is_64Bit = sizeof(void*) == 8;
 
 #ifdef __linux__
     data.is_linux = true;
@@ -1223,6 +1236,30 @@ BoolValue* boolValue(ASTAllocator& allocator, bool value) {
     return new (allocator.allocate<BoolValue>()) BoolValue(value, nullptr);
 }
 
+void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) {
+    TargetData targetData;
+    scope.prepare_target_data(targetData);
+    // declaring native definitions like windows and stuff
+    auto& allocator = scope.allocator;
+    scope.values["def"] = &defThing.defValue;
+    const auto boolType = new (allocator.allocate<BoolType>()) BoolType(nullptr);
+    defThing.declare_value(allocator, "is64Bit", boolType, boolValue(allocator, targetData.is_64Bit));
+    defThing.declare_value(allocator, "windows", boolType, boolValue(allocator, targetData.is_windows));
+    defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, targetData.is_win32));
+    defThing.declare_value(allocator, "win64", boolType, boolValue(allocator, targetData.is_win64));
+    defThing.declare_value(allocator, "linux", boolType, boolValue(allocator, targetData.is_linux));
+    defThing.declare_value(allocator, "macos", boolType, boolValue(allocator, targetData.is_macos));
+    defThing.declare_value(allocator, "freebsd", boolType, boolValue(allocator, targetData.is_freebsd));
+    defThing.declare_value(allocator, "unix", boolType, boolValue(allocator, targetData.is_unix));
+    defThing.declare_value(allocator, "android", boolType, boolValue(allocator, targetData.is_android));
+    defThing.declare_value(allocator, "cygwin", boolType, boolValue(allocator, targetData.is_cygwin));
+    defThing.declare_value(allocator, "mingw32", boolType, boolValue(allocator, targetData.is_mingw32));
+    defThing.declare_value(allocator, "x86_64", boolType, boolValue(allocator, targetData.is_x86_64));
+    defThing.declare_value(allocator, "i386", boolType, boolValue(allocator, targetData.is_i386));
+    defThing.declare_value(allocator, "arm", boolType, boolValue(allocator, targetData.is_arm));
+    defThing.declare_value(allocator, "aarch64", boolType, boolValue(allocator, targetData.is_aarch64));
+}
+
 void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr) {
     auto& container = *container_ptr;
 
@@ -1235,6 +1272,11 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     resolver.declare(container.defined.name, &container.defined);
     resolver.declare(container.defThing.decl.name, &container.defThing.decl);
     resolver.declare(container.defThing.defStmt.identifier, &container.defThing.defStmt);
+
+    container.defThing.clear_values();
+    // we recreate the target data, because the allocator disposes at the end of each job
+    // and this method is called after disposal of the allocator when the job ends, and a new job starts
+    create_target_data_in_def(*this, container.defThing);
 
 }
 
@@ -1250,27 +1292,8 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     // definitions using defThing
     container.defThing.decl.declare_top_level(resolver);
     container.defThing.defStmt.declare_top_level(resolver);
-    values["def"] = &container.defThing.defValue;
 
-    TargetData targetData;
-    prepare_target_data(targetData);
-
-    // declaring native definitions like windows and stuff
-    const auto boolType = new (allocator.allocate<BoolType>()) BoolType(nullptr);
-    container.defThing.declare_value(allocator, "windows", boolType, boolValue(allocator, targetData.is_windows));
-    container.defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, targetData.is_win32));
-    container.defThing.declare_value(allocator, "win64", boolType, boolValue(allocator, targetData.is_win64));
-    container.defThing.declare_value(allocator, "linux", boolType, boolValue(allocator, targetData.is_linux));
-    container.defThing.declare_value(allocator, "macos", boolType, boolValue(allocator, targetData.is_macos));
-    container.defThing.declare_value(allocator, "freebsd", boolType, boolValue(allocator, targetData.is_freebsd));
-    container.defThing.declare_value(allocator, "unix", boolType, boolValue(allocator, targetData.is_unix));
-    container.defThing.declare_value(allocator, "android", boolType, boolValue(allocator, targetData.is_android));
-    container.defThing.declare_value(allocator, "cygwin", boolType, boolValue(allocator, targetData.is_cygwin));
-    container.defThing.declare_value(allocator, "mingw32", boolType, boolValue(allocator, targetData.is_mingw32));
-    container.defThing.declare_value(allocator, "x86_64", boolType, boolValue(allocator, targetData.is_x86_64));
-    container.defThing.declare_value(allocator, "i386", boolType, boolValue(allocator, targetData.is_i386));
-    container.defThing.declare_value(allocator, "arm", boolType, boolValue(allocator, targetData.is_arm));
-    container.defThing.declare_value(allocator, "aarch64", boolType, boolValue(allocator, targetData.is_aarch64));
+    create_target_data_in_def(*this, container.defThing);
 
     return container_ptr;
 }

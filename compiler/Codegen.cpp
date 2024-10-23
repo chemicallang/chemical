@@ -95,14 +95,7 @@ Codegen::Codegen(
 bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
     // Parse the target triple string
     llvm::Triple triple(target_triple);
-    // Extract architecture information
-    llvm::Triple::ArchType archType = triple.getArch();
-    // Check if it's a 32-bit or 64-bit architecture
-    return archType == llvm::Triple::ArchType::x86_64 ||
-              archType == llvm::Triple::ArchType::ppc64 ||
-              archType == llvm::Triple::ArchType::aarch64 ||
-              archType == llvm::Triple::ArchType::mips64 ||
-              archType == llvm::Triple::ArchType::sparcv9;
+    return triple.isArch64Bit();
 }
 
 void Codegen::module_init(const std::string& module_name) {

@@ -3,7 +3,6 @@ import "./common/wchar_types.ch"
 import "./common/multibyte_char_types.ch"
 import "./common/io_types.ch"
 import "./common/arg_types.ch"
-import "./chemical.ch"
 import "./common/time_types.ch"
 
 /**

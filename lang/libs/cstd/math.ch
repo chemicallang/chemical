@@ -1,5 +1,3 @@
-import "./chemical.ch"
-
 /**
  * Computes the absolute value of a floating-point value arg.
  * @param arg	-	floating-point value

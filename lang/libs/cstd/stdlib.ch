@@ -1,6 +1,5 @@
 import "./common/std_types.ch"
 import "./common/wchar_types.ch"
-import "./chemical.ch"
 
 /**
  * Interprets a floating-point value in a byte string pointed to by str.

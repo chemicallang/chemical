@@ -433,6 +433,8 @@ public:
 
     void visit(CharValue* charVal) override;
 
+    void visit(UCharValue *charVal) override;
+
     void visit(StringValue* stringVal) override;
 
     void visit(BoolValue* boolVal) override;

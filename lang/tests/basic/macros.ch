@@ -12,9 +12,8 @@ func test_sizeof() {
         return i == 4;
     })
     test("test sizeof long", () => {
-        var is64 = #target:is64bit {}
         var i = #sizeof { long }
-        if(is64) {
+        if(def.is64Bit) {
             return i == 8;
         } else {
             return i == 4;

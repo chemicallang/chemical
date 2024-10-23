@@ -84,6 +84,7 @@
 #include "ast/values/BigIntValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/CharValue.h"
+#include "ast/values/UCharValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/FloatValue.h"
@@ -853,6 +854,9 @@ void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, B
 }
 
 void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bool initialize = true) {
+    if(init->has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     visitor.debug_comment("var_init defining the value");
     if(is_static) {
         visitor.write("static ");
@@ -4119,6 +4123,12 @@ void ToCAstVisitor::visit(CharValue *val) {
     write('\'');
 }
 
+void ToCAstVisitor::visit(UCharValue *val) {
+    write('\'');
+    write_escape_encoded(*output, (char) val->value);
+    write('\'');
+}
+
 void ToCAstVisitor::visit(StringValue *val) {
     write('"');
     write_encoded(*this, val->value);
@@ -4248,7 +4258,13 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
     }
     const auto linked = identifier->linked_node();
     const auto linked_kind = linked->kind();
-    if(ASTNode::isAnyStructMember(linked_kind)) {
+    if(linked_kind == ASTNodeKind::VarInitStmt) {
+        const auto init = linked->as_var_init_unsafe();
+        if(init->has_annotation(AnnotationKind::CompTime)) {
+            init->value->accept(this);
+            return;
+        }
+    } else if(ASTNode::isAnyStructMember(linked_kind)) {
         if(identifier->parent_val == nullptr) {
             const auto func = current_func_type->as_function();
             if (func && func->has_annotation(AnnotationKind::Constructor)) {

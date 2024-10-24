@@ -74,6 +74,10 @@ public:
 
     void set_child_value(const std::string &name, Value *value, Operation op) override;
 
+    StructValue* initialized_value(InterpretScope& scope);
+
+    Value *evaluated_value(InterpretScope &scope) override;
+
     Value *scope_value(InterpretScope &scope) override;
 
     void declare_default_values(std::unordered_map<std::string, StructMemberInitializer*> &into, InterpretScope &scope);

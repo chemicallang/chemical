@@ -480,6 +480,14 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
 }
 
 Value *StructValue::scope_value(InterpretScope &scope) {
+    return initialized_value(scope);
+}
+
+Value *StructValue::evaluated_value(InterpretScope &scope) {
+    return initialized_value(scope);
+}
+
+StructValue* StructValue::initialized_value(InterpretScope& scope) {
     auto struct_value = new (scope.allocate<StructValue>()) StructValue(
             refType->copy(scope.allocator),
             std::unordered_map<std::string, StructMemberInitializer*>(),

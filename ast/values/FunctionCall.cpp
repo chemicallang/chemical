@@ -947,7 +947,7 @@ Value *FunctionCall::scope_value(InterpretScope &scope) {
 }
 
 Value* FunctionCall::evaluated_value(InterpretScope &scope) {
-    return scope_value(scope);
+    return interpret_value(this, scope, nullptr);
 }
 
 Value* FunctionCall::evaluated_chain_value(InterpretScope &scope, Value* parent) {

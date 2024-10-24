@@ -395,12 +395,13 @@ public:
 
     virtual Value *call(
         InterpretScope *call_scope,
+        ASTAllocator& allocator,
         FunctionCall* call,
         Value* parent_val,
         bool evaluate_refs = true
     );
 
-    virtual Value *call(
+    Value *call(
         InterpretScope *call_scope,
         std::vector<Value*> &call_args,
         Value* parent_val,

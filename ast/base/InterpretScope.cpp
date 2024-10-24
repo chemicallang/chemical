@@ -13,7 +13,11 @@
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-InterpretScope::InterpretScope(InterpretScope *parent, GlobalInterpretScope *global) : parent(parent), global(global), allocator(nullptr, 0, 0) {
+InterpretScope::InterpretScope(
+        InterpretScope *parent,
+        ASTAllocator& allocator,
+        GlobalInterpretScope *global
+) : parent(parent), allocator(allocator), global(global) {
 
 }
 
@@ -73,11 +77,8 @@ void InterpretScope::print_values() {
     }
 }
 
-void InterpretScope::clean() {
-    values.clear();
-    allocator.clear();
-}
-
 InterpretScope::~InterpretScope() {
-    InterpretScope::clean();
+    for(auto ptr : allocated) {
+        ptr->~ASTAny();
+    }
 }

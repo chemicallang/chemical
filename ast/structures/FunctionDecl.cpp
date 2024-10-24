@@ -1393,13 +1393,14 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
 
 Value *FunctionDeclaration::call(
     InterpretScope *call_scope,
+    ASTAllocator& func_allocator,
     FunctionCall* call_obj,
     Value* parent,
     bool evaluate_refs
 ) {
     const auto global = call_scope->global;
     global->call_stack.emplace_back(call_obj);
-    InterpretScope fn_scope(nullptr, global);
+    InterpretScope fn_scope(global, func_allocator, global);
     const auto value = call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs, call_obj);
     global->call_stack.pop_back();
     return value;

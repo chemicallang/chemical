@@ -47,6 +47,72 @@ ASTAllocator& ASTAllocator::operator =(ASTAllocator&& other) noexcept {
     return *this;
 }
 
+std::size_t ASTAllocator::next_allocation_index() {
+    const auto storage_size = ptr_storage.size();
+#ifdef DEBUG
+    if(storage_size < 1) {
+        throw std::runtime_error("expected storage size to be always bigger than zero");
+    }
+#endif
+    const auto container_index = storage_size - 1;
+    auto& container = ptr_storage[container_index];
+    const auto next_index = container.size();
+    return (container_index * PTR_VEC_SIZE) + next_index;
+}
+
+void ASTAllocator::clear_values_from(std::size_t start) {
+
+    // Calculate the starting vector and offset within that vector
+    std::size_t container_index = start / PTR_VEC_SIZE;
+    std::size_t offset = start % PTR_VEC_SIZE;
+
+    const auto storage_size = ptr_storage.size();
+
+#ifdef DEBUG
+    if(storage_size < 1) {
+        throw std::runtime_error("storage must not be empty");
+    }
+#endif
+
+    // Check if the starting index is valid
+    if (container_index >= storage_size || (container_index == storage_size - 1 && offset >= ptr_storage.back().size())) {
+        return;
+    }
+
+    // Clear the pointers from the start index
+    for (std::size_t i = storage_size - 1; i >= container_index;) {
+        auto& container = ptr_storage[i];
+        if (i == container_index) {
+            // Pop back elements from the offset to the end
+            if(!container.empty()) {
+                auto current = container.size() - 1;
+                while(current >= offset) {
+                    const auto ptr = container.back();
+                    ptr->~ASTAny();
+                    container.pop_back();
+                    if(current == 0) {
+                        break;
+                    }
+                    current--;
+                }
+            }
+        } else {
+            // clear all from the container
+            while(!container.empty()) {
+                const auto ptr = container.back();
+                ptr->~ASTAny();
+                container.pop_back();
+            }
+        }
+        if(i == 0) {
+            // prevent underflow, when i is already zero
+            break;
+        }
+        i--;
+    }
+
+}
+
 void ASTAllocator::clear() {
     std::lock_guard<std::mutex> lock(*allocator_mutex);
     destroy_memory();
@@ -131,17 +197,25 @@ char* ASTAllocator::object_heap_pointer(std::size_t obj_size, std::size_t alignm
     }
 }
 
-char* ASTAllocator::allocate_size(std::size_t obj_size, std::size_t alignment) {
-    std::lock_guard<std::mutex> lock(*allocator_mutex);
+char* ASTAllocator::allocate_raw(std::size_t obj_size, std::size_t alignment) {
     std::size_t aligned_stack_offset = (stack_offset + alignment - 1) & ~(alignment - 1);
     if (aligned_stack_offset + obj_size < stack_memory_size) {
         const auto ptr = stack_memory + aligned_stack_offset;
         stack_offset = aligned_stack_offset + obj_size;
-        store_ptr(ptr);
         return ptr;
     } else {
-        const auto ptr = object_heap_pointer(obj_size, alignment);
-        store_ptr(ptr);
-        return ptr;
+        return object_heap_pointer(obj_size, alignment);
     }
+}
+
+char* ASTAllocator::allocate_size(std::size_t obj_size, std::size_t alignment) {
+    std::lock_guard<std::mutex> lock(*allocator_mutex);
+    const auto ptr = allocate_raw(obj_size, alignment);
+    store_ptr(ptr);
+    return ptr;
+}
+
+char* ASTAllocator::allocate_released_size(std::size_t obj_size, std::size_t alignment) {
+    std::lock_guard<std::mutex> lock(*allocator_mutex);
+    return allocate_raw(obj_size, alignment);
 }

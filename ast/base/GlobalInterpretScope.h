@@ -106,13 +106,6 @@ public:
     void prepare_target_data(TargetData& data);
 
     /**
-     * cleans the scope
-     * This doesn't clean global functions and values because they are not part of
-     * interpretation state !
-     */
-    void clean() override;
-
-    /**
      * overrides the destructor of InterpretScope
      * this is done because dereferencing "this" in base class for an object of derived class
      * causes segfaults, which could be because of object slicing

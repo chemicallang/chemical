@@ -643,7 +643,7 @@ Value* evaluate_comptime_func(
         FunctionDeclaration* func_decl,
         FunctionCall* call
 ) {
-    auto value = func_decl->call(&visitor.comptime_scope, call, nullptr, false);
+    auto value = func_decl->call(&visitor.comptime_scope, visitor.allocator, call, nullptr, false);
     if(!value) {
         visitor.error("comptime function call didn't return anything", call);
         return nullptr;

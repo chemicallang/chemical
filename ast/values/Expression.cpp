@@ -161,6 +161,10 @@ int64_t operate(Operation op, int64_t first, int64_t second) {
             return first << second;
         case Operation::RightShift:
             return first >> second;
+        case Operation::BitwiseAND:
+            return first & second;
+        case Operation::BitwiseOR:
+            return first | second;
         default:
 #ifdef DEBUG
         throw std::runtime_error("UNKNOWN INTERPRET OPERATION");

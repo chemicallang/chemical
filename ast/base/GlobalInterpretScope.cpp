@@ -17,7 +17,7 @@ GlobalInterpretScope::GlobalInterpretScope(
     BackendContext* context,
     LabBuildCompiler* buildCompiler,
     ASTAllocator& allocator
-) : InterpretScope(nullptr, this), target_triple(std::move(target_triple)),
+) : InterpretScope(nullptr, allocator, this), target_triple(std::move(target_triple)),
     backend_context(context), build_compiler(buildCompiler), allocator(allocator) {
 
 }
@@ -34,11 +34,6 @@ void GlobalInterpretScope::interpret_error(std::string_view& msg, ASTAny* any) {
     std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
 #endif
     ASTDiagnoser::diagnostic(msg, any, DiagSeverity::Error);
-}
-
-void GlobalInterpretScope::clean() {
-    InterpretScope::clean();
-    diagnostics.clear();
 }
 
 GlobalInterpretScope::~GlobalInterpretScope() = default;

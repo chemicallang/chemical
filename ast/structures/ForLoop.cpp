@@ -86,7 +86,7 @@ void ForLoop::declare_and_link(SymbolResolver &linker) {
 }
 
 void ForLoop::interpret(InterpretScope &scope) {
-    InterpretScope child(&scope, scope.global);
+    InterpretScope child(&scope, scope.allocator, scope.global);
     initializer->interpret(child);
     while (conditionExpr->evaluated_bool(child)) {
         body.interpret(child);

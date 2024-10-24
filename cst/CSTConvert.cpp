@@ -1830,7 +1830,11 @@ inline T parse_num(CSTConverter* converter, CSTToken* token, const char* _Ptr, T
 }
 
 void CSTConverter::visitNumberToken(NumberToken *token) {
-    const auto& value = token->value();
+    // we take the mutable value of the token
+    // every change we make to the token's value, we revert that change back
+    // to keep the token value legitimate
+    auto& mut_value = token->unsafe_mutable_value();
+    const auto& value = mut_value;
     const auto value_size = value.size();
     const auto last_char_index = value_size - 1;
     // i8, i16, i32, i64, i128
@@ -1843,8 +1847,10 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
             if(last_char != '8') {
                 error(unk_bit_width_err, token);
             }
-            const auto str_value = value.substr(0, sec_last_index);
-            const auto num_value = parse_num(this, token, str_value.c_str(), strtol);
+            // pretend value ended here, so C only considers it up until this point
+            mut_value[sec_last_index] = '\0';
+            const auto num_value = parse_num(this, token, value.c_str(), strtol);
+            mut_value[sec_last_index] = sec_last;
             put_value(new (local<CharValue>()) CharValue((char) num_value, token), token);
             return;
         } else if(sec_last == 'u' || sec_last == 'U') {
@@ -1853,12 +1859,14 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
                 error(unk_bit_width_err, token);
             }
             if(is_long) {
-                const auto str_value = value.substr(0, sec_last_index);
-                const auto num_value = parse_num(this, token, str_value.c_str(), strtoul);
+                mut_value[sec_last_index] = '\0';
+                const auto num_value = parse_num(this, token, value.c_str(), strtoul);
+                mut_value[sec_last_index] = sec_last;
                 put_value(new (local<ULongValue>()) ULongValue((unsigned long) num_value, is64Bit, token),token);
             } else {
-                const auto str_value = value.substr(0, sec_last_index);
-                const auto num_value = parse_num(this, token, str_value.c_str(), strtoul);
+                mut_value[sec_last_index] = '\0';
+                const auto num_value = parse_num(this, token, value.c_str(), strtoul);
+                mut_value[sec_last_index] = sec_last;
                 put_value(new (local<UCharValue>()) UCharValue((char) num_value, token),token);
             }
             return;
@@ -1868,41 +1876,47 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
             const auto sec_last_view = std::string_view(value.c_str() + sec_last_index);
             if(third_last == 'i') {
                 if(sec_last_view == "16") {
-                    const auto str_value = value.substr(0, third_last_index);
-                    const auto num_value = parse_num(this, token, str_value.c_str(), strtol);
+                    mut_value[third_last_index] = '\0';
+                    const auto num_value = parse_num(this, token, value.c_str(), strtol);
+                    mut_value[third_last_index] = third_last;
                     put_value(new (local<ShortValue>()) ShortValue((short) num_value, token), token);
                     return;
                 } else if(sec_last_view == "32") {
-                    const auto str_value = value.substr(0, third_last_index);
-                    const auto num_val = parse_num(this, token, str_value.c_str(), strtol);
+                    mut_value[third_last_index] = '\0';
+                    const auto num_val = parse_num(this, token, value.c_str(), strtol);
+                    mut_value[third_last_index] = third_last;
                     put_value(new (local<IntValue>()) IntValue((int) num_val, token), token);
                     return;
                 } else {
                     if(sec_last_view != "64") {
                         error(unk_bit_width_err, token);
                     }
-                    const auto str_value = value.substr(0, third_last_index);
-                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoll);
+                    mut_value[third_last_index] = '\0';
+                    const auto num_val = parse_num(this, token, value.c_str(), strtoll);
+                    mut_value[third_last_index] = third_last;
                     put_value(new (local<BigIntValue>()) BigIntValue((long long) num_val, token), token);
                     return;
                 }
             } else if(third_last == 'u') {
                 if(sec_last_view == "16") {
-                    const auto str_value = value.substr(0, third_last_index);
-                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoul);
+                    mut_value[third_last_index] = '\0';
+                    const auto num_val = parse_num(this, token, value.c_str(), strtoul);
+                    mut_value[third_last_index] = third_last;
                     put_value(new (local<UShortValue>()) UShortValue((unsigned short) num_val, token), token);
                     return;
                 } else if(sec_last_view == "32") {
-                    const auto str_value = value.substr(0, third_last_index);
-                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoul);
+                    mut_value[third_last_index] = '\0';
+                    const auto num_val = parse_num(this, token, value.c_str(), strtoul);
+                    mut_value[third_last_index] = third_last;
                     put_value(new (local<UIntValue>()) UIntValue((unsigned int) num_val, token), token);
                     return;
                 } else {
                     if(sec_last_view != "64") {
                         error(unk_bit_width_err, token);
                     }
-                    const auto str_value = value.substr(0, third_last_index);
-                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoull);
+                    mut_value[third_last_index] = '\0';
+                    const auto num_val = parse_num(this, token, value.c_str(), strtoull);
+                    mut_value[third_last_index] = third_last;
                     put_value(new (local<UBigIntValue>()) UBigIntValue((unsigned long long) num_val, token), token);
                     return;
                 }
@@ -1916,8 +1930,9 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
                     }
                     const auto is_negative = value[0] == '-';
                     const auto begin_index = is_negative ? 1 : 0;
-                    const auto str_value = value.substr(begin_index, fourth_last_index);
-                    const auto num_val = parse_num(this, token, str_value.c_str(), strtoull);
+                    mut_value[fourth_last_index] = '\0';
+                    const auto num_val = parse_num(this, token, value.c_str() + begin_index, strtoull);
+                    mut_value[fourth_last_index] = fourth_last;
                     put_value(new (local<Int128Value>()) Int128Value(num_val, is_negative, token), token);
                     return;
                 } else if(fourth_last == 'u') {
@@ -1938,23 +1953,23 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
     switch(last_char) {
         case 'f':
         case 'F': {
-            const auto num_value = parse_num(this, token, token->value().c_str(), strtof);
+            const auto num_value = parse_num(this, token, value.c_str(), strtof);
             put_value(new (local<FloatValue>()) FloatValue(num_value, token), token);
             return;
         }
         case 'l':
         case 'L': {
-            const auto num_value = parse_num(this, token, token->value().c_str(), strtol);
+            const auto num_value = parse_num(this, token, value.c_str(), strtol);
             put_value(new (local<LongValue>()) LongValue(num_value, is64Bit, token), token);
             return;
         }
         default: {
             if (token->has_dot()) {
                 // TODO we should judge by the length of the string to give better value (support float128 on large doubles)
-                const auto num_value = parse_num(this, token, token->value().c_str(), strtod);
+                const auto num_value = parse_num(this, token, value.c_str(), strtod);
                 put_value(new(local<DoubleValue>()) DoubleValue(num_value, token), token);
             } else {
-                const auto num_value = parse_num(this, token, token->value().c_str(), strtoll);
+                const auto num_value = parse_num(this, token, value.c_str(), strtoll);
                 put_value(new(local<NumberValue>()) NumberValue(num_value, token), token);
             }
         }

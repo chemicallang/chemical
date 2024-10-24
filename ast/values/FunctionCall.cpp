@@ -488,7 +488,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
     auto returnsStruct = func_type->returnType->value_type() == ValueType::Struct;
 
     if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
-        auto& val = gen.eval_comptime(this, decl);
+        auto val = gen.eval_comptime(this, decl);
         if(!val) {
             return nullptr;
         }
@@ -935,7 +935,7 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
 Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent) {
     auto func = call->safe_linked_func();
     if (func) {
-        return func->call(&scope, call, parent);
+        return func->call(&scope, scope.allocator, call, parent);
     } else {
         scope.error("(function call) calling a function that is not found or has no body", call);
     }

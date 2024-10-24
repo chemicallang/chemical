@@ -325,18 +325,18 @@ ASTNode *IfStatement::linked_node() {
 
 void IfStatement::interpret(InterpretScope &scope) {
     if (condition->evaluated_bool(scope)) {
-        InterpretScope child(&scope, scope.global);
+        InterpretScope child(&scope, scope.allocator, scope.global);
         ifBody.interpret(child);
     } else {
         for (auto const &elseIf: elseIfs) {
             if (elseIf.first->evaluated_bool(scope)) {
-                InterpretScope child(&scope, scope.global);
+                InterpretScope child(&scope, scope.allocator, scope.global);
                 const_cast<Scope *>(&elseIf.second)->interpret(child);
                 return;
             }
         }
         if (elseBody.has_value()) {
-            InterpretScope child(&scope, scope.global);
+            InterpretScope child(&scope, scope.allocator, scope.global);
             elseBody->interpret(child);
         }
     }

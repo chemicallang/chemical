@@ -48,6 +48,31 @@ public:
     }
 
     /**
+     * allocate a type and release it from allocator, this means
+     * the type must be destructed by the caller
+     * meaning we will
+     */
+    template<typename T>
+    inline T* allocate_released() {
+        return (T*) (void*) allocate_released_size(sizeof(T), alignof(T));
+    }
+
+    /**
+     * this is the index at which next allocation will be
+     * saved in this allocator, you can use this index to kill
+     * values
+     */
+    std::size_t next_allocation_index();
+
+    /**
+     * at the given index (inclusive) we start removing values
+     * until the end, after this, when you query next_allocation_index
+     * the given index should be returned, because all values before it
+     * have been deleted
+     */
+    void clear_values_from(std::size_t start);
+
+    /**
      * when called, will free everything, and make this allocator available
      * for more allocations, basically reusing previously allocated memory
      */
@@ -153,8 +178,18 @@ protected:
     char* object_heap_pointer(std::size_t obj_size, std::size_t alignment);
 
     /**
-     * allocate a pointer with given object size
+     * allocate will be called, without any mutex and pointer will not be stored
+     */
+    char* allocate_raw(std::size_t obj_size, std::size_t alignment);
+
+    /**
+     * allocate a pointer with given object size and store the pointer
      */
     char* allocate_size(std::size_t obj_size, std::size_t alignment);
+
+    /**
+     * allocate a pointer with given object size and do not store the pointer
+     */
+    char* allocate_released_size(std::size_t obj_size, std::size_t alignment);
 
 };

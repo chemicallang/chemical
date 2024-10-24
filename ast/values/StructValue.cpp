@@ -464,7 +464,7 @@ Value *StructValue::call_member(
         return nullptr;
     }
 #endif
-    InterpretScope child(nullptr, scope.global);
+    InterpretScope child(nullptr, scope.allocator, scope.global);
     child.declare("this", this);
     auto value = fn->call(&scope, params, this, &child);
     return value;

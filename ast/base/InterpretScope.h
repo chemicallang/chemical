@@ -47,12 +47,22 @@ public:
      * this is a very lightweight allocator, that allocates every value on heap
      * that's it
      */
-    ASTAllocator allocator;
+    ASTAllocator& allocator;
+
+    /**
+     * the pointers allocated by this scope, we call destruct
+     * on these pointers when the scope dies
+     */
+    std::vector<ASTAny*> allocated;
 
     /**
      * constructor
      */
-    explicit InterpretScope(InterpretScope* parent, GlobalInterpretScope* global);
+    explicit InterpretScope(
+        InterpretScope* parent,
+        ASTAllocator& allocator,
+        GlobalInterpretScope* global
+    );
 
     /**
      * use default move constructor
@@ -66,11 +76,14 @@ public:
     InterpretScope(const InterpretScope& copy) = delete;
 
     /**
-     * a helper function
+     * a helper function to allocate objects so they are destroyed when the scope dies
+     * instead of when the allocator dies
      */
     template<typename T>
     inline T* allocate() {
-        return allocator.allocate<T>();
+        const auto ptr = allocator.allocate_released<T>();
+        allocated.emplace_back(ptr);
+        return ptr;
     }
 
     /**
@@ -107,12 +120,6 @@ public:
      * an interpret scope error
      */
     void error(std::string_view err, ASTAny* any);
-
-    /**
-     * this can be called to "clean" everything in this scope
-     * to make it reusable
-     */
-    virtual void clean();
 
     /**
      * Values that want to be deleted when the scope ends

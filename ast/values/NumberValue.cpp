@@ -34,7 +34,7 @@ ValueType NumberValue::value_type() const {
 }
 
 Value *NumberValue::scope_value(InterpretScope &scope) {
-    return new IntValue((int) value, token);
+    return new (scope.allocate<IntValue>()) IntValue((int) value, token);
 }
 
 IntNType* linked(BaseType* type) {

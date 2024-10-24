@@ -1181,6 +1181,28 @@ clang::ASTUnit* CTranslator::get_unit(
     return get_unit(args, args + 2, resources_path);
 }
 
+Value* convert_token_to_value(ASTAllocator& allocator, const clang::Token& token) {
+    switch(token.getKind()) {
+        case clang::tok::numeric_constant:{
+            const auto data = token.getLiteralData();
+            std::string_view view(data, token.getLength());
+            return nullptr;
+        }
+        default:
+            return nullptr;
+    }
+}
+
+Value* convert_to_value(ASTAllocator& allocator, clang::MacroInfo* info) {
+    auto tokens = info->tokens();
+    if(tokens.size() == 1) {
+        return convert_token_to_value(allocator, tokens.front());
+    } else {
+        // TODO
+    }
+    return nullptr;
+}
+
 void CTranslator::translate(
         const char** args_begin,
         const char** args_end,
@@ -1189,6 +1211,20 @@ void CTranslator::translate(
     std::lock_guard guard(translation_mutex);
     // we delete the unit instantly (we don't need it)
     const auto unit = get_unit(args_begin, args_end, resources_path);
+    auto& PP = unit->getPreprocessor();
+    auto& Table = PP.getIdentifierTable();
+    for (auto it = Table.begin(); it != Table.end(); ++it) {
+        clang::IdentifierInfo *II = it->second;
+        if (II->hasMacroDefinition()) {
+            clang::MacroInfo *MI = PP.getMacroInfo(II);
+            const auto value = convert_to_value(allocator, MI);
+//            llvm::outs() << "Macro: " << II->getName() << " = ";
+//            for (const auto &Tok : MI->tokens()) {
+//                llvm::outs() << Tok.getName() << " ";
+//            }
+//            llvm::outs() << "\n";
+        }
+    }
     // actual translation
     translate(unit);
     // dedupe the nodes

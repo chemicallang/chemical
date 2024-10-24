@@ -123,6 +123,13 @@ public:
     }
 
     /**
+     * get the mutable value unsafely
+     */
+    inline std::string& unsafe_mutable_value() {
+        return flat.value;
+    }
+
+    /**
      * line number of lex token
      */
     [[nodiscard]]

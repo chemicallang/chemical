@@ -1,6 +1,6 @@
 import "../compiler/Lexer.ch"
 import "../compiler/CSTConverter.ch"
-import "@system/ctype.h"
+import "@cstd/ctype.ch"
 
 using namespace std;
 

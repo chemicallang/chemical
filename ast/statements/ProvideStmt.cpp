@@ -4,18 +4,6 @@
 #include "ProvideStmt.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/base/Value.h"
-#include "compiler/Codegen.h"
-
-#ifdef COMPILER_BUILD
-
-void ProvideStmt::code_gen(Codegen &gen) {
-    const auto val = value->llvm_value(gen, nullptr);
-    put_in(gen.implicit_args, val, &gen, [](ProvideStmt* stmt, void* data) {
-        stmt->body.code_gen(*((Codegen*) data));
-    });
-}
-
-#endif
 
 ProvideStmt::ProvideStmt(
     Value* value,

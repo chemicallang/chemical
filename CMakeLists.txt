@@ -497,6 +497,8 @@ set(COMMON_SOURCES
         compiler/lab/TargetData.h
         ast/types/LongDoubleType.h
         ast/types/ComplexType.h
+        ast/structures/ComptimeBlock.h
+        ast/structures/ComptimeBlock.cpp
 )
 
 # Chemical LSP Executable Target

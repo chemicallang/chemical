@@ -304,6 +304,8 @@ public:
 
     void visitProvide(CSTToken *provideStmt) override;
 
+    void visitComptimeBlock(CSTToken *block) override;
+
     void visitReturn(CSTToken* returnCst) override;
 
     void visitTypealias(CSTToken* alias) override;

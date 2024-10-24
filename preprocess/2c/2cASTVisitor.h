@@ -393,6 +393,8 @@ public:
 
     void visit(ProvideStmt *provideStmt) override;
 
+    void visit(ComptimeBlock *block) override;
+
     void visit(TypealiasStatement* statement) override;
 
     void visit(SwitchStatement* statement) override;

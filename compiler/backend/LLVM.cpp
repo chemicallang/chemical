@@ -57,6 +57,8 @@
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/InitBlock.h"
+#include "ast/statements/ProvideStmt.h"
+#include "ast/structures/ComptimeBlock.h"
 #include "ast/values/StructValue.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariablesContainer.h"
@@ -950,6 +952,16 @@ void Scope::code_gen(Codegen &gen) {
     code_gen(gen, gen.destruct_nodes.size());
 }
 
+void ProvideStmt::code_gen(Codegen &gen) {
+    const auto val = value->llvm_value(gen, nullptr);
+    put_in(gen.implicit_args, val, &gen, [](ProvideStmt* stmt, void* data) {
+        stmt->body.code_gen(*((Codegen*) data));
+    });
+}
+
+void ComptimeBlock::code_gen(Codegen& gen) {
+    body.interpret(gen.comptime_scope);
+}
 
 void InitBlock::code_gen(Codegen &gen) {
     auto self_arg = gen.current_function->getArg(0);

@@ -834,6 +834,11 @@ public:
      */
     bool lexProvideStatement();
 
+    /**
+     * lexes a comptime block
+     */
+    bool lexComptimeBlock();
+
     // -------------------------------- Exposed till here
 
     /**

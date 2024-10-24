@@ -37,6 +37,7 @@
 #include "ast/statements/ProvideStmt.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnionDef.h"
+#include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/LoopScope.h"
 #include "ast/structures/CapturedVariable.h"
@@ -3997,6 +3998,10 @@ void ToCAstVisitor::visit(ProvideStmt *stmt) {
         const auto v = (ToCAstVisitor*) data;
         v->visit(&stmt->body);
     });
+}
+
+void ToCAstVisitor::visit(ComptimeBlock *block) {
+    block->body.interpret(comptime_scope);
 }
 
 void ToCAstVisitor::visit(TypealiasStatement *stmt) {

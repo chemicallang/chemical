@@ -28,6 +28,7 @@ enum class ASTNodeKind : uint8_t {
     VarInitStmt,
     LoopBlock,
     ProvideStmt,
+    ComptimeBlock,
     WhileLoopStmt,
     DoWhileLoopStmt,
     ForLoopStmt,

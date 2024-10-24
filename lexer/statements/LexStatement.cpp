@@ -34,6 +34,7 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexAnnotationMacro() ||
            lexUsingStatement() ||
            lexProvideStatement() ||
+           lexComptimeBlock() ||
            lexEnumStructureTokens() ||
            lexStructStructureTokens() ||
            lexUnionStructureTokens() ||
@@ -63,6 +64,7 @@ bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
            lexThrowStatementTokens() ||
            lexUsingStatement() ||
            lexProvideStatement() ||
+           lexComptimeBlock() ||
            lexIfBlockTokens(is_value, lex_value_node, false) ||
            lexTryCatchTokens() ||
            lexTypealiasStatement() ||
@@ -143,6 +145,19 @@ bool Lexer::lexProvideStatement() {
             return true;
         }
         compound_from(start, LexTokenType::CompProvide);
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::lexComptimeBlock() {
+    if(lexWSKeywordToken("comptime", '{')) {
+        unsigned start = tokens_size() - 1;
+        if(!lexBraceBlock("comptime")) {
+            mal_node(start, "missing body for provide statement");
+            return true;
+        }
+        compound_from(start, LexTokenType::CompComptime);
     } else {
         return false;
     }

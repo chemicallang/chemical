@@ -293,8 +293,6 @@ set(COMMON_SOURCES
         ast/values/ULongValue.h
         ast/values/BigIntValue.h
         ast/values/UBigIntValue.h
-        utils/StrUtils.h
-        utils/StrUtils.cpp
         ast/types/StructType.h
         ast/types/StructType.cpp
         ast/types/IntType.h
@@ -499,6 +497,7 @@ set(COMMON_SOURCES
         ast/types/ComplexType.h
         ast/structures/ComptimeBlock.h
         ast/structures/ComptimeBlock.cpp
+        utils/inline_attr.h
 )
 
 # Chemical LSP Executable Target

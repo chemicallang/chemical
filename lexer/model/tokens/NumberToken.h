@@ -7,7 +7,6 @@
 #pragma once
 
 #include "cst/base/CSTToken.h"
-#include "utils/StrUtils.h"
 
 class NumberToken : public CSTToken {
 private:

@@ -211,6 +211,7 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
 }
 
 const auto include_cmd_desc = "include a c header or a chemical file in compilation";
+const auto link_lib_cmd_desc = "link the given library when compiling";
 const auto cc_cmd_desc = "invokes the cc tool";
 const auto configure_cmd_desc = "configures the compiler for this OS";
 const auto linker_cmd_desc = "invoke the linker to link libraries";
@@ -243,7 +244,7 @@ const auto bin_out_desc = "specify output path for binary file";
 const auto debug_ir_desc = "set debug mode for generated llvm ir";
 const auto dash_c_desc = "generate objects without linking them into final executable";
 
-std::vector<std::string_view>& get_includes(CmdOptions& options) {
+inline std::vector<std::string_view>& get_includes(CmdOptions& options) {
     return options.data.find("include")->second.multi_value.values;
 }
 
@@ -255,6 +256,17 @@ void take_include_options(LabModule& module, CmdOptions& options) {
         } else {
             module.headers.emplace_back(std::string(value));
         }
+    }
+}
+
+void take_linked_libs(LabJob& job, CmdOptions& options) {
+    const auto& libs = options.data.find("library")->second.multi_value.values;
+    for(auto& lib : libs) {
+        job.linkables.emplace_back(chem::string::make_view(lib));
+    }
+    const auto& libs2 = options.data.find("l")->second.multi_value.values;
+    for(auto& lib : libs2) {
+        job.linkables.emplace_back(chem::string::make_view(lib));
     }
 }
 
@@ -271,6 +283,7 @@ int main(int argc, char *argv[]) {
     CmdOptions options;
     CmdOption cmd_data[] = {
         CmdOption("include", CmdOptionType::MultiValued, include_cmd_desc),
+        CmdOption("library", "l", CmdOptionType::MultiValued, link_lib_cmd_desc),
         CmdOption("cc", CmdOptionType::SubCommand, cc_cmd_desc),
         CmdOption("configure", CmdOptionType::SubCommand, configure_cmd_desc),
         CmdOption("linker", CmdOptionType::SubCommand, linker_cmd_desc),
@@ -468,6 +481,7 @@ int main(int argc, char *argv[]) {
         // translate the build.lab to a c file (for debugging)
         if(output.has_value() && output.value().ends_with(".c")) {
             LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_folder), { }, { });
+            take_linked_libs(job, options);
             LabModule module(LabModuleType::Files, chem::string("[BuildLabFile]"), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), { }, { });
             take_include_options(module, options);
             module.paths.emplace_back(std::string(args[0]));
@@ -570,6 +584,7 @@ int main(int argc, char *argv[]) {
         module.asm_path.append(asm_out.value());
 
     LabJob job(LabJobType::Executable);
+    take_linked_libs(job, options);
     if(dash_c.has_value() || !bin_out.has_value()) {
         job.type = LabJobType::ProcessingOnly;
     } else if(output.has_value()) {

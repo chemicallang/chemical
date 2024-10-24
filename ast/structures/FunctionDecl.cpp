@@ -1412,7 +1412,7 @@ void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
         // TODO this can be improved
         // currently every return is first initialized in the current scope
         // then every return is copied to the call scope
-        interpretReturn = value->scope_value(func_scope)->copy(callScope->allocator);
+        interpretReturn = value->evaluated_value(func_scope)->copy(callScope->allocator);
     }
     body->stopInterpretOnce();
 }

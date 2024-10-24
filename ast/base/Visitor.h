@@ -74,6 +74,8 @@ class UnnamedUnion;
 
 class UnnamedStruct;
 
+class ComptimeBlock;
+
 class TypealiasStatement;
 
 class SwitchStatement;
@@ -378,6 +380,10 @@ public:
     }
 
     virtual void visit(UnsafeBlock* block) {
+        visitCommon((ASTNode*) block);
+    }
+
+    virtual void visit(ComptimeBlock* block) {
         visitCommon((ASTNode*) block);
     }
 

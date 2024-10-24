@@ -62,6 +62,7 @@
 #include "ast/statements/Break.h"
 #include "ast/statements/Unreachable.h"
 #include "ast/statements/Typealias.h"
+#include "ast/structures/ComptimeBlock.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/structures/If.h"
 #include "ast/values/LambdaFunction.h"
@@ -899,6 +900,17 @@ void CSTConverter::visitProvide(CSTToken *provideStmt) {
     );
     stmt->body.nodes = take_body_nodes(this, provideStmt->tokens[2], stmt);
     put_node(stmt, provideStmt);
+}
+
+void CSTConverter::visitComptimeBlock(CSTToken *block) {
+    const auto body_tok = block->tokens[1];
+    const auto stmt = new (local<ComptimeBlock>()) ComptimeBlock(
+            { parent_node, body_tok },
+            parent_node,
+            block
+    );
+    stmt->body.nodes = take_body_nodes(this, body_tok, stmt);
+    put_node(stmt, block);
 }
 
 void CSTConverter::visitTypealias(CSTToken* alias) {

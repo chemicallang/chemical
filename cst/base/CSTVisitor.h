@@ -73,6 +73,10 @@ public:
         visitCompoundCommon(provideStmt);
     }
 
+    virtual void visitComptimeBlock(CSTToken *block) {
+        visitCompoundCommon(block);
+    }
+
     virtual void visitDestruct(CSTToken *delStmt) {
         visitCompoundCommon(delStmt);
     }

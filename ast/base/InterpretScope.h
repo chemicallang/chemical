@@ -26,6 +26,10 @@ using value_iterator = value_map::iterator;
 class FunctionType;
 
 class InterpretScope {
+protected:
+
+    ASTAny* allocate_released(std::size_t obj_size, std::size_t alignment);
+
 public:
 
     /**
@@ -80,10 +84,9 @@ public:
      * instead of when the allocator dies
      */
     template<typename T>
-    inline T* allocate() {
-        const auto ptr = allocator.allocate_released<T>();
-        allocated.emplace_back(ptr);
-        return ptr;
+    FORCE_INLINE T* allocate() {
+        static_assert(std::is_base_of<ASTAny, T>::value, "T must derived from ASTAny");
+        return (T*) allocate_released(sizeof(T), alignof(T));
     }
 
     /**

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ASTAny.h"
+#include "utils/inline_attr.h"
 
 namespace std {
     class mutex;
@@ -42,7 +43,7 @@ public:
      * the method to use to allocate a type
      */
     template<typename T>
-    inline T* allocate() {
+    FORCE_INLINE T* allocate() {
         static_assert(std::is_base_of<ASTAny, T>::value, "T must derived from ASTAny");
         return (T*) (void*) allocate_size(sizeof(T), alignof(T));
     }
@@ -53,9 +54,19 @@ public:
      * meaning we will
      */
     template<typename T>
-    inline T* allocate_released() {
+    FORCE_INLINE T* allocate_released() {
         return (T*) (void*) allocate_released_size(sizeof(T), alignof(T));
     }
+
+    /**
+     * allocate a pointer with given object size and store the pointer
+     */
+    char* allocate_size(std::size_t obj_size, std::size_t alignment);
+
+    /**
+     * allocate a pointer with given object size and do not store the pointer
+     */
+    char* allocate_released_size(std::size_t obj_size, std::size_t alignment);
 
     /**
      * this is the index at which next allocation will be
@@ -181,15 +192,5 @@ protected:
      * allocate will be called, without any mutex and pointer will not be stored
      */
     char* allocate_raw(std::size_t obj_size, std::size_t alignment);
-
-    /**
-     * allocate a pointer with given object size and store the pointer
-     */
-    char* allocate_size(std::size_t obj_size, std::size_t alignment);
-
-    /**
-     * allocate a pointer with given object size and do not store the pointer
-     */
-    char* allocate_released_size(std::size_t obj_size, std::size_t alignment);
 
 };

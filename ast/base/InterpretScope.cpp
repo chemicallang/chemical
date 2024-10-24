@@ -21,6 +21,12 @@ InterpretScope::InterpretScope(
 
 }
 
+ASTAny* InterpretScope::allocate_released(std::size_t obj_size, std::size_t alignment) {
+    const auto ptr = (ASTAny*) (void*) allocator.allocate_released_size(obj_size, alignment);
+    allocated.emplace_back(ptr);
+    return ptr;
+}
+
 void InterpretScope::declare(const std::string &name, Value *value) {
     values[name] = value;
 }

@@ -16,7 +16,6 @@
 #include "utils/CmdUtils.h"
 #include "cst/base/CSTConverter.h"
 #include <filesystem>
-#include "utils/StrUtils.h"
 #include "preprocess/ImportGraphMaker.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "utils/PathUtils.h"

@@ -14,7 +14,7 @@ Lexer::Lexer(SourceProvider &provider, CompilerBinder* binder) : provider(provid
 void Lexer::lexTopLevelMultipleImportStatements() {
     while (true) {
         lexWhitespaceAndNewLines();
-        if (!lexImportStatement()) {
+        if (!lexImportStatement() && !lexSingleLineCommentTokens() && !lexMultiLineCommentTokens()) {
             break;
         }
         lexWhitespaceToken();

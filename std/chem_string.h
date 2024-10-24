@@ -32,6 +32,14 @@ namespace chem {
         } storage;
         char state;
 
+        static inline chem::string make_view(const std::string_view& view) {
+            chem::string str;
+            str.storage.constant.data = view.data();
+            str.storage.constant.length = view.size();
+            str.state = '0';
+            return str;
+        }
+
         constexpr explicit string(const char *Str) {
             storage.constant.data = Str;
             const size_t length = Str ?

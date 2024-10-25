@@ -1790,13 +1790,8 @@ void CSTConverter::visitCharToken(CSTToken* token) {
 
 const auto unk_bit_width_err = "unknown bitwidth given for a number";
 
-template<typename T, typename K>
-K parse_hex_or_dec_num(const char* num, char** _EndPtr, T func) {
-    if(num[0] == '0' && (num[1] == 'x' || num[1] == 'X')) {
-        return func(num, _EndPtr, 16);
-    } else {
-        return func(num, _EndPtr, 10);
-    }
+int get_parse_num_base(const char* num) {
+    return (num[0] == '0' && (num[1] == 'x' || num[1] == 'X')) ? 16 : 10;
 }
 
 template<typename T>
@@ -1804,7 +1799,7 @@ inline T parse_num(CSTConverter* converter, CSTToken* token, const char* _Ptr, T
     int& _Errno_ref  = errno; // Nonzero cost, pay it once
     char* _Eptr;
     _Errno_ref               = 0;
-    const T _Ans = _CSTD parse_hex_or_dec_num<decltype(parseFunc), T>(_Ptr, &_Eptr, parseFunc);
+    const T _Ans = parseFunc(_Ptr, &_Eptr, get_parse_num_base(_Ptr));
     if (_Ptr == _Eptr) {
         converter->error("invalid value provided", token);
     }

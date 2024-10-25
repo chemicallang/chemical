@@ -31,33 +31,33 @@ public:
 
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::String;
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
-//    hybrid_ptr<BaseType> get_base_type() override {
+//    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &StringType::instance, false };
 //    }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return (BaseType*) &StringType::instance;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
     }
 
-    Value *index(InterpretScope &scope, int i) override {
+    Value *index(InterpretScope &scope, int i) final {
 #ifdef DEBUG
         if (i < 0 || i >= value.size()) {
             std::cerr << "[InterpretError] access index " + std::to_string(i) + " out of bounds for string " + value +
@@ -69,27 +69,27 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type * llvm_type(Codegen &gen) override;
+    llvm::Type * llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) override;
+    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) final;
 
 #endif
 
-    StringValue *copy(ASTAllocator& allocator) override {
+    StringValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<StringValue>()) StringValue(value, token);
     }
 
-    BaseType* create_type(ASTAllocator& allocator) override;
+    BaseType* create_type(ASTAllocator& allocator) final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::String;
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::String;
     }
 

@@ -23,15 +23,15 @@ public:
      */
     explicit VariantCall(AccessChain* chain, CSTToken* token);
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::VariantCall;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
@@ -41,16 +41,16 @@ public:
 
     void link_args_implicit_constructor(SymbolResolver &linker);
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) final;
 
     void set_created_type(ASTAllocator& allocator);
 
-    BaseType* create_type(ASTAllocator &allocator) override;
+    BaseType* create_type(ASTAllocator &allocator) final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Struct;
     }
 
@@ -64,11 +64,11 @@ public:
 
     llvm::Value* initialize_allocated(Codegen &gen, llvm::Value* allocated);
 
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
+    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) final;
 
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) final;
 
-    llvm::Type* llvm_type(Codegen &gen) override;
+    llvm::Type* llvm_type(Codegen &gen) final;
 
     unsigned int store_in_struct(
             Codegen &gen,
@@ -78,7 +78,7 @@ public:
             std::vector<llvm::Value *> idxList,
             unsigned int index,
             BaseType *expected_type
-    ) override;
+    ) final;
 
     unsigned int store_in_array(
             Codegen &gen,
@@ -88,9 +88,9 @@ public:
             std::vector<llvm::Value *> idxList,
             unsigned int index,
             BaseType *expected_type
-    ) override;
+    ) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
 
 #endif
 

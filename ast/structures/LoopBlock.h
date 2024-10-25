@@ -27,49 +27,49 @@ public:
 
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    ASTNode* parent() override {
+    ASTNode* parent() final {
         return parent_node;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::LoopBlock;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::LoopValue;
     }
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type = nullptr) final;
 
     Value* get_first_broken();
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-    BaseType* create_type(ASTAllocator& allocator) override;
+    BaseType* create_type(ASTAllocator& allocator) final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type* llvm_type(Codegen &gen) override;
+    llvm::Type* llvm_type(Codegen &gen) final;
 
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
+    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) final;
 
-    llvm::Value* llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) override;
+    llvm::Value* llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
 
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) final;
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
 #endif
 

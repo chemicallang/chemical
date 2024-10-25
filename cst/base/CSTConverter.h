@@ -278,141 +278,141 @@ public:
 
     // nodes
 
-    void visitContinue(CSTToken* continueCst) override;
+    void visitContinue(CSTToken* continueCst) final;
 
-    void visitBreak(CSTToken* breakCST) override;
+    void visitBreak(CSTToken* breakCST) final;
 
-    void visitUnreachable(CSTToken *cst) override;
+    void visitUnreachable(CSTToken *cst) final;
 
-    void visitFunctionParam(CSTToken* param) override;
+    void visitFunctionParam(CSTToken* param) final;
 
-    void visitFunction(CSTToken* function) override;
+    void visitFunction(CSTToken* function) final;
 
-    void visitVarInit(CSTToken* varInit) override;
+    void visitVarInit(CSTToken* varInit) final;
 
-    void visitSwitch(CSTToken* switchCst) override;
+    void visitSwitch(CSTToken* switchCst) final;
 
-    void visitLambda(CSTToken* cst) override;
+    void visitLambda(CSTToken* cst) final;
 
-    void visitAssignment(CSTToken* assignment) override;
+    void visitAssignment(CSTToken* assignment) final;
 
-    void visitImport(CSTToken* importCst) override;
+    void visitImport(CSTToken* importCst) final;
 
-    void visitThrow(CSTToken* throwStmt) override;
+    void visitThrow(CSTToken* throwStmt) final;
 
-    void visitUsing(CSTToken* usingStmt) override;
+    void visitUsing(CSTToken* usingStmt) final;
 
-    void visitProvide(CSTToken *provideStmt) override;
+    void visitProvide(CSTToken *provideStmt) final;
 
-    void visitComptimeBlock(CSTToken *block) override;
+    void visitComptimeBlock(CSTToken *block) final;
 
-    void visitReturn(CSTToken* returnCst) override;
+    void visitReturn(CSTToken* returnCst) final;
 
-    void visitTypealias(CSTToken* alias) override;
+    void visitTypealias(CSTToken* alias) final;
 
-    void visitBody(CSTToken* bodyCst) override;
+    void visitBody(CSTToken* bodyCst) final;
 
-    void visitIncDec(CSTToken* incDec) override;
+    void visitIncDec(CSTToken* incDec) final;
 
-    void visitIf(CSTToken* ifCst) override;
+    void visitIf(CSTToken* ifCst) final;
 
-    void visitForLoop(CSTToken* forLoop) override;
+    void visitForLoop(CSTToken* forLoop) final;
 
-    void visitInitBlock(CSTToken *initBlock) override;
+    void visitInitBlock(CSTToken *initBlock) final;
 
-    void visitUnsafeBlock(CSTToken *unsafeBlock) override;
+    void visitUnsafeBlock(CSTToken *unsafeBlock) final;
 
-    void visitWhile(CSTToken* whileCst) override;
+    void visitWhile(CSTToken* whileCst) final;
 
-    void visitDoWhile(CSTToken* doWhileCst) override;
+    void visitDoWhile(CSTToken* doWhileCst) final;
 
-    void visitStructDef(CSTToken* structDef) override;
+    void visitStructDef(CSTToken* structDef) final;
 
-    void visitInterface(CSTToken* interface) override;
+    void visitInterface(CSTToken* interface) final;
 
-    void visitImpl(CSTToken* impl) override;
+    void visitImpl(CSTToken* impl) final;
 
-    void visitUnionDef(CSTToken* unionDef) override;
+    void visitUnionDef(CSTToken* unionDef) final;
 
-    void visitNamespace(CSTToken* ns) override;
+    void visitNamespace(CSTToken* ns) final;
 
-    void visitTryCatch(CSTToken* tryCatch) override;
+    void visitTryCatch(CSTToken* tryCatch) final;
 
-    void visitLoopBlock(CSTToken *block) override;
+    void visitLoopBlock(CSTToken *block) final;
 
-    void visitEnumDecl(CSTToken* enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) final;
 
-    void visitMalformedInput(CSTToken *token) override;
+    void visitMalformedInput(CSTToken *token) final;
 
-    void visitMacro(CSTToken* macroCst) override;
+    void visitMacro(CSTToken* macroCst) final;
 
-    void visitAnnotation(CSTToken* annotation) override;
+    void visitAnnotation(CSTToken* annotation) final;
 
-    void visitAnnotationToken(CSTToken* token) override;
+    void visitAnnotationToken(CSTToken* token) final;
 
-    void visitVariant(CSTToken* variant) override;
+    void visitVariant(CSTToken* variant) final;
 
-    void visitVariantMember(CSTToken* variant_member) override;
+    void visitVariantMember(CSTToken* variant_member) final;
 
-    void visitDestruct(CSTToken* delStmt) override;
+    void visitDestruct(CSTToken* delStmt) final;
 
     // Types
 
-    void visitValueNode(CSTToken *ifCst) override;
+    void visitValueNode(CSTToken *ifCst) final;
 
-    void visitTypeToken(CSTToken* token) override;
+    void visitTypeToken(CSTToken* token) final;
 
-    void visitLinkedValueType(CSTToken* ref_value) override;
+    void visitLinkedValueType(CSTToken* ref_value) final;
 
-    void visitPointerType(CSTToken* pointerType) override;
+    void visitPointerType(CSTToken* pointerType) final;
 
-    void visitReferenceType(CSTToken* pointerType) override;
+    void visitReferenceType(CSTToken* pointerType) final;
 
-    void visitGenericType(CSTToken* genericType) override;
+    void visitGenericType(CSTToken* genericType) final;
 
-    void visitQualifiedType(CSTToken *qualType) override;
+    void visitQualifiedType(CSTToken *qualType) final;
 
-    void visitArrayType(CSTToken* arrayType) override;
+    void visitArrayType(CSTToken* arrayType) final;
 
-    void visitFunctionType(CSTToken* functionType) override;
+    void visitFunctionType(CSTToken* functionType) final;
 
     // Values
 
-    void visitNullToken(CSTToken* token) override;
+    void visitNullToken(CSTToken* token) final;
 
-    void visitStringToken(CSTToken* token) override;
+    void visitStringToken(CSTToken* token) final;
 
-    void visitCharToken(CSTToken* token) override;
+    void visitCharToken(CSTToken* token) final;
 
-    void visitNumberToken(NumberToken *token) override;
+    void visitNumberToken(NumberToken *token) final;
 
-    void visitStructValue(CSTToken* structValueCst) override;
+    void visitStructValue(CSTToken* structValueCst) final;
 
-    void visitArrayValue(CSTToken* arrayValue) override;
+    void visitArrayValue(CSTToken* arrayValue) final;
 
-    void visitCast(CSTToken* castCst) override;
+    void visitCast(CSTToken* castCst) final;
 
-    void visitIsValue(CSTToken* castCst) override;
+    void visitIsValue(CSTToken* castCst) final;
 
-    void visitAddrOf(CSTToken* castCst) override;
+    void visitAddrOf(CSTToken* castCst) final;
 
-    void visitDereference(CSTToken* notCst) override;
+    void visitDereference(CSTToken* notCst) final;
 
-    void visitFunctionCall(CSTToken* call) override;
+    void visitFunctionCall(CSTToken* call) final;
 
-    void visitIndexOp(CSTToken* op) override;
+    void visitIndexOp(CSTToken* op) final;
 
-    void visitVariableToken(CSTToken* token) override;
+    void visitVariableToken(CSTToken* token) final;
 
-    void visitBoolToken(CSTToken* token) override;
+    void visitBoolToken(CSTToken* token) final;
 
-    void visitAccessChain(CSTToken* accessChain) override;
+    void visitAccessChain(CSTToken* accessChain) final;
 
-    void visitExpression(CSTToken* expressionCst) override;
+    void visitExpression(CSTToken* expressionCst) final;
 
-    void visitNegative(CSTToken* negativeCst) override;
+    void visitNegative(CSTToken* negativeCst) final;
 
-    void visitNot(CSTToken* notCst) override;
+    void visitNot(CSTToken* notCst) final;
 
     ~CSTConverter();
 

@@ -14,46 +14,46 @@ public:
      */
     DynamicType(BaseType* referenced, CSTToken* token);
 
-    void accept(Visitor* visitor) override {
+    void accept(Visitor* visitor) final {
         visitor->visit(this);
     }
 
-    bool is_same(BaseType* type) override {
+    bool is_same(BaseType* type) final {
         return type->kind() == BaseTypeKind::Dynamic && ((DynamicType*) type)->referenced->is_same(referenced);
     }
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Dynamic;
     }
 
-    bool satisfies(ValueType type) override {
+    bool satisfies(ValueType type) final {
         return type == ValueType::Struct;
     }
 
-    bool satisfies(BaseType *type) override;
+    bool satisfies(BaseType *type) final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Struct;
     }
 
     [[nodiscard]]
-    DynamicType* copy(ASTAllocator& allocator) const override {
+    DynamicType* copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<DynamicType>()) DynamicType(referenced->copy(allocator), token);
     }
 
-    ASTNode* linked_node() override {
+    ASTNode* linked_node() final {
         return referenced->linked_node();
     }
 
-    bool link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker) final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type* llvm_type(Codegen& gen) override;
+    llvm::Type* llvm_type(Codegen& gen) final;
 
-    llvm::Type* llvm_param_type(Codegen& gen) override;
+    llvm::Type* llvm_param_type(Codegen& gen) final;
 
 #endif
 

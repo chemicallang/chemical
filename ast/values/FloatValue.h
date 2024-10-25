@@ -25,19 +25,19 @@ public:
      */
     explicit FloatValue(float value, CSTToken* token) : value(value), token(token) {}
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::Float;
     }
 
-//    hybrid_ptr<BaseType> get_base_type() override {
+//    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &FloatType::instance, false };
 //    }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return (BaseType*) &FloatType::instance;
     }
 
@@ -45,33 +45,33 @@ public:
         return 4;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif
 
-    BaseType* create_type(ASTAllocator &allocator) override {
+    BaseType* create_type(ASTAllocator &allocator) final {
         return new (allocator.allocate<FloatType>()) FloatType(nullptr);
     }
 
-    FloatValue *copy(ASTAllocator& allocator) override {
+    FloatValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<FloatValue>()) FloatValue(value, token);
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Float;
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::Float;
     }
 

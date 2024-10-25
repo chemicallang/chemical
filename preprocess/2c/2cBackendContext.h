@@ -15,6 +15,6 @@ public:
 
     }
 
-    void mem_copy(Value *lhs, Value *rhs) override;
+    void mem_copy(Value *lhs, Value *rhs) final;
 
 };

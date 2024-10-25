@@ -47,48 +47,48 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::StructDecl;
     }
 
-    std::string get_runtime_name() override {
+    std::string get_runtime_name() final {
         if(has_annotation(AnnotationKind::Anonymous)) {
             return "";
         }
         return runtime_name_str();
     }
 
-    int16_t get_generic_iteration() override {
+    int16_t get_generic_iteration() final {
         return active_iteration;
     }
 
-    VariablesContainer *copy_container(ASTAllocator& allocator) override;
+    VariablesContainer *copy_container(ASTAllocator& allocator) final;
 
-    ASTNode *linked_node() override {
+    ASTNode *linked_node() final {
         return this;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    VariablesContainer *as_variables_container() override {
+    VariablesContainer *as_variables_container() final {
         return this;
     }
 
-    const std::string& ns_node_identifier() override {
+    const std::string& ns_node_identifier() final {
         return name;
     }
 
-    VariablesContainer *variables_container() override {
+    VariablesContainer *variables_container() final {
         return this;
     }
 
@@ -100,41 +100,43 @@ public:
         return !generic_params.empty();
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    void redeclare_top_level(SymbolResolver &linker) override;
+    void redeclare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) override;
+    ASTNode *child(const std::string &name) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final {
+        return ValueType::Struct;
+    }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return total_byte_size(is64Bit);
     }
 
     [[nodiscard]]
-    BaseType* copy(ASTAllocator &allocator) const override;
+    BaseType* copy(ASTAllocator &allocator) const final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::StructType* llvm_stored_type() override;
+    llvm::StructType* llvm_stored_type() final;
 
-    void llvm_store_type(llvm::StructType* type) override;
+    void llvm_store_type(llvm::StructType* type) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_param_type(Codegen &gen) override;
+    llvm::Type *llvm_param_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
     /**
      * will try to override the given function if there's an interface and it exists
@@ -170,19 +172,19 @@ public:
 
     void code_gen(Codegen &gen, bool declare);
 
-    void code_gen_declare(Codegen &gen) override {
+    void code_gen_declare(Codegen &gen) final {
         code_gen(gen, true);
     }
 
-    void code_gen(Codegen &gen) override {
+    void code_gen(Codegen &gen) final {
         code_gen(gen, false);
     }
 
-    void code_gen_generic(Codegen &gen) override;
+    void code_gen_generic(Codegen &gen) final;
 
-    void code_gen_external_declare(Codegen &gen) override;
+    void code_gen_external_declare(Codegen &gen) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
 
 #endif
 

@@ -470,7 +470,3 @@ BaseType* StructDefinition::create_value_type(ASTAllocator& allocator) {
 BaseType* StructDefinition::known_type() {
     return &linked_type;
 }
-
-ValueType StructDefinition::value_type() const {
-    return ValueType::Struct;
-}

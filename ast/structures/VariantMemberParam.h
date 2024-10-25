@@ -27,47 +27,47 @@ public:
         CSTToken* token
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::VariantMemberParam;
     }
 
     VariantMemberParam* copy(ASTAllocator& allocator);
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return type->byte_size(is64Bit);
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         throw std::runtime_error("VariantMemberParam::accept called");
     }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return type;
     }
 
-    ASTNode* parent() override {
+    ASTNode* parent() final {
         return (ASTNode*) parent_node;
     }
 
-    ASTNode* child(int index) override;
+    ASTNode* child(int index) final;
 
-    int child_index(const std::string &name) override;
+    int child_index(const std::string &name) final;
 
-    ASTNode* child(const std::string &name) override;
+    ASTNode* child(const std::string &name) final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type* llvm_type(Codegen &gen) override;
+    llvm::Type* llvm_type(Codegen &gen) final;
 
-    llvm::FunctionType* llvm_func_type(Codegen &gen) override;
+    llvm::FunctionType* llvm_func_type(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 

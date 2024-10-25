@@ -25,29 +25,29 @@ public:
 
     InitBlock(Scope scope, ASTNode* parent_node, CSTToken* token);
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::InitBlock;
     }
 
-    ASTNode* parent() override {
+    ASTNode* parent() final {
         return parent_node;
     }
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
 #endif
 

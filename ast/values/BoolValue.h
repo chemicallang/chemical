@@ -24,53 +24,53 @@ public:
 
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::Bool;
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    BoolValue *copy(ASTAllocator& allocator) override {
+    BoolValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<BoolValue>()) BoolValue(value, token);
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return 1;
     }
 
-//    hybrid_ptr<BaseType> get_base_type() override {
+//    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &BoolType::instance, false };
 //    }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return (BaseType*) &BoolType::instance;
     }
 
-    BaseType* create_type(ASTAllocator& allocator) override {
+    BaseType* create_type(ASTAllocator& allocator) final {
         return new (allocator.allocate<BoolType>()) BoolType(nullptr);
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Bool;
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::Bool;
     }
 

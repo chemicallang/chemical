@@ -18,50 +18,50 @@ public:
 
     explicit NegativeValue(Value* value, CSTToken* token) : value(value), token(token) {}
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::NegativeValue;
     }
 
-//    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
-    bool primitive() override;
+    bool primitive() final;
 
-    Value* copy(ASTAllocator& allocator) override {
+    Value* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<NegativeValue>()) NegativeValue(value->copy(allocator), token);
     }
 
-    Value* evaluated_value(InterpretScope &scope) override;
+    Value* evaluated_value(InterpretScope &scope) final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif
 
-    BaseType* create_type(ASTAllocator &allocator) override;
-//    std::unique_ptr<BaseType> create_type() override;
+    BaseType* create_type(ASTAllocator &allocator) final;
+//    std::unique_ptr<BaseType> create_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return value->value_type();
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return value->type_kind();
     }
 

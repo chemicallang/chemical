@@ -31,8 +31,8 @@ public:
      */
     std::vector<lsInlayHint> analyze(ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path);
 
-    void visit(FunctionCall *call) override;
+    void visit(FunctionCall *call) final;
 
-    void visit(VarInitStatement *init) override;
+    void visit(VarInitStatement *init) final;
 
 };

@@ -1409,7 +1409,7 @@ public:
 
     bool queue_destruct_arr(const std::string& self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
 
-    void visit(VarInitStatement *init) override;
+    void visit(VarInitStatement *init) final;
 
     void dispatch_jobs_from_no_clean(int begin);
 
@@ -1419,7 +1419,7 @@ public:
 
     void process_init_value(VarInitStatement *init, Value* value);
 
-    void reset() override {
+    void reset() final {
         destroy_current_scope = true;
         new_line_before = true;
         destruct_jobs.clear();

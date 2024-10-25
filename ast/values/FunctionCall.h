@@ -29,17 +29,17 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::FunctionCall;
     }
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
@@ -58,7 +58,7 @@ public:
 
     void link_gen_args(SymbolResolver &linker);
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     /**
      * get the function type
@@ -73,14 +73,14 @@ public:
     /**
      * known type of function call's return
      */
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
     /**
      * argument type
      */
     BaseType* get_arg_type(unsigned int index);
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
@@ -99,7 +99,7 @@ public:
         return find_link_in_parent(first_value, grandpa, parent, resolver, expected_type, true);
     }
 
-    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) override {
+    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) final {
         const auto values_size = values.size();
         const int parent_index = ((int) index) - 1;
         const auto parent = parent_index >= 0 ? values[parent_index] : nullptr;
@@ -111,42 +111,42 @@ public:
         }
     }
 
-    void relink_parent(ChainValue *parent) override;
+    void relink_parent(ChainValue *parent) final;
 
-    bool primitive() override;
+    bool primitive() final;
 
-    bool compile_time_computable() override;
+    bool compile_time_computable() final;
 
-    Value *find_in(InterpretScope &scope, Value *parent) override;
+    Value *find_in(InterpretScope &scope, Value *parent) final;
 
-    Value *scope_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) final;
 
-    Value* evaluated_value(InterpretScope &scope) override;
+    Value* evaluated_value(InterpretScope &scope) final;
 
-    Value* evaluated_chain_value(InterpretScope &scope, Value *parent) override;
+    Value* evaluated_chain_value(InterpretScope &scope, Value *parent) final;
 
-    void evaluate_children(InterpretScope &scope) override;
+    void evaluate_children(InterpretScope &scope) final;
 
-    FunctionCall *copy(ASTAllocator& allocator) override;
+    FunctionCall *copy(ASTAllocator& allocator) final;
 
-    void interpret(InterpretScope &scope) override;
+    void interpret(InterpretScope &scope) final;
 
     /**
      * this returns the return type of the function
      */
-    BaseType* create_type(ASTAllocator& allocator) override;
+    BaseType* create_type(ASTAllocator& allocator) final;
 
 //    /**
 //     * this returns the return type of the function, it must be called in access chain
 //     * to account for generic types that depend on struct
 //     */
-//    BaseType* create_type(std::vector<ChainValue*>& chain, unsigned int index) override;
+//    BaseType* create_type(std::vector<ChainValue*>& chain, unsigned int index) final;
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override;
+    BaseTypeKind type_kind() const final;
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final;
 
     /**
      * will set the current generic iteration on function declaration
@@ -179,15 +179,15 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
     llvm::Type *llvm_chain_type(
             Codegen &gen,
             std::vector<ChainValue*> &values,
             unsigned int index
-    ) override;
+    ) final;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
+    llvm::FunctionType *llvm_func_type(Codegen &gen) final;
 
     llvm::FunctionType *llvm_linked_func_type(
             Codegen& gen,
@@ -207,11 +207,11 @@ public:
             unsigned int index
     );
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
 
     llvm::InvokeInst *llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind);
 
-    llvm::Value *llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) final;
 
     llvm::Value* llvm_chain_value(
             Codegen &gen,
@@ -241,7 +241,7 @@ public:
             unsigned until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             BaseType* expected_type
-    ) override;
+    ) final;
 
     llvm::Value* chain_value_with_callee(
             Codegen& gen,
@@ -257,7 +257,7 @@ public:
             std::vector<ChainValue*> &values,
             unsigned int until,
             BaseType* expected_type
-    ) override;
+    ) final;
 
     llvm::Value* access_chain_assign_value(
             Codegen &gen,
@@ -267,9 +267,9 @@ public:
             llvm::Value* lhsPtr,
             Value *lhs,
             BaseType *expected_type
-    ) override;
+    ) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 

@@ -11,7 +11,7 @@ public:
     /**
      * get the member container child or otherwise extendable member container child
      */
-    ASTNode *child(const std::string &name) override {
+    ASTNode *child(const std::string &name) {
         auto found = AnnotableNode::child(name);
         if(found) return found;
         return (ASTNode*) ExtendableBase::extended_child(name);
@@ -20,7 +20,7 @@ public:
     /**
      * returns itself as extendable members container
      */
-    ExtendableBase *as_extendable_members_container() override {
+    ExtendableBase *as_extendable_members_container() final {
         return this;
     }
 

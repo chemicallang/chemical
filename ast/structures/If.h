@@ -43,29 +43,29 @@ public:
             CSTToken* token
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::IfValue;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::IfStmt;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    bool compile_time_computable() override;
+    bool compile_time_computable() final;
 
     bool link_conditions(SymbolResolver &linker);
 
@@ -73,15 +73,15 @@ public:
         return !parent_node || parent_node->kind() == ASTNodeKind::NamespaceDecl;
     }
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
     void declare_and_link(SymbolResolver &linker, Value** value_ptr);
 
-    void declare_and_link(SymbolResolver &linker) override {
+    void declare_and_link(SymbolResolver &linker) final {
         declare_and_link(linker, nullptr);
     }
 
-    bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type = nullptr) override {
+    bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type = nullptr) final {
         declare_and_link(linker, &value_ptr);
         return true;
     }
@@ -92,34 +92,34 @@ public:
 
     Value* get_value_node();
 
-    BaseType* create_type(ASTAllocator& allocator) override;
+    BaseType* create_type(ASTAllocator& allocator) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-    BaseType *known_type() override;
+    BaseType *known_type() final;
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen, bool gen_last_block);
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
-    llvm::Type* llvm_type(Codegen &gen) override;
+    llvm::Type* llvm_type(Codegen &gen) final;
 
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) final;
 
-    llvm::Value* llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) override;
+    llvm::Value* llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
 
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
+    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) final;
 
-    void code_gen(Codegen &gen, Scope* scope, unsigned int index) override;
+    void code_gen(Codegen &gen, Scope* scope, unsigned int index) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 
-    void interpret(InterpretScope &scope) override;
+    void interpret(InterpretScope &scope) final;
 
 };

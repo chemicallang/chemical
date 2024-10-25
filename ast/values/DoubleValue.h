@@ -25,57 +25,57 @@ public:
      */
     explicit DoubleValue(double value, CSTToken* token) : value(value), token(token) {}
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::Double;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return 8;
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif
 
-//    std::unique_ptr<BaseType> create_type() override {
+//    std::unique_ptr<BaseType> create_type() final {
 //        return std::make_unique<DoubleType>(nullptr);
 //    }
 
-    BaseType* create_type(ASTAllocator &allocator) override {
+    BaseType* create_type(ASTAllocator &allocator) final {
         return new (allocator.allocate<DoubleType>()) DoubleType(nullptr);
     }
 
-//    hybrid_ptr<BaseType> get_base_type() override {
+//    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &DoubleType::instance, false };
 //    }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return (BaseType*) &DoubleType::instance;
     }
 
-    DoubleValue *copy(ASTAllocator& allocator) override {
+    DoubleValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<DoubleValue>()) DoubleValue(value, token);
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Double;
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::Double;
     }
 

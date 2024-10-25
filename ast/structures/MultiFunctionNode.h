@@ -27,23 +27,23 @@ public:
      */
     explicit MultiFunctionNode(std::string name);
 
-    CSTToken *cst_token() override;
+    CSTToken *cst_token() final;
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::MultiFunctionNode;
     }
 
     FunctionDeclaration* func_for_call(ASTAllocator& allocator, std::vector<Value*>& args);
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         // don't do anything
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return nullptr;
     }
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
 };
 

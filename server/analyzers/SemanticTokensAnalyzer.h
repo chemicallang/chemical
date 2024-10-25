@@ -82,68 +82,68 @@ public:
 
     // Compound Visitors
 
-    void visitVariableToken(CSTToken *token) override {
+    void visitVariableToken(CSTToken *token) final {
         put_auto(token);
     }
 
-    void visitTypeToken(CSTToken *token) override {
+    void visitTypeToken(CSTToken *token) final {
         put_auto(token);
     }
 
-    void visitIdentifierToken(CSTToken *token) override {
+    void visitIdentifierToken(CSTToken *token) final {
         put_auto(token);
     }
 
-    void visitVarInit(CSTToken* varInit) override;
+    void visitVarInit(CSTToken* varInit) final;
 
-    void visitFunction(CSTToken* function) override;
+    void visitFunction(CSTToken* function) final;
 
-    void visitIf(CSTToken* ifCst) override;
+    void visitIf(CSTToken* ifCst) final;
 
-    void visitWhile(CSTToken* whileCst) override;
+    void visitWhile(CSTToken* whileCst) final;
 
-    void visitDoWhile(CSTToken* doWhileCst) override;
+    void visitDoWhile(CSTToken* doWhileCst) final;
 
-    void visitForLoop(CSTToken* forLoop) override;
+    void visitForLoop(CSTToken* forLoop) final;
 
-    void visitSwitch(CSTToken* switchCst) override;
+    void visitSwitch(CSTToken* switchCst) final;
 
-    void visitInterface(CSTToken* interface) override;
+    void visitInterface(CSTToken* interface) final;
 
-    void visitStructDef(CSTToken* structDef) override;
+    void visitStructDef(CSTToken* structDef) final;
 
-    void visitImpl(CSTToken* impl) override;
+    void visitImpl(CSTToken* impl) final;
 
-    void visitEnumDecl(CSTToken* enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) final;
 
-    void visitBody(CSTToken* bodyCst) override;
+    void visitBody(CSTToken* bodyCst) final;
 
     // Token visitors
 
-    void visitAnnotationToken(CSTToken *token) override;
+    void visitAnnotationToken(CSTToken *token) final;
 
-    void visitBoolToken(CSTToken *token) override;
+    void visitBoolToken(CSTToken *token) final;
 
-    void visitNullToken(CSTToken *token) override;
+    void visitNullToken(CSTToken *token) final;
 
-    void visitAccessChain(CSTToken *accessChain) override;
+    void visitAccessChain(CSTToken *accessChain) final;
 
-    void visitCharOperatorToken(CSTToken *token) override;
+    void visitCharOperatorToken(CSTToken *token) final;
 
-    void visitStringOperatorToken(CSTToken *token) override;
+    void visitStringOperatorToken(CSTToken *token) final;
 
-    void visitCharToken(CSTToken *token) override;
+    void visitCharToken(CSTToken *token) final;
 
-    void visitCommentToken(CSTToken *token) override;
+    void visitCommentToken(CSTToken *token) final;
 
-    void visitMultilineComment(CSTToken *token) override;
+    void visitMultilineComment(CSTToken *token) final;
 
-    void visitMacroToken(CSTToken *token) override;
+    void visitMacroToken(CSTToken *token) final;
 
-    void visitNumberToken(NumberToken *token) override;
+    void visitNumberToken(NumberToken *token) final;
 
-    void visitOperationToken(CSTToken *token) override;
+    void visitOperationToken(CSTToken *token) final;
 
-    void visitStringToken(CSTToken *token) override;
+    void visitStringToken(CSTToken *token) final;
 
 };

@@ -34,46 +34,46 @@ public:
      */
     explicit NumberValue(int64_t value, CSTToken* token) : value(value), token(token) {}
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
     bool link(SymbolResolver &linker, BaseType *type);
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override {
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) final {
         return link(linker, type);
     }
 
-    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) override {
+    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) final {
         link(linker, expected_type);
     }
 
-    bool computed() override {
+    bool computed() final {
         return true;
     }
 
-    Value *scope_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) final;
 
-    NumberValue* as_number_val() override {
+    NumberValue* as_number_val() final {
         return this;
     }
 
-    unsigned int get_num_bits() override;
+    unsigned int get_num_bits() final;
 
     [[nodiscard]]
-    int64_t get_num_value() const override {
+    int64_t get_num_value() const final {
         return value;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::NumberValue;
     }
 
-    NumberValue *copy(ASTAllocator& allocator) override {
+    NumberValue *copy(ASTAllocator& allocator) final {
         auto copy = new (allocator.allocate<NumberValue>()) NumberValue(value, token);
         if(linked_type) {
             copy->linked_type = (IntNType *) linked_type->copy(allocator);
@@ -81,16 +81,16 @@ public:
         return copy;
     }
 
-    bool is_unsigned() override;
+    bool is_unsigned() final;
 
-//    hybrid_ptr<BaseType> get_base_type() override {
+//    hybrid_ptr<BaseType> get_base_type() final {
 //        if(!linked_type) {
 //            return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
 //        }
 //        return hybrid_ptr<BaseType> { linked_type.get(), false };
 //    }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         if(!linked_type) {
             return (BaseType*) &IntType::instance;
         }
@@ -98,7 +98,7 @@ public:
     }
 
     [[nodiscard]]
-    BaseType* create_type(ASTAllocator &allocator) override {
+    BaseType* create_type(ASTAllocator &allocator) final {
         if(linked_type) {
             return linked_type->copy(allocator);
         } else {
@@ -107,10 +107,10 @@ public:
     }
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final;
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::IntN;
     }
 

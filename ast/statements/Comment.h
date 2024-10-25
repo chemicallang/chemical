@@ -18,32 +18,32 @@ public:
 
     Comment(std::string comment, bool multiline, ASTNode* parent, CSTToken* token) : comment(std::move(comment)), multiline(multiline), parent_node(parent), token(token) {}
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::CommentStmt;
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void interpret(InterpretScope &scope) override {
+    void interpret(InterpretScope &scope) final {
         // do nothing, since it's a comment
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD
-    void code_gen(Codegen &gen) override {
+    void code_gen(Codegen &gen) final {
         // doesn't generate anything
     }
 #endif

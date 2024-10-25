@@ -36,33 +36,33 @@ public:
 
     Scope& operator=(Scope&&) = default;
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::Scope;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
     /**
      * throws an error in debug mode, shouldn't be called
      */
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
     /**
      * throws an error in debug mode, shouldn't be called
      */
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
     /**
      * when nodes are to be declared and used sequentially, so node can be referenced
@@ -84,13 +84,13 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
     void code_gen(Codegen &gen, unsigned destruct_begin);
 
 #endif
 
-    void interpret(InterpretScope &scope) override;
+    void interpret(InterpretScope &scope);
 
     /**
      * function is supposed to implemented by other scopes

@@ -18,46 +18,46 @@ public:
 
     explicit NotValue(Value* value, CSTToken* token) : value(value), token(token) {}
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::NotValue;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
-    bool primitive() override;
+    bool primitive() final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif
 
-    NotValue* copy(ASTAllocator& allocator) override {
+    NotValue* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), token);
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return value->value_type();
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return value->type_kind();
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override;
+    BaseType* create_type(ASTAllocator &allocator) final;
 
-//    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
 };

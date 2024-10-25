@@ -29,18 +29,18 @@ public:
     //------- Visitors-----------
     //---------------------------
 
-    void visitCompoundCommon(CSTToken* compound) override;
+    void visitCompoundCommon(CSTToken* compound) final;
 
-    void visitFunction(CSTToken* function) override;
+    void visitFunction(CSTToken* function) final;
 
-    void visitStructDef(CSTToken* structDef) override;
+    void visitStructDef(CSTToken* structDef) final;
 
-    void visitInterface(CSTToken* interface) override;
+    void visitInterface(CSTToken* interface) final;
 
-    void visitTypealias(CSTToken* alias) override;
+    void visitTypealias(CSTToken* alias) final;
 
-    void visitEnumDecl(CSTToken* enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) final;
 
-    void visitVarInit(CSTToken* varInit) override;
+    void visitVarInit(CSTToken* varInit) final;
 
 };

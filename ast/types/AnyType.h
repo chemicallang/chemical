@@ -11,38 +11,38 @@ public:
 
     using TokenizedBaseType::TokenizedBaseType;
 
-    bool satisfies(ValueType type) override {
+    bool satisfies(ValueType type) final {
         return true;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Any;
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) override {
+    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final {
         return true;
     }
 
-    bool satisfies(BaseType *type) override {
+    bool satisfies(BaseType *type) final {
         return true;
     }
 
-    bool is_same(BaseType *type) override {
+    bool is_same(BaseType *type) final {
         return true;
     }
 
     [[nodiscard]]
-    AnyType* copy(ASTAllocator& allocator) const override {
+    AnyType* copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<AnyType>()) AnyType(token);
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 #endif
 
 };

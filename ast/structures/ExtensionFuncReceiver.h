@@ -18,24 +18,24 @@ public:
         CSTToken* token
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::ExtensionFuncReceiver;
     }
 
-    ASTNode * parent() override {
+    ASTNode * parent() final {
         return parent_node;
     }
 
-    ASTNode *child(const std::string &name) override;
+    ASTNode *child(const std::string &name) final;
 
-    unsigned int calculate_c_or_llvm_index() override;
+    unsigned int calculate_c_or_llvm_index() final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
 };

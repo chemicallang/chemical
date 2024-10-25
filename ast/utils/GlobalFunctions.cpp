@@ -59,7 +59,7 @@ namespace InterpretVector {
 
         explicit InterpretVectorSize(InterpretVectorNode* node);
 
-        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override;
+        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
 
     };
 
@@ -73,7 +73,7 @@ namespace InterpretVector {
 
         explicit InterpretVectorGet(InterpretVectorNode* node);
 
-        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override;
+        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
 
     };
 
@@ -87,7 +87,7 @@ namespace InterpretVector {
 
         explicit InterpretVectorPush(InterpretVectorNode* node);
 
-        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override;
+        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
 
     };
 
@@ -101,7 +101,7 @@ namespace InterpretVector {
 
         explicit InterpretVectorRemove(InterpretVectorNode* node);
 
-        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override;
+        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
 
     };
 
@@ -273,7 +273,7 @@ public:
     ), visitor(ostring),  returnType(nullptr) {
         visitor.interpret_representation = true;
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         ostring.str("");
         ostring.clear();
         for (auto const &value: call->values) {
@@ -330,7 +330,7 @@ public:
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.empty()) {
             call_scope->error("compiler::size called without arguments", call);
             return nullptr;
@@ -363,19 +363,19 @@ public:
     explicit WrapValue(Value* underlying) : underlying(underlying) {
 
     }
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return nullptr;
     }
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         throw std::runtime_error("compiler::wrap value cannot be visited");
     }
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::WrapValue;
     }
-    Value *copy(ASTAllocator& allocator) override {
+    Value *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<WrapValue>()) WrapValue(underlying->copy(allocator));
     }
-    Value* evaluated_value(InterpretScope &scope) override {
+    Value* evaluated_value(InterpretScope &scope) final {
         return underlying;
     }
 };
@@ -403,7 +403,7 @@ public:
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
         params.emplace_back(&valueParam);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto underlying = call->values[0]->copy(call_scope->allocator);
         underlying->evaluate_children(*call_scope);
         return new (call_scope->allocate<WrapValue>()) WrapValue(underlying);
@@ -433,7 +433,7 @@ public:
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
         params.emplace_back(&valueParam);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         return call->values[0]->evaluated_value(*call_scope)->copy(call_scope->allocator);
     }
 };
@@ -457,7 +457,7 @@ public:
     ), voidType(nullptr), ptrType(&voidType, nullptr) {
         add_annotation(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         return new (call_scope->allocate<RetStructParamValue>()) RetStructParamValue(nullptr);
     }
 };
@@ -479,7 +479,7 @@ public:
     ), stringType(nullptr) {
         add_annotation(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         std::string val;
         val.append(std::to_string(PROJECT_VERSION_MAJOR));
         val.append(1, '.');
@@ -507,7 +507,7 @@ public:
     ), boolType(nullptr) {
         add_annotation(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 #ifdef TCC_BUILD
         return new (call_scope->allocate<BoolValue>()) BoolValue(true, nullptr);
 #else
@@ -533,7 +533,7 @@ public:
     ), boolType(nullptr) {
         add_annotation(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 #ifdef COMPILER_BUILD
         return new (call_scope->allocate<BoolValue>()) BoolValue(true, nullptr);
 #else
@@ -559,7 +559,7 @@ public:
     ), uIntType(nullptr) {
         add_annotation(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto token = call->token->start_token();
         return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(token->lineNumber() + 1, nullptr);
     }
@@ -583,7 +583,7 @@ public:
     ), uIntType(nullptr) {
         add_annotation(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto token = call->token->start_token();
         return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(token->lineCharNumber() + 1, nullptr);
     }
@@ -616,7 +616,7 @@ public:
     ), uIntType(nullptr) {
         add_annotation(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto global = call_scope->global;;
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
@@ -645,7 +645,7 @@ public:
     ), uIntType(nullptr) {
         add_annotation(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *self_call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *self_call, Value *parent_val, bool evaluate_refs) final {
         const auto global = call_scope->global;;
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
@@ -677,7 +677,7 @@ public:
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
         auto val = call->values[0]->evaluated_value(*call_scope);
         if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
@@ -708,7 +708,7 @@ public:
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
         auto val = call->values[0]->evaluated_value(*call_scope);
         if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
@@ -743,7 +743,7 @@ public:
     inline Value* get_bool(InterpretScope *call_scope, bool value) {
         return new (call_scope->allocate<BoolValue>()) BoolValue(value, nullptr);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.size() != 2) {
             call_scope->error("wrong arguments size given to compiler::satisfies function", call);
             return nullptr;
@@ -785,7 +785,7 @@ public:
         annotations.emplace_back(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, nullptr));
     }
 };
@@ -815,7 +815,7 @@ public:
         annotations.emplace_back(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, false, nullptr));
     }
 };
@@ -843,7 +843,7 @@ public:
         params.emplace_back(&destValueParam);
         params.emplace_back(&sourceValueParam);
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto& backend = *call_scope->global->backend_context;
         if(call->values.size() != 2) {
             call_scope->error("std::mem::copy called with arguments of length not equal to two", call);
@@ -868,7 +868,7 @@ public:
 //        params.emplace_back(std::make_unique<FunctionParam>("ptr", std::make_unique<PointerType>(std::make_unique<VoidType>()), 0, std::nullopt, this));
 //        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 1, std::nullopt, this));
 //    }
-//    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+//    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 //
 //    }
 //};

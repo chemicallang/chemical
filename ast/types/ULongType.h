@@ -17,31 +17,31 @@ public:
     }
 
     [[nodiscard]]
-    unsigned int num_bits() const override {
+    unsigned int num_bits() const final {
         return is64Bit ? 64 : 32;
     }
 
-    bool is_unsigned() override {
+    bool is_unsigned() final {
         return true;
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    Value *create(int64_t value) override;
+    Value *create(int64_t value) final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::ULong;
     }
 
     [[nodiscard]]
-    ULongType *copy(ASTAllocator& allocator) const override {
+    ULongType *copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<ULongType>()) ULongType(is64Bit, token);
     }
 

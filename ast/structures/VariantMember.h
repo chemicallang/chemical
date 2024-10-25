@@ -23,15 +23,15 @@ public:
             CSTToken* token
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::VariantMember;
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         uint64_t total_bytes = 0;
         for(auto& value : values) {
             total_bytes += value.second->byte_size(is64Bit);
@@ -39,23 +39,23 @@ public:
         return total_bytes;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return (ASTNode*) parent_node;
     }
 
-    BaseDefMember *copy_member(ASTAllocator& allocator) override;
+    BaseDefMember *copy_member(ASTAllocator& allocator) final;
 
-    bool get_is_const() override {
+    bool get_is_const() final {
         return true;
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) override;
+    ASTNode *child(const std::string &name) final;
 
     ASTNode *child(unsigned int index);
 
@@ -69,24 +69,24 @@ public:
 
     bool requires_move_fn();
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
 #ifdef COMPILER_BUILD
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
 #endif
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_value_type() override;
-
-    [[nodiscard]]
-    ValueType value_type() const override;
+//    hybrid_ptr<BaseType> get_value_type() final;
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override;
+    ValueType value_type() const final;
+
+    [[nodiscard]]
+    BaseTypeKind type_kind() const final;
 
 };

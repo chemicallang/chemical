@@ -25,46 +25,46 @@ public:
 
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::Malformed;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::Malformed;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    BaseType* copy(ASTAllocator &allocator) const override {
+    BaseType* copy(ASTAllocator &allocator) const final {
         return new (allocator.allocate<MalformedInput>()) MalformedInput(
             parent_node,
             token
         );
     }
 
-    bool satisfies(BaseType *type) override {
+    bool satisfies(BaseType *type) final {
         return false;
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) override {
+    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final {
         return false;
     }
 
-    bool satisfies(ValueType type) override {
+    bool satisfies(ValueType type) final {
         return false;
     }
 
-    bool is_same(BaseType *type) override {
+    bool is_same(BaseType *type) final {
         return false;
     }
 
-    ASTNode* parent() override {
+    ASTNode* parent() final {
         return parent_node;
     }
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 

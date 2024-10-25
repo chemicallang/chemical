@@ -48,21 +48,21 @@ public:
             ASTNode* parent
     );
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::StructValue;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    bool primitive() override;
+    bool primitive() final;
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 
@@ -70,27 +70,27 @@ public:
             InterpretScope &scope,
             const std::string &name,
             std::vector<Value*> &params
-    ) override;
+    ) final;
 
-    void set_child_value(const std::string &name, Value *value, Operation op) override;
+    void set_child_value(const std::string &name, Value *value, Operation op) final;
 
     StructValue* initialized_value(InterpretScope& scope);
 
-    Value *evaluated_value(InterpretScope &scope) override;
+    Value *evaluated_value(InterpretScope &scope) final;
 
-    Value *scope_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) final;
 
     void declare_default_values(std::unordered_map<std::string, StructMemberInitializer*> &into, InterpretScope &scope);
 
-    StructValue *copy(ASTAllocator& allocator) override;
+    StructValue *copy(ASTAllocator& allocator) final;
 
     ASTNode* child(const std::string& name) {
         return definition->child(name);
     }
 
-    Value *child(InterpretScope &scope, const std::string &name) override;
+    Value *child(InterpretScope &scope, const std::string &name) final;
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
     bool is_generic();
 
@@ -138,11 +138,11 @@ public:
 
     void initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* expected_type);
 
-    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) override;
+    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) final;
 
-    llvm::Value *llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
 
     unsigned int store_in_struct(
             Codegen &gen,
@@ -152,7 +152,7 @@ public:
             std::vector<llvm::Value *> idxList,
             unsigned int index,
             BaseType* expected_type
-    ) override;
+    ) final;
 
     unsigned int store_in_array(
             Codegen &gen,
@@ -162,34 +162,34 @@ public:
             std::vector<llvm::Value *> idxList,
             unsigned int index,
             BaseType *expected_type
-    ) override;
+    ) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::Value *llvm_arg_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_arg_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::Value * llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) override;
+    llvm::Value * llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
 
-    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
+    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) final;
 
-    llvm::Type *llvm_elem_type(Codegen &gen) override;
+    llvm::Type *llvm_elem_type(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 
-    BaseType* create_type(ASTAllocator& allocator) override;
+    BaseType* create_type(ASTAllocator& allocator) final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
-//    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Struct;
     }
 

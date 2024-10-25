@@ -13,45 +13,45 @@ public:
         // do nothing
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return underlying->byte_size(is64Bit);
     }
 
-    bool satisfies(ValueType type) override {
+    bool satisfies(ValueType type) final {
         return underlying->satisfies(type);
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) override;
+    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final;
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    BaseType* pure_type() override {
+    BaseType* pure_type() final {
         return underlying;
     }
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Literal;
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return underlying->value_type();
     }
 
-    bool is_same(BaseType *type) override {
+    bool is_same(BaseType *type) final {
         return type->kind() == BaseTypeKind::Literal && ((LiteralType*) type)->underlying->is_same(underlying);
     }
 
     [[nodiscard]]
-    LiteralType* copy(ASTAllocator& allocator) const override {
+    LiteralType* copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator), token);
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Type *llvm_type(Codegen &gen) override {
+    llvm::Type *llvm_type(Codegen &gen) final {
         return underlying->llvm_type(gen);
     }
 #endif

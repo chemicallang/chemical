@@ -36,8 +36,8 @@ public:
      */
     void analyze(ASTImportUnitRef& result);
 
-    void visit(Scope *scope) override;
+    void visit(Scope *scope) final;
 
-    void visit(FunctionCall *call) override;
+    void visit(FunctionCall *call) final;
 
 };

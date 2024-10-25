@@ -31,23 +31,23 @@ public:
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::VariantDecl;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
@@ -59,26 +59,26 @@ public:
         return specifier == AccessSpecifier::Public;
     }
 
-    const std::string& ns_node_identifier() override {
+    const std::string& ns_node_identifier() final {
         return name;
     }
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final;
 
-    ASTNode* child(const std::string &child_name) override;
+    ASTNode* child(const std::string &child_name) final;
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() final;
 
     /**
      * a variant call notifies a definition, during symbol resolution that it exists
@@ -96,13 +96,13 @@ public:
 
     llvm::StructType* llvm_type_with_member(Codegen& gen, BaseDefMember* member_type, bool anonymous = true);
 
-    llvm::Type* llvm_type(Codegen &gen) override;
+    llvm::Type* llvm_type(Codegen &gen) final;
 
     llvm::Type *llvm_type(Codegen &gen, int16_t iteration);
 
-    llvm::Type* llvm_param_type(Codegen &gen) override;
+    llvm::Type* llvm_param_type(Codegen &gen) final;
 
-    llvm::Type* llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
+    llvm::Type* llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
     /**
      * responsible for generating code for a single function in a union decl
@@ -120,21 +120,21 @@ public:
 
     void code_gen(Codegen &gen, bool declare);
 
-    void code_gen_declare(Codegen &gen) override {
+    void code_gen_declare(Codegen &gen) final {
         code_gen(gen, true);
     }
 
-    void code_gen(Codegen &gen) override {
+    void code_gen(Codegen &gen) final {
         code_gen(gen, false);
     }
 
-    void code_gen_generic(Codegen &gen) override;
+    void code_gen_generic(Codegen &gen) final;
 
-    void code_gen_external_declare(Codegen &gen) override;
+    void code_gen_external_declare(Codegen &gen) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 

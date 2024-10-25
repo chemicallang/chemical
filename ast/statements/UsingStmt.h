@@ -28,31 +28,31 @@ public:
             CSTToken* token
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::UsingStmt;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         chain.set_parent(new_parent);
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return chain.parent_node;
     }
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) override {
+    void code_gen(Codegen &gen) final {
         // does nothing
     }
 

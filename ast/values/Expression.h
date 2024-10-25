@@ -35,15 +35,15 @@ public:
             CSTToken* token
     );
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::Expression;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
@@ -91,57 +91,57 @@ public:
      */
     void promote_literal_values(BaseType* firstType, BaseType* secondType);
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
     llvm::Value *llvm_logical_expr(Codegen &gen, BaseType* firstType, BaseType* secondType);
 
     void llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block);
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 
-    BaseType* create_type(ASTAllocator& allocator) override;
+    BaseType* create_type(ASTAllocator& allocator) final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
-    bool primitive() override;
+    bool primitive() final;
 
-    bool computed() override;
+    bool computed() final;
 
-    ASTNode* linked_node() override;
+    ASTNode* linked_node() final;
 
     /**
      * evaluates both values and returns the result as unique_tr to Value
      */
     Value *evaluate(InterpretScope &scope);
 
-    Expression *copy(ASTAllocator& allocator) override;
+    Expression *copy(ASTAllocator& allocator) final;
 
-    Value *scope_value(InterpretScope &scope) override {
+    Value *scope_value(InterpretScope &scope) final {
         return evaluate(scope);
     }
 
-    Value* evaluated_value(InterpretScope &scope) override {
+    Value* evaluated_value(InterpretScope &scope) final {
         return evaluate(scope);
     }
 
-//    Value* create_evaluated_value(InterpretScope &scope) override {
+//    Value* create_evaluated_value(InterpretScope &scope) final {
 //        return evaluate(scope);
 //    }
 
-    bool compile_time_computable() override;
+    bool compile_time_computable() final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Expression;
     }
 
@@ -149,6 +149,6 @@ public:
      * evaluates the current expression and also interprets the evaluated value
      * @param scope
      */
-    void interpret(InterpretScope &scope) override;
+    void interpret(InterpretScope &scope) final;
 
 };

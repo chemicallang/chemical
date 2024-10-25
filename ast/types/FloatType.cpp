@@ -14,7 +14,7 @@ bool DoubleType::can_promote(Value *value) {
 
 Value *DoubleType::promote(Value *value) {
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        // TODO not allocating using an allocator
+        // TODO VERY IMPORTANT not allocating using an allocator
         return new DoubleValue((double) value->get_the_int(), value->encoded_location());
     } else {
         return nullptr;
@@ -27,7 +27,7 @@ bool FloatType::can_promote(Value *value) {
 
 Value *FloatType::promote(Value *value) {
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        // TODO not allocating using an allocator
+        // TODO VERY IMPORTANT not allocating using an allocator
         return new FloatValue((float) value->get_the_int(), value->encoded_location());
     } else {
         return nullptr;
@@ -41,7 +41,7 @@ bool Float128Type::can_promote(Value *value) {
 Value *Float128Type::promote(Value *value) {
     // TODO promote it to a float 128 type instead
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        // TODO not allocating using an allocator
+        // TODO VERY IMPORTANT not allocating using an allocator
         return new FloatValue((float) value->get_the_int(), value->encoded_location());
     } else {
         return nullptr;
@@ -55,7 +55,7 @@ bool LongDoubleType::can_promote(Value *value) {
 Value *LongDoubleType::promote(Value *value) {
     // TODO promote it to a float 128 type instead
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        // TODO not allocating using an allocator
+        // TODO VERY IMPORTANT not allocating using an allocator
         return new FloatValue((float) value->get_the_int(), value->encoded_location());
     } else {
         return nullptr;

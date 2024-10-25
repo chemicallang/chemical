@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]]
     UShortType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UShortType>()) UShortType(token);
+        return new (allocator.allocate<UShortType>()) UShortType(location);
     }
 
 };

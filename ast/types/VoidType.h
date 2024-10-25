@@ -38,7 +38,7 @@ public:
 
     [[nodiscard]]
     virtual VoidType* copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<VoidType>()) VoidType(token);
+        return new (allocator.allocate<VoidType>()) VoidType(location);
     }
 
 #ifdef COMPILER_BUILD

@@ -14,16 +14,21 @@ public:
     ASTNode* parent_node;
     std::string comment;
     bool multiline;
-    CSTToken* token;
+    SourceLocation location;
 
-    Comment(std::string comment, bool multiline, ASTNode* parent, CSTToken* token) : comment(std::move(comment)), multiline(multiline), parent_node(parent), token(token) {}
+    Comment(
+            std::string comment,
+            bool multiline,
+            ASTNode* parent,
+            SourceLocation location
+    ) : comment(std::move(comment)), multiline(multiline), parent_node(parent), location(location) {}
 
     ASTNodeKind kind() final {
         return ASTNodeKind::CommentStmt;
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     void set_parent(ASTNode* new_parent) final {

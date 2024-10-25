@@ -13,14 +13,14 @@
 class RetStructParamValue : public Value {
 public:
 
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit RetStructParamValue(CSTToken* token) : token(token) {
+    explicit RetStructParamValue(SourceLocation location) : location(location) {
 
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     void accept(Visitor *visitor) final {
@@ -42,7 +42,7 @@ public:
     BaseType* create_type(ASTAllocator& allocator) final;
 
     Value *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<RetStructParamValue>()) RetStructParamValue(token);
+        return new (allocator.allocate<RetStructParamValue>()) RetStructParamValue(location);
     }
 
     [[nodiscard]]

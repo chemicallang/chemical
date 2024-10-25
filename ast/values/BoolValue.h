@@ -13,14 +13,14 @@ class BoolValue : public Value {
 public:
 
     bool value;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new CharValue object.
      *
      * @param value The character value.
      */
-    explicit BoolValue(bool value, CSTToken* token) : value(value), token(token) {
+    explicit BoolValue(bool value, SourceLocation location) : value(value), location(location) {
 
     }
 
@@ -28,12 +28,12 @@ public:
         return ValueKind::Bool;
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     BoolValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BoolValue>()) BoolValue(value, token);
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, location);
     }
 
     uint64_t byte_size(bool is64Bit) final {
@@ -49,7 +49,7 @@ public:
     }
 
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BoolType>()) BoolType(nullptr);
+        return new (allocator.allocate<BoolType>()) BoolType(location);
     }
 
     void accept(Visitor *visitor) final {

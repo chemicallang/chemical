@@ -418,56 +418,56 @@ void CTranslator::init_type_makers() {
     type_makers[ZigClangBuiltinTypeRvvFloat64m2x4] = nullptr;
     type_makers[ZigClangBuiltinTypeRvvFloat64m4x2] = nullptr;
     type_makers[ZigClangBuiltinTypeWasmExternRef] = nullptr;
-    type_makers[ZigClangBuiltinTypeVoid] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<VoidType>()) VoidType(nullptr);
+    type_makers[ZigClangBuiltinTypeVoid] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<VoidType>()) VoidType(location);
     };
-    type_makers[ZigClangBuiltinTypeBool] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<BoolType>()) BoolType(nullptr);
+    type_makers[ZigClangBuiltinTypeBool] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<BoolType>()) BoolType(location);
     };
     type_makers[ZigClangBuiltinTypeChar_U] = nullptr;
-    type_makers[ZigClangBuiltinTypeUChar] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<UCharType>()) UCharType(nullptr);
+    type_makers[ZigClangBuiltinTypeUChar] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<UCharType>()) UCharType(location);
     };;
     type_makers[ZigClangBuiltinTypeWChar_U] = nullptr;
     type_makers[ZigClangBuiltinTypeChar8] = nullptr;
     type_makers[ZigClangBuiltinTypeChar16] = nullptr;
     type_makers[ZigClangBuiltinTypeChar32] = nullptr;
-    type_makers[ZigClangBuiltinTypeUShort] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<UShortType>()) UShortType(nullptr);
+    type_makers[ZigClangBuiltinTypeUShort] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<UShortType>()) UShortType(location);
     };
-    type_makers[ZigClangBuiltinTypeUInt] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<UIntType>()) UIntType(nullptr);
+    type_makers[ZigClangBuiltinTypeUInt] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<UIntType>()) UIntType(location);
     };
-    type_makers[ZigClangBuiltinTypeULong] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<ULongType>()) ULongType(sizeof(long) == 8, nullptr);
+    type_makers[ZigClangBuiltinTypeULong] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<ULongType>()) ULongType(sizeof(void*) == 8, location);
     };
-    type_makers[ZigClangBuiltinTypeULongLong] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(nullptr);
+    type_makers[ZigClangBuiltinTypeULongLong] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(location);
     };
-    type_makers[ZigClangBuiltinTypeUInt128] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<UInt128Type>()) UInt128Type(nullptr);
+    type_makers[ZigClangBuiltinTypeUInt128] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<UInt128Type>()) UInt128Type(location);
     };
-    type_makers[ZigClangBuiltinTypeChar_S] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<CharType>()) CharType(nullptr);
+    type_makers[ZigClangBuiltinTypeChar_S] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<CharType>()) CharType(location);
     };
-    type_makers[ZigClangBuiltinTypeSChar] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<CharType>()) CharType(nullptr);
+    type_makers[ZigClangBuiltinTypeSChar] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<CharType>()) CharType(location);
     };
     type_makers[ZigClangBuiltinTypeWChar_S] = nullptr;
-    type_makers[ZigClangBuiltinTypeShort] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<ShortType>()) ShortType(nullptr);
+    type_makers[ZigClangBuiltinTypeShort] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<ShortType>()) ShortType(location);
     };
-    type_makers[ZigClangBuiltinTypeInt] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<IntType>()) IntType(nullptr);
+    type_makers[ZigClangBuiltinTypeInt] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<IntType>()) IntType(location);
     };
-    type_makers[ZigClangBuiltinTypeLong] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<LongType>()) LongType(sizeof(long) == 8, nullptr);
+    type_makers[ZigClangBuiltinTypeLong] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<LongType>()) LongType(sizeof(long) == 8, location);
     };
-    type_makers[ZigClangBuiltinTypeLongLong] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<BigIntType>()) BigIntType(nullptr);
+    type_makers[ZigClangBuiltinTypeLongLong] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<BigIntType>()) BigIntType(location);
     };
-    type_makers[ZigClangBuiltinTypeInt128] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<Int128Type>()) Int128Type(nullptr);
+    type_makers[ZigClangBuiltinTypeInt128] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<Int128Type>()) Int128Type(location);
     };
     type_makers[ZigClangBuiltinTypeShortAccum] = nullptr;
     type_makers[ZigClangBuiltinTypeAccum] = nullptr;
@@ -494,19 +494,19 @@ void CTranslator::init_type_makers() {
     type_makers[ZigClangBuiltinTypeSatUFract] = nullptr;
     type_makers[ZigClangBuiltinTypeSatULongFract] = nullptr;
     type_makers[ZigClangBuiltinTypeHalf] = nullptr;
-    type_makers[ZigClangBuiltinTypeFloat] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<FloatType>()) FloatType(nullptr);
+    type_makers[ZigClangBuiltinTypeFloat] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<FloatType>()) FloatType(location);
     };
-    type_makers[ZigClangBuiltinTypeDouble] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<DoubleType>()) DoubleType(nullptr);
+    type_makers[ZigClangBuiltinTypeDouble] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<DoubleType>()) DoubleType(location);
     };
-    type_makers[ZigClangBuiltinTypeLongDouble] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<LongDoubleType>()) LongDoubleType(nullptr);
+    type_makers[ZigClangBuiltinTypeLongDouble] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<LongDoubleType>()) LongDoubleType(location);
     };
     type_makers[ZigClangBuiltinTypeFloat16] = nullptr;
     type_makers[ZigClangBuiltinTypeBFloat16] = nullptr;
-    type_makers[ZigClangBuiltinTypeFloat128] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
-        return new (allocator.allocate<Float128Type>()) Float128Type(nullptr);
+    type_makers[ZigClangBuiltinTypeFloat128] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
+        return new (allocator.allocate<Float128Type>()) Float128Type(location);
     };
     type_makers[ZigClangBuiltinTypeIbm128] = nullptr;
     type_makers[ZigClangBuiltinTypeNullPtr] = nullptr;

@@ -9,16 +9,16 @@ UsingStmt::UsingStmt(
     std::vector<ChainValue*> values,
     ASTNode* parent_node,
     bool is_namespace,
-    CSTToken* token
-) : chain(std::move(values), parent_node, false, nullptr), is_namespace(is_namespace), token(token) {
+    SourceLocation location
+) : chain(std::move(values), parent_node, false, location), is_namespace(is_namespace), location(location) {
 
 }
 
 UsingStmt::UsingStmt(
     AccessChain* chain,
     bool is_namespace,
-    CSTToken* token
-) : chain(chain->values, chain->parent_node, chain->is_node, chain->token), is_namespace(is_namespace), token(token) {
+    SourceLocation location
+) : chain(chain->values, chain->parent_node, chain->is_node, chain->location), is_namespace(is_namespace), location(location) {
 
 }
 

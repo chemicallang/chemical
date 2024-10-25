@@ -86,7 +86,7 @@ std::vector<IGFile> ImportGraphImporter::from_tokens(
 }
 
 std::vector<IGFile> ImportGraphImporter::process(const std::string &path, const Range& range, IGFile* parent) {
-    FileInputSource source(path);
+    FileInputSource source(path.c_str());
     if(source.has_error()) {
         parent->errors.emplace_back(
                 range,
@@ -147,9 +147,15 @@ IGResult determine_import_graph(ImportGraphImporter* importer, std::vector<CSTTo
     return result;
 }
 
-IGResult determine_import_graph(const std::string& exe_path, std::vector<CSTToken*>& tokens, FlatIGFile &asker) {
+IGResult determine_import_graph(
+        const std::string& exe_path,
+        std::vector<CSTToken*>& tokens,
+        FlatIGFile &asker,
+        LocationManager& manager
+) {
     SourceProvider reader(nullptr);
-    Lexer lexer(reader);
+    // TODO the file id is required for early errors
+    Lexer lexer(0, reader, manager);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(exe_path);
     ImportGraphImporter importer(
@@ -160,9 +166,10 @@ IGResult determine_import_graph(const std::string& exe_path, std::vector<CSTToke
     return determine_import_graph(&importer, tokens, asker);
 }
 
-IGFile determine_ig_file(ImportPathHandler &handler, const std::string &abs_path) {
+IGFile determine_ig_file(ImportPathHandler &handler, LocationManager& manager, const std::string &abs_path) {
     SourceProvider reader(nullptr);
-    Lexer lexer(reader);
+    // TODO the file id is requires for early errors
+    Lexer lexer(0, reader, manager);
     ImportGraphVisitor visitor;
     ImportGraphImporter importer(
             &handler,
@@ -172,17 +179,17 @@ IGFile determine_ig_file(ImportPathHandler &handler, const std::string &abs_path
     return from_import(&importer, nullptr, abs_path, nullptr);
 }
 
-IGFile determine_ig_file(const std::string &exe_path, const std::string &abs_path) {
+IGFile determine_ig_file(const std::string &exe_path, LocationManager& manager, const std::string &abs_path) {
     ImportPathHandler handler(exe_path);
-    return determine_ig_file(handler, abs_path);
+    return determine_ig_file(handler, manager, abs_path);
 }
 
-IGResult determine_import_graph(ImportPathHandler &path_handler, const std::string &abs_path) {
-    return IGResult { determine_ig_file(path_handler, abs_path) };
+IGResult determine_import_graph(ImportPathHandler &path_handler, LocationManager& manager, const std::string &abs_path) {
+    return IGResult { determine_ig_file(path_handler, manager, abs_path) };
 }
 
-IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path) {
-    return IGResult { determine_ig_file(exe_path, abs_path) };
+IGResult determine_import_graph(const std::string &exe_path, LocationManager& manager, const std::string &abs_path) {
+    return IGResult { determine_ig_file(exe_path, manager, abs_path) };
 }
 
 //bool IGFile::depth_first(const std::function<bool(IGFile*)>& fn) {

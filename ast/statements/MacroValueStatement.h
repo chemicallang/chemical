@@ -17,7 +17,7 @@ public:
     std::unique_ptr<Value> value;
     std::string name;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new ReturnStatement object.
@@ -26,13 +26,13 @@ public:
         std::string name,
         std::unique_ptr<Value> value,
         ASTNode* parent_node,
-        CSTToken* token
-    ) : value(std::move(value)), name(std::move(name)), parent_node(parent_node), token(token) {
+        SourceLocation token
+    ) : value(std::move(value)), name(std::move(name)), parent_node(parent_node), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     void set_parent(ASTNode* new_parent) final {

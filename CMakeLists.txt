@@ -500,6 +500,7 @@ set(COMMON_SOURCES
         utils/inline_attr.h
         cst/LocationManager.h
         cst/LocationManager.cpp
+        cst/SourceLocation.h
 )
 
 # Chemical LSP Executable Target

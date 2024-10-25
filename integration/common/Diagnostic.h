@@ -63,9 +63,14 @@ public:
     }
 
     /**
+     * this format function directly prints the diagnostic to output stream
+     */
+    void format(std::ostream& os, const std::string_view& path, const std::string_view& tag) const;
+
+    /**
      * prints the current diagnostic to console
      */
-    std::ostream& ansi(std::ostream& os, const std::string& path, const std::string &tag = "Diagnostic") const;
+    std::ostream& ansi(std::ostream& os, const std::string_view& path, const std::string_view& tag = "Diagnostic") const;
 
     /**
      * check if a vector of diagnostics has a error diagnostic in them

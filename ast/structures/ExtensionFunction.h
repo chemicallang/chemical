@@ -17,7 +17,7 @@ public:
             BaseType* returnType,
             bool isVariadic,
             ASTNode* parent_node,
-            CSTToken* token,
+            SourceLocation location,
             std::optional<LoopScope> body = std::nullopt,
             AccessSpecifier specifier = AccessSpecifier::Internal
     );

@@ -17,7 +17,7 @@ public:
     Value* condition;
     bool stoppedInterpretation = false;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * initializes the loop with only a condition and empty body
@@ -31,10 +31,10 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    WhileLoop(Value* condition, LoopScope body, ASTNode* parent_node, CSTToken* token);
+    WhileLoop(Value* condition, LoopScope body, ASTNode* parent_node, SourceLocation location);
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

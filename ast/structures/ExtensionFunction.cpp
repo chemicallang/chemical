@@ -22,8 +22,8 @@ ExtensionFuncReceiver::ExtensionFuncReceiver(
     std::string name,
     BaseType* type,
     ASTNode* parent_node,
-    CSTToken* token
-) : BaseFunctionParam(std::move(name), type), parent_node(parent_node), token(token) {
+    SourceLocation location
+) : BaseFunctionParam(std::move(name), type), parent_node(parent_node), location(location) {
 
 }
 
@@ -107,7 +107,7 @@ ExtensionFunction::ExtensionFunction(
         BaseType* returnType,
         bool isVariadic,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         std::optional<LoopScope> body,
         AccessSpecifier specifier
 ) : FunctionDeclaration(
@@ -116,7 +116,7 @@ ExtensionFunction::ExtensionFunction(
     returnType,
     isVariadic,
     parent_node,
-    token,
+    location,
     std::move(body),
     specifier
 ), receiver(std::move(receiver)) {
@@ -158,7 +158,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
 BaseType* ExtensionFunction::create_value_type(ASTAllocator& allocator) {
     auto value_type = FunctionDeclaration::create_value_type(allocator);
     auto functionType = (FunctionType*) value_type;
-    functionType->params.insert(functionType->params.begin(), new (allocator.allocate<FunctionParam>()) FunctionParam("self", receiver.type->copy(allocator), 0, nullptr, true, this, nullptr));
+    functionType->params.insert(functionType->params.begin(), new (allocator.allocate<FunctionParam>()) FunctionParam("self", receiver.type->copy(allocator), 0, nullptr, true, this, ZERO_LOC));
     return value_type;
 }
 

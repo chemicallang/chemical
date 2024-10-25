@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]]
     UBigIntType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(token);
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(location);
     }
 
 };

@@ -37,7 +37,7 @@ public:
     BaseType* type;
     Value* value; ///< The value being assigned to the identifier.
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
     AccessSpecifier specifier;
 #ifdef COMPILER_BUILD
     llvm::Value *llvm_ptr;
@@ -52,7 +52,7 @@ public:
             BaseType* type,
             Value* value,
             ASTNode* parent_node,
-            CSTToken* token,
+            SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
@@ -91,8 +91,8 @@ public:
         has_assignment = true;
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

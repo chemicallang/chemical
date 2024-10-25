@@ -14,7 +14,7 @@ public:
     bool is_mutable;
     std::vector<std::unique_ptr<BaseType>> pures{};
 
-    PointerType(BaseType* type, CSTToken* token, bool is_mutable = false) : type(type), TokenizedBaseType(token), is_mutable(is_mutable) {
+    PointerType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), TokenizedBaseType(location), is_mutable(is_mutable) {
 
     }
 
@@ -67,7 +67,7 @@ public:
 
     [[nodiscard]]
     PointerType *copy(ASTAllocator& allocator) const final {
-        return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), token, is_mutable);
+        return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), location, is_mutable);
     }
 
     bool link(SymbolResolver &linker) final;

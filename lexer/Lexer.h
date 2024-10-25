@@ -43,6 +43,12 @@ class Lexer : public CSTDiagnoser {
 public:
 
     /**
+     * the file id is the id of the file, we're lexing
+     * can be set to zero to indicate no source code file
+     */
+    unsigned int file_id;
+
+    /**
      * provides access to the source code to lex
      */
     SourceProvider &provider;
@@ -62,7 +68,9 @@ public:
      * initialize the lexer with this provider and path
      */
     Lexer(
+        unsigned int file_id,
         SourceProvider &provider,
+        LocationManager& loc_man,
         CompilerBinder* binder = nullptr
     );
 

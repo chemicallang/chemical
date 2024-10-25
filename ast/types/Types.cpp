@@ -16,14 +16,14 @@
 #include "VoidType.h"
 #include "ast/statements/Typealias.h"
 
-const AnyType AnyType::instance(nullptr);
-const BoolType BoolType::instance(nullptr);
-const CharType CharType::instance(nullptr);
-const DoubleType DoubleType::instance(nullptr);
-const FloatType FloatType::instance(nullptr);
-const StringType StringType::instance(nullptr);
-const UCharType UCharType::instance(nullptr);
-const VoidType VoidType::instance(nullptr);
+const AnyType AnyType::instance(ZERO_LOC);
+const BoolType BoolType::instance(ZERO_LOC);
+const CharType CharType::instance(ZERO_LOC);
+const DoubleType DoubleType::instance(ZERO_LOC);
+const FloatType FloatType::instance(ZERO_LOC);
+const StringType StringType::instance(ZERO_LOC);
+const UCharType UCharType::instance(ZERO_LOC);
+const VoidType VoidType::instance(ZERO_LOC);
 
 bool ArrayType::satisfies(BaseType *pure_type) {
     const auto pure_type_kind = pure_type->kind();

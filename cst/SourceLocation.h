@@ -1,0 +1,23 @@
+// Copyright (c) Qinetik 2024.
+
+#pragma once
+
+#include <cstdint>
+
+class SourceLocation {
+public:
+
+    uint64_t encoded;
+
+    constexpr SourceLocation(uint64_t encoded) : encoded(encoded) {
+
+    }
+
+};
+
+/**
+ * this is the location constant that is used to express
+ * location at file-id = 0, line-start = 0, char-start = 0, line-end = 0, char-end = 0
+ * file-id being zero, means invalid location, this is used when location is unknown
+ */
+inline constexpr auto ZERO_LOC = 0ui64;

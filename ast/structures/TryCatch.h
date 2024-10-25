@@ -14,14 +14,14 @@ public:
     catch_var_type catchVar;
     std::optional<Scope> catchScope;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     TryCatch(
             std::unique_ptr<FunctionCall> tryCall,
             catch_var_type catchVar,
             std::optional<Scope> catchScope,
             ASTNode* parent_node,
-            CSTToken* token
+            SourceLocation location
     );
 
     ASTNodeKind kind() final {
@@ -32,8 +32,8 @@ public:
         parent_node = new_parent;
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNode *parent() final {

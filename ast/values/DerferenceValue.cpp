@@ -5,8 +5,8 @@
 
 DereferenceValue::DereferenceValue(
         Value* value,
-        CSTToken* token
-) : value(value), token(token) {
+        SourceLocation location
+) : value(value), location(location) {
 
 }
 
@@ -56,6 +56,6 @@ BaseType* DereferenceValue::known_type() {
 DereferenceValue *DereferenceValue::copy(ASTAllocator& allocator) {
     return new DereferenceValue(
             value->copy(allocator),
-            token
+            location
     );
 }

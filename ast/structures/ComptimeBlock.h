@@ -10,7 +10,7 @@ public:
 
     Scope body;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * constructor
@@ -18,15 +18,15 @@ public:
     ComptimeBlock(
         Scope body,
         ASTNode* parent,
-        CSTToken* token
+        SourceLocation location
     );
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNode* parent() final {

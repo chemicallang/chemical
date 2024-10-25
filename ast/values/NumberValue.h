@@ -25,17 +25,17 @@ public:
 
     int64_t value;
     IntNType* linked_type = nullptr;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new IntValue object.
      *
      * @param value The integer value.
      */
-    explicit NumberValue(int64_t value, CSTToken* token) : value(value), token(token) {}
+    explicit NumberValue(int64_t value, SourceLocation location) : value(value), location(location) {}
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     void accept(Visitor *visitor) final {
@@ -74,7 +74,7 @@ public:
     }
 
     NumberValue *copy(ASTAllocator& allocator) final {
-        auto copy = new (allocator.allocate<NumberValue>()) NumberValue(value, token);
+        auto copy = new (allocator.allocate<NumberValue>()) NumberValue(value, location);
         if(linked_type) {
             copy->linked_type = (IntNType *) linked_type->copy(allocator);
         }
@@ -102,7 +102,7 @@ public:
         if(linked_type) {
             return linked_type->copy(allocator);
         } else {
-            return new (allocator.allocate<IntType>()) IntType(nullptr);
+            return new (allocator.allocate<IntType>()) IntType(location);
         }
     }
 

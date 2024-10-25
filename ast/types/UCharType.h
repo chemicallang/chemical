@@ -50,7 +50,7 @@ public:
 
     [[nodiscard]]
     UCharType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UCharType>()) UCharType(token);
+        return new (allocator.allocate<UCharType>()) UCharType(location);
     }
 
 #ifdef COMPILER_BUILD

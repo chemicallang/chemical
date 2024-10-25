@@ -7,7 +7,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ULongValue.h"
 
-SizeOfValue::SizeOfValue(BaseType* for_type, CSTToken* token) : for_type(for_type), token(token) {
+SizeOfValue::SizeOfValue(BaseType* for_type, SourceLocation location) : for_type(for_type), location(location) {
 
 }
 

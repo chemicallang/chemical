@@ -64,6 +64,11 @@ class ASTProcessor {
 public:
 
     /**
+     * the location manager
+     */
+    LocationManager& loc_man;
+
+    /**
      * processor options
      */
     ASTProcessorOptions* options;
@@ -134,6 +139,7 @@ public:
      */
     ASTProcessor(
             ASTProcessorOptions* options,
+            LocationManager& loc_man,
             SymbolResolver* resolver,
             CompilerBinder& binder,
 #ifdef COMPILER_BUILD
@@ -165,13 +171,13 @@ public:
     /**
      * import chemical file with absolute path to it
      */
-    ASTImportResultExt import_chemical_file(const std::string& absolute_path);
+    ASTImportResultExt import_chemical_file(unsigned int fileId, const std::string_view& absolute_path);
 
     /**
      * lex, parse and resolve symbols in file and return Scope containing nodes
      * without performing any symbol resolution
      */
-    ASTImportResultExt import_file(const FlatIGFile& file);
+    ASTImportResultExt import_file(unsigned int fileId, const FlatIGFile& file);
 
     /**
      * function that performs symbol resolution
@@ -233,7 +239,7 @@ public:
     void compile_nodes(
             Codegen& gen,
             std::vector<ASTNode*>& nodes,
-            const std::string& abs_path
+            const std::string_view& abs_path
     );
 
     /**
@@ -263,4 +269,4 @@ public:
 /**
  * this function can be called concurrently, to import files
  */
-ASTImportResultExt concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor);
+ASTImportResultExt concurrent_processor(int id, int file_id, const FlatIGFile& file, ASTProcessor* processor);

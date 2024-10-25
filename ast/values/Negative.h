@@ -14,12 +14,12 @@ class NegativeValue : public Value {
 public:
 
     Value* value;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit NegativeValue(Value* value, CSTToken* token) : value(value), token(token) {}
+    explicit NegativeValue(Value* value, SourceLocation location) : value(value), location(location) {}
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -41,7 +41,7 @@ public:
     bool primitive() final;
 
     Value* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NegativeValue>()) NegativeValue(value->copy(allocator), token);
+        return new (allocator.allocate<NegativeValue>()) NegativeValue(value->copy(allocator), location);
     }
 
     Value* evaluated_value(InterpretScope &scope) final;

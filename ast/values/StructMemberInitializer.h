@@ -51,7 +51,7 @@ public:
 
     StructMemberInitializer* copy(ASTAllocator& allocator);
 
-    CSTToken *cst_token() final;
+    SourceLocation encoded_location() override;
 
     ASTNode* parent() final;
 

@@ -16,7 +16,7 @@ public:
     // after equal
     BaseType* actual_type;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new TypealiasStatement object.
@@ -25,12 +25,12 @@ public:
             std::string identifier,
             BaseType* actual_type,
             ASTNode* parent_node,
-            CSTToken* token,
+            SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

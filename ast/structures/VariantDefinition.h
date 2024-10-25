@@ -10,7 +10,7 @@ public:
 
     AccessSpecifier specifier;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
     LinkedType ref_type;
 
 #ifdef COMPILER_BUILD
@@ -27,12 +27,12 @@ public:
     VariantDefinition(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

@@ -10,14 +10,14 @@ public:
 
     Value* value;
 
-    LinkedValueType(Value* value, CSTToken* token) : value(value), LinkedType("", token) {
+    LinkedValueType(Value* value, SourceLocation location) : value(value), LinkedType("", location) {
 
     }
 
     LinkedType* copy(ASTAllocator &allocator) const final {
         return new (allocator.allocate<LinkedValueType>()) LinkedValueType(
             value->copy(allocator),
-            token
+            location
         );
     }
 

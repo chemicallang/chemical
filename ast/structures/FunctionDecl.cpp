@@ -961,7 +961,7 @@ FunctionParam::FunctionParam(
         Value* defValue,
         bool is_implicit,
         FunctionType* func_type,
-        CSTToken* token
+        SourceLocation location
 ) : BaseFunctionParam(
         std::move(name),
         type,
@@ -970,7 +970,7 @@ FunctionParam::FunctionParam(
     index(index),
     defValue(defValue),
     is_implicit(is_implicit),
-    token(token)
+    location(location)
 {
     name.shrink_to_fit();
 }
@@ -996,7 +996,7 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     if (defValue) {
         copied = defValue->copy(allocator);
     }
-    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, token);
+    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, location);
 }
 
 bool FunctionParam::link_param_type(SymbolResolver &linker) {
@@ -1087,9 +1087,9 @@ GenericTypeParameter::GenericTypeParameter(
         BaseType* def_type,
         ASTNode* parent_node,
         unsigned param_index,
-        CSTToken* token
+        SourceLocation location
 ) : identifier(std::move(identifier)), at_least_type(at_least_type),
-    def_type(def_type), parent_node(parent_node), param_index(param_index), token(token) {
+    def_type(def_type), parent_node(parent_node), param_index(param_index), location(location) {
 
 }
 
@@ -1122,12 +1122,12 @@ FunctionDeclaration::FunctionDeclaration(
         BaseType* returnType,
         bool isVariadic,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         std::optional<LoopScope> body,
         AccessSpecifier specifier
-) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, token),
+) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location),
     name(std::move(name)),
-    body(std::move(body)), token(token), specifier(specifier) {
+    body(std::move(body)), location(location), specifier(specifier) {
 }
 
 std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {
@@ -1191,9 +1191,9 @@ int16_t FunctionDeclaration::total_generic_iterations() {
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, true, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
     }
-    returnType = new (allocator.allocate<VoidType>()) VoidType(nullptr);
+    returnType = new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
 }
 
 void check_returns_void(SymbolResolver& resolver, FunctionDeclaration* decl) {
@@ -1227,7 +1227,7 @@ void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl
 }
 
 void FunctionDeclaration::ensure_constructor(SymbolResolver& resolver, StructDefinition* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, ZERO_LOC);
 }
 
 void FunctionDeclaration::ensure_destructor(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
@@ -1241,12 +1241,12 @@ void FunctionDeclaration::ensure_clear_fn(SymbolResolver& resolver, ExtendableMe
 }
 
 void FunctionDeclaration::ensure_copy_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, ZERO_LOC);
     check_self_other_params(resolver, this, def);
 }
 
 void FunctionDeclaration::ensure_move_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, ZERO_LOC);
     check_self_other_params(resolver, this, def);
 }
 
@@ -1312,7 +1312,7 @@ BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
     for(const auto& param : params) {
         copied.emplace_back(param->copy(allocator));
     }
-    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, false, parent_node, nullptr);
+    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, false, parent_node, ZERO_LOC);
 }
 
 //hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {
@@ -1464,15 +1464,15 @@ CapturedVariable::CapturedVariable(
     std::string name,
     unsigned int index,
     bool capture_by_ref,
-    CSTToken* token
+    SourceLocation location
 ) : name(std::move(name)), index(index), capture_by_ref(capture_by_ref),
-    token(token), ptrType(nullptr, token) {
+    location(location), ptrType(nullptr, location) {
 
 }
 
 BaseType* CapturedVariable::create_value_type(ASTAllocator& allocator) {
     if(capture_by_ref) {
-        return new (allocator.allocate<PointerType>()) PointerType(linked->create_value_type(allocator), nullptr);
+        return new (allocator.allocate<PointerType>()) PointerType(linked->create_value_type(allocator), ZERO_LOC);
     } else {
         return linked->create_value_type(allocator);
     }

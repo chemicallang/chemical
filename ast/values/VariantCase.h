@@ -11,7 +11,7 @@ public:
     AccessChain* chain;
     std::vector<VariantCaseVariable> identifier_list;
     SwitchStatement* switch_statement;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * this will not only take the access chain, but also find the last function call
@@ -22,7 +22,7 @@ public:
             AccessChain* chain,
             ASTDiagnoser& resolver,
             SwitchStatement* statement,
-            CSTToken* token
+            SourceLocation location
     );
 
     /**
@@ -31,11 +31,11 @@ public:
     VariantCase(
             AccessChain* chain,
             SwitchStatement* statement,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

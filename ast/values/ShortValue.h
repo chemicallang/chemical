@@ -7,14 +7,14 @@ class ShortValue : public IntNumValue {
 public:
 
     short value;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit ShortValue(short value, CSTToken* token) : value(value), token(token) {
+    explicit ShortValue(short value, SourceLocation location) : value(value), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -38,11 +38,11 @@ public:
     }
 
     ShortValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<ShortValue>()) ShortValue(value, token);
+        return new (allocator.allocate<ShortValue>()) ShortValue(value, location);
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<ShortType>()) ShortType(nullptr);
+        return new (allocator.allocate<ShortType>()) ShortType(location);
     }
 
     unsigned int get_num_bits() final {

@@ -14,14 +14,14 @@ class NullValue : public Value {
 public:
 
     PointerType* expected = nullptr;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit NullValue(CSTToken* token) : token(token) {
+    explicit NullValue(SourceLocation location) : location(location) {
 
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     uint64_t byte_size(bool is64Bit) final {
@@ -42,7 +42,7 @@ public:
     }
 
     NullValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NullValue>()) NullValue(token);
+        return new (allocator.allocate<NullValue>()) NullValue(location);
     }
 
 #ifdef COMPILER_BUILD

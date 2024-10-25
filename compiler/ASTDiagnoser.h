@@ -21,10 +21,7 @@ class ASTNode;
 class ASTDiagnoser : public CSTDiagnoser {
 public:
 
-    /**
-     * constructor
-     */
-    ASTDiagnoser() = default;
+    using CSTDiagnoser::CSTDiagnoser;
 
     /**
      * a diagnostic with severity

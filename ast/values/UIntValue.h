@@ -9,14 +9,14 @@ class UIntValue : public IntNumValue {
 public:
 
     unsigned int value;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit UIntValue(unsigned int value, CSTToken* token) : value(value), token(token) {
+    explicit UIntValue(unsigned int value, SourceLocation location) : value(value), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -40,12 +40,12 @@ public:
     }
 
     UIntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UIntValue>()) UIntValue(value, token);
+        return new (allocator.allocate<UIntValue>()) UIntValue(value, location);
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UIntType>()) UIntType(nullptr);
+        return new (allocator.allocate<UIntType>()) UIntType(location);
     }
 
     bool is_unsigned() final {

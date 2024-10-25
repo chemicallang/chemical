@@ -3,7 +3,7 @@
 #include "DynamicType.h"
 #include "ast/structures/InterfaceDefinition.h"
 
-DynamicType::DynamicType(BaseType* referenced, CSTToken* token) : referenced(referenced), TokenizedBaseType(token) {
+DynamicType::DynamicType(BaseType* referenced, SourceLocation location) : referenced(referenced), TokenizedBaseType(location) {
 
 }
 

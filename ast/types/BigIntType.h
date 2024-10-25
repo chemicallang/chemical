@@ -36,7 +36,7 @@ public:
     }
 
     BigIntType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<BigIntType>()) BigIntType(token);
+        return new (allocator.allocate<BigIntType>()) BigIntType(location);
     }
 
 };

@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]]
     UInt128Type *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UInt128Type>()) UInt128Type(token);
+        return new (allocator.allocate<UInt128Type>()) UInt128Type(location);
     }
 
 };

@@ -19,9 +19,9 @@ public:
 
     std::vector<ASTAny*> any_things;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
-    MalformedInput(ASTNode* parent, CSTToken* token) : parent_node(parent), token(token) {
+    MalformedInput(ASTNode* parent, SourceLocation location) : parent_node(parent), location(location) {
 
     }
 
@@ -40,7 +40,7 @@ public:
     BaseType* copy(ASTAllocator &allocator) const final {
         return new (allocator.allocate<MalformedInput>()) MalformedInput(
             parent_node,
-            token
+            location
         );
     }
 
@@ -64,8 +64,8 @@ public:
         return parent_node;
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     bool link(SymbolResolver &linker) final;

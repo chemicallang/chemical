@@ -41,11 +41,11 @@ public:
             bool isVariadic,
             Scope scope,
             ASTNode* parent_node,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

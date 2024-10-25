@@ -490,10 +490,10 @@ public:
 // just a helper class that takes care about cst token
 class TokenizedBaseType : public BaseType {
 public:
-    CSTToken* token;
-    explicit TokenizedBaseType(CSTToken* token) : token(token) {}
-    CSTToken* cst_token() {
-        return token;
+    SourceLocation location;
+    constexpr explicit TokenizedBaseType(SourceLocation location) : location(location) {}
+    SourceLocation encoded_location() override {
+        return location;
     }
 };
 

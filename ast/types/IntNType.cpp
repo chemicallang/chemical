@@ -20,66 +20,66 @@
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
 
-const IntType IntType::instance(nullptr);
-const BigIntType BigIntType::instance(nullptr);
-const Int128Type Int128Type::instance(nullptr);
-const ShortType ShortType::instance(nullptr);
-const UBigIntType UBigIntType::instance(nullptr);
-const UInt128Type UInt128Type::instance(nullptr);
-const UIntType UIntType::instance(nullptr);
-const UShortType UShortType::instance(nullptr);
-const LongType LongType::instance64Bit(true, nullptr);
-const LongType LongType::instance32Bit(false, nullptr);
-const ULongType ULongType::instance64Bit(true, nullptr);
-const ULongType ULongType::instance32Bit(false, nullptr);
+const IntType IntType::instance(ZERO_LOC);
+const BigIntType BigIntType::instance(ZERO_LOC);
+const Int128Type Int128Type::instance(ZERO_LOC);
+const ShortType ShortType::instance(ZERO_LOC);
+const UBigIntType UBigIntType::instance(ZERO_LOC);
+const UInt128Type UInt128Type::instance(ZERO_LOC);
+const UIntType UIntType::instance(ZERO_LOC);
+const UShortType UShortType::instance(ZERO_LOC);
+const LongType LongType::instance64Bit(true, ZERO_LOC);
+const LongType LongType::instance32Bit(false, ZERO_LOC);
+const ULongType ULongType::instance64Bit(true, ZERO_LOC);
+const ULongType ULongType::instance32Bit(false, ZERO_LOC);
 
 Value *IntType::create(int64_t value) {
-    return new IntValue(value, nullptr);
+    return new IntValue(value, ZERO_LOC);
 }
 
 Value *CharType::create(int64_t value) {
-    return new CharValue(value, nullptr);
+    return new CharValue(value, location);
 }
 
 Value *UCharType::create(int64_t value) {
-    return new UCharValue(value, nullptr);
+    return new UCharValue(value, location);
 }
 
 Value *UIntType::create(int64_t value) {
-    return new UIntValue(value, nullptr);
+    return new UIntValue(value, location);
 }
 
 Value *ShortType::create(int64_t value) {
-    return new ShortValue(value, nullptr);
+    return new ShortValue(value, location);
 }
 
 Value *UShortType::create(int64_t value) {
-    return new UShortValue(value, nullptr);
+    return new UShortValue(value, location);
 }
 
 Value *LongType::create(int64_t value) {
-    return new LongValue(value, num_bits() == 64, nullptr);
+    return new LongValue(value, num_bits() == 64, location);
 }
 
 Value *ULongType::create(int64_t value) {
-    return new ULongValue(value, num_bits() == 64, nullptr);
+    return new ULongValue(value, num_bits() == 64, location);
 }
 
 Value *BigIntType::create(int64_t value) {
-    return new BigIntValue(value, nullptr);
+    return new BigIntValue(value, location);
 }
 
 Value *UBigIntType::create(int64_t value) {
-    return new UBigIntValue(value, nullptr);
+    return new UBigIntValue(value, location);
 }
 
 Value *Int128Type::create(int64_t value) {
     bool is_neg = value < 0;
-    return new Int128Value(is_neg ? -value : value, is_neg, nullptr);
+    return new Int128Value(is_neg ? -value : value, is_neg, location);
 }
 
 Value *UInt128Type::create(int64_t value) {
-    return new UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, nullptr);
+    return new UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, location);
 }
 
 constexpr inline bool isExe64Bit() {
@@ -101,11 +101,11 @@ double get_double_value(Value* value, ValueKind k) {
 Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value) {
     switch(kind) {
         case ValueKind::Double:
-            return new (scope.allocate<DoubleValue>()) DoubleValue((double) value, nullptr);
+            return new (scope.allocate<DoubleValue>()) DoubleValue((double) value, ZERO_LOC);
         case ValueKind::Float:
-            return new (scope.allocate<FloatValue>()) FloatValue((float) value, nullptr);
+            return new (scope.allocate<FloatValue>()) FloatValue((float) value, ZERO_LOC);
         case ValueKind::Bool:
-            return new (scope.allocate<BoolValue>()) BoolValue((int) value, nullptr);
+            return new (scope.allocate<BoolValue>()) BoolValue((int) value, ZERO_LOC);
         default:
             return nullptr;
     }
@@ -114,34 +114,34 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value) {
 Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value) {
     switch(kind) {
         case ValueKind::Char:
-            return new (scope.allocate<CharValue>()) CharValue((char) value, nullptr);
+            return new (scope.allocate<CharValue>()) CharValue((char) value, ZERO_LOC);
         case ValueKind::Short:
-            return new (scope.allocate<ShortValue>()) ShortValue((short) value, nullptr);
+            return new (scope.allocate<ShortValue>()) ShortValue((short) value, ZERO_LOC);
         case ValueKind::Int:
-            return new (scope.allocate<IntValue>()) IntValue((int) value, nullptr);
+            return new (scope.allocate<IntValue>()) IntValue((int) value, ZERO_LOC);
         case ValueKind::Long:
-            return new (scope.allocate<LongValue>()) LongValue((long) value, isExe64Bit(), nullptr);
+            return new (scope.allocate<LongValue>()) LongValue((long) value, isExe64Bit(), ZERO_LOC);
         case ValueKind::BigInt:
-            return new (scope.allocate<BigIntValue>()) BigIntValue((long long) value, nullptr);
+            return new (scope.allocate<BigIntValue>()) BigIntValue((long long) value, ZERO_LOC);
         case ValueKind::Int128:
             // TODO int128 is_negative is always false
-            return new (scope.allocate<Int128Value>()) Int128Value((uint64_t) value, false, nullptr);
+            return new (scope.allocate<Int128Value>()) Int128Value((uint64_t) value, false, ZERO_LOC);
         case ValueKind::UChar:
-            return new (scope.allocate<UCharValue>()) UCharValue((char) value, nullptr);
+            return new (scope.allocate<UCharValue>()) UCharValue((char) value, ZERO_LOC);
         case ValueKind::UShort:
-            return new (scope.allocate<UShortValue>()) UShortValue((short) value, nullptr);
+            return new (scope.allocate<UShortValue>()) UShortValue((short) value, ZERO_LOC);
         case ValueKind::UInt:
-            return new (scope.allocate<UIntValue>()) UIntValue((int) value, nullptr);
+            return new (scope.allocate<UIntValue>()) UIntValue((int) value, ZERO_LOC);
         case ValueKind::ULong:
-            return new (scope.allocate<ULongValue>()) ULongValue((long) value, isExe64Bit(), nullptr);
+            return new (scope.allocate<ULongValue>()) ULongValue((long) value, isExe64Bit(), ZERO_LOC);
         case ValueKind::UBigInt:
-            return new (scope.allocate<UBigIntValue>()) UBigIntValue((long long) value, nullptr);
+            return new (scope.allocate<UBigIntValue>()) UBigIntValue((long long) value, ZERO_LOC);
         case ValueKind::UInt128:
-            return new (scope.allocate<UInt128Value>()) UInt128Value((uint64_t) value, false, nullptr);
+            return new (scope.allocate<UInt128Value>()) UInt128Value((uint64_t) value, false, ZERO_LOC);
         case ValueKind::Bool:
-            return new (scope.allocate<BoolValue>()) BoolValue(value, nullptr);
+            return new (scope.allocate<BoolValue>()) BoolValue(value, ZERO_LOC);
         case ValueKind::NumberValue:
-            return new (scope.allocate<NumberValue>()) NumberValue(value, nullptr);
+            return new (scope.allocate<NumberValue>()) NumberValue(value, ZERO_LOC);
         default:
             return nullptr;
     }

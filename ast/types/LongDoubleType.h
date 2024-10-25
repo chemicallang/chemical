@@ -47,7 +47,7 @@ public:
 
     [[nodiscard]]
     LongDoubleType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<LongDoubleType>()) LongDoubleType(token);
+        return new (allocator.allocate<LongDoubleType>()) LongDoubleType(location);
     }
 
 #ifdef COMPILER_BUILD

@@ -7,7 +7,12 @@
 #include "Lexer.h"
 #include "ast/types/LinkedType.h"
 
-Lexer::Lexer(SourceProvider &provider, CompilerBinder* binder) : provider(provider), binder(binder), unit() {
+Lexer::Lexer(
+        unsigned int file_id,
+        SourceProvider &provider,
+        LocationManager& loc_man,
+        CompilerBinder* binder
+) : file_id(file_id), CSTDiagnoser(loc_man), provider(provider), binder(binder), unit() {
     unit.init();
 }
 

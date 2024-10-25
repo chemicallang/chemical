@@ -17,7 +17,7 @@ public:
     BaseType* interface_type;
     BaseType* struct_type;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * constructor
@@ -26,11 +26,11 @@ public:
             BaseType* interface_type,
             BaseType* struct_type,
             ASTNode* parent_node,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {
@@ -41,7 +41,8 @@ public:
      * constructor
      */
     ImplDefinition(
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            SourceLocation location
     );
 
     void set_parent(ASTNode* new_parent) final {

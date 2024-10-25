@@ -61,13 +61,6 @@ public:
     }
 
     /**
-     * will return empty, if no file path is available
-     */
-    virtual std::string get_file_path() {
-        return "";
-    }
-
-    /**
      * destructor
      */
     virtual ~InputSource() = default;

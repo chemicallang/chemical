@@ -6,7 +6,11 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/base/InterpretScope.h"
 
-BreakStatement::BreakStatement(LoopASTNode *node, ASTNode* parent_node, CSTToken* token) : node(node), parent_node(parent_node), value(nullptr), token(token) {
+BreakStatement::BreakStatement(
+    LoopASTNode *node,
+    ASTNode* parent_node,
+    SourceLocation location
+) : node(node), parent_node(parent_node), value(nullptr), location(location) {
 
 }
 

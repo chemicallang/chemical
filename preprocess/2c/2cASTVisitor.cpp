@@ -121,9 +121,10 @@ ToCAstVisitor::ToCAstVisitor(
     GlobalInterpretScope& scope,
     std::ostream *output,
     ASTAllocator& allocator,
+    LocationManager& manager,
     std::vector<std::string>* compiler_interfaces
 ) : comptime_scope(scope), output(output), allocator(allocator), declarer(new CValueDeclarationVisitor(*this)),
-    tld(*this, declarer.get()), ASTDiagnoser(), compiler_interfaces(compiler_interfaces)
+    tld(*this, declarer.get()), ASTDiagnoser(manager), compiler_interfaces(compiler_interfaces)
 {
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
     after_stmt = std::make_unique<CAfterStmtVisitor>(*this);
@@ -206,7 +207,7 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const std::string& id)
 void param_type_with_id(ToCAstVisitor& visitor, BaseType* type, const std::string& id) {
     const auto node = type->get_direct_linked_node();
     if(node && (node->as_struct_def() || node->as_variant_def())) {
-        PointerType ptr_type(type, nullptr);
+        PointerType ptr_type(type, ZERO_LOC);
         type_with_id(visitor, &ptr_type, id);
     } else {
         type_with_id(visitor, type, id);
@@ -1401,7 +1402,7 @@ public:
     void destruct_arr_ptr(const std::string& self_name, Value* array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructor);
 
     void destruct_arr(const std::string& self_name, int array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructor) {
-        IntValue siz(array_size, nullptr);
+        IntValue siz(array_size, ZERO_LOC);
         destruct_arr_ptr(self_name, &siz, linked, generic_iteration, destructor);
     }
 
@@ -1849,7 +1850,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
             aliases[var] = capture_struct_name;
             visitor.new_line_and_indent();
             if(var->capture_by_ref) {
-                PointerType pointer(var->linked->create_value_type(visitor.allocator), nullptr);
+                PointerType pointer(var->linked->create_value_type(visitor.allocator), ZERO_LOC);
                 pointer.accept(&visitor);
             } else {
                 var->linked->create_value_type(visitor.allocator)->accept(&visitor);
@@ -3458,7 +3459,7 @@ void ToCAstVisitor::visit(DestructStmt *stmt) {
     nested_value = true;
     auto self_name = string_accept(stmt->identifier);
     nested_value = prev_nested;
-    IntValue siz_val(data.array_size, nullptr);
+    IntValue siz_val(data.array_size, ZERO_LOC);
 
     if(stmt->is_array) {
         destructor->destruct_arr_ptr(self_name, data.array_size != -1 ? &siz_val : stmt->array_value, data.parent_node, 0, data.destructor_func);

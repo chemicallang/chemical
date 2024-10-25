@@ -16,14 +16,14 @@ public:
 
     Scope scope;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
     std::unordered_map<std::string, InitBlockInitializerValue> initializers;
     // the struct container for which init block is for
     ExtendableMembersContainerNode* container;
     // the function in which init block appears
     FunctionDeclaration* func_decl;
 
-    InitBlock(Scope scope, ASTNode* parent_node, CSTToken* token);
+    InitBlock(Scope scope, ASTNode* parent_node, SourceLocation location);
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
@@ -37,8 +37,8 @@ public:
         return parent_node;
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     void declare_and_link(SymbolResolver &linker) final;

@@ -9,14 +9,14 @@ class UShortValue : public IntNumValue {
 public:
 
     unsigned short value;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit UShortValue(unsigned short value, CSTToken* token) : value(value), token(token) {
+    explicit UShortValue(unsigned short value, SourceLocation location) : value(value), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -40,12 +40,12 @@ public:
     }
 
     UShortValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UShortValue>()) UShortValue(value, token);
+        return new (allocator.allocate<UShortValue>()) UShortValue(value, location);
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UShortType>()) UShortType(nullptr);
+        return new (allocator.allocate<UShortType>()) UShortType(location);
     }
 
     unsigned int get_num_bits() final {

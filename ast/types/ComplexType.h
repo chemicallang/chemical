@@ -9,7 +9,7 @@ public:
 
     BaseType* elem_type;
 
-    ComplexType(BaseType* elem_type, CSTToken* token) : TokenizedBaseType(token), elem_type(elem_type) {
+    ComplexType(BaseType* elem_type, SourceLocation location) : TokenizedBaseType(location), elem_type(elem_type) {
 
     }
 
@@ -49,7 +49,7 @@ public:
 
     [[nodiscard]]
     ComplexType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ComplexType>()) ComplexType(elem_type, token);
+        return new (allocator.allocate<ComplexType>()) ComplexType(elem_type, location);
     }
 
 #ifdef COMPILER_BUILD

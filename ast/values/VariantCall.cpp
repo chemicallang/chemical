@@ -138,7 +138,7 @@ void VariantCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
 
 #endif
 
-VariantCall::VariantCall(AccessChain* _chain, CSTToken* token) : chain(_chain), token(token) {
+VariantCall::VariantCall(AccessChain* _chain, SourceLocation location) : chain(_chain), location(location) {
     const auto func_call = chain->values.back()->as_func_call();
     if(func_call) {
         for(auto& value : func_call->values) {

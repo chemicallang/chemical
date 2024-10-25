@@ -11,14 +11,14 @@ public:
 
     uint64_t magnitude;
     bool is_negative;
-    CSTToken* token;
+    SourceLocation location;
 
-    Int128Value(uint64_t magnitude, bool is_negative, CSTToken* token) : magnitude(magnitude), is_negative(is_negative), token(token) {
+    Int128Value(uint64_t magnitude, bool is_negative, SourceLocation location) : magnitude(magnitude), is_negative(is_negative), location(location) {
 
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -42,12 +42,12 @@ public:
     }
 
     Int128Value *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<Int128Value>()) Int128Value(magnitude, is_negative, token);
+        return new (allocator.allocate<Int128Value>()) Int128Value(magnitude, is_negative, location);
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<Int128Type>()) Int128Type(token);
+        return new (allocator.allocate<Int128Type>()) Int128Type(location);
     }
 
     unsigned int get_num_bits() final {

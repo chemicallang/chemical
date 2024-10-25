@@ -18,6 +18,8 @@ class Scope;
 
 class ASTNode;
 
+class LocationManager;
+
 using node_map = std::unordered_map<std::string, ASTNode*>;
 using node_iterator = node_map::iterator;
 using value_map = std::unordered_map<std::string, Value*>;

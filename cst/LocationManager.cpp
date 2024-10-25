@@ -3,6 +3,21 @@
 #include "LocationManager.h"
 #include <stdexcept>
 
+unsigned int LocationManager::encodeFile(const std::string& filePath) {
+    auto itr = file_paths.find(filePath);
+    if(itr == file_paths.end()) {
+        const auto s = file_paths.size();
+        file_paths[filePath] = true;
+        return s;
+    } else {
+        return itr - file_paths.begin();
+    }
+}
+
+std::string_view LocationManager::getPathForFileId(unsigned int fileId) {
+    return (file_paths.begin() + fileId)->first;
+}
+
 uint64_t LocationManager::addLocation(uint32_t fileId, uint32_t lineStart, uint32_t charStart, uint32_t lineEnd, uint32_t charEnd) {
     // Validate values against bit constraints
     if (
@@ -29,6 +44,21 @@ uint64_t LocationManager::addLocation(uint32_t fileId, uint32_t lineStart, uint3
         uint64_t index = locations.size();
         locations.emplace_back(fileId, lineStart, charStart, lineEnd, charEnd);
         return INDICATOR_BIT_MASK | index; // Mark as an index with the indicator bit
+    }
+}
+
+uint32_t LocationManager::getLineStartFast(SourceLocation loc) {
+    const auto data = loc.encoded;
+    if (data & INDICATOR_BIT_MASK) { // Indicator bit check
+        uint64_t index = data & NOT_INDICATOR_BIT_MASK;
+#ifdef DEBUG
+        if (index >= locations.size()) {
+            throw std::out_of_range("Location index out of range.");
+        }
+#endif
+        return locations[index].lineStart;
+    } else {
+        return (data >> (LINE_START_SHIFT_BITS)) & MAX_LINE_START;
     }
 }
 

@@ -17,7 +17,7 @@ public:
     Value* secondValue; ///< The second value in the expression.
     Operation operation; ///< The operation between the two values.
     bool is64Bit; // is 64bit operating system
-    CSTToken* token;
+    SourceLocation location;
     BaseType* created_type = nullptr;
 
     /**
@@ -32,11 +32,11 @@ public:
             Value* secondValue,
             Operation operation,
             bool is64Bit,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

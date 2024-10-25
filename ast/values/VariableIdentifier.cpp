@@ -174,7 +174,7 @@ VarInitStatement *VariableIdentifier::declaration() {
 }
 
 VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
-    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(value, token);
+    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(value, location);
     id->linked = linked;
     return id;
 }

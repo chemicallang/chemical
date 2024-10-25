@@ -16,14 +16,14 @@ class CharValue : public IntNumValue {
 public:
 
     char value; ///< The character value.
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new CharValue object.
      *
      * @param value The character value.
      */
-    CharValue(char value, CSTToken* token) : value(value), token(token) {
+    CharValue(char value, SourceLocation location) : value(value), location(location) {
 
     }
 
@@ -40,8 +40,8 @@ public:
         return false;
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -61,11 +61,11 @@ public:
     }
 
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<CharType>()) CharType(nullptr);
+        return new (allocator.allocate<CharType>()) CharType(location);
     }
 
     CharValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<CharValue>()) CharValue(value, token);
+        return new (allocator.allocate<CharValue>()) CharValue(value, location);
     }
 
 #ifdef COMPILER_BUILD

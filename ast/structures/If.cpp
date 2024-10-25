@@ -175,9 +175,9 @@ IfStatement::IfStatement(
         std::optional<Scope> elseBody,
         ASTNode* parent_node,
         bool is_value,
-        CSTToken* token
+        SourceLocation location
 ) : condition(condition), ifBody(std::move(ifBody)),
-    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node), is_value(is_value), token(token) {}
+    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node), is_value(is_value), location(location) {}
 
 void IfStatement::accept(Visitor *visitor) {
     visitor->visit(this);

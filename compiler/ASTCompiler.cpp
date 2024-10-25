@@ -9,7 +9,7 @@
 void ASTProcessor::compile_nodes(
         Codegen& gen,
         std::vector<ASTNode*>& nodes_vec,
-        const std::string& abs_path
+        const std::string_view& abs_path
 ) {
     std::unique_ptr<BenchmarkResults> bm_results;
     if(options->benchmark) {

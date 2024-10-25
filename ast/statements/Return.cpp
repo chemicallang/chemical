@@ -9,8 +9,8 @@ ReturnStatement::ReturnStatement(
         Value* value,
         FunctionType *declaration,
         ASTNode* parent_node,
-        CSTToken* token
-) : value(value), func_type(declaration), parent_node(parent_node), token(token) {
+        SourceLocation location
+) : value(value), func_type(declaration), parent_node(parent_node), location(location) {
 
 }
 

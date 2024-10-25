@@ -11,14 +11,14 @@ public:
 
     uint64_t low;
     uint64_t high;
-    CSTToken* token;
+    SourceLocation location;
 
-    UInt128Value(uint64_t low, uint64_t high, CSTToken* token) : low(low), high(high), token(token) {
+    UInt128Value(uint64_t low, uint64_t high, SourceLocation location) : low(low), high(high), location(location) {
 
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -42,12 +42,12 @@ public:
     }
 
     UInt128Value *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UInt128Value>()) UInt128Value(low, high, token);
+        return new (allocator.allocate<UInt128Value>()) UInt128Value(low, high, location);
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UInt128Type>()) UInt128Type(nullptr);
+        return new (allocator.allocate<UInt128Type>()) UInt128Type(location);
     }
 
     unsigned int get_num_bits() final {

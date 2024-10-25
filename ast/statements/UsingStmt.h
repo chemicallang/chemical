@@ -13,23 +13,23 @@ public:
 
     AccessChain chain;
     bool is_namespace = false;
-    CSTToken* token;
+    SourceLocation location;
 
     UsingStmt(
         std::vector<ChainValue*> values,
         ASTNode* parent_node,
         bool is_namespace,
-        CSTToken* token
+        SourceLocation location
     );
 
     UsingStmt(
             AccessChain* chain,
             bool is_namespace,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

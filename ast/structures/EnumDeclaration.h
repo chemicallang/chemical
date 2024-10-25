@@ -18,7 +18,7 @@ class EnumDeclaration : public ExtendableAnnotableNode {
 public:
 
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
     AccessSpecifier specifier;
     LinkedType linked_type;
     IntType underlying_type;
@@ -33,14 +33,14 @@ public:
             std::string name,
             std::unordered_map<std::string, EnumMember*> members,
             ASTNode* parent_node,
-            CSTToken* token,
+            SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node), token(token), linked_type(name, this, token), underlying_type(token), specifier(specifier) {
+    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node), location(location), linked_type(name, this, location), underlying_type(location), specifier(specifier) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

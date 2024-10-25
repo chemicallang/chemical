@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    DynamicType(BaseType* referenced, CSTToken* token);
+    DynamicType(BaseType* referenced, SourceLocation location);
 
     void accept(Visitor* visitor) final {
         visitor->visit(this);
@@ -40,7 +40,7 @@ public:
 
     [[nodiscard]]
     DynamicType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<DynamicType>()) DynamicType(referenced->copy(allocator), token);
+        return new (allocator.allocate<DynamicType>()) DynamicType(referenced->copy(allocator), location);
     }
 
     ASTNode* linked_node() final {

@@ -9,14 +9,14 @@ class BigIntValue : public IntNumValue {
 public:
 
     long long value;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit BigIntValue(long long value, CSTToken* token) : value(value), token(token) {
+    explicit BigIntValue(long long value, SourceLocation location) : value(value), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -32,7 +32,7 @@ public:
     }
 
     BigIntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BigIntValue>()) BigIntValue(value, token);
+        return new (allocator.allocate<BigIntValue>()) BigIntValue(value, location);
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
@@ -45,7 +45,7 @@ public:
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<BigIntType>()) BigIntType(nullptr);
+        return new (allocator.allocate<BigIntType>()) BigIntType(location);
     }
 
     unsigned int get_num_bits() final {

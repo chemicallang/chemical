@@ -11,7 +11,7 @@ public:
     BaseType* type;
     bool is_mutable;
 
-    ReferenceType(BaseType* type, CSTToken* token, bool is_mutable = false) : type(type), TokenizedBaseType(token), is_mutable(is_mutable) {
+    ReferenceType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), TokenizedBaseType(location), is_mutable(is_mutable) {
 
     }
 
@@ -68,7 +68,7 @@ public:
 
     [[nodiscard]]
     ReferenceType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), token, is_mutable);
+        return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), location, is_mutable);
     }
 
     bool link(SymbolResolver &linker) final {

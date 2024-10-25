@@ -95,8 +95,8 @@ LambdaFunction::LambdaFunction(
         bool isVariadic,
         Scope scope,
         ASTNode* parent_node,
-        CSTToken* token
-) : captureList(std::move(captureList)), FunctionType(std::move(params), nullptr, isVariadic, !captureList.empty(), parent_node, token), scope(std::move(scope)) {
+        SourceLocation location
+) : captureList(std::move(captureList)), FunctionType(std::move(params), nullptr, isVariadic, !captureList.empty(), parent_node, location), scope(std::move(scope)) {
 
 }
 
@@ -107,7 +107,7 @@ BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes
             if(returnStmt->value) {
                 return returnStmt->value->create_type(allocator);
             } else {
-                return new VoidType(nullptr);
+                return new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
             }
         } else {
             const auto loop_ast = node->as_loop_ast();
@@ -119,7 +119,7 @@ BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes
             }
         }
     }
-    return new VoidType(nullptr);
+    return new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
 }
 
 void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {

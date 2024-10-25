@@ -18,7 +18,7 @@ public:
     BaseType* refType;
     std::unordered_map<std::string, StructMemberInitializer*> values;
     int16_t generic_iteration = 0;
-    CSTToken* token;
+    SourceLocation location;
     ASTNode* parent_node;
     ASTNodeKind linked_kind;
 #ifdef COMPILER_BUILD
@@ -35,7 +35,7 @@ public:
             BaseType* refType,
             std::unordered_map<std::string, StructMemberInitializer*> values,
             ExtendableMembersContainerNode *definition,
-            CSTToken* token,
+            SourceLocation location,
             ASTNode* parent
     );
 
@@ -44,12 +44,12 @@ public:
             std::unordered_map<std::string, StructMemberInitializer*> values,
             ExtendableMembersContainerNode *definition,
             InterpretScope &scope,
-            CSTToken* token,
+            SourceLocation location,
             ASTNode* parent
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

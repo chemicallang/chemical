@@ -43,6 +43,7 @@ public:
 
     /**
      * creates a Value of this type, but with the given value
+     * TODO VERY IMPORTANT TO PASS AN ALLOCATOR SO VALUE CAN BE CREATED USING IT
      */
     virtual Value* create(int64_t value) = 0;
 

@@ -27,7 +27,7 @@ public:
      */
     explicit MultiFunctionNode(std::string name);
 
-    CSTToken *cst_token() final;
+    SourceLocation encoded_location() final;
 
     ASTNodeKind kind() final {
         return ASTNodeKind::MultiFunctionNode;

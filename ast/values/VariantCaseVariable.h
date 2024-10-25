@@ -12,15 +12,15 @@ public:
     std::string name;
     VariantCase* variant_case;
     VariantMemberParam* member_param;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * variant case
      */
-    VariantCaseVariable(std::string name, VariantCase* variant_case, CSTToken* token);
+    VariantCaseVariable(std::string name, VariantCase* variant_case, SourceLocation token);
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     void accept(Visitor *visitor) final;

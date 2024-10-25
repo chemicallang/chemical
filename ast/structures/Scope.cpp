@@ -54,7 +54,7 @@ void Scope::interpret(InterpretScope &scope) {
     }
 }
 
-Scope::Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, CSTToken* token) : nodes(std::move(nodes)), parent_node(parent_node), token(token) {
+Scope::Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : nodes(std::move(nodes)), parent_node(parent_node), location(location) {
 
 }
 
@@ -155,7 +155,7 @@ BaseType* LoopBlock::known_type() {
     return get_first_broken()->known_type();
 }
 
-InitBlock::InitBlock(Scope scope, ASTNode* parent_node, CSTToken* token) : scope(std::move(scope)), parent_node(parent_node), token(token) {
+InitBlock::InitBlock(Scope scope, ASTNode* parent_node, SourceLocation location) : scope(std::move(scope)), parent_node(parent_node), location(location) {
 
 }
 

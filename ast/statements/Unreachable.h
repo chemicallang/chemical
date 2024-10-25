@@ -13,17 +13,17 @@ class UnreachableStmt : public ASTNode {
 public:
 
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * Construct a new ContinueStatement object.
      */
-    UnreachableStmt(ASTNode* parent_node, CSTToken* token) : parent_node(parent_node), token(token) {
+    UnreachableStmt(ASTNode* parent_node, SourceLocation location) : parent_node(parent_node), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

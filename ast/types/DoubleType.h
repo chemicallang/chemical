@@ -47,7 +47,7 @@ public:
 
     [[nodiscard]]
     DoubleType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<DoubleType>()) DoubleType(token);
+        return new (allocator.allocate<DoubleType>()) DoubleType(location);
     }
 
 #ifdef COMPILER_BUILD

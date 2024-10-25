@@ -231,9 +231,9 @@ VarInitStatement::VarInitStatement(
         BaseType* type,
         Value* value,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         AccessSpecifier specifier
-) : is_const(is_const), identifier(std::move(identifier)), type(type), value(value), parent_node(parent_node), token(token), specifier(specifier) {
+) : is_const(is_const), identifier(std::move(identifier)), type(type), value(value), parent_node(parent_node), location(location), specifier(specifier) {
 
 }
 

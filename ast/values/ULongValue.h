@@ -10,14 +10,14 @@ public:
 
     unsigned long value;
     bool is64Bit;
-    CSTToken* token;
+    SourceLocation location;
 
-    ULongValue(unsigned long value, bool is64Bit, CSTToken* token) : value(value), is64Bit(is64Bit), token(token) {
+    ULongValue(unsigned long value, bool is64Bit, SourceLocation location) : value(value), is64Bit(is64Bit), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -41,12 +41,12 @@ public:
     }
 
     ULongValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<ULongValue>()) ULongValue(value, is64Bit, token);
+        return new (allocator.allocate<ULongValue>()) ULongValue(value, is64Bit, location);
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, nullptr);
+        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, location);
     }
 
     unsigned int get_num_bits() final {

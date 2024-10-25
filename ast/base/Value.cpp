@@ -641,37 +641,37 @@ Value* Value::find_in(InterpretScope& scope, Value* parent) {
     return nullptr;
 }
 
-IntNumValue* IntNumValue::create_number(ASTAllocator& alloc, unsigned int bitWidth, bool is_signed, uint64_t value, CSTToken* token) {
+IntNumValue* IntNumValue::create_number(ASTAllocator& alloc, unsigned int bitWidth, bool is_signed, uint64_t value, SourceLocation location) {
     switch(bitWidth) {
         case 8:
             if(is_signed) {
-                return new (alloc.allocate<CharValue>()) CharValue((char) value, token);
+                return new (alloc.allocate<CharValue>()) CharValue((char) value, location);
             } else {
-                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, token);
+                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, location);
             }
         case 16:
             if(is_signed) {
-                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, token);
+                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, location);
             } else {
-                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, token);
+                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, location);
             }
         case 32:
             if(is_signed) {
-                return new (alloc.allocate<IntValue>()) IntValue((int) value, token);
+                return new (alloc.allocate<IntValue>()) IntValue((int) value, location);
             } else {
-                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, token);
+                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, location);
             }
         case 64:
             if(is_signed) {
-                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, token);
+                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, location);
             } else {
-                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, token);
+                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, location);
             }
         case 128:
             if(is_signed) {
-                return new (alloc.allocate<Int128Value>()) Int128Value(value, false, token);
+                return new (alloc.allocate<Int128Value>()) Int128Value(value, false, location);
             } else {
-                return new (alloc.allocate<UInt128Value>()) UInt128Value(value, false, token);
+                return new (alloc.allocate<UInt128Value>()) UInt128Value(value, false, location);
             }
         default:
 #ifdef DEBUG

@@ -15,6 +15,6 @@ enum class DiagSeverity : int {
     Hint = 4
 };
 
-std::ostream& color(std::ostream& os, DiagSeverity severity);
+void color(std::ostream& os, DiagSeverity severity);
 
 std::string to_string(DiagSeverity severity);

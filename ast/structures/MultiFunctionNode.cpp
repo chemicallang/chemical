@@ -8,8 +8,8 @@ MultiFunctionNode::MultiFunctionNode(std::string name) : name(std::move(name)) {
 
 }
 
-CSTToken *MultiFunctionNode::cst_token() {
-    return functions[0]->cst_token();
+SourceLocation MultiFunctionNode::encoded_location() {
+    return functions[0]->encoded_location();
 }
 
 FunctionDeclaration* MultiFunctionNode::func_for_call(ASTAllocator& allocator, std::vector<Value*>& args) {

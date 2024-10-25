@@ -12,20 +12,20 @@ public:
     unsigned int index;
     EnumDeclaration* parent_node;
     Value* init_value;
-    CSTToken* token;
+    SourceLocation location;
 
     EnumMember(
         std::string  name,
         unsigned int index,
         Value* init_value,
         EnumDeclaration* parent_node,
-        CSTToken* token
-    ) : name(std::move(name)), index(index), init_value(init_value), parent_node(parent_node), token(token) {
+        SourceLocation location
+    ) : name(std::move(name)), index(index), init_value(init_value), parent_node(parent_node), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

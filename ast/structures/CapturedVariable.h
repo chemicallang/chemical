@@ -13,7 +13,7 @@ public:
     unsigned int index;
     LambdaFunction *lambda;
     ASTNode *linked;
-    CSTToken* token;
+    SourceLocation location;
     PointerType ptrType;
 
 
@@ -21,11 +21,11 @@ public:
         std::string name,
         unsigned int index,
         bool capture_by_ref,
-        CSTToken* token
+        SourceLocation location
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

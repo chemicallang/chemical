@@ -11,8 +11,8 @@ AssignStatement::AssignStatement(
         Value* value,
         Operation assOp,
         ASTNode* parent_node,
-        CSTToken* token
-) : lhs(lhs), value(value), assOp(assOp), parent_node(parent_node), token(token) {
+        SourceLocation location
+) : lhs(lhs), value(value), assOp(assOp), parent_node(parent_node), location(location) {
 
 }
 

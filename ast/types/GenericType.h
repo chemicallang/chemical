@@ -38,9 +38,9 @@ public:
     GenericType(LinkedType* referenced, int16_t generic_itr);
 
     /**
-     * cst token
+     * get encoded location
      */
-    CSTToken* cst_token() final;
+    SourceLocation encoded_location() override;
 
     /**
      * accept the visitor

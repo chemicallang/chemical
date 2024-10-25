@@ -295,7 +295,7 @@ BaseType* ASTNode::create_value_type(ASTAllocator& allocator) {
 
 ASTNode::~ASTNode() = default;
 
-ASTUnit::ASTUnit() : scope(nullptr, nullptr) {}
+ASTUnit::ASTUnit() : scope(nullptr, ZERO_LOC) {}
 
 ASTUnit::ASTUnit(ASTUnit&& other) noexcept = default;
 

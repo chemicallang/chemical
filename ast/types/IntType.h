@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]]
     IntType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<IntType>()) IntType(token);
+        return new (allocator.allocate<IntType>()) IntType(location);
     }
 
 };

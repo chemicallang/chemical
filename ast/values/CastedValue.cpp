@@ -6,8 +6,8 @@
 CastedValue::CastedValue(
         Value* value,
         BaseType* type,
-        CSTToken* token
-) : value(value), type(type), token(token) {
+        SourceLocation location
+) : value(value), type(type), location(location) {
 
 }
 
@@ -15,7 +15,7 @@ CastedValue *CastedValue::copy(ASTAllocator& allocator) {
     return new CastedValue(
         value->copy(allocator),
         type->copy(allocator),
-        token
+        location
     );
 }
 

@@ -168,11 +168,10 @@ ArrayValue::ArrayValue(
     std::vector<Value*> values,
     BaseType* elemType,
     std::vector<unsigned int> sizes,
-    CSTToken* token,
+    SourceLocation location,
     ASTAllocator& allocator
-) : values(std::move(values)), sizes(std::move(sizes)), token(token) {
-    created_type = new (allocator.allocate<ArrayType>()) ArrayType(elemType, (int) array_size(), nullptr);
-    values.shrink_to_fit();
+) : values(std::move(values)), sizes(std::move(sizes)), location(location) {
+    created_type = new (allocator.allocate<ArrayType>()) ArrayType(elemType, (int) array_size(), ZERO_LOC);
 }
 
 BaseType*& ArrayValue::known_elem_type() const {
@@ -241,9 +240,9 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
             unsigned int i = sizes.size() - 1;
             while(i > 0) {
                 if(i == sizes.size() - 1) {
-                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(known, sizes[i], token);
+                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(known, sizes[i], location);
                 } else {
-                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(elementType, sizes[i], token);
+                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(elementType, sizes[i], location);
                 }
                 i--;
             }
@@ -259,7 +258,7 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
 }
 
 BaseType* ArrayValue::create_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<ArrayType>()) ArrayType(element_type(allocator), array_size(), nullptr);
+    return new (allocator.allocate<ArrayType>()) ArrayType(element_type(allocator), array_size(), location);
 }
 
 //hybrid_ptr<BaseType> ArrayValue::get_base_type() {

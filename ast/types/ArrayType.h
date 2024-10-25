@@ -10,13 +10,12 @@ public:
 
     BaseType* elem_type;
     int array_size;
-    CSTToken* token;
 
     ArrayType(
         BaseType* elem_type,
         int array_size,
-        CSTToken* token
-    ) : elem_type(elem_type), array_size(array_size), TokenizedBaseType(token) {
+        SourceLocation location
+    ) : elem_type(elem_type), array_size(array_size), TokenizedBaseType(location) {
 
     }
 
@@ -69,7 +68,7 @@ public:
 
     [[nodiscard]]
     ArrayType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size, token);
+        return new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size, location);
     }
 
     bool satisfies(ValueType type) final {

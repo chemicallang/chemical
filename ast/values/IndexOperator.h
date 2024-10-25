@@ -15,14 +15,14 @@ public:
 
     ChainValue *parent_val;
     std::vector<Value*> values;
-    CSTToken* token;
+    SourceLocation location;
 
-    IndexOperator(std::vector<Value*> indexes, CSTToken* token) : values(std::move(indexes)), token(token) {
+    IndexOperator(std::vector<Value*> indexes, SourceLocation location) : values(std::move(indexes)), location(location) {
 
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

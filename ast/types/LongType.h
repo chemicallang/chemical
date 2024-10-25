@@ -12,7 +12,7 @@ public:
 
     bool is64Bit;
 
-    explicit LongType(bool is64Bit, CSTToken* token) : is64Bit(is64Bit), IntNType(token) {
+    explicit LongType(bool is64Bit, SourceLocation location) : is64Bit(is64Bit), IntNType(location) {
 
     }
 
@@ -42,7 +42,7 @@ public:
 
     [[nodiscard]]
     LongType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<LongType>()) LongType(is64Bit, token);
+        return new (allocator.allocate<LongType>()) LongType(is64Bit, location);
     }
 
 

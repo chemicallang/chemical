@@ -10,8 +10,8 @@ ProvideStmt::ProvideStmt(
     std::string identifier,
     Scope scope,
     ASTNode* parent,
-    CSTToken* token
-) : value(value), identifier(std::move(identifier)), body(std::move(scope)), parent_node(parent), token(token) {
+    SourceLocation location
+) : value(value), identifier(std::move(identifier)), body(std::move(scope)), parent_node(parent), location(location) {
 
 }
 

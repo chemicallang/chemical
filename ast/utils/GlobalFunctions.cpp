@@ -34,6 +34,7 @@
 #include "ast/types/UIntType.h"
 #include "ast/values/NullValue.h"
 #include "ast/types/ReferenceType.h"
+#include "cst/LocationManager.h"
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
 #endif
@@ -130,7 +131,7 @@ namespace InterpretVector {
             nullptr,
             {},
             (StructDefinition*) node,
-            nullptr,
+            ZERO_LOC,
             nullptr
         ) {
 
@@ -143,7 +144,7 @@ namespace InterpretVector {
             &node->selfType,
             false,
             node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
     ) {
@@ -160,15 +161,15 @@ namespace InterpretVector {
         &retType,
         false,
         node,
-        nullptr,
+        ZERO_LOC,
         std::nullopt,
         AccessSpecifier::Public
-    ), retType(nullptr), selfParam("self", &node->selfReference, 0, nullptr, true, this, nullptr) {
+    ), retType(ZERO_LOC), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC) {
         params.emplace_back(&selfParam);
     }
 
     Value *InterpretVectorSize::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        return new (call_scope->allocate<IntValue>()) IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), nullptr);
+        return new (call_scope->allocate<IntValue>()) IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), ZERO_LOC);
     }
 
 
@@ -179,11 +180,11 @@ namespace InterpretVector {
             &returnLinkedType,
             false,
             node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), returnLinkedType("T", &node->typeParam, nullptr),
-        selfParam("self", &node->selfReference, 0, nullptr, true, this, nullptr), indexType(nullptr), indexParam("index", &indexType, 1, nullptr, false, this, nullptr)
+    ), returnLinkedType("T", &node->typeParam, ZERO_LOC),
+        selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -199,11 +200,11 @@ namespace InterpretVector {
             &returnVoidType,
             false,
             node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, nullptr), returnVoidType(nullptr),
-        valueType("T", &node->typeParam, nullptr), valueParam("value", &valueType, 1, nullptr, false, this, nullptr)
+    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
+        valueType("T", &node->typeParam, ZERO_LOC), valueParam("value", &valueType, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&valueParam);
@@ -220,11 +221,11 @@ namespace InterpretVector {
             &returnVoidType,
             false,
             node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, nullptr), returnVoidType(nullptr),
-        indexType(nullptr), indexParam("index", &indexType, 1, nullptr, false, this, nullptr)
+    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
+        indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -237,10 +238,10 @@ namespace InterpretVector {
 
     InterpretVectorNode::InterpretVectorNode(
         ASTNode* parent_node
-    ): StructDefinition("vector", parent_node, nullptr, AccessSpecifier::Public),
+    ): StructDefinition("vector", parent_node, ZERO_LOC, AccessSpecifier::Public),
         constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
-        typeParam("T", nullptr, nullptr, this, 0, nullptr),
-        selfType("vector", this, nullptr), selfReference(&selfType, nullptr)
+        typeParam("T", nullptr, nullptr, this, 0, ZERO_LOC),
+        selfType("vector", this, ZERO_LOC), selfReference(&selfType, ZERO_LOC)
     {
         add_annotation(AnnotationKind::CompTime);
         generic_params.emplace_back(&typeParam);
@@ -267,10 +268,10 @@ public:
             &returnType,
             true,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), visitor(ostring),  returnType(nullptr) {
+    ), visitor(ostring),  returnType(ZERO_LOC) {
         visitor.interpret_representation = true;
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -323,10 +324,10 @@ public:
             &returnType,
             false,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), returnType(nullptr), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, false, this, nullptr) {
+    ), returnType(ZERO_LOC), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
@@ -348,11 +349,11 @@ public:
         }
         switch(val_type) {
             case ValueType::String:
-                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->get_the_string().length(), nullptr);
+                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->get_the_string().length(), ZERO_LOC);
             case ValueType::Array:
-                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->as_array_value()->array_size(), nullptr);
+                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->as_array_value()->array_size(), ZERO_LOC);
             default:
-                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, nullptr);
+                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
         }
     }
 };
@@ -363,8 +364,8 @@ public:
     explicit WrapValue(Value* underlying) : underlying(underlying) {
 
     }
-    CSTToken *cst_token() final {
-        return nullptr;
+    SourceLocation encoded_location() override {
+        return ZERO_LOC;
     }
     void accept(Visitor *visitor) final {
         throw std::runtime_error("compiler::wrap value cannot be visited");
@@ -392,10 +393,10 @@ public:
             &anyType,
             true,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, false, this, nullptr) {
+    ), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
@@ -422,10 +423,10 @@ public:
             &anyType,
             true,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, false, this, nullptr) {
+    ), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
@@ -451,14 +452,14 @@ public:
             &ptrType,
             true,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), voidType(nullptr), ptrType(&voidType, nullptr) {
+    ), voidType(ZERO_LOC), ptrType(&voidType, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (call_scope->allocate<RetStructParamValue>()) RetStructParamValue(nullptr);
+        return new (call_scope->allocate<RetStructParamValue>()) RetStructParamValue(ZERO_LOC);
     }
 };
 
@@ -473,10 +474,10 @@ public:
             &stringType,
             false,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), stringType(nullptr) {
+    ), stringType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -486,7 +487,7 @@ public:
         val.append(std::to_string(PROJECT_VERSION_MINOR));
         val.append(1, '.');
         val.append(std::to_string(PROJECT_VERSION_PATCH));
-        return new (call_scope->allocate<StringValue>()) StringValue(std::move(val), nullptr);
+        return new (call_scope->allocate<StringValue>()) StringValue(std::move(val), ZERO_LOC);
     }
 };
 
@@ -501,17 +502,17 @@ public:
             &boolType,
             false,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), boolType(nullptr) {
+    ), boolType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 #ifdef TCC_BUILD
-        return new (call_scope->allocate<BoolValue>()) BoolValue(true, nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(true, ZERO_LOC);
 #else
-        return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
 #endif
     }
 };
@@ -527,17 +528,17 @@ public:
             &boolType,
             false,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), boolType(nullptr) {
+    ), boolType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 #ifdef COMPILER_BUILD
-        return new (call_scope->allocate<BoolValue>()) BoolValue(true, nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(true, ZERO_LOC);
 #else
-        return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
 #endif
     }
 };
@@ -553,15 +554,15 @@ public:
             &uIntType,
             false,
             nullptr,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), uIntType(nullptr) {
+    ), uIntType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        const auto token = call->token->start_token();
-        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(token->lineNumber() + 1, nullptr);
+        const auto loc = call_scope->global->loc_man.getLocation(call->location);
+        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, call->location);
     }
 
 };
@@ -577,15 +578,15 @@ public:
             &uIntType,
             false,
             nullptr,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), uIntType(nullptr) {
+    ), uIntType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        const auto token = call->token->start_token();
-        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(token->lineCharNumber() + 1, nullptr);
+        const auto loc = call_scope->global->loc_man.getLocation(call->location);
+        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, call->location);
     }
 
 };
@@ -610,19 +611,20 @@ public:
             &uIntType,
             false,
             nullptr,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), uIntType(nullptr) {
+    ), uIntType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto global = call_scope->global;;
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
-            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(runtime_call->token->start_token()->lineNumber() + 1, nullptr);
+            const auto loc = global->loc_man.getLocation(runtime_call->location);
+            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, ZERO_LOC);
         } else {
-            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, nullptr);
+            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
         }
     }
 
@@ -639,19 +641,20 @@ public:
             &uIntType,
             false,
             nullptr,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), uIntType(nullptr) {
+    ), uIntType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *self_call, Value *parent_val, bool evaluate_refs) final {
         const auto global = call_scope->global;;
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
-            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(runtime_call->token->start_token()->lineCharNumber() + 1, nullptr);
+            const auto loc = global->loc_man.getLocation(runtime_call->location);
+            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, ZERO_LOC);
         } else {
-            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, nullptr);
+            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
         }
     }
 
@@ -670,20 +673,20 @@ public:
             &boolType,
             false,
             nullptr,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), boolType(nullptr), stringType(nullptr), valueParam("value", &stringType, 0, nullptr, false, this, nullptr) {
+    ), boolType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
+        if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         auto val = call->values[0]->evaluated_value(*call_scope);
-        if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
+        if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         auto& definitions = call_scope->global->build_compiler->current_job->definitions;
         auto found = definitions.find(val->get_the_string());
-        return new (call_scope->allocate<BoolValue>()) BoolValue(found != definitions.end(), nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(found != definitions.end(), ZERO_LOC);
     }
 };
 
@@ -701,17 +704,17 @@ public:
             &voidType,
             false,
             nullptr,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), voidType(nullptr), stringType(nullptr), valueParam("value", &stringType, 0, nullptr, false, this, nullptr) {
+    ), voidType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
+        if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         auto val = call->values[0]->evaluated_value(*call_scope);
-        if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
+        if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         call_scope->error(val->get_the_string(), call);
     }
 };
@@ -730,18 +733,18 @@ public:
             &returnType,
             false,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), returnType(nullptr), anyType(nullptr),
-    valueParam("value", &anyType, 0, nullptr, false, this, nullptr),
-    valueParam2("value2", &anyType, 1, nullptr, false, this, nullptr) {
+    ), returnType(ZERO_LOC), anyType(ZERO_LOC),
+    valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC),
+    valueParam2("value2", &anyType, 1, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
         params.emplace_back(&valueParam2);
     }
     inline Value* get_bool(InterpretScope *call_scope, bool value) {
-        return new (call_scope->allocate<BoolValue>()) BoolValue(value, nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(value, ZERO_LOC);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.size() != 2) {
@@ -776,17 +779,17 @@ public:
             &boolType,
             false,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
-              AccessSpecifier::Public
-    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
-        valueParam("value", &ptrType, 0, nullptr, false, this, nullptr)
+            AccessSpecifier::Public
+    ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
+        valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
     {
         annotations.emplace_back(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, nullptr));
+        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, ZERO_LOC));
     }
 };
 
@@ -806,17 +809,17 @@ public:
             &boolType,
             false,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
-              AccessSpecifier::Public
-    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
-        valueParam("value", &ptrType, 0, nullptr, false, this, nullptr)
+            AccessSpecifier::Public
+    ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
+        valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
     {
         annotations.emplace_back(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, false, nullptr));
+        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, false, ZERO_LOC));
     }
 };
 
@@ -834,11 +837,11 @@ public:
             &boolType,
             false,
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public
-    ), boolType(nullptr), stringType(nullptr), destValueParam("dest_value", &stringType, 0, nullptr, false, this, nullptr),
-      sourceValueParam("source_value", &stringType, 1, nullptr, false, this, nullptr){
+    ), boolType(ZERO_LOC), stringType(ZERO_LOC), destValueParam("dest_value", &stringType, 0, nullptr, false, this, ZERO_LOC),
+      sourceValueParam("source_value", &stringType, 1, nullptr, false, this, ZERO_LOC){
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&destValueParam);
         params.emplace_back(&sourceValueParam);
@@ -895,7 +898,7 @@ public:
 
     CompilerNamespace(
 
-    ) : Namespace("compiler", nullptr, nullptr, AccessSpecifier::Public),
+    ) : Namespace("compiler", nullptr, ZERO_LOC, AccessSpecifier::Public),
         printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this),
         satisfiesFn(this)
@@ -918,7 +921,7 @@ public:
 
     explicit MemNamespace(
         ASTNode* parent_node
-    ) : Namespace("mem", parent_node, nullptr, AccessSpecifier::Public), memCopyFn(this) {
+    ) : Namespace("mem", parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(this) {
         add_annotation(AnnotationKind::CompTime);
         nodes = { &memCopyFn };
     }
@@ -933,7 +936,7 @@ public:
 
     explicit PtrNamespace(
             ASTNode* parent_node
-    ) : Namespace("ptr", parent_node, nullptr, AccessSpecifier::Public),
+    ) : Namespace("ptr", parent_node, ZERO_LOC, AccessSpecifier::Public),
         isNullFn(this), isNotNullFn(this)
     {
         add_annotation(AnnotationKind::CompTime);
@@ -951,7 +954,7 @@ public:
 
     StdNamespace(
 
-    ) : Namespace("std", nullptr, nullptr, AccessSpecifier::Public),
+    ) : Namespace("std", nullptr, ZERO_LOC, AccessSpecifier::Public),
         memNamespace(this), ptrNamespace(this)
     {
         add_annotation(AnnotationKind::CompTime);
@@ -964,7 +967,7 @@ class DefDecl : public StructDefinition {
 public:
 
     DefDecl() : StructDefinition(
-            "Def", nullptr, nullptr, AccessSpecifier::Public
+            "Def", nullptr, ZERO_LOC, AccessSpecifier::Public
     ) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -980,9 +983,9 @@ public:
             &id,
             {},
             defDecl,
-            nullptr,
+            ZERO_LOC,
             nullptr
-    ), id("Def", defDecl, nullptr) {}
+    ), id("Def", defDecl, ZERO_LOC) {}
 
 };
 
@@ -992,12 +995,12 @@ struct DefThing {
     DefValue defValue;
     VarInitStatement defStmt;
 
-    DefThing() : defValue(&decl), defStmt(true, "def", defValue.refType, &defValue, nullptr, nullptr, AccessSpecifier::Public) {
+    DefThing() : defValue(&decl), defStmt(true, "def", defValue.refType, &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
         defStmt.add_annotation(AnnotationKind::CompTime);
     }
 
     void declare_value(ASTAllocator& allocator, const std::string& name, BaseType* type, Value* value) {
-        const auto member = new (allocator.allocate<StructMember>()) StructMember(name, type, nullptr, &decl, nullptr, true);
+        const auto member = new (allocator.allocate<StructMember>()) StructMember(name, type, nullptr, &decl, ZERO_LOC, true);
         decl.variables[name] = member;
         const auto init = new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(name, value, &defValue, member);
         defValue.values[name] = init;
@@ -1233,7 +1236,7 @@ void GlobalInterpretScope::prepare_target_data(TargetData& data) {
 #endif
 
 BoolValue* boolValue(ASTAllocator& allocator, bool value) {
-    return new (allocator.allocate<BoolValue>()) BoolValue(value, nullptr);
+    return new (allocator.allocate<BoolValue>()) BoolValue(value, ZERO_LOC);
 }
 
 void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) {
@@ -1243,7 +1246,7 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) 
     auto& allocator = scope.allocator;
     // we change the global interpret scope for each job, so we must redeclare def value
     scope.values["def"] = &defThing.defValue;
-    const auto boolType = new (allocator.allocate<BoolType>()) BoolType(nullptr);
+    const auto boolType = new (allocator.allocate<BoolType>()) BoolType(ZERO_LOC);
     defThing.declare_value(allocator, "is64Bit", boolType, boolValue(allocator, targetData.is_64Bit));
     defThing.declare_value(allocator, "windows", boolType, boolValue(allocator, targetData.is_windows));
     defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, targetData.is_win32));

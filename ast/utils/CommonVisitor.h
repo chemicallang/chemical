@@ -9,58 +9,58 @@ public:
 
     bool is_top_level_node = true;
 
-    void visit(Scope *scope) override;
+    void visit(Scope *scope);
 
-    void visit(FunctionCall *call) override;
+    void visit(FunctionCall *call);
 
-    void visit(VariantCall *call) override;
+    void visit(VariantCall *call);
 
-    void visit(Expression *expr) override;
+    void visit(Expression *expr) final;
 
-    void visit(CastedValue *casted) override;
+    void visit(CastedValue *casted) final;
 
-    void visit(ValueNode *node) override;
+    void visit(ValueNode *node) final;
 
-    void visit(UnsafeBlock *block) override;
+    void visit(UnsafeBlock *block) final;
 
-    void visit(VarInitStatement *init) override;
+    void visit(VarInitStatement *init);
 
-    void visit(ReturnStatement *stmt) override;
+    void visit(ReturnStatement *stmt);
 
-    void visit(AssignStatement *assign) override;
+    void visit(AssignStatement *assign) final;
 
-    void visit(FunctionDeclaration *decl) override;
+    void visit(FunctionDeclaration *decl);
 
-    void visit(FunctionParam *functionParam) override;
+    void visit(FunctionParam *functionParam) final;
 
-    void visit(StructDefinition *structDefinition) override;
+    void visit(StructDefinition *structDefinition) final;
 
-    void visit(Namespace *ns) override;
+    void visit(Namespace *ns) final;
 
-    void visit(StructMember *member) override;
+    void visit(StructMember *member);
 
-    void visit(LambdaFunction *func) override;
+    void visit(LambdaFunction *func);
 
-    void visit(IfStatement *stmt) override;
+    void visit(IfStatement *stmt);
 
-    void visit(DestructStmt *delStmt) override;
+    void visit(DestructStmt *delStmt) final;
 
-    void visit(WhileLoop *whileLoop) override;
+    void visit(WhileLoop *whileLoop) final;
 
-    void visit(DoWhileLoop *doWhileLoop) override;
+    void visit(DoWhileLoop *doWhileLoop) final;
 
-    void visit(ForLoop *forLoop) override;
+    void visit(ForLoop *forLoop) final;
 
-    void visit(SwitchStatement *statement) override;
+    void visit(SwitchStatement *statement) final;
 
-    void visit(AccessChain *chain) override;
+    void visit(AccessChain *chain);
 
-    void visit(StructValue *structValue) override;
+    void visit(StructValue *structValue);
 
-    void visit(StructMemberInitializer *init) override;
+    void visit(StructMemberInitializer *init) final;
 
-    void visit(ArrayValue *arrayVal) override;
+    void visit(ArrayValue *arrayVal);
 
-    void visit(ArrayType *func) override;
+    void visit(ArrayType *func) final;
 
 };

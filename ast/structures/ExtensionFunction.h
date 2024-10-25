@@ -24,55 +24,55 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    std::vector<llvm::Type *> param_types(Codegen &gen) override;
+    std::vector<llvm::Type *> param_types(Codegen &gen) final;
 
 #endif
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::ExtensionFunctionDecl;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    ExtensionFunction * as_extension_func() override {
+    ExtensionFunction * as_extension_func() final {
         return this;
     }
 
-    std::string func_opt_name() override {
+    std::string func_opt_name() final {
         return name;
     }
 
     /**
      * creates value type
      */
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() final;
 
     /**
      * all extension functions require self, because they are extensions on self, which is the receiver
      */
-    BaseFunctionParam *get_self_param() override {
+    BaseFunctionParam *get_self_param() final {
         return &receiver;
     }
 
     /**
      * first param self is not part of params, so index shifts to 1
      */
-    unsigned int c_or_llvm_arg_start_index() override {
+    unsigned int c_or_llvm_arg_start_index() final {
         return FunctionDeclaration::c_or_llvm_arg_start_index() + 1;
     }
 
     /**
      * extension function will add references to extendable members container
      */
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
     /**
      * declare and link
      */
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
 };

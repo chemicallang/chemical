@@ -113,12 +113,12 @@ public:
     bool do_param_types_match(std::vector<FunctionParam*>& param_types, bool check_self = true);
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Function;
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const {
         return ValueType::Lambda;
     }
 
@@ -126,9 +126,9 @@ public:
 
     unsigned int expectedArgsSize();
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) {
         visitor->visit(this);
     }
 
@@ -155,16 +155,16 @@ public:
         return equal(other);
     }
 
-    bool is_same(BaseType *other) override {
+    bool is_same(BaseType *other) final {
         return other->kind() == kind() && equal_type(static_cast<FunctionType *>(other));
     }
 
-    bool satisfies(ValueType type) override;
+    bool satisfies(ValueType type) final;
 
     [[nodiscard]]
-    FunctionType* copy(ASTAllocator& allocator) const override;
+    FunctionType* copy(ASTAllocator& allocator) const final;
 
-    bool link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker) final;
 
     /**
      * un_move a chain, if found to be moved
@@ -303,9 +303,9 @@ public:
 
     void queue_destruct_params(Codegen &gen);
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen);
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
+    llvm::FunctionType *llvm_func_type(Codegen &gen);
 
 #endif
 
@@ -339,7 +339,7 @@ public:
     /**
      * virtual destructor
      */
-    ~FunctionType() override = default;
+    ~FunctionType() = default;
 
 };
 

@@ -30,23 +30,23 @@ public:
 
     AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, bool is_node, CSTToken* token);
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::AccessChain;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::AccessChain;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
@@ -64,25 +64,25 @@ public:
         bool assign
     );
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override {
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) final {
         return link(linker, type, &value_ptr, 0, true, false);
     }
 
-    bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
+    bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) final {
         return link(linker, expected_type, &value_ptr, 0, true, true);
     }
 
-    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) override {
+    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) final {
         link(linker, (BaseType*) nullptr, nullptr, 0, false, false);
     }
 
-    void declare_and_link(SymbolResolver &linker) override {
+    void declare_and_link(SymbolResolver &linker) final {
         link(linker, (BaseType*) nullptr, nullptr, 0, true, false);
     }
 
     bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type);
 
-    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) override {
+    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) final {
         const auto values_size = values.size();
         const auto parent_index = index - 1;
         const auto parent = parent_index < values_size ? values[parent_index] : nullptr;
@@ -98,49 +98,49 @@ public:
      */
     void relink_parent();
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    AccessChain *copy(ASTAllocator& allocator) override;
+    AccessChain *copy(ASTAllocator& allocator) final;
 
-    bool primitive() override;
+    bool primitive() final;
 
-    bool compile_time_computable() override;
+    bool compile_time_computable() final;
 
-    void interpret(InterpretScope &scope) override;
+    void interpret(InterpretScope &scope) final;
 
-    BaseType* create_type(ASTAllocator& allocator) override;
+    BaseType* create_type(ASTAllocator& allocator) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
-//    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() final;
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::Value* llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) override;
+    llvm::Value* llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type, llvm::Value** parent_pointer);
 
-    llvm::Value *llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) final;
 
-    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) override;
+    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
+    llvm::FunctionType *llvm_func_type(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
     unsigned int store_in_struct(
             Codegen &gen,
@@ -150,7 +150,7 @@ public:
             std::vector<llvm::Value *> idxList,
             unsigned int index,
             BaseType* expected_type
-    ) override;
+    ) final;
 
     unsigned int store_in_array(
             Codegen &gen,
@@ -160,25 +160,25 @@ public:
             std::vector<llvm::Value *> idxList,
             unsigned int index,
             BaseType *expected_type
-    ) override;
+    ) final;
 
 #endif
 
-    AccessChain *as_access_chain() override {
+    AccessChain *as_access_chain() final {
         return this;
     }
 
-    void evaluate_children(InterpretScope &scope) override;
+    void evaluate_children(InterpretScope &scope) final;
 
     Value *parent(InterpretScope &scope);
 
     inline Value* parent_value(InterpretScope &scope);
 
-    void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
+    void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) final;
 
     Value *pointer(InterpretScope &scope);
 
-    Value *scope_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) final;
 
     Value* evaluated_value(InterpretScope &scope);
 
@@ -198,13 +198,13 @@ public:
         return Value::representation();
     }
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final;
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override;
+    BaseTypeKind type_kind() const final;
 
 };
 

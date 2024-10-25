@@ -33,47 +33,47 @@ public:
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::NamespaceDecl;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    const std::string& ns_node_identifier() override {
+    const std::string& ns_node_identifier() final {
         return name;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) override;
+    ASTNode *child(const std::string &name) final;
 
 #ifdef COMPILER_BUILD
 
-    void code_gen_declare(Codegen &gen) override;
+    void code_gen_declare(Codegen &gen) final;
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
-    void code_gen(Codegen &gen, Scope *scope, unsigned int index) override;
+    void code_gen(Codegen &gen, Scope *scope, unsigned int index) final;
 
-    void code_gen_external_declare(Codegen &gen) override;
+    void code_gen_external_declare(Codegen &gen) final;
 
-    void code_gen_destruct(Codegen &gen, Value *returnValue) override;
+    void code_gen_destruct(Codegen &gen, Value *returnValue) final;
 
 #endif
 

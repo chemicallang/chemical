@@ -34,23 +34,23 @@ public:
             CSTToken* token
     );
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::VariantCase;
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
+    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) final;
 
 #endif
 

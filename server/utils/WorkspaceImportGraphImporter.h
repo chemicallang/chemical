@@ -14,6 +14,6 @@ public:
             WorkspaceManager *manager
     );
 
-    std::vector<IGFile> process(const std::string &path, const Range& range, IGFile *parent) override;
+    std::vector<IGFile> process(const std::string &path, const Range& range, IGFile *parent) final;
 
 };

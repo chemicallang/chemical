@@ -11,50 +11,50 @@ public:
 
     using IntNType::IntNType;
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return 1;
     }
 
     [[nodiscard]]
-    unsigned int num_bits() const override {
+    unsigned int num_bits() const final {
         return 8;
     }
 
-    bool is_unsigned() override {
+    bool is_unsigned() final {
         return false;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    Value *create(int64_t value) override;
+    Value *create(int64_t value) final;
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Char;
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Char;
     }
 
-    bool is_same(BaseType *type) override {
+    bool is_same(BaseType *type) final {
         return type->kind() == kind();
     }
 
-    bool satisfies(BaseType *type) override {
+    bool satisfies(BaseType *type) final {
         return type->kind() == BaseTypeKind::Char;
     }
 
     [[nodiscard]]
-    CharType* copy(ASTAllocator& allocator) const override {
+    CharType* copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<CharType>()) CharType(token);
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 #endif
 
 };

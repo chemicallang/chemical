@@ -20,54 +20,54 @@ public:
 
     explicit AddrOfValue(Value* value, CSTToken* token);
 
-    CSTToken* cst_token() override{
+    CSTToken* cst_token() final{
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::AddrOfValue;
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
     }
 
-    AddrOfValue *copy(ASTAllocator& allocator) override;
+    AddrOfValue *copy(ASTAllocator& allocator) final;
 
-    BaseType* create_type(ASTAllocator& allocator) override;
+    BaseType* create_type(ASTAllocator& allocator) final;
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return &_ptr_type;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    ASTNode *linked_node() override {
+    ASTNode *linked_node() final {
         return value->linked_node();
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;
+    bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Pointer;
     }
 
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::Pointer;
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
 };

@@ -32,25 +32,25 @@ public:
 
     void declare_variant(VariantDefinition* structDef);
 
-    void visit(VarInitStatement *init) override;
+    void visit(VarInitStatement *init) final;
 
-    void visit(TypealiasStatement *statement) override;
+    void visit(TypealiasStatement *statement) final;
 
-    void visit(FunctionDeclaration *functionDeclaration) override;
+    void visit(FunctionDeclaration *functionDeclaration) final;
 
-    void visit(ExtensionFunction *extensionFunc) override;
+    void visit(ExtensionFunction *extensionFunc) final;
 
-    void visit(StructDefinition *structDefinition) override;
+    void visit(StructDefinition *structDefinition) final;
 
-    void visit(VariantDefinition *variant_def) override;
+    void visit(VariantDefinition *variant_def) final;
 
-    void visit(Namespace *ns) override;
+    void visit(Namespace *ns) final;
 
-    void visit(UnionDef *def) override;
+    void visit(UnionDef *def) final;
 
-    void visit(InterfaceDefinition *interfaceDefinition) override;
+    void visit(InterfaceDefinition *interfaceDefinition) final;
 
-    void visit(ImplDefinition *implDefinition) override;
+    void visit(ImplDefinition *implDefinition) final;
 
     void reset();
 

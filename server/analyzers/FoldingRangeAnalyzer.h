@@ -45,45 +45,45 @@ public:
 
     // Visitor functions
 
-    void visitVarInit(CSTToken* varInit) override;
+    void visitVarInit(CSTToken* varInit) final;
 
-    void visitReturn(CSTToken* returnCst) override;
+    void visitReturn(CSTToken* returnCst) final;
 
-    void visitFunctionCall(CSTToken* call) override;
+    void visitFunctionCall(CSTToken* call) final;
 
-    void visitAssignment(CSTToken* assignment) override;
+    void visitAssignment(CSTToken* assignment) final;
 
-    void visitAccessChain(CSTToken *accessChain) override;
+    void visitAccessChain(CSTToken *accessChain) final;
 
-    void visitSwitch(CSTToken* switchCst) override;
+    void visitSwitch(CSTToken* switchCst) final;
 
-    void visitEnumDecl(CSTToken* enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) final;
 
-    void visitInterface(CSTToken* interface) override;
+    void visitInterface(CSTToken* interface) final;
 
-    void visitStructDef(CSTToken* structDef) override;
+    void visitStructDef(CSTToken* structDef) final;
 
-    void visitImpl(CSTToken* impl) override;
+    void visitImpl(CSTToken* impl) final;
 
-    void visitIf(CSTToken* ifCst) override;
+    void visitIf(CSTToken* ifCst) final;
 
-    void visitForLoop(CSTToken* forLoop) override;
+    void visitForLoop(CSTToken* forLoop) final;
 
-    void visitWhile(CSTToken* whileCst) override;
+    void visitWhile(CSTToken* whileCst) final;
 
-    void visitDoWhile(CSTToken* doWhileCst) override;
+    void visitDoWhile(CSTToken* doWhileCst) final;
 
-    void visitFunction(CSTToken* function) override;
+    void visitFunction(CSTToken* function) final;
 
-    void visitLambda(CSTToken* cst) override;
+    void visitLambda(CSTToken* cst) final;
 
-    void visitMultilineComment(CSTToken *token) override;
+    void visitMultilineComment(CSTToken *token) final;
 
-    void visitBody(CSTToken* bodyCst) override;
+    void visitBody(CSTToken* bodyCst) final;
 
-    void visitStructValue(CSTToken* structValueCst) override;
+    void visitStructValue(CSTToken* structValueCst) final;
 
-    void visitArrayValue(CSTToken* arrayValue) override;
+    void visitArrayValue(CSTToken* arrayValue) final;
 
 
 };

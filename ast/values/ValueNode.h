@@ -35,31 +35,31 @@ public:
 
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    Value *holding_value() override {
+    Value *holding_value() final {
         return value;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::ValueNode;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
 #endif
 };

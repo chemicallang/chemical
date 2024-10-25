@@ -91,29 +91,29 @@ public:
         has_assignment = true;
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::VarInitStmt;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    Value* holding_value() override {
+    Value* holding_value() final {
         return value;
     }
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
     bool is_top_level();
 
@@ -121,7 +121,7 @@ public:
         return type;
     }
 
-    const std::string& ns_node_identifier() override {
+    const std::string& ns_node_identifier() final {
         return identifier;
     }
 
@@ -129,31 +129,31 @@ public:
 
     inline void check_has_type(Codegen &gen);
 
-    llvm::Value *llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) final;
 
-    llvm::Type *llvm_elem_type(Codegen &gen) override;
+    llvm::Type *llvm_elem_type(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
-    llvm::Value *llvm_load(Codegen &gen) override;
+    llvm::Value *llvm_load(Codegen &gen) final;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
+    llvm::FunctionType *llvm_func_type(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
     void code_gen_global_var(Codegen &gen, bool initialize);
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
-    void code_gen_destruct(Codegen &gen, Value* returnValue) override;
+    void code_gen_destruct(Codegen &gen, Value* returnValue) final;
 
-    void code_gen_external_declare(Codegen &gen) override;
+    void code_gen_external_declare(Codegen &gen) final;
 
 #endif
 
-    void runtime_name_no_parent(std::ostream &stream) override {
+    void runtime_name_no_parent(std::ostream &stream) final {
         stream << identifier;
     }
 
@@ -161,17 +161,17 @@ public:
         return parent_node ? runtime_name_str() : identifier;
     }
 
-    ASTNode *child(const std::string &name) override;
+    ASTNode *child(const std::string &name) final;
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    void interpret(InterpretScope &scope) override;
+    void interpret(InterpretScope &scope) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() final;
 
     /**
      * called by assignment to assign a new value in the scope that this variable was declared
@@ -179,9 +179,9 @@ public:
     void declare(Value *new_value);
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final;
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override;
+    BaseTypeKind type_kind() const final;
 
 };

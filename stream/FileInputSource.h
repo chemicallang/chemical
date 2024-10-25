@@ -22,17 +22,17 @@ public:
 
     explicit FileInputSource(const std::string &file_path);
 
-    size_t read(char* buffer, size_t size) override;
+    size_t read(char* buffer, size_t size) final;
 
-    off_t seek(off_t offset, int whence) override;
+    off_t seek(off_t offset, int whence) final;
 
     [[nodiscard]]
-    off_t tell() const override;
+    off_t tell() const final;
 
-    std::string get_file_path() override {
+    std::string get_file_path() final {
         return filePath;
     }
 
-    ~FileInputSource() override;
+    ~FileInputSource() final;
 
 };

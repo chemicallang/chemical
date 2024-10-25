@@ -17,14 +17,14 @@ public:
     StringInputSource(const char* str, size_t len)
             : data(str), size(len) {}
 
-    size_t read(char* buffer, size_t size) override {
+    size_t read(char* buffer, size_t size) final {
         size_t bytesToRead = std::min(size, this->size - position);
         std::memcpy(buffer, data + position, bytesToRead);
         position += bytesToRead;
         return bytesToRead;
     }
 
-    off_t seek(off_t offset, int whence) override {
+    off_t seek(off_t offset, int whence) final {
         if (whence == SEEK_SET) {
             position = offset;
         } else if (whence == SEEK_CUR) {
@@ -35,7 +35,7 @@ public:
         return position;
     }
 
-    [[nodiscard]] off_t tell() const override {
+    [[nodiscard]] off_t tell() const final {
         return position;
     }
 

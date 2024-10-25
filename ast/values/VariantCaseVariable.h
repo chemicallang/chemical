@@ -19,31 +19,31 @@ public:
      */
     VariantCaseVariable(std::string name, VariantCase* variant_case, CSTToken* token);
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::VariantCaseVariable;
     }
 
-    ASTNode* parent() override;
+    ASTNode* parent() final;
 
-//    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
-    ASTNode* child(const std::string &name) override;
+    ASTNode* child(const std::string &name) final;
 
-    int child_index(const std::string &name) override;
+    int child_index(const std::string &name) final;
 
-    ASTNode* child(int index) override;
+    ASTNode* child(int index) final;
 
     std::pair<BaseType*, int16_t> set_iteration();
 
@@ -51,13 +51,13 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value* llvm_pointer(Codegen &gen) override;
+    llvm::Value* llvm_pointer(Codegen &gen) final;
 
-    llvm::Value* llvm_load(Codegen &gen) override;
+    llvm::Value* llvm_load(Codegen &gen) final;
 
-    llvm::Type* llvm_type(Codegen &gen) override;
+    llvm::Type* llvm_type(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 

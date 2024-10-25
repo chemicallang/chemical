@@ -46,26 +46,26 @@ public:
      */
     virtual Value* create(int64_t value) = 0;
 
-    bool satisfies(ValueType type) override {
+    bool satisfies(ValueType type) {
         return type == value_type();
     }
 
-    bool satisfies(BaseType *type) override;
+    bool satisfies(BaseType *type);
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const {
         return BaseTypeKind::IntN;
     }
 
-    bool is_same(BaseType *type) override {
+    bool is_same(BaseType *type) {
         return type->kind() == kind() && ((IntNType*) type)->num_bits() == num_bits() && ((IntNType*) type)->is_unsigned() == is_unsigned();
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen);
 
-    clang::QualType clang_type(clang::ASTContext &context) override;
+    clang::QualType clang_type(clang::ASTContext &context) final;
 
 #endif
 

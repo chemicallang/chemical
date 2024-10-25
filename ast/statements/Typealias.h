@@ -29,15 +29,15 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::TypealiasStmt;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
@@ -45,39 +45,39 @@ public:
         return specifier == AccessSpecifier::Public;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    const std::string& ns_node_identifier() override {
+    const std::string& ns_node_identifier() final {
         return identifier;
     }
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
-    void interpret(InterpretScope &scope) override;
+    void interpret(InterpretScope &scope) final;
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    void accept(Visitor *visitor) override;
-
-    [[nodiscard]]
-    BaseTypeKind type_kind() const override;
+    void accept(Visitor *visitor) final;
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    BaseTypeKind type_kind() const final;
+
+    [[nodiscard]]
+    ValueType value_type() const final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
 #endif
 

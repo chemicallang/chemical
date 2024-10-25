@@ -26,67 +26,67 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Public
     );
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::StructMember;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    Value *default_value() override {
+    Value *default_value() final {
         if(defValue) return defValue;
         return nullptr;
     }
 
-    BaseDefMember *copy_member(ASTAllocator& allocator) override;
+    BaseDefMember *copy_member(ASTAllocator& allocator) final;
 
-    bool get_is_const() override {
+    bool get_is_const() final {
         return is_const;
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) override;
+    ASTNode *child(const std::string &name) final;
 
-    Value *holding_value() override {
+    Value *holding_value() final {
         return defValue ? defValue : nullptr;
     }
 
-    BaseType *known_type() override {
+    BaseType *known_type() final {
         return type;
     }
 
 #ifdef COMPILER_BUILD
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
-    llvm::Type* llvm_type(Codegen &gen) override;
+    llvm::Type* llvm_type(Codegen &gen) final;
 
-    llvm::Type* llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
+    llvm::Type* llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
-    llvm::FunctionType* llvm_func_type(Codegen &gen) override;
+    llvm::FunctionType* llvm_func_type(Codegen &gen) final;
 
 #endif
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final;
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override;
+    BaseTypeKind type_kind() const final;
 
 };

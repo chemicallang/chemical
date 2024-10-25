@@ -24,66 +24,66 @@ public:
         CSTToken* token
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::CapturedVariable;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return nullptr;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         // no visit
     }
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) override {
+    ASTNode *child(const std::string &name) final {
         return linked->child(name);
     }
 
-    ASTNode *child(int index) override {
+    ASTNode *child(int index) final {
         return linked->child(index);
     }
 
-    int child_index(const std::string &name) override {
+    int child_index(const std::string &name) final {
         return linked->child_index(name);
     }
 
 #ifdef COMPILER_BUILD
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final {
         return linked->add_child_index(gen, indexes, name);
     }
 
-    llvm::Value *llvm_load(Codegen &gen) override;
+    llvm::Value *llvm_load(Codegen &gen) final;
 
-    llvm::Value *llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) override {
+    llvm::FunctionType *llvm_func_type(Codegen &gen) final {
         return linked->llvm_func_type(gen);
     }
 
-    llvm::Type *llvm_elem_type(Codegen &gen) override {
+    llvm::Type *llvm_elem_type(Codegen &gen) final {
         return linked->llvm_elem_type(gen);
     }
 
 #endif
 
-    BaseType* create_value_type(ASTAllocator &allocator) override;
+    BaseType* create_value_type(ASTAllocator &allocator) final;
 
-    BaseType* known_type() override;
-
-    [[nodiscard]]
-    ValueType value_type() const override;
+    BaseType* known_type() final;
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override;
+    ValueType value_type() const final;
+
+    [[nodiscard]]
+    BaseTypeKind type_kind() const final;
 
 };

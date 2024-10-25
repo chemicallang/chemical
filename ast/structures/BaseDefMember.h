@@ -24,9 +24,9 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value* llvm_pointer(Codegen &gen) override;
+    llvm::Value* llvm_pointer(Codegen &gen) final;
 
-    llvm::Value* llvm_load(Codegen &gen) override;
+    llvm::Value* llvm_load(Codegen &gen) final;
 
 #endif
 

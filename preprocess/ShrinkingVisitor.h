@@ -25,16 +25,16 @@ public:
 
 private:
 
-    void visit(FunctionDeclaration *functionDeclaration) override;
+    void visit(FunctionDeclaration *functionDeclaration) final;
 
-    void visit(ExtensionFunction *extensionFunc) override;
+    void visit(ExtensionFunction *extensionFunc) final;
 
-    void visit(StructDefinition *structDefinition) override;
+    void visit(StructDefinition *structDefinition) final;
 
-    void visit(InterfaceDefinition *interfaceDefinition) override;
+    void visit(InterfaceDefinition *interfaceDefinition) final;
 
-    void visit(ImplDefinition *implDefinition) override;
+    void visit(ImplDefinition *implDefinition) final;
 
-    void visit(Namespace *ns) override;
+    void visit(Namespace *ns) final;
 
 };

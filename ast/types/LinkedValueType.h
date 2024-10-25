@@ -14,14 +14,14 @@ public:
 
     }
 
-    LinkedType* copy(ASTAllocator &allocator) const override {
+    LinkedType* copy(ASTAllocator &allocator) const final {
         return new (allocator.allocate<LinkedValueType>()) LinkedValueType(
             value->copy(allocator),
             token
         );
     }
 
-    bool link(SymbolResolver &linker) override {
+    bool link(SymbolResolver &linker) final {
         if(!value->link(linker, value)) {
             return false;
         }

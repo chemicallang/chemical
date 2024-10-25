@@ -30,12 +30,12 @@ public:
      * this just continuously interprets nodes in scope, without stopping unless user
      * uses one of break or return statements
      */
-    void interpret(InterpretScope& scope) override;
+    void interpret(InterpretScope& scope) final;
 
     /**
      * this will stop the interpretation at the current statement
      * meaning all the nodes in this scope will be skipped
      */
-    void stopInterpretOnce() override;
+    void stopInterpretOnce() final;
 
 };

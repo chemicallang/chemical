@@ -11,33 +11,33 @@ public:
 
     using TokenizedBaseType::TokenizedBaseType;
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return 1;
     }
 
-    bool satisfies(ValueType type) override {
+    bool satisfies(ValueType type) final {
         return type == ValueType::Bool;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Bool;
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Bool;
     }
 
-    bool satisfies(BaseType *type) override {
+    bool satisfies(BaseType *type) final {
         return type->kind() == BaseTypeKind::Bool;
     }
 
-    bool is_same(BaseType *type) override {
+    bool is_same(BaseType *type) final {
         return type->kind() == BaseTypeKind::Bool;
     }
 
@@ -47,9 +47,9 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    clang::QualType clang_type(clang::ASTContext &context) override;
+    clang::QualType clang_type(clang::ASTContext &context) final;
 
 #endif
 

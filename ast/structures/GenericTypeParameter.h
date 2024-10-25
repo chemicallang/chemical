@@ -28,30 +28,30 @@ public:
         CSTToken* token
     );
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::GenericTypeParam;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
     void declare_only(SymbolResolver& linker);
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
     void register_usage(ASTAllocator& allocator, BaseType* type);
 
-    BaseType* create_value_type(ASTAllocator& allocator) override {
+    BaseType* create_value_type(ASTAllocator& allocator) final {
         return usage[active_iteration]->copy(allocator);
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         if(active_iteration == -1) {
             return ValueType::Unknown;
         } else {
@@ -60,7 +60,7 @@ public:
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         if(active_iteration == -1) {
             return BaseTypeKind::Unknown;
         } else {
@@ -68,7 +68,7 @@ public:
         }
     }
 
-    BaseType *known_type() override {
+    BaseType *known_type() final {
         if(active_iteration == -1) {
             return nullptr;
         } else {
@@ -80,46 +80,46 @@ public:
         return active_iteration > -1 ? usage[active_iteration]->linked_node() : nullptr;
     }
 
-    ASTNode *child(const std::string &name) override {
+    ASTNode *child(const std::string &name) final {
         const auto linked = usage_linked();
         return linked ? linked->child(name) : nullptr;
     }
 
-    int child_index(const std::string &name) override {
+    int child_index(const std::string &name) final {
         const auto linked = usage_linked();
         return linked ? linked->child_index(name) : -1;
     }
 
-    ASTNode* child(int index) override {
+    ASTNode* child(int index) final {
         const auto linked = usage_linked();
         return linked ? linked->child(index) : nullptr;
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_param_type(Codegen &gen) override {
+    llvm::Type *llvm_param_type(Codegen &gen) final {
         return usage[active_iteration]->llvm_param_type(gen);
     }
 
-    llvm::Type *llvm_type(Codegen &gen) override {
+    llvm::Type *llvm_type(Codegen &gen) final {
         return usage[active_iteration]->llvm_type(gen);
     }
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) override {
+    llvm::FunctionType *llvm_func_type(Codegen &gen) final {
         return usage[active_iteration]->llvm_func_type(gen);
     }
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override {
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final {
         return usage[active_iteration]->llvm_chain_type(gen, values, index);
     }
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final {
         return usage[active_iteration]->linked_node()->add_child_index(gen, indexes, name);
     }
 
 #endif
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 

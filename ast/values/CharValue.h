@@ -27,62 +27,62 @@ public:
 
     }
 
-    unsigned int get_num_bits() override {
+    unsigned int get_num_bits() final {
         return 8;
     }
 
     [[nodiscard]]
-    int64_t get_num_value() const override {
+    int64_t get_num_value() const final {
         return value;
     }
 
-    bool is_unsigned() override {
+    bool is_unsigned() final {
         return false;
     }
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::Char;
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return 1;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return (BaseType*) &CharType::instance;
     }
 
-    BaseType* create_type(ASTAllocator& allocator) override {
+    BaseType* create_type(ASTAllocator& allocator) final {
         return new (allocator.allocate<CharType>()) CharType(nullptr);
     }
 
-    CharValue *copy(ASTAllocator& allocator) override {
+    CharValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<CharValue>()) CharValue(value, token);
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Char;
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::IntN;
     }
 

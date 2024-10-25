@@ -33,21 +33,21 @@ public:
             ASTAllocator& allocator
     );
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::ArrayValue;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
     BaseType*& known_elem_type() const;
 
-    bool primitive() override {
+    bool primitive() final {
         return false;
     }
 
@@ -62,17 +62,17 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value *llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) final;
 
     void initialize_allocated(Codegen& gen, llvm::Value*, BaseType* expected_type);
 
-    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) override;
+    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::Value *llvm_arg_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_arg_value(Codegen &gen, BaseType* expected_type) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
 
     unsigned int store_in_array(
             Codegen &gen,
@@ -82,7 +82,7 @@ public:
             std::vector<llvm::Value *> idxList,
             unsigned int index,
             BaseType *expected_type
-    ) override;
+    ) final;
 
     unsigned int store_in_struct(
             Codegen &gen,
@@ -92,40 +92,40 @@ public:
             std::vector<llvm::Value *> idxList,
             unsigned int index,
             BaseType* expected_type
-    ) override;
+    ) final;
 
-    llvm::Type *llvm_elem_type(Codegen &gen) override;
+    llvm::Type *llvm_elem_type(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     [[nodiscard]]
     BaseType* element_type(ASTAllocator& allocator) const;
 
-    BaseType* create_type(ASTAllocator& allocator) override;
+    BaseType* create_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Array;
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::Array;
     }
 
-    ArrayValue *copy(ASTAllocator& allocator) override {
+    ArrayValue *copy(ASTAllocator& allocator) final {
         std::vector<Value*> copied_values;
         copied_values.reserve(values.size());
         for (const auto &value: values) {

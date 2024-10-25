@@ -12,31 +12,31 @@ public:
     using IntNType::IntNType;
 
     [[nodiscard]]
-    unsigned int num_bits() const override {
+    unsigned int num_bits() const final {
         return 64;
     }
 
-    bool is_unsigned() override {
+    bool is_unsigned() final {
         return true;
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return 8;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    Value *create(int64_t value) override;
+    Value *create(int64_t value) final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::UBigInt;
     }
 
     [[nodiscard]]
-    UBigIntType *copy(ASTAllocator& allocator) const override {
+    UBigIntType *copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<UBigIntType>()) UBigIntType(token);
     }
 

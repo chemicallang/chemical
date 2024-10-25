@@ -56,23 +56,23 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::InterfaceDecl;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    const std::string& ns_node_identifier() override {
+    const std::string& ns_node_identifier() final {
         return name;
     }
 
@@ -92,17 +92,17 @@ public:
 
     void register_impl(ImplDefinition* definition);
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
     int vtable_function_index(FunctionDeclaration* decl);
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
 #ifdef COMPILER_BUILD
 
@@ -126,12 +126,12 @@ public:
     /**
      * generate code for this interface
      */
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
     /**
      * llvm type for this interface, this is void by default
      */
-    llvm::Type* llvm_type(Codegen &gen) override;
+    llvm::Type* llvm_type(Codegen &gen) final;
 
     /**
      * get the vtable type into the given struct_types vector

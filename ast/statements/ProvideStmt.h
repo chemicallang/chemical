@@ -33,27 +33,27 @@ public:
     template<typename T>
     void put_in(std::unordered_map<std::string, T*>& value_map, T* new_value, void* data, void(*do_body)(ProvideStmt*, void*));
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ASTNode* parent() override {
+    ASTNode* parent() final {
         return parent_node;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::ProvideStmt;
     }
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
 #endif
 

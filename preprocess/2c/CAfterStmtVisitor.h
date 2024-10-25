@@ -10,17 +10,17 @@ class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
 
     using SubVisitor::SubVisitor;
 
-    void visit(FunctionCall *call) override;
+    void visit(FunctionCall *call) final;
 
-    void visit(AccessChain *chain) override;
+    void visit(AccessChain *chain) final;
 
     void destruct_chain(AccessChain *chain, bool destruct_last);
 
-    void visit(LambdaFunction *func) override {
+    void visit(LambdaFunction *func) final {
         // do nothing
     }
 
-    void visit(Scope *scope) override {
+    void visit(Scope *scope) final {
         // do nothing
     }
 

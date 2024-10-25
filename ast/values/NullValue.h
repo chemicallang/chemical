@@ -20,19 +20,19 @@ public:
 
     }
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::NullValue;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
@@ -41,7 +41,7 @@ public:
         return "null";
     }
 
-    NullValue* copy(ASTAllocator& allocator) override {
+    NullValue* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<NullValue>()) NullValue(token);
     }
 
@@ -49,26 +49,26 @@ public:
 
     static llvm::Value* null_llvm_value(Codegen &gen);
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif
 
-    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) final;
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Pointer;
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::Pointer;
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override;
+    BaseType* create_type(ASTAllocator &allocator) final;
 
-//    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
 };

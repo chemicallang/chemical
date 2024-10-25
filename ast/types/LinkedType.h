@@ -25,46 +25,46 @@ public:
 
     }
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
-    BaseType* pure_type() override;
+    BaseType* pure_type() final;
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final;
 
-    bool link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker);
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
-    bool satisfies(ValueType value_type) override;
+    bool satisfies(ValueType value_type) final;
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Linked;
     }
 
-    bool is_same(BaseType *other) override {
+    bool is_same(BaseType *other) final {
         return other->kind() == kind() && static_cast<LinkedType *>(other)->linked == linked;
     }
 
-    bool satisfies(BaseType *type) override;
+    bool satisfies(BaseType *type) final;
 
     [[nodiscard]]
-    LinkedType *copy(ASTAllocator& allocator) const override {
+    LinkedType *copy(ASTAllocator& allocator) const {
         return new (allocator.allocate<LinkedType>()) LinkedType(type, linked, token);
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_param_type(Codegen &gen) override;
+    llvm::Type *llvm_param_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
 #endif
 

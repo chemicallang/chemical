@@ -110,7 +110,7 @@ public:
      * this is done because dereferencing "this" in base class for an object of derived class
      * causes segfaults, which could be because of object slicing
      */
-    ~GlobalInterpretScope() override;
+    ~GlobalInterpretScope() final;
 
     /**
      * apart from adding a diagnostic, this notifies in debug mode

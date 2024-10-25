@@ -18,61 +18,61 @@ public:
 
     }
 
-    int16_t get_generic_iteration() override {
+    int16_t get_generic_iteration() final {
         return type->get_generic_iteration();
     }
 
     [[nodiscard]]
-    BaseType* create_child_type(ASTAllocator& allocator) const override {
+    BaseType* create_child_type(ASTAllocator& allocator) const final {
         return type->copy(allocator);
     }
 
-//    hybrid_ptr<BaseType> get_child_type() override {
+//    hybrid_ptr<BaseType> get_child_type() final {
 //        return hybrid_ptr<BaseType> { type.get(), false };
 //    }
 
-    BaseType* known_child_type() override {
+    BaseType* known_child_type() final {
         return type;
     }
 
-    BaseType* pure_type() override;
+    BaseType* pure_type() final;
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    bool satisfies(ValueType value_type) override {
+    bool satisfies(ValueType value_type) final {
         return type->satisfies(value_type);
     }
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Pointer;
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Pointer;
     }
 
-    bool satisfies(BaseType *type) override;
+    bool satisfies(BaseType *type) final;
 
-    bool is_same(BaseType *other) override {
+    bool is_same(BaseType *other) final {
         return other->kind() == kind() && static_cast<PointerType *>(other)->type->is_same(type);
     }
 
     [[nodiscard]]
-    PointerType *copy(ASTAllocator& allocator) const override {
+    PointerType *copy(ASTAllocator& allocator) const final {
         return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), token, is_mutable);
     }
 
-    bool link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker) final;
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
     /**
      * this type will be made mutable, if the child type is mutable, for example
@@ -85,11 +85,11 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
-    clang::QualType clang_type(clang::ASTContext &context) override;
+    clang::QualType clang_type(clang::ASTContext &context) final;
 
 #endif
 

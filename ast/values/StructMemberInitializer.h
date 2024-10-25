@@ -41,18 +41,18 @@ public:
         ASTNode* member = nullptr
     );
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::StructMemberInitializer;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
     StructMemberInitializer* copy(ASTAllocator& allocator);
 
-    CSTToken *cst_token() override;
+    CSTToken *cst_token() final;
 
-    ASTNode* parent() override;
+    ASTNode* parent() final;
 
 };

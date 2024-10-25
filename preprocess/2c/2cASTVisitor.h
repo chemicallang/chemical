@@ -303,25 +303,25 @@ public:
     //----------Visitors------------
     //------------------------------
 
-    void visitCommon(ASTNode* node) override;
+    void visitCommon(ASTNode* node) final;
 
-    void visitCommonValue(Value* value) override;
+    void visitCommonValue(Value* value) final;
 
-    void visit(VarInitStatement* init) override;
+    void visit(VarInitStatement* init) final;
 
-    void visit(AssignStatement* assign) override;
+    void visit(AssignStatement* assign) final;
 
-    void visit(BreakStatement* breakStatement) override;
+    void visit(BreakStatement* breakStatement) final;
 
-    void visit(Comment* comment) override;
+    void visit(Comment* comment) final;
 
-    void visit(ContinueStatement* continueStatement) override;
+    void visit(ContinueStatement* continueStatement) final;
 
-    void visit(UnreachableStmt *stmt) override;
+    void visit(UnreachableStmt *stmt) final;
 
-    void visit(UnsafeBlock *block) override;
+    void visit(UnsafeBlock *block) final;
 
-    void visit(ImportStatement* importStatement) override;
+    void visit(ImportStatement* importStatement) final;
 
     /**
      * does the return value require 'return' keyword before it
@@ -333,209 +333,209 @@ public:
      */
     void return_value(Value* val, BaseType* type);
 
-    void visit(ReturnStatement* returnStatement) override;
+    void visit(ReturnStatement* returnStatement) final;
 
-    void visit(DoWhileLoop* doWhileLoop) override;
+    void visit(DoWhileLoop* doWhileLoop) final;
 
-    void visit(EnumDeclaration* enumDeclaration) override;
+    void visit(EnumDeclaration* enumDeclaration) final;
 
-    void visit(ForLoop* forLoop) override;
+    void visit(ForLoop* forLoop) final;
 
-    void visit(FunctionParam* functionParam) override;
+    void visit(FunctionParam* functionParam) final;
 
-    void visit(FunctionDeclaration* functionDeclaration) override;
+    void visit(FunctionDeclaration* functionDeclaration) final;
 
-    void visit(ExtensionFunction *extensionFunc) override;
+    void visit(ExtensionFunction *extensionFunc) final;
 
-    void visit(IfStatement* ifStatement) override;
+    void visit(IfStatement* ifStatement) final;
 
-    void visit(ImplDefinition* implDefinition) override;
+    void visit(ImplDefinition* implDefinition) final;
 
-    void visit(StructMemberInitializer *init) override;
+    void visit(StructMemberInitializer *init) final;
 
-    void visit(UnionDef *def) override;
+    void visit(UnionDef *def) final;
 
-    void visit(InterfaceDefinition* interfaceDefinition) override;
+    void visit(InterfaceDefinition* interfaceDefinition) final;
 
     void visit_scope(Scope *scope, unsigned destruct_begin);
 
-    void visit(Scope* scope) override;
+    void visit(Scope* scope) final;
 
-    void visit(StructDefinition* structDefinition) override;
+    void visit(StructDefinition* structDefinition) final;
 
-    void visit(VariantDefinition* variant_def) override;
+    void visit(VariantDefinition* variant_def) final;
 
-    void visit(VariantCase *chain) override;
+    void visit(VariantCase *chain) final;
 
-    void visit(VariantCall *call) override;
+    void visit(VariantCall *call) final;
 
-    void visit(DestructStmt *delStmt) override;
+    void visit(DestructStmt *delStmt) final;
 
-    void visit(IsValue *casted) override;
+    void visit(IsValue *casted) final;
 
-    void visit(UnnamedUnion *def) override;
+    void visit(UnnamedUnion *def) final;
 
-    void visit(UnnamedStruct *def) override;
+    void visit(UnnamedStruct *def) final;
 
-    void visit(Namespace *ns) override;
+    void visit(Namespace *ns) final;
 
-    void visit(WhileLoop* whileLoop) override;
+    void visit(WhileLoop* whileLoop) final;
 
-    void visit(LoopBlock *scope) override;
+    void visit(LoopBlock *scope) final;
 
-    void visit(AccessChain* chain) override;
+    void visit(AccessChain* chain) final;
 
-    void visit(InitBlock *initBlock) override;
+    void visit(InitBlock *initBlock) final;
 
-    void visit(MacroValueStatement* statement) override;
+    void visit(MacroValueStatement* statement) final;
 
-    void visit(StructMember* member) override;
+    void visit(StructMember* member) final;
 
-    void visit(ProvideStmt *provideStmt) override;
+    void visit(ProvideStmt *provideStmt) final;
 
-    void visit(ComptimeBlock *block) override;
+    void visit(ComptimeBlock *block) final;
 
-    void visit(TypealiasStatement* statement) override;
+    void visit(TypealiasStatement* statement) final;
 
-    void visit(SwitchStatement* statement) override;
+    void visit(SwitchStatement* statement) final;
 
-    void visit(TryCatch* statement) override;
+    void visit(TryCatch* statement) final;
 
-    void visit(UsingStmt *usingStmt) override {
+    void visit(UsingStmt *usingStmt) final {
         // does nothing
     }
 
-    // Value Vis override;
+    // Value Vis final;
 
-    void visit(IntValue *intVal) override;
+    void visit(IntValue *intVal) final;
 
-    void visit(BigIntValue* val) override;
+    void visit(BigIntValue* val) final;
 
-    void visit(LongValue* val) override;
+    void visit(LongValue* val) final;
 
-    void visit(ShortValue* val) override;
+    void visit(ShortValue* val) final;
 
-    void visit(UBigIntValue* val) override;
+    void visit(UBigIntValue* val) final;
 
-    void visit(UIntValue* val) override;
+    void visit(UIntValue* val) final;
 
-    void visit(ULongValue* val) override;
+    void visit(ULongValue* val) final;
 
-    void visit(UShortValue* val) override;
+    void visit(UShortValue* val) final;
 
-    void visit(Int128Value* val) override;
+    void visit(Int128Value* val) final;
 
-    void visit(UInt128Value* val) override;
+    void visit(UInt128Value* val) final;
 
-    void visit(NumberValue* boolVal) override;
+    void visit(NumberValue* boolVal) final;
 
-    void visit(FloatValue* floatVal) override;
+    void visit(FloatValue* floatVal) final;
 
-    void visit(DoubleValue* doubleVal) override;
+    void visit(DoubleValue* doubleVal) final;
 
-    void visit(CharValue* charVal) override;
+    void visit(CharValue* charVal) final;
 
-    void visit(UCharValue *charVal) override;
+    void visit(UCharValue *charVal) final;
 
-    void visit(StringValue* stringVal) override;
+    void visit(StringValue* stringVal) final;
 
-    void visit(BoolValue* boolVal) override;
+    void visit(BoolValue* boolVal) final;
 
-    void visit(ArrayValue* arrayVal) override;
+    void visit(ArrayValue* arrayVal) final;
 
-    void visit(StructValue* structValue) override;
+    void visit(StructValue* structValue) final;
 
-    void visit(VariableIdentifier* identifier) override;
+    void visit(VariableIdentifier* identifier) final;
 
-    void visit(SizeOfValue *size_of) override;
+    void visit(SizeOfValue *size_of) final;
 
-    void visit(Expression* expr) override;
+    void visit(Expression* expr) final;
 
-    void visit(CastedValue* casted) override;
+    void visit(CastedValue* casted) final;
 
-    void visit(AddrOfValue* casted) override;
+    void visit(AddrOfValue* casted) final;
 
-    void visit(RetStructParamValue *paramVal) override;
+    void visit(RetStructParamValue *paramVal) final;
 
-    void visit(DereferenceValue* casted) override;
+    void visit(DereferenceValue* casted) final;
 
-    void visit(FunctionCall* call) override;
+    void visit(FunctionCall* call) final;
 
-    void visit(IndexOperator* op) override;
+    void visit(IndexOperator* op) final;
 
-    void visit(NegativeValue* negValue) override;
+    void visit(NegativeValue* negValue) final;
 
-    void visit(NotValue* notValue) override;
+    void visit(NotValue* notValue) final;
 
-    void visit(ValueNode *node) override;
+    void visit(ValueNode *node) final;
 
-    void visit(NullValue* nullValue) override;
+    void visit(NullValue* nullValue) final;
 
-    void visit(LambdaFunction* func) override;
+    void visit(LambdaFunction* func) final;
 
-    void visit(LiteralType *func) override;
+    void visit(LiteralType *func) final;
 
-    void visit(AnyType* func) override;
+    void visit(AnyType* func) final;
 
-    void visit(ArrayType* func) override;
+    void visit(ArrayType* func) final;
 
-    void visit(BigIntType* func) override;
+    void visit(BigIntType* func) final;
 
-    void visit(BoolType* func) override;
+    void visit(BoolType* func) final;
 
-    void visit(CharType* func) override;
+    void visit(CharType* func) final;
 
-    void visit(DoubleType* func) override;
+    void visit(DoubleType* func) final;
 
-    void visit(FloatType* func) override;
+    void visit(FloatType* func) final;
 
-    void visit(Float128Type* func) override;
+    void visit(Float128Type* func) final;
 
-    void visit(LongDoubleType *type) override;
+    void visit(LongDoubleType *type) final;
 
-    void visit(ComplexType *type) override;
+    void visit(ComplexType *type) final;
 
-    void visit(FunctionType* func) override;
+    void visit(FunctionType* func) final;
 
-    void visit(GenericType* func) override;
+    void visit(GenericType* func) final;
 
-    void visit(Int128Type* func) override;
+    void visit(Int128Type* func) final;
 
-    void visit(IntType* func) override;
+    void visit(IntType* func) final;
 
-    void visit(UCharType *uchar) override;
+    void visit(UCharType *uchar) final;
 
-    void visit(LongType* func) override;
+    void visit(LongType* func) final;
 
-    void visit(PointerType* func) override;
+    void visit(PointerType* func) final;
 
-    void visit(ReferenceType* func) override;
+    void visit(ReferenceType* func) final;
 
-    void visit(LinkedType* func) override;
+    void visit(LinkedType* func) final;
 
-    void visit(LinkedValueType *ref_type) override;
+    void visit(LinkedValueType *ref_type) final;
 
-    void visit(DynamicType *type) override;
+    void visit(DynamicType *type) final;
 
-    void visit(ShortType* func) override;
+    void visit(ShortType* func) final;
 
-    void visit(StringType* func) override;
+    void visit(StringType* func) final;
 
-    void visit(StructType* func) override;
+    void visit(StructType* func) final;
 
-    void visit(UnionType *unionType) override;
+    void visit(UnionType *unionType) final;
 
-    void visit(UBigIntType* func) override;
+    void visit(UBigIntType* func) final;
 
-    void visit(UInt128Type* func) override;
+    void visit(UInt128Type* func) final;
 
-    void visit(UIntType* func) override;
+    void visit(UIntType* func) final;
 
-    void visit(ULongType* func) override;
+    void visit(ULongType* func) final;
 
-    void visit(UShortType* func) override;
+    void visit(UShortType* func) final;
 
-    void visit(VoidType* func) override;
+    void visit(VoidType* func) final;
 
     ~ToCAstVisitor();
 

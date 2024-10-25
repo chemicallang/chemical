@@ -48,7 +48,7 @@ public:
     /**
      * returns true for is int n
      */
-    bool is_int_n() override {
+    bool is_int_n() final {
         return true;
     }
 
@@ -57,12 +57,12 @@ public:
     /**
      * would provide llvm type based on num bits provided in getNumBits
      */
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen);
 
     /**
      * would provide llvm value based on num bits provided in getNumBits
      */
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type);
 
 #endif
 

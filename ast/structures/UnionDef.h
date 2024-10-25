@@ -26,15 +26,15 @@ public:
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::UnionDecl;
     }
 
-    std::string union_name() override {
+    std::string union_name() final {
         return name;
     }
 
@@ -46,7 +46,7 @@ public:
         return !generic_params.empty();
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return UnionType::byte_size(is64Bit);
     }
 
@@ -58,49 +58,54 @@ public:
         return size;
     }
 
-    VariablesContainer *as_variables_container() override {
+    VariablesContainer *as_variables_container() final {
         return this;
     }
 
-    VariablesContainer *variables_container() override {
+    VariablesContainer *variables_container() final {
         return this;
     }
 
-    VariablesContainer* copy_container(ASTAllocator &allocator) override;
+    VariablesContainer* copy_container(ASTAllocator &allocator) final;
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    const std::string& ns_node_identifier() override {
+    const std::string& ns_node_identifier() final {
         return name;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
     [[nodiscard]]
-    BaseType * copy(ASTAllocator &allocator) const override;
+    BaseType * copy(ASTAllocator &allocator) const final;
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *linked_node() override {
+    ASTNode *linked_node() final {
         return this;
     }
 
-    bool is_anonymous() override {
+    bool is_anonymous() final {
         return has_annotation(AnnotationKind::Anonymous);
+    }
+
+    [[nodiscard]]
+    ValueType value_type() const final {
+        return ValueType::Union;
     }
 
 #ifdef COMPILER_BUILD
@@ -121,17 +126,17 @@ public:
 
     void code_gen(Codegen &gen, bool declare);
 
-    void code_gen_declare(Codegen &gen) override {
+    void code_gen_declare(Codegen &gen) final {
         code_gen(gen, true);
     }
 
-    void code_gen(Codegen &gen) override {
+    void code_gen(Codegen &gen) final {
         code_gen(gen, false);
     }
 
-    void code_gen_external_declare(Codegen &gen) override;
+    void code_gen_external_declare(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override {
+    llvm::Type *llvm_type(Codegen &gen) final {
         return UnionType::llvm_type(gen);
     }
 
@@ -143,15 +148,15 @@ public:
         return type;
     }
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override {
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final {
         return UnionType::llvm_chain_type(gen, values, index);
     }
 
-    llvm::StructType *llvm_union_get_stored_type() override {
+    llvm::StructType *llvm_union_get_stored_type() final {
         return llvm_struct_type;
     }
 
-    void llvm_union_type_store(llvm::StructType* type) override {
+    void llvm_union_type_store(llvm::StructType* type) final {
         llvm_struct_type = type;
     }
 
@@ -159,7 +164,7 @@ public:
         Codegen &gen,
         std::vector<llvm::Value *> &indexes,
         const std::string &name
-    ) override {
+    ) final {
         return llvm_union_child_index(gen, indexes, name);
     }
 

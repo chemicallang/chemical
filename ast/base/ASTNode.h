@@ -79,7 +79,7 @@ public:
     /**
      * any kind of 'node' is returned
      */
-    ASTAnyKind any_kind() override {
+    ASTAnyKind any_kind() final {
         return ASTAnyKind::Node;
     }
 

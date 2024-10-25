@@ -17,7 +17,7 @@ public:
     using Value::create_type;
     using Value::link;
 
-    ChainValue* as_chain_value() override {
+    ChainValue* as_chain_value() final {
         return this;
     }
 

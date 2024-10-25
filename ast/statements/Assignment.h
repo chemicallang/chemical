@@ -36,30 +36,30 @@ public:
             CSTToken* token
     );
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::AssignmentStmt;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
 #ifdef COMPILER_BUILD
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 #endif
 
-    void interpret(InterpretScope& scope) override;
+    void interpret(InterpretScope& scope) final;
 
 };

@@ -20,58 +20,58 @@ public:
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::UnnamedStruct;
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return this;
     }
 
-    std::string get_runtime_name() override {
+    std::string get_runtime_name() final {
         return "";
     }
 
-    VariablesContainer *variables_container() override {
+    VariablesContainer *variables_container() final {
         return this;
     }
 
-    VariablesContainer *as_variables_container() override {
+    VariablesContainer *as_variables_container() final {
         return this;
     }
 
-    int16_t get_generic_iteration() override {
+    int16_t get_generic_iteration() final {
         return 0;
     }
 
-    bool get_is_const() override {
+    bool get_is_const() final {
         // TODO allow user to mark unnamed structs const
         return false;
     }
 
-    BaseDefMember* copy_member(ASTAllocator &allocator) override;
+    BaseDefMember* copy_member(ASTAllocator &allocator) final;
 
-    VariablesContainer *copy_container(ASTAllocator& allocator) override;
+    VariablesContainer *copy_container(ASTAllocator& allocator) final;
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    void redeclare_top_level(SymbolResolver &linker) override;
+    void redeclare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
     bool requires_copy_fn() {
         for(const auto& var : variables) {
@@ -109,30 +109,30 @@ public:
         return false;
     }
 
-    ASTNode *child(const std::string &name) override {
+    ASTNode *child(const std::string &name) final {
         return VariablesContainer::child_def_member(name);
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return total_byte_size(is64Bit);
     }
 
-    ASTNode *linked_node() override {
+    ASTNode *linked_node() final {
         return this;
     }
 
-    BaseType* create_value_type(ASTAllocator &allocator) override;
+    BaseType* create_value_type(ASTAllocator &allocator) final;
 
     [[nodiscard]]
-    BaseType* copy(ASTAllocator& allocator) const override;
+    BaseType* copy(ASTAllocator& allocator) const final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type  *llvm_type(Codegen &gen) override {
+    llvm::Type  *llvm_type(Codegen &gen) final {
         return StructType::llvm_type(gen);
     }
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override {
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final {
         return StructType::llvm_chain_type(gen, values, index);
     }
 
@@ -140,19 +140,19 @@ public:
             Codegen &gen,
             std::vector<llvm::Value *> &indexes,
             const std::string &name
-    ) override {
+    ) final {
         return VariablesContainer::llvm_struct_child_index(gen, indexes, name);
     }
 
 #endif
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return ValueType::Struct;
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return BaseTypeKind::Struct;
     }
 

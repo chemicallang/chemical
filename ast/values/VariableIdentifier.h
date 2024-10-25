@@ -39,34 +39,34 @@ public:
 
     }
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::Identifier;
     }
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) final;
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
-    Value *child(InterpretScope &scope, const std::string &name) override;
+    Value *child(InterpretScope &scope, const std::string &name) final;
 
     // will find value by this name in the parent
-    Value *find_in(InterpretScope &scope, Value *parent) override;
+    Value *find_in(InterpretScope &scope, Value *parent) final;
 
-    void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) override;
+    void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) final;
 
-    void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
+    void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) final;
 
     bool link(SymbolResolver &linker, bool check_access);
 
-    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) override {
+    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) final {
         const auto values_size = values.size();
         const auto parent_index = index - 1;
         const auto parent = parent_index < values_size ? values[parent_index] : nullptr;
@@ -77,76 +77,76 @@ public:
         }
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override {
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final {
         return link(linker, true);
     }
 
-    bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
+    bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) final {
         return link(linker, false);
     }
 
-//    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) override {
+//    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) final {
 //        link(linker, false);
 //    }
 
-    void relink_parent(ChainValue *parent) override;
+    void relink_parent(ChainValue *parent) final;
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
     bool find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser);
 
     bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type);
 
-    bool primitive() override {
+    bool primitive() final {
         return false;
     }
 
-    bool compile_time_computable() override;
+    bool compile_time_computable() final;
 
 #ifdef COMPILER_BUILD
 
-    bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;
+    bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) final;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
+    llvm::FunctionType *llvm_func_type(Codegen &gen) final;
 
-    llvm::Value *llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
+    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) final;
 
-    llvm::Value *access_chain_value(Codegen &gen, std::vector<ChainValue*> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) override;
+    llvm::Value *access_chain_value(Codegen &gen, std::vector<ChainValue*> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) final;
 
 #endif
 
-    VarInitStatement *declaration() override;
+    VarInitStatement *declaration() final;
 
-    Value* evaluated_value(InterpretScope &scope) override;
+    Value* evaluated_value(InterpretScope &scope) final;
 
-//    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override;
+//    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) final;
 
-    Value *evaluated_chain_value(InterpretScope &scope, Value *parent) override;
-//    hybrid_ptr<Value> evaluated_chain_value(InterpretScope &scope, Value* parent) override;
+    Value *evaluated_chain_value(InterpretScope &scope, Value *parent) final;
+//    hybrid_ptr<Value> evaluated_chain_value(InterpretScope &scope, Value* parent) final;
 
-    VariableIdentifier *copy(ASTAllocator& allocator) override;
+    VariableIdentifier *copy(ASTAllocator& allocator) final;
 
-    Value *scope_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) final;
 
-    BaseType* create_type(ASTAllocator &allocator) override;
-//    std::unique_ptr<BaseType> create_type() override;
+    BaseType* create_type(ASTAllocator &allocator) final;
+//    std::unique_ptr<BaseType> create_type() final;
 
-//    hybrid_ptr<BaseType> get_base_type() override;
-
-    [[nodiscard]]
-    BaseTypeKind type_kind() const override;
+//    hybrid_ptr<BaseType> get_base_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    BaseTypeKind type_kind() const final;
+
+    [[nodiscard]]
+    ValueType value_type() const final;
 
 };

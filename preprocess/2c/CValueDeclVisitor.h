@@ -22,33 +22,33 @@ public:
 
     unsigned enum_num = 0;
 
-    void visit(LambdaFunction *func) override;
+    void visit(LambdaFunction *func) final;
 
-    void visit(FunctionDeclaration *functionDeclaration) override;
+    void visit(FunctionDeclaration *functionDeclaration) final;
 
-    void visit(ExtensionFunction *extensionFunc) override;
+    void visit(ExtensionFunction *extensionFunc) final;
 
-    void visit(EnumDeclaration *enumDeclaration) override;
+    void visit(EnumDeclaration *enumDeclaration) final;
 
-    void visit(TypealiasStatement *statement) override;
+    void visit(TypealiasStatement *statement) final;
 
-    void visit(FunctionType *func) override;
+    void visit(FunctionType *func) final;
 
-    void visit(StructMember *member) override;
+    void visit(StructMember *member) final;
 
-    void visit(IfStatement *ifStatement) override;
+    void visit(IfStatement *ifStatement) final;
 
-    void visit(ReturnStatement *stmt) override;
+    void visit(ReturnStatement *stmt) final;
 
-    void visit(FunctionCall *call) override;
+    void visit(FunctionCall *call) final;
 
-    void visit(VariantCall *call) override;
+    void visit(VariantCall *call) final;
 
-    void visit(ArrayValue *arrayVal) override;
+    void visit(ArrayValue *arrayVal) final;
 
-    void visit(StructValue *structValue) override;
+    void visit(StructValue *structValue) final;
 
-    void reset() override {
+    void reset() final {
         aliases.clear();
     }
 

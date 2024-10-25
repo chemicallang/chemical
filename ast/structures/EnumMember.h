@@ -24,34 +24,34 @@ public:
 
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::EnumMember;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return (ASTNode*) parent_node;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
 
     }
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value *llvm_load(Codegen &gen) override;
+    llvm::Value *llvm_load(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
 #endif
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
 };

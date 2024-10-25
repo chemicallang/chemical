@@ -55,7 +55,7 @@ public:
     /**
      * any kind of 'type' is returned
      */
-    ASTAnyKind any_kind() override {
+    ASTAnyKind any_kind() final {
         return ASTAnyKind::Type;
     }
 
@@ -492,7 +492,7 @@ class TokenizedBaseType : public BaseType {
 public:
     CSTToken* token;
     explicit TokenizedBaseType(CSTToken* token) : token(token) {}
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() {
         return token;
     }
 };

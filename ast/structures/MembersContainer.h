@@ -57,7 +57,7 @@ public:
         return functions_container;
     }
 
-    VariablesContainer* as_variables_container() override {
+    VariablesContainer* as_variables_container() {
         return this;
     }
 
@@ -67,7 +67,7 @@ public:
 
     void redeclare_variables_and_functions(SymbolResolver &linker);
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker);
 
     /**
      * this would register the definition to all interfaces inherited
@@ -77,7 +77,7 @@ public:
 
     FunctionDeclaration *member(const std::string &name);
 
-    ASTNode *child(const std::string &name) override;
+    ASTNode *child(const std::string &name);
 
     BaseDefMember *direct_variable(const std::string& name);
 
@@ -92,7 +92,7 @@ public:
     /**
      * get child variable index, including the inherited types
      */
-    int child_index(const std::string &var_name) override {
+    int child_index(const std::string &var_name) final {
         return VariablesContainer::variable_index(var_name);
     }
 
@@ -115,7 +115,7 @@ public:
     /**
      * get the active generic iteration
      */
-    int16_t get_active_iteration() override {
+    int16_t get_active_iteration() final {
         return active_iteration;
     }
 
@@ -123,7 +123,7 @@ public:
      * set's the active iteration for a generic function
      * this helps generics types pretend to be certain type
      */
-    void set_active_iteration(int16_t iteration) override;
+    void set_active_iteration(int16_t iteration) final;
 
     /**
      * set's the generic active iteration safely
@@ -317,7 +317,7 @@ public:
     /**
      * this generic type is registered as a subscriber of this generic node
      */
-    void subscribe(GenericType *subscriber) override {
+    void subscribe(GenericType *subscriber) final {
         subscribers.emplace_back(subscriber);
     }
 
@@ -395,14 +395,14 @@ public:
             Codegen &gen,
             std::vector<llvm::Value *> &indexes,
             const std::string &name
-    ) override {
+    ) {
         return VariablesContainer::llvm_struct_child_index(gen, indexes, name);
     }
 
     /**
      * llvm_type below doesn't work without this declaration
      */
-    llvm::Type* llvm_type(Codegen &gen) override {
+    llvm::Type* llvm_type(Codegen &gen) {
         return ASTAny::llvm_type(gen);
     }
 

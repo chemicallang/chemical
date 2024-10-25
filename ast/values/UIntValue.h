@@ -15,53 +15,53 @@ public:
 
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::UInt;
     }
 
-//    hybrid_ptr<BaseType> get_base_type() override {
+//    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &UIntType::instance, false };
 //    }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return (BaseType*) &UIntType::instance;
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return 4;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    UIntValue *copy(ASTAllocator& allocator) override {
+    UIntValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<UIntValue>()) UIntValue(value, token);
     }
 
     [[nodiscard]]
-    BaseType* create_type(ASTAllocator &allocator) override {
+    BaseType* create_type(ASTAllocator &allocator) final {
         return new (allocator.allocate<UIntType>()) UIntType(nullptr);
     }
 
-    bool is_unsigned() override {
+    bool is_unsigned() final {
         return true;
     }
 
-    unsigned int get_num_bits() override {
+    unsigned int get_num_bits() final {
         return 32;
     }
 
     [[nodiscard]]
-    int64_t get_num_value() const override {
+    int64_t get_num_value() const final {
         return value;
     }
 
-    [[nodiscard]] ValueType value_type() const override {
+    [[nodiscard]] ValueType value_type() const final {
         return ValueType::UInt;
     }
 

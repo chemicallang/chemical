@@ -39,51 +39,51 @@ public:
 
     }
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::EnumDecl;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker) final;
 
-    const std::string& ns_node_identifier() override {
+    const std::string& ns_node_identifier() final {
         return name;
     }
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator) final;
 
-    BaseType* known_type() override;
+    BaseType* known_type() final;
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(bool is64Bit) final {
         return underlying_type.byte_size(is64Bit);
     }
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) override {
+    void code_gen(Codegen &gen) final {
         // do nothing
     }
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
 #endif
 
-    ASTNode *child(const std::string &name) override;
+    ASTNode *child(const std::string &name) final;
 
     std::string name; ///< The name of the enum.
     std::unordered_map<std::string, EnumMember*> members; ///< The values of the enum.

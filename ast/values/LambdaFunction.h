@@ -44,23 +44,23 @@ public:
             CSTToken* token
     );
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::LambdaFunc;
     }
 
-    LambdaFunction* as_lambda() override {
+    LambdaFunction* as_lambda() final {
         return this;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
@@ -81,23 +81,23 @@ protected:
 
 public:
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif
 
-    BaseType* create_type(ASTAllocator &allocator) override;
+    BaseType* create_type(ASTAllocator &allocator) final;
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return this;
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     bool link(SymbolResolver &linker, FunctionType* func_type);
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final;
 
 };

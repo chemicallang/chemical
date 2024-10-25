@@ -85,11 +85,11 @@ public:
             AccessSpecifier = AccessSpecifier::Internal
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() {
         return ASTNodeKind::FunctionDecl;
     }
 
@@ -99,7 +99,7 @@ public:
      */
     int16_t total_generic_iterations();
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
@@ -119,25 +119,25 @@ public:
 
     std::string runtime_name_no_parent_fast_str();
 
-    void runtime_name_no_parent(std::ostream &stream) override {
+    void runtime_name_no_parent(std::ostream &stream) final {
         return runtime_name_no_parent_fast(stream);
     }
 
-    void runtime_name(std::ostream &stream) override;
+    void runtime_name(std::ostream &stream) final;
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    const std::string& ns_node_identifier() override {
+    const std::string& ns_node_identifier() final {
         return name;
     }
 
-    std::string func_opt_name() override {
+    std::string func_opt_name() {
         return name;
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor);
 
     void make_destructor(ASTAllocator&, ExtendableMembersContainerNode* def);
 
@@ -177,14 +177,14 @@ public:
     /**
      * called by generic types to subscribe to generic usages of this function
      */
-    void subscribe(GenericType *subscriber) override {
+    void subscribe(GenericType *subscriber) final {
         subscribers.emplace_back(subscriber);
     }
 
     /**
      * get known function type, which is this
      */
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return this;
     }
 
@@ -196,13 +196,13 @@ public:
 
     llvm::Value* llvm_callee();
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_load(Codegen &gen) override;
+    llvm::Value *llvm_load(Codegen &gen) final;
 
-    llvm::Value *llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) final;
 
-    std::vector<llvm::Type *> param_types(Codegen &gen) override;
+    std::vector<llvm::Type *> param_types(Codegen &gen);
 
     llvm::FunctionType *create_llvm_func_type(Codegen &gen);
 
@@ -222,7 +222,7 @@ public:
      * this will get the func type, no matter what, if it doesn't exist
      * it will create the function type and store it
      */
-    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
+    llvm::FunctionType *llvm_func_type(Codegen &gen) final;
 
     /**
      * given llvm data will be set for active iteration
@@ -340,18 +340,18 @@ public:
     /**
      * this function is used to declare the function before generating code for its body
      */
-    void code_gen_declare(Codegen &gen) override;
+    void code_gen_declare(Codegen &gen) final;
 
     /**
      * this function generates the body of the function
      * for any function (present inside struct / variant, or a normal function)
      */
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 
     /**
      * generic code gen
      */
-    void code_gen_generic(Codegen &gen) override;
+    void code_gen_generic(Codegen &gen) final;
 
     /**
      * (this) is the function that is overriding
@@ -372,15 +372,15 @@ public:
     /**
      * called to externally declare the function, taking into account it's parent node
      */
-    void code_gen_external_declare(Codegen &gen) override;
+    void code_gen_external_declare(Codegen &gen) final;
 
 #endif
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker);
 
-    void redeclare_top_level(SymbolResolver &linker) override;
+    void redeclare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker);
 
     /**
      * ensure that function body has an init block (required in constructors)
@@ -410,11 +410,11 @@ public:
         ASTAny* debug_value = nullptr
     );
 
-    BaseType* create_value_type(ASTAllocator& allocator) override;
+    BaseType* create_value_type(ASTAllocator& allocator);
 
     // called by the return statement
     void set_return(InterpretScope& func_scope, Value *value);
 
-    FunctionDeclaration *as_function() override;
+    FunctionDeclaration *as_function() final;
 
 };

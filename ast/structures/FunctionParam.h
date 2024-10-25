@@ -38,15 +38,15 @@ public:
             CSTToken* token
     );
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::FunctionParam;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return (ASTNode*) func_type;
     }
 
@@ -85,15 +85,15 @@ public:
         has_assignment = true;
     }
 
-    unsigned int calculate_c_or_llvm_index() override;
+    unsigned int calculate_c_or_llvm_index() final;
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    Value *holding_value() override {
+    Value *holding_value() final {
         return defValue;
     }
 
-    BaseType *known_type() override {
+    BaseType *known_type() final {
         return type;
     }
 
@@ -102,6 +102,6 @@ public:
 
     bool link_param_type(SymbolResolver &linker);
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
 };

@@ -18,57 +18,57 @@ public:
 
     CastedValue(Value* value, BaseType* type, CSTToken* token);
 
-    CSTToken* cst_token() override {
+    CSTToken* cst_token() final {
         return token;
     }
 
-    ValueKind val_kind() override {
+    ValueKind val_kind() final {
         return ValueKind::CastedValue;
     }
 
-    CastedValue *copy(ASTAllocator& allocator) override;
+    CastedValue *copy(ASTAllocator& allocator) final;
 
-    Value* evaluated_value(InterpretScope &scope) override {
+    Value* evaluated_value(InterpretScope &scope) final {
         return value->evaluated_value(scope);
     }
 
-//    hybrid_ptr<BaseType> get_base_type() override {
+//    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { type.get(), false };
 //    }
 
-    BaseType* known_type() override {
+    BaseType* known_type() final {
         return type;
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override {
+    BaseType* create_type(ASTAllocator &allocator) final {
         return type->copy(allocator);
     }
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
 
 #endif
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const final {
         return type->value_type();
     }
 
     [[nodiscard]]
-    BaseTypeKind type_kind() const override {
+    BaseTypeKind type_kind() const final {
         return type->kind();
     }
 

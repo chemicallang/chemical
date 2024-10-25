@@ -40,12 +40,12 @@ public:
     /**
      * cst token
      */
-    CSTToken* cst_token() override;
+    CSTToken* cst_token() final;
 
     /**
      * accept the visitor
      */
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
@@ -85,38 +85,38 @@ public:
     /**
      * link func
      */
-    bool link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker) final;
 
-    int16_t get_generic_iteration() override {
+    int16_t get_generic_iteration() final {
         return generic_iteration;
     }
 
-    ASTNode *linked_node() override;
+    ASTNode *linked_node() final;
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Generic;
     }
 
     [[nodiscard]]
-    ValueType value_type() const override;
+    ValueType value_type() const final;
 
-    bool is_same(BaseType *other) override {
+    bool is_same(BaseType *other) final {
         return other->kind() == kind();
     }
 
-    bool satisfies(ValueType value_type) override;
+    bool satisfies(ValueType value_type) final;
 
-    bool satisfies(BaseType *type) override;
+    bool satisfies(BaseType *type) final;
 
     [[nodiscard]]
-    GenericType* copy(ASTAllocator& allocator) const override;
+    GenericType* copy(ASTAllocator& allocator) const final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_param_type(Codegen &gen) override;
+    llvm::Type *llvm_param_type(Codegen &gen) final;
 
 #endif
 

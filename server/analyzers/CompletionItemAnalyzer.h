@@ -69,36 +69,36 @@ public:
 
     // Visitors
 
-    void visit(VarInitStatement *init) override;
+    void visit(VarInitStatement *init) final;
 
-    void visit(AssignStatement *assign) override;
+    void visit(AssignStatement *assign) final;
 
-    void visit(FunctionDeclaration *functionDeclaration) override;
+    void visit(FunctionDeclaration *functionDeclaration) final;
 
-    void visit(EnumDeclaration *enumDeclaration) override;
+    void visit(EnumDeclaration *enumDeclaration) final;
 
-    void visit(StructDefinition *structDefinition) override;
+    void visit(StructDefinition *structDefinition) final;
 
-    void visit(InterfaceDefinition *interfaceDefinition) override;
+    void visit(InterfaceDefinition *interfaceDefinition) final;
 
-    void visit(ImplDefinition *implDefinition) override;
+    void visit(ImplDefinition *implDefinition) final;
 
-    void visit(IfStatement *ifStatement) override;
+    void visit(IfStatement *ifStatement) final;
 
-    void visit(WhileLoop *whileLoop) override;
+    void visit(WhileLoop *whileLoop) final;
 
-    void visit(DoWhileLoop *doWhileLoop) override;
+    void visit(DoWhileLoop *doWhileLoop) final;
 
-    void visit(ForLoop *forLoop) override;
+    void visit(ForLoop *forLoop) final;
 
-    void visit(SwitchStatement *statement) override;
+    void visit(SwitchStatement *statement) final;
 
-    void visit(LambdaFunction *func) override;
+    void visit(LambdaFunction *func) final;
 
-    void visit(StructValue *structValue) override;
+    void visit(StructValue *structValue) final;
 
-    void visit(ArrayValue *arrayVal) override;
+    void visit(ArrayValue *arrayVal) final;
 
-    void visit(Scope *scope) override;
+    void visit(Scope *scope) final;
 
 };

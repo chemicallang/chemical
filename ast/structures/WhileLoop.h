@@ -33,32 +33,32 @@ public:
      */
     WhileLoop(Value* condition, LoopScope body, ASTNode* parent_node, CSTToken* token);
 
-    CSTToken *cst_token() override {
+    CSTToken *cst_token() final {
         return token;
     }
 
-    ASTNodeKind kind() override {
+    ASTNodeKind kind() final {
         return ASTNodeKind::WhileLoopStmt;
     }
 
-    void set_parent(ASTNode* new_parent) override {
+    void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
     }
 
-    ASTNode *parent() override {
+    ASTNode *parent() final {
         return parent_node;
     }
 
-    void accept(Visitor *visitor) override;
+    void accept(Visitor *visitor) final;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker) final;
 
-    void interpret(InterpretScope &scope) override;
+    void interpret(InterpretScope &scope) final;
 
 #ifdef COMPILER_BUILD
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen) final;
 #endif
 
-    void stopInterpretation() override;
+    void stopInterpretation() final;
 
 };

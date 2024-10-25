@@ -11,25 +11,25 @@ public:
 
     using SubVisitor::SubVisitor;
 
-    void visit(FunctionCall *call) override;
+    void visit(FunctionCall *call) final;
 
-    void visit(AccessChain *chain) override;
+    void visit(AccessChain *chain) final;
 
-    void visit(VariantCall *call) override;
+    void visit(VariantCall *call) final;
 
     void process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier);
 
     void process_init_value(Value* value, const std::string& identifier);
 
-    void visit(VariableIdentifier *identifier) override;
+    void visit(VariableIdentifier *identifier) final;
 
-    void visit(VarInitStatement *init) override;
+    void visit(VarInitStatement *init) final;
 
-    void visit(Scope *scope) override {
+    void visit(Scope *scope) final {
         // do nothing
     }
 
-    void visit(LambdaFunction *func) override {
+    void visit(LambdaFunction *func) final {
         // do nothing
     }
 

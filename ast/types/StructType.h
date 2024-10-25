@@ -19,30 +19,30 @@ public:
 
     virtual int16_t get_generic_iteration() = 0;
 
-    void accept(Visitor *visitor) override {
+    void accept(Visitor *visitor) {
         visitor->visit(this);
     }
 
     [[nodiscard]]
-    BaseTypeKind kind() const override {
+    BaseTypeKind kind() const final {
         return BaseTypeKind::Struct;
     }
 
     [[nodiscard]]
-    ValueType value_type() const override {
+    ValueType value_type() const {
         return ValueType::Struct;
     }
 
     bool equals(StructType *type);
 
-    bool is_same(BaseType *type) override {
+    bool is_same(BaseType *type) final {
         return kind() == type->kind() && equals(static_cast<StructType *>(type));
     }
 
     [[nodiscard]]
-    BaseType *copy(ASTAllocator& allocator) const override = 0;
+    BaseType *copy(ASTAllocator& allocator) const = 0;
 
-    bool satisfies(ValueType type) override {
+    bool satisfies(ValueType type) final {
         return type == ValueType::Struct;
     }
 
@@ -58,11 +58,11 @@ public:
 
     llvm::Type *with_elements_type(Codegen &gen, const std::vector<llvm::Type *>& elements, const std::string& runtime_name);
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen);
 
-    llvm::Type *llvm_param_type(Codegen &gen) override;
+    llvm::Type *llvm_param_type(Codegen &gen);
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index);
 
 #endif
 

@@ -25,12 +25,12 @@ public:
     /**
      * runtime name for thi members container node
      */
-    void runtime_name(std::ostream &stream) override;
+    void runtime_name(std::ostream &stream) final;
 
     /**
      * get runtime name without parent
      */
-    void runtime_name_no_parent(std::ostream &stream) override;
+    void runtime_name_no_parent(std::ostream &stream) final;
 
     /**
      * get runtime name without parent as string
@@ -45,7 +45,7 @@ public:
     /**
      * get the member container child or otherwise extendable member container child
      */
-    ASTNode *child(const std::string &child_name) override {
+    ASTNode *child(const std::string &child_name) {
         auto found = MembersContainer::child(child_name);
         if(found) return found;
         return ExtendableBase::extended_child(child_name);
@@ -54,14 +54,14 @@ public:
     /**
      * returns itself as extendable members container
      */
-    ExtendableBase *as_extendable_members_container() override {
+    ExtendableBase *as_extendable_members_container() final {
         return this;
     }
 
     /**
      * returns itself as extendable members container
      */
-    ExtendableMembersContainerNode *as_extendable_members_container_node() override {
+    ExtendableMembersContainerNode *as_extendable_members_container_node() final {
         return this;
     }
 

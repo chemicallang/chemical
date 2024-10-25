@@ -498,6 +498,8 @@ set(COMMON_SOURCES
         ast/structures/ComptimeBlock.h
         ast/structures/ComptimeBlock.cpp
         utils/inline_attr.h
+        cst/LocationManager.h
+        cst/LocationManager.cpp
 )
 
 # Chemical LSP Executable Target

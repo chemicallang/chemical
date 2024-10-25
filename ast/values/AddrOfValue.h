@@ -14,14 +14,14 @@ class AddrOfValue : public Value {
 public:
 
     Value* value;
-    CSTToken* token;
+    SourceLocation location;
     PointerType _ptr_type;
     bool is_value_mutable = false;
 
-    explicit AddrOfValue(Value* value, CSTToken* token);
+    explicit AddrOfValue(Value* value, SourceLocation location);
 
-    CSTToken* cst_token() final{
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

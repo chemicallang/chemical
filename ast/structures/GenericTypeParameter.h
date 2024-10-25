@@ -14,7 +14,7 @@ public:
     int16_t active_iteration = -1; // <-- index of active type in usage vector
     ASTNode* parent_node;
     unsigned param_index = 0; // <-- index in the generic type parameters
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * constructor
@@ -25,11 +25,11 @@ public:
         BaseType* def_type,
         ASTNode* parent_node,
         unsigned param_index,
-        CSTToken* token
+        SourceLocation location
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

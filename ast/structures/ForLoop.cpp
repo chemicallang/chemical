@@ -64,11 +64,11 @@ ForLoop::ForLoop(
         ASTNode* incrementerExpr,
         LoopScope body,
         ASTNode* parent_node,
-        CSTToken* token
+        SourceLocation location
 ) : initializer(initializer),
     conditionExpr(conditionExpr),
     incrementerExpr(incrementerExpr),
-    LoopASTNode(std::move(body)), parent_node(parent_node), token(token) {
+    LoopASTNode(std::move(body)), parent_node(parent_node), location(location) {
 
 }
 

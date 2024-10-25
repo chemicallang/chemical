@@ -70,7 +70,8 @@ public:
         std::string target_triple,
         BackendContext* backendContext,
         LabBuildCompiler* buildCompiler,
-        ASTAllocator& allocator
+        ASTAllocator& allocator,
+        LocationManager& loc_man
     );
 
     /**

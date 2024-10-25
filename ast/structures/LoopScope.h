@@ -16,7 +16,7 @@ public:
     /**
      * empty constructor
      */
-    LoopScope(ASTNode* parent_node, CSTToken* token) : Scope(parent_node, token) {
+    LoopScope(ASTNode* parent_node, SourceLocation location) : Scope(parent_node, location) {
 
     }
 
@@ -24,7 +24,7 @@ public:
      * construct with given nodes
      * @param nodes
      */
-    LoopScope(std::vector<ASTNode*> nodes, ASTNode* parent_node, CSTToken* token);
+    LoopScope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location);
 
     /**
      * this just continuously interprets nodes in scope, without stopping unless user

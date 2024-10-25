@@ -3,7 +3,11 @@
 #include "ast/base/Value.h"
 #include "ThrowStatement.h"
 
-ThrowStatement::ThrowStatement(Value* value, ASTNode* parent_node, CSTToken* token) : value(value), parent_node(parent_node), token(token) {
+ThrowStatement::ThrowStatement(
+        Value* value,
+        ASTNode* parent_node,
+        SourceLocation location
+) : value(value), parent_node(parent_node), location(location) {
 
 }
 

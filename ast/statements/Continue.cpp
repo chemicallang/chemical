@@ -6,7 +6,11 @@
 /**
  * @brief Construct a new ContinueStatement object.
  */
-ContinueStatement::ContinueStatement(LoopASTNode *node, ASTNode* parent_node, CSTToken* token) : node(node), parent_node(parent_node), token(token) {
+ContinueStatement::ContinueStatement(
+        LoopASTNode *node,
+        ASTNode* parent_node,
+        SourceLocation location
+) : node(node), parent_node(parent_node), location(location) {
 
 }
 

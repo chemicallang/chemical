@@ -12,16 +12,16 @@ public:
     std::string type;
     ASTNode *linked;
 
-    LinkedType(std::string type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(nullptr) {
+    LinkedType(std::string type, SourceLocation location) : type(std::move(type)), TokenizedBaseType(location), linked(nullptr) {
 
     }
 
     [[deprecated]]
-    LinkedType(std::string type, CSTToken* token, ASTNode* linked) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
+    LinkedType(std::string type, SourceLocation location, ASTNode* linked) : type(std::move(type)), TokenizedBaseType(location), linked(linked) {
 
     }
 
-    LinkedType(std::string type, ASTNode* linked, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
+    LinkedType(std::string type, ASTNode* linked, SourceLocation location) : type(std::move(type)), TokenizedBaseType(location), linked(linked) {
 
     }
 
@@ -55,7 +55,7 @@ public:
 
     [[nodiscard]]
     LinkedType *copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<LinkedType>()) LinkedType(type, linked, token);
+        return new (allocator.allocate<LinkedType>()) LinkedType(type, linked, location);
     }
 
 #ifdef COMPILER_BUILD

@@ -17,7 +17,7 @@ public:
     ASTNode* parent_node;
     FunctionType* func_type = nullptr;
     Value* value;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new ReturnStatement object.
@@ -26,11 +26,11 @@ public:
             Value* value,
             FunctionType *declaration,
             ASTNode* parent_node,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

@@ -34,10 +34,8 @@ public:
      * parent node
      */
     ASTNode* parent_node;
-    /**
-     * the cst token
-     */
-    CSTToken* token;
+
+    SourceLocation location;
 
     /**
      * constructor
@@ -47,11 +45,11 @@ public:
         Value* value,
         bool is_array,
         ASTNode* parent_node,
-        CSTToken* token
+        SourceLocation location
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     DestructData get_data(ASTAllocator& allocator);

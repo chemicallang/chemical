@@ -23,8 +23,8 @@
 #include "compiler/ctranslator/CTranslator.h"
 #endif
 
-ASTImportResultExt concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor) {
-    return processor->import_file(file);
+ASTImportResultExt concurrent_processor(int id, int file_id, const FlatIGFile& file, ASTProcessor* processor) {
+    return processor->import_file(file_id, file);
 }
 
 std::string ASTProcessorOptions::get_resources_path() {
@@ -38,6 +38,7 @@ std::string ASTProcessorOptions::get_resources_path() {
 
 ASTProcessor::ASTProcessor(
         ASTProcessorOptions* options,
+        LocationManager& loc_man,
         SymbolResolver* resolver,
         CompilerBinder& binder,
 #ifdef COMPILER_BUILD
@@ -46,7 +47,7 @@ ASTProcessor::ASTProcessor(
         ASTAllocator& job_allocator,
         ASTAllocator& mod_allocator,
         ASTAllocator& file_allocator
-) : options(options), resolver(resolver), path_handler(options->exe_path), binder(binder),
+) : loc_man(loc_man), options(options), resolver(resolver), path_handler(options->exe_path), binder(binder),
     job_allocator(job_allocator), mod_allocator(mod_allocator),
 #ifdef COMPILER_BUILD
         translator(translator),
@@ -57,19 +58,19 @@ ASTProcessor::ASTProcessor(
 
 }
 
-void put_import_graph(ImportPathHandler& handler, std::vector<IGFile>& files, const std::vector<std::string>& paths) {
+void put_import_graph(ImportPathHandler& handler, LocationManager& manager, std::vector<IGFile>& files, const std::vector<std::string>& paths) {
     for (const auto& path : paths) {
-        auto local = determine_import_graph(handler, path);
+        auto local = determine_import_graph(handler, manager, path);
         files.emplace_back(local.root);
     }
 }
 
-void put_import_graph(ImportPathHandler& handler, IGResult& result, const std::vector<std::string>& paths) {
+void put_import_graph(ImportPathHandler& handler, LocationManager& manager, IGResult& result, const std::vector<std::string>& paths) {
     if(paths.size() == 1) {
-        result = determine_import_graph(handler, paths[0]);
+        result = determine_import_graph(handler, manager, paths[0]);
     } else {
         for (const auto& path : paths) {
-            auto local = determine_import_graph(handler, path);
+            auto local = determine_import_graph(handler, manager, path);
             result.root.files.emplace_back(local.root);
         }
     }
@@ -83,11 +84,11 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<std::st
     if (options->benchmark) {
         BenchmarkResults bm{};
         bm.benchmark_begin();
-        put_import_graph(path_handler, files, c_paths);
+        put_import_graph(path_handler, loc_man, files, c_paths);
         bm.benchmark_end();
         std::cout << "[IGGraph] " << bm.representation() << std::endl;
     } else {
-        put_import_graph(path_handler, files, c_paths);
+        put_import_graph(path_handler, loc_man, files, c_paths);
     }
 
     // print errors in ig
@@ -216,7 +217,7 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
     }
 }
 
-ASTImportResultExt ASTProcessor::import_chemical_file(const std::string& abs_path) {
+ASTImportResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const std::string_view& abs_path) {
 
     std::ostringstream out;
     ASTUnit unit;
@@ -229,17 +230,17 @@ ASTImportResultExt ASTProcessor::import_chemical_file(const std::string& abs_pat
 
     // lex the file
     SourceProvider provider(nullptr);
-    Lexer lexer(provider, &binder);
+    Lexer lexer(0, provider, loc_man, &binder);
 //        if(options->isCBIEnabled) {
 //            bind_lexer_cbi(lexer_cbi.get(), &lexer);
 //        }
 
     if(options->benchmark) {
         bm_results = std::make_unique<BenchmarkResults>();
-        benchLexFile(&lexer, abs_path, *bm_results);
+        benchLexFile(&lexer, abs_path.data(), *bm_results);
         print_benchmarks(out, "Lex", bm_results.get());
     } else {
-        lexFile(&lexer, abs_path);
+        lexFile(&lexer, abs_path.data());
     }
     for (const auto &err: lexer.diagnostics) {
         err.ansi(std::cerr, abs_path, "Lexer") << std::endl;
@@ -257,16 +258,16 @@ ASTImportResultExt ASTProcessor::import_chemical_file(const std::string& abs_pat
     }
 
     CSTConverter converter(
-            abs_path,
+            fileId,
             options->is64Bit,
             options->target_triple,
             resolver->comptime_scope,
             binder,
+            loc_man,
             job_allocator,
             mod_allocator,
             file_allocator
     );
-    converter.isCBIEnabled = options->isCBIEnabled;
     converter.convert(lexer.unit.tokens);
     if(options->benchmark) {
         bm_results->benchmark_end();
@@ -284,7 +285,7 @@ ASTImportResultExt ASTProcessor::import_chemical_file(const std::string& abs_pat
 
 }
 
-ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
+ASTImportResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFile& file) {
 
     auto& abs_path = file.abs_path;
 
@@ -318,7 +319,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
     } else {
 
-        return import_chemical_file(file.abs_path);
+        return import_chemical_file(fileId, file.abs_path);
 
     }
 

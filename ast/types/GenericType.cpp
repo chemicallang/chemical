@@ -18,8 +18,8 @@ GenericType::GenericType(LinkedType* referenced, int16_t generic_itr) : referenc
 
 }
 
-CSTToken* GenericType::cst_token() {
-    return referenced->cst_token();
+SourceLocation GenericType::encoded_location() {
+    return referenced->encoded_location();
 }
 
 bool GenericType::link(SymbolResolver &linker) {

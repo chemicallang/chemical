@@ -69,7 +69,7 @@ struct ErrorMsg {
 BaseType* decl_type(CTranslator& translator, clang::Decl* decl, std::string name) {
     auto found = translator.declarations.find(decl);
     if(found != translator.declarations.end()) {
-        return new (translator.allocator.allocate<LinkedType>()) LinkedType(std::move(name), found->second, nullptr);
+        return new (translator.allocator.allocate<LinkedType>()) LinkedType(std::move(name), found->second, ZERO_LOC);
     } else {
         return nullptr;
 //        const auto maker = translator.node_makers[decl->getKind()];
@@ -117,7 +117,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto elemType = arrayType->getElementType();
             const auto element_type = make_type(&elemType);
             if(!element_type) return nullptr;
-            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, (int) arrayType->getSize().getLimitedValue(), nullptr);
+            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, (int) arrayType->getSize().getLimitedValue(), ZERO_LOC);
         }
         case clang::Type::DependentSizedArray:
             error("TODO: type with class DependentSizedArray");
@@ -127,7 +127,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto elemType = incomplete_arr->getElementType();
             const auto element_type = make_type(&elemType);
             if(!element_type) return nullptr;
-            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, -1, nullptr);
+            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, -1, ZERO_LOC);
         }
         case clang::Type::VariableArray:
             error("TODO: type with class VariableArray");
@@ -154,7 +154,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
             const auto type_maker = type_makers[builtIn->getKind()];
             if(type_maker) {
-                return type_maker(allocator, builtIn);
+                return type_maker(allocator, builtIn, ZERO_LOC);
             } else {
                 error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str() + " with actual " + type->getAsString());
                 return nullptr;
@@ -164,7 +164,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             const auto complexType = ptr->getAs<clang::ComplexType>();
             auto elemType = complexType->getElementType();
             auto element_type = make_type(&elemType);
-            return new (allocator.allocate<ComplexType>()) ComplexType(element_type, nullptr);
+            return new (allocator.allocate<ComplexType>()) ComplexType(element_type, ZERO_LOC);
         }
         case clang::Type::Decltype:
             error("TODO: type with class Decltype");
@@ -203,7 +203,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto retType = protoType->getReturnType();
             const auto returnType = make_type(&retType);
             if(!returnType) return nullptr;
-            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType({}, returnType, false, false, nullptr, nullptr);
+            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType({}, returnType, false, false, nullptr, ZERO_LOC);
             return functionType;
         }
         case clang::Type::FunctionProto:{
@@ -211,14 +211,14 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto retType = protoType->getReturnType();
             const auto returnType = make_type(&retType);
             if(!returnType) return nullptr;
-            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType({}, returnType, protoType->isVariadic(), false, nullptr, nullptr);
+            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType({}, returnType, protoType->isVariadic(), false, nullptr, ZERO_LOC);
             unsigned i = 0;
             for(auto paramType : protoType->getParamTypes()) {
                 auto param_type = make_type(&paramType);
                 if(!param_type) {
                     return nullptr;
                 }
-                const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam("", param_type, i, nullptr, false, functionType, nullptr);
+                const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam("", param_type, i, nullptr, false, functionType, ZERO_LOC);
                 functionType->params.emplace_back(param);
                 i++;
             }
@@ -269,7 +269,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             if(!pointee) {
                 return nullptr;
             }
-            return new (allocator.allocate<PointerType>()) PointerType(pointee, nullptr, is_mutable);
+            return new (allocator.allocate<PointerType>()) PointerType(pointee, ZERO_LOC, is_mutable);
         }
         case clang::Type::LValueReference:
             error("TODO: type with class LValueReference");
@@ -329,12 +329,12 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     return nullptr;
 }
 
-inline Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, CSTToken* token = nullptr) {
-    return IntNumValue::create_number(alloc, bitWidth, is_signed, value, token);
+inline Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, SourceLocation location) {
+    return IntNumValue::create_number(alloc, bitWidth, is_signed, value, location);
 }
 
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
-    auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(decl->getNameAsString(), {}, parent_node, nullptr);
+    auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(decl->getNameAsString(), {}, parent_node, ZERO_LOC);
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
     unsigned index = 0;
     for(auto mem : decl->enumerators()) {
@@ -346,23 +346,23 @@ EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
             const auto& init_val = mem->getInitVal();
             auto bitWidth = init_val.getBitWidth();
             auto value = init_val.getLimitedValue();
-            mem_value = convert_to_number(allocator, is64Bit, bitWidth, init_val.isSigned(), value, nullptr);
+            mem_value = convert_to_number(allocator, is64Bit, bitWidth, init_val.isSigned(), value, ZERO_LOC);
         }
-        enum_decl->members[mem->getNameAsString()] = new (allocator.allocate<EnumMember>()) EnumMember(mem->getNameAsString(), index, mem_value, enum_decl, nullptr);
+        enum_decl->members[mem->getNameAsString()] = new (allocator.allocate<EnumMember>()) EnumMember(mem->getNameAsString(), index, mem_value, enum_decl, ZERO_LOC);
         index++;
     }
     return enum_decl;
 }
 
 StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
-    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(decl->getNameAsString(), parent_node, nullptr);
+    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(decl->getNameAsString(), parent_node, ZERO_LOC);
     for(auto str : decl->fields()) {
         auto field_type = str->getType();
         auto field_type_conv = make_type(&field_type);
         if(!field_type_conv) {
             return nullptr;
         }
-        def->variables[str->getNameAsString()] = new (allocator.allocate<StructMember>()) StructMember(str->getNameAsString(), field_type_conv, nullptr, def, nullptr);
+        def->variables[str->getNameAsString()] = new (allocator.allocate<StructMember>()) StructMember(str->getNameAsString(), field_type_conv, nullptr, def, ZERO_LOC);
     }
     return def;
 }
@@ -400,7 +400,7 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
 
     }
 
-    return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(decl->getNameAsString(), type, parent_node, nullptr);
+    return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(decl->getNameAsString(), type, parent_node, ZERO_LOC);
 }
 
 std::optional<Operation> convert_to_op(clang::BinaryOperatorKind kind) {
@@ -483,7 +483,7 @@ Value* CTranslator::make_expr(clang::Expr* expr) {
         auto value = intLiteral->getValue();
         const auto bitWidth = value.getBitWidth();
         auto real_val = value.getLimitedValue();
-        return convert_to_number(allocator, is64Bit, bitWidth, is_signed, real_val, nullptr);
+        return convert_to_number(allocator, is64Bit, bitWidth, is_signed, real_val, ZERO_LOC);
     } else if (auto* floatLiteral = llvm::dyn_cast<clang::FloatingLiteral>(expr)) {
         // Handle floating-point literals
         llvm::APFloat value = floatLiteral->getValue();
@@ -491,21 +491,21 @@ Value* CTranslator::make_expr(clang::Expr* expr) {
         if (builtinType->getKind() == clang::BuiltinType::Float) {
             // Single precision (float)
             auto floatValue = value.convertToFloat();
-            return new (allocator.allocate<FloatValue>()) FloatValue(floatValue, nullptr);
+            return new (allocator.allocate<FloatValue>()) FloatValue(floatValue, ZERO_LOC);
         } else {
             // Double precision
             auto doubleValue = value.convertToDouble();
-            return new (allocator.allocate<DoubleValue>()) DoubleValue(doubleValue, nullptr);
+            return new (allocator.allocate<DoubleValue>()) DoubleValue(doubleValue, ZERO_LOC);
         }
     } else if (auto* boolLiteral = llvm::dyn_cast<clang::CXXBoolLiteralExpr>(expr)) {
         bool value = boolLiteral->getValue();
-        return new (allocator.allocate<BoolValue>()) BoolValue(value, nullptr);
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, ZERO_LOC);
     } else if (auto* declRef = llvm::dyn_cast<clang::DeclRefExpr>(expr)) {
         clang::ValueDecl* decl = declRef->getDecl();
         std::string name = decl->getNameAsString();
         auto found = declarations.find(decl);
         if(found != declarations.end()) {
-            const auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(name, nullptr, false);
+            const auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(name, ZERO_LOC, false);
             id->linked = found->second;
             return id;
         } else {
@@ -520,7 +520,7 @@ Value* CTranslator::make_expr(clang::Expr* expr) {
             const auto rhs = make_expr(binOp->getRHS());
             const auto opt = convert_to_op(binOp->getOpcode());
             if(opt.has_value()) {
-                return new (allocator.allocate<Expression>()) Expression(lhs, rhs, opt.value(), is64Bit, nullptr);
+                return new (allocator.allocate<Expression>()) Expression(lhs, rhs, opt.value(), is64Bit, ZERO_LOC);
             } else {
                 return nullptr;
             }
@@ -556,7 +556,7 @@ VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     }
     const auto initializer = decl->getInit();
     auto initial_value = initializer ? (Value*) make_expr(initializer) : nullptr;
-    return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, decl->getNameAsString(), made_type, initial_value, parent_node, nullptr, specifier);
+    return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, decl->getNameAsString(), made_type, initial_value, parent_node, ZERO_LOC, specifier);
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
@@ -590,7 +590,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
                 nullptr,
                 false,
                 nullptr,
-                nullptr
+                ZERO_LOC
         ));
         index++;
     }
@@ -608,7 +608,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
             chem_type,
             func_decl->isVariadic(),
             parent_node,
-            nullptr,
+            ZERO_LOC,
             std::nullopt
     );
     decl->assign_params();

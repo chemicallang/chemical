@@ -200,6 +200,7 @@ public:
         GlobalInterpretScope& global,
         std::ostream* output,
         ASTAllocator& allocator,
+        LocationManager& manager,
         std::vector<std::string>* compiler_interfaces = nullptr
     );
 

@@ -130,14 +130,14 @@ llvm::Value* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinit
 InterfaceDefinition::InterfaceDefinition(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), location(location), specifier(specifier) {
 
 }
 
 BaseType* InterfaceDefinition::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, this, nullptr);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, this, location);
 }
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {

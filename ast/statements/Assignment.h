@@ -20,7 +20,7 @@ public:
     InterfaceDefinition* definition;
     Operation assOp;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new AssignStatement object.
@@ -33,7 +33,7 @@ public:
             Value* value,
             Operation assOp,
             ASTNode* parent_node,
-            CSTToken* token
+            SourceLocation location
     );
 
     ASTNodeKind kind() final {
@@ -48,8 +48,8 @@ public:
         return parent_node;
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     void accept(Visitor *visitor) final;

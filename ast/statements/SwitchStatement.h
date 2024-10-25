@@ -16,17 +16,17 @@ public:
     int defScopeInd = -1;
     ASTNode* parent_node;
     bool is_value;
-    CSTToken* token;
+    SourceLocation location;
 
     SwitchStatement(
         Value* expression,
         ASTNode* parent_node,
         bool is_value,
-        CSTToken* token
+        SourceLocation location
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

@@ -15,17 +15,17 @@ public:
     Value* value;
     BaseType* type;
     bool is_negating;
-    CSTToken* token;
+    SourceLocation location;
 
     IsValue(
             Value* value,
             BaseType* type,
             bool is_negating,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -48,7 +48,7 @@ public:
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<BoolType>()) BoolType(nullptr);
+        return new (allocator.allocate<BoolType>()) BoolType(location);
     }
 
     void accept(Visitor *visitor) final {

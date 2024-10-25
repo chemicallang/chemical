@@ -29,11 +29,11 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope) {
 }
 
 Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator) {
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(nullptr, false, nullptr);
-    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(decl->name, nullptr);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(nullptr, false, ZERO_LOC);
+    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(decl->name, ZERO_LOC);
     id->linked = decl;
     chain->values.emplace_back(id);
-    auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(std::vector<Value*> {}, nullptr);
+    auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(std::vector<Value*> {}, ZERO_LOC);
     imp_call->parent_val = chain->values[0];
     imp_call->values.emplace_back(arg);
 //    auto& value_ptr = imp_call->values[0];
@@ -43,9 +43,9 @@ Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& alloca
 }
 
 void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value) {
-    VariableIdentifier id(decl->name, nullptr);
+    VariableIdentifier id(decl->name, ZERO_LOC);
     id.linked = decl;
-    FunctionCall imp_call(std::vector<Value*>{}, nullptr);
+    FunctionCall imp_call(std::vector<Value*>{}, ZERO_LOC);
     imp_call.parent_val = &id;
     imp_call.values.emplace_back(value);
     imp_call.find_link_in_parent(&id, nullptr, &id, resolver, nullptr, false);

@@ -14,12 +14,12 @@ class NotValue : public Value {
 public:
 
     Value* value;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit NotValue(Value* value, CSTToken* token) : value(value), token(token) {}
+    explicit NotValue(Value* value, SourceLocation location) : value(value), location(location) {}
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -41,7 +41,7 @@ public:
 #endif
 
     NotValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), token);
+        return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), location);
     }
 
     [[nodiscard]]

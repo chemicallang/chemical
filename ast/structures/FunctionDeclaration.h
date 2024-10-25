@@ -61,9 +61,9 @@ public:
      */
     int16_t bodies_gen_index = 0;
     /**
-     * the cst token
+     * the location
      */
-    CSTToken* token;
+    SourceLocation location;
 
 #ifdef COMPILER_BUILD
     std::vector<std::pair<llvm::Value*, llvm::FunctionType*>> llvm_data;
@@ -80,13 +80,13 @@ public:
             BaseType* returnType,
             bool isVariadic,
             ASTNode* parent_node,
-            CSTToken* token,
+            SourceLocation location,
             std::optional<LoopScope> body = std::nullopt,
             AccessSpecifier = AccessSpecifier::Internal
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() {

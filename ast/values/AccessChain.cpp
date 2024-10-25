@@ -73,7 +73,7 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
                 auto& chain = *value_ptr;
                 if(!chain) return false;
                 const auto ac_chain = (AccessChain*) chain;
-                chain = new (linker.ast_allocator->allocate<VariantCall>()) VariantCall(ac_chain, token);
+                chain = new (linker.ast_allocator->allocate<VariantCall>()) VariantCall(ac_chain, location);
                 ((std::unique_ptr<VariantCall>&) chain)->link(linker, chain, expected_type);
                 return true;
             }
@@ -97,11 +97,11 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
     return true;
 }
 
-AccessChain::AccessChain(ASTNode* parent_node, bool is_node, CSTToken* token) : parent_node(parent_node), is_node(is_node), token(token) {
+AccessChain::AccessChain(ASTNode* parent_node, bool is_node, SourceLocation location) : parent_node(parent_node), is_node(is_node), location(location) {
 
 }
 
-AccessChain::AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, bool is_node, CSTToken* token) : values(std::move(values)), parent_node(parent_node), is_node(is_node), token(token) {
+AccessChain::AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, bool is_node, SourceLocation location) : values(std::move(values)), parent_node(parent_node), is_node(is_node), location(location) {
 
 }
 
@@ -166,7 +166,7 @@ bool AccessChain::compile_time_computable() {
 }
 
 AccessChain *AccessChain::copy(ASTAllocator& allocator) {
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, is_node, token);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, is_node, location);
     for(auto& value : values) {
         chain->values.emplace_back((ChainValue*) value->copy(allocator));
     }

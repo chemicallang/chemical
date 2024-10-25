@@ -9,14 +9,14 @@ class UBigIntValue : public IntNumValue {
 public:
 
     unsigned long long value;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit UBigIntValue(unsigned long long value, CSTToken* token) : value(value), token(token) {
+    explicit UBigIntValue(unsigned long long value, SourceLocation location) : value(value), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -40,12 +40,12 @@ public:
     }
 
     UBigIntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, token);
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, location);
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(token);
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(location);
     }
 
     unsigned int get_num_bits() final {

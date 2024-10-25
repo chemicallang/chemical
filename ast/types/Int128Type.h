@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]]
     Int128Type *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<Int128Type>()) Int128Type(token);
+        return new (allocator.allocate<Int128Type>()) Int128Type(location);
     }
 
 };

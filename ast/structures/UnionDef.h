@@ -10,7 +10,7 @@ class UnionDef : public ExtendableMembersContainerNode, public UnionType {
 public:
 
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
     bool is_direct_init = false;
     AccessSpecifier specifier;
     LinkedType linked_type;
@@ -22,12 +22,12 @@ public:
     UnionDef(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

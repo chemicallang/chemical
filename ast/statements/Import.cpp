@@ -13,9 +13,9 @@ ImportStatement::ImportStatement(
         std::string filePath,
         std::vector<std::string> identifiers,
         ASTNode* parent_node,
-        CSTToken* token
-) : filePath(std::move(filePath)), identifiers(std::move(identifiers)), parent_node(parent_node), token(token) {
-    this->filePath.shrink_to_fit();
+        SourceLocation location
+) : filePath(std::move(filePath)), identifiers(std::move(identifiers)), parent_node(parent_node), location(location) {
+
 }
 
 void ImportStatement::declare_top_level(SymbolResolver &linker) {

@@ -9,5 +9,5 @@
 //}
 
 BaseType* RetStructParamValue::create_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<VoidType>()) VoidType(nullptr), nullptr);
+    return new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), ZERO_LOC);
 }

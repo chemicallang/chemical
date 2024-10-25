@@ -56,7 +56,7 @@ void Expression::promote_literal_values(BaseType* firstType, BaseType* secondTyp
 
 BaseType* Expression::create_type(ASTAllocator& allocator) {
     if(operation >= Operation::IndexComparisonStart && operation <= Operation::IndexComparisonEnd) {
-        return new (allocator.allocate<BoolType>()) BoolType(nullptr);
+        return new (allocator.allocate<BoolType>()) BoolType(location);
     }
     auto first = firstValue->create_type(allocator);
     auto second = secondValue->create_type(allocator);
@@ -70,7 +70,7 @@ BaseType* Expression::create_type(ASTAllocator& allocator) {
         }
     }
     if(first->value_type() == ValueType::Pointer && second->value_type() == ValueType::Pointer) {
-        return new (allocator.allocate<LongType>()) LongType(is64Bit, nullptr);
+        return new (allocator.allocate<LongType>()) LongType(is64Bit, location);
     }
     if(first->can_promote(secondValue)) {
         return first->promote_unique(secondValue)->create_type(allocator);
@@ -107,8 +107,8 @@ Expression::Expression(
         Value* secondValue,
         Operation operation,
         bool is64Bit,
-        CSTToken* token
-) : firstValue(firstValue), secondValue(secondValue), operation(operation), is64Bit(is64Bit), token(token) {
+        SourceLocation location
+) : firstValue(firstValue), secondValue(secondValue), operation(operation), is64Bit(is64Bit), location(location) {
 
 }
 
@@ -255,7 +255,7 @@ Expression *Expression::copy(ASTAllocator& allocator) {
         secondValue->copy(allocator),
         operation,
         is64Bit,
-        token
+        location
     );
 }
 

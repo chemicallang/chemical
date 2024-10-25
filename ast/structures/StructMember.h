@@ -13,7 +13,7 @@ public:
     BaseType* type;
     Value* defValue;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
     AccessSpecifier specifier;
 
     StructMember(
@@ -21,7 +21,7 @@ public:
             BaseType* type,
             Value* defValue,
             ASTNode* parent_node,
-            CSTToken* token,
+            SourceLocation location,
             bool is_const = false,
             AccessSpecifier specifier = AccessSpecifier::Public
     );
@@ -34,8 +34,8 @@ public:
         parent_node = new_parent;
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNode *parent() final {

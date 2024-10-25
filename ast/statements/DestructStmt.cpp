@@ -11,8 +11,8 @@ DestructStmt::DestructStmt(
         Value* value,
         bool is_array,
         ASTNode* parent_node,
-        CSTToken* token
-) : array_value(array_value), identifier(value), is_array(is_array), parent_node(parent_node), token(token) {
+        SourceLocation location
+) : array_value(array_value), identifier(value), is_array(is_array), parent_node(parent_node), location(location) {
 
 }
 

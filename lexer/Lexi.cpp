@@ -17,45 +17,45 @@ void benchLex(Lexer *lexer, BenchmarkResults &results) {
     results.benchmark_end();
 }
 
-void benchLexFile(Lexer* lexer, const std::string &path, BenchmarkResults& results) {
+void benchLexFile(Lexer* lexer, const char* path, BenchmarkResults& results) {
     FileInputSource input_source(path);
     lexer->provider.switch_source(&input_source);
     benchLex(lexer, results);
 }
 
-void benchLexFile(Lexer* lexer, const std::string &path) {
+void benchLexFile(Lexer* lexer, const char* path) {
     BenchmarkResults results{};
     benchLexFile(lexer, path, results);
 }
 
-void lexFile(Lexer* lexer, const std::string &path) {
+void lexFile(Lexer* lexer, const char* path) {
     FileInputSource input_source(path);
     lexer->provider.switch_source(&input_source);
     lexer->lex();
 }
 
-Lexer benchLexFile(InputSource& source) {
+Lexer benchLexFile(unsigned int file_id, InputSource& source, LocationManager& manager) {
     SourceProvider reader(&source);
-    Lexer lexer(reader);
+    Lexer lexer(file_id, reader, manager);
     BenchmarkResults results{};
     benchLex(&lexer, results);
     std::cout << "[Lex]" << " Completed " << results.representation() << std::endl;
     return lexer;
 }
 
-Lexer benchLexFile(const std::string &path) {
+Lexer benchLexFile(unsigned int file_id, const char* path, LocationManager& manager) {
     FileInputSource input_source(path);
-    return benchLexFile(input_source);
+    return benchLexFile(file_id, input_source, manager);
 }
 
-Lexer lexFile(InputSource& input_source) {
+Lexer lexFile(unsigned int file_id, InputSource& input_source, LocationManager& manager) {
     SourceProvider reader(&input_source);
-    Lexer lexer(reader);
+    Lexer lexer(file_id, reader, manager);
     lexer.lex();
     return lexer;
 }
 
-Lexer lexFile(const std::string &path) {
+Lexer lexFile(unsigned int file_id, const char* path, LocationManager& manager) {
     FileInputSource input_source(path);
-    return lexFile(input_source);
+    return lexFile(file_id, input_source, manager);
 }

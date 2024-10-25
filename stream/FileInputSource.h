@@ -18,9 +18,7 @@ private:
 #endif
 public:
 
-    std::string filePath;
-
-    explicit FileInputSource(const std::string &file_path);
+    explicit FileInputSource(const char* file_path);
 
     size_t read(char* buffer, size_t size) final;
 
@@ -28,10 +26,6 @@ public:
 
     [[nodiscard]]
     off_t tell() const final;
-
-    std::string get_file_path() final {
-        return filePath;
-    }
 
     ~FileInputSource() final;
 

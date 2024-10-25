@@ -13,19 +13,19 @@ public:
 
     std::vector<ASTNode*> nodes;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * empty constructor
      */
-    Scope(ASTNode* parent_node, CSTToken* token) : parent_node(parent_node), token(token) {
+    Scope(ASTNode* parent_node, SourceLocation location) : parent_node(parent_node), location(location) {
 
     }
 
     /**
      * constructor
      */
-    Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, CSTToken* token);
+    Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location);
 
     /**
      * deleted copy constructor
@@ -36,8 +36,8 @@ public:
 
     Scope& operator=(Scope&&) = default;
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

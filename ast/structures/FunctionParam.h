@@ -25,7 +25,7 @@ public:
 
     unsigned int index;
     Value* defValue;
-    CSTToken* token;
+    SourceLocation location;
     const bool is_implicit;
 
     FunctionParam(
@@ -35,11 +35,11 @@ public:
             Value* defValue,
             bool is_implicit,
             FunctionType* func_type,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

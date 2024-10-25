@@ -7,9 +7,9 @@ TypealiasStatement::TypealiasStatement(
         std::string identifier,
         BaseType* actual_type,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         AccessSpecifier specifier
-) : identifier(std::move(identifier)), actual_type(actual_type), parent_node(parent_node), token(token), specifier(specifier) {
+) : identifier(std::move(identifier)), actual_type(actual_type), parent_node(parent_node), location(location), specifier(specifier) {
 
 }
 

@@ -10,13 +10,13 @@ class UnnamedStruct : public BaseDefMember, public VariablesContainer, public St
 public:
 
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
     AccessSpecifier specifier;
 
     UnnamedStruct(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
@@ -24,8 +24,8 @@ public:
         return ASTNodeKind::UnnamedStruct;
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     BaseType* known_type() final {

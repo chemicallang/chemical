@@ -42,7 +42,7 @@ public:
     }
 
     virtual BoolType* copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<BoolType>()) BoolType(token);
+        return new (allocator.allocate<BoolType>()) BoolType(location);
     }
 
 #ifdef COMPILER_BUILD

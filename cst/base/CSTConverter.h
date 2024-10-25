@@ -46,14 +46,15 @@ class CSTConverter : public CSTDiagnoser, public CSTVisitor {
 public:
 
     /**
+     * file id is the id of the file that is being converted
+     * we use this file id providing the location manager
+     */
+    unsigned int file_id;
+
+    /**
      * function parameter index
      */
     unsigned int param_index = 0;
-
-    /**
-     * enable or disable CBI
-     */
-    bool isCBIEnabled = true;
 
     /**
      * the global allocator is used for things like function signature or struct type
@@ -139,12 +140,6 @@ public:
     std::string target;
 
     /**
-     * the path to file being converted, could be empty, if we are just
-     * converting anonymous tokens
-     */
-    std::string path;
-
-    /**
      * is code gen for 64bit
      */
     bool is64Bit;
@@ -153,11 +148,12 @@ public:
      * constructor
      */
     CSTConverter(
-        std::string path,
+        unsigned int file_id,
         bool is64Bit,
         std::string target,
         GlobalInterpretScope& scope,
         CompilerBinder& binder,
+        LocationManager& loc_man,
         ASTAllocator& global_allocator,
         ASTAllocator& local_allocator,
         ASTAllocator& file_allocator
@@ -239,6 +235,11 @@ public:
      * consumes the latest (last in the vector) type from the types vector
      */
     BaseType* type();
+
+    /**
+     * this gets the source location for the token using the location manager
+     */
+    uint64_t loc(CSTToken* token);
 
     /**
      * take a compound cst token of type generic arg list and convert its tokens to generic arg list

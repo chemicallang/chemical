@@ -17,15 +17,15 @@ class IntValue : public IntNumValue {
 public:
 
     int value; ///< The integer value.
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * constructor
      */
-    explicit IntValue(int value, CSTToken* token) : value(value), token(token) {}
+    explicit IntValue(int value, SourceLocation location) : value(value), location(location) {}
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -50,7 +50,7 @@ public:
     }
 
     IntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<IntValue>()) IntValue(value, token);
+        return new (allocator.allocate<IntValue>()) IntValue(value, location);
     }
 
     bool is_unsigned() final {
@@ -59,7 +59,7 @@ public:
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<IntType>()) IntType(nullptr);
+        return new (allocator.allocate<IntType>()) IntType(location);
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

@@ -7,8 +7,8 @@ IsValue::IsValue(
         Value* value,
         BaseType* type,
         bool is_negating,
-        CSTToken* token
-) : value(value), type(type), is_negating(is_negating), token(token) {
+        SourceLocation location
+) : value(value), type(type), is_negating(is_negating), location(location) {
 
 }
 
@@ -17,7 +17,7 @@ IsValue *IsValue::copy(ASTAllocator& allocator) {
             value->copy(allocator),
             type->copy(allocator),
             is_negating,
-            token
+            location
     );
 }
 

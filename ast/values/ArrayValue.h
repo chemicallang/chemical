@@ -17,7 +17,7 @@ public:
 
     std::vector<Value*> values;
     std::vector<unsigned int> sizes;
-    CSTToken* token;
+    SourceLocation location;
     BaseType* created_type;
 
 #ifdef COMPILER_BUILD
@@ -29,12 +29,12 @@ public:
             std::vector<Value*> values,
             BaseType* elem_type,
             std::vector<unsigned int> sizes,
-            CSTToken* token,
+            SourceLocation location,
             ASTAllocator& allocator
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -137,7 +137,7 @@ public:
         if (elemType) {
             copied_elem_type = elemType->copy(allocator);
         }
-        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(copied_values), copied_elem_type, sizes, token, allocator);
+        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(copied_values), copied_elem_type, sizes, location, allocator);
     }
 
 };

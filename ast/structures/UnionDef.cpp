@@ -68,26 +68,26 @@ void UnionDef::code_gen_external_declare(Codegen &gen) {
 
 #endif
 
-UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node, CSTToken* token, AccessSpecifier specifier) : BaseDefMember(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
+UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node, SourceLocation location, AccessSpecifier specifier) : BaseDefMember(std::move(name)), parent_node(parent_node), location(location), specifier(specifier) {
 
 }
 
 UnionDef::UnionDef(
     std::string name,
     ASTNode* parent_node,
-    CSTToken* token,
+    SourceLocation location,
     AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token),
-    specifier(specifier), linked_type("", this, token) {
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), location(location),
+    specifier(specifier), linked_type("", this, location) {
 
 }
 
 BaseType *UnionDef::copy(ASTAllocator& allocator) const {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, nullptr);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, location);
 }
 
 VariablesContainer *UnionDef::copy_container(ASTAllocator& allocator) {
-    auto container = new (allocator.allocate<UnionDef>()) UnionDef(name, parent_node, token);
+    auto container = new (allocator.allocate<UnionDef>()) UnionDef(name, parent_node, location);
     for(auto& variable : variables) {
         container->variables[variable.first] = variable.second->copy_member(allocator);
     }
@@ -95,11 +95,11 @@ VariablesContainer *UnionDef::copy_container(ASTAllocator& allocator) {
 }
 
 BaseType* UnnamedUnion::create_value_type(ASTAllocator &allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, nullptr);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, location);
 }
 
 BaseType *UnnamedUnion::copy(ASTAllocator& allocator) const {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, nullptr);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, location);
 }
 
 BaseType* UnionDef::create_value_type(ASTAllocator& allocator) {
@@ -130,7 +130,7 @@ void UnnamedUnion::declare_and_link(SymbolResolver &linker) {
 }
 
 BaseDefMember *UnnamedUnion::copy_member(ASTAllocator& allocator) {
-    auto unnamed = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion(name, parent_node, token);
+    auto unnamed = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion(name, parent_node, location);
     for(auto& variable : variables) {
         unnamed->variables[variable.first] = variable.second->copy_member(allocator);
     }

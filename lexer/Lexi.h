@@ -17,14 +17,14 @@
  * benchmark lexing the filename (relative to in the current project)
  * @return the tokens
  */
-void benchLexFile(Lexer* lexer, const std::string &path, BenchmarkResults& results);
+void benchLexFile(Lexer* lexer, const char* path, BenchmarkResults& results);
 
 /**
  * same as benchLexFile with istream
  * benchmark lexing the filename (relative to in the current project)
  * @return the tokens
  */
-void benchLexFile(Lexer* lexer, const std::string &path);
+void benchLexFile(Lexer* lexer, const char* path);
 
 /**
  * same as lexFile with istream
@@ -32,7 +32,7 @@ void benchLexFile(Lexer* lexer, const std::string &path);
  * @param fileName
  * @return the tokens
  */
-void lexFile(Lexer* lexer, const std::string &path);
+void lexFile(Lexer* lexer, const char* path);
 
 /**
  * benchmark lexing the given input stream
@@ -40,24 +40,24 @@ void lexFile(Lexer* lexer, const std::string &path);
  * @param file
  * @return tokens
  */
-Lexer benchLexFile(InputSource& source);
+Lexer benchLexFile(unsigned int file_id, InputSource& source, LocationManager& manager);
 
 /**
  * same as benchLexFile with istream
  * benchmark lexing the filename (relative to in the current project)
  * @return the tokens
  */
-Lexer benchLexFile(const std::string &path);
+Lexer benchLexFile(unsigned int file_id, const char* path, LocationManager& manager);
 
 /**
  * will lex the file from given istream
  * @return the tokens
  */
-Lexer lexFile(InputSource& source);
+Lexer lexFile(unsigned int file_id, InputSource& source, LocationManager& manager);
 
 /**
  * same as lexFile with istream
  * lex the file at path (relative to in the current project)
  * @return the tokens
  */
-Lexer lexFile(const std::string &path);
+Lexer lexFile(unsigned int file_id, const char* path, LocationManager& manager);

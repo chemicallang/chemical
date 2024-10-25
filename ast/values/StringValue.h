@@ -20,19 +20,19 @@ public:
     std::string value;
     unsigned int length = 0;
     bool is_array = false;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new StringValue object.
      *
      * @param value The string value.
      */
-    explicit StringValue(std::string value, CSTToken* token) : length(value.size()), value(std::move(value)), token(token) {
+    explicit StringValue(std::string value, SourceLocation location) : length(value.size()), value(std::move(value)), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -64,7 +64,7 @@ public:
                          " of length " + std::to_string(value.size());
         }
 #endif
-        return new CharValue(value[i], token);
+        return new CharValue(value[i], location);
     }
 
 #ifdef COMPILER_BUILD
@@ -78,7 +78,7 @@ public:
 #endif
 
     StringValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<StringValue>()) StringValue(value, token);
+        return new (allocator.allocate<StringValue>()) StringValue(value, location);
     }
 
     BaseType* create_type(ASTAllocator& allocator) final;

@@ -22,7 +22,7 @@ public:
     AccessSpecifier specifier;
     bool is_direct_init = false;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
     LinkedType linked_type;
 
 #ifdef COMPILER_BUILD
@@ -43,7 +43,7 @@ public:
     StructDefinition(
             std::string name,
             ASTNode* parent_node,
-            CSTToken* token,
+            SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
@@ -72,8 +72,8 @@ public:
         parent_node = new_parent;
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNode *parent() final {

@@ -10,7 +10,7 @@
 #include "ReferenceType.h"
 #include "IntNType.h"
 
-const PointerType PointerType::void_ptr_instance((BaseType*) &VoidType::instance, nullptr);
+const PointerType PointerType::void_ptr_instance((BaseType*) &VoidType::instance, ZERO_LOC);
 
 bool PointerType::link(SymbolResolver &linker) {
     return type->link(linker);
@@ -50,7 +50,8 @@ bool PointerType::satisfies(BaseType *given) {
 BaseType* PointerType::pure_type() {
     const auto pure_child = type->pure_type();
     if(pure_child && pure_child != type) {
-        auto ptr = new PointerType(pure_child, token, is_mutable);
+        // TODO pointer type allocated without an allocator
+        auto ptr = new PointerType(pure_child, location, is_mutable);
         pures.emplace_back(ptr);
         return ptr;
 //        pures.emplace_back(std::make_unique<PointerType>(hybrid_ptr<BaseType>{ pure_child, false }, token));

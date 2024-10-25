@@ -16,17 +16,17 @@ class FloatValue : public Value {
 public:
 
     float value; ///< The floating-point value.
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new FloatValue object.
      *
      * @param value The floating-point value.
      */
-    explicit FloatValue(float value, CSTToken* token) : value(value), token(token) {}
+    explicit FloatValue(float value, SourceLocation location) : value(value), location(location) {}
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -58,11 +58,11 @@ public:
 #endif
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<FloatType>()) FloatType(nullptr);
+        return new (allocator.allocate<FloatType>()) FloatType(location);
     }
 
     FloatValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<FloatValue>()) FloatValue(value, token);
+        return new (allocator.allocate<FloatValue>()) FloatValue(value, location);
     }
 
     [[nodiscard]]

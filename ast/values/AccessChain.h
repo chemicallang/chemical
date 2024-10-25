@@ -24,14 +24,14 @@ public:
     ASTNode* parent_node;
     bool is_node;
     bool is_moved = false;
-    CSTToken* token;
+    SourceLocation location;
 
-    AccessChain(ASTNode* parent_node, bool is_node, CSTToken* token);
+    AccessChain(ASTNode* parent_node, bool is_node, SourceLocation location);
 
-    AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, bool is_node, CSTToken* token);
+    AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, bool is_node, SourceLocation location);
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

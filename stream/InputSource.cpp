@@ -11,17 +11,17 @@
 #include <unistd.h>  // for lseek, read, close
 #endif
 
-FileInputSource::FileInputSource(const std::string &file_path) : filePath(file_path) {
+FileInputSource::FileInputSource(const char* file_path) {
     error.kind = InputSourceErrorKind::None;
     error.message = "";
 #ifdef _WIN32
 //    const auto abs = absolute_path(file_path);
-    fileHandle = CreateFile(file_path.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    fileHandle = CreateFile(file_path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (fileHandle == INVALID_HANDLE_VALUE) {
         error.kind = InputSourceErrorKind::FileNotOpen;
     }
 #else
-    fileDescriptor = open(filePath.c_str(), O_RDONLY);
+    fileDescriptor = open(filePath, O_RDONLY);
         if (fileDescriptor == -1) {
             error.kind = InputSourceErrorKind::FileNotOpen;
         }

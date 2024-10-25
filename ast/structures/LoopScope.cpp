@@ -13,7 +13,7 @@ void LoopScope::interpret(InterpretScope &scope) {
 }
 
 
-LoopScope::LoopScope(std::vector<ASTNode*> nodes, ASTNode* parent_node, CSTToken* token) : Scope(std::move(nodes), parent_node, token) {
+LoopScope::LoopScope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : Scope(std::move(nodes), parent_node, location) {
 
 }
 

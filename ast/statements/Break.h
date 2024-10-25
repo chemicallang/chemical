@@ -20,15 +20,15 @@ public:
      * block and then the loop is broken
      */
     Value* value;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new Break statement object.
      */
-    BreakStatement(LoopASTNode *node, ASTNode* parent_node, CSTToken* token);
+    BreakStatement(LoopASTNode *node, ASTNode* parent_node, SourceLocation location);
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

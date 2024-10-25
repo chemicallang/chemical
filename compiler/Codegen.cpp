@@ -81,7 +81,7 @@ Codegen::Codegen(
         bool is_64_bit,
         ASTAllocator& allocator,
         const std::string& module_name
-) : ASTDiagnoser(), comptime_scope(comptime_scope), allocator(allocator),
+) : ASTDiagnoser(comptime_scope.loc_man), comptime_scope(comptime_scope), allocator(allocator),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple) {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();

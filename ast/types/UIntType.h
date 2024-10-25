@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]]
     UIntType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UIntType>()) UIntType(token);
+        return new (allocator.allocate<UIntType>()) UIntType(location);
     }
 
 };

@@ -11,15 +11,19 @@ public:
 
     Value* value;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * constructor
      */
-    ThrowStatement(Value* value, ASTNode* parent_node, CSTToken* token);
+    ThrowStatement(
+            Value* value,
+            ASTNode* parent_node,
+            SourceLocation location
+    );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

@@ -21,7 +21,7 @@ public:
     std::vector<std::string> identifiers;
     std::string filePath; ///< The file path to import.
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new ImportStatement object.
@@ -32,11 +32,11 @@ public:
         std::string filePath,
         std::vector<std::string> identifiers,
         ASTNode* parent_node,
-        CSTToken* token
+        SourceLocation location
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

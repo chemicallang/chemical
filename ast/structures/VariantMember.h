@@ -15,16 +15,16 @@ public:
     tsl::ordered_map<std::string, VariantMemberParam*> values;
     VariantDefinition* parent_node;
     LinkedType ref_type;
-    CSTToken* token;
+    SourceLocation location;
 
     VariantMember(
             const std::string& name,
             VariantDefinition* parent_node,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

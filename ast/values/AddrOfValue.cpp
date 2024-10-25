@@ -6,9 +6,9 @@
 
 
 AddrOfValue::AddrOfValue(
-        Value* value,
-        CSTToken* token
-) : value(value), token(token), _ptr_type(nullptr, token) {
+    Value* value,
+    SourceLocation location
+) : value(value), location(location), _ptr_type(nullptr, location) {
 
 }
 
@@ -27,12 +27,12 @@ BaseType* AddrOfValue::create_type(ASTAllocator& allocator) {
     if(elem_type_kind == BaseTypeKind::Reference) {
         elem_type = ((ReferenceType*) elem_type)->type;
     }
-    return new (allocator.allocate<PointerType>()) PointerType(elem_type, nullptr, is_value_mutable);
+    return new (allocator.allocate<PointerType>()) PointerType(elem_type, location, is_value_mutable);
 }
 
 AddrOfValue *AddrOfValue::copy(ASTAllocator& allocator) {
     return new (allocator.allocate<AddrOfValue>()) AddrOfValue(
             value->copy(allocator),
-            token
+            location
     );
 }

@@ -8,6 +8,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "utils/Benchmark.h"
 #include "Utils.h"
+#include "cst/LocationManager.h"
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
 #endif
@@ -37,6 +38,8 @@
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
+#include "cst/LocationManager.h"
+
 #endif
 
 #ifdef DEBUG
@@ -111,6 +114,18 @@ LabBuildCompiler::LabBuildCompiler(CompilerBinder& binder, LabBuildCompilerOptio
 
 }
 
+void LabBuildCompiler::prepare(
+    LocationManager* const locationManager,
+    ASTAllocator* const jobAllocator,
+    ASTAllocator* const modAllocator,
+    ASTAllocator* const fileAllocator
+) {
+    loc_man = locationManager;
+    job_allocator = jobAllocator;
+    mod_allocator = modAllocator;
+    file_allocator = fileAllocator;
+}
+
 int LabBuildCompiler::do_job(LabJob* job) {
     job->status = LabJobStatus::Launched;
     int return_int;
@@ -140,7 +155,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
     return return_int;
 }
 
-void import_in_module(std::vector<ASTNode*>& nodes, SymbolResolver& resolver, const std::string& path) {
+void import_in_module(std::vector<ASTNode*>& nodes, SymbolResolver& resolver, const std::string_view& path) {
     resolver.file_scope_start();
     for(const auto node : nodes) {
         const auto requested_specifier = node->specifier();
@@ -195,8 +210,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
     }
 
+    // the location manager
+    auto& locMan = *loc_man;
+
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator);
+    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, locMan);
 
     // a new symbol resolver for every executable
     SymbolResolver resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
@@ -209,21 +227,21 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, &output_ptr, *file_allocator, job_type == LabJobType::CBI ? &compiler_interfaces : nullptr);
+    ToCAstVisitor c_visitor(global, &output_ptr, *file_allocator, locMan, job_type == LabJobType::CBI ? &compiler_interfaces : nullptr);
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, options->is64Bit);
-    ASTProcessor processor(options, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
+    ASTProcessor processor(options, locMan, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
     Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
     LLVMBackendContext g_context(&gen);
     CodegenEmitterOptions emitter_options;
     // set the context so compile time calls are sent to it
     global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
 #else
-    ASTProcessor processor(options, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
+    ASTProcessor processor(options, locMan, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
     global.backend_context = (BackendContext*) &c_context;
 #endif
 
@@ -412,8 +430,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         // importing files user imported using includes
         if(!mod->includes.empty()) {
             for(auto& include : mod->includes) {
-                const auto& abs_path = include.to_std_string();
-                auto imported_file = processor.import_chemical_file(abs_path);
+                const auto abs_path = include.to_std_string();
+                unsigned fileId = locMan.encodeFile(abs_path);
+                auto imported_file = processor.import_chemical_file(fileId, abs_path);
                 auto& nodes = imported_file.unit.scope.nodes;
                 import_in_module(nodes, resolver, abs_path);
 #ifdef COMPILER_BUILD
@@ -843,8 +862,9 @@ inline std::vector<std::future<ASTImportResultExt>> trigger_futures(ctpl::thread
 #endif
     int i = 0;
     for (const auto &file: flat_imports) {
+        const auto fileId = processor->loc_man.encodeFile(file.abs_path);
 #if defined(DEBUG_FUTURES) && DEBUG_FUTURES
-        lab_futures.push_back(concurrent_processor(i, i, file, processor));
+        lab_futures.push_back(concurrent_processor(i, fileId, file, processor));
 #else
         lab_futures.push_back(pool.push(concurrent_processor, i, file, processor));
 #endif
@@ -874,6 +894,12 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     const auto lab_stack_size = 100000; // 100kb for the whole lab operations
     char lab_stack_memory[lab_stack_size];
 
+    // the location manager
+    LocationManager locMan;
+
+    // set the location manager
+    loc_man = &locMan;
+
     // the allocator is used in lab
     ASTAllocator lab_allocator(lab_stack_memory, lab_stack_size, lab_stack_size);
 
@@ -881,7 +907,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     ShrinkingVisitor shrinker;
 
     // a global interpret scope required to evaluate compile time things
-    GlobalInterpretScope global(options->target_triple, nullptr, this, lab_allocator);
+    GlobalInterpretScope global(options->target_triple, nullptr, this, lab_allocator, locMan);
 
     // creating symbol resolver for build.lab files only
     SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, &lab_allocator, &lab_allocator);
@@ -894,6 +920,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     // the processor that does everything for build.lab files only
     ASTProcessor lab_processor(
             options,
+            locMan,
             &lab_resolver,
             binder,
 #ifdef COMPILER_BUILD
@@ -913,7 +940,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, &output_ptr, lab_allocator, &compiler_interfaces);
+    ToCAstVisitor c_visitor(global, &output_ptr, lab_allocator, locMan, &compiler_interfaces);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context
@@ -1007,7 +1034,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
                         break;
                     }
                     // put every imported file in it's own namespace so build methods don't clash
-                    auto ns = new Namespace(file.as_identifier, nullptr, nullptr);
+                    auto ns = new (lab_allocator.allocate<Namespace>()) Namespace(file.as_identifier, nullptr, ZERO_LOC);
                     for (auto &node: result.unit.scope.nodes) {
                         node->set_parent(ns);
                     }
@@ -1075,10 +1102,15 @@ int LabBuildCompiler::do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*,
     ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
     ASTAllocator _file_allocator(file_stack_memory, file_stack_size, file_stack_size);
 
+    LocationManager manager;
+
     // the allocators that will be used for all jobs
-    job_allocator = &_job_allocator;
-    mod_allocator = &_mod_allocator;
-    file_allocator = &_file_allocator;
+    prepare(
+            &manager,
+            &_job_allocator,
+            &_mod_allocator,
+            &_file_allocator
+    );
 
     // do the jobs
     return do_jobs(this, data);

@@ -56,8 +56,9 @@ void ImplDefinition::code_gen(Codegen &gen) {
 #endif
 
 ImplDefinition::ImplDefinition(
-        ASTNode* parent_node
-) : parent_node(parent_node) {
+        ASTNode* parent_node,
+        SourceLocation location
+) : parent_node(parent_node), location(location) {
 
 }
 
@@ -65,8 +66,8 @@ ImplDefinition::ImplDefinition(
     BaseType* interface_type,
     BaseType* struct_type,
     ASTNode* parent_node,
-    CSTToken* token
-) : interface_type(interface_type), struct_type(struct_type), parent_node(parent_node), token(token) {
+    SourceLocation location
+) : interface_type(interface_type), struct_type(struct_type), parent_node(parent_node), location(location) {
 
 }
 

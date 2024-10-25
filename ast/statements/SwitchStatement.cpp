@@ -133,8 +133,8 @@ SwitchStatement::SwitchStatement(
         Value* expression,
         ASTNode* parent_node,
         bool is_value,
-        CSTToken* token
-) : expression(expression), parent_node(parent_node), is_value(is_value), token(token) {
+        SourceLocation location
+) : expression(expression), parent_node(parent_node), is_value(is_value), location(location) {
 
 }
 
@@ -187,7 +187,7 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
             // replace variant case access chains in switch cases
             const auto chain = switch_case.first->as_access_chain();
             if (chain) {
-                switch_case.first = new (astAlloc.allocate<VariantCase>()) VariantCase(chain, linker, this, chain->token);
+                switch_case.first = new (astAlloc.allocate<VariantCase>()) VariantCase(chain, linker, this, chain->location);
             }
         }
     }

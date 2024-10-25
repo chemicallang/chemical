@@ -28,19 +28,19 @@ public:
     std::string value;
     ASTNode *linked = nullptr;
     ChainValue* parent_val = nullptr;
-    CSTToken* token;
+    SourceLocation location;
     bool is_ns;
     bool is_moved = false;
 
     /**
      * constructor
      */
-    VariableIdentifier(std::string value, CSTToken* token, bool is_ns = false) : value(std::move(value)), token(token), is_ns(is_ns) {
+    VariableIdentifier(std::string value, SourceLocation location, bool is_ns = false) : value(std::move(value)), location(location), is_ns(is_ns) {
 
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

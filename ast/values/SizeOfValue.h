@@ -11,12 +11,12 @@ class SizeOfValue : public Value {
 public:
 
     BaseType* for_type;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit SizeOfValue(BaseType *for_type, CSTToken* token);
+    explicit SizeOfValue(BaseType *for_type, SourceLocation location);
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -28,13 +28,13 @@ public:
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(nullptr);
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(location);
     }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     SizeOfValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<SizeOfValue>()) SizeOfValue(for_type->copy(allocator), token);
+        return new (allocator.allocate<SizeOfValue>()) SizeOfValue(for_type->copy(allocator), location);
     }
 
 #ifdef COMPILER_BUILD

@@ -65,7 +65,7 @@ public:
         bool isVariadic,
         bool isCapturing,
         ASTNode* parent_node,
-        CSTToken* token
+        SourceLocation location
     );
 
     [[nodiscard]]

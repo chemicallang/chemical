@@ -129,7 +129,7 @@ void IndexOperator::relink_parent(ChainValue *parent) {
 }
 
 IndexOperator* IndexOperator::copy(ASTAllocator& allocator) {
-    auto op = new (allocator.allocate<IndexOperator>()) IndexOperator({}, token);
+    auto op = new (allocator.allocate<IndexOperator>()) IndexOperator({}, location);
     for(auto& value : values) {
         op->values.emplace_back(value->copy(allocator));
     }

@@ -8,8 +8,8 @@
 ComptimeBlock::ComptimeBlock(
     Scope scope,
     ASTNode* parent,
-    CSTToken* token
-) : body(std::move(scope)), parent_node(parent), token(token) {
+    SourceLocation location
+) : body(std::move(scope)), parent_node(parent), location(location) {
 
 }
 

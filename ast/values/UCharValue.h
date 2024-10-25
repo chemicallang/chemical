@@ -9,14 +9,14 @@ class UCharValue : public IntNumValue {
 public:
 
     unsigned char value;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit UCharValue(unsigned char value, CSTToken* token) : value(value), token(token) {
+    explicit UCharValue(unsigned char value, SourceLocation location) : value(value), location(location) {
 
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -40,12 +40,12 @@ public:
     }
 
     UCharValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UCharValue>()) UCharValue(value, token);
+        return new (allocator.allocate<UCharValue>()) UCharValue(value, location);
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UCharType>()) UCharType(nullptr);
+        return new (allocator.allocate<UCharType>()) UCharType(location);
     }
 
     bool is_unsigned() final {

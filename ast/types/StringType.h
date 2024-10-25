@@ -44,7 +44,7 @@ public:
 
     [[nodiscard]]
     StringType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<StringType>()) StringType(token);
+        return new (allocator.allocate<StringType>()) StringType(location);
     }
 
 #ifdef COMPILER_BUILD

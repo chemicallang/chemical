@@ -44,8 +44,8 @@ DoWhileLoop::DoWhileLoop(
     Value* condition,
     LoopScope body,
     ASTNode* parent_node,
-    CSTToken* token
-) : condition(condition), LoopASTNode(std::move(body)), parent_node(parent_node), token(token) {
+    SourceLocation location
+) : condition(condition), LoopASTNode(std::move(body)), parent_node(parent_node), location(location) {
 
 }
 

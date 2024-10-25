@@ -4,23 +4,37 @@
 #include "cst/base/CSTDiagnoser.h"
 #include "cst/base/CSTToken.h"
 #include "rang.hpp"
+#include "cst/LocationManager.h"
 
-void CSTDiagnoser::real_diagnostic(const std::string_view& message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
+void CSTDiagnoser::diagnostic(const std::string_view& message, unsigned int file_id, const Position& start, const Position& end, DiagSeverity severity) {
     if (severity == DiagSeverity::Error) {
-#ifdef DEBUG
-        std::cerr << rang::fg::red << "[Debug_Error] " << message << " at path/to/filename/here" << ":" << start->position().representation() << rang::fg::reset << std::endl;
-#endif
+        // TODO get the path name using file_id and report with the file path, if file_id is given
+        if(early_errors) {
+            std::cerr << rang::fg::red << "[Debug_Error] " << message << " at path/to/filename/here" << ":"
+                      << start.representation() << rang::fg::reset << std::endl;
+        }
         has_errors = true;
     }
     diagnostics.emplace_back(
-            Range{
-                    start->start_token()->position(),
-                    end->end_token()->position()
+            Range {
+                start,
+                end
             },
             severity,
             std::nullopt,
             std::string(message)
     );
+}
+
+void CSTDiagnoser::token_diagnostic(const std::string_view& message, unsigned int file_id, CSTToken* start, CSTToken* end, DiagSeverity severity) {
+    const auto& startPos = start->start_token()->position();
+    const auto end_token = end->end_token();
+    diagnostic(message, file_id, startPos, { end_token->lineNumber(), end_token->lineCharNumber() + end_token->length() }, severity);
+}
+
+void CSTDiagnoser::location_diagnostic(const std::string_view& message, SourceLocation location, DiagSeverity severity) {
+    const auto pos = loc_man.getLocationPos(location);
+    diagnostic(message, pos.fileId, pos.start, pos.end, severity);
 }
 
 void CSTDiagnoser::diagnostic(std::string &message, DiagSeverity severity) {
@@ -33,7 +47,7 @@ void CSTDiagnoser::diagnostic(std::string_view &message, DiagSeverity severity) 
     diagnostic(message, &dummy, severity);
 }
 
-void CSTDiagnoser::print_diagnostics(const std::string& path, const std::string& tag) {
+void CSTDiagnoser::print_diagnostics(const std::string_view& path, const std::string& tag) {
     for (const auto &err: diagnostics) {
         err.ansi(std::cerr, path, tag) << std::endl;
     }

@@ -273,10 +273,10 @@ StructMember::StructMember(
         BaseType* type,
         Value* defValue,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         bool is_const,
         AccessSpecifier specifier
-) : BaseDefMember(std::move(name)), type(type), defValue(defValue), parent_node(parent_node), token(token), is_const(is_const), specifier(specifier) {
+) : BaseDefMember(std::move(name)), type(type), defValue(defValue), parent_node(parent_node), location(location), is_const(is_const), specifier(specifier) {
 
 }
 
@@ -290,7 +290,7 @@ BaseType* StructMember::create_value_type(ASTAllocator& allocator) {
 
 BaseDefMember *StructMember::copy_member(ASTAllocator& allocator) {
     Value* def_value = defValue ? defValue->copy(allocator) : nullptr;
-    return new (allocator.allocate<StructMember>()) StructMember(name, type->copy(allocator), def_value, parent_node, token);
+    return new (allocator.allocate<StructMember>()) StructMember(name, type->copy(allocator), def_value, parent_node, location);
 }
 
 void StructMember::declare_top_level(SymbolResolver &linker) {
@@ -317,7 +317,7 @@ void UnnamedStruct::declare_and_link(SymbolResolver &linker) {
 }
 
 BaseDefMember *UnnamedStruct::copy_member(ASTAllocator& allocator) {
-    auto unnamed = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct(name, parent_node, token);
+    auto unnamed = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct(name, parent_node, location);
     for(auto& variable : variables) {
         unnamed->variables[variable.first] = variable.second->copy_member(allocator);
     }
@@ -345,33 +345,33 @@ BaseTypeKind StructMember::type_kind() const {
 UnnamedStruct::UnnamedStruct(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         AccessSpecifier specifier
-) : BaseDefMember(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
+) : BaseDefMember(std::move(name)), parent_node(parent_node), location(location), specifier(specifier) {
 
 }
 
 StructDefinition::StructDefinition(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node),
-    token(token), specifier(specifier), linked_type(this->name, this, nullptr) {
+    location(location), specifier(specifier), linked_type(this->name, this, location) {
 
 }
 
 BaseType *StructDefinition::copy(ASTAllocator& allocator) const {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, token);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, location);
 }
 
 BaseType* UnnamedStruct::create_value_type(ASTAllocator &allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, token);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, location);
 }
 
 BaseType *UnnamedStruct::copy(ASTAllocator& allocator) const {
     // this is UnionType's copy method
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, token);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, location);
 }
 
 void StructDefinition::accept(Visitor *visitor) {
@@ -453,7 +453,7 @@ ASTNode *StructDefinition::child(const std::string &name) {
 }
 
 VariablesContainer *StructDefinition::copy_container(ASTAllocator& allocator) {
-    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(name, parent_node, token);
+    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(name, parent_node, location);
     for(auto& inherits : inherited) {
         def->inherited.emplace_back(inherits->copy(allocator));
     }

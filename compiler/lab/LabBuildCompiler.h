@@ -16,6 +16,8 @@ class CTranslator;
 
 struct GlobalContainer;
 
+class LocationManager;
+
 /**
  * lab build compiler, doesn't relate to building a .lab file
  * it provides easy methods to do what can be done with a .lab file
@@ -28,6 +30,11 @@ public:
      * compiler binder is used to bind compiler functions with user source code
      */
     CompilerBinder& binder;
+
+    /**
+     * the location manager is assigned at initialization
+     */
+    LocationManager* loc_man;
 
     /**
      * lab build compiler options
@@ -79,6 +86,19 @@ public:
      * constructor
      */
     explicit LabBuildCompiler(CompilerBinder& binder, LabBuildCompilerOptions* options);
+
+    /**
+     * this prepares the build compiler for a session of multiple jobs
+     * after performing the jobs, we expected that manager, or allocators provided
+     * will go out of scope and die, which means we'll have pointers to these freed objects
+     * so that's why prepare should be called, for each session of multiple jobs
+     */
+    void prepare(
+            LocationManager* const loc_man,
+            ASTAllocator* const job_allocator,
+            ASTAllocator* const mod_allocator,
+            ASTAllocator* const file_allocator
+    );
 
     /**
      * processes modules, generates code, or all modules required for linking but doesn't link

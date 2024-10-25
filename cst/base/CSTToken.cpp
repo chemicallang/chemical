@@ -57,7 +57,7 @@ std::string CSTToken::type_string() const {
 
 const Position& CSTToken::start() const {
     if (compound()) {
-        return tokens[0]->position();
+        return tokens[0]->start();
     } else {
         return position();
     }

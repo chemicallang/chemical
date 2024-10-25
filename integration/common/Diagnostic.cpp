@@ -17,7 +17,7 @@ bool Position::is_equal(const Position& position) const {
     return line == position.line && character == position.character;
 }
 
-std::ostream& color(std::ostream& os, DiagSeverity severity) {
+void color(std::ostream& os, DiagSeverity severity) {
     switch (severity) {
         case DiagSeverity::Error:
             os << rang::fg::red;
@@ -32,7 +32,6 @@ std::ostream& color(std::ostream& os, DiagSeverity severity) {
             os << rang::fg::cyan;
             break;
     }
-    return os;
 }
 
 std::string to_string(DiagSeverity severity) {
@@ -50,7 +49,13 @@ std::string to_string(DiagSeverity severity) {
     }
 }
 
-std::ostream& Diag::ansi(std::ostream& os, const std::string& path, const std::string &tag) const {
-    color(os, severity.value()) << format(path, tag) << rang::bg::reset << rang::fg::reset;
+void Diag::format(std::ostream& os, const std::string_view& path, const std::string_view& tag) const {
+    os << '[' << tag << "] " << message << " at " << path << ':' << range.representation();
+}
+
+std::ostream& Diag::ansi(std::ostream& os, const std::string_view& path, const std::string_view &tag) const {
+    color(os, severity.value());
+    format(os, path, tag);
+    os << rang::bg::reset << rang::fg::reset;
     return os;
 }

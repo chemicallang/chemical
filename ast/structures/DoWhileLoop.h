@@ -16,7 +16,7 @@ private:
 public:
     Value* condition;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * Initialize an empty do while loop
@@ -25,8 +25,8 @@ public:
 //
 //    }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {
@@ -47,7 +47,7 @@ public:
             Value* condition,
             LoopScope body,
             ASTNode* parent_node,
-            CSTToken* token
+            SourceLocation location
     );
 
     void accept(Visitor *visitor) final;

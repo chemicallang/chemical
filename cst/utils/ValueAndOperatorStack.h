@@ -123,7 +123,7 @@ public:
         return c;
     }
 
-    Expression* toExpressionRaw(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {
+    Expression* toExpressionRaw(ASTAllocator& allocator, bool is64Bit, SourceLocation location) {
         ValueAndOperatorStack stack;
         int i = 0;
         while(i < container.size()) {
@@ -143,7 +143,7 @@ public:
                                                   second.item.value,
                                                           item.item.operation,
                                                           is64Bit,
-                                                          token
+                                                          location
                                                           )
                                                       );
                     break;

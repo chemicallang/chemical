@@ -9,7 +9,7 @@ public:
 
     BaseType* underlying;
 
-    explicit LiteralType(BaseType* underlying, CSTToken* token) : underlying(underlying), TokenizedBaseType(token) {
+    explicit LiteralType(BaseType* underlying, SourceLocation location) : underlying(underlying), TokenizedBaseType(location) {
         // do nothing
     }
 
@@ -47,7 +47,7 @@ public:
 
     [[nodiscard]]
     LiteralType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator), token);
+        return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator), location);
     }
 
 #ifdef COMPILER_BUILD

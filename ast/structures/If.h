@@ -20,7 +20,7 @@ public:
     std::optional<Scope> elseBody;
     ASTNode* parent_node;
     bool is_value;
-    CSTToken* token;
+    SourceLocation location;
     bool is_computable = false;
     bool resolved_condition = true;
     // after resolving computed value, we store the scope, so we can visit it
@@ -40,11 +40,11 @@ public:
             std::optional<Scope> elseBody,
             ASTNode* parent_node,
             bool is_value,
-            CSTToken* token
+            SourceLocation location
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

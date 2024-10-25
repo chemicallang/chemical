@@ -26,17 +26,17 @@ public:
      */
     Value* value;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * constructor
      */
-    ValueNode(Value* value, ASTNode* parent_node, CSTToken* token) : value(value), parent_node(parent_node), token(token) {
+    ValueNode(Value* value, ASTNode* parent_node, SourceLocation location) : value(value), parent_node(parent_node), location(location) {
 
     }
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     Value *holding_value() final {

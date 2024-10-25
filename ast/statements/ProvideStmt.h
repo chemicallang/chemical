@@ -13,7 +13,7 @@ public:
     std::string identifier;
     Scope body;
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * constructor
@@ -23,7 +23,7 @@ public:
         std::string identifier,
         Scope body,
         ASTNode* parent,
-        CSTToken* token
+        SourceLocation location
     );
 
     /**
@@ -37,8 +37,8 @@ public:
         visitor->visit(this);
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNode* parent() final {

@@ -16,17 +16,17 @@ class DoubleValue : public Value {
 public:
 
     double value; ///< The double value.
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * @brief Construct a new DoubleValue object.
      *
      * @param value The double value.
      */
-    explicit DoubleValue(double value, CSTToken* token) : value(value), token(token) {}
+    explicit DoubleValue(double value, SourceLocation location) : value(value), location(location) {}
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {
@@ -54,7 +54,7 @@ public:
 //    }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<DoubleType>()) DoubleType(nullptr);
+        return new (allocator.allocate<DoubleType>()) DoubleType(location);
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
@@ -66,7 +66,7 @@ public:
     }
 
     DoubleValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<DoubleValue>()) DoubleValue(value, token);
+        return new (allocator.allocate<DoubleValue>()) DoubleValue(value, location);
     }
 
     [[nodiscard]]

@@ -9,7 +9,7 @@ public:
     std::vector<Value*> values;
     std::vector<BaseType*> generic_list;
     BaseType* cached_type = nullptr;
-    CSTToken* token;
+    SourceLocation location;
 
     /**
      * the generic iteration is determined and stored at resolution phase
@@ -21,10 +21,10 @@ public:
     /**
      * this will take the access chain, if has function call at least, own it's values
      */
-    explicit VariantCall(AccessChain* chain, CSTToken* token);
+    explicit VariantCall(AccessChain* chain, SourceLocation location);
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

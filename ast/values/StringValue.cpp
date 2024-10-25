@@ -7,7 +7,7 @@
 #include "ast/statements/VarInit.h"
 
 BaseType* StringValue::create_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<StringType>()) StringType(nullptr);
+    return new (allocator.allocate<StringType>()) StringType(location);
 }
 
 bool StringValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) {

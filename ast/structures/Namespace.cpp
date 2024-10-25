@@ -6,9 +6,9 @@
 Namespace::Namespace(
     std::string name,
     ASTNode* parent_node,
-    CSTToken* token,
+    SourceLocation location,
     AccessSpecifier specifier
-) : name(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
+) : name(std::move(name)), parent_node(parent_node), location(location), specifier(specifier) {
 
 }
 

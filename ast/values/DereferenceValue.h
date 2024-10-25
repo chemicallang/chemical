@@ -14,12 +14,12 @@ class DereferenceValue : public Value {
 public:
 
     Value* value;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit DereferenceValue(Value* value, CSTToken* token);
+    explicit DereferenceValue(Value* value, SourceLocation location);
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

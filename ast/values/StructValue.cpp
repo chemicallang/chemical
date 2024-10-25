@@ -235,18 +235,18 @@ StructValue::StructValue(
         BaseType* refType,
         std::unordered_map<std::string, StructMemberInitializer*> values,
         ExtendableMembersContainerNode *definition,
-        CSTToken* token,
+        SourceLocation location,
         ASTNode* parent_node
-) : refType(refType), values(std::move(values)), definition(definition), token(token), parent_node(parent_node) {}
+) : refType(refType), values(std::move(values)), definition(definition), location(location), parent_node(parent_node) {}
 
 StructValue::StructValue(
         BaseType* refType,
         std::unordered_map<std::string, StructMemberInitializer*> values,
         ExtendableMembersContainerNode *definition,
         InterpretScope &scope,
-        CSTToken* token,
+        SourceLocation location,
         ASTNode* parent_node
-) : refType(refType), values(std::move(values)), definition(definition), token(token), parent_node(parent_node) {
+) : refType(refType), values(std::move(values)), definition(definition), location(location), parent_node(parent_node) {
     declare_default_values(this->values, scope);
 }
 
@@ -492,7 +492,7 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
             refType->copy(scope.allocator),
             std::unordered_map<std::string, StructMemberInitializer*>(),
             definition,
-            token,
+            location,
             parent_node
     );
     declare_default_values(struct_value->values, scope);
@@ -530,7 +530,7 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
         refType->copy(allocator),
         std::unordered_map<std::string, StructMemberInitializer*>(),
         definition,
-        token,
+        location,
         parent_node
     );
     struct_value->values.reserve(values.size());
@@ -578,8 +578,8 @@ StructMemberInitializer* StructMemberInitializer::copy(ASTAllocator& allocator) 
     return new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(name, value->copy(allocator), struct_value, member);
 }
 
-CSTToken *StructMemberInitializer::cst_token() {
-    return value->cst_token();
+SourceLocation StructMemberInitializer::encoded_location() {
+    return value->encoded_location();
 }
 
 ASTNode* StructMemberInitializer::parent() {

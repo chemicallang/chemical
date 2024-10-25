@@ -47,7 +47,7 @@ public:
 
     [[nodiscard]]
     FloatType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<FloatType>()) FloatType(token);
+        return new (allocator.allocate<FloatType>()) FloatType(location);
     }
 
 #ifdef COMPILER_BUILD

@@ -22,7 +22,7 @@ class CTranslator;
  *
  * this expects a builtin type of the same kind, which is being used to index it on vector type_makers
  */
-typedef BaseType*(*CTypeMakerFn)(ASTAllocator&, clang::BuiltinType*);
+typedef BaseType*(*CTypeMakerFn)(ASTAllocator&, clang::BuiltinType*, SourceLocation location);
 
 /**
  * Node maker fn

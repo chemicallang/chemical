@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include "cst/SourceLocation.h"
 
 class Value;
 
@@ -39,9 +40,10 @@ public:
     virtual void accept(Visitor *visitor) = 0;
 
     /**
-     * the cst token for this ast any
+     * get the encoded location, this encoded location can be provided
+     * to location manager to get the actual decoded location
      */
-    virtual CSTToken* cst_token() = 0;
+    virtual SourceLocation encoded_location() = 0;
 
     /**
      * Interpret the current node in the given interpret scope

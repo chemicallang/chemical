@@ -20,17 +20,17 @@ public:
     std::vector<BaseType*> generic_list;
     std::vector<Value*> values;
     int16_t generic_iteration = 0;
-    CSTToken* token;
+    SourceLocation location;
 
     FunctionCall(
             std::vector<Value*> values,
-            CSTToken* token
+            SourceLocation location
     );
 
     FunctionCall(FunctionCall &&other) = delete;
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ValueKind val_kind() final {

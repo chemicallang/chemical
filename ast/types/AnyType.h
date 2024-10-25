@@ -38,7 +38,7 @@ public:
 
     [[nodiscard]]
     AnyType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<AnyType>()) AnyType(token);
+        return new (allocator.allocate<AnyType>()) AnyType(location);
     }
 
 #ifdef COMPILER_BUILD

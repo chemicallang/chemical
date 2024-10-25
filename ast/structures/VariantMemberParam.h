@@ -14,7 +14,7 @@ public:
     Value* def_value;
     VariantMember* parent_node;
     unsigned index;
-    CSTToken* token;
+    SourceLocation location;
     bool is_const;
 
     VariantMemberParam(
@@ -24,11 +24,11 @@ public:
         BaseType* type,
         Value* def_value,
         VariantMember* parent_node,
-        CSTToken* token
+        SourceLocation location
     );
 
-    CSTToken *cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

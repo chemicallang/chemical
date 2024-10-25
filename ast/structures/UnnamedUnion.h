@@ -10,18 +10,18 @@ class UnnamedUnion : public BaseDefMember, public VariablesContainer, public Uni
 public:
 
     ASTNode* parent_node;
-    CSTToken* token;
+    SourceLocation location;
     AccessSpecifier specifier;
 
     UnnamedUnion(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token,
+        SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNodeKind kind() final {

@@ -26,7 +26,7 @@ public:
             unsigned int bitWidth,
             bool is_signed,
             uint64_t value,
-            CSTToken* token = nullptr
+            SourceLocation location
     );
 
     /**

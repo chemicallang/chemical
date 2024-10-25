@@ -23,7 +23,7 @@
 #include "compiler/llvmimpl.h"
 
 AccessChain parent_chain(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain, int till) {
-    AccessChain member_access(std::vector<ChainValue*> {}, nullptr, false, nullptr);
+    AccessChain member_access(std::vector<ChainValue*> {}, nullptr, false, ZERO_LOC);
     unsigned i = 0;
     while(i < till) {
         if(chain[i] == call) {
@@ -36,7 +36,7 @@ AccessChain parent_chain(ASTAllocator& allocator, FunctionCall* call, std::vecto
 }
 
 AccessChain chain_range(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain, int till) {
-    AccessChain member_access(std::vector<ChainValue*> {}, nullptr, false, nullptr);
+    AccessChain member_access(std::vector<ChainValue*> {}, nullptr, false, ZERO_LOC);
     unsigned i = 0;
     while(i <= till) {
         member_access.values.emplace_back((ChainValue*) chain[i]->copy(allocator));
@@ -669,8 +669,8 @@ llvm::Value* FunctionCall::access_chain_assign_value(
 
 FunctionCall::FunctionCall(
         std::vector<Value*> values,
-        CSTToken* token
-) : values(std::move(values)), token(token) {
+        SourceLocation location
+) : values(std::move(values)), location(location) {
 
 }
 
@@ -753,7 +753,7 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor) && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name, struct_def, nullptr), generic_iteration);
+            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name, struct_def, location), generic_iteration);
         }
     }
     return func_type;
@@ -959,7 +959,7 @@ void FunctionCall::evaluate_children(InterpretScope &scope) {
 }
 
 FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
-    auto call = new FunctionCall({}, token);
+    auto call = new (allocator.allocate<FunctionCall>()) FunctionCall({}, location);
     for(auto& value : values) {
         call->values.emplace_back(value->copy(allocator));
     }
@@ -977,7 +977,7 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor) && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name, struct_def, nullptr), generic_iteration);
+            return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name, struct_def, location), generic_iteration);
         }
     }
     auto prev_itr = set_curr_itr_on_decl();

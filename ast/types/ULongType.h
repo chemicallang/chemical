@@ -12,7 +12,7 @@ public:
     static const ULongType instance64Bit;
     static const ULongType instance32Bit;
 
-    ULongType(bool is64Bit, CSTToken* token) : is64Bit(is64Bit), IntNType(token) {
+    ULongType(bool is64Bit, SourceLocation location) : is64Bit(is64Bit), IntNType(location) {
 
     }
 
@@ -42,7 +42,7 @@ public:
 
     [[nodiscard]]
     ULongType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, token);
+        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, location);
     }
 
 };

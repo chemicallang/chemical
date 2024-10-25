@@ -8,16 +8,16 @@ class UnsafeBlock : public ASTNode {
 public:
 
     Scope scope;
-    CSTToken* token;
+    SourceLocation location;
 
-    explicit UnsafeBlock(Scope scope, CSTToken* token);
+    explicit UnsafeBlock(Scope scope, SourceLocation location);
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
-    CSTToken* cst_token() final {
-        return token;
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     ASTNode* parent() final {

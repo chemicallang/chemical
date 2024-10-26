@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "CaretPositionAnalyzer.h"
+#include "cst/LocationManager.h"
 
 
 bool CaretPositionAnalyzer::is_eq_caret(CSTToken* token) const {
@@ -9,6 +10,11 @@ bool CaretPositionAnalyzer::is_eq_caret(CSTToken* token) const {
 
 bool CaretPositionAnalyzer::is_ahead(CSTToken *token) const {
     return is_ahead(token->position());
+}
+
+bool CaretPositionAnalyzer::is_caret_inside(SourceLocation location) {
+    const auto data = loc_man.getLocationPos(location);
+    return is_caret_inside(data.start, data.end);
 }
 
 bool CaretPositionAnalyzer::is_caret_inside(CSTToken *token) {

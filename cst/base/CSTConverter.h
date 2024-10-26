@@ -52,6 +52,11 @@ public:
     unsigned int file_id;
 
     /**
+     * the location manager is used to encode locations into the AST
+     */
+    LocationManager& loc_man;
+
+    /**
      * function parameter index
      */
     unsigned int param_index = 0;
@@ -153,11 +158,15 @@ public:
         std::string target,
         GlobalInterpretScope& scope,
         CompilerBinder& binder,
-        LocationManager& loc_man,
         ASTAllocator& global_allocator,
         ASTAllocator& local_allocator,
         ASTAllocator& file_allocator
     );
+
+    /**
+     * the simple error function
+     */
+    void error(const std::string_view& message, CSTToken* inside);
 
     /**
      * this returns the default specifier to use for the node, if user given specifier is missing

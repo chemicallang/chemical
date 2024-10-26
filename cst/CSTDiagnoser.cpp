@@ -6,11 +6,10 @@
 #include "rang.hpp"
 #include "cst/LocationManager.h"
 
-void CSTDiagnoser::diagnostic(const std::string_view& message, unsigned int file_id, const Position& start, const Position& end, DiagSeverity severity) {
+void CSTDiagnoser::diagnostic(const std::string_view& message, const std::string_view& filePath, const Position& start, const Position& end, DiagSeverity severity) {
     if (severity == DiagSeverity::Error) {
-        // TODO get the path name using file_id and report with the file path, if file_id is given
         if(early_errors) {
-            std::cerr << rang::fg::red << "[Debug_Error] " << message << " at path/to/filename/here" << ":"
+            std::cerr << rang::fg::red << "[Debug_Error] " << message << " at " << filePath << ":"
                       << start.representation() << rang::fg::reset << std::endl;
         }
         has_errors = true;
@@ -26,25 +25,15 @@ void CSTDiagnoser::diagnostic(const std::string_view& message, unsigned int file
     );
 }
 
-void CSTDiagnoser::token_diagnostic(const std::string_view& message, unsigned int file_id, CSTToken* start, CSTToken* end, DiagSeverity severity) {
+void CSTDiagnoser::token_diagnostic(const std::string_view& message, const std::string_view& file_path, CSTToken* start, CSTToken* end, DiagSeverity severity) {
     const auto& startPos = start->start_token()->position();
     const auto end_token = end->end_token();
-    diagnostic(message, file_id, startPos, { end_token->lineNumber(), end_token->lineCharNumber() + end_token->length() }, severity);
+    diagnostic(message, file_path, startPos, { end_token->lineNumber(), end_token->lineCharNumber() + end_token->length() }, severity);
 }
 
-void CSTDiagnoser::location_diagnostic(const std::string_view& message, SourceLocation location, DiagSeverity severity) {
-    const auto pos = loc_man.getLocationPos(location);
-    diagnostic(message, pos.fileId, pos.start, pos.end, severity);
-}
-
-void CSTDiagnoser::diagnostic(std::string &message, DiagSeverity severity) {
+void CSTDiagnoser::diagnostic(const std::string_view &message, DiagSeverity severity) {
     CSTToken dummy(LexTokenType::Bool, Position(0, 0), "");
-    diagnostic(message, &dummy, severity);
-}
-
-void CSTDiagnoser::diagnostic(std::string_view &message, DiagSeverity severity) {
-    CSTToken dummy(LexTokenType::Bool, Position(0, 0), "");
-    diagnostic(message, &dummy, severity);
+    diagnostic(message, "", &dummy, severity);
 }
 
 void CSTDiagnoser::print_diagnostics(const std::string_view& path, const std::string& tag) {

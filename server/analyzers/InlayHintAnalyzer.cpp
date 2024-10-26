@@ -9,7 +9,7 @@
 #include "ast/statements/VarInit.h"
 #include "cst/utils/CSTUtils.h"
 
-InlayHintAnalyzer::InlayHintAnalyzer() : allocator(nullptr, 0, 0) {
+InlayHintAnalyzer::InlayHintAnalyzer(LocationManager& loc_man) : allocator(nullptr, 0, 0), loc_man(loc_man) {
 
 }
 
@@ -22,13 +22,13 @@ void InlayHintAnalyzer::visit(FunctionCall *call) {
     if(func_type) {
         unsigned i = 0;
         for(auto val : call->values) {
-            const auto token = val->cst_token();
-            if(token) {
+            const auto encodedLoc = val->encoded_location();
+            if(encodedLoc.isValid()) {
+                const auto location = loc_man.getLocationPos(encodedLoc);
                 const auto param = func_type->func_param_for_arg_at(i);
                 if(param) {
-                    const auto& pos = token->start();
                     hints.emplace_back(lsInlayHint {
-                            { (int) pos.line, (int) pos.character },
+                            { (int) location.start.line, (int) location.start.character },
                             param->name + ": ",
                             lsInlayHintKind::Parameter
                     });
@@ -42,14 +42,17 @@ void InlayHintAnalyzer::visit(FunctionCall *call) {
 void InlayHintAnalyzer::visit(VarInitStatement *init) {
     CommonVisitor::visit(init);
     if(init->value && !init->type) {
-        const auto token = init->cst_token();
-        if(token && token->type() == LexTokenType::CompVarInit) {
+        const auto encoded_loc = init->encoded_location();
+        if(encoded_loc.isValid()) {
+            const auto location = loc_man.getLocationPos(encoded_loc);
             const auto known = init->value->create_type(allocator);
             if(known) {
-                const auto name_tok = var_init_name_tok(token);
-                const auto& start = name_tok->start();
+                // TODO the name should be stored as an identifier in the ast
+//                const auto name_tok = var_init_name_tok(token);
+                // TODO use the end location on the name identifier
+                const auto& start = location.end;
                 hints.emplace_back(lsInlayHint {
-                        { (int) start.line, (int) (start.character + name_tok->length()) },
+                        { (int) start.line, (int) start.character },
                         " :" + known->representation(),
                         lsInlayHintKind::Type
                 });

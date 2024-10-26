@@ -37,27 +37,26 @@ void lexFile(Lexer* lexer, const char* path);
 /**
  * benchmark lexing the given input stream
  * It will print helpful messages like lexing started and time taken by lexing in milli, mico and nano seconds
- * @param file
- * @return tokens
+ * NOTE: the path passed to this function should be a c string, which means it must contain \0 at end
  */
-Lexer benchLexFile(unsigned int file_id, InputSource& source, LocationManager& manager);
+Lexer benchLexFile(const std::string_view& path, InputSource& source);
 
 /**
  * same as benchLexFile with istream
  * benchmark lexing the filename (relative to in the current project)
- * @return the tokens
+ * NOTE: the path passed to this function should be a c string, which means it must contain \0 at end
  */
-Lexer benchLexFile(unsigned int file_id, const char* path, LocationManager& manager);
+Lexer benchLexFile(const std::string_view& path);
 
 /**
  * will lex the file from given istream
- * @return the tokens
+ * NOTE: the path passed to this function should be a c string, which means it must contain \0 at end
  */
-Lexer lexFile(unsigned int file_id, InputSource& source, LocationManager& manager);
+Lexer lexFile(const std::string_view& path, InputSource& source);
 
 /**
  * same as lexFile with istream
  * lex the file at path (relative to in the current project)
- * @return the tokens
+ * NOTE: the path passed to this function should be a c string, which means it must contain \0 at end
  */
-Lexer lexFile(unsigned int file_id, const char* path, LocationManager& manager);
+Lexer lexFile(const std::string_view& path);

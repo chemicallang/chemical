@@ -53,6 +53,13 @@ WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std:
 
 }
 
+std::string WorkspaceManager::get_target_triple() {
+    // TODO we should get the current target triple from the compiler executable
+    // then we store that target triple as the default, for example on windows
+    // windows things will be shown
+    return "LSP";
+}
+
 std::string WorkspaceManager::compiler_exe_path() {
 #ifdef DEBUG
     std::string exe_name = "Compiler";
@@ -187,7 +194,7 @@ td_completion::response WorkspaceManager::get_completion(
 ) {
     auto can_path = canonical(uri.GetAbsolutePath().path);
     auto unit = get_ast_import_unit(can_path, cancel_request);
-    CompletionItemAnalyzer analyzer({ line, character });
+    CompletionItemAnalyzer analyzer(unit.unit->loc_man, { line, character });
     td_completion::response rsp;
     analyzer.analyze(unit);
     rsp.result = std::move(analyzer.list);
@@ -205,7 +212,7 @@ td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
 td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto result = get_ast_import_unit(abs_path, cancel_request);
-    InlayHintAnalyzer analyzer;
+    InlayHintAnalyzer analyzer(result.unit->loc_man);
     td_inlayHint::response rsp;
     rsp.result = analyzer.analyze(result, compiler_exe_path(), lsp_exe_path);
     return std::move(rsp);
@@ -214,7 +221,7 @@ td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
 td_signatureHelp::response WorkspaceManager::get_signature_help(const lsDocumentUri& uri, const lsPosition& position) {
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto result = get_ast_import_unit(abs_path, cancel_request);
-    SignatureHelpAnalyzer analyzer({ .line = position.line, .character = position.character });
+    SignatureHelpAnalyzer analyzer(result.unit->loc_man, { .line = position.line, .character = position.character });
     td_signatureHelp::response rsp;
     analyzer.analyze(result);
     rsp.result = std::move(analyzer.help);
@@ -222,11 +229,11 @@ td_signatureHelp::response WorkspaceManager::get_signature_help(const lsDocument
 }
 
 td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &uri, const lsPosition &position) {
-    auto unit = get_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
-    GotoDefAnalyzer analyzer({position.line, position.character});
+    auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
+    GotoDefAnalyzer analyzer(unit.unit->loc_man, {position.line, position.character});
     td_definition::response rsp;
     rsp.result.first.emplace();
-    auto analyzed = analyzer.analyze(&unit);
+    auto analyzed = analyzer.analyze(&unit.lex_unit);
     for (auto &loc: analyzed) {
         rsp.result.first.value().push_back(lsLocation{
                 lsDocumentUri(AbsolutePath(loc.path)),
@@ -249,10 +256,10 @@ td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
 }
 
 td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const lsPosition& position) {
-    auto unit = get_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
+    auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
     td_hover::response rsp;
-    HoverAnalyzer analyzer({position.line, position.character});
-    auto value = analyzer.markdown_hover(&unit);
+    HoverAnalyzer analyzer(unit.unit->loc_man, {position.line, position.character});
+    auto value = analyzer.markdown_hover(&unit.lex_unit);
     if(!value.empty()) {
         rsp.result.contents.second.emplace("markdown", std::move(value));
     }
@@ -348,9 +355,8 @@ void WorkspaceManager::clearAllStoredContents() {
 }
 
 WorkspaceManager::~WorkspaceManager() {
-    if(lab) {
-        delete lab;
-    }
+    delete lab;
+    GlobalInterpretScope::dispose_container(global_container);
 }
 
 void replace(

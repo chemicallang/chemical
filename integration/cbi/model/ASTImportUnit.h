@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include "ast/base/GlobalInterpretScope.h"
+#include "cst/LocationManager.h"
 
 class ASTResult;
 
@@ -23,6 +24,11 @@ public:
      * The allocator used for global interpret scope
      */
     ASTAllocator allocator;
+
+    /**
+     * the location manager used to store locations
+     */
+    LocationManager loc_man;
 
     /**
      * the global interpret scope is used for all these files
@@ -55,8 +61,9 @@ public:
      * constructor
      */
     ASTImportUnit(
+        std::string target_triple
     ) : allocator(nullptr, 0, 0),
-        comptime_scope(nullptr, nullptr, allocator),
+        comptime_scope(std::move(target_triple), nullptr, nullptr, allocator, loc_man),
         reported_diagnostics(false)
     {
 

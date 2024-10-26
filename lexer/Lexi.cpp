@@ -34,28 +34,28 @@ void lexFile(Lexer* lexer, const char* path) {
     lexer->lex();
 }
 
-Lexer benchLexFile(unsigned int file_id, InputSource& source, LocationManager& manager) {
+Lexer benchLexFile(const std::string_view& path, InputSource& source) {
     SourceProvider reader(&source);
-    Lexer lexer(file_id, reader, manager);
+    Lexer lexer(std::string(path), reader);
     BenchmarkResults results{};
     benchLex(&lexer, results);
     std::cout << "[Lex]" << " Completed " << results.representation() << std::endl;
     return lexer;
 }
 
-Lexer benchLexFile(unsigned int file_id, const char* path, LocationManager& manager) {
-    FileInputSource input_source(path);
-    return benchLexFile(file_id, input_source, manager);
+Lexer benchLexFile(const std::string_view& path) {
+    FileInputSource input_source(path.data());
+    return benchLexFile(path, input_source);
 }
 
-Lexer lexFile(unsigned int file_id, InputSource& input_source, LocationManager& manager) {
+Lexer lexFile(const std::string_view& path, InputSource& input_source) {
     SourceProvider reader(&input_source);
-    Lexer lexer(file_id, reader, manager);
+    Lexer lexer(std::string(path), reader);
     lexer.lex();
     return lexer;
 }
 
-Lexer lexFile(unsigned int file_id, const char* path, LocationManager& manager) {
-    FileInputSource input_source(path);
-    return lexFile(file_id, input_source, manager);
+Lexer lexFile(const std::string_view& path) {
+    FileInputSource input_source(path.data());
+    return lexFile(path, input_source);
 }

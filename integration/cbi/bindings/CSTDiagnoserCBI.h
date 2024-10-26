@@ -17,6 +17,6 @@ class CSTToken;
 
 extern "C" {
 
-    void CSTDiagnoserput_diagnostic(CSTDiagnoser* diagnoser, chem::string* msg, CSTToken* start, CSTToken* end, DiagSeverity severity);
+    void CSTDiagnoserput_diagnostic(CSTDiagnoser* diagnoser, chem::string* msg, chem::string* filePath, CSTToken* start, CSTToken* end, DiagSeverity severity);
 
 }

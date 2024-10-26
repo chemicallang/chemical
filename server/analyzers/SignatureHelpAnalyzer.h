@@ -16,10 +16,12 @@ class ASTResult;
 class SignatureHelpAnalyzer : public CommonVisitor, public CaretPositionAnalyzer {
 public:
 
-    // this allocator is disposed
+    /**
+     * this allocator is disposed
+     */
     ASTAllocator allocator;
 
-    /*
+    /**
      * the actual signature help collected by traversing the AST
      */
     lsSignatureHelp help;
@@ -27,7 +29,7 @@ public:
     /**
      * constructor
      */
-    SignatureHelpAnalyzer(Position position);
+    SignatureHelpAnalyzer(LocationManager& loc_man, Position position);
 
     /**
      * this function analyzes the import unit, in which last file is the one which contains the

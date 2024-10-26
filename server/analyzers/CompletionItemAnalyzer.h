@@ -37,7 +37,7 @@ public:
     /**
      * constructor
      */
-    CompletionItemAnalyzer(caret_pos_type position) : CaretPositionAnalyzer(position) {
+    CompletionItemAnalyzer(LocationManager& manager, caret_pos_type position) : CaretPositionAnalyzer(manager, position) {
 
     }
 

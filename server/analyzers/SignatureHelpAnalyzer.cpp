@@ -10,13 +10,13 @@
 #include "cst/utils/CSTUtils.h"
 #include "SignatureHelpAnalyzer.h"
 
-SignatureHelpAnalyzer::SignatureHelpAnalyzer(Position position) : CaretPositionAnalyzer(position), allocator(nullptr, 0, 0) {
+SignatureHelpAnalyzer::SignatureHelpAnalyzer(LocationManager& loc_man, Position position) : CaretPositionAnalyzer(loc_man, position), allocator(nullptr, 0, 0) {
 
 }
 
 void SignatureHelpAnalyzer::visit(Scope *scope) {
     // we will only visit a scope, if the cursor position is inside it
-    if(is_caret_inside(scope->token)) {
+    if(is_caret_inside(scope->encoded_location())) {
         CommonVisitor::visit(scope);
     }
 }
@@ -27,11 +27,11 @@ void SignatureHelpAnalyzer::visit(FunctionCall *call) {
     if(func_type) {
         unsigned i = 0;
         for(auto val : call->values) {
-            const auto token = val->cst_token();
-            if(token) {
+            const auto encodedLocation = val->encoded_location();
+            if(encodedLocation.isValid()) {
                 const auto param = func_type->func_param_for_arg_at(i);
                 if(param) {
-                    const auto& pos = token->start();
+                    const auto loc = loc_man.getLocationPos(encodedLocation);
                     // TODO
 //                    hints.emplace_back(lsInlayHint {
 //                            { (int) pos.line, (int) pos.character },

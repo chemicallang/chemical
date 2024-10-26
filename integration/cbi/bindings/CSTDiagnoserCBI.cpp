@@ -4,7 +4,6 @@
 #include "cst/base/CSTDiagnoser.h"
 #include "std/chem_string.h"
 
-void CSTDiagnoserput_diagnostic(CSTDiagnoser* diagnoser, chem::string* msg, CSTToken* start, CSTToken* end, DiagSeverity severity) {
-    auto view = std::string_view(msg->data(), msg->size());
-    diagnoser->diagnostic(view, start, end, severity);
+void CSTDiagnoserput_diagnostic(CSTDiagnoser* diagnoser, chem::string* msg, chem::string* filePath, CSTToken* start, CSTToken* end, DiagSeverity severity) {
+    diagnoser->diagnostic(msg->to_view(), filePath->to_view(), start, end, severity);
 }

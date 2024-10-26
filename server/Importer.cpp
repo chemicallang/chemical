@@ -93,17 +93,17 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string
     if (overridden_source.has_value()) {
         StringInputSource input_source(overridden_source.value());
         SourceProvider reader(&input_source);
-        Lexer lexer(reader, &binder);
+        Lexer lexer(path, reader, &binder);
         lexer.lex();
         result->unit = std::move(lexer.unit);
         result->diags = std::move(lexer.diagnostics);
     } else {
-        FileInputSource input_source(path);
+        FileInputSource input_source(path.data());
         if(input_source.has_error()) {
             return nullptr;
         }
         SourceProvider reader(&input_source);
-        Lexer lexer(reader, &binder);
+        Lexer lexer(path, reader, &binder);
         lexer.lex();
         result->unit = std::move(lexer.unit);
         result->diags = std::move(lexer.diagnostics);
@@ -153,7 +153,8 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
     );
     auto result = std::shared_ptr<ASTResult>(result_ptr);
     auto& allocator = result_ptr->allocator;
-    CSTConverter converter(path, is64Bit, "ide", comptime_scope, binder, allocator, allocator, allocator);
+    const auto fileId = comptime_scope.loc_man.encodeFile(path);
+    CSTConverter converter(fileId, is64Bit, get_target_triple(), comptime_scope, binder, allocator, allocator, allocator);
     converter.convert(lex_result->unit.tokens);
     result->unit = converter.take_unit();
     result->diags = converter.diagnostics;
@@ -192,7 +193,8 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
     auto result = std::shared_ptr<ASTResult>(result_ptr);
     auto cst = get_lexed_no_lock(path);
     auto& allocator = result_ptr->allocator;
-    CSTConverter converter(path, is64Bit, "ide", comptime_scope, binder, allocator, allocator, allocator);
+    const auto fileId = comptime_scope.loc_man.encodeFile(path);
+    CSTConverter converter(fileId, is64Bit, "ide", comptime_scope, binder, allocator, allocator, allocator);
     converter.convert(cst->unit.tokens);
     result->unit = converter.take_unit();
     result->diags = converter.diagnostics;
@@ -265,7 +267,7 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
     }
     // create a function that takes cst tokens in the import graph maker and creates a import graph
     SourceProvider reader(nullptr);
-    Lexer lexer(reader, &binder);
+    Lexer lexer(abs_path, reader, &binder);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(compiler_exe_path());
     WorkspaceImportGraphImporter importer(

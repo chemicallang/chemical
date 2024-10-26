@@ -43,10 +43,9 @@ class Lexer : public CSTDiagnoser {
 public:
 
     /**
-     * the file id is the id of the file, we're lexing
-     * can be set to zero to indicate no source code file
+     * the path to the file we are lexing
      */
-    unsigned int file_id;
+    std::string file_path;
 
     /**
      * provides access to the source code to lex
@@ -68,9 +67,8 @@ public:
      * initialize the lexer with this provider and path
      */
     Lexer(
-        unsigned int file_id,
+        std::string file_path,
         SourceProvider &provider,
-        LocationManager& loc_man,
         CompilerBinder* binder = nullptr
     );
 
@@ -951,14 +949,14 @@ public:
      * a helper function
      */
     inline void diagnostic(std::string& message, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, unit_last_token()->end_token(), severity);
+        CSTDiagnoser::diagnostic(message, file_path, unit_last_token()->end_token(), severity);
     }
 
     /**
      * a helper function
      */
     inline void diagnostic(std::string_view& message, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, unit_last_token()->end_token(), severity);
+        CSTDiagnoser::diagnostic(message, file_path, unit_last_token()->end_token(), severity);
     }
 
     /**

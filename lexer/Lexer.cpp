@@ -8,11 +8,10 @@
 #include "ast/types/LinkedType.h"
 
 Lexer::Lexer(
-        unsigned int file_id,
+        std::string file_path,
         SourceProvider &provider,
-        LocationManager& loc_man,
         CompilerBinder* binder
-) : file_id(file_id), CSTDiagnoser(loc_man), provider(provider), binder(binder), unit() {
+) : file_path(std::move(file_path)), provider(provider), binder(binder), unit() {
     unit.init();
 }
 

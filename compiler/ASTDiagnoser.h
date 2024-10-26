@@ -5,8 +5,7 @@
 #include <string>
 #include <vector>
 #include "cst/base/CSTDiagnoser.h"
-
-class ASTAny;
+#include "ast/base/ASTAny.h"
 
 class Value;
 
@@ -21,17 +20,50 @@ class ASTNode;
 class ASTDiagnoser : public CSTDiagnoser {
 public:
 
-    using CSTDiagnoser::CSTDiagnoser;
+    /**
+     * the location manager is used to decode locations
+     */
+    LocationManager& loc_man;
+
+    /**
+     * the constructor
+     */
+    ASTDiagnoser(LocationManager& loc_man) : loc_man(loc_man) {
+
+    }
+
+    /**
+     * give a diagnostic related to the source location
+     */
+    void location_diagnostic(const std::string_view& message, SourceLocation location, DiagSeverity severity);
+
+    /**
+     * record a diagnostic for the given source location
+     */
+    inline void diagnostic(std::string& message, SourceLocation location, DiagSeverity severity) {
+        location_diagnostic(message, location, severity);
+    }
+
+    /**
+     * record a diagnostic for the given source location
+     */
+    inline void diagnostic(std::string_view& message, SourceLocation location, DiagSeverity severity) {
+        location_diagnostic(message, location, severity);
+    }
 
     /**
      * a diagnostic with severity
      */
-    void diagnostic(std::string& err, ASTAny* node, DiagSeverity severity);
+    void diagnostic(std::string& err, ASTAny* node, DiagSeverity severity) {
+        location_diagnostic(err, node->encoded_location(), severity);
+    }
 
     /**
      * a diagnostic with severity
      */
-    void diagnostic(std::string_view& err, ASTAny* node, DiagSeverity severity);
+    void diagnostic(std::string_view& err, ASTAny* node, DiagSeverity severity) {
+        location_diagnostic(err, node->encoded_location(), severity);
+    }
 
     /**
      * an info diagnostic

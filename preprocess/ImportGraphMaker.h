@@ -150,26 +150,22 @@ IGResult determine_import_graph(
 /**
  * this determines the IG file, the root if file for the given absolute_path
  */
-IGFile determine_ig_file(
-    ImportPathHandler &path_handler,
-    LocationManager& manager,
-    const std::string &abs_path
-);
+IGFile determine_ig_file(ImportPathHandler &path_handler, const std::string &abs_path);
 
 /**
  * this determines the IG file, the root if file for the given absolute_path
  */
-IGFile determine_ig_file(const std::string &exe_path, LocationManager& manager, const std::string &abs_path);
+IGFile determine_ig_file(const std::string &exe_path, const std::string &abs_path);
 
 /**
  * determines import graph, which is data structure
  */
-IGResult determine_import_graph(ImportPathHandler &path_handler, LocationManager& manager, const std::string &abs_path);
+IGResult determine_import_graph(ImportPathHandler &path_handler, const std::string &abs_path);
 
 /**
  * determines import graph, which is data structure
  */
-IGResult determine_import_graph(const std::string &exe_path, LocationManager& manager, const std::string &abs_path);
+IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path);
 
 /**
  * construct's a list representation from the given IGFile

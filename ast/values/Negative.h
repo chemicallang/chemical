@@ -48,7 +48,11 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
+    llvm::Type* llvm_type(Codegen &gen) final {
+        return value->llvm_type(gen);
+    }
+
+    llvm::Value* llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif
 

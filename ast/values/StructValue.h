@@ -121,7 +121,7 @@ public:
     }
 
     const std::string& linked_name() {
-        return definition->name;
+        return definition->name();
     }
 
     bool allows_direct_init();

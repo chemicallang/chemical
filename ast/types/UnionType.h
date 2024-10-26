@@ -15,8 +15,8 @@ public:
 
     virtual VariablesContainer* variables_container() = 0;
 
-    virtual std::string union_name() {
-        return "";
+    virtual const std::string& union_name() {
+        return EmptyString;
     }
 
     void accept(Visitor *visitor) {

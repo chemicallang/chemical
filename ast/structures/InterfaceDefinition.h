@@ -14,11 +14,32 @@
 #include "MembersContainer.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
 
+struct InterfaceDefinitionExtData {
+
+    /**
+     * the access specifier
+     */
+    AccessSpecifier specifier;
+
+    /**
+     * this is set to true when even a single implementation is detected
+     */
+    bool has_implementation = false;
+
+};
+
+static_assert(sizeof(InterfaceDefinitionExtData) <= 8);
+
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
-    AccessSpecifier specifier;
+    /**
+     * the parent node of the interface
+     */
     ASTNode* parent_node;
+    /**
+     * the location of the interface
+     */
     SourceLocation location;
     /**
      * users are registered so we can declare functions before hand
@@ -35,10 +56,6 @@ public:
      */
     std::unordered_map<StructDefinition*, llvm::Value*> vtable_pointers;
 #endif
-    /**
-     * this is set to true when even a single implementation is detected
-     */
-    bool has_implementation = false;
 
     /**
      * the active user, can be retrieved by functions to see for which
@@ -47,14 +64,28 @@ public:
     StructDefinition* active_user = nullptr;
 
     /**
+     * some data is stored in this struct to make it occupy less size
+     */
+    InterfaceDefinitionExtData data;
+
+    /**
      * constructor
      */
     InterfaceDefinition(
-            std::string name,
+            LocatedIdentifier identifier,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
+
+    [[nodiscard]]
+    inline AccessSpecifier specifier() const {
+        return data.specifier;
+    }
+
+    inline void set_specifier_fast(AccessSpecifier specifier) {
+        data.specifier = specifier;
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -73,7 +104,7 @@ public:
     }
 
     const std::string& ns_node_identifier() final {
-        return name;
+        return name();
     }
 
     /**
@@ -87,7 +118,7 @@ public:
 #else
         users[definition] = true;
 #endif
-        has_implementation = true;
+        data.has_implementation = true;
     }
 
     void register_impl(ImplDefinition* definition);

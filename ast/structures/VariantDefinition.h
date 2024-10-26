@@ -25,7 +25,7 @@ public:
      * constructor
      */
     VariantDefinition(
-        std::string name,
+        LocatedIdentifier identifier,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
@@ -60,7 +60,7 @@ public:
     }
 
     const std::string& ns_node_identifier() final {
-        return name;
+        return name();
     }
 
     void declare_top_level(SymbolResolver &linker) final;

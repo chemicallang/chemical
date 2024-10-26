@@ -753,7 +753,7 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor) && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name, struct_def, location), generic_iteration);
+            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name(), struct_def, location), generic_iteration);
         }
     }
     return func_type;
@@ -854,7 +854,7 @@ void FunctionCall::link_constructor(SymbolResolver &resolver) {
                 generic_iteration = parent_struct->register_generic_args(resolver, generic_list);
             }
         } else {
-            resolver.error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_id);
+            resolver.error("struct with name " + parent_struct->name() + " doesn't have a constructor that satisfies given arguments " + representation(), parent_id);
         }
     }
 }
@@ -977,7 +977,7 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor) && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name, struct_def, location), generic_iteration);
+            return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name(), struct_def, location), generic_iteration);
         }
     }
     auto prev_itr = set_curr_itr_on_decl();

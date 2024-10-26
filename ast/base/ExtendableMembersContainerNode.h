@@ -11,15 +11,22 @@ public:
     using MembersContainer::requires_moving;
 
     /**
-     * the name of the node
+     * the identifier of the container
      */
-    std::string name;
+    LocatedIdentifier identifier;
 
     /**
      * constructor
      */
-    explicit ExtendableMembersContainerNode(std::string name) : name(std::move(name)) {
+    explicit ExtendableMembersContainerNode(LocatedIdentifier identifier) : identifier(std::move(identifier)) {
 
+    }
+
+    /**
+     * get the name of the container
+     */
+    inline const std::string& name() const {
+        return identifier.identifier;
     }
 
     /**

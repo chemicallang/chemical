@@ -73,21 +73,21 @@ UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node, SourceLocatio
 }
 
 UnionDef::UnionDef(
-    std::string name,
+    LocatedIdentifier identifier,
     ASTNode* parent_node,
     SourceLocation location,
     AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), location(location),
+) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), location(location),
     specifier(specifier), linked_type("", this, location) {
 
 }
 
 BaseType *UnionDef::copy(ASTAllocator& allocator) const {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name(), (ASTNode*) this, location);
 }
 
 VariablesContainer *UnionDef::copy_container(ASTAllocator& allocator) {
-    auto container = new (allocator.allocate<UnionDef>()) UnionDef(name, parent_node, location);
+    auto container = new (allocator.allocate<UnionDef>()) UnionDef(identifier, parent_node, location);
     for(auto& variable : variables) {
         container->variables[variable.first] = variable.second->copy_member(allocator);
     }
@@ -103,7 +103,7 @@ BaseType *UnnamedUnion::copy(ASTAllocator& allocator) const {
 }
 
 BaseType* UnionDef::create_value_type(ASTAllocator& allocator) {
-    return create_linked_type(name, allocator);
+    return create_linked_type(name(), allocator);
 }
 
 BaseType* UnionDef::known_type() {
@@ -111,7 +111,7 @@ BaseType* UnionDef::known_type() {
 }
 
 void UnionDef::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name, this, specifier, true);
+    linker.declare_node(name(), this, specifier, true);
 }
 
 void UnionDef::declare_and_link(SymbolResolver &linker) {

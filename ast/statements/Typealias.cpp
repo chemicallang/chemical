@@ -4,7 +4,7 @@
 #include "compiler/SymbolResolver.h"
 
 TypealiasStatement::TypealiasStatement(
-        std::string identifier,
+        LocatedIdentifier identifier,
         BaseType* actual_type,
         ASTNode* parent_node,
         SourceLocation location,
@@ -19,7 +19,7 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 
 void TypealiasStatement::declare_top_level(SymbolResolver &linker) {
     actual_type->link(linker);
-    linker.declare_node(identifier, this, specifier, false);
+    linker.declare_node(name(), this, specifier, false);
 }
 
 BaseType* TypealiasStatement::create_value_type(ASTAllocator& allocator) {

@@ -126,5 +126,5 @@ void InterfaceDefinition::register_impl(ImplDefinition* definition) {
         register_use(struct_linked);
         register_use_to_inherited_interfaces(struct_linked);
     }
-    has_implementation = true;
+    data.has_implementation = true;
 }

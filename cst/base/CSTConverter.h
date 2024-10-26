@@ -10,6 +10,7 @@
 #include "utils/fwd/functional.h"
 #include "ast/base/Annotation.h"
 #include "ast/base/ASTUnit.h"
+#include "ast/base/LocatedIdentifier.h"
 
 #include <memory>
 #include <vector>
@@ -167,6 +168,13 @@ public:
      * it checks the parent node for the specifier and also the grand parent
      */
     AccessSpecifier def_specifier(std::optional<AccessSpecifier> opt);
+
+    /**
+     * this creates a located identifier for the given cst token
+     */
+    inline LocatedIdentifier loc_id(CSTToken* token) {
+        return { token->value(), loc(token) };
+    }
 
     /**
      * puts the type on the type vector

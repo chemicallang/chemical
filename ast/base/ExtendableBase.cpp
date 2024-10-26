@@ -23,9 +23,9 @@ void ExtendableBase::adopt(MembersContainer* definition) {
 
 void ExtendableMembersContainerNode::runtime_name_no_parent(std::ostream &stream) {
     if(generic_params.empty()) {
-        stream << name;
+        stream << name();
     } else {
-        stream << name;
+        stream << name();
         stream << "__cgs__";
         stream << active_iteration;
     }

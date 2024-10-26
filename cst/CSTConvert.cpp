@@ -929,7 +929,7 @@ void CSTConverter::visitTypealias(CSTToken* alias) {
     auto prev_alloc = local_allocator;
     local_allocator = &alloc;
     type_token->accept(this);
-    auto stmt = new (alloc.allocate<TypealiasStatement>()) TypealiasStatement(name_token->value(), type(), parent_node, loc(alias), specifier);
+    auto stmt = new (alloc.allocate<TypealiasStatement>()) TypealiasStatement({ name_token->value(), loc(name_token) }, type(), parent_node, loc(alias), specifier);
     collect_annotations_in(this, stmt);
     put_node(stmt, alias);
     local_allocator = prev_alloc;
@@ -1393,7 +1393,7 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
     local_allocator = &alloc;
     AnnotableNode* def;
     if(named) {
-        def = new (alloc.allocate<StructDefinition>()) StructDefinition(name_token->value(), parent_node, loc(structDef), specifier);
+        def = new (alloc.allocate<StructDefinition>()) StructDefinition(loc_id(name_token), parent_node, loc(structDef), specifier);
         if (has_override) {
             i++; // set on access specifier or the inherited struct / interface name
             get_inherit_list(this, structDef, i, ((StructDefinition*) def)->inherited);
@@ -1428,7 +1428,7 @@ void CSTConverter::visitInterface(CSTToken* interface) {
     auto& alloc = allocator(specifier);
     auto prev_alloc = local_allocator;
     local_allocator = &alloc;
-    auto def = new (alloc.allocate<InterfaceDefinition>()) InterfaceDefinition(str_token(interface->tokens[i]), parent_node, loc(interface), specifier);
+    auto def = new (alloc.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(interface->tokens[i]), parent_node, loc(interface), specifier);
     i += 1;
     const auto& gen_token = interface->tokens[i];
     if(gen_token->type() == LexTokenType::CompGenericParamsList) {
@@ -1469,7 +1469,7 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
     AnnotableNode* def;
     if(named) {
         def = new (alloc.allocate<UnionDef>()) UnionDef(
-            name_token->value(),
+            loc_id(name_token),
             parent_node,
             loc(unionDef),
             specifier
@@ -1559,7 +1559,7 @@ void CSTConverter::visitVariant(CSTToken* variantDef) {
     }
     auto has_override = is_char_op(variantDef->tokens[i], ':');
     auto def = new (alloc.allocate<VariantDefinition>()) VariantDefinition(
-            str_token(named ? name_token : variantDef->tokens[variantDef->tokens.size() - 1]),
+            loc_id(named ? name_token : variantDef->tokens[variantDef->tokens.size() - 1]),
             parent_node,
             loc(variantDef),
             specifier

@@ -231,11 +231,11 @@ bool VariantCaseVariable::add_child_index(Codegen &gen, std::vector<llvm::Value 
 #endif
 
 VariantDefinition::VariantDefinition(
-    std::string name,
+    LocatedIdentifier identifier,
     ASTNode* parent_node,
     SourceLocation location,
     AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), ref_type(name, this, location), location(location), specifier(specifier) {
+) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), ref_type(name(), this, location), location(location), specifier(specifier) {
 }
 
 ASTNode* VariantDefinition::child(const std::string &child_name) {
@@ -243,7 +243,7 @@ ASTNode* VariantDefinition::child(const std::string &child_name) {
 }
 
 void VariantDefinition::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name, this, specifier, true);
+    linker.declare_node(name(), this, specifier, true);
 }
 
 void VariantDefinition::declare_and_link(SymbolResolver &linker) {
@@ -308,7 +308,7 @@ uint64_t VariantDefinition::byte_size(bool is64Bit) {
 }
 
 BaseType* VariantDefinition::create_value_type(ASTAllocator& allocator) {
-    return create_linked_type(name, allocator);
+    return create_linked_type(name(), allocator);
 }
 
 //hybrid_ptr<BaseType> VariantDefinition::get_value_type() {

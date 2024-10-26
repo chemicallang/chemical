@@ -474,19 +474,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             for(const auto node : nodes) {
                 node->code_gen_declare(gen);
             }
-            // writing c headers output, if user asked
-            if(!mod->out_translated_headers.empty()) {
-                std::ofstream out_file;
-                auto out_view = mod->out_translated_headers.to_view();
-                out_file.open(out_view);
-                if(out_file.is_open()) {
-                    RepresentationVisitor visitor(out_file);
-                    visitor.translate(nodes);
-                    out_file.close();
-                } else {
-                    std::cerr << rang::fg::red << "[BuildLab] couldn't open file '" << out_view << "' for writing translated headers" << rang::fg::reset << std::endl;
-                }
-            }
         }
 #endif
 

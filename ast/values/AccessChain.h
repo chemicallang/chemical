@@ -30,7 +30,7 @@ public:
 
     AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, bool is_node, SourceLocation location);
 
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return location;
     }
 

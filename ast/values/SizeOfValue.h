@@ -15,7 +15,7 @@ public:
 
     explicit SizeOfValue(BaseType *for_type, SourceLocation location);
 
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return location;
     }
 

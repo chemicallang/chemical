@@ -95,7 +95,6 @@ func build(ctx : *mut BuildContext) {
         string("stdio.h"),
         string("stdlib.h")
     })
-    std_module.out_translated_headers = build_dir_path(ctx, string("cstdlib.ch"));
     const submod = ctx.chemical_dir_module(string("submod"), relative_path(string("basic/submod")), { })
     // currently the last dependency becomes null if we don't take it out like this
     var dependencies = { ext_module, ext_cpp_module, submod, std_module }

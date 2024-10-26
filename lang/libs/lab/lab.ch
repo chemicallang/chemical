@@ -17,8 +17,6 @@ public struct Module {
     var name : string
     // a path can be given, to output the translated C file (if any)
     var out_c_path : string
-    // a path can be given, to output a single translated headers file (if any)
-    var out_translated_headers : string
     // the bitcode file path for this module
     var bitcode_path : string;
     // the object file path for this module

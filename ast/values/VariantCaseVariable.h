@@ -19,7 +19,7 @@ public:
      */
     VariantCaseVariable(std::string name, VariantCase* variant_case, SourceLocation token);
 
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return location;
     }
 

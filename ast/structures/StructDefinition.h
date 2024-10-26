@@ -72,7 +72,7 @@ public:
         parent_node = new_parent;
     }
 
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return location;
     }
 

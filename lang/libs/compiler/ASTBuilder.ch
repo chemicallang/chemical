@@ -502,7 +502,7 @@ public struct ASTBuilder {
 
     func make_for_loop(&self, initializer : *VarInitStatement, conditionExpr : *Value, incrementerExpr : *ASTNode, parent_node : *ASTNode, location : ubigint) : *ForLoop
 
-    func make_function(&self, name : *string, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *FunctionDeclaration
+    func make_function(&self, name : *string, name_location : ubigint, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *FunctionDeclaration
 
     func make_function_param(&self, name : *string, type : *BaseType, index : uint, value : *Value, implicit : bool, decl : *FunctionType, location : ubigint) : *FunctionParam
 

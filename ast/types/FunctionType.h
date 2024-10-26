@@ -7,6 +7,7 @@
 #include <string>
 #include "ast/base/BaseType.h"
 #include "ast/base/ValueKind.h"
+#include "std/common.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/llvmfwd.h"
@@ -147,8 +148,8 @@ public:
     /**
      * optional name for the function, used for errors and debugging mostly
      */
-    virtual std::string func_opt_name() {
-       return "";
+    virtual const std::string& func_opt_name() {
+       return EmptyString;
     }
 
     inline bool equal_type(FunctionType *other) const {

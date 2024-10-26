@@ -992,7 +992,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
                     break;
                 }
                 // expose the last file's build method, so it's callable
-                found->specifier = AccessSpecifier::Public;
+                found->set_specifier_fast(AccessSpecifier::Public);
             } else if (file.abs_path.ends_with(".lab")) {
                 if (file.as_identifier.empty()) {
                     std::cerr

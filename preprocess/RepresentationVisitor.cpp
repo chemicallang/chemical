@@ -299,9 +299,9 @@ void RepresentationVisitor::visit(FunctionParam *param) {
 }
 
 void RepresentationVisitor::visit(FunctionDeclaration *decl) {
-    write_ws(decl->specifier);
+    write_ws(decl->specifier());
     write("func ");
-    write(decl->name);
+    write(decl->name());
     write('(');
     int i = 0;
     while (i < decl->params.size()) {
@@ -1013,7 +1013,7 @@ void RepresentationVisitor::visit(UnionDef *def) {
 }
 
 void RepresentationVisitor::visit(ExtensionFunction *extensionFunc) {
-    write_ws(extensionFunc->specifier);
+    write_ws(extensionFunc->specifier());
     write("func ");
     extensionFunc->receiver.accept(this);
     write(' ');

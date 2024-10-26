@@ -519,7 +519,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         auto param = (FunctionParam*) nodes.back();
         nodes.pop_back();
         funcDeclStored = new (alloc.allocate<ExtensionFunction>()) ExtensionFunction(
-                name_token->value(),
+                { name_token->value(), loc(name_token) },
                 ExtensionFuncReceiver(std::move(param->name), param->type, nullptr, loc(receiver_tok)),
                 {},
                 nullptr,
@@ -532,7 +532,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         ((ExtensionFunction*) funcDeclStored)->receiver.parent_node = funcDeclStored;
     } else {
         funcDeclStored = new (alloc.allocate<FunctionDeclaration>()) FunctionDeclaration(
-                name_token->value(),
+                { name_token->value(), loc(name_token) },
                 {},
                 nullptr,
                 false,
@@ -1314,7 +1314,7 @@ unsigned int collect_struct_members(
             case LexTokenType::CompFunction:{
                 const auto node = (FunctionDeclaration *) conv->pop_last_node();
                 if(!mem_container->insert_multi_func(node)) {
-                    conv->error("conflict inserting function with name " + node->name, token);
+                    conv->error("conflict inserting function with name " + node->name(), token);
                 }
                 break;
             }

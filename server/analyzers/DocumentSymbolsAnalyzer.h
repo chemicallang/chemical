@@ -3,12 +3,21 @@
 #pragma once
 
 #include "LibLsp/lsp/symbol.h"
-#include "cst/base/CSTVisitor.h"
+#include "ast/base/Visitor.h"
+
+#include "ast/base/ASTNode.h"
 
 class LexResult;
 
-class DocumentSymbolsAnalyzer : public CSTVisitor {
+class LocationManager;
+
+class DocumentSymbolsAnalyzer : public Visitor {
 public:
+
+    /**
+     * the manager used to decode locations
+     */
+    LocationManager& loc_man;
 
     /**
      * the symbols collected
@@ -16,31 +25,46 @@ public:
     std::vector<lsDocumentSymbol> symbols;
 
     /**
+     * the constructor
+     */
+    DocumentSymbolsAnalyzer(LocationManager& loc_man) : loc_man(loc_man) {
+
+    }
+
+    /**
+     * will create a range for the given location
+     */
+    lsRange range(SourceLocation location);
+
+    /**
      * put a symbol with name, kind and range
      */
     void put(const std::string& name, lsSymbolKind kind, lsRange range, lsRange selRange);
 
     /**
-     * will analyze the given lex result
+     * will analyzer the given top level nodes, to put symbols for the
+     * current document
      */
-    void analyze(std::vector<CSTToken*>& tokens);
+    inline void analyze(std::vector<ASTNode*>& nodes) {
+        for(auto node : nodes) {
+            node->accept(this);
+        }
+    }
 
     //---------------------------
     //------- Visitors-----------
     //---------------------------
 
-    void visitCompoundCommon(CSTToken* compound) final;
+    void visit(FunctionDeclaration *decl) override;
 
-    void visitFunction(CSTToken* function) final;
+    void visit(StructDefinition *def) override;
 
-    void visitStructDef(CSTToken* structDef) final;
+    void visit(InterfaceDefinition *def) override;
 
-    void visitInterface(CSTToken* interface) final;
+    void visit(TypealiasStatement *def) override;
 
-    void visitTypealias(CSTToken* alias) final;
+    void visit(EnumDeclaration *def) override;
 
-    void visitEnumDecl(CSTToken* enumDecl) final;
-
-    void visitVarInit(CSTToken* varInit) final;
+    void visit(VarInitStatement *init) override;
 
 };

@@ -22,7 +22,7 @@ void shrink(std::optional<LoopScope>& scope) {
 }
 
 void shrink(FunctionDeclaration* decl) {
-    if(decl->has_annotation(AnnotationKind::CompTime) || (decl->is_generic() && decl->specifier != AccessSpecifier::Private)) {
+    if(decl->has_annotation(AnnotationKind::CompTime) || (decl->is_generic() && decl->specifier() != AccessSpecifier::Private)) {
         return;
     }
     shrink(decl->body);

@@ -17,7 +17,7 @@ void ExtendableBase::adopt(MembersContainer* definition) {
         adopt((MembersContainer*) inherits->type->linked_node());
     }
     for(auto& func : definition->functions()) {
-        extension_functions[func->name] = func;
+        extension_functions[func->name()] = func;
     }
 }
 

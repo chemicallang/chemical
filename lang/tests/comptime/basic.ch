@@ -216,4 +216,8 @@ func test_comptime() {
     test("compile time defined works - 2", () => {
         return !defined("CHECK_DEF2");
     })
+    test("compiler get target function works", () => {
+        var t = compiler::get_target();
+        return true;
+    })
 }

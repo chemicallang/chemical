@@ -141,6 +141,11 @@ func get_line_no() : ubigint {
 
 }
 
+@comptime
+func give_caller_line_no() : ubigint {
+    return compiler::get_caller_line_no();
+}
+
 func test_comptime() {
     test("test comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -219,5 +224,10 @@ func test_comptime() {
     test("compiler get target function works", () => {
         var t = compiler::get_target();
         return true;
+    })
+    test("get compiler line number", () => {
+        var current = compiler::get_line_no();
+        var lo = give_caller_line_no();
+        return lo == current + 1;
     })
 }

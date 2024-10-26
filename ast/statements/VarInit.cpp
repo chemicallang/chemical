@@ -18,7 +18,7 @@
 void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     llvm::Constant* initializer;
     llvm::GlobalValue::LinkageTypes linkage;
-    switch(specifier) {
+    switch(specifier()) {
         case AccessSpecifier::Private:
         case AccessSpecifier::Protected:
             linkage = llvm::GlobalValue::LinkageTypes::PrivateLinkage;
@@ -35,7 +35,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
         if(string_val) {
             const auto global = gen.builder->CreateGlobalString(string_val->value, runtime_name_fast(), 0, gen.module.get());
             global->setLinkage(linkage);
-            global->setConstant(is_const);
+            global->setConstant(is_const());
             llvm_ptr = global;
             return;
         }
@@ -43,21 +43,21 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     } else {
         initializer = nullptr;
     }
-    const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, linkage, initializer, runtime_name_fast());
+    const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const(), linkage, initializer, runtime_name_fast());
     global->setDSOLocal(true);
     llvm_ptr = global;
 }
 
 void VarInitStatement::code_gen(Codegen &gen) {
     if (gen.current_function == nullptr) {
-        if(is_const && has_annotation(AnnotationKind::CompTime)) {
+        if(is_const() && has_annotation(AnnotationKind::CompTime)) {
             llvm_ptr = value->llvm_value(gen, type ? type : nullptr);
             return;
         }
         code_gen_global_var(gen, true);
     } else {
         if (value) {
-            if(is_const && !value->as_struct_value() && !value->as_array_value()) {
+            if(is_const() && !value->as_struct_value() && !value->as_array_value()) {
                 llvm_ptr = value->llvm_value(gen, type_ptr_fast());
                 gen.destruct_nodes.emplace_back(this);
                 return;
@@ -67,7 +67,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 auto known_t = value->pure_type_ptr();
                 auto node = known_t->get_direct_linked_node();
                 if(node && node->isStoredStructType(node->kind())) {
-                    llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+                    llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier());
                     gen.move_by_memcpy(node, value, llvm_ptr, value->llvm_value(gen));
                     moved = true;
                 }
@@ -91,7 +91,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                     }
                 }
 
-                llvm_ptr = value->llvm_allocate(gen, identifier,type_ptr_fast());
+                llvm_ptr = value->llvm_allocate(gen, identifier(),type_ptr_fast());
                 if(dyn_obj_impl) {
                     gen.assign_dyn_obj_impl(llvm_ptr, dyn_obj_impl);
                 }
@@ -100,7 +100,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
         } else {
             const auto t = llvm_type(gen);
-            llvm_ptr = gen.builder->CreateAlloca(t, nullptr, identifier);
+            llvm_ptr = gen.builder->CreateAlloca(t, nullptr, identifier());
             const auto var = type->get_direct_linked_variant();
             if(var) {
                 auto gep = gen.builder->CreateGEP(t, llvm_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
@@ -112,7 +112,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 }
 
 void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
-    if(has_moved) return;
+    if(get_has_moved()) return;
     if(returnValue) {
         auto id = returnValue->as_identifier();
         if(id && id->linked == this) {
@@ -158,7 +158,7 @@ void VarInitStatement::code_gen_external_declare(Codegen &gen) {
 }
 
 llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
-    if(is_const) {
+    if(is_const()) {
         if(is_top_level()) {
             if (has_annotation(AnnotationKind::CompTime)) {
                 return llvm_pointer(gen);
@@ -182,7 +182,7 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
 //        }
     }
     auto v = llvm_pointer(gen);
-    return gen.builder->CreateLoad(llvm_type(gen), v, identifier);
+    return gen.builder->CreateLoad(llvm_type(gen), v, identifier());
 }
 
 bool VarInitStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
@@ -227,13 +227,13 @@ llvm::FunctionType *VarInitStatement::llvm_func_type(Codegen &gen) {
 
 VarInitStatement::VarInitStatement(
         bool is_const,
-        std::string identifier,
+        LocatedIdentifier identifier,
         BaseType* type,
         Value* value,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier
-) : is_const(is_const), identifier(std::move(identifier)), type(type), value(value), parent_node(parent_node), location(location), specifier(specifier) {
+) : data(specifier, false, false, is_const), located_id(std::move(identifier)), type(type), value(value), parent_node(parent_node), location(location) {
 
 }
 
@@ -285,7 +285,7 @@ ASTNode *VarInitStatement::child(const std::string &name) {
 
 void VarInitStatement::declare_top_level(SymbolResolver &linker) {
     if(is_top_level()) {
-        linker.declare_node(identifier, this, specifier, true);
+        linker.declare_node(identifier(), this, specifier(), true);
     }
 }
 
@@ -297,7 +297,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
         linker.current_func_type->mark_moved_value(linker.allocator, value, known_type(), linker, type != nullptr);
     }
     if(!is_top_level()) {
-        linker.declare(identifier, this);
+        linker.declare(identifier(), this);
     }
     if(type && value) {
         if(!type->satisfies(linker.allocator, value, false)) {
@@ -316,7 +316,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
 void VarInitStatement::interpret(InterpretScope &scope) {
     if (value) {
         auto initializer = value->scope_value(scope);
-        scope.declare(identifier, initializer);
+        scope.declare(identifier(), initializer);
     }
     decl_scope = &scope;
 }
@@ -325,7 +325,7 @@ void VarInitStatement::interpret(InterpretScope &scope) {
  * called by assignment to assign a new value in the scope that this variable was declared
  */
 void VarInitStatement::declare(Value *new_value) {
-    decl_scope->declare(identifier, new_value);
+    decl_scope->declare(identifier(), new_value);
 }
 
 ValueType VarInitStatement::value_type() const {

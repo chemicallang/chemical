@@ -14,9 +14,15 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "ast/base/LocatedIdentifier.h"
 
-class VarInitStatement : public AnnotableNode {
-private:
+struct VarInitExtData {
+
+    /**
+     * the access specifier of the declaration
+     */
+    AccessSpecifier specifier;
+
     /**
      * has moved is used to indicate that an object at this location has moved
      * destructor is not called on moved objects, once moved, any attempt to access
@@ -29,26 +35,39 @@ private:
      * var init statement
      */
     bool has_assignment = false;
+
+    /**
+     * this tells whether wrote const or var when creating the variable
+     */
+    bool is_const;
+
+};
+
+class VarInitStatement : public AnnotableNode {
 public:
 
-    bool is_const;
+    // TODO do not store the decl_scope here
     InterpretScope *decl_scope = nullptr;
-    std::string identifier; ///< The identifier being initialized.
+    LocatedIdentifier located_id; ///< The identifier being initialized.
     BaseType* type;
     Value* value; ///< The value being assigned to the identifier.
     ASTNode* parent_node;
     SourceLocation location;
-    AccessSpecifier specifier;
 #ifdef COMPILER_BUILD
     llvm::Value *llvm_ptr;
 #endif
+
+    /**
+     * extra data for the var init
+     */
+    VarInitExtData data;
 
     /**
      * constructor
      */
     VarInitStatement(
             bool is_const,
-            std::string identifier,
+            LocatedIdentifier id,
             BaseType* type,
             Value* value,
             ASTNode* parent_node,
@@ -57,38 +76,73 @@ public:
     );
 
     /**
+     * get the name / identifier of the declaration
+     */
+    inline const std::string& name() {
+        return located_id.identifier;
+    }
+
+    /**
+     * get the name / identifier of the declaration
+     */
+    inline const std::string& identifier() {
+        return located_id.identifier;
+    }
+
+    /**
+     * get the access specifier
+     */
+    inline AccessSpecifier specifier() const {
+        return data.specifier;
+    }
+
+    /**
+     * set's the specifier of this decl fast
+     */
+    inline void set_specifier_fast(AccessSpecifier specifier) {
+        data.specifier = specifier;
+    }
+
+    /**
+     * check is this declaration const
+     */
+    inline bool is_const() {
+        return data.is_const;
+    }
+
+    /**
      * check this variable has been moved
      */
-    bool get_has_moved() {
-        return has_moved;
+    inline bool get_has_moved() const {
+        return data.has_moved;
     }
 
     /**
      * call it when this variable has been moved
      */
-    void moved() {
-        has_moved = true;
+    inline void moved() {
+        data.has_moved = true;
     }
 
     /**
      * call it when this variable should be unmoved
      */
-    void unmove() {
-        has_moved = false;
+    inline void unmove() {
+        data.has_moved = false;
     }
 
     /**
      * get has assignment
      */
-    bool get_has_assignment() {
-        return has_assignment;
+    inline bool get_has_assignment() {
+        return data.has_assignment;
     }
 
     /**
      * assignment can be set to true
      */
-    void set_has_assignment() {
-        has_assignment = true;
+    inline void set_has_assignment() {
+        data.has_assignment = true;
     }
 
     SourceLocation encoded_location() final {
@@ -122,7 +176,7 @@ public:
     }
 
     const std::string& ns_node_identifier() final {
-        return identifier;
+        return identifier();
     }
 
 #ifdef COMPILER_BUILD
@@ -154,11 +208,11 @@ public:
 #endif
 
     void runtime_name_no_parent(std::ostream &stream) final {
-        stream << identifier;
+        stream << identifier();
     }
 
     inline std::string runtime_name_fast() {
-        return parent_node ? runtime_name_str() : identifier;
+        return parent_node ? runtime_name_str() : identifier();
     }
 
     ASTNode *child(const std::string &name) final;

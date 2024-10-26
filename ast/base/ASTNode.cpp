@@ -96,7 +96,7 @@ AccessSpecifier ASTNode::specifier() {
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->specifier();
         case ASTNodeKind::VarInitStmt:
-            return as_var_init_unsafe()->specifier;
+            return as_var_init_unsafe()->specifier();
         default:
             return AccessSpecifier::Private;
     }
@@ -143,7 +143,7 @@ BaseType* ASTNode::get_stored_value_type(ASTNodeKind k) {
             return as_variant_case_var_unsafe()->member_param->type;
         case ASTNodeKind::VarInitStmt: {
             const auto init = as_var_init_unsafe();
-            if(init->is_const) {
+            if(init->is_const()) {
                 return nullptr;
             }
             if (init->type) {

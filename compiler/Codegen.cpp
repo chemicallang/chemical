@@ -505,7 +505,7 @@ bool Codegen::move_by_memcpy(BaseType* type, Value* value_ptr, llvm::Value* elem
 llvm::Value* Codegen::move_by_allocate(BaseType* type, Value* value, llvm::Value* elem_pointer, llvm::Value* movable_value) {
     const auto linked = value->linked_node();
     const auto linked_kind = linked->kind();
-    if((linked_kind == ASTNodeKind::VarInitStmt && !linked->as_var_init_unsafe()->is_const) || linked_kind == ASTNodeKind::FunctionParam) {
+    if((linked_kind == ASTNodeKind::VarInitStmt && !linked->as_var_init_unsafe()->is_const()) || linked_kind == ASTNodeKind::FunctionParam) {
         // we can pass directly, as the original nodes are in-accessible after this move
         return movable_value;
     }

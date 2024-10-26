@@ -269,7 +269,7 @@ extern "C" {
 
     UsingStmt* ASTBuildermake_using_stmt(CSTConverter* converter, AccessChain* chain, bool is_namespace, uint64_t location);
 
-    VarInitStatement* ASTBuildermake_varinit_stmt(CSTConverter* converter, bool is_const, chem::string* identifier, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    VarInitStatement* ASTBuildermake_varinit_stmt(CSTConverter* converter, bool is_const, chem::string* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     Scope* ASTBuildermake_scope(CSTConverter* converter, ASTNode* parent_node, uint64_t location);
 

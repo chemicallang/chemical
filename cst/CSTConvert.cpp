@@ -200,13 +200,12 @@ Scope take_body_compound(CSTConverter *conv, CSTToken* token, ASTNode* parent_no
 CSTConverter::CSTConverter(
         unsigned int file_id,
         bool is64Bit,
-        std::string target,
         GlobalInterpretScope& scope,
         CompilerBinder& binder,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
         ASTAllocator& file_allocator
-) : file_id(file_id), is64Bit(is64Bit), target(std::move(target)), global_scope(scope), binder(binder), loc_man(scope.loc_man),
+) : file_id(file_id), is64Bit(is64Bit), global_scope(scope), binder(binder), loc_man(scope.loc_man),
     global_allocator(global_allocator), mod_allocator(mod_allocator), file_allocator(file_allocator), local_allocator(&mod_allocator) {
 
 }
@@ -225,9 +224,6 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
             } else {
                 converter->error("expected a value for eval", container);
             }
-        }},
-        { "target", [](CSTConverter* converter, CSTToken* container) {
-            converter->put_value(new (converter->local<StringValue>()) StringValue(converter->target, converter->loc(container)), container);
         }},
         { "file:path", [](CSTConverter* converter, CSTToken* container) {
             const auto file_path = converter->loc_man.getPathForFileId(converter->file_id);

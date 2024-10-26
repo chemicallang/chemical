@@ -24,7 +24,7 @@ uint64_t LocationManager::addLocation(uint32_t fileId, uint32_t lineStart, uint3
             fileId <= MAX_FILE_ID &&
             lineStart <= MAX_LINE_START &&
             charStart <= MAX_CHAR_START &&
-            lineEnd <= MAX_LINE_END &&
+            (lineEnd - lineEnd) <= MAX_LINE_END_OFFSET &&
             charEnd <= MAX_CHAR_END
     ) {
 #ifdef DEBUG

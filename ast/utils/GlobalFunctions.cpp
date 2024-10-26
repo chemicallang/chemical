@@ -238,7 +238,7 @@ namespace InterpretVector {
 
     InterpretVectorNode::InterpretVectorNode(
         ASTNode* parent_node
-    ): StructDefinition("vector", parent_node, ZERO_LOC, AccessSpecifier::Public),
+    ): StructDefinition({ "vector", ZERO_LOC }, parent_node, ZERO_LOC, AccessSpecifier::Public),
         constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
         typeParam("T", nullptr, nullptr, this, 0, ZERO_LOC),
         selfType("vector", this, ZERO_LOC), selfReference(&selfType, ZERO_LOC)
@@ -1018,7 +1018,7 @@ class DefDecl : public StructDefinition {
 public:
 
     DefDecl() : StructDefinition(
-            "Def", nullptr, ZERO_LOC, AccessSpecifier::Public
+            { "Def", ZERO_LOC }, nullptr, ZERO_LOC, AccessSpecifier::Public
     ) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -1325,7 +1325,7 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     container.std_namespace.declare_top_level(resolver);
 
     resolver.declare(container.defined.name(), &container.defined);
-    resolver.declare(container.defThing.decl.name, &container.defThing.decl);
+    resolver.declare(container.defThing.decl.name(), &container.defThing.decl);
     resolver.declare(container.defThing.defStmt.identifier, &container.defThing.defStmt);
 
     container.defThing.clear_values();

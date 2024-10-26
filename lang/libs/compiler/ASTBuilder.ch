@@ -486,7 +486,7 @@ public struct ASTBuilder {
 
     //ThrowStatement* ASTBuildermake_throw_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, location : ubigint);
 
-    func make_typealias_stmt(&self, identifier : *string, actual_type : *BaseType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *TypealiasStatement
+    func make_typealias_stmt(&self, identifier : *string, id_loc : ubigint, actual_type : *BaseType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *TypealiasStatement
 
     func make_using_stmt(&self, chain : *AccessChain, is_namespace : bool, location : ubigint) : *UsingStmt
 
@@ -514,21 +514,21 @@ public struct ASTBuilder {
 
     func make_init_block(&self, parent_node : *ASTNode, location : ubigint) : *InitBlock
 
-    func make_interface_def(&self, name : *string, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *InterfaceDefinition
+    func make_interface_def(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *InterfaceDefinition
 
     func make_namespace(&self, name : *string, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *Namespace
 
-    func make_struct_def(&self, name : *string, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *StructDefinition
+    func make_struct_def(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *StructDefinition
 
     func make_struct_member(&self, name : *string, type : *BaseType, defValue : *Value, isConst : bool, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *StructMember
 
-    func make_union_def(&self, name : *string, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *UnionDef
+    func make_union_def(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *UnionDef
 
     func make_unsafe_block(&self, node : *ASTNode, location : ubigint) : *UnsafeBlock
 
     func make_while_loop(&self, condition : *Value, node : *ASTNode, location : ubigint) : *WhileLoop
 
-    func make_variant_def(&self, name : *string, specifier : AccessSpecifier, node : *ASTNode, location : ubigint) : *VariantDefinition
+    func make_variant_def(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, node : *ASTNode, location : ubigint) : *VariantDefinition
 
     func make_variant_member(&self, name : *string, parent_node : *VariantDefinition, location : ubigint) : *VariantMember
 

@@ -400,8 +400,8 @@ StructDefinition* get_func_param_ref_struct(ASTNode* node) {
 }
 
 void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
-    visitor.write(interface->name);
-    visitor.write(definition->name);
+    visitor.write(interface->name());
+    visitor.write(definition->name());
 }
 
 std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* type, Value* value) {
@@ -2149,7 +2149,7 @@ void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
     stmt->actual_type->accept(&visitor);
     write(' ');
     node_parent_name(visitor, stmt);
-    write(stmt->identifier);
+    write(stmt->name());
     write(';');
 }
 
@@ -2157,7 +2157,7 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     visitor.new_line_and_indent();
     write("union ");
     node_parent_name(visitor, def);
-    write(def->name);
+    write(def->name());
     write(" {");
     visitor.indentation_level+=1;
     for(auto& var : def->variables) {
@@ -2168,7 +2168,7 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     visitor.new_line_and_indent();
     write("};");
     for(auto& func : def->functions()) {
-        declare_contained_func(this, func, def->name + func->name(), false);
+        declare_contained_func(this, func, def->name() + func->name(), false);
     }
 }
 
@@ -2196,7 +2196,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
             visitor.write("struct ");
             struct_name(visitor, struct_def);
             visitor.space();
-            visitor.write(struct_def->name);
+            visitor.write(struct_def->name());
             visitor.write(';');
         }
     }
@@ -2277,7 +2277,7 @@ void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::ve
 void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
     if(visitor.compiler_interfaces && def->has_annotation(AnnotationKind::CompilerInterface)) {
         auto& interfaces = *visitor.compiler_interfaces;
-        interfaces.emplace_back(def->name);
+        interfaces.emplace_back(def->name());
     }
     if(def->generic_params.empty()) {
         if(redefining) { // defining struct imported from another module
@@ -2332,7 +2332,7 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
             visitor.write("struct ");
             struct_name(visitor, struct_def);
             visitor.space();
-            visitor.write(struct_def->name);
+            visitor.write(struct_def->name());
             visitor.write(';');
         }
     }
@@ -2444,7 +2444,7 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
     for(auto& func : interface->functions()) {
         if(func->has_self_param()) {
             visitor.new_line_and_indent();
-            visitor.write(definition->name);
+            visitor.write(definition->name());
             visitor.write(func->name());
             visitor.write(',');
         }
@@ -2465,14 +2465,14 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
     }
     for (auto& func: def->functions()) {
         if(!func->has_self_param()) {
-            declare_contained_func(this, func, def->name + func->name(), false);
+            declare_contained_func(this, func, def->name() + func->name(), false);
         }
     }
     for(auto& use : def->users) {
         def->active_user = use.first;
         for (auto& func: def->functions()) {
             if(func->has_self_param()) {
-                declare_contained_func(this, func, use.first->name + func->name(), false, use.first);
+                declare_contained_func(this, func, use.first->name() + func->name(), false, use.first);
             }
         }
     }
@@ -3103,7 +3103,7 @@ void process_struct_members_using(
     for(auto& inherits : def->inherited) {
         auto linked = inherits->type->linked_struct_def();
         if(linked) {
-            process_member(visitor, inherits->type, linked->name);
+            process_member(visitor, inherits->type, linked->name());
         }
     }
     for (auto& var: def->variables) {
@@ -3552,7 +3552,7 @@ void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node)
         if(impl_parent) {
             const auto interface_def = impl_parent->interface_type->linked_node()->as_interface_def();
             node_parent_name(visitor, struct_parent);
-            visitor.write(interface_def->name);
+            visitor.write(interface_def->name());
             func_name(visitor, func_node);
             return;
         }
@@ -3566,7 +3566,7 @@ void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node)
             const auto interface = struct_parent->get_overriding_interface(func_node);
             if(interface) {
                 node_parent_name(visitor, struct_parent);
-                visitor.write(interface->name);
+                visitor.write(interface->name());
                 func_name(visitor, func_node);
                 return;
             } else {
@@ -3593,13 +3593,13 @@ void func_container_name(ToCAstVisitor& visitor, ASTNode* parent_node, ASTNode* 
     const auto impl_def = func_parent->as_impl_def();
     if(impl_def) {
         if(impl_def->struct_type) {
-            visitor.write(impl_def->struct_type->linked_node()->as_struct_def()->name);
+            visitor.write(impl_def->struct_type->linked_node()->as_struct_def()->name());
         } else {
-            visitor.write(impl_def->interface_type->linked_node()->as_interface_def()->name);
+            visitor.write(impl_def->interface_type->linked_node()->as_interface_def()->name());
         }
     } else if(parent_node->as_interface_def()) {
 //        const auto func_node = linked_node->as_function();
-        visitor.write(parent_node->as_interface_def()->name);
+        visitor.write(parent_node->as_interface_def()->name());
     } else if(parent_node->as_variant_def()) {
         struct_name(visitor, parent_node->as_variant_def());
     } else if(parent_node->as_struct_def()) {
@@ -3789,7 +3789,7 @@ void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, Extenda
         const auto seg = path[i];
         auto& base = def->inherited[seg];
         def = base->type->linked_struct_def();
-        visitor.write(def->name);
+        visitor.write(def->name());
         visitor.write('.');
         i++;
     }

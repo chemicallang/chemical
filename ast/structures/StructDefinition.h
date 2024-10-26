@@ -41,7 +41,7 @@ public:
      * @param fields The members of the struct.
      */
     StructDefinition(
-            std::string name,
+            LocatedIdentifier identifier,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
@@ -85,7 +85,7 @@ public:
     }
 
     const std::string& ns_node_identifier() final {
-        return name;
+        return name();
     }
 
     VariablesContainer *variables_container() final {

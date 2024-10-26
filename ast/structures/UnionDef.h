@@ -20,7 +20,7 @@ public:
 #endif
 
     UnionDef(
-        std::string name,
+        LocatedIdentifier identifier,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
@@ -34,8 +34,8 @@ public:
         return ASTNodeKind::UnionDecl;
     }
 
-    std::string union_name() final {
-        return name;
+    const std::string& union_name() final {
+        return name();
     }
 
     bool is_exported_fast() {
@@ -77,7 +77,7 @@ public:
     }
 
     const std::string& ns_node_identifier() final {
-        return name;
+        return name();
     }
 
     void accept(Visitor *visitor) final {

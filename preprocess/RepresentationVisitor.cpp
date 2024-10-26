@@ -382,7 +382,7 @@ void RepresentationVisitor::visit(ImplDefinition *def) {
 
 void RepresentationVisitor::visit(InterfaceDefinition *def) {
     write("interface ");
-    write(def->name);
+    write(def->name());
     space();
     write("{");
     indentation_level+=1;
@@ -429,7 +429,7 @@ void write_gen_params(RepresentationVisitor& visitor, StructDefinition* def) {
 void RepresentationVisitor::visit(StructDefinition *def) {
     write_ws(def->specifier);
     write("struct ");
-    write(def->name);
+    write(def->name());
     write_gen_params(*this, def);
     if(!def->inherited.empty()) {
         write(" : ");
@@ -494,7 +494,7 @@ void RepresentationVisitor::visit(StructMember *member) {
 void RepresentationVisitor::visit(TypealiasStatement *stmt) {
     write_ws(stmt->specifier);
     write("typealias ");
-    write(stmt->identifier);
+    write(stmt->name());
     write(" = ");
     stmt->actual_type->accept(this);
 }
@@ -954,7 +954,7 @@ void RepresentationVisitor::visit(VariantCase *chain) {
 void RepresentationVisitor::visit(VariantDefinition *variant_def) {
     write_ws(variant_def->specifier);
     write("variant ");
-    write(variant_def->name);
+    write(variant_def->name());
     write('{');
     indentation_level+=1;
     for(auto& var : variant_def->variables) {

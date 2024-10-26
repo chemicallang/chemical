@@ -6,13 +6,14 @@
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 #include "ast/base/ExtendableAnnotableNode.h"
+#include "ast/base/LocatedIdentifier.h"
 
 class TypealiasStatement : public ExtendableAnnotableNode {
 public:
 
     AccessSpecifier specifier;
     // before equal
-    std::string identifier;
+    LocatedIdentifier identifier;
     // after equal
     BaseType* actual_type;
     ASTNode* parent_node;
@@ -22,12 +23,16 @@ public:
      * @brief Construct a new TypealiasStatement object.
      */
     TypealiasStatement(
-            std::string identifier,
+            LocatedIdentifier identifier,
             BaseType* actual_type,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
+
+    inline const std::string& name() const {
+        return identifier.identifier;
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -50,7 +55,7 @@ public:
     }
 
     const std::string& ns_node_identifier() final {
-        return identifier;
+        return name();
     }
 
     uint64_t byte_size(bool is64Bit) final;

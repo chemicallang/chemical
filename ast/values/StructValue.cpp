@@ -39,7 +39,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
         auto& value_ptr = value.second->value;
         auto variable = definition->variable_type_index(value.first);
         if (variable.first == -1) {
-            gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
+            gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name(), this);
         } else {
 
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
@@ -133,7 +133,7 @@ unsigned int StructValue::store_in_struct(
     if (index == -1) {
         gen.error(
                 "can't store struct value '" + representation() + "' into parent struct value '" + parent->representation() + "' with an unknown index" +
-                " where current definition name '" + definition->name + "'", this);
+                " where current definition name '" + definition->name() + "'", this);
         return index + values.size();
     }
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
@@ -153,7 +153,7 @@ unsigned int StructValue::store_in_array(
     if (index == -1) {
         gen.error(
                 "can't store struct value " + representation() + " array value " + ((Value*) parent)->representation() + " with an unknown index" +
-                " where current definition name " + definition->name, this);
+                " where current definition name " + definition->name(), this);
         return index + 1;
     }
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
@@ -292,7 +292,7 @@ std::vector<BaseType*> StructValue::create_generic_list() {
 bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     if(linked_kind == ASTNodeKind::UnionDecl) {
         if(values.size() != 1) {
-            diagnoser.error("union '" + definition->name + "' must be initialized with a single member value", this);
+            diagnoser.error("union '" + definition->name() + "' must be initialized with a single member value", this);
             return false;
         } else {
             return true;
@@ -321,7 +321,7 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
         if(!missing.empty()) {
             for (auto& miss: missing) {
                 diagnoser.error(
-                        "couldn't find value for member '" + miss + "' for initializing struct '" + definition->name +
+                        "couldn't find value for member '" + miss + "' for initializing struct '" + definition->name() +
                         "'", this);
             }
             return true;
@@ -355,7 +355,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         definition = (ExtendableMembersContainerNode*) found;
         diagnose_missing_members_for_init(linker);
         if(!allows_direct_init()) {
-            linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor", this);
+            linker.error("struct value with a constructor cannot be initialized, name '" + definition->name() + "' has a constructor", this);
             return false;
         }
         auto refTypeKind = refType->kind();

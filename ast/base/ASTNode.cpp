@@ -94,7 +94,7 @@ AccessSpecifier ASTNode::specifier() {
         case ASTNodeKind::FunctionDecl:
             return as_function_unsafe()->specifier();
         case ASTNodeKind::InterfaceDecl:
-            return as_interface_def_unsafe()->specifier;
+            return as_interface_def_unsafe()->specifier();
         case ASTNodeKind::VarInitStmt:
             return as_var_init_unsafe()->specifier;
         default:
@@ -124,7 +124,7 @@ bool ASTNode::set_specifier(AccessSpecifier spec) {
             as_function_unsafe()->set_specifier_fast(spec);
             return true;
         case ASTNodeKind::InterfaceDecl:
-            as_interface_def_unsafe()->specifier = spec;
+            as_interface_def_unsafe()->set_specifier_fast(spec);
             return true;
         default:
             return false;

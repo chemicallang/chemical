@@ -265,7 +265,7 @@ extern "C" {
 
     //ThrowStatement* ASTBuildermake_throw_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location);
 
-    TypealiasStatement* ASTBuildermake_typealias_stmt(CSTConverter* converter, chem::string* identifier, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    TypealiasStatement* ASTBuildermake_typealias_stmt(CSTConverter* converter, chem::string* identifier, uint64_t name_loc, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     UsingStmt* ASTBuildermake_using_stmt(CSTConverter* converter, AccessChain* chain, bool is_namespace, uint64_t location);
 
@@ -293,21 +293,21 @@ extern "C" {
 
     InitBlock* ASTBuildermake_init_block(CSTConverter* converter, ASTNode* parent_node, uint64_t location);
 
-    InterfaceDefinition* ASTBuildermake_interface_def(CSTConverter* converter, chem::string* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    InterfaceDefinition* ASTBuildermake_interface_def(CSTConverter* converter, chem::string* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     Namespace* ASTBuildermake_namespace(CSTConverter* converter, chem::string* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
-    StructDefinition* ASTBuildermake_struct_def(CSTConverter* converter, chem::string* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    StructDefinition* ASTBuildermake_struct_def(CSTConverter* converter, chem::string* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     StructMember* ASTBuildermake_struct_member(CSTConverter* converter, chem::string* name, BaseType* type, Value* defValue, bool isConst, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
-    UnionDef* ASTBuildermake_union_def(CSTConverter* converter, chem::string* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    UnionDef* ASTBuildermake_union_def(CSTConverter* converter, chem::string* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     UnsafeBlock* ASTBuildermake_unsafe_block(CSTConverter* converter, ASTNode* node, uint64_t location);
 
     WhileLoop* ASTBuildermake_while_loop(CSTConverter* converter, Value* condition, ASTNode* node, uint64_t location);
 
-    VariantDefinition* ASTBuildermake_variant_def(CSTConverter* converter, chem::string* name, AccessSpecifier specifier, ASTNode* node, uint64_t location);
+    VariantDefinition* ASTBuildermake_variant_def(CSTConverter* converter, chem::string* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* node, uint64_t location);
 
     VariantMember* ASTBuildermake_variant_member(CSTConverter* converter, chem::string* name, VariantDefinition* parent_node, uint64_t location);
 

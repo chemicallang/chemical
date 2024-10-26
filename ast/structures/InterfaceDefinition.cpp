@@ -26,7 +26,7 @@ void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* 
 }
 
 void InterfaceDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl) {
-    if(!decl->has_self_param() && (has_implementation || !users.empty())) {
+    if(!decl->has_self_param() && (data.has_implementation || !users.empty())) {
         decl->code_gen_declare(gen, this);
         decl->code_gen_body(gen, this);
         return;
@@ -40,7 +40,7 @@ void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclarati
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
     for (auto& func: functions()) {
-        if(!func->has_self_param() && (has_implementation || !users.empty())) {
+        if(!func->has_self_param() && (data.has_implementation || !users.empty())) {
             func->code_gen_declare(gen, this);
             func->code_gen_body(gen, this);
         }
@@ -84,11 +84,11 @@ void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_
             if(func_res != found->second.end()) {
                 llvm_pointers.emplace_back(func_res->second);
             } else {
-                gen.error("couldn't find function impl pointer, name '" + func->name() + "' for struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' for interface '" + name + "'", (AnnotableNode*) func);
+                gen.error("couldn't find function impl pointer, name '" + func->name() + "' for struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' for interface '" + name() + "'", (AnnotableNode*) func);
             }
         }
     } else {
-        gen.error("couldn't find struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' implementation pointers for interface '" + name + "'", (AnnotableNode*) for_struct);
+        gen.error("couldn't find struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' implementation pointers for interface '" + name() + "'", (AnnotableNode*) for_struct);
     }
 }
 
@@ -128,16 +128,17 @@ llvm::Value* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinit
 #endif
 
 InterfaceDefinition::InterfaceDefinition(
-        std::string name,
+        LocatedIdentifier identifier,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), location(location), specifier(specifier) {
+) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), location(location),
+    data(specifier, false) {
 
 }
 
 BaseType* InterfaceDefinition::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, this, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name(), this, location);
 }
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
@@ -159,5 +160,5 @@ throw std::runtime_error("InterfaceDefinition::byte_size interface byte_size cal
 }
 
 void InterfaceDefinition::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name, this, specifier, false);
+    linker.declare_node(name(), this, specifier(), false);
 }

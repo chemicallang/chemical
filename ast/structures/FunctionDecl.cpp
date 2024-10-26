@@ -1191,7 +1191,7 @@ int16_t FunctionDeclaration::total_generic_iterations() {
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name(), def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
     }
     returnType = new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
 }
@@ -1227,7 +1227,7 @@ void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl
 }
 
 void FunctionDeclaration::ensure_constructor(SymbolResolver& resolver, StructDefinition* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, ZERO_LOC);
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name(), def, ZERO_LOC);
 }
 
 void FunctionDeclaration::ensure_destructor(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
@@ -1241,12 +1241,12 @@ void FunctionDeclaration::ensure_clear_fn(SymbolResolver& resolver, ExtendableMe
 }
 
 void FunctionDeclaration::ensure_copy_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, ZERO_LOC);
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name(), def, ZERO_LOC);
     check_self_other_params(resolver, this, def);
 }
 
 void FunctionDeclaration::ensure_move_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name, def, ZERO_LOC);
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name(), def, ZERO_LOC);
     check_self_other_params(resolver, this, def);
 }
 

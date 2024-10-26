@@ -59,6 +59,10 @@ public:
 
     void visit(StructDefinition *def) override;
 
+    void visit(UnionDef *def) override;
+
+    void visit(VariantDefinition *variant_def) override;
+
     void visit(InterfaceDefinition *def) override;
 
     void visit(TypealiasStatement *def) override;

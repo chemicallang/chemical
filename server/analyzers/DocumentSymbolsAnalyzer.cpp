@@ -6,6 +6,8 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/UnionDef.h"
+#include "ast/structures/VariantDefinition.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/VarInit.h"
 #include "ast/structures/EnumDeclaration.h"
@@ -41,15 +43,23 @@ void DocumentSymbolsAnalyzer::visit(FunctionDeclaration *decl) {
 }
 
 void DocumentSymbolsAnalyzer::visit(StructDefinition *def) {
-    put(def->name, lsSymbolKind::Struct, range(def->location), range(struct_name_tok(structDef)));
+    put(def->name(), lsSymbolKind::Struct, range(def->location), range(def->identifier.location));
+}
+
+void DocumentSymbolsAnalyzer::visit(UnionDef *def) {
+    put(def->name(), lsSymbolKind::Struct, range(def->location), range(def->identifier.location));
+}
+
+void DocumentSymbolsAnalyzer::visit(VariantDefinition *def) {
+    put(def->name(), lsSymbolKind::Struct, range(def->location), range(def->identifier.location));
 }
 
 void DocumentSymbolsAnalyzer::visit(InterfaceDefinition *def) {
-    put(def->name, lsSymbolKind::Interface, range(def->location), range(interface_name_tok(interface)));
+    put(def->name(), lsSymbolKind::Interface, range(def->location), range(def->identifier.location));
 }
 
 void DocumentSymbolsAnalyzer::visit(TypealiasStatement *def) {
-    put(def->identifier, lsSymbolKind::Interface, range(def->location), range(interface_name_tok(interface)));
+    put(def->name(), lsSymbolKind::Interface, range(def->location), range(def->identifier.location));
 }
 
 void DocumentSymbolsAnalyzer::visit(EnumDeclaration *def) {

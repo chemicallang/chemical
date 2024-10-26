@@ -317,7 +317,7 @@ ASTNode *MembersContainer::direct_child_member(const std::string& name) {
     if(direct_var) return direct_var;
     for(auto& inherits : inherited) {
         const auto struct_def = inherits->type->linked_struct_def();
-        if(struct_def && struct_def->name == name) {
+        if(struct_def && struct_def->name() == name) {
             return struct_def;
         }
     }
@@ -717,7 +717,7 @@ std::pair<long, BaseType*> VariablesContainer::variable_type_index(const std::st
     for(auto& inherits : inherited) {
         const auto struct_def = inherits->type->linked_node()->as_struct_def();
         if(struct_def) {
-            if(consider_inherited_structs && struct_def->name == varName) {
+            if(consider_inherited_structs && struct_def->name() == varName) {
                 // user wants the struct
                 return { parents_size, inherits->type };
             }

@@ -1124,10 +1124,11 @@ FunctionDeclaration::FunctionDeclaration(
         ASTNode* parent_node,
         SourceLocation location,
         std::optional<LoopScope> body,
-        AccessSpecifier specifier
-) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location),
+        AccessSpecifier specifier,
+        bool signature_resolved
+) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
     identifier(std::move(identifier)),
-    body(std::move(body)), location(location), data(specifier, false, 0) {
+    body(std::move(body)), location(location), data(specifier, 0) {
 }
 
 std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {
@@ -1312,7 +1313,7 @@ BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
     for(const auto param : params) {
         copied.emplace_back(param->copy(allocator));
     }
-    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic(), false, parent_node, ZERO_LOC);
+    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic(), false, parent_node, ZERO_LOC, FunctionType::data.signature_resolved);
 }
 
 //hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {
@@ -1355,7 +1356,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
         resolved = false;
     }
     if(resolved) {
-        data.resolved_signature_successfully = true;
+        FunctionType::data.signature_resolved = true;
     }
     linker.scope_end();
     linker.declare_function(name(), this, specifier());
@@ -1384,7 +1385,7 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     for (auto param: params) {
         param->declare_and_link(linker);
     }
-    if (body.has_value() && data.resolved_signature_successfully) {
+    if (body.has_value() && FunctionType::data.signature_resolved) {
         body->link_sequentially(linker);
     }
     linker.scope_end();

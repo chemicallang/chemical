@@ -78,8 +78,9 @@ FunctionType::FunctionType(
     bool isVariadic,
     bool isCapturing,
     ASTNode* parent_node,
-    SourceLocation location
-) : data(isVariadic, isCapturing, false), params(std::move(params)), returnType(returnType),
+    SourceLocation location,
+    bool signature_resolved
+) : data(isVariadic, isCapturing, signature_resolved), params(std::move(params)), returnType(returnType),
     parent_node(parent_node), TokenizedBaseType(location) {
 
 }
@@ -222,14 +223,23 @@ FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
     for (auto &param: params) {
         copied.emplace_back(param->copy(allocator));
     }
-    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic(), isCapturing(), parent_node, ZERO_LOC);
+    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic(), isCapturing(), parent_node, ZERO_LOC, data.signature_resolved);
 }
 
 bool FunctionType::link(SymbolResolver &linker) {
+    bool resolved = true;
     for (auto &param: params) {
-        param->link_param_type(linker);
+        if(!param->link_param_type(linker)) {
+            resolved = false;
+        }
     }
-    return returnType->link(linker);
+    if(!returnType->link(linker)) {
+        resolved = false;
+    }
+    if(resolved) {
+        data.signature_resolved = true;
+    }
+    return resolved;
 }
 
 // first chain is contained in other chain

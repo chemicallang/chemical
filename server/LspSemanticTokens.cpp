@@ -202,7 +202,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     }
 
     // cached ast import unit
-    auto cached_unit = std::make_shared<ASTImportUnit>(get_target_triple());
+    auto cached_unit = std::make_shared<ASTImportUnit>(get_target_triple(), loc_man);
     auto& comptime_scope = cached_unit->comptime_scope;
 
     // get the lex import unit

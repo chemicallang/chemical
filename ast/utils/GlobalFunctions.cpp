@@ -146,7 +146,8 @@ namespace InterpretVector {
             node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ) {
         add_annotation(AnnotationKind::Constructor);
     }
@@ -163,7 +164,8 @@ namespace InterpretVector {
         node,
         ZERO_LOC,
         std::nullopt,
-        AccessSpecifier::Public
+        AccessSpecifier::Public,
+            true
     ), retType(ZERO_LOC), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC) {
         params.emplace_back(&selfParam);
     }
@@ -182,7 +184,8 @@ namespace InterpretVector {
             node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), returnLinkedType("T", &node->typeParam, ZERO_LOC),
         selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, ZERO_LOC)
     {
@@ -202,7 +205,8 @@ namespace InterpretVector {
             node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
         valueType("T", &node->typeParam, ZERO_LOC), valueParam("value", &valueType, 1, nullptr, false, this, ZERO_LOC)
     {
@@ -223,7 +227,8 @@ namespace InterpretVector {
             node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
         indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, ZERO_LOC)
     {
@@ -270,7 +275,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), visitor(ostring),  returnType(ZERO_LOC) {
         visitor.interpret_representation = true;
     }
@@ -326,7 +332,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), returnType(ZERO_LOC), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
@@ -395,7 +402,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
@@ -425,7 +433,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
@@ -454,7 +463,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), voidType(ZERO_LOC), ptrType(&voidType, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -476,7 +486,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), stringType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -504,7 +515,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), boolType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -530,7 +542,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), boolType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -556,7 +569,8 @@ public:
             nullptr,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), uIntType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -580,7 +594,8 @@ public:
             nullptr,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), uIntType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -613,7 +628,8 @@ public:
             nullptr,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), uIntType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -643,7 +659,8 @@ public:
             nullptr,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), uIntType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -675,7 +692,8 @@ public:
             nullptr,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), boolType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
@@ -706,7 +724,8 @@ public:
             nullptr,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), voidType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
@@ -735,7 +754,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), returnType(ZERO_LOC), anyType(ZERO_LOC),
     valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC),
     valueParam2("value2", &anyType, 1, nullptr, false, this, ZERO_LOC) {
@@ -781,7 +801,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
         valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
     {
@@ -811,7 +832,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
         valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
     {
@@ -839,7 +861,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), boolType(ZERO_LOC), stringType(ZERO_LOC), destValueParam("dest_value", &stringType, 0, nullptr, false, this, ZERO_LOC),
       sourceValueParam("source_value", &stringType, 1, nullptr, false, this, ZERO_LOC){
         add_annotation(AnnotationKind::CompTime);
@@ -869,7 +892,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), stringType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }
@@ -891,7 +915,8 @@ public:
             parent_node,
             ZERO_LOC,
             std::nullopt,
-            AccessSpecifier::Public
+            AccessSpecifier::Public,
+            true
     ), stringType(ZERO_LOC) {
         add_annotation(AnnotationKind::CompTime);
     }

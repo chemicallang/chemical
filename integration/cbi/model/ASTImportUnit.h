@@ -26,11 +26,6 @@ public:
     ASTAllocator allocator;
 
     /**
-     * the location manager used to store locations
-     */
-    LocationManager loc_man;
-
-    /**
      * the global interpret scope is used for all these files
      */
     GlobalInterpretScope comptime_scope;
@@ -61,7 +56,8 @@ public:
      * constructor
      */
     ASTImportUnit(
-        std::string target_triple
+        std::string target_triple,
+        LocationManager& loc_man
     ) : allocator(nullptr, 0, 0),
         comptime_scope(std::move(target_triple), nullptr, nullptr, allocator, loc_man),
         reported_diagnostics(false)

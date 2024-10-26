@@ -681,6 +681,7 @@ uint64_t FunctionCall::byte_size(bool is64Bit) {
 void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& properly_linked) {
     auto& current_func = *linker.current_func_type;
     auto func_type = function_type(linker.allocator);
+    if(func_type && !func_type->data.signature_resolved) return;
     unsigned i = 0;
     while(i < values.size()) {
         auto& value_ptr = values[i];
@@ -710,7 +711,7 @@ void FunctionCall::relink_values(SymbolResolver &linker) {
 
 void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::vector<bool>& properly_linked){
     auto func_type = function_type(linker.allocator);
-    if(!func_type) return;
+    if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
     while(i < values.size()) {
         const auto param = func_type->func_param_for_arg_at(i);

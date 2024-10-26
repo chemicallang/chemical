@@ -29,7 +29,7 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker) {
         if(!value->link(linker, value, func_type->returnType ? func_type->returnType : nullptr)) {
             return;
         }
-        if(func_type->returnType) {
+        if(func_type->data.signature_resolved && func_type->returnType) {
             const auto func = func_type->as_function();
             if(func && func->has_annotation(AnnotationKind::Constructor)) {
                 return;

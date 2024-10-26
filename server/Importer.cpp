@@ -153,7 +153,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
     );
     auto result = std::shared_ptr<ASTResult>(result_ptr);
     auto& allocator = result_ptr->allocator;
-    const auto fileId = comptime_scope.loc_man.encodeFile(path);
+    const auto fileId = loc_man.encodeFile(path);
     CSTConverter converter(fileId, is64Bit, comptime_scope, binder, allocator, allocator, allocator);
     converter.convert(lex_result->unit.tokens);
     result->unit = converter.take_unit();
@@ -193,7 +193,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
     auto result = std::shared_ptr<ASTResult>(result_ptr);
     auto cst = get_lexed_no_lock(path);
     auto& allocator = result_ptr->allocator;
-    const auto fileId = comptime_scope.loc_man.encodeFile(path);
+    const auto fileId = loc_man.encodeFile(path);
     CSTConverter converter(fileId, is64Bit, comptime_scope, binder, allocator, allocator, allocator);
     converter.convert(cst->unit.tokens);
     result->unit = converter.take_unit();

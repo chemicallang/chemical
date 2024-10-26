@@ -121,7 +121,7 @@ public:
         data.specifier = specifier;
     }
 
-    inline const std::string& name() {
+    inline const std::string& name() const {
         return identifier.identifier;
     }
 

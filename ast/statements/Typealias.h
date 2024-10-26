@@ -13,7 +13,7 @@ public:
 
     AccessSpecifier specifier;
     // before equal
-    LocatedIdentifier identifier;
+    LocatedIdentifier located_id;
     // after equal
     BaseType* actual_type;
     ASTNode* parent_node;
@@ -31,7 +31,11 @@ public:
     );
 
     inline const std::string& name() const {
-        return identifier.identifier;
+        return located_id.identifier;
+    }
+
+    inline const std::string& identifier() const {
+        return located_id.identifier;
     }
 
     SourceLocation encoded_location() final {

@@ -59,7 +59,7 @@ void DocumentSymbolsAnalyzer::visit(InterfaceDefinition *def) {
 }
 
 void DocumentSymbolsAnalyzer::visit(TypealiasStatement *def) {
-    put(def->name(), lsSymbolKind::Interface, range(def->location), range(def->identifier.location));
+    put(def->name(), lsSymbolKind::Interface, range(def->location), range(def->located_id.location));
 }
 
 void DocumentSymbolsAnalyzer::visit(EnumDeclaration *def) {

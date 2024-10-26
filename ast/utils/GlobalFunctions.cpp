@@ -600,13 +600,13 @@ FunctionCall* get_runtime_call(GlobalInterpretScope* global) {
     }
 }
 
-class InterpretGetRuntimeLineNo : public FunctionDeclaration {
+class InterpretGetCallerLineNo : public FunctionDeclaration {
 public:
 
     UBigIntType uIntType;
 
-    explicit InterpretGetRuntimeLineNo() : FunctionDeclaration(
-            "get_runtime_line_no",
+    explicit InterpretGetCallerLineNo() : FunctionDeclaration(
+            "get_caller_line_no",
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -630,13 +630,13 @@ public:
 
 };
 
-class InterpretGetRuntimeCharacterNo : public FunctionDeclaration {
+class InterpretGetCallerCharacterNo : public FunctionDeclaration {
 public:
 
     UBigIntType uIntType;
 
-    explicit InterpretGetRuntimeCharacterNo() : FunctionDeclaration(
-            "get_runtime_char_no",
+    explicit InterpretGetCallerCharacterNo() : FunctionDeclaration(
+            "get_caller_char_no",
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -940,8 +940,8 @@ public:
 
     InterpretGetLineNo get_line_no;
     InterpretGetCharacterNo get_char_no;
-    InterpretGetRuntimeLineNo get_runtime_line_no;
-    InterpretGetRuntimeCharacterNo get_runtime_char_no;
+    InterpretGetCallerLineNo get_caller_line_no;
+    InterpretGetCallerCharacterNo get_caller_char_no;
     InterpretGetTarget get_target_fn;
     InterpretGetCurrentFilePath get_current_file_path;
     InterpretError error_fn;
@@ -957,7 +957,7 @@ public:
         add_annotation(AnnotationKind::CompTime);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
-            &satisfiesFn, &get_line_no, &get_char_no, &get_runtime_line_no, &get_runtime_char_no, &error_fn,
+            &satisfiesFn, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no, &error_fn,
             &get_target_fn, &get_current_file_path
         };
 

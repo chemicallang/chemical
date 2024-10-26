@@ -434,7 +434,7 @@ bool FunctionType::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
         const auto init = linked->as_var_init_unsafe();
 #ifdef DEBUG
         if(init->get_has_moved()) {
-            diagnoser.error("found var init that skipped move check, identifier '" + init->identifier + "' has already been moved", id);
+            diagnoser.error("found var init that skipped move check, identifier '" + init->identifier() + "' has already been moved", id);
             return false;
         }
 #endif
@@ -474,7 +474,7 @@ bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
                 const auto init = linked->as_var_init_unsafe();
 #ifdef DEBUG
                 if(init->get_has_moved()) {
-                    diagnoser.error("found var init that skipped move check, identifier '" + init->identifier + "' has already been moved", id);
+                    diagnoser.error("found var init that skipped move check, identifier '" + init->identifier() + "' has already been moved", id);
                     return false;
                 }
 #endif

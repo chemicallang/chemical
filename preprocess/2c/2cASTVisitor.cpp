@@ -867,7 +867,7 @@ void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bo
         visitor.write("static ");
     }
     auto init_type = init->type ? init->type : init->value->create_type(visitor.allocator);
-    value_alloca_store(visitor, init->identifier, init_type, initialize ? init->value : nullptr);
+    value_alloca_store(visitor, init->identifier(), init_type, initialize ? init->value : nullptr);
 }
 
 void allocate_struct_by_name(ToCAstVisitor& visitor, ASTNode* def, const std::string& name, Value* initializer = nullptr) {
@@ -1333,7 +1333,7 @@ void CBeforeStmtVisitor::visit(VarInitStatement *init) {
 //    }
     visitor.debug_comment("visiting var init in before");
     if(init->value) {
-        process_init_value(init->value, init->identifier);
+        process_init_value(init->value, init->identifier());
     }
     CommonVisitor::visit(init);
 }
@@ -1711,7 +1711,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
     if(chain) {
         const auto last_func_call = chain->values.back()->as_func_call();
         if(last_func_call) {
-            queue_destruct(init->identifier, init, last_func_call);
+            queue_destruct(init->identifier(), init, last_func_call);
             return;
         } else {
             if(chain->is_moved) {
@@ -1720,7 +1720,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
                 if(!linked) {
                     return;
                 }
-                queue_destruct(init->identifier, init, init_type->get_generic_iteration(), linked->as_extendable_members_container_node());
+                queue_destruct(init->identifier(), init, init_type->get_generic_iteration(), linked->as_extendable_members_container_node());
             }
             return;
         }
@@ -1733,24 +1733,24 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             visitor.error("couldn't destruct var init", init);
             return;
         }
-        queue_destruct(init->identifier, init, init_type->get_generic_iteration(), linked->as_extendable_members_container_node());
+        queue_destruct(init->identifier(), init, init_type->get_generic_iteration(), linked->as_extendable_members_container_node());
         return;
     }
     auto array_val = init_value->as_array_value();
     if(array_val) {
         auto elem_type = array_val->element_type(visitor.allocator);
-        queue_destruct_arr(init->identifier, init, elem_type, array_val->array_size());
+        queue_destruct_arr(init->identifier(), init, elem_type, array_val->array_size());
         return;
     }
     auto variant_call = init_value->as_variant_call();
     if(variant_call) {
         const auto def = variant_call->get_definition();
-        queue_destruct(init->identifier, init, variant_call->generic_iteration, def);
+        queue_destruct(init->identifier(), init, variant_call->generic_iteration, def);
         return;
     }
     auto struct_val = init_value->as_struct_value();
     if(struct_val) {
-        queue_destruct(init->identifier, init, struct_val->generic_iteration, struct_val->linked_struct());
+        queue_destruct(init->identifier(), init, struct_val->generic_iteration, struct_val->linked_struct());
     }
 }
 
@@ -1782,12 +1782,12 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
         if(init->type->value_type() == ValueType::Struct) {
             auto linked = init->type->linked_node();
             if (linked)
-                queue_destruct(init->identifier, init, init->type->get_generic_iteration(),
+                queue_destruct(init->identifier(), init, init->type->get_generic_iteration(),
                                linked->as_struct_def());
         } else if(init->type->kind() == BaseTypeKind::Array) {
             auto type = (ArrayType*) init->type;
             if(type->array_size != -1) {
-                queue_destruct_arr(init->identifier, init, type->elem_type, type->array_size);
+                queue_destruct_arr(init->identifier(), init, type->elem_type, type->array_size);
             } else {
                 // cannot destruct array type without size
             }
@@ -2632,7 +2632,7 @@ void write_assignable(ToCAstVisitor& visitor, ASTNode* node) {
     const auto k = node->kind();
     switch(k) {
         case ASTNodeKind::VarInitStmt:
-            visitor.write(node->as_var_init()->identifier);
+            visitor.write(node->as_var_init()->identifier());
             return;
         case ASTNodeKind::AssignmentStmt:
             node->as_assignment()->lhs->accept(&visitor);

@@ -194,12 +194,12 @@ void RepresentationVisitor::write(const std::string_view& view) {
 }
 
 void RepresentationVisitor::visit(VarInitStatement *init) {
-    if (init->is_const) {
+    if (init->is_const()) {
         write("const ");
     } else {
         write("var ");
     }
-    write(init->identifier);
+    write(init->identifier());
     if (init->type) {
         write(" : ");
         init->type->accept(this);

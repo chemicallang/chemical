@@ -437,7 +437,7 @@ bool is_node_assignable(ASTNode* node) {
     const auto linked_kind = node->kind();
     switch(linked_kind) {
         case ASTNodeKind::VarInitStmt:{
-            return !node->as_var_init_unsafe()->is_const;
+            return !node->as_var_init_unsafe()->is_const();
         }
         case ASTNodeKind::FunctionParam:
         case ASTNodeKind::ExtensionFuncReceiver: {

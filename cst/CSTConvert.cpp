@@ -779,7 +779,7 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     } else {
         init = new (alloc.allocate<VarInitStatement>()) VarInitStatement(
                 is_const,
-                varInit->tokens[i]->value(),
+                loc_id(varInit->tokens[i]),
                 nullptr,
                 nullptr,
                 parent_node,

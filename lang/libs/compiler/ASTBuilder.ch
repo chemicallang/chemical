@@ -490,7 +490,7 @@ public struct ASTBuilder {
 
     func make_using_stmt(&self, chain : *AccessChain, is_namespace : bool, location : ubigint) : *UsingStmt
 
-    func make_varinit_stmt(&self, is_const : bool, identifier : *string, type : *BaseType, value : *Value, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *VarInitStatement
+    func make_varinit_stmt(&self, is_const : bool, identifier : *string, id_loc : ubigint, type : *BaseType, value : *Value, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *VarInitStatement
 
     func make_scope(&self, parent_node : *ASTNode, location : ubigint) : *Scope
 

@@ -1046,7 +1046,7 @@ struct DefThing {
     DefValue defValue;
     VarInitStatement defStmt;
 
-    DefThing() : defValue(&decl), defStmt(true, "def", defValue.refType, &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
+    DefThing() : defValue(&decl), defStmt(true, ZERO_LOC_ID("def"), defValue.refType, &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
         defStmt.add_annotation(AnnotationKind::CompTime);
     }
 
@@ -1326,7 +1326,7 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
 
     resolver.declare(container.defined.name(), &container.defined);
     resolver.declare(container.defThing.decl.name(), &container.defThing.decl);
-    resolver.declare(container.defThing.defStmt.identifier, &container.defThing.defStmt);
+    resolver.declare(container.defThing.defStmt.identifier(), &container.defThing.defStmt);
 
     container.defThing.clear_values();
     // we recreate the target data, because the allocator disposes at the end of each job

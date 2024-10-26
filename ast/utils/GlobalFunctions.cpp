@@ -556,6 +556,30 @@ public:
     }
 };
 
+class InterpretGetRawLocation : public FunctionDeclaration {
+public:
+
+    UBigIntType uIntType;
+
+    explicit InterpretGetRawLocation() : FunctionDeclaration(
+            ZERO_LOC_ID("get_raw_location"),
+            std::vector<FunctionParam*> {},
+            &uIntType,
+            false,
+            nullptr,
+            ZERO_LOC,
+            std::nullopt,
+            AccessSpecifier::Public,
+            true
+    ), uIntType(ZERO_LOC) {
+        add_annotation(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(call->location.encoded, call->location);
+    }
+
+};
+
 class InterpretGetLineNo : public FunctionDeclaration {
 public:
 
@@ -963,6 +987,7 @@ public:
     InterpretVector::InterpretVectorNode vectorNode;
     InterpretSatisfies satisfiesFn;
 
+    InterpretGetRawLocation get_raw_location;
     InterpretGetLineNo get_line_no;
     InterpretGetCharacterNo get_char_no;
     InterpretGetCallerLineNo get_caller_line_no;
@@ -982,8 +1007,8 @@ public:
         add_annotation(AnnotationKind::CompTime);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
-            &satisfiesFn, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no, &error_fn,
-            &get_target_fn, &get_current_file_path
+            &satisfiesFn, &get_raw_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
+            &error_fn, &get_target_fn, &get_current_file_path
         };
 
     }

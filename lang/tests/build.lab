@@ -3,7 +3,7 @@ import "../libs/lab/lab.ch"
 using namespace std;
 
 func curr_dir() : string {
-    const curr_path_str = string(#file:path{});
+    const curr_path_str = string(compiler::get_current_file_path());
     return curr_path_str.substring(0, curr_path_str.size() - 9)
 }
 
@@ -54,7 +54,7 @@ func build(ctx : *mut BuildContext) {
 
     const debug = true;
     if(debug) {
-        const curr_path_str = string(#file:path{});
+        const curr_path_str = string(compiler::get_current_file_path());
         printf("[build.lab] current file path : %s\n", curr_path_str.data());
         const curr_dir_path = curr_dir();
         printf("[build.lab] current dir path : %s\n", curr_dir_path.data());

@@ -878,6 +878,31 @@ public:
     }
 };
 
+class InterpretGetCurrentFilePath : public FunctionDeclaration {
+public:
+
+    StringType stringType;
+
+    explicit InterpretGetCurrentFilePath(ASTNode* parent_node) : FunctionDeclaration(
+            "get_current_file_path",
+            std::vector<FunctionParam*> {},
+            &stringType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            std::nullopt,
+            AccessSpecifier::Public
+    ), stringType(ZERO_LOC) {
+        add_annotation(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        auto& loc_man = call_scope->global->loc_man;
+        auto location = loc_man.getLocation(call->location);
+        auto fileId = loc_man.getPathForFileId(location.fileId);
+        return new (call_scope->allocate<StringValue>()) StringValue(std::string(fileId), call->location);
+    }
+};
+
 
 //class InterpretConstruct : public FunctionDeclaration {
 //public:
@@ -918,6 +943,7 @@ public:
     InterpretGetRuntimeLineNo get_runtime_line_no;
     InterpretGetRuntimeCharacterNo get_runtime_char_no;
     InterpretGetTarget get_target_fn;
+    InterpretGetCurrentFilePath get_current_file_path;
     InterpretError error_fn;
 
     CompilerNamespace(
@@ -925,14 +951,14 @@ public:
     ) : Namespace("compiler", nullptr, ZERO_LOC, AccessSpecifier::Public),
         printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this),
-        satisfiesFn(this), get_target_fn(this)
+        satisfiesFn(this), get_target_fn(this), get_current_file_path(this)
     {
 
         add_annotation(AnnotationKind::CompTime);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
             &satisfiesFn, &get_line_no, &get_char_no, &get_runtime_line_no, &get_runtime_char_no, &error_fn,
-            &get_target_fn
+            &get_target_fn, &get_current_file_path
         };
 
     }

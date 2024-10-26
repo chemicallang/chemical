@@ -225,10 +225,6 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
                 converter->error("expected a value for eval", container);
             }
         }},
-        { "file:path", [](CSTConverter* converter, CSTToken* container) {
-            const auto file_path = converter->loc_man.getPathForFileId(converter->file_id);
-            converter->put_value(new (converter->local<StringValue>()) StringValue(std::string(file_path), converter->loc(container)), container);
-        }},
         {"sizeof", [](CSTConverter* converter, CSTToken*  container) {
             const auto tok = container->tokens[2];
             if(tok->is_type()) {

@@ -275,7 +275,7 @@ extern "C" {
 
     DoWhileLoop* ASTBuildermake_do_while_loop(CSTConverter* converter, Value* condition, ASTNode* parent_node, uint64_t location);
 
-    EnumDeclaration* ASTBuildermake_enum_decl(CSTConverter* converter, chem::string* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    EnumDeclaration* ASTBuildermake_enum_decl(CSTConverter* converter, chem::string* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     EnumMember* ASTBuildermake_enum_member(CSTConverter* converter, chem::string* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, uint64_t location);
 

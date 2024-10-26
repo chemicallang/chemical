@@ -13,10 +13,13 @@
 #include "ast/base/ExtendableAnnotableNode.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/types/LinkedType.h"
+#include "ast/base/LocatedIdentifier.h"
 
 class EnumDeclaration : public ExtendableAnnotableNode {
 public:
 
+    LocatedIdentifier located_id; ///< The name of the enum.
+    std::unordered_map<std::string, EnumMember*> members; ///< The values of the enum.
     ASTNode* parent_node;
     SourceLocation location;
     AccessSpecifier specifier;
@@ -30,14 +33,18 @@ public:
      * @param values The values of the enum.
      */
     EnumDeclaration(
-            std::string name,
+            LocatedIdentifier name_id,
             std::unordered_map<std::string, EnumMember*> members,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node), location(location), linked_type(name, this, location), underlying_type(location), specifier(specifier) {
+    ) : located_id(std::move(name_id)), members(std::move(members)), parent_node(parent_node), location(location), linked_type(name(), this, location), underlying_type(location), specifier(specifier) {
 
     }
+
+    inline const std::string& name() {
+        return located_id.identifier;
+    };
 
     SourceLocation encoded_location() final {
         return location;
@@ -62,7 +69,7 @@ public:
     void declare_top_level(SymbolResolver &linker) final;
 
     const std::string& ns_node_identifier() final {
-        return name;
+        return name();
     }
 
     BaseType* create_value_type(ASTAllocator& allocator) final;
@@ -84,8 +91,5 @@ public:
 #endif
 
     ASTNode *child(const std::string &name) final;
-
-    std::string name; ///< The name of the enum.
-    std::unordered_map<std::string, EnumMember*> members; ///< The values of the enum.
 
 };

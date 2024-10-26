@@ -63,7 +63,7 @@ void DocumentSymbolsAnalyzer::visit(TypealiasStatement *def) {
 }
 
 void DocumentSymbolsAnalyzer::visit(EnumDeclaration *def) {
-    put(def->name, lsSymbolKind::Enum, range(def->location), range(enum_name_tok(enumDecl)));
+    put(def->name(), lsSymbolKind::Enum, range(def->location), range(def->located_id.location));
 }
 
 void DocumentSymbolsAnalyzer::visit(VarInitStatement *init) {

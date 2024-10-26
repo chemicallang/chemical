@@ -40,6 +40,7 @@ uint64_t LocationManager::addLocation(uint32_t fileId, uint32_t lineStart, uint3
         location |= static_cast<uint64_t>(charEnd);
         return location;
     } else {
+        std::lock_guard guard(location_mutex);
         // Store in vector if it doesn't fit
         uint64_t index = locations.size();
         locations.emplace_back(fileId, lineStart, charStart, lineEnd, charEnd);

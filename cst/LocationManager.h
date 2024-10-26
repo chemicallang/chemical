@@ -6,6 +6,7 @@
 #include "SourceLocation.h"
 #include "integration/common/Position.h"
 #include "ordered_map.h"
+#include <mutex>
 
 class LocationManager {
 public:
@@ -39,6 +40,13 @@ private:
      * path
      */
     tsl::ordered_map<std::string, bool> file_paths;
+
+    /**
+     * the mutex is used when adding locations because
+     * locations can be added concurrently, only large locations use the mutex
+     * other are encoded concurrently
+     */
+    std::mutex location_mutex;
 
 public:
 

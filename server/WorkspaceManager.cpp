@@ -182,7 +182,7 @@ td_foldingRange::response WorkspaceManager::get_folding_range(const lsDocumentUr
     td_foldingRange::response rsp;
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto unit = get_ast_import_unit(abs_path, cancel_request);
-    FoldingRangeAnalyzer analyzer(unit.unit->loc_man);
+    FoldingRangeAnalyzer analyzer(loc_man);
     analyzer.analyze(unit.files.back()->unit.scope.nodes);
     rsp.result = std::move(analyzer.ranges);
     return rsp;
@@ -195,7 +195,7 @@ td_completion::response WorkspaceManager::get_completion(
 ) {
     auto can_path = canonical(uri.GetAbsolutePath().path);
     auto unit = get_ast_import_unit(can_path, cancel_request);
-    CompletionItemAnalyzer analyzer(unit.unit->loc_man, { line, character });
+    CompletionItemAnalyzer analyzer(loc_man, { line, character });
     td_completion::response rsp;
     analyzer.analyze(unit);
     rsp.result = std::move(analyzer.list);
@@ -213,7 +213,7 @@ td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
 td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto result = get_ast_import_unit(abs_path, cancel_request);
-    InlayHintAnalyzer analyzer(result.unit->loc_man);
+    InlayHintAnalyzer analyzer(loc_man);
     td_inlayHint::response rsp;
     rsp.result = analyzer.analyze(result, compiler_exe_path(), lsp_exe_path);
     return std::move(rsp);
@@ -222,7 +222,7 @@ td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
 td_signatureHelp::response WorkspaceManager::get_signature_help(const lsDocumentUri& uri, const lsPosition& position) {
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto result = get_ast_import_unit(abs_path, cancel_request);
-    SignatureHelpAnalyzer analyzer(result.unit->loc_man, { .line = position.line, .character = position.character });
+    SignatureHelpAnalyzer analyzer(loc_man, { .line = position.line, .character = position.character });
     td_signatureHelp::response rsp;
     analyzer.analyze(result);
     rsp.result = std::move(analyzer.help);
@@ -231,7 +231,7 @@ td_signatureHelp::response WorkspaceManager::get_signature_help(const lsDocument
 
 td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &uri, const lsPosition &position) {
     auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
-    GotoDefAnalyzer analyzer(unit.unit->loc_man, {position.line, position.character});
+    GotoDefAnalyzer analyzer(loc_man, {position.line, position.character});
     td_definition::response rsp;
     rsp.result.first.emplace();
     auto analyzed = analyzer.analyze(&unit.lex_unit);
@@ -250,7 +250,7 @@ td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &ur
 td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto unit = get_ast_import_unit(abs_path, cancel_request);
-    DocumentSymbolsAnalyzer analyzer(unit.unit->loc_man);
+    DocumentSymbolsAnalyzer analyzer(loc_man);
     td_symbol::response rsp;
     analyzer.analyze(unit.files.back()->unit.scope.nodes);
     rsp.result = std::move(analyzer.symbols);
@@ -260,7 +260,7 @@ td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
 td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const lsPosition& position) {
     auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
     td_hover::response rsp;
-    HoverAnalyzer analyzer(unit.unit->loc_man, {position.line, position.character});
+    HoverAnalyzer analyzer(loc_man, {position.line, position.character});
     auto value = analyzer.markdown_hover(&unit.lex_unit);
     if(!value.empty()) {
         rsp.result.contents.second.emplace("markdown", std::move(value));

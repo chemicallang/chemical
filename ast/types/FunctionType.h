@@ -85,7 +85,8 @@ public:
         bool isVariadic,
         bool isCapturing,
         ASTNode* parent_node,
-        SourceLocation location
+        SourceLocation location,
+        bool signature_resolved = false
     );
 
     [[nodiscard]]

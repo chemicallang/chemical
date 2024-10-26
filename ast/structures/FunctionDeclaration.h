@@ -32,10 +32,6 @@ struct FuncDeclExtData {
      */
     AccessSpecifier specifier = AccessSpecifier::Internal;
     /**
-     * set to true after declare_top_level, if signature resolved successfully
-     */
-    bool resolved_signature_successfully = false;
-    /**
      * when involved in multi function node (due to same name, different parameters)
      */
     uint8_t multi_func_index = 0;
@@ -110,7 +106,8 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             std::optional<LoopScope> body = std::nullopt,
-            AccessSpecifier = AccessSpecifier::Internal
+            AccessSpecifier = AccessSpecifier::Internal,
+            bool signature_resolved = false
     );
 
     inline AccessSpecifier specifier() {

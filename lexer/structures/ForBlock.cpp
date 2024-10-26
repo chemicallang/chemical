@@ -8,7 +8,7 @@
 
 bool Lexer::lexContinueStatement() {
     if(lexWSKeywordToken("continue", ';')) {
-        compound_from(tokens_size(), LexTokenType::CompContinue);
+        compound_from(tokens_size() - 1, LexTokenType::CompContinue);
         return true;
     } else {
         return false;
@@ -29,7 +29,7 @@ bool Lexer::lexBreakStatement() {
 
 bool Lexer::lexUnreachableStatement() {
     if(lexWSKeywordToken("unreachable", ';')) {
-        compound_from(tokens_size(), LexTokenType::CompUnreachable);
+        compound_from(tokens_size() - 1, LexTokenType::CompUnreachable);
         return true;
     } else {
         return false;

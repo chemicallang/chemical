@@ -71,6 +71,14 @@ private:
     std::unordered_map<std::string, std::mutex> lex_file_mutexes;
 
     /**
+     * a single location manager is used throughout
+     * This presents some challenges, for example large file locations
+     * are stored on this location manager, location manager must dispose
+     * locations when cached files change
+     */
+    LocationManager loc_man;
+
+    /**
      * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
      * otherwise parallel calls might render lex_file_mutexes useless
      */

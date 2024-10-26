@@ -83,13 +83,24 @@ void ImplDefinition::declare_top_level(SymbolResolver &linker) {
     if(struct_type) {
         struct_type->link(linker);
     }
-    const auto linked = interface_type->linked_node()->as_interface_def();
-    linked->register_impl(this);
+    const auto linked = interface_type->linked_node();
+    if(linked) {
+        const auto interface_def = linked->as_interface_def();
+        if(interface_def) {
+            interface_def->register_impl(this);
+        } else {
+            linker.error("expected type to be an interface", interface_type);
+        }
+    }
 }
 
 void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     auto& interface_name = interface_type->linked_name();
-    const auto linked = interface_type->linked_node()->as_interface_def();
+    const auto linked_node = interface_type->linked_node();
+    if(!linked_node) {
+        return;
+    }
+    const auto linked = linked_node->as_interface_def();
     if(!linked) {
         linker.error("couldn't find interface by name " + interface_name + " for implementation", interface_type);
         return;

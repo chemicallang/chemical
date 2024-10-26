@@ -67,13 +67,21 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
      *
      * Here we are not declaring parameters, just declaring generic ones, we are linking parameters
      */
+    bool resolved = true;
     linker.scope_start();
     for(auto& gen_param : generic_params) {
         gen_param->declare_and_link(linker);
     }
-    receiver.type->link(linker);
+    if(!receiver.type->link(linker)) {
+        resolved = false;
+    }
     for(auto& param : params) {
-        param->link_param_type(linker);
+        if(!param->link_param_type(linker)) {
+            resolved = false;
+        }
+    }
+    if(!returnType->link(linker)) {
+        resolved = false;
     }
     linker.scope_end();
 
@@ -92,6 +100,9 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
     if(!container) {
         linker.error("type doesn't support extension functions " + type->representation(), receiver.type);
         return;
+    }
+    if(resolved) {
+        FunctionType::data.signature_resolved = true;
     }
     container->extension_functions[name()] = this;
 }
@@ -147,7 +158,6 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
     for (auto &param: params) {
         param->declare_and_link(linker);
     }
-    returnType->link(linker);
     if (body.has_value()) {
         body->link_sequentially(linker);
     }

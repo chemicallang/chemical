@@ -696,7 +696,11 @@ StructDefinition* Value::get_param_linked_struct() {
 }
 
 BaseType* Value::create_type(ASTAllocator& allocator) {
+#ifdef DEBUG
+    throw std::runtime_error("create_type called on base value");
+#else
     return nullptr;
+#endif
 }
 
 Value* Value::evaluated_chain_value(InterpretScope& scope, Value* parent) {

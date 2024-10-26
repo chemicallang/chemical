@@ -231,7 +231,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
 
 BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
     BaseType *elementType;
-    auto& known = known_elem_type();
+    const auto known = known_elem_type();
     if (known) {
         if(sizes.size() <= 1) {
             // get empty array type from the user

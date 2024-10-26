@@ -47,7 +47,27 @@ void SemanticTokensAnalyzer::visitCommon(CSTToken *token) {
 void SemanticTokensAnalyzer::put_auto(CSTToken* token) {
     switch (token->type()) {
         case LexTokenType::Keyword:
+        case LexTokenType::Bool:
+        case LexTokenType::Null:
             put(token, SemanticTokenType::ls_keyword);
+            return;
+        case LexTokenType::CharOperator:
+        case LexTokenType::StringOperator:
+        case LexTokenType::Operation:
+            put(token, SemanticTokenType::ls_operator);
+            return;
+        case LexTokenType::Char:
+        case LexTokenType::String:
+            put(token, SemanticTokenType::ls_string);
+            return;
+        case LexTokenType::Comment:
+            put(token, SemanticTokenType::ls_comment);
+            return;
+        case LexTokenType::Annotation:
+            put(token, SemanticTokenType::ls_macro);
+            return;
+        case LexTokenType::Number:
+            put(token, SemanticTokenType::ls_number);
             return;
         case LexTokenType::Variable:
         case LexTokenType::Identifier:
@@ -162,36 +182,12 @@ void SemanticTokensAnalyzer::visitEnumDecl(CSTToken* enumDecl) {
     }
 }
 
-void SemanticTokensAnalyzer::visitVarInit(CSTToken* varInit) {
-    visitCompoundCommon((CSTToken* ) varInit);
-}
-
 void SemanticTokensAnalyzer::visitFunction(CSTToken* function) {
     auto i = func_name_index(function);
     visit(function->tokens, 0, i);
     auto& name_token = function->tokens[i];
     put(name_token, SemanticTokenType::ls_function);
     visit(function->tokens, i + 1);
-};
-
-void SemanticTokensAnalyzer::visitIf(CSTToken* ifCst) {
-    visitCompoundCommon((CSTToken* ) ifCst);
-};
-
-void SemanticTokensAnalyzer::visitWhile(CSTToken* whileCst) {
-    visitCompoundCommon((CSTToken* ) whileCst);
-};
-
-void SemanticTokensAnalyzer::visitDoWhile(CSTToken* doWhileCst) {
-    visitCompoundCommon((CSTToken* ) doWhileCst);
-};
-
-void SemanticTokensAnalyzer::visitForLoop(CSTToken* forLoop) {
-    visitCompoundCommon((CSTToken* ) forLoop);
-};
-
-void SemanticTokensAnalyzer::visitSwitch(CSTToken* switchCst) {
-    visitCompoundCommon((CSTToken* ) switchCst);
 };
 
 void SemanticTokensAnalyzer::visitInterface(CSTToken* cst) {
@@ -258,51 +254,3 @@ void SemanticTokensAnalyzer::visitMultilineComment(CSTToken *token) {
         put(lineStart, charStart, total_length - lengthCovered, SemanticTokenType::ls_comment, 0);
     }
 };
-
-void SemanticTokensAnalyzer::visitBoolToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_keyword);
-};
-
-void SemanticTokensAnalyzer::visitNullToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_keyword);
-}
-
-void SemanticTokensAnalyzer::visitCharOperatorToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_operator);
-};
-
-void SemanticTokensAnalyzer::visitStringOperatorToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_operator);
-}
-
-void SemanticTokensAnalyzer::visitCharToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_string);
-};
-
-void SemanticTokensAnalyzer::visitCommentToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_comment);
-};
-
-void SemanticTokensAnalyzer::visitMacroToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_macro);
-};
-
-void SemanticTokensAnalyzer::visitAnnotationToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_macro);
-}
-
-void SemanticTokensAnalyzer::visitNumberToken(NumberToken *token) {
-    put((CSTToken *) token, SemanticTokenType::ls_number);
-};
-
-void SemanticTokensAnalyzer::visitOperationToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_operator);
-};
-
-void SemanticTokensAnalyzer::visitStringToken(CSTToken *token) {
-    put(token, SemanticTokenType::ls_string);
-};
-
-void SemanticTokensAnalyzer::visitAccessChain(CSTToken *chain) {
-    visit(chain->tokens);
-}

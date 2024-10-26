@@ -94,19 +94,7 @@ public:
         put_auto(token);
     }
 
-    void visitVarInit(CSTToken* varInit) final;
-
     void visitFunction(CSTToken* function) final;
-
-    void visitIf(CSTToken* ifCst) final;
-
-    void visitWhile(CSTToken* whileCst) final;
-
-    void visitDoWhile(CSTToken* doWhileCst) final;
-
-    void visitForLoop(CSTToken* forLoop) final;
-
-    void visitSwitch(CSTToken* switchCst) final;
 
     void visitInterface(CSTToken* interface) final;
 
@@ -120,30 +108,6 @@ public:
 
     // Token visitors
 
-    void visitAnnotationToken(CSTToken *token) final;
-
-    void visitBoolToken(CSTToken *token) final;
-
-    void visitNullToken(CSTToken *token) final;
-
-    void visitAccessChain(CSTToken *accessChain) final;
-
-    void visitCharOperatorToken(CSTToken *token) final;
-
-    void visitStringOperatorToken(CSTToken *token) final;
-
-    void visitCharToken(CSTToken *token) final;
-
-    void visitCommentToken(CSTToken *token) final;
-
     void visitMultilineComment(CSTToken *token) final;
-
-    void visitMacroToken(CSTToken *token) final;
-
-    void visitNumberToken(NumberToken *token) final;
-
-    void visitOperationToken(CSTToken *token) final;
-
-    void visitStringToken(CSTToken *token) final;
 
 };

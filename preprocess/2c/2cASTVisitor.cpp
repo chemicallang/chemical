@@ -192,7 +192,7 @@ void node_parent_name(ToCAstVisitor& visitor, ASTNode* node, bool take_parent = 
 void func_type_with_id(ToCAstVisitor& visitor, FunctionType* type, const std::string& id);
 
 void type_with_id(ToCAstVisitor& visitor, BaseType* type, const std::string& id) {
-    if(visitor.inline_fn_types_in_params && type->function_type() != nullptr && !type->function_type()->is_capturing()) {
+    if(visitor.inline_fn_types_in_params && type->function_type() != nullptr && !type->function_type()->isCapturing()) {
         func_type_with_id(visitor, type->function_type(), id);
     } else {
         type->accept(&visitor);
@@ -259,7 +259,7 @@ void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0
         has_params_before = true;
     }
     FunctionParam* param;
-    auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
+    auto size = decl->isVariadic() ? decl->params.size() - 1 : decl->params.size();
     while(i < size) {
         param = decl->params[i];
         if(has_params_before) {
@@ -269,7 +269,7 @@ void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0
         has_params_before = true;
         i++;
     }
-    if(decl->isVariadic) {
+    if(decl->isVariadic()) {
         if(has_params_before) {
             visitor.write(", ");
         }
@@ -316,7 +316,7 @@ void func_type_with_id_no_params(ToCAstVisitor& visitor, FunctionType* type, con
     visitor.write('*');
     visitor.write(id);
     visitor.write(")(");
-    if(type->isCapturing) {
+    if(type->isCapturing()) {
         visitor.write("void*");
         if(!type->params.empty()) {
             visitor.write(',');
@@ -331,7 +331,7 @@ void func_ptr_array_type(ToCAstVisitor& visitor, ArrayType* arrType, FunctionTyp
     visitor.write(id);
     write_type_post_id(visitor, arrType);
     visitor.write(")(");
-    if(type->isCapturing) {
+    if(type->isCapturing()) {
         visitor.write("void*");
         if(!type->params.empty()) {
             visitor.write(',');
@@ -800,7 +800,7 @@ void value_init_default(ToCAstVisitor& visitor, const std::string& identifier, B
         case BaseTypeKind::Array: {
             const auto arr_type = (ArrayType*) type;
             auto elem_type = arr_type->elem_type->function_type();
-            if (elem_type && !elem_type->isCapturing) {
+            if (elem_type && !elem_type->isCapturing()) {
                 func_ptr_array_type(visitor, arr_type, elem_type, identifier);
                 write_id = false;
             } else {
@@ -810,7 +810,7 @@ void value_init_default(ToCAstVisitor& visitor, const std::string& identifier, B
         }
         case BaseTypeKind::Function: {
             const auto func_type = type->function_type();
-            if (!func_type->isCapturing) {
+            if (!func_type->isCapturing()) {
                 func_type_with_id(visitor, func_type, identifier);
                 write_id = false;
             } else {
@@ -1869,7 +1869,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     write('(');
     unsigned i = 0;
     // writing the captured struct as a parameter
-    if(lamb->isCapturing) {
+    if(lamb->isCapturing()) {
         auto self_param = lamb->get_self_param();
         if(self_param) {
             self_param->accept(&visitor);
@@ -1977,7 +1977,7 @@ void CValueDeclarationVisitor::visit(StructValue *structValue) {
 
 void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<FunctionParam*>& params) {
     for(auto& param : params) {
-        if(param->type->kind() == BaseTypeKind::Function && param->type->function_type()->isCapturing) {
+        if(param->type->kind() == BaseTypeKind::Function && param->type->function_type()->isCapturing()) {
             // do not declare capturing function types
             continue;
         }
@@ -2010,7 +2010,7 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl,
     if(decl->has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing) {
+    if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing()) {
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
         const auto ret_kind = decl->returnType->kind();
@@ -2063,7 +2063,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
             i = 1;
         }
     };
-    if(tld->visitor.inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing) {
+    if(tld->visitor.inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing()) {
         tld->value_visitor->write("static ");
         accept_func_return(tld->visitor, decl->returnType->function_type()->returnType);
         tld->write('(');
@@ -2834,7 +2834,7 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
     auto prev_func_decl = visitor.current_func_type;
     visitor.current_func_type = decl;
     visitor.new_line_and_indent();
-    if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing) {
+    if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing()) {
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
         declare_func_with_return(visitor, decl, name);
@@ -3168,7 +3168,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
             i = 1;
         }
     };
-    if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing) {
+    if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing()) {
         visitor.write("static ");
         accept_func_return(visitor, decl->returnType->function_type()->returnType);
         visitor.write('(');
@@ -3529,7 +3529,7 @@ void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func
 }
 
 void func_call(ToCAstVisitor& visitor, FunctionType* type, std::unique_ptr<Value>& current, std::unique_ptr<Value>& next, unsigned int& i) {
-    if(type->isCapturing && current->as_func_call() == nullptr) {
+    if(type->isCapturing() && current->as_func_call() == nullptr) {
         capture_call(visitor, type, next->as_func_call(), [&current, &visitor](){
             current->accept(&visitor);
         }, [&current, &visitor] {
@@ -3654,7 +3654,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
             return;
         }
         visitor.write(allocated->second);
-    } else if(func_type->isCapturing) {
+    } else if(func_type->isCapturing()) {
         // function calls to capturing lambdas
         capture_call(visitor, func_type, last, [&](){
             auto prev = visitor.nested_value;
@@ -3980,7 +3980,7 @@ void ToCAstVisitor::visit(MacroValueStatement *statement) {
 
 void ToCAstVisitor::visit(StructMember *member) {
     if(inline_struct_members_fn_types && member->type->kind() == BaseTypeKind::Function) {
-        if(member->type->function_type()->isCapturing) {
+        if(member->type->function_type()->isCapturing()) {
             write(fat_pointer_type);
             write('*');
             space();
@@ -4437,7 +4437,7 @@ void ToCAstVisitor::visit(ValueNode *node) {
 void ToCAstVisitor::visit(LambdaFunction *func) {
     auto found = declarer->aliases.find(func);
     if(found != declarer->aliases.end()) {
-        if(func->isCapturing) {
+        if(func->isCapturing()) {
             write('(');
             write('&');
             write('(');
@@ -4529,7 +4529,7 @@ void ToCAstVisitor::visit(ComplexType *type) {
 }
 
 void ToCAstVisitor::visit(FunctionType *type) {
-    if(type->isCapturing) {
+    if(type->isCapturing()) {
         write(fat_pointer_type);
         write('*');
         return;

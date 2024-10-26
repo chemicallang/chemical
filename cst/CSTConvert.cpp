@@ -574,7 +574,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
 
     funcDecl->params = std::move(params.params);
     funcDecl->returnType = returnType;
-    funcDecl->isVariadic = params.isVariadic;
+    funcDecl->setIsVariadic(params.isVariadic);
 
     if(is_generic) {
         convert_generic_list(this, alloc, gen_token, funcDecl->generic_params, funcDecl);
@@ -1001,7 +1001,7 @@ void CSTConverter::visitLambda(CSTToken* cst) {
     auto result = function_params(this, lambda, cst->tokens, i);
 
     lambda->params = std::move(result.params);
-    lambda->isVariadic = result.isVariadic;
+    lambda->setIsVariadic(result.isVariadic);
 
     auto bodyIndex = result.index + 2;
     if (cst->tokens[bodyIndex]->type() == LexTokenType::CompBody) {
@@ -1766,7 +1766,7 @@ void CSTConverter::visitFunctionType(CSTToken* funcType) {
     visit(funcType->tokens, params.index + 2);
 
     func_type->params = std::move(params.params);
-    func_type->isVariadic = params.isVariadic;
+    func_type->setIsVariadic(params.isVariadic);
     func_type->returnType = type();
 
     put_type(func_type, funcType);

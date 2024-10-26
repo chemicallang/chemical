@@ -59,11 +59,11 @@ void llvm_func_param_types_into(
 }
 
 std::vector<llvm::Type *> FunctionType::param_types(Codegen &gen) {
-    return llvm_func_param_types(gen, params, returnType, isCapturing, isVariadic, as_function());
+    return llvm_func_param_types(gen, params, returnType, isCapturing(), isVariadic(), as_function());
 }
 
 llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen) {
-    return llvm::FunctionType::get(llvm_func_return(gen, returnType), param_types(gen), isVariadic);
+    return llvm::FunctionType::get(llvm_func_return(gen, returnType), param_types(gen), isVariadic());
 }
 
 llvm::Type *FunctionType::llvm_type(Codegen &gen) {
@@ -79,17 +79,17 @@ FunctionType::FunctionType(
     bool isCapturing,
     ASTNode* parent_node,
     SourceLocation location
-) : params(std::move(params)), returnType(returnType), isVariadic(isVariadic), isCapturing(isCapturing),
+) : data(isVariadic, isCapturing, false), params(std::move(params)), returnType(returnType),
     parent_node(parent_node), TokenizedBaseType(location) {
 
 }
 
 bool FunctionType::isInVarArgs(unsigned index) const {
-    return isVariadic && index >= (params.size() - 1);
+    return isVariadic() && index >= (params.size() - 1);
 }
 
 uint64_t FunctionType::byte_size(bool is64Bit) {
-    if(is_capturing()) {
+    if(isCapturing()) {
         return is64Bit ? 16 : 8;
     } else {
         return is64Bit ? 8 : 4;
@@ -114,7 +114,7 @@ unsigned int FunctionType::expectedArgsSize() {
 FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
     if(params.empty()) return nullptr;
     const auto offset = explicit_func_arg_offset(); // first argument for implicit self
-    if(isVariadic && index >= (params.size() - 1 - offset)) {
+    if(isVariadic() && index >= (params.size() - 1 - offset)) {
         return params.back();
     }
     const auto expected = index + offset;
@@ -197,7 +197,7 @@ unsigned FunctionType::c_or_llvm_arg_start_index() {
 }
 
 bool FunctionType::equal(FunctionType *other) const {
-    if (isVariadic != other->isVariadic) {
+    if (isVariadic() != other->isVariadic()) {
         return false;
     }
     if (!returnType->is_same(other->returnType)) {
@@ -222,7 +222,7 @@ FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
     for (auto &param: params) {
         copied.emplace_back(param->copy(allocator));
     }
-    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, isCapturing, parent_node, ZERO_LOC);
+    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic(), isCapturing(), parent_node, ZERO_LOC);
 }
 
 bool FunctionType::link(SymbolResolver &linker) {

@@ -12,7 +12,7 @@
 std::vector<llvm::Type *> ExtensionFunction::param_types(Codegen &gen) {
     std::vector<llvm::Type*> paramTypes;
     llvm_func_param_type(gen, paramTypes, receiver.type);
-    llvm_func_param_types_into(gen, paramTypes, params, returnType, false, isVariadic, this);
+    llvm_func_param_types_into(gen, paramTypes, params, returnType, false, isVariadic(), this);
     return paramTypes;
 }
 

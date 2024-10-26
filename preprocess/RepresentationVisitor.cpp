@@ -310,7 +310,7 @@ void RepresentationVisitor::visit(FunctionDeclaration *decl) {
         if (i < decl->params.size() - 1) {
             write(", ");
         } else {
-            if (decl->isVariadic) {
+            if (decl->isVariadic()) {
                 write("...");
             }
         }

@@ -98,9 +98,9 @@ llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
 llvm::FunctionType *FunctionDeclaration::create_llvm_func_type(Codegen &gen) {
     auto paramTypes = param_types(gen);
     if(paramTypes.empty()) {
-        return llvm::FunctionType::get(llvm_func_return(gen, returnType), isVariadic);
+        return llvm::FunctionType::get(llvm_func_return(gen, returnType), isVariadic());
     } else {
-        return llvm::FunctionType::get(llvm_func_return(gen, returnType), paramTypes, isVariadic);
+        return llvm::FunctionType::get(llvm_func_return(gen, returnType), paramTypes, isVariadic());
     }
 }
 
@@ -908,7 +908,7 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
 }
 
 std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
-    return llvm_func_param_types(gen, params, returnType, false, isVariadic, this);
+    return llvm_func_param_types(gen, params, returnType, false, isVariadic(), this);
 }
 
 llvm::Type *FunctionDeclaration::llvm_type(Codegen &gen) {
@@ -1309,10 +1309,10 @@ int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCal
 
 BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
     std::vector<FunctionParam*> copied;
-    for(const auto& param : params) {
+    for(const auto param : params) {
         copied.emplace_back(param->copy(allocator));
     }
-    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, false, parent_node, ZERO_LOC);
+    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic(), false, parent_node, ZERO_LOC);
 }
 
 //hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {

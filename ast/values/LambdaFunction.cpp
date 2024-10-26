@@ -44,7 +44,7 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
 }
 
 llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
-    if(lambda->isCapturing) {
+    if(lambda->isCapturing()) {
         auto captured = lambda->captured_struct;
         if(!captured) {
             captured = llvm::ConstantPointerNull::get(llvm::PointerType::get(*gen.ctx, 0));
@@ -79,7 +79,7 @@ llvm::Type *LambdaFunction::capture_struct_type(Codegen &gen) {
 
 BaseType* LambdaFunction::create_type(ASTAllocator& allocator) {
     auto func_type = (FunctionType*) FunctionType::copy(allocator);
-    func_type->isCapturing = !captureList.empty();
+    func_type->setIsCapturing(!captureList.empty());
     return func_type;
 }
 
@@ -218,7 +218,7 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     } else if(!returnType->is_same(func_type->returnType)) {
         linker.error("Lambda function type expected return type to be " + func_type->returnType->representation() + " but got lambda with return type " + returnType->representation(), (Value*) this);
     }
-    isCapturing = func_type->isCapturing;
+    setIsCapturing(func_type->isCapturing());
     return true;
 }
 

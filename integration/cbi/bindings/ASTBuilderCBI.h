@@ -281,7 +281,7 @@ extern "C" {
 
     ForLoop* ASTBuildermake_for_loop(CSTConverter* converter, VarInitStatement* initializer, Value* conditionExpr, ASTNode* incrementerExpr, ASTNode* parent_node, uint64_t location);
 
-    FunctionDeclaration* ASTBuildermake_function(CSTConverter* converter, chem::string* name, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location);
+    FunctionDeclaration* ASTBuildermake_function(CSTConverter* converter, chem::string* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location);
 
     FunctionParam* ASTBuildermake_function_param(CSTConverter* converter, chem::string* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location);
 

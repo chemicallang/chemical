@@ -93,7 +93,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
         linker.error("type doesn't support extension functions " + type->representation(), receiver.type);
         return;
     }
-    container->extension_functions[name] = this;
+    container->extension_functions[name()] = this;
 }
 
 void ExtensionFuncReceiver::accept(Visitor *visitor) {
@@ -101,7 +101,7 @@ void ExtensionFuncReceiver::accept(Visitor *visitor) {
 }
 
 ExtensionFunction::ExtensionFunction(
-        std::string name,
+        LocatedIdentifier identifier,
         ExtensionFuncReceiver receiver,
         std::vector<FunctionParam*> params,
         BaseType* returnType,
@@ -111,7 +111,7 @@ ExtensionFunction::ExtensionFunction(
         std::optional<LoopScope> body,
         AccessSpecifier specifier
 ) : FunctionDeclaration(
-    std::move(name),
+    std::move(identifier),
     std::move(params),
     returnType,
     isVariadic,
@@ -127,9 +127,9 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
 
     auto linked = receiver.type->linked_node();
     if(linked) {
-        const auto field_func = linked->child(name);
+        const auto field_func = linked->child(name());
         if (field_func != this) {
-            linker.error("couldn't declare extension function with name '" + name + "' because type '" +
+            linker.error("couldn't declare extension function with name '" + name() + "' because type '" +
                          receiver.type->representation() + "' already has a field / function with same name \n",
                          receiver.type);
             return;

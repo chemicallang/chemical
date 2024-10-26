@@ -84,7 +84,7 @@ void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_
             if(func_res != found->second.end()) {
                 llvm_pointers.emplace_back(func_res->second);
             } else {
-                gen.error("couldn't find function impl pointer, name '" + func->name + "' for struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' for interface '" + name + "'", (AnnotableNode*) func);
+                gen.error("couldn't find function impl pointer, name '" + func->name() + "' for struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' for interface '" + name + "'", (AnnotableNode*) func);
             }
         }
     } else {

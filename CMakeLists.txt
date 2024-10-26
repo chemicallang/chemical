@@ -501,6 +501,7 @@ set(COMMON_SOURCES
         cst/LocationManager.h
         cst/LocationManager.cpp
         cst/SourceLocation.h
+        ast/base/LocatedIdentifier.h
 )
 
 # Chemical LSP Executable Target

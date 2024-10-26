@@ -18,32 +18,58 @@
 #include "ast/base/AnnotableNode.h"
 #include "ast/types/FunctionType.h"
 #include "GenericTypeParameter.h"
+#include "ast/base/LocatedIdentifier.h"
 
 class ExtendableMembersContainerNode;
 
 /**
- * Function declaration's bool data
+ * Function declaration's extra data
+ * this is stored here, to avoid making declarations memory size insane
  */
-struct FuncDeclBoolData {
+struct FuncDeclExtData {
+    /**
+     * the access specifier for the function declaration
+     */
+    AccessSpecifier specifier = AccessSpecifier::Internal;
     /**
      * set to true after declare_top_level, if signature resolved successfully
      */
     bool resolved_signature_successfully = false;
+    /**
+     * when involved in multi function node (due to same name, different parameters)
+     */
+    uint8_t multi_func_index = 0;
 };
+
+static_assert(sizeof(FuncDeclExtData) <= 8);
 
 class FunctionDeclaration : public AnnotableNode, public FunctionType {
 private:
+    /**
+     * TODO avoid storing the interpret return here
+     */
     Value *interpretReturn = nullptr;
+    /**
+     * TODO call scope shouldn't be stored here
+     */
     InterpretScope* callScope = nullptr;
 public:
 
-    AccessSpecifier specifier = AccessSpecifier::Internal;
-    std::string name;
+    /**
+     * the name of the function is stored inside
+     */
+    LocatedIdentifier identifier;
+    /**
+     * the generic parameters
+     */
     std::vector<GenericTypeParameter*> generic_params;
     /**
      * subscribers are notified of generic usages of this function
      */
     std::vector<GenericType*> subscribers;
+    /**
+     * optional body
+     */
     std::optional<LoopScope> body;
     /**
      * if this is a generic function (it has generic parameters), generic parameters
@@ -51,10 +77,6 @@ public:
      * that we determined during symbol resolution
      */
     int16_t active_iteration = 0;
-    /**
-     * when involved in multi function node (due to same name, different parameters)
-     */
-    uint8_t multi_func_index = 0;
     /**
      * this index corresponds to number of iterations in llvm_data, for which function bodies
      * have been generated, so next time we should start at this index to generate bodies
@@ -65,17 +87,23 @@ public:
      */
     SourceLocation location;
 
+    /**
+     * the llvm data
+     */
 #ifdef COMPILER_BUILD
     std::vector<std::pair<llvm::Value*, llvm::FunctionType*>> llvm_data;
 #endif
 
-    FuncDeclBoolData data;
+    /**
+     * external data is stored in
+     */
+    FuncDeclExtData data;
 
     /**
      * constructor
      */
     FunctionDeclaration(
-            std::string name,
+            LocatedIdentifier identifier,
             std::vector<FunctionParam*> params,
             BaseType* returnType,
             bool isVariadic,
@@ -84,6 +112,26 @@ public:
             std::optional<LoopScope> body = std::nullopt,
             AccessSpecifier = AccessSpecifier::Internal
     );
+
+    inline AccessSpecifier specifier() {
+        return data.specifier;
+    }
+
+    inline void set_specifier_fast(AccessSpecifier specifier) {
+        data.specifier = specifier;
+    }
+
+    inline const std::string& name() {
+        return identifier.identifier;
+    }
+
+    inline uint8_t multi_func_index() {
+        return data.multi_func_index;
+    }
+
+    inline void set_multi_func_index(uint8_t i) {
+        data.multi_func_index = i;
+    }
 
     SourceLocation encoded_location() override {
         return location;
@@ -108,7 +156,7 @@ public:
     }
 
     bool is_exported_fast() {
-        return specifier == AccessSpecifier::Public;
+        return specifier() == AccessSpecifier::Public;
     }
 
     std::string runtime_name_fast() {
@@ -130,11 +178,11 @@ public:
     }
 
     const std::string& ns_node_identifier() final {
-        return name;
+        return name();
     }
 
-    std::string func_opt_name() {
-        return name;
+    const std::string& func_opt_name() final {
+        return name();
     }
 
     void accept(Visitor *visitor);

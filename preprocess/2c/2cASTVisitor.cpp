@@ -1564,7 +1564,7 @@ void CDestructionVisitor::destruct(const std::string& self_name, ExtendableMembe
         visitor.new_line_and_indent();
     }
     func_container_name(visitor, parent_node, destructor);
-    visitor.write(destructor->name);
+    visitor.write(destructor->name());
     visitor.write('(');
     if(destructor->has_self_param()) {
         if(!is_pointer) {
@@ -2092,13 +2092,13 @@ void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
 //        visitor->error("Function name " + decl->name + " returns a capturing lambda, which is not supported");
 //    }
     if(decl->generic_params.empty()) {
-        declare_by_name(this, decl, decl->name);
+        declare_by_name(this, decl, decl->name());
     } else {
         auto size = decl->total_generic_iterations();
         int16_t i = 0;
         while(i < size) {
             decl->set_active_iteration(i);
-            declare_by_name(this, decl, decl->name);
+            declare_by_name(this, decl, decl->name());
             i++;
         }
         // set the active iteration to -1, so whoever accesses it without setting it to zero receives an error
@@ -2107,7 +2107,7 @@ void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
 }
 
 void CTopLevelDeclarationVisitor::visit(ExtensionFunction *decl) {
-    declare_by_name(this, decl, decl->name);
+    declare_by_name(this, decl, decl->name());
 }
 
 void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
@@ -2168,7 +2168,7 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     visitor.new_line_and_indent();
     write("};");
     for(auto& func : def->functions()) {
-        declare_contained_func(this, func, def->name + func->name, false);
+        declare_contained_func(this, func, def->name + func->name(), false);
     }
 }
 
@@ -2226,7 +2226,7 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     declare_struct_def_only(def);
     for(auto& func : def->functions()) {
         if(def->get_overriding_interface(func) == nullptr) {
-            declare_contained_func(this, func, struct_name_str(visitor, def) + func->name, false);
+            declare_contained_func(this, func, struct_name_str(visitor, def) + func->name(), false);
         }
     }
 }
@@ -2377,7 +2377,7 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     }
     for(auto& func : def->functions()) {
 //        if(def->get_overriding_interface(func.get()) == nullptr) {
-            declare_contained_func(this, func, struct_name_str(visitor, def) + func->name, false);
+            declare_contained_func(this, func, struct_name_str(visitor, def) + func->name(), false);
 //        }
     }
 }
@@ -2419,7 +2419,7 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
         auto self_param = func->get_self_param();
         if(self_param) {
             visitor.new_line_and_indent();
-            func_type_with_id_no_params(visitor, func, func->name);
+            func_type_with_id_no_params(visitor, func, func->name());
             visitor.write("struct ");
             node_name(visitor, definition);
             visitor.write('*');
@@ -2445,7 +2445,7 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
         if(func->has_self_param()) {
             visitor.new_line_and_indent();
             visitor.write(definition->name);
-            visitor.write(func->name);
+            visitor.write(func->name());
             visitor.write(',');
         }
     }
@@ -2465,14 +2465,14 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
     }
     for (auto& func: def->functions()) {
         if(!func->has_self_param()) {
-            declare_contained_func(this, func, def->name + func->name, false);
+            declare_contained_func(this, func, def->name + func->name(), false);
         }
     }
     for(auto& use : def->users) {
         def->active_user = use.first;
         for (auto& func: def->functions()) {
             if(func->has_self_param()) {
-                declare_contained_func(this, func, use.first->name + func->name, false, use.first);
+                declare_contained_func(this, func, use.first->name + func->name(), false, use.first);
             }
         }
     }
@@ -2849,14 +2849,14 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
         int16_t total = decl->total_generic_iterations();
         while(itr < total) {
             decl->set_active_iteration(itr);
-            func_decl_with_name(visitor, decl, decl->name);
+            func_decl_with_name(visitor, decl, decl->name());
             itr++;
         }
         // set to -1, so whoever tries to access generic parameters types, they receive an error if active iteration is not set again
         decl->set_active_iteration(-1);
         decl->bodies_gen_index = total;
     } else {
-        func_decl_with_name(visitor, decl, decl->name);
+        func_decl_with_name(visitor, decl, decl->name());
     }
 }
 
@@ -2875,7 +2875,7 @@ void call_variant_param_func(
     }
     visitor.new_line_and_indent();
     func_container_name(visitor, mem_def, func);
-    visitor.write(func->name);
+    visitor.write(func->name());
     visitor.write('(');
     if (func->has_self_param()) {
         visitor.write("&self->");
@@ -2921,7 +2921,7 @@ void variant_member_copy_fn_gen(
     // copy func call
     visitor.new_line_and_indent();
     func_container_name(visitor, mem_def, func);
-    visitor.write(func->name);
+    visitor.write(func->name());
     visitor.write('(');
 
     // writing the self arg
@@ -3031,7 +3031,7 @@ void call_struct_member_fn(
     }
     visitor.new_line_and_indent();
     func_container_name(visitor, mem_def, func);
-    visitor.write(func->name);
+    visitor.write(func->name());
     visitor.write('(');
     if (func->has_self_param()) {
         visitor.write("&self->");
@@ -3079,7 +3079,7 @@ void call_struct_members_copy_fn(
         }
         visitor.new_line_and_indent();
         func_container_name(visitor, mem_def, func);
-        visitor.write(func->name);
+        visitor.write(func->name());
         visitor.write('(');
         // writing the self arg
         visitor.write("&self->");
@@ -3378,7 +3378,7 @@ void ToCAstVisitor::visit(StructDefinition *def) {
         const auto overridden = inherits->type->linked_node()->as_interface_def();
         if (overridden) {
             for (auto& func: overridden->functions()) {
-                if (!def->contains_func(func->name)) {
+                if (!def->contains_func(func->name())) {
                     contained_func_decl(*this, func, false, def);
                 }
             }

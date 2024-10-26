@@ -421,8 +421,8 @@ ForLoop* ASTBuildermake_for_loop(CSTConverter* converter, VarInitStatement* init
     return new (converter->local<ForLoop>()) ForLoop(initializer, conditionExpr, incrementerExpr, LoopScope(parent_node, location), parent_node, location);
 }
 
-FunctionDeclaration* ASTBuildermake_function(CSTConverter* converter, chem::string* name, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
-    return new (converter->local<FunctionDeclaration>()) FunctionDeclaration(name->to_std_string(), {}, returnType, isVariadic, parent_node, location, std::nullopt);
+FunctionDeclaration* ASTBuildermake_function(CSTConverter* converter, chem::string* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
+    return new (converter->local<FunctionDeclaration>()) FunctionDeclaration({ name->to_std_string(), name_location }, {}, returnType, isVariadic, parent_node, location, std::nullopt);
 }
 
 FunctionParam* ASTBuildermake_function_param(CSTConverter* converter, chem::string* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {

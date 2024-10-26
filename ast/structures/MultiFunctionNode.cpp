@@ -47,17 +47,18 @@ OverridableFuncHandlingResult handle_name_overload_function(
             }
         }
         if(failed) return result;
-        declaration->multi_func_index = multi->functions.size();
+        declaration->set_multi_func_index(multi->functions.size());
         multi->functions.emplace_back(declaration);
     } else if(previous) {
         if(previous->parent_node != declaration->parent_node) {
             return result;
         }
         if(!previous->do_param_types_match(declaration->params)) {
+            // TODO VERY IMPORTANT Multi function node allocated without allocator
             multi = new MultiFunctionNode(name);
             multi->functions.emplace_back(previous);
             multi->functions.emplace_back(declaration);
-            declaration->multi_func_index = 1;
+            declaration->set_multi_func_index(1);
             result.new_multi_func_node = multi;
         } else {
             result.duplicates.emplace_back(previous_node);

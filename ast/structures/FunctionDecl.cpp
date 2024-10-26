@@ -360,7 +360,7 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     }
 #endif
     auto func_type = decl->create_llvm_func_type(gen);
-    auto func = gen.create_function(name, func_type, decl->specifier);
+    auto func = gen.create_function(name, func_type, decl->specifier());
     llvm_func_def_attr(func);
     decl->traverse([func](Annotation* annotation){
         llvm_func_attr(func, annotation->kind);
@@ -1117,7 +1117,7 @@ void GenericTypeParameter::register_usage(ASTAllocator& allocator, BaseType* typ
 }
 
 FunctionDeclaration::FunctionDeclaration(
-        std::string name,
+        LocatedIdentifier identifier,
         std::vector<FunctionParam*> params,
         BaseType* returnType,
         bool isVariadic,
@@ -1126,8 +1126,8 @@ FunctionDeclaration::FunctionDeclaration(
         std::optional<LoopScope> body,
         AccessSpecifier specifier
 ) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location),
-    name(std::move(name)),
-    body(std::move(body)), location(location), specifier(specifier) {
+    identifier(std::move(identifier)),
+    body(std::move(body)), location(location), data(specifier, false, 0) {
 }
 
 std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {
@@ -1173,10 +1173,10 @@ void FunctionDeclaration::runtime_name(std::ostream &stream) {
 }
 
 void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
-    stream << name;
-    if(multi_func_index != 0) {
+    stream << name();
+    if(multi_func_index() != 0) {
         stream << "__cmf_";
-        stream << std::to_string(multi_func_index);
+        stream << std::to_string(multi_func_index());
     }
     if(active_iteration != 0) {
         stream << "__cgf_";
@@ -1198,7 +1198,7 @@ void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMem
 
 void check_returns_void(SymbolResolver& resolver, FunctionDeclaration* decl) {
     if(decl->returnType->kind() != BaseTypeKind::Void) {
-        resolver.error(decl->name + " function return type should be void", (ASTNode*) decl);
+        resolver.error(decl->name() + " function return type should be void", (ASTNode*) decl);
     }
 }
 
@@ -1209,7 +1209,7 @@ void check_self_param(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNo
             return;
         }
     }
-    resolver.error(decl->name + " must have a single implicit self reference parameter", (ASTNode*) decl);
+    resolver.error(decl->name() + " must have a single implicit self reference parameter", (ASTNode*) decl);
 }
 
 void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNode* self) {
@@ -1223,7 +1223,7 @@ void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl
             return;
         }
     }
-    resolver.error(decl->name + " function must have two implicit reference parameters", (ASTNode*) decl);
+    resolver.error(decl->name() + " function must have two implicit reference parameters", (ASTNode*) decl);
 }
 
 void FunctionDeclaration::ensure_constructor(SymbolResolver& resolver, StructDefinition* def) {
@@ -1324,7 +1324,7 @@ void FunctionDeclaration::accept(Visitor *visitor) {
 }
 
 void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
-    linker.declare_function(name, this);
+    linker.declare_function(name(), this);
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
@@ -1358,7 +1358,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
         data.resolved_signature_successfully = true;
     }
     linker.scope_end();
-    linker.declare_function(name, this, specifier);
+    linker.declare_function(name(), this, specifier());
 }
 
 bool FunctionDeclaration::ensure_has_init_block() {
@@ -1434,7 +1434,7 @@ Value *FunctionDeclaration::call(
     auto self_param = get_self_param();
     auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
     if (params.size() != params_given) {
-        fn_scope->error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
+        fn_scope->error("function " + name() + " requires " + std::to_string(params.size()) + ", but given params are " +
                         std::to_string(call_args.size()), debug_value);
         return nullptr;
     }

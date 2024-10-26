@@ -2,6 +2,13 @@
 
 #include "DocumentSymbolsAnalyzer.h"
 #include "cst/utils/CSTUtils.h"
+#include "cst/LocationManager.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "ast/statements/Typealias.h"
+#include "ast/statements/VarInit.h"
+#include "ast/structures/EnumDeclaration.h"
 
 // TODO put nested symbols
 // TODO put small detail about function
@@ -15,49 +22,40 @@ void DocumentSymbolsAnalyzer::put(const std::string &name, lsSymbolKind kind, ls
     );
 }
 
-lsRange range(CSTToken *token) {
-    auto &start = token->start_token()->position();
-    auto end = token->end_token();
+lsRange DocumentSymbolsAnalyzer::range(SourceLocation location) {
+    const auto pos = loc_man.getLocationPos(location);
     return lsRange{
             lsPosition{
-                    static_cast<int>(start.line),
-                    static_cast<int>(start.character)
+                    static_cast<int>(pos.start.line),
+                    static_cast<int>(pos.start.character)
             },
             lsPosition{
-                    static_cast<int>(end->position().line),
-                    static_cast<int>(end->position().character + end->value().size())
+                    static_cast<int>(pos.end.line),
+                    static_cast<int>(pos.end.character)
             }
     };
 }
 
-void DocumentSymbolsAnalyzer::visitCompoundCommon(CSTToken* cst) {
-
+void DocumentSymbolsAnalyzer::visit(FunctionDeclaration *decl) {
+    put(decl->name(), lsSymbolKind::Function, range(decl->location), range(decl->identifier.location));
 }
 
-void DocumentSymbolsAnalyzer::visitFunction(CSTToken* function) {
-    put(func_name(function), lsSymbolKind::Function, range(function), range(func_name_tok(function)));
+void DocumentSymbolsAnalyzer::visit(StructDefinition *def) {
+    put(def->name, lsSymbolKind::Struct, range(def->location), range(struct_name_tok(structDef)));
 }
 
-void DocumentSymbolsAnalyzer::visitStructDef(CSTToken* structDef) {
-    put(struct_name(structDef), lsSymbolKind::Struct, range(structDef), range(struct_name_tok(structDef)));
+void DocumentSymbolsAnalyzer::visit(InterfaceDefinition *def) {
+    put(def->name, lsSymbolKind::Interface, range(def->location), range(interface_name_tok(interface)));
 }
 
-void DocumentSymbolsAnalyzer::visitInterface(CSTToken* interface) {
-    put(interface_name(interface), lsSymbolKind::Interface, range(interface), range(interface_name_tok(interface)));
+void DocumentSymbolsAnalyzer::visit(TypealiasStatement *def) {
+    put(def->identifier, lsSymbolKind::Interface, range(def->location), range(interface_name_tok(interface)));
 }
 
-void DocumentSymbolsAnalyzer::visitTypealias(CSTToken* alias) {
-    put(typealias_name(alias), lsSymbolKind::TypeAlias, range(alias), range(typealias_name_tok(alias)));
+void DocumentSymbolsAnalyzer::visit(EnumDeclaration *def) {
+    put(def->name, lsSymbolKind::Enum, range(def->location), range(enum_name_tok(enumDecl)));
 }
 
-void DocumentSymbolsAnalyzer::visitEnumDecl(CSTToken* enumDecl) {
-    put(enum_name(enumDecl), lsSymbolKind::Enum, range(enumDecl), range(enum_name_tok(enumDecl)));
-}
-
-void DocumentSymbolsAnalyzer::visitVarInit(CSTToken* varInit) {
-    put(var_init_identifier(varInit), lsSymbolKind::Variable, range(varInit), range(var_init_name_tok(varInit)));
-}
-
-void DocumentSymbolsAnalyzer::analyze(std::vector<CSTToken*> &tokens) {
-    ::visit(this, tokens);
+void DocumentSymbolsAnalyzer::visit(VarInitStatement *init) {
+    put(init->identifier, lsSymbolKind::Enum, range(init->location), range(enum_name_tok(enumDecl)));
 }

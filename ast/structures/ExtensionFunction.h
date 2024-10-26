@@ -11,7 +11,7 @@ public:
     ExtensionFuncReceiver receiver;
 
     ExtensionFunction(
-            std::string name,
+            LocatedIdentifier identifier,
             ExtensionFuncReceiver receiver,
             std::vector<FunctionParam*> params,
             BaseType* returnType,
@@ -36,12 +36,8 @@ public:
         visitor->visit(this);
     }
 
-    ExtensionFunction * as_extension_func() final {
+    ExtensionFunction* as_extension_func() final {
         return this;
-    }
-
-    std::string func_opt_name() final {
-        return name;
     }
 
     /**

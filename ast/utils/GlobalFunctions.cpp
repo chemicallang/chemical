@@ -139,7 +139,7 @@ namespace InterpretVector {
     };
 
     InterpretVectorConstructor::InterpretVectorConstructor(InterpretVectorNode* node) : FunctionDeclaration(
-            "constructor",
+            { "constructor", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &node->selfType,
             false,
@@ -156,7 +156,7 @@ namespace InterpretVector {
     }
 
     InterpretVectorSize::InterpretVectorSize(InterpretVectorNode* node) : FunctionDeclaration(
-        "size",
+            { "size", ZERO_LOC },
         std::vector<FunctionParam*> {},
         &retType,
         false,
@@ -175,7 +175,7 @@ namespace InterpretVector {
 
     // TODO interpret vector get should return a reference to T
     InterpretVectorGet::InterpretVectorGet(InterpretVectorNode* node) : FunctionDeclaration(
-            "get",
+            { "get", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &returnLinkedType,
             false,
@@ -195,7 +195,7 @@ namespace InterpretVector {
     }
 
     InterpretVectorPush::InterpretVectorPush(InterpretVectorNode* node) : FunctionDeclaration(
-            "push",
+            { "push", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &returnVoidType,
             false,
@@ -216,7 +216,7 @@ namespace InterpretVector {
     }
 
     InterpretVectorRemove::InterpretVectorRemove(InterpretVectorNode* node) : FunctionDeclaration(
-            "remove",
+            { "remove", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &returnVoidType,
             false,
@@ -263,7 +263,7 @@ public:
 
 
     explicit InterpretPrint(ASTNode* parent_node) : FunctionDeclaration(
-            "print",
+            { "print", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &returnType,
             true,
@@ -319,7 +319,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretSize(ASTNode* parent_node) : FunctionDeclaration(
-            "size",
+            { "size", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &returnType,
             false,
@@ -388,7 +388,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretWrap(ASTNode* parent_node) : FunctionDeclaration(
-            "wrap",
+            { "wrap", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &anyType,
             true,
@@ -418,7 +418,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretUnwrap(ASTNode* parent_node) : FunctionDeclaration(
-            "unwrap",
+            { "unwrap", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &anyType,
             true,
@@ -447,7 +447,7 @@ public:
     PointerType ptrType;
 
     explicit InterpretRetStructPtr(ASTNode* parent_node) : FunctionDeclaration(
-            "return_struct",
+            { "return_struct", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &ptrType,
             true,
@@ -469,7 +469,7 @@ public:
     StringType stringType;
 
     explicit InterpretCompilerVersion(ASTNode* parent_node) : FunctionDeclaration(
-            "version",
+            { "version", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &stringType,
             false,
@@ -497,7 +497,7 @@ public:
     BoolType boolType;
 
     explicit InterpretIsTcc(ASTNode* parent_node) : FunctionDeclaration(
-            "is_tcc_based",
+            { "is_tcc_based", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -523,7 +523,7 @@ public:
     BoolType boolType;
 
     explicit InterpretIsClang(ASTNode* parent_node) : FunctionDeclaration(
-            "is_clang",
+            { "is_clang", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -549,7 +549,7 @@ public:
     UBigIntType uIntType;
 
     explicit InterpretGetLineNo() : FunctionDeclaration(
-            "get_line_no",
+            { "get_line_no", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -573,7 +573,7 @@ public:
     UBigIntType uIntType;
 
     explicit InterpretGetCharacterNo() : FunctionDeclaration(
-            "get_char_no",
+            { "get_char_no", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -606,7 +606,7 @@ public:
     UBigIntType uIntType;
 
     explicit InterpretGetCallerLineNo() : FunctionDeclaration(
-            "get_caller_line_no",
+            { "get_caller_line_no", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -636,7 +636,7 @@ public:
     UBigIntType uIntType;
 
     explicit InterpretGetCallerCharacterNo() : FunctionDeclaration(
-            "get_caller_char_no",
+            { "get_caller_char_no", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -668,7 +668,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretDefined() : FunctionDeclaration(
-            "defined",
+            { "defined", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -699,7 +699,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretError() : FunctionDeclaration(
-            "error",
+            { "error", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &voidType,
             false,
@@ -728,7 +728,7 @@ public:
     FunctionParam valueParam2;
 
     explicit InterpretSatisfies(ASTNode* parent_node) : FunctionDeclaration(
-            "satisfies",
+            { "satisfies", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &returnType,
             false,
@@ -774,7 +774,7 @@ public:
     NullValue nullVal;
 
     explicit InterpretIsPtrNull(ASTNode* parent_node) : FunctionDeclaration(
-            "isNull",
+            { "isNull", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -804,7 +804,7 @@ public:
     NullValue nullVal;
 
     explicit InterpretIsPtrNotNull(ASTNode* parent_node) : FunctionDeclaration(
-            "isNotNull",
+            { "isNotNull", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -832,7 +832,7 @@ public:
     FunctionParam sourceValueParam;
 
     explicit InterpretMemCopy(ASTNode* parent_node) : FunctionDeclaration(
-            "copy",
+            { "copy", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -862,7 +862,7 @@ public:
     StringType stringType;
 
     explicit InterpretGetTarget(ASTNode* parent_node) : FunctionDeclaration(
-            "get_target",
+            { "get_target", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &stringType,
             false,
@@ -884,7 +884,7 @@ public:
     StringType stringType;
 
     explicit InterpretGetCurrentFilePath(ASTNode* parent_node) : FunctionDeclaration(
-            "get_current_file_path",
+            { "get_current_file_path", ZERO_LOC },
             std::vector<FunctionParam*> {},
             &stringType,
             false,
@@ -1324,7 +1324,7 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     container.compiler_namespace.declare_top_level(resolver);
     container.std_namespace.declare_top_level(resolver);
 
-    resolver.declare(container.defined.name, &container.defined);
+    resolver.declare(container.defined.name(), &container.defined);
     resolver.declare(container.defThing.decl.name, &container.defThing.decl);
     resolver.declare(container.defThing.defStmt.identifier, &container.defThing.defStmt);
 

@@ -362,7 +362,7 @@ std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(
             const auto linked_node_kind = linked_node->kind();
             if (linked_node_kind == ASTNodeKind::InterfaceDecl) {
                 const auto interface = linked_node->as_interface_def_unsafe();
-                const auto child_func = interface->direct_child_function(function->name);
+                const auto child_func = interface->direct_child_function(function->name());
                 if (child_func) {
                     return {interface, child_func};
                 } else {
@@ -370,7 +370,7 @@ std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(
                 }
             } else if (linked_node_kind == ASTNodeKind::StructDecl) {
                 const auto struct_def = linked_node->as_struct_def_unsafe();
-                const auto child_func = struct_def->direct_child_function(function->name);
+                const auto child_func = struct_def->direct_child_function(function->name());
                 if (child_func) {
                     return {struct_def, child_func};
                 } else {
@@ -386,7 +386,7 @@ std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(
 }
 
 std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_func_with_signature(FunctionDeclaration* function) {
-    auto direct = direct_child_function(function->name);
+    auto direct = direct_child_function(function->name());
     if(direct) return { this, direct };
     return get_overriding_info(function);
 }
@@ -563,12 +563,12 @@ FunctionDeclaration* MembersContainer::pre_move_func() {
 }
 
 void MembersContainer::insert_func(FunctionDeclaration* decl) {
-    indexes[decl->name] = decl;
+    indexes[decl->name()] = decl;
     functions_container.emplace_back(decl);
 }
 
 FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("delete", {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration({ "delete", ZERO_LOC }, {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
     decl->add_annotation(AnnotationKind::Delete);
@@ -577,7 +577,7 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
 }
 
 FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("clear", {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration({ "clear", ZERO_LOC }, {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
     decl->add_annotation(AnnotationKind::Clear);
@@ -586,7 +586,7 @@ FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) 
 }
 
 FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("copy", {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration({ "copy", ZERO_LOC }, {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
@@ -596,7 +596,7 @@ FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
 }
 
 FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("move", {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration({ "move", ZERO_LOC }, {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
@@ -642,18 +642,18 @@ FunctionDeclaration* MembersContainer::create_def_move_fn(ASTAllocator& allocato
 }
 
 bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
-    auto found = indexes.find(decl->name);
+    auto found = indexes.find(decl->name());
     if(found == indexes.end()) {
         insert_func(decl);
     } else {
-        auto result = handle_name_overload_function(decl->name, found->second, decl);
+        auto result = handle_name_overload_function(decl->name(), found->second, decl);
         if(!result.duplicates.empty()) {
             return false;
         } else if(result.new_multi_func_node) {
             multi_nodes.emplace_back(result.new_multi_func_node);
             // storing pointer to MultiFunctionNode as FunctionDeclaration
             // this can create errors, if not handled properly
-            indexes[decl->name] = (FunctionDeclaration*) result.new_multi_func_node;
+            indexes[decl->name()] = (FunctionDeclaration*) result.new_multi_func_node;
         }
         functions_container.emplace_back(decl);
     }

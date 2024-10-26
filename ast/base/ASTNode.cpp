@@ -92,7 +92,7 @@ AccessSpecifier ASTNode::specifier() {
         case ASTNodeKind::EnumDecl:
             return as_enum_decl_unsafe()->specifier;
         case ASTNodeKind::FunctionDecl:
-            return as_function_unsafe()->specifier;
+            return as_function_unsafe()->specifier();
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->specifier;
         case ASTNodeKind::VarInitStmt:
@@ -121,7 +121,7 @@ bool ASTNode::set_specifier(AccessSpecifier spec) {
             as_enum_decl_unsafe()->specifier = spec;
             return true;
         case ASTNodeKind::FunctionDecl:
-            as_function_unsafe()->specifier = spec;
+            as_function_unsafe()->set_specifier_fast(spec);
             return true;
         case ASTNodeKind::InterfaceDecl:
             as_interface_def_unsafe()->specifier = spec;

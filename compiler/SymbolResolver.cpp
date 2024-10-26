@@ -196,8 +196,8 @@ bool SymbolResolver::overload_function(const std::string& name, ASTNode*& previo
             previous = declaration;
             return true;
         } else {
-            dup_sym_error(declaration->name, previous, declaration);
-            error("function " + declaration->name + " cannot override because it's parameter types and return type don't match", (AnnotableNode*) declaration);
+            dup_sym_error(declaration->name(), previous, declaration);
+            error("function " + declaration->name() + " cannot override because it's parameter types and return type don't match", (AnnotableNode*) declaration);
             return false;
         }
     }

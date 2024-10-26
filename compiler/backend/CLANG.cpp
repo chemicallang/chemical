@@ -603,7 +603,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
         return nullptr;
     }
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(
-            func_decl->getNameAsString(),
+            { func_decl->getNameAsString(), ZERO_LOC },
             std::move(params),
             chem_type,
             func_decl->isVariadic(),
@@ -1026,7 +1026,7 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
     }
 
     auto funcType = context.getFunctionType(returnType, args, protoInfo);
-    clang::DeclarationName declName = context.DeclarationNames.getIdentifier(&context.Idents.get(decl->name));
+    clang::DeclarationName declName = context.DeclarationNames.getIdentifier(&context.Idents.get(decl->name()));
 
     clang::FunctionDecl *funcDecl = clang::FunctionDecl::Create(
             context, unit, clang::SourceLocation(),

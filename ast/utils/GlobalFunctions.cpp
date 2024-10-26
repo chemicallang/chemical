@@ -139,7 +139,7 @@ namespace InterpretVector {
     };
 
     InterpretVectorConstructor::InterpretVectorConstructor(InterpretVectorNode* node) : FunctionDeclaration(
-            { "constructor", ZERO_LOC },
+            ZERO_LOC_ID("constructor"),
             std::vector<FunctionParam*> {},
             &node->selfType,
             false,
@@ -156,7 +156,7 @@ namespace InterpretVector {
     }
 
     InterpretVectorSize::InterpretVectorSize(InterpretVectorNode* node) : FunctionDeclaration(
-            { "size", ZERO_LOC },
+            ZERO_LOC_ID("size"),
         std::vector<FunctionParam*> {},
         &retType,
         false,
@@ -175,7 +175,7 @@ namespace InterpretVector {
 
     // TODO interpret vector get should return a reference to T
     InterpretVectorGet::InterpretVectorGet(InterpretVectorNode* node) : FunctionDeclaration(
-            { "get", ZERO_LOC },
+            ZERO_LOC_ID("get"),
             std::vector<FunctionParam*> {},
             &returnLinkedType,
             false,
@@ -195,7 +195,7 @@ namespace InterpretVector {
     }
 
     InterpretVectorPush::InterpretVectorPush(InterpretVectorNode* node) : FunctionDeclaration(
-            { "push", ZERO_LOC },
+            ZERO_LOC_ID("push"),
             std::vector<FunctionParam*> {},
             &returnVoidType,
             false,
@@ -216,7 +216,7 @@ namespace InterpretVector {
     }
 
     InterpretVectorRemove::InterpretVectorRemove(InterpretVectorNode* node) : FunctionDeclaration(
-            { "remove", ZERO_LOC },
+            ZERO_LOC_ID("remove"),
             std::vector<FunctionParam*> {},
             &returnVoidType,
             false,
@@ -238,7 +238,7 @@ namespace InterpretVector {
 
     InterpretVectorNode::InterpretVectorNode(
         ASTNode* parent_node
-    ): StructDefinition({ "vector", ZERO_LOC }, parent_node, ZERO_LOC, AccessSpecifier::Public),
+    ): StructDefinition(ZERO_LOC_ID("vector"), parent_node, ZERO_LOC, AccessSpecifier::Public),
         constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
         typeParam("T", nullptr, nullptr, this, 0, ZERO_LOC),
         selfType("vector", this, ZERO_LOC), selfReference(&selfType, ZERO_LOC)
@@ -263,7 +263,7 @@ public:
 
 
     explicit InterpretPrint(ASTNode* parent_node) : FunctionDeclaration(
-            { "print", ZERO_LOC },
+            ZERO_LOC_ID("print"),
             std::vector<FunctionParam*> {},
             &returnType,
             true,
@@ -319,7 +319,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretSize(ASTNode* parent_node) : FunctionDeclaration(
-            { "size", ZERO_LOC },
+            ZERO_LOC_ID("size"),
             std::vector<FunctionParam*> {},
             &returnType,
             false,
@@ -388,7 +388,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretWrap(ASTNode* parent_node) : FunctionDeclaration(
-            { "wrap", ZERO_LOC },
+            ZERO_LOC_ID("wrap"),
             std::vector<FunctionParam*> {},
             &anyType,
             true,
@@ -418,7 +418,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretUnwrap(ASTNode* parent_node) : FunctionDeclaration(
-            { "unwrap", ZERO_LOC },
+            ZERO_LOC_ID("unwrap"),
             std::vector<FunctionParam*> {},
             &anyType,
             true,
@@ -447,7 +447,7 @@ public:
     PointerType ptrType;
 
     explicit InterpretRetStructPtr(ASTNode* parent_node) : FunctionDeclaration(
-            { "return_struct", ZERO_LOC },
+            ZERO_LOC_ID("return_struct"),
             std::vector<FunctionParam*> {},
             &ptrType,
             true,
@@ -469,7 +469,7 @@ public:
     StringType stringType;
 
     explicit InterpretCompilerVersion(ASTNode* parent_node) : FunctionDeclaration(
-            { "version", ZERO_LOC },
+            ZERO_LOC_ID("version"),
             std::vector<FunctionParam*> {},
             &stringType,
             false,
@@ -497,7 +497,7 @@ public:
     BoolType boolType;
 
     explicit InterpretIsTcc(ASTNode* parent_node) : FunctionDeclaration(
-            { "is_tcc_based", ZERO_LOC },
+            ZERO_LOC_ID("is_tcc_based"),
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -523,7 +523,7 @@ public:
     BoolType boolType;
 
     explicit InterpretIsClang(ASTNode* parent_node) : FunctionDeclaration(
-            { "is_clang", ZERO_LOC },
+            ZERO_LOC_ID("is_clang"),
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -549,7 +549,7 @@ public:
     UBigIntType uIntType;
 
     explicit InterpretGetLineNo() : FunctionDeclaration(
-            { "get_line_no", ZERO_LOC },
+            ZERO_LOC_ID("get_line_no"),
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -573,7 +573,7 @@ public:
     UBigIntType uIntType;
 
     explicit InterpretGetCharacterNo() : FunctionDeclaration(
-            { "get_char_no", ZERO_LOC },
+            ZERO_LOC_ID("get_char_no"),
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -606,7 +606,7 @@ public:
     UBigIntType uIntType;
 
     explicit InterpretGetCallerLineNo() : FunctionDeclaration(
-            { "get_caller_line_no", ZERO_LOC },
+            ZERO_LOC_ID("get_caller_line_no"),
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -636,7 +636,7 @@ public:
     UBigIntType uIntType;
 
     explicit InterpretGetCallerCharacterNo() : FunctionDeclaration(
-            { "get_caller_char_no", ZERO_LOC },
+            ZERO_LOC_ID("get_caller_char_no"),
             std::vector<FunctionParam*> {},
             &uIntType,
             false,
@@ -668,7 +668,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretDefined() : FunctionDeclaration(
-            { "defined", ZERO_LOC },
+            ZERO_LOC_ID("defined"),
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -699,7 +699,7 @@ public:
     FunctionParam valueParam;
 
     explicit InterpretError() : FunctionDeclaration(
-            { "error", ZERO_LOC },
+            ZERO_LOC_ID("error"),
             std::vector<FunctionParam*> {},
             &voidType,
             false,
@@ -728,7 +728,7 @@ public:
     FunctionParam valueParam2;
 
     explicit InterpretSatisfies(ASTNode* parent_node) : FunctionDeclaration(
-            { "satisfies", ZERO_LOC },
+            ZERO_LOC_ID("satisfies"),
             std::vector<FunctionParam*> {},
             &returnType,
             false,
@@ -774,7 +774,7 @@ public:
     NullValue nullVal;
 
     explicit InterpretIsPtrNull(ASTNode* parent_node) : FunctionDeclaration(
-            { "isNull", ZERO_LOC },
+            ZERO_LOC_ID("isNull"),
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -804,7 +804,7 @@ public:
     NullValue nullVal;
 
     explicit InterpretIsPtrNotNull(ASTNode* parent_node) : FunctionDeclaration(
-            { "isNotNull", ZERO_LOC },
+            ZERO_LOC_ID("isNotNull"),
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -832,7 +832,7 @@ public:
     FunctionParam sourceValueParam;
 
     explicit InterpretMemCopy(ASTNode* parent_node) : FunctionDeclaration(
-            { "copy", ZERO_LOC },
+            ZERO_LOC_ID("copy"),
             std::vector<FunctionParam*> {},
             &boolType,
             false,
@@ -862,7 +862,7 @@ public:
     StringType stringType;
 
     explicit InterpretGetTarget(ASTNode* parent_node) : FunctionDeclaration(
-            { "get_target", ZERO_LOC },
+            ZERO_LOC_ID("get_target"),
             std::vector<FunctionParam*> {},
             &stringType,
             false,
@@ -884,7 +884,7 @@ public:
     StringType stringType;
 
     explicit InterpretGetCurrentFilePath(ASTNode* parent_node) : FunctionDeclaration(
-            { "get_current_file_path", ZERO_LOC },
+            ZERO_LOC_ID("get_current_file_path"),
             std::vector<FunctionParam*> {},
             &stringType,
             false,
@@ -1018,7 +1018,7 @@ class DefDecl : public StructDefinition {
 public:
 
     DefDecl() : StructDefinition(
-            { "Def", ZERO_LOC }, nullptr, ZERO_LOC, AccessSpecifier::Public
+            ZERO_LOC_ID("Def"), nullptr, ZERO_LOC, AccessSpecifier::Public
     ) {
         add_annotation(AnnotationKind::CompTime);
     }

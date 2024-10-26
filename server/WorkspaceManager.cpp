@@ -180,9 +180,10 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
 
 td_foldingRange::response WorkspaceManager::get_folding_range(const lsDocumentUri& uri) {
     td_foldingRange::response rsp;
-    auto &tokens = get_lexed_tokens(canonical(uri.GetAbsolutePath().path));
-    FoldingRangeAnalyzer analyzer;
-    analyzer.analyze(tokens);
+    const auto abs_path = canonical(uri.GetAbsolutePath().path);
+    auto unit = get_ast_import_unit(abs_path, cancel_request);
+    FoldingRangeAnalyzer analyzer(unit.unit->loc_man);
+    analyzer.analyze(unit.files.back()->unit.scope.nodes);
     rsp.result = std::move(analyzer.ranges);
     return rsp;
 }
@@ -247,10 +248,11 @@ td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &ur
 }
 
 td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
-    auto& tokens = get_lexed_tokens(canonical(uri.GetAbsolutePath().path));
-    DocumentSymbolsAnalyzer analyzer;
+    const auto abs_path = canonical(uri.GetAbsolutePath().path);
+    auto unit = get_ast_import_unit(abs_path, cancel_request);
+    DocumentSymbolsAnalyzer analyzer(unit.unit->loc_man);
     td_symbol::response rsp;
-    analyzer.analyze(tokens);
+    analyzer.analyze(unit.files.back()->unit.scope.nodes);
     rsp.result = std::move(analyzer.symbols);
     return rsp;
 }

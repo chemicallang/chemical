@@ -9,17 +9,18 @@
 #include "LibLsp/lsp/textDocument/foldingRange.h"
 #include "cst/base/CSTVisitor.h"
 #include "cst/base/CSTToken.h"
+#include "ast/utils/CommonVisitor.h"
+#include "ast/base/ASTNode.h"
 
-class FoldingRangeAnalyzer : public CSTVisitor {
+class LocationManager;
+
+class FoldingRangeAnalyzer : public CommonVisitor {
 public:
 
     /**
-     * constructor
-     * @param tokens
+     * location manager is used to decode loations
      */
-    FoldingRangeAnalyzer() {
-
-    }
+    LocationManager& loc_man;
 
     /**
      * all the folding ranges found
@@ -27,63 +28,38 @@ public:
     std::vector<FoldingRange> ranges;
 
     /**
-     * The function that analyzes
+     * constructor
+     * @param tokens
      */
-    void analyze(std::vector<CSTToken*>& tokens);
+    FoldingRangeAnalyzer(LocationManager& loc_man) : loc_man(loc_man) {
+
+    }
+
+    /**
+     * will analyze the given nodes of the current document
+     * @param nodes
+     */
+    void analyze(std::vector<ASTNode*>& nodes) {
+        for(auto node : nodes) {
+            node->accept(this);
+        }
+    }
 
     /**
      * will add a folding range from start to end token
      */
-    void folding_range(CSTToken* start, CSTToken* end, bool comment = false);
+    void folding_range(const Position& start, const Position& end, bool comment = false);
 
     /**
-     * will add a folding range for this CSTToken
+     * create a folding range for the given source location
      */
-    void folding_range(CSTToken* inside, bool comment = false) {
-        folding_range(inside->start_token(), inside->end_token(), comment);
-    }
+    void folding_range(SourceLocation location, bool comment = false);
 
     // Visitor functions
 
-    void visitVarInit(CSTToken* varInit) final;
+    void visit(Scope *scope) override;
 
-    void visitReturn(CSTToken* returnCst) final;
-
-    void visitFunctionCall(CSTToken* call) final;
-
-    void visitAssignment(CSTToken* assignment) final;
-
-    void visitAccessChain(CSTToken *accessChain) final;
-
-    void visitSwitch(CSTToken* switchCst) final;
-
-    void visitEnumDecl(CSTToken* enumDecl) final;
-
-    void visitInterface(CSTToken* interface) final;
-
-    void visitStructDef(CSTToken* structDef) final;
-
-    void visitImpl(CSTToken* impl) final;
-
-    void visitIf(CSTToken* ifCst) final;
-
-    void visitForLoop(CSTToken* forLoop) final;
-
-    void visitWhile(CSTToken* whileCst) final;
-
-    void visitDoWhile(CSTToken* doWhileCst) final;
-
-    void visitFunction(CSTToken* function) final;
-
-    void visitLambda(CSTToken* cst) final;
-
-    void visitMultilineComment(CSTToken *token) final;
-
-    void visitBody(CSTToken* bodyCst) final;
-
-    void visitStructValue(CSTToken* structValueCst) final;
-
-    void visitArrayValue(CSTToken* arrayValue) final;
+    void visit(Comment *comment) override;
 
 
 };

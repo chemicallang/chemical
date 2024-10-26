@@ -113,7 +113,7 @@ void small_detail_of(std::string& value, ASTNode* linked) {
             value += "struct";
             value += ' ';
             const auto struct_def = linked->as_struct_def_unsafe();
-            value += struct_def->name;
+            value += struct_def->name();
             struct_def_inheritance_doc(value, struct_def);
             break;
         }
@@ -131,7 +131,7 @@ void small_detail_of(std::string& value, ASTNode* linked) {
             break;
         case ASTNodeKind::VarInitStmt:{
             const auto init = linked->as_var_init_unsafe();
-            if(init->is_const) {
+            if(init->is_const()) {
                 value += "const";
             } else {
                 value += "var";
@@ -227,10 +227,10 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         if(parent_kind != ASTNodeKind::EnumDecl) {
             const auto enumDecl = parent->as_enum_decl_unsafe();
             value += "```typescript\n";
-            value += "enum " + enumDecl->name;
+            value += "enum " + enumDecl->name();
             value += "\n```\n";
             value += "```typescript\n";
-            value += enumDecl->name;
+            value += enumDecl->name();
             value += ".";
             value += member->name;
             value += "\n```";
@@ -242,7 +242,7 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         case ASTNodeKind::ExtensionFunctionDecl: {
             const auto& func_decl = *linked_node->as_function_unsafe();
             value += "```typescript\n";
-            value += "func " + func_decl.name;
+            value += "func " + func_decl.name();
             const auto& signature = func_decl;
             value += '(';
             unsigned i = 0;
@@ -271,14 +271,14 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         case ASTNodeKind::EnumDecl: {
             const auto enumDecl = linked_node->as_enum_decl_unsafe();
             value += "```typescript\n";
-            value += "enum " + enumDecl->name;
+            value += "enum " + enumDecl->name();
             value += "\n```";
             break;
         }
         case ASTNodeKind::StructDecl: {
             const auto structDecl = linked_node->as_struct_def_unsafe();
             value += "```c\n";
-            value += "struct " + structDecl->name;
+            value += "struct " + structDecl->name();
             struct_def_inheritance_doc(value, structDecl);
             value += "\n```";
             break;
@@ -286,20 +286,20 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         case ASTNodeKind::InterfaceDecl: {
             const auto& interface = *linked_node->as_interface_def_unsafe();
             value += "```typescript\n";
-            value += "interface " + interface.name;
+            value += "interface " + interface.name();
             value += "\n```";
             break;
         }
         case ASTNodeKind::VarInitStmt: {
             auto& init = *linked_node->as_var_init_unsafe();
             value += "```typescript\n";
-            if(init.is_const) {
+            if(init.is_const()) {
                 value += "const";
             } else {
                 value += "var";
             }
             value += ' ';
-            value += init.identifier;
+            value += init.identifier();
             const auto type = init.known_type();
             if (type) {
                 value += " : ";
@@ -325,7 +325,7 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         case ASTNodeKind::TypealiasStmt: {
             auto& linked = *linked_node->as_typealias_unsafe();
             value += "```typescript\n";
-            value += "typealias " + linked.identifier;
+            value += "typealias " + linked.name();
             value += " = ";
             value += linked.actual_type->representation();
             value += "\n```";

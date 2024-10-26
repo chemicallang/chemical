@@ -54,11 +54,11 @@ void put_with_doc(CompletionItemAnalyzer* analyzer, const std::string& label, ls
 }
 
 inline void put_var_init(CompletionItemAnalyzer* analyzer, VarInitStatement* node) {
-    put_with_doc(analyzer, node->identifier, lsCompletionItemKind::Variable, node);
+    put_with_doc(analyzer, node->identifier(), lsCompletionItemKind::Variable, node);
 }
 
 inline void put_function(CompletionItemAnalyzer* analyzer, FunctionDeclaration* node) {
-    put_with_doc(analyzer, node->name, lsCompletionItemKind::Function, node);
+    put_with_doc(analyzer, node->name(), lsCompletionItemKind::Function, node);
 }
 
 inline void put_func_param(CompletionItemAnalyzer* analyzer, BaseFunctionParam* node) {
@@ -66,19 +66,19 @@ inline void put_func_param(CompletionItemAnalyzer* analyzer, BaseFunctionParam* 
 }
 
 inline void put_enum_decl(CompletionItemAnalyzer* analyzer, EnumDeclaration* decl) {
-    put_with_doc(analyzer, decl->name, lsCompletionItemKind::Enum, decl);
+    put_with_doc(analyzer, decl->name(), lsCompletionItemKind::Enum, decl);
 }
 
 inline void put_interface_decl(CompletionItemAnalyzer* analyzer, InterfaceDefinition* def) {
-    put_with_doc(analyzer, def->name, lsCompletionItemKind::Interface, def);
+    put_with_doc(analyzer, def->name(), lsCompletionItemKind::Interface, def);
 }
 
 inline void put_struct_decl(CompletionItemAnalyzer* analyzer, StructDefinition* def) {
-    put_with_doc(analyzer, def->name, lsCompletionItemKind::Struct, def);
+    put_with_doc(analyzer, def->name(), lsCompletionItemKind::Struct, def);
 }
 
 inline void put_union_decl(CompletionItemAnalyzer* analyzer, UnionDef* def) {
-    put_with_doc(analyzer, def->name, lsCompletionItemKind::Struct, def);
+    put_with_doc(analyzer, def->name(), lsCompletionItemKind::Struct, def);
 }
 
 inline void put_namespace_decl(CompletionItemAnalyzer* analyzer, Namespace* ns) {
@@ -86,7 +86,7 @@ inline void put_namespace_decl(CompletionItemAnalyzer* analyzer, Namespace* ns) 
 }
 
 inline void put_variant_decl(CompletionItemAnalyzer* analyzer, VariantDefinition* def) {
-    put_with_doc(analyzer, def->name, lsCompletionItemKind::Struct, def);
+    put_with_doc(analyzer, def->name(), lsCompletionItemKind::Struct, def);
 }
 
 lsCompletionItemKind toCompletionItemKind(ASTNode* node) {
@@ -320,14 +320,14 @@ void put_variables_of(CompletionItemAnalyzer* analyzer, VariablesContainer* node
 
 void put_functions_of(CompletionItemAnalyzer* analyzer, ExtendableMembersContainerNode* node) {
     for(auto& func : node->functions()) {
-        put_with_doc(analyzer, func->name, lsCompletionItemKind::Function, func);
+        put_with_doc(analyzer, func->name(), lsCompletionItemKind::Function, func);
     }
 }
 
 void put_non_self_param_functions_of(CompletionItemAnalyzer* analyzer, ExtendableMembersContainerNode* node) {
     for(auto& func : node->functions()) {
         if(!func->has_self_param()) {
-            put_with_doc(analyzer, func->name, lsCompletionItemKind::Function, func);
+            put_with_doc(analyzer, func->name(), lsCompletionItemKind::Function, func);
         }
     }
 }

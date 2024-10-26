@@ -519,7 +519,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         auto param = (FunctionParam*) nodes.back();
         nodes.pop_back();
         funcDeclStored = new (alloc.allocate<ExtensionFunction>()) ExtensionFunction(
-                { name_token->value(), loc(name_token) },
+                loc_id(name_token),
                 ExtensionFuncReceiver(std::move(param->name), param->type, nullptr, loc(receiver_tok)),
                 {},
                 nullptr,
@@ -532,7 +532,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         ((ExtensionFunction*) funcDeclStored)->receiver.parent_node = funcDeclStored;
     } else {
         funcDeclStored = new (alloc.allocate<FunctionDeclaration>()) FunctionDeclaration(
-                { name_token->value(), loc(name_token) },
+                loc_id(name_token),
                 {},
                 nullptr,
                 false,
@@ -929,7 +929,7 @@ void CSTConverter::visitTypealias(CSTToken* alias) {
     auto prev_alloc = local_allocator;
     local_allocator = &alloc;
     type_token->accept(this);
-    auto stmt = new (alloc.allocate<TypealiasStatement>()) TypealiasStatement({ name_token->value(), loc(name_token) }, type(), parent_node, loc(alias), specifier);
+    auto stmt = new (alloc.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(name_token), type(), parent_node, loc(alias), specifier);
     collect_annotations_in(this, stmt);
     put_node(stmt, alias);
     local_allocator = prev_alloc;

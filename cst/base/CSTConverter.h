@@ -173,7 +173,11 @@ public:
      * this creates a located identifier for the given cst token
      */
     inline LocatedIdentifier loc_id(CSTToken* token) {
+#ifdef LSP_BUILD
         return { token->value(), loc(token) };
+#else
+        return { token->value() };
+#endif
     }
 
     /**

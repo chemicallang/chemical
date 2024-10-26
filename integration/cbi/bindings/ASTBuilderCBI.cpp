@@ -389,7 +389,7 @@ ReturnStatement* ASTBuildermake_return_stmt(CSTConverter* converter, Value* valu
 //}
 
 TypealiasStatement* ASTBuildermake_typealias_stmt(CSTConverter* converter, chem::string* identifier, uint64_t id_loc, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (converter->local<TypealiasStatement>()) TypealiasStatement({ identifier->to_std_string(), id_loc }, actual_type, parent_node, location, specifier);
+    return new (converter->local<TypealiasStatement>()) TypealiasStatement(LOC_ID(identifier->to_std_string(), id_loc), actual_type, parent_node, location, specifier);
 }
 
 UsingStmt* ASTBuildermake_using_stmt(CSTConverter* converter, AccessChain* chain, bool is_namespace, uint64_t location) {
@@ -422,7 +422,7 @@ ForLoop* ASTBuildermake_for_loop(CSTConverter* converter, VarInitStatement* init
 }
 
 FunctionDeclaration* ASTBuildermake_function(CSTConverter* converter, chem::string* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
-    return new (converter->local<FunctionDeclaration>()) FunctionDeclaration({ name->to_std_string(), name_location }, {}, returnType, isVariadic, parent_node, location, std::nullopt);
+    return new (converter->local<FunctionDeclaration>()) FunctionDeclaration(LOC_ID(name->to_std_string(), name_location), {}, returnType, isVariadic, parent_node, location, std::nullopt);
 }
 
 FunctionParam* ASTBuildermake_function_param(CSTConverter* converter, chem::string* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {
@@ -446,7 +446,7 @@ InitBlock* ASTBuildermake_init_block(CSTConverter* converter, ASTNode* parent_no
 }
 
 InterfaceDefinition* ASTBuildermake_interface_def(CSTConverter* converter, chem::string* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (converter->local<InterfaceDefinition>()) InterfaceDefinition({ name->to_std_string(), name_location}, parent_node, location, specifier);
+    return new (converter->local<InterfaceDefinition>()) InterfaceDefinition(LOC_ID(name->to_std_string(), name_location), parent_node, location, specifier);
 }
 
 Namespace* ASTBuildermake_namespace(CSTConverter* converter, chem::string* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
@@ -454,7 +454,7 @@ Namespace* ASTBuildermake_namespace(CSTConverter* converter, chem::string* name,
 }
 
 StructDefinition* ASTBuildermake_struct_def(CSTConverter* converter, chem::string* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (converter->local<StructDefinition>()) StructDefinition({ name->to_std_string(), name_location }, parent_node, location, specifier);
+    return new (converter->local<StructDefinition>()) StructDefinition(LOC_ID(name->to_std_string(), name_location), parent_node, location, specifier);
 }
 
 StructMember* ASTBuildermake_struct_member(CSTConverter* converter, chem::string* name, BaseType* type, Value* defValue, bool isConst, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
@@ -462,7 +462,7 @@ StructMember* ASTBuildermake_struct_member(CSTConverter* converter, chem::string
 }
 
 UnionDef* ASTBuildermake_union_def(CSTConverter* converter, chem::string* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (converter->local<UnionDef>()) UnionDef({ name->to_std_string(), name_location }, parent_node, location, specifier);
+    return new (converter->local<UnionDef>()) UnionDef(LOC_ID(name->to_std_string(), name_location), parent_node, location, specifier);
 }
 
 UnsafeBlock* ASTBuildermake_unsafe_block(CSTConverter* converter, ASTNode* node, uint64_t location) {
@@ -474,7 +474,7 @@ WhileLoop* ASTBuildermake_while_loop(CSTConverter* converter, Value* condition, 
 }
 
 VariantDefinition* ASTBuildermake_variant_def(CSTConverter* converter, chem::string* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* node, uint64_t location) {
-    return new (converter->local<VariantDefinition>()) VariantDefinition({ name->to_std_string(), name_location }, node, location, specifier);
+    return new (converter->local<VariantDefinition>()) VariantDefinition(LOC_ID(name->to_std_string(), name_location), node, location, specifier);
 }
 
 VariantMember* ASTBuildermake_variant_member(CSTConverter* converter, chem::string* name, VariantDefinition* parent_node, uint64_t location) {

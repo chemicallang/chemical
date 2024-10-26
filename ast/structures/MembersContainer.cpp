@@ -568,7 +568,7 @@ void MembersContainer::insert_func(FunctionDeclaration* decl) {
 }
 
 FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration({ "delete", ZERO_LOC }, {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
     decl->add_annotation(AnnotationKind::Delete);
@@ -577,7 +577,7 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
 }
 
 FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration({ "clear", ZERO_LOC }, {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("clear"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
     decl->add_annotation(AnnotationKind::Clear);
@@ -586,7 +586,7 @@ FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) 
 }
 
 FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration({ "copy", ZERO_LOC }, {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
@@ -596,7 +596,7 @@ FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
 }
 
 FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration({ "move", ZERO_LOC }, {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("move"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});

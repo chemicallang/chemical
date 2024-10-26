@@ -355,7 +355,7 @@ EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
 }
 
 StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
-    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition({ decl->getNameAsString(), ZERO_LOC }, parent_node, ZERO_LOC);
+    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(ZERO_LOC_ID(decl->getNameAsString()), parent_node, ZERO_LOC);
     for(auto str : decl->fields()) {
         auto field_type = str->getType();
         auto field_type_conv = make_type(&field_type);
@@ -400,7 +400,7 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
 
     }
 
-    return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement({ decl->getNameAsString(), ZERO_LOC }, type, parent_node, ZERO_LOC);
+    return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(ZERO_LOC_ID(decl->getNameAsString()), type, parent_node, ZERO_LOC);
 }
 
 std::optional<Operation> convert_to_op(clang::BinaryOperatorKind kind) {
@@ -603,7 +603,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
         return nullptr;
     }
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(
-            { func_decl->getNameAsString(), ZERO_LOC },
+            ZERO_LOC_ID(func_decl->getNameAsString()),
             std::move(params),
             chem_type,
             func_decl->isVariadic(),

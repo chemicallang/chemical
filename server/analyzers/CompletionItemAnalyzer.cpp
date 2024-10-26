@@ -47,7 +47,7 @@ void CompletionItemAnalyzer::put_with_md_doc(const std::string& label, lsComplet
 
 void put_with_doc(CompletionItemAnalyzer* analyzer, const std::string& label, lsCompletionItemKind kind, ASTNode* linked_node) {
     std::string doc;
-    markdown_documentation(doc, analyzer->current_file, nullptr, linked_node);
+    markdown_documentation(analyzer->loc_man, doc, analyzer->current_file, linked_node);
     std::string detail;
     small_detail_of(detail, linked_node);
     analyzer->put_with_md_doc(label, kind, detail, doc);
@@ -170,25 +170,25 @@ bool put_node(CompletionItemAnalyzer* analyzer, ASTNode* node) {
 
 void CompletionItemAnalyzer::visit(VarInitStatement *init) {
     put_var_init(this, init);
-    if(init->type && is_caret_inside(init->type->cst_token())) {
+    if(init->type && is_caret_inside(init->type->encoded_location())) {
         init->type->accept(this);
-    } else if(init->value && is_caret_inside(init->value->cst_token())) {
+    } else if(init->value && is_caret_inside(init->value->encoded_location())) {
         init->value->accept(this);
     }
 }
 
 void CompletionItemAnalyzer::visit(AssignStatement *assign) {
-    if(is_caret_inside(assign->lhs->cst_token())) {
+    if(is_caret_inside(assign->lhs->encoded_location())) {
         assign->lhs->accept(this);
     }
-    if(is_caret_inside(assign->value->cst_token())) {
+    if(is_caret_inside(assign->value->encoded_location())) {
         assign->value->accept(this);
     }
 }
 
 void CompletionItemAnalyzer::visit(FunctionDeclaration *decl) {
     put_function(this, decl);
-    if(decl->body.has_value() && is_caret_inside(decl->body->cst_token())) {
+    if(decl->body.has_value() && is_caret_inside(decl->body->encoded_location())) {
         for(auto& param : decl->params) {
             put_func_param(this, param);
         }
@@ -203,13 +203,13 @@ void CompletionItemAnalyzer::visit(EnumDeclaration *decl) {
 
 void visit_inside(CompletionItemAnalyzer* analyzer, MembersContainer* container) {
     for(auto& var : container->variables) {
-        if(analyzer->is_caret_inside(var.second->cst_token())) {
+        if(analyzer->is_caret_inside(var.second->encoded_location())) {
             var.second->accept(analyzer);
             return;
         }
     }
     for(auto func : container->functions()) {
-        if(analyzer->is_caret_inside(func->cst_token())) {
+        if(analyzer->is_caret_inside(func->encoded_location())) {
             func->accept(analyzer);
             return;
         }
@@ -231,51 +231,51 @@ void CompletionItemAnalyzer::visit(ImplDefinition *def) {
 }
 
 void CompletionItemAnalyzer::visit(IfStatement *stmt) {
-    if(is_caret_inside(stmt->ifBody.cst_token())) {
+    if(is_caret_inside(stmt->ifBody.encoded_location())) {
         stmt->ifBody.accept(this);
     } else {
         bool found = false;
         for(auto& elseIf : stmt->elseIfs) {
-            if(is_caret_inside(elseIf.second.cst_token())) {
+            if(is_caret_inside(elseIf.second.encoded_location())) {
                 elseIf.second.accept(this);
                 found = true;
                 break;
             }
         }
-        if(!found && stmt->elseBody.has_value() && is_caret_inside(stmt->elseBody.value().cst_token())) {
+        if(!found && stmt->elseBody.has_value() && is_caret_inside(stmt->elseBody.value().encoded_location())) {
             stmt->elseBody.value().accept(this);
         }
     }
 }
 
 void CompletionItemAnalyzer::visit(WhileLoop *loop) {
-    if(is_caret_inside(loop->body.cst_token())) {
+    if(is_caret_inside(loop->body.encoded_location())) {
         loop->body.accept(this);
     }
 }
 
 void CompletionItemAnalyzer::visit(DoWhileLoop *loop) {
-    if(is_caret_inside(loop->body.cst_token())) {
+    if(is_caret_inside(loop->body.encoded_location())) {
         loop->body.accept(this);
     }
 }
 
 void CompletionItemAnalyzer::visit(ForLoop *loop) {
-    if(is_caret_inside(loop->body.cst_token())) {
+    if(is_caret_inside(loop->body.encoded_location())) {
         loop->body.accept(this);
     }
 }
 
 void CompletionItemAnalyzer::visit(SwitchStatement *stmt) {
     for(auto& caseBody : stmt->scopes) {
-        if(is_caret_inside(caseBody.cst_token())) {
+        if(is_caret_inside(caseBody.encoded_location())) {
             caseBody.accept(this);
         }
     }
 }
 
 void CompletionItemAnalyzer::visit(LambdaFunction *func) {
-    if(is_caret_inside(func->scope.cst_token())) {
+    if(is_caret_inside(func->scope.encoded_location())) {
         for(auto& param : func->params) {
             put_func_param(this, param);
         }
@@ -286,7 +286,7 @@ void CompletionItemAnalyzer::visit(LambdaFunction *func) {
 void CompletionItemAnalyzer::visit(StructValue *structValue) {
     for(auto& val : structValue->values) {
         auto value = val.second->value;
-        if(is_caret_inside(value->cst_token())) {
+        if(is_caret_inside(value->encoded_location())) {
             value->accept(this);
         }
     }
@@ -294,7 +294,7 @@ void CompletionItemAnalyzer::visit(StructValue *structValue) {
 
 void CompletionItemAnalyzer::visit(ArrayValue *arrayValue) {
     for(auto value : arrayValue->values) {
-        if(is_caret_inside(value->cst_token())) {
+        if(is_caret_inside(value->encoded_location())) {
             value->accept(this);
         }
     }
@@ -302,10 +302,11 @@ void CompletionItemAnalyzer::visit(ArrayValue *arrayValue) {
 
 void CompletionItemAnalyzer::visit(Scope *scope) {
     for(const auto node : scope->nodes) {
-        const auto token = node->cst_token();
-        if(is_caret_ahead(token)) {
+        const auto sourceLoc = node->encoded_location();
+        const auto position = loc_man.getLocationPos(sourceLoc);
+        if(is_caret_ahead(position.start)) {
             put_node(this, node);
-        } else if(is_caret_inside(token)) {
+        } else if(is_caret_inside(position.start, position.end)) {
             node->accept(this);
         }
     }
@@ -458,10 +459,11 @@ void CompletionItemAnalyzer::analyze(ASTImportUnitRef& unit) {
     int i = ((int) last_file_nodes.size()) - 1;
     while(i >= 0) {
         const auto node = last_file_nodes[i];
-        const auto token = node->cst_token();
-        if(is_caret_ahead(token)) {
+        const auto sourceLoc = node->encoded_location();
+        const auto location = loc_man.getLocationPos(sourceLoc);
+        if(is_caret_ahead(location.start)) {
             put_node(this, node);
-        } else if(is_caret_inside(token)) {
+        } else if(is_caret_inside(location.start, location.end)) {
             node->accept(this);
         }
         i--;

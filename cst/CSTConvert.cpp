@@ -203,11 +203,10 @@ CSTConverter::CSTConverter(
         std::string target,
         GlobalInterpretScope& scope,
         CompilerBinder& binder,
-        LocationManager& loc_man,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
         ASTAllocator& file_allocator
-) : CSTDiagnoser(loc_man), file_id(file_id), is64Bit(is64Bit), target(std::move(target)), global_scope(scope), binder(binder),
+) : file_id(file_id), is64Bit(is64Bit), target(std::move(target)), global_scope(scope), binder(binder), loc_man(scope.loc_man),
     global_allocator(global_allocator), mod_allocator(mod_allocator), file_allocator(file_allocator), local_allocator(&mod_allocator) {
 
 }
@@ -342,6 +341,11 @@ void CSTConverter::visit(std::vector<CSTToken*> &tokens, unsigned int start, uns
         tokens[start]->accept(this);
         start++;
     }
+}
+
+void CSTConverter::error(const std::string_view& message, CSTToken* inside) {
+    const auto filePath = loc_man.getPathForFileId(file_id);
+    CSTDiagnoser::error(message, filePath, inside);
 }
 
 AccessSpecifier CSTConverter::def_specifier(std::optional<AccessSpecifier> opt) {

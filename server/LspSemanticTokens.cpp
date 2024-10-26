@@ -122,7 +122,11 @@ std::vector<Diag> WorkspaceManager::sym_res_import_unit(
     resolver.mod_allocator = &resolver_allocator;
     resolver.ast_allocator = &resolver_allocator;
     // prepare top level compiler functions
-    comptime_scope.prepare_top_level_namespaces(resolver);
+    if(global_container) {
+        comptime_scope.rebind_container(resolver, global_container);
+    } else {
+        global_container = comptime_scope.create_container(resolver);
+    }
 
     // doing all but last file
     unsigned i = 0;
@@ -198,7 +202,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     }
 
     // cached ast import unit
-    auto cached_unit = std::make_shared<ASTImportUnit>();
+    auto cached_unit = std::make_shared<ASTImportUnit>(get_target_triple());
     auto& comptime_scope = cached_unit->comptime_scope;
 
     // get the lex import unit

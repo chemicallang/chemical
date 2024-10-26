@@ -13,6 +13,9 @@ public:
 
     }
 
+    inline bool isValid() const { return encoded != 0; }
+    inline bool isInvalid() const { return encoded == 0; }
+
 };
 
 /**

@@ -13,16 +13,25 @@ class ASTResult;
 class InlayHintAnalyzer : public CommonVisitor {
 public:
 
-    // this allocator is disposed
+    /**
+     * the location manager to decode locations
+     */
+    LocationManager& loc_man;
+
+    /**
+     * the allocator for allocating things
+     */
     ASTAllocator allocator;
 
-    // the collected hints by visiting nodes are stored here
+    /**
+     * the collected hints by visiting nodes are stored here
+     */
     std::vector<lsInlayHint> hints;
 
     /**
      * constructor
      */
-    InlayHintAnalyzer();
+    InlayHintAnalyzer(LocationManager& loc_man);
 
     /**
      * this function analyzes the import unit, in which last file is the one which contains the

@@ -4,9 +4,17 @@
 
 #include "integration/common/Position.h"
 #include "cst/base/CSTToken.h"
+#include "cst/SourceLocation.h"
+
+class LocationManager;
 
 class CaretPositionAnalyzer {
 public:
+
+    /**
+     * location manager is required to decode locations
+     */
+    LocationManager& loc_man;
 
     /**
      * This is the position of the cursor in the document
@@ -18,10 +26,9 @@ public:
     /**
      * constructor
      */
-    CaretPositionAnalyzer(Position position) : caret_position(position) {
+    CaretPositionAnalyzer(LocationManager& loc_man, Position position) : loc_man(loc_man), caret_position(position) {
 
     }
-
 
     /**
      * will return true, if given position is ahead of caret position
@@ -65,6 +72,13 @@ public:
     }
 
     /**
+     * is the cursor ahead of the given position
+     */
+    inline bool is_caret_ahead(const Position& position) const {
+        return !is_ahead(position);
+    }
+
+    /**
      * is the cursor / caret behind of the given token
      */
     inline bool is_caret_behind(CSTToken* token) const {
@@ -77,6 +91,18 @@ public:
     inline bool is_caret_eq_or_behind(CSTToken* token) const {
         return is_ahead(token) || is_eq_caret(token);
     }
+
+    /**
+     * check if caret is inside given locations
+     */
+    inline bool is_caret_inside(const Position& start, const Position& end) {
+        return is_behind(start) && !is_behind(end);
+    }
+
+    /**
+     * check if the caret is inside the given source location
+     */
+    bool is_caret_inside(SourceLocation location);
 
     /**
      * check if caret is inside this token

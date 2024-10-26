@@ -14,29 +14,7 @@ class CSTToken;
  * @param defined_in the file the given symbol is defined in
  * @param ref_any the token that is reference token, user is hovering at, or the ref token
  */
-void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, ASTNode* linked_node);
-
-/**
- * a helper function
- */
-void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, ASTAny* ref_any);
-
-/**
- * a helper function
- */
-inline void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* ref_tok) {
-    markdown_documentation(value, current, defined_in, ref_tok->any);
-}
-
-/**
- * responsible for putting the documentation of the given node into the given value
- * @param current the file user is editing currently
- * @param defined_in the file the given symbol is defined in
- * @param parent the parent compound token of the symbol
- * @param linked the actual symbol / token for which documentation is to be added
- */
-[[deprecated]]
-void markdown_documentation_old(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* linked);
+void markdown_documentation(LocationManager& manager, std::string& value, LexResult* current, ASTNode* linked_node);
 
 /**
  * get a small detail of the given token, for user's representation

@@ -7,6 +7,7 @@
 #include "LabJob.h"
 #include "ctpl.h"
 #include "lexer/model/CompilerBinder.h"
+#include "cst/LocationManager.h"
 
 class ASTAllocator;
 
@@ -15,8 +16,6 @@ class LabBuildContext;
 class CTranslator;
 
 struct GlobalContainer;
-
-class LocationManager;
 
 /**
  * lab build compiler, doesn't relate to building a .lab file
@@ -32,9 +31,10 @@ public:
     CompilerBinder& binder;
 
     /**
-     * the location manager is assigned at initialization
+     * the location manager is used to track locations inside all the files
+     * processed by this compiler
      */
-    LocationManager* loc_man;
+    LocationManager loc_man;
 
     /**
      * lab build compiler options
@@ -94,7 +94,6 @@ public:
      * so that's why prepare should be called, for each session of multiple jobs
      */
     void prepare(
-            LocationManager* const loc_man,
             ASTAllocator* const job_allocator,
             ASTAllocator* const mod_allocator,
             ASTAllocator* const file_allocator

@@ -6,8 +6,15 @@
 
 class LexImportUnit;
 
+class LocationManager;
+
 class HoverAnalyzer {
 public:
+
+    /**
+     * location manager is used to decode locations
+     */
+    LocationManager& loc_man;
 
     /**
      * the position user hovered at
@@ -23,7 +30,7 @@ public:
     /**
      * constructor
      */
-    HoverAnalyzer(Position position);
+    HoverAnalyzer(LocationManager& locMan, Position position);
 
     /**
      * it will analyze the position at hover occurred and return a markdown representation for the hover

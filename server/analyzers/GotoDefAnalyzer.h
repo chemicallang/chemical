@@ -7,8 +7,15 @@
 
 class LexImportUnit;
 
+class LocationManager;
+
 class GotoDefAnalyzer {
 public:
+
+    /**
+     * location manager
+     */
+    LocationManager& manager;
 
     /**
      * the position of token, at which user asked for goto def
@@ -18,7 +25,10 @@ public:
     /**
      * constructor
      */
-    GotoDefAnalyzer(Position position);
+    GotoDefAnalyzer(
+        LocationManager& manager,
+        Position position
+    );
 
     /**
      * this function analyzes the import unit, in which last file is the one which contains the

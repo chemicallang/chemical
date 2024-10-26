@@ -7,8 +7,12 @@
 #include <iostream>
 #include "utils/PathUtils.h"
 #include "ast/base/ASTNode.h"
+#include "cst/LocationManager.h"
 
-GotoDefAnalyzer::GotoDefAnalyzer(Position position) : position(position) {
+GotoDefAnalyzer::GotoDefAnalyzer(
+    LocationManager& manager,
+    Position position
+) : manager(manager), position(position) {
     // do nothing
 }
 
@@ -24,20 +28,18 @@ std::vector<Location> GotoDefAnalyzer::analyze(LexImportUnit* unit) {
     if(token && token->is_ref() && token->any) {
         const auto ref_linked = token->any->get_ref_linked_node();
         if(ref_linked) {
-            const auto where = ref_linked->cst_token();
-            auto container = find_containing_file(unit, where);
-            if(container) {
-                auto end = where->end_token();
-                return {
-                        Location{
-                                Range {
-                                        where->start_token()->position(),
-                                        {end->position().line, static_cast<unsigned int>(end->position().character + where->end_token()->value().size())}
-                                },
-                                container->abs_path
-                        }
-                };
-            }
+            const auto encoded = ref_linked->encoded_location();
+            const auto location = manager.getLocationPos(encoded);
+            const auto filePath = manager.getPathForFileId(location.fileId);
+            return {
+                    Location{
+                            Range {
+                                    location.start,
+                                    location.end
+                            },
+                            std::string(filePath)
+                    }
+            };
         } else {
             std::cout << "[GotoDefAnalyzer] Unresolved token at position " << position.representation() << " with type " << token->type_string()  << "and with representation " << token->representation() << std::endl;
         }

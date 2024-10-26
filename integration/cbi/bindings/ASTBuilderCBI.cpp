@@ -409,8 +409,8 @@ DoWhileLoop* ASTBuildermake_do_while_loop(CSTConverter* converter, Value* condit
     return new (converter->local<DoWhileLoop>()) DoWhileLoop(condition, LoopScope(parent_node, location), parent_node, location);
 }
 
-EnumDeclaration* ASTBuildermake_enum_decl(CSTConverter* converter, chem::string* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (converter->local<EnumDeclaration>()) EnumDeclaration(name->to_std_string(), {}, parent_node, location, specifier);
+EnumDeclaration* ASTBuildermake_enum_decl(CSTConverter* converter, chem::string* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (converter->local<EnumDeclaration>()) EnumDeclaration(LOC_ID(name->to_std_string(), name_loc), {}, parent_node, location, specifier);
 }
 
 EnumMember* ASTBuildermake_enum_member(CSTConverter* converter, chem::string* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, uint64_t location) {

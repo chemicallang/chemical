@@ -619,7 +619,7 @@ void CSTConverter::visitEnumDecl(CSTToken* decl) {
     auto& alloc = allocator(specifier);
 
     auto enum_decl = new (alloc.allocate<EnumDeclaration>()) EnumDeclaration(
-            str_token(decl->tokens[i]),
+            loc_id(decl->tokens[i]),
             std::unordered_map<std::string, EnumMember*> {},
             parent_node,
             loc(decl),

@@ -6,7 +6,7 @@
 #include "ast/types/LinkedType.h"
 
 BaseType* EnumMember::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(parent_node->name, (ASTNode*) parent_node, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(parent_node->name(), (ASTNode*) parent_node, location);
 }
 
 //hybrid_ptr<BaseType> EnumMember::get_value_type() {
@@ -27,11 +27,11 @@ ASTNode *EnumDeclaration::child(const std::string &name) {
 }
 
 void EnumDeclaration::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name, (ASTNode*) this, specifier, false);
+    linker.declare_node(name(), (ASTNode*) this, specifier, false);
 }
 
 BaseType* EnumDeclaration::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name(), (ASTNode*) this, location);
 }
 
 //hybrid_ptr<BaseType> EnumDeclaration::get_value_type() {

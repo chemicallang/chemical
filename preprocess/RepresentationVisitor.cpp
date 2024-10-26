@@ -260,7 +260,7 @@ void RepresentationVisitor::visit(DoWhileLoop *doWhileLoop) {
 
 void RepresentationVisitor::visit(EnumDeclaration *enumDecl) {
     write("enum ");
-    write(enumDecl->name);
+    write(enumDecl->name());
     space();
     write("{");
     indentation_level+=1;

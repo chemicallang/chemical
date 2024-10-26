@@ -2130,7 +2130,7 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
         std::string value = ("__CHENUM_");
         value += (std::to_string(enum_num++));
         value += ('_');
-        value += (enumDecl->name);
+        value += (enumDecl->name());
         value += (std::to_string(random(100, 999)));
         value += ("_");
         value += (mem.first);

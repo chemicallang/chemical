@@ -496,7 +496,7 @@ public struct ASTBuilder {
 
     func make_do_while_loop(&self, condition : *Value, parent_node : *ASTNode, location : ubigint) : *DoWhileLoop
 
-    func make_enum_decl(&self, name : *string, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *EnumDeclaration
+    func make_enum_decl(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *EnumDeclaration
 
     func make_enum_member(&self, name : *string, index : uint, init_value : *Value, parent_node : *EnumDeclaration, location : ubigint) : *EnumMember
 

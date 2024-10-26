@@ -42,14 +42,11 @@ void InlayHintAnalyzer::visit(FunctionCall *call) {
 void InlayHintAnalyzer::visit(VarInitStatement *init) {
     CommonVisitor::visit(init);
     if(init->value && !init->type) {
-        const auto encoded_loc = init->encoded_location();
+        const auto encoded_loc = init->located_id.location;
         if(encoded_loc.isValid()) {
             const auto location = loc_man.getLocationPos(encoded_loc);
             const auto known = init->value->create_type(allocator);
             if(known) {
-                // TODO the name should be stored as an identifier in the ast
-//                const auto name_tok = var_init_name_tok(token);
-                // TODO use the end location on the name identifier
                 const auto& start = location.end;
                 hints.emplace_back(lsInlayHint {
                         { (int) start.line, (int) start.character },

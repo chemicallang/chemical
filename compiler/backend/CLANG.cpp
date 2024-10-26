@@ -334,7 +334,7 @@ inline Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int 
 }
 
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
-    auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(decl->getNameAsString(), {}, parent_node, ZERO_LOC);
+    auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(ZERO_LOC_ID(decl->getNameAsString()), {}, parent_node, ZERO_LOC);
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
     unsigned index = 0;
     for(auto mem : decl->enumerators()) {

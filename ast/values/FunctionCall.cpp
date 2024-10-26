@@ -164,7 +164,7 @@ llvm::Value* arg_value(
             argValue = value->llvm_value(gen, param_type);
         }
     }
-    if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
+    if (func_type->isVariadic() && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
         // Ensure proper type promotion for float values passed to printf
         argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
     } else {
@@ -476,7 +476,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
 ) {
 
     auto func_type = function_type(gen.allocator);
-    if(func_type->isCapturing) {
+    if(func_type->isCapturing()) {
         return call_capturing_lambda(gen, this, func_type, &chain, until, destructibles);
     }
 

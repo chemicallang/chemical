@@ -32,15 +32,34 @@ class ASTNode;
 
 class ASTDiagnoser;
 
+struct FunctionTypeData {
+    /**
+     * is the function variadic
+     */
+    bool isVariadic;
+    /**
+     * is the function capturing
+     */
+    bool isCapturing;
+    /**
+     * this is marked true, when symbol resolution of the signature completes successfully
+     */
+    bool signature_resolved;
+};
+
+static_assert(sizeof(FunctionTypeData) <= 8);
+
 class FunctionType : public TokenizedBaseType {
 public:
 
     std::vector<FunctionParam*> params;
     BaseType* returnType = nullptr;
     // if the function is variadic, the last type in params is the type given to the variadic parameter
-    bool isVariadic;
-    bool isCapturing;
     ASTNode* parent_node;
+    /**
+     * function type data
+     */
+    FunctionTypeData data;
 
     /**
      * moved identifiers are stored in this vector, this is similar to moved_chains, single variable
@@ -70,8 +89,21 @@ public:
     );
 
     [[nodiscard]]
-    bool is_capturing() const {
-        return isCapturing;
+    inline bool isCapturing() const {
+        return data.isCapturing;
+    }
+
+    [[nodiscard]]
+    inline bool isVariadic() const {
+        return data.isVariadic;
+    }
+
+    inline void setIsCapturing(bool capturing) {
+        data.isCapturing = capturing;
+    }
+
+    inline void setIsVariadic(bool variadic) {
+        data.isVariadic = variadic;
     }
 
     virtual ASTNode* parent() {

@@ -260,7 +260,6 @@ ASTImportResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const
     CSTConverter converter(
             fileId,
             options->is64Bit,
-            options->target_triple,
             resolver->comptime_scope,
             binder,
             job_allocator,

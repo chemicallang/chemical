@@ -856,6 +856,29 @@ public:
     }
 };
 
+class InterpretGetTarget : public FunctionDeclaration {
+public:
+
+    StringType stringType;
+
+    explicit InterpretGetTarget(ASTNode* parent_node) : FunctionDeclaration(
+            "get_target",
+            std::vector<FunctionParam*> {},
+            &stringType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            std::nullopt,
+            AccessSpecifier::Public
+    ), stringType(ZERO_LOC) {
+        add_annotation(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        return new (call_scope->allocate<StringValue>()) StringValue(call_scope->global->target_triple, call->location);
+    }
+};
+
+
 //class InterpretConstruct : public FunctionDeclaration {
 //public:
 //    explicit InterpretConstruct(ASTNode* parent_node) : FunctionDeclaration(
@@ -894,6 +917,7 @@ public:
     InterpretGetCharacterNo get_char_no;
     InterpretGetRuntimeLineNo get_runtime_line_no;
     InterpretGetRuntimeCharacterNo get_runtime_char_no;
+    InterpretGetTarget get_target_fn;
     InterpretError error_fn;
 
     CompilerNamespace(
@@ -901,13 +925,14 @@ public:
     ) : Namespace("compiler", nullptr, ZERO_LOC, AccessSpecifier::Public),
         printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this),
-        satisfiesFn(this)
+        satisfiesFn(this), get_target_fn(this)
     {
 
         add_annotation(AnnotationKind::CompTime);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
-            &satisfiesFn, &get_line_no, &get_char_no, &get_runtime_line_no, &get_runtime_char_no, &error_fn
+            &satisfiesFn, &get_line_no, &get_char_no, &get_runtime_line_no, &get_runtime_char_no, &error_fn,
+            &get_target_fn
         };
 
     }

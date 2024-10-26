@@ -140,11 +140,6 @@ public:
     CompilerBinder& binder;
 
     /**
-     * the target is provided to the source code
-     */
-    std::string target;
-
-    /**
      * is code gen for 64bit
      */
     bool is64Bit;
@@ -155,7 +150,6 @@ public:
     CSTConverter(
         unsigned int file_id,
         bool is64Bit,
-        std::string target,
         GlobalInterpretScope& scope,
         CompilerBinder& binder,
         ASTAllocator& global_allocator,

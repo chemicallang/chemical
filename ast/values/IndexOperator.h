@@ -21,7 +21,7 @@ public:
 
     }
 
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return location;
     }
 

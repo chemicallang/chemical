@@ -24,7 +24,7 @@ public:
         return ASTNodeKind::UnnamedStruct;
     }
 
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return location;
     }
 

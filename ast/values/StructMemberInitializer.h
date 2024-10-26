@@ -51,7 +51,7 @@ public:
 
     StructMemberInitializer* copy(ASTAllocator& allocator);
 
-    SourceLocation encoded_location() override;
+    SourceLocation encoded_location() final;
 
     ASTNode* parent() final;
 

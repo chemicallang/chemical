@@ -40,7 +40,7 @@ public:
     /**
      * get encoded location
      */
-    SourceLocation encoded_location() override;
+    SourceLocation encoded_location() final;
 
     /**
      * accept the visitor

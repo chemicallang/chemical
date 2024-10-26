@@ -21,8 +21,6 @@ struct LabModule {
     chem::string name;
     // the translated c file (if any) will be written to this path
     chem::string out_c_path;
-    // the headers are translated to a single chemical file
-    chem::string out_translated_headers;
     // bitcode file path for this module
     chem::string bitcode_path;
     // object file path for this module

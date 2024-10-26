@@ -22,7 +22,7 @@ public:
      */
     ContinueStatement(LoopASTNode *node, ASTNode* parent_node, SourceLocation location);
 
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return location;
     }
 

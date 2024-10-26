@@ -36,7 +36,7 @@ public:
 
     Scope& operator=(Scope&&) = default;
 
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return location;
     }
 

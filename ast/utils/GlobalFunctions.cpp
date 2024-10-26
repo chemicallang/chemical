@@ -364,7 +364,7 @@ public:
     explicit WrapValue(Value* underlying) : underlying(underlying) {
 
     }
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return ZERO_LOC;
     }
     void accept(Visitor *visitor) final {

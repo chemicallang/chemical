@@ -24,7 +24,7 @@ public:
      */
     explicit IntValue(int value, SourceLocation location) : value(value), location(location) {}
 
-    SourceLocation encoded_location() override {
+    SourceLocation encoded_location() final {
         return location;
     }
 

@@ -38,7 +38,7 @@ void DestructStmt::declare_and_link(SymbolResolver &linker) {
 
 DestructData DestructStmt::get_data(ASTAllocator& allocator) {
 
-    DestructData data {nullptr, nullptr,  -1 };
+    DestructData data {nullptr, nullptr,  0 };
 
     auto created_type = identifier->create_type(allocator);
     auto pure_type = created_type->pure_type();
@@ -66,7 +66,6 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
     BaseType* elem_type;
     if(pure_type->kind() == BaseTypeKind::Array) {
         auto arr_type = (ArrayType*) pure_type;
-        int array_size = arr_type->array_size;
         elem_type = arr_type->elem_type->pure_type();
         auto def = elem_type->get_direct_linked_struct();
         if(!def) {
@@ -74,7 +73,7 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
         }
         data.parent_node = def;
         data.destructor_func = def->destructor_func();
-        data.array_size = array_size;
+        data.array_size = arr_type->get_array_size();
     } else if(pure_type->kind() == BaseTypeKind::Pointer) {
         if(!array_value) {
             return data;

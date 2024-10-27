@@ -64,7 +64,7 @@ bool Lexer::lexRefOrGenericType() {
 void Lexer::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
     if(lexOperatorToken('[')) {
         // optional array size
-        lexUnsignedIntAsNumberToken();
+        lexExpressionTokens();
         if(!lexOperatorToken(']')) {
             error("expected ']' for array type");
             return;

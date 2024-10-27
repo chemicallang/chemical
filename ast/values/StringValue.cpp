@@ -14,9 +14,9 @@ bool StringValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type
     if(type && type->kind() == BaseTypeKind::Array) {
         is_array = true;
         auto arrayType = (ArrayType*) (type);
-        if(arrayType->array_size > (int) value.size()) {
-            length = (unsigned int) arrayType->array_size;
-        } else if(arrayType->array_size == -1) {
+        if(arrayType->get_array_size() > value.size()) {
+            length = (unsigned int) arrayType->get_array_size();
+        } else if(arrayType->has_no_array_size()) {
             length = value.size() + 1; // adding 1 for the last /0
         } else {
 #ifdef DEBUG

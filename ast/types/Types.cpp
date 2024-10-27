@@ -33,7 +33,7 @@ bool ArrayType::satisfies(BaseType *pure_type) {
     }
     if(pure_type_kind != BaseTypeKind::Array) return false;
     const auto arr_type = (ArrayType*) pure_type;
-    if(array_size != -1 && arr_type->array_size != -1 && array_size != arr_type->array_size) return false;
+    if(has_array_size() && arr_type->has_no_array_size() && get_array_size() != arr_type->get_array_size()) return false;
     // can't get array element type, because array is empty probably and has no type declaration to lean on
     // sometimes it links with the expected type which is the type provided by this array type
     if(!arr_type->elem_type) return true;

@@ -154,8 +154,8 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
     if(type->kind() == BaseTypeKind::Array) {
         visitor.write('[');
         auto arrType = ((ArrayType*) type);
-        if(arrType->array_size != -1) {
-            visitor.write(std::to_string(arrType->array_size));
+        if(arrType->has_array_size()) {
+            visitor.write(std::to_string(arrType->get_array_size()));
         }
         visitor.write(']');
         if(arrType->elem_type->kind() == BaseTypeKind::Array) {
@@ -1786,8 +1786,8 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
                                linked->as_struct_def());
         } else if(init->type->kind() == BaseTypeKind::Array) {
             auto type = (ArrayType*) init->type;
-            if(type->array_size != -1) {
-                queue_destruct_arr(init->identifier(), init, type->elem_type, type->array_size);
+            if(type->has_array_size()) {
+                queue_destruct_arr(init->identifier(), init, type->elem_type, type->get_array_size());
             } else {
                 // cannot destruct array type without size
             }
@@ -3459,10 +3459,10 @@ void ToCAstVisitor::visit(DestructStmt *stmt) {
     nested_value = true;
     auto self_name = string_accept(stmt->identifier);
     nested_value = prev_nested;
-    IntValue siz_val(data.array_size, ZERO_LOC);
+    UBigIntValue siz_val(data.array_size, ZERO_LOC);
 
     if(stmt->is_array) {
-        destructor->destruct_arr_ptr(self_name, data.array_size != -1 ? &siz_val : stmt->array_value, data.parent_node, 0, data.destructor_func);
+        destructor->destruct_arr_ptr(self_name, data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, 0, data.destructor_func);
     } else {
         destructor->destruct(self_name, data.parent_node, 0, data.destructor_func, true);
     }

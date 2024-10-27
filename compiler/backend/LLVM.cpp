@@ -1121,15 +1121,14 @@ void DestructStmt::code_gen(Codegen &gen) {
     BaseType* elem_type;
     if(pure_type->kind() == BaseTypeKind::Array) {
         auto arr_type = (ArrayType*) pure_type;
-        int array_size = arr_type->array_size;
         elem_type = arr_type->elem_type->pure_type();
         if (!is_array) {
             gen.error("expected brackets '[]' after 'destruct' for destructing an array, with value " + identifier->representation(), this);
             return;
-        } else if (array_size != -1 && array_value) {
-            gen.error("array size given in brackets '[" + array_value->representation() + "]' is redundant as array size is known to be " + std::to_string(array_size) + " with value " + identifier->representation(), this);
+        } else if (arr_type->has_array_size() && array_value) {
+            gen.error("array size given in brackets '[" + array_value->representation() + "]' is redundant as array size is known to be " + std::to_string(arr_type->get_array_size()) + " with value " + identifier->representation(), this);
             return;
-        } else if (array_size == -1 && !array_value) {
+        } else if (arr_type->has_no_array_size() && !array_value) {
             gen.error("array is size is not known, so it must be provided in brackets for destructing value " + identifier->representation(), this);
             return;
         }
@@ -1138,7 +1137,7 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;
         }
-        arr_size_llvm = array_size != -1 ? gen.builder->getInt32(array_size) : array_value->llvm_value(gen);
+        arr_size_llvm = arr_type->has_array_size() ? gen.builder->getInt32(arr_type->get_array_size()) : array_value->llvm_value(gen);
     } else if(pure_type->kind() == BaseTypeKind::Pointer) {
         if(!array_value) {
             gen.error("array size is required when destructing a pointer, for destructing array pointer value" + identifier->representation(), this);

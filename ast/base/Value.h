@@ -571,6 +571,11 @@ public:
     std::string get_the_string();
 
     /**
+     * get any number from the type
+     */
+    std::optional<uint64_t> get_the_number();
+
+    /**
      * a function to be overridden by values that can return int
      */
     int get_the_int();

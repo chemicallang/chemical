@@ -71,6 +71,8 @@ struct SymResScope {
 
 };
 
+class CTranslator;
+
 /**
  * SymbolResolver is responsible for linking symbols, every symbol can declare itself
  * on a map and another node can lookup this symbol, generate an error if not found

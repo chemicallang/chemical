@@ -1755,8 +1755,7 @@ void CSTConverter::visitArrayType(CSTToken* arrayType) {
         arrayType->tokens[2]->accept(this);
         val = value();
     }
-    auto arraySize = (val && val->value_type() == ValueType::Int) ? val->get_the_int() : -1;
-    put_type(new (local<ArrayType>()) ArrayType(elem_type, arraySize, loc(arrayType)), arrayType);
+    put_type(new (local<ArrayType>()) ArrayType(elem_type, val, loc(arrayType)), arrayType);
 }
 
 void CSTConverter::visitFunctionType(CSTToken* funcType) {
@@ -1940,10 +1939,15 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
     switch(last_char) {
         case 'f':
         case 'F': {
-            mut_value[last_char_index] = '\0';
-            const auto num_value = parse_num(value, last_char_index, strtof);
-            mut_value[last_char_index] = last_char;
-            return { new (alloc.allocate<FloatValue>()) FloatValue(num_value.result, location), err.empty() ? num_value.error : err };
+            if(value[0] == '0' && (value[1] == 'x' || value[1] == 'X')) {
+                // avoiding values like 0xFFFFFF
+                goto final_block;
+            } else {
+                mut_value[last_char_index] = '\0';
+                const auto num_value = parse_num(value, last_char_index, strtof);
+                mut_value[last_char_index] = last_char;
+                return {new(alloc.allocate<FloatValue>()) FloatValue(num_value.result, location), err.empty() ? num_value.error : err};
+            }
         }
         case 'l':
         case 'L': {
@@ -1962,7 +1966,8 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
             mut_value[last_char_index] = last_char;
             return { new (alloc.allocate<LongValue>()) LongValue(num_value.result, is64Bit, location), err.empty() ? num_value.error : err };
         }
-        default: {
+        default:
+        final_block: {
             if (std::string_view(value, value_size).find('.') != std::string_view::npos) {
                 // TODO we should judge by the length of the string to give better value (support float128 on large doubles)
                 const auto num_value = parse_num(value, value_size, strtod);

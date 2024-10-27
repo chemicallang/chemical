@@ -730,6 +730,23 @@ std::string Value::get_the_string() {
     return ((StringValue*) this)->value;
 }
 
+std::optional<uint64_t> Value::get_the_number() {
+    switch(val_kind()) {
+        case ValueKind::Short:
+        case ValueKind::UShort:
+        case ValueKind::Int:
+        case ValueKind::UInt:
+        case ValueKind::Long:
+        case ValueKind::ULong:
+        case ValueKind::BigInt:
+        case ValueKind::UBigInt:
+        case ValueKind::NumberValue:
+            return ((IntNumValue*) this)->get_num_value();
+        default:
+            return std::nullopt;
+    }
+}
+
 int Value::get_the_int() {
     switch(val_kind()) {
         case ValueKind::Int:

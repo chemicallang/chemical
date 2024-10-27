@@ -54,6 +54,7 @@
 #include "utils/PathUtils.h"
 #include <filesystem>
 #include "compiler/Codegen.h"
+#include "utils/parse_num.h"
 
 struct ErrorMsg {
     const char *filename_ptr; // can be null
@@ -1181,22 +1182,27 @@ clang::ASTUnit* CTranslator::get_unit(
     return get_unit(args, args + 2, resources_path);
 }
 
-Value* convert_token_to_value(ASTAllocator& allocator, const clang::Token& token) {
+Value* convert_token_to_value(ASTAllocator& allocator, const clang::Token& token, bool is64Bit) {
     switch(token.getKind()) {
         case clang::tok::numeric_constant:{
             const auto data = token.getLiteralData();
-            std::string_view view(data, token.getLength());
-            return nullptr;
+            // the reason we use string is because convert_number_to_value expects a mutable char*
+            // with string copying, we won't be writing to read only memory, avoiding undefined behavior
+            // also convert_number_to_value doesn't change the string but still requires a mutable one because
+            // string can contain suffixes like ui32 and it must ignore them, so it put's \0 before those suffixes
+            std::string string(data, token.getLength());
+            const auto result = convert_number_to_value(allocator, const_cast<char*>(string.c_str()), string.size(), is64Bit, ZERO_LOC);
+            return result.error.empty() ? result.result : nullptr;
         }
         default:
             return nullptr;
     }
 }
 
-Value* convert_to_value(ASTAllocator& allocator, clang::MacroInfo* info) {
+Value* convert_to_value(CTranslator& translator, clang::MacroInfo* info) {
     auto tokens = info->tokens();
     if(tokens.size() == 1) {
-        return convert_token_to_value(allocator, tokens.front());
+        return convert_token_to_value(translator.allocator, tokens.front(), translator.is64Bit);
     } else {
         // TODO
     }
@@ -1217,7 +1223,7 @@ void CTranslator::translate(
         clang::IdentifierInfo *II = it->second;
         if (II->hasMacroDefinition()) {
             clang::MacroInfo *MI = PP.getMacroInfo(II);
-            const auto value = convert_to_value(allocator, MI);
+            const auto value = convert_to_value(*this, MI);
 //            llvm::outs() << "Macro: " << II->getName() << " = ";
 //            for (const auto &Tok : MI->tokens()) {
 //                llvm::outs() << Tok.getName() << " ";

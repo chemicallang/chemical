@@ -94,6 +94,7 @@
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/base/MalformedInput.h"
 #include "LocationManager.h"
+#include "utils/parse_num.h"
 
 std::optional<Operation> get_operation_safe(CSTToken *token) {
     std::string num;
@@ -1794,148 +1795,101 @@ void CSTConverter::visitCharToken(CSTToken* token) {
     put_value(new (local<CharValue>()) CharValue(value, loc(token)), token);
 }
 
-const auto unk_bit_width_err = "unknown bitwidth given for a number";
+const auto unk_bit_width_err = "unknown bit width given for a number";
 
-int get_parse_num_base(const char* num, std::size_t num_size) {
-    return (num[0] == '0' && num_size > 1 && (num[1] == 'x' || num[1] == 'X')) ? 16 : 10;
-}
-
-template<typename T>
-inline T parse_num(CSTConverter* converter, CSTToken* token, const char* _Ptr, std::size_t num_size, T(*parseFunc)(const char* _String, char** _EndPtr, int _Radix)) {
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    char* _Eptr;
-    _Errno_ref               = 0;
-    const T _Ans = parseFunc(_Ptr, &_Eptr, get_parse_num_base(_Ptr, num_size));
-    if (_Ptr == _Eptr) {
-        converter->error("invalid value provided", token);
-    }
-    if (_Errno_ref == ERANGE) {
-        converter->error("argument out of range", token);
-    }
-    return _Ans;
-}
-
-template<typename T>
-inline T parse_num(CSTConverter* converter, CSTToken* token, const char* _Ptr, T(*parseFunc)(const char* _String, char** _EndPtr)) {
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    char* _Eptr;
-    _Errno_ref               = 0;
-    const T _Ans = parseFunc(_Ptr, &_Eptr);
-    if (_Ptr == _Eptr) {
-        converter->error("invalid value provided", token);
-    }
-    if (_Errno_ref == ERANGE) {
-        converter->error("argument out of range", token);
-    }
-    return _Ans;
-}
-
-void CSTConverter::visitNumberToken(NumberToken *token) {
-    // we take the mutable value of the token
-    // every change we make to the token's value, we revert that change back
-    // to keep the token value legitimate
-    auto& mut_value = token->unsafe_mutable_value();
-    const auto& value = mut_value;
-    const auto value_size = value.size();
+parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_value, std::size_t value_size, bool is64Bit, SourceLocation location) {
+    const char* value = mut_value;
     const auto last_char_index = value_size - 1;
     // i8, i16, i32, i64, i128
     // u8, u16, u32, u64, u128
     const auto last_char = value[last_char_index];
+    std::string_view err;
     if(value_size > 2) {
         const auto sec_last_index = value_size - 2;
         const auto sec_last = value[sec_last_index];
         if(sec_last == 'i') {
             if(last_char != '8') {
-                error(unk_bit_width_err, token);
+                err = unk_bit_width_err;
             }
             // pretend value ended here, so C only considers it up until this point
             mut_value[sec_last_index] = '\0';
-            const auto num_value = parse_num(this, token, value.c_str(), sec_last_index, strtol);
+            const auto num_value = parse_num(value, sec_last_index, strtol);
             mut_value[sec_last_index] = sec_last;
-            put_value(new (local<CharValue>()) CharValue((char) num_value, loc(token)), token);
-            return;
+            return { new (alloc.allocate<CharValue>()) CharValue((char) num_value.result, location), err.empty() ? num_value.error : err };
         } else if(sec_last == 'u' || sec_last == 'U') {
             const auto is_long = last_char == 'l' || last_char == 'L';
             if(last_char != '8' && !is_long) {
-                error(unk_bit_width_err, token);
+                err = unk_bit_width_err;
             }
             if(is_long) {
                 mut_value[sec_last_index] = '\0';
-                const auto num_value = parse_num(this, token, value.c_str(), sec_last_index, strtoul);
+                const auto num_value = parse_num(value, sec_last_index, strtoul);
                 mut_value[sec_last_index] = sec_last;
-                put_value(new (local<ULongValue>()) ULongValue((unsigned long) num_value, is64Bit, loc(token)),token);
+                return { new (alloc.allocate<ULongValue>()) ULongValue((unsigned long) num_value.result, is64Bit, location), err.empty() ? num_value.error : err };
             } else {
                 mut_value[sec_last_index] = '\0';
-                const auto num_value = parse_num(this, token, value.c_str(), sec_last_index, strtoul);
+                const auto num_value = parse_num(value, sec_last_index, strtoul);
                 mut_value[sec_last_index] = sec_last;
-                put_value(new (local<UCharValue>()) UCharValue((char) num_value, loc(token)),token);
+                return { new (alloc.allocate<UCharValue>()) UCharValue((char) num_value.result, location), err.empty() ? num_value.error : err };
             }
-            return;
         } else if(value_size > 3) {
             const auto third_last_index = value_size - 3;
             const auto third_last = value[third_last_index];
-            const auto sec_last_view = std::string_view(value.c_str() + sec_last_index);
+            const auto sec_last_view = std::string_view(value + sec_last_index);
             if(third_last == 'i') {
                 if(sec_last_view == "16") {
                     mut_value[third_last_index] = '\0';
-                    const auto num_value = parse_num(this, token, value.c_str(), third_last_index, strtol);
+                    const auto num_value = parse_num(value, third_last_index, strtol);
                     mut_value[third_last_index] = third_last;
-                    put_value(new (local<ShortValue>()) ShortValue((short) num_value, loc(token)), token);
-                    return;
+                    return { new (alloc.allocate<ShortValue>()) ShortValue((short) num_value.result, location), err.empty() ? num_value.error : err };
                 } else if(sec_last_view == "32") {
                     mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(this, token, value.c_str(), third_last_index, strtol);
+                    const auto num_val = parse_num(value, third_last_index, strtol);
                     mut_value[third_last_index] = third_last;
-                    put_value(new (local<IntValue>()) IntValue((int) num_val, loc(token)), token);
-                    return;
+                    return { new (alloc.allocate<IntValue>()) IntValue((int) num_val.result, location), err.empty() ? num_val.error : err };
                 } else {
                     if(sec_last_view != "64") {
-                        error(unk_bit_width_err, token);
+                        err = unk_bit_width_err;
                     }
                     mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(this, token, value.c_str(), third_last_index, strtoll);
+                    const auto num_val = parse_num(value, third_last_index, strtoll);
                     mut_value[third_last_index] = third_last;
-                    put_value(new (local<BigIntValue>()) BigIntValue((long long) num_val, loc(token)), token);
-                    return;
+                    return { new (alloc.allocate<BigIntValue>()) BigIntValue((long long) num_val.result, location), err.empty() ? num_val.error : err };
                 }
             } else if(third_last == 'u') {
                 if(sec_last_view == "16") {
                     mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(this, token, value.c_str(), third_last_index, strtoul);
+                    const auto num_val = parse_num(value, third_last_index, strtoul);
                     mut_value[third_last_index] = third_last;
-                    put_value(new (local<UShortValue>()) UShortValue((unsigned short) num_val, loc(token)), token);
-                    return;
+                    return { new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) num_val.result, location), err.empty() ? num_val.error : err };
                 } else if(sec_last_view == "32") {
                     mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(this, token, value.c_str(), third_last_index, strtoul);
+                    const auto num_val = parse_num(value, third_last_index, strtoul);
                     mut_value[third_last_index] = third_last;
-                    put_value(new (local<UIntValue>()) UIntValue((unsigned int) num_val, loc(token)), token);
-                    return;
+                    return { new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) num_val.result, location), err.empty() ? num_val.error : err };
                 } else {
                     if(sec_last_view != "64") {
-                        error(unk_bit_width_err, token);
+                        err = unk_bit_width_err;
                     }
                     mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(this, token, value.c_str(), third_last_index, strtoull);
+                    const auto num_val = parse_num(value, third_last_index, strtoull);
                     mut_value[third_last_index] = third_last;
-                    put_value(new (local<UBigIntValue>()) UBigIntValue((unsigned long long) num_val, loc(token)), token);
-                    return;
+                    return { new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) num_val.result, location), err.empty() ? num_val.error : err };
                 }
             } else if(value_size > 4) {
-                const auto third_last_view = std::string_view(value.c_str() + third_last_index);
+                const auto third_last_view = std::string_view(value + third_last_index);
                 const auto fourth_last_index = value_size - 4;
                 const auto fourth_last = value[fourth_last_index];
                 if(fourth_last == 'i') {
                     if(third_last_view != "128") {
-                        error(unk_bit_width_err, token);
+                        err = unk_bit_width_err;
                     }
                     const auto is_negative = value[0] == '-';
                     const auto begin_index = is_negative ? 1 : 0;
                     mut_value[fourth_last_index] = '\0';
-                    const auto num_val = parse_num(this, token, value.c_str() + begin_index, fourth_last_index, strtoull);
+                    const auto num_val = parse_num(value + begin_index, fourth_last_index, strtoull);
                     mut_value[fourth_last_index] = fourth_last;
-                    put_value(new (local<Int128Value>()) Int128Value(num_val, is_negative, loc(token)), token);
-                    return;
+                    return { new (alloc.allocate<Int128Value>()) Int128Value(num_val.result, is_negative, location), err.empty() ? num_val.error : err };
                 } else if(fourth_last == 'u') {
                     // TODO skipping the u128 conversion, as it requires conversion in low and high magnitudes
 //                        if(third_last_view == "128") {
@@ -1955,30 +1909,40 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
         case 'f':
         case 'F': {
             mut_value[last_char_index] = '\0';
-            const auto num_value = parse_num(this, token, value.c_str(), strtof);
+            const auto num_value = parse_num(value, last_char_index, strtof);
             mut_value[last_char_index] = last_char;
-            put_value(new (local<FloatValue>()) FloatValue(num_value, loc(token)), token);
-            return;
+            return { new (alloc.allocate<FloatValue>()) FloatValue(num_value.result, location), err.empty() ? num_value.error : err };
         }
         case 'l':
         case 'L': {
             mut_value[last_char_index] = '\0';
-            const auto num_value = parse_num(this, token, value.c_str(), last_char_index, strtol);
+            const auto num_value = parse_num(value, last_char_index, strtol);
             mut_value[last_char_index] = last_char;
-            put_value(new (local<LongValue>()) LongValue(num_value, is64Bit, loc(token)), token);
-            return;
+            return { new (alloc.allocate<LongValue>()) LongValue(num_value.result, is64Bit, location), err.empty() ? num_value.error : err };
         }
         default: {
-            if (token->has_dot()) {
+            if (std::string_view(value, value_size).find('.') != std::string_view::npos) {
                 // TODO we should judge by the length of the string to give better value (support float128 on large doubles)
-                const auto num_value = parse_num(this, token, value.c_str(), strtod);
-                put_value(new(local<DoubleValue>()) DoubleValue(num_value, loc(token)), token);
+                const auto num_value = parse_num(value, value_size, strtod);
+                return { new(alloc.allocate<DoubleValue>()) DoubleValue(num_value.result, location), err.empty() ? num_value.error : err };
             } else {
-                const auto num_value = parse_num(this, token, value.c_str(), value_size, strtoll);
-                put_value(new(local<NumberValue>()) NumberValue(num_value, loc(token)), token);
+                const auto num_value = parse_num(value, value_size, strtoll);
+                return { new(alloc.allocate<NumberValue>()) NumberValue(num_value.result, location), err.empty() ? num_value.error : err };
             }
         }
     }
+}
+
+void CSTConverter::visitNumberToken(NumberToken *token) {
+    // we take the mutable value of the token
+    // every change we make to the token's value, we revert that change back
+    // to keep the token value legitimate
+    auto& mut_value = token->unsafe_mutable_value();
+    const auto result = convert_number_to_value(*local_allocator, const_cast<char*>(mut_value.c_str()), mut_value.size(), is64Bit, loc(token));
+    if(!result.error.empty()) {
+        error(result.error, token);
+    }
+    put_value(result.result, token);
 }
 
 BaseType* convert_ref_value_to_type(CSTConverter* converter, Value* value, CSTToken* generic_token, ASTAllocator& allocator) {

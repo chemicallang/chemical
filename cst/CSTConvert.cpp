@@ -1798,112 +1798,144 @@ void CSTConverter::visitCharToken(CSTToken* token) {
 const auto unk_bit_width_err = "unknown bit width given for a number";
 
 parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_value, std::size_t value_size, bool is64Bit, SourceLocation location) {
+
+    // considers bitwidths
+    // i8, i16, i32, i64, i128
+    // ui8, ui16, ui32, ui64, ui128
+    // u8, u16, u32, u64, u128
+
     const char* value = mut_value;
     const auto last_char_index = value_size - 1;
-    // i8, i16, i32, i64, i128
-    // u8, u16, u32, u64, u128
     const auto last_char = value[last_char_index];
-    std::string_view err;
+
+    bool is_unsigned = false;
+    // suffix index is the index where the suffix begins u8, i8
+    std::size_t suffix_index = value_size;
+    // bitwidth index is the index where bitwidth begins 8, 32, 64 <-- exact number
+    std::size_t bit_width_index = value_size;
+    // bit width size
+    uint8_t bit_width_size = 0;
+
     if(value_size > 2) {
         const auto sec_last_index = value_size - 2;
         const auto sec_last = value[sec_last_index];
+        // considering u8 or i8, or ui8
         if(sec_last == 'i') {
-            if(last_char != '8') {
-                err = unk_bit_width_err;
-            }
-            // pretend value ended here, so C only considers it up until this point
-            mut_value[sec_last_index] = '\0';
-            const auto num_value = parse_num(value, sec_last_index, strtol);
-            mut_value[sec_last_index] = sec_last;
-            return { new (alloc.allocate<CharValue>()) CharValue((char) num_value.result, location), err.empty() ? num_value.error : err };
-        } else if(sec_last == 'u' || sec_last == 'U') {
-            const auto is_long = last_char == 'l' || last_char == 'L';
-            if(last_char != '8' && !is_long) {
-                err = unk_bit_width_err;
-            }
-            if(is_long) {
-                mut_value[sec_last_index] = '\0';
-                const auto num_value = parse_num(value, sec_last_index, strtoul);
-                mut_value[sec_last_index] = sec_last;
-                return { new (alloc.allocate<ULongValue>()) ULongValue((unsigned long) num_value.result, is64Bit, location), err.empty() ? num_value.error : err };
+            if(value_size > 3 && value[value_size - 3] == 'u') {
+                // u before i, means ui8 unsigned int
+                is_unsigned = true;
+                bit_width_index = last_char_index;
+                suffix_index = value_size - 3;
             } else {
-                mut_value[sec_last_index] = '\0';
-                const auto num_value = parse_num(value, sec_last_index, strtoul);
-                mut_value[sec_last_index] = sec_last;
-                return { new (alloc.allocate<UCharValue>()) UCharValue((char) num_value.result, location), err.empty() ? num_value.error : err };
+                // at second last position i8 or u8 only 8 is valid bitwidth as a single character
+                bit_width_index = last_char_index;
+                suffix_index = sec_last_index;
             }
+        } else if(sec_last == 'u' && last_char != 'u' && last_char != 'U') {
+            // at second last position i8 or u8 only 8 is valid as a single character
+            is_unsigned = true;
+            bit_width_index = last_char_index;
+            suffix_index = sec_last_index;
         } else if(value_size > 3) {
             const auto third_last_index = value_size - 3;
             const auto third_last = value[third_last_index];
-            const auto sec_last_view = std::string_view(value + sec_last_index);
+            // considering i16, i32, i64, u16, u32, u64, ui16, ui32, ui64
             if(third_last == 'i') {
-                if(sec_last_view == "16") {
-                    mut_value[third_last_index] = '\0';
-                    const auto num_value = parse_num(value, third_last_index, strtol);
-                    mut_value[third_last_index] = third_last;
-                    return { new (alloc.allocate<ShortValue>()) ShortValue((short) num_value.result, location), err.empty() ? num_value.error : err };
-                } else if(sec_last_view == "32") {
-                    mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(value, third_last_index, strtol);
-                    mut_value[third_last_index] = third_last;
-                    return { new (alloc.allocate<IntValue>()) IntValue((int) num_val.result, location), err.empty() ? num_val.error : err };
+                if(value_size > 4 && value[value_size - 4] == 'u') {
+                    // u before i, means ui16, ui32 or ui64
+                    is_unsigned = true;
+                    bit_width_index = sec_last_index;
+                    suffix_index = value_size - 4;
                 } else {
-                    if(sec_last_view != "64") {
-                        err = unk_bit_width_err;
-                    }
-                    mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(value, third_last_index, strtoll);
-                    mut_value[third_last_index] = third_last;
-                    return { new (alloc.allocate<BigIntValue>()) BigIntValue((long long) num_val.result, location), err.empty() ? num_val.error : err };
+                    bit_width_index = sec_last_index;
+                    suffix_index = third_last_index;
                 }
             } else if(third_last == 'u') {
-                if(sec_last_view == "16") {
-                    mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(value, third_last_index, strtoul);
-                    mut_value[third_last_index] = third_last;
-                    return { new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) num_val.result, location), err.empty() ? num_val.error : err };
-                } else if(sec_last_view == "32") {
-                    mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(value, third_last_index, strtoul);
-                    mut_value[third_last_index] = third_last;
-                    return { new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) num_val.result, location), err.empty() ? num_val.error : err };
-                } else {
-                    if(sec_last_view != "64") {
-                        err = unk_bit_width_err;
-                    }
-                    mut_value[third_last_index] = '\0';
-                    const auto num_val = parse_num(value, third_last_index, strtoull);
-                    mut_value[third_last_index] = third_last;
-                    return { new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) num_val.result, location), err.empty() ? num_val.error : err };
-                }
+                is_unsigned = true;
+                bit_width_index = sec_last_index;
+                suffix_index = third_last_index;
             } else if(value_size > 4) {
-                const auto third_last_view = std::string_view(value + third_last_index);
+                // considering i128, u128, ui128
                 const auto fourth_last_index = value_size - 4;
                 const auto fourth_last = value[fourth_last_index];
                 if(fourth_last == 'i') {
-                    if(third_last_view != "128") {
-                        err = unk_bit_width_err;
+                    if(value_size > 5 && value[value_size - 5] == 'u') {
+                        // u before i means ui128
+                        is_unsigned = true;
+                        bit_width_index = third_last_index;
+                        suffix_index = value_size - 5;
+                    } else {
+                        suffix_index = fourth_last_index;
+                        bit_width_index = third_last_index;
                     }
-                    const auto is_negative = value[0] == '-';
-                    const auto begin_index = is_negative ? 1 : 0;
-                    mut_value[fourth_last_index] = '\0';
-                    const auto num_val = parse_num(value + begin_index, fourth_last_index, strtoull);
-                    mut_value[fourth_last_index] = fourth_last;
-                    return { new (alloc.allocate<Int128Value>()) Int128Value(num_val.result, is_negative, location), err.empty() ? num_val.error : err };
                 } else if(fourth_last == 'u') {
-                    // TODO skipping the u128 conversion, as it requires conversion in low and high magnitudes
-//                        if(third_last_view == "128") {
-//                            put_value(
-//                                    new (local<UInt128Value>()) UInt128Value(, value[0] == '-', token),
-//                                    token
-//                            );
-//                        } else {
-//                            error(unk_bit_width_err, token);
-//                        }
+                    is_unsigned = true;
+                    suffix_index = fourth_last_index;
+                    bit_width_index = third_last_index;
                 }
             }
         }
     }
+
+    std::string_view err;
+    if(bit_width_size > 0) {
+        const auto num = (int8_t) parse_num(value + bit_width_index, bit_width_size, strtol).result;
+        const auto suffix = mut_value[suffix_index];
+        mut_value[suffix_index] = '\0';
+        switch(num) {
+            case 8:
+                if(is_unsigned) {
+                    const auto num_value = parse_num(value, suffix_index, strtoul);
+                    return { new (alloc.allocate<UCharValue>()) UCharValue((char) num_value.result, location), num_value.error };
+                } else {
+                    const auto num_value = parse_num(value, suffix_index, strtol);
+                    return { new (alloc.allocate<CharValue>()) CharValue((char) num_value.result, location), num_value.error };
+                }
+            case 16:
+                if(is_unsigned) {
+                    const auto num_val = parse_num(value, suffix_index, strtoul);
+                    return { new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) num_val.result, location), num_val.error };
+                } else {
+                    const auto num_value = parse_num(value, suffix_index, strtol);
+                    return { new (alloc.allocate<ShortValue>()) ShortValue((short) num_value.result, location), num_value.error };
+                }
+                break;
+            case 32:
+                if(is_unsigned) {
+                    const auto num_val = parse_num(value, suffix_index, strtoul);
+                    return { new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) num_val.result, location), num_val.error };
+                } else {
+                    const auto num_val = parse_num(value, suffix_index, strtol);
+                    return { new (alloc.allocate<IntValue>()) IntValue((int) num_val.result, location), num_val.error };
+                }
+                break;
+            case 64:
+                if(is_unsigned) {
+                    const auto num_val = parse_num(value, suffix_index, strtoull);
+                    return { new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) num_val.result, location), num_val.error };
+                } else {
+                    const auto num_val = parse_num(value, suffix_index, strtoll);
+                    return { new (alloc.allocate<BigIntValue>()) BigIntValue((long long) num_val.result, location), num_val.error };
+                }
+                break;
+            case 128:
+                if(is_unsigned) {
+                    // TODO skipping as it requires converting two magnitudes
+                    // TODO UInt128Value
+                } else {
+                    const auto is_negative = value[0] == '-';
+                    const auto begin_index = is_negative ? 1 : 0;
+                    const auto num_val = parse_num(value + begin_index, suffix_index, strtoull);
+                    return { new (alloc.allocate<Int128Value>()) Int128Value(num_val.result, is_negative, location), num_val.error };
+                }
+                break;
+            default:
+                err = unk_bit_width_err;
+                break;
+        }
+        mut_value[suffix_index] = suffix;
+    }
+
     // conversion
     switch(last_char) {
         case 'f':
@@ -1915,6 +1947,16 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
         }
         case 'l':
         case 'L': {
+            if(value_size > 2) {
+                const auto sec_last_index = value_size - 2;
+                const auto sec_last = value[sec_last_index];
+                if(sec_last == 'u' || sec_last == 'U') {
+                    mut_value[sec_last_index] = '\0';
+                    const auto num_value = parse_num(value, last_char_index, strtoul);
+                    mut_value[sec_last_index] = sec_last;
+                    return { new (alloc.allocate<ULongValue>()) ULongValue(num_value.result, is64Bit, location), err.empty() ? num_value.error : err };
+                }
+            }
             mut_value[last_char_index] = '\0';
             const auto num_value = parse_num(value, last_char_index, strtol);
             mut_value[last_char_index] = last_char;

@@ -6,21 +6,49 @@
 #include <memory>
 
 class ArrayType : public TokenizedBaseType {
+private:
+
+    uint64_t array_size = 0;
+
 public:
 
     BaseType* elem_type;
-    int array_size;
+    Value* array_size_value;
 
-    ArrayType(
+    inline ArrayType(
         BaseType* elem_type,
-        int array_size,
+        Value* array_size_val,
         SourceLocation location
-    ) : elem_type(elem_type), array_size(array_size), TokenizedBaseType(location) {
+    ) : elem_type(elem_type), array_size_value(array_size_val), TokenizedBaseType(location) {
 
     }
 
+    inline ArrayType(
+            BaseType* elem_type,
+            uint64_t array_size,
+            SourceLocation location
+    ) : elem_type(elem_type), array_size_value(nullptr), array_size(array_size), TokenizedBaseType(location) {
+
+    }
+
+    inline uint64_t get_array_size() {
+        return array_size;
+    }
+
+    inline void set_array_size(uint64_t size) {
+        array_size = size;
+    }
+
+    inline bool has_array_size() {
+        return get_array_size() != 0;
+    }
+
+    inline bool has_no_array_size() {
+        return get_array_size() == 0;
+    }
+
     uint64_t byte_size(bool is64Bit) final {
-        if(array_size == -1) {
+        if(has_no_array_size()) {
             throw std::runtime_error("array size not known, byte size required");
         } else {
             return array_size * elem_type->byte_size(is64Bit);
@@ -68,7 +96,9 @@ public:
 
     [[nodiscard]]
     ArrayType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size, location);
+        const auto t = new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size_value, location);
+        t->array_size = array_size;
+        return t;
     }
 
     bool satisfies(ValueType type) final {

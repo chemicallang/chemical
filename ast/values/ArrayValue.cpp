@@ -171,7 +171,7 @@ ArrayValue::ArrayValue(
     SourceLocation location,
     ASTAllocator& allocator
 ) : values(std::move(values)), sizes(std::move(sizes)), location(location) {
-    created_type = new (allocator.allocate<ArrayType>()) ArrayType(elemType, (int) array_size(), ZERO_LOC);
+    created_type = new (allocator.allocate<ArrayType>()) ArrayType(elemType, array_size(), ZERO_LOC);
 }
 
 BaseType*& ArrayValue::known_elem_type() const {

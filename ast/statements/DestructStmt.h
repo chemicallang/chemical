@@ -8,7 +8,7 @@ class ExtendableMembersContainerNode;
 struct DestructData {
     ExtendableMembersContainerNode* parent_node;
     FunctionDeclaration* destructor_func;
-    int array_size; // -1 if not known
+    uint64_t array_size; // 0 if not known
 };
 
 class DestructStmt : public ASTNode {

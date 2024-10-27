@@ -1201,12 +1201,26 @@ Value* convert_token_to_value(ASTAllocator& allocator, const clang::Token& token
 
 Value* convert_to_value(CTranslator& translator, clang::MacroInfo* info) {
     auto tokens = info->tokens();
-    if(tokens.size() == 1) {
+    const auto tokens_size = tokens.size();
+    if(tokens_size == 1) {
         return convert_token_to_value(translator.allocator, tokens.front(), translator.is64Bit);
     } else {
         // TODO
     }
     return nullptr;
+}
+
+ASTNode* comptime_constant(ASTAllocator& allocator, const std::string_view& name, Value* value_ptr) {
+    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(
+            true,
+            ZERO_LOC_ID(std::string(name)),
+            nullptr,
+            value_ptr,
+            nullptr,
+            ZERO_LOC
+    );
+    stmt->add_annotation(AnnotationKind::CompTime);
+    return stmt;
 }
 
 void CTranslator::translate(
@@ -1215,20 +1229,22 @@ void CTranslator::translate(
         const char* resources_path
 ) {
     std::lock_guard guard(translation_mutex);
-    // we delete the unit instantly (we don't need it)
     const auto unit = get_unit(args_begin, args_end, resources_path);
-    auto& PP = unit->getPreprocessor();
-    auto& Table = PP.getIdentifierTable();
-    for (auto it = Table.begin(); it != Table.end(); ++it) {
-        clang::IdentifierInfo *II = it->second;
-        if (II->hasMacroDefinition()) {
-            clang::MacroInfo *MI = PP.getMacroInfo(II);
-            const auto value = convert_to_value(*this, MI);
-//            llvm::outs() << "Macro: " << II->getName() << " = ";
-//            for (const auto &Tok : MI->tokens()) {
-//                llvm::outs() << Tok.getName() << " ";
-//            }
-//            llvm::outs() << "\n";
+    // We do not create comptime constants for the top level definitions
+    if(false) {
+        auto& PP = unit->getPreprocessor();
+        auto& Table = PP.getIdentifierTable();
+        for (auto it = Table.begin(); it != Table.end(); ++it) {
+            clang::IdentifierInfo* II = it->second;
+            if (II->hasMacroDefinition()) {
+                clang::MacroInfo* MI = PP.getMacroInfo(II);
+                const auto value = convert_to_value(*this, MI);
+                if (value) {
+                    const auto name_str = II->getName();
+                    const auto node =  comptime_constant(allocator, name_str, value);
+                    // this node can be injected on top in the nodes and if a duplicate is found, it will be automatically removed
+                }
+            }
         }
     }
     // actual translation

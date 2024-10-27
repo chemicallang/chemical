@@ -143,7 +143,7 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
                 const auto arr_type = (ArrayType *) type;
                 if (arr_type->elem_type->kind() == BaseTypeKind::Linked ||
                 arr_type->elem_type->kind() == BaseTypeKind::Generic) {
-                    gen.destruct(llvm_ptr, arr_type->array_size, arr_type->elem_type, [](llvm::Value*){});
+                    gen.destruct(llvm_ptr, arr_type->get_array_size(), arr_type->elem_type, [](llvm::Value*){});
                 }
                 break;
             }
@@ -306,8 +306,8 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
         const auto as_array = value->as_array_value();
         if(type->kind() == BaseTypeKind::Array && as_array) {
             const auto arr_type = ((ArrayType*) type);
-            if(arr_type->array_size == -1) {
-                arr_type->array_size = (int) as_array->array_size();
+            if(arr_type->has_no_array_size()) {
+                arr_type->set_array_size(as_array->array_size());
             }
         }
     }

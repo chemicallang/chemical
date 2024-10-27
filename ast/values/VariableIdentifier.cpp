@@ -180,23 +180,26 @@ VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
 }
 
 Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
+    auto found = scope.find_value(value);
+    if (found != nullptr) {
+        return found;
+    }
     auto linkedNode = linked_node();
     if(linkedNode) {
         const auto linked_kind = linkedNode->kind();
         if(linked_kind == ASTNodeKind::StructMember) {
-            const auto found = scope.find_value("self");
-            if(found) {
-                return found->child(scope, value);
+            const auto found_self = scope.find_value("self");
+            if(found_self) {
+                return found_self->child(scope, value);
             }
-            return nullptr;
+        } else if(linked_kind == ASTNodeKind::VarInitStmt) {
+            const auto init = linked->as_var_init_unsafe();
+            if(init->is_const()) {
+                return init->value;
+            }
         }
     }
-    auto found = scope.find_value(value);
-    if (found != nullptr) {
-        return found;
-    } else {
-        return nullptr;
-    }
+    return nullptr;
 }
 
 //std::unique_ptr<Value> VariableIdentifier::create_evaluated_value(InterpretScope &scope) {

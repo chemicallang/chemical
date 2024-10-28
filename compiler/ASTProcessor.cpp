@@ -219,14 +219,10 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
 
 ASTImportResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const std::string_view& abs_path) {
 
-    std::ostringstream out;
     ASTUnit unit;
 
-    if (options->verbose) {
-        out << "[IGGraph] Begin Compilation " << abs_path << '\n';
-    }
-
-    std::unique_ptr<BenchmarkResults> bm_results;
+    std::unique_ptr<BenchmarkResults> lex_bm;
+    std::unique_ptr<BenchmarkResults> parse_bm;
 
     // lex the file
     SourceProvider provider(nullptr);
@@ -236,25 +232,19 @@ ASTImportResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const
 //        }
 
     if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        benchLexFile(&lexer, abs_path.data(), *bm_results);
-        print_benchmarks(out, "Lex", bm_results.get());
+        lex_bm = std::make_unique<BenchmarkResults>();
+        benchLexFile(&lexer, abs_path.data(), *lex_bm);
     } else {
         lexFile(&lexer, abs_path.data());
     }
-    for (const auto &err: lexer.diagnostics) {
-        err.ansi(std::cerr, abs_path, "Lexer") << std::endl;
-    }
-    if (options->print_cst) {
-        printTokens(lexer.unit.tokens);
-    }
     if (lexer.has_errors) {
-        return { ASTImportResult { std::move(unit), std::move(lexer.unit), false, false }, std::move(out.str()) };
+        return { ASTImportResult { std::move(unit), std::move(lexer.unit), false, false }, std::move(lexer.diagnostics), { }, std::move(lex_bm), nullptr };
     }
 
     // convert the tokens
     if(options->benchmark) {
-        bm_results->benchmark_begin();
+        parse_bm = std::make_unique<BenchmarkResults>();
+        parse_bm->benchmark_begin();
     }
 
     CSTConverter converter(
@@ -268,18 +258,11 @@ ASTImportResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const
     );
     converter.convert(lexer.unit.tokens);
     if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(out, "Cst2Ast", bm_results.get());
-    }
-    for (const auto &err: converter.diagnostics) {
-        err.ansi(std::cerr, abs_path, "Converter") << std::endl;
+        parse_bm->benchmark_end();
     }
     unit = converter.take_unit();
-    if (options->print_representation) {
-        out << "[Representation]\n" << unit.scope.representation() << '\n';
-    }
 
-    return { ASTImportResult { std::move(unit), std::move(lexer.unit), true, false }, std::move(out.str()) };
+    return { ASTImportResult { std::move(unit), std::move(lexer.unit), true, false }, std::move(lexer.diagnostics), std::move(converter.diagnostics), std::move(lex_bm), std::move(parse_bm) };
 
 }
 
@@ -291,12 +274,13 @@ ASTImportResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFi
 
     if (is_c_file) {
 
-        std::ostringstream out;
-
         ASTUnit unit;
 
-        if (options->verbose) {
-            out << "[IGGraph] Translating C " << abs_path << '\n';
+        std::unique_ptr<BenchmarkResults> bm;
+
+        if(options->benchmark) {
+            bm = std::make_unique<BenchmarkResults>();
+            bm->benchmark_begin();
         }
 
 #ifdef COMPILER_BUILD
@@ -309,11 +293,21 @@ ASTImportResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFi
 
         unit.scope.nodes = std::move(translator->nodes);
 
+        if(options->benchmark) {
+            bm->benchmark_end();
+        }
+
 #elif defined(TCC_BUILD) && defined(DEBUG)
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif
 
-        return { ASTImportResult { std::move(unit), CSTUnit(), true, true }, std::move(out.str()) };
+        return { ASTImportResult { std::move(unit), CSTUnit(), true, true }, {},
+#ifdef COMPILER_BUILD
+        std::move(translator->diagnostics)
+#else
+                 {}
+#endif
+                 , nullptr, std::move(bm) };
 
     } else {
 

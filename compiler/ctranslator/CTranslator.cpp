@@ -636,9 +636,14 @@ void CTranslator::module_begin() {
 }
 
 void CTranslator::error(const std::string& err) {
-// this can be turned on if exceptions are occurring and there's output in console
+// this can be turned on if exceptions are occurring and there's no output in console
 #ifdef DEBUG
     std::cerr << "[CTranslator] Debug error :" << err << std::endl;
 #endif
-    errors.emplace_back(err);
+    diagnostics.emplace_back(
+        Range { Position { 0, 0 }, Position { 0, 0 } },
+        DiagSeverity::Error,
+        std::nullopt,
+        err
+    );
 }

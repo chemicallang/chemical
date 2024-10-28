@@ -13,6 +13,7 @@
 #include "ast/base/Visitor.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "ordered_map.h"
+#include "integration/common/Diagnostic.h"
 
 class CTranslator;
 
@@ -28,14 +29,6 @@ typedef BaseType*(*CTypeMakerFn)(ASTAllocator&, clang::BuiltinType*, SourceLocat
  * Node maker fn
  */
 typedef ASTNode*(*CNodeMakerFn)(CTranslator*, clang::Decl*);
-
-/**
- * a simple struct to represent errors during translation
- * we'll expand this later
- */
-struct CTranslatorError {
-    std::string message;
-};
 
 namespace clang {
     class DiagnosticsEngine;
@@ -66,9 +59,9 @@ public:
     llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags_engine;
 
     /**
-     * errors that occurred during translation
+     * the diagnostics are stored here
      */
-    std::vector<CTranslatorError> errors;
+    std::vector<Diag> diagnostics;
 
     /**
      * is translating for target 64bit

@@ -91,16 +91,6 @@ BaseType* decl_type(CTranslator& translator, clang::Decl* decl, std::string name
 BaseType* CTranslator::make_type(clang::QualType* type) {
     auto canonical = type->getCanonicalType();
     auto ptr = type->getTypePtr();
-    auto canon_ptr = canonical.getTypePtr();
-    const auto is_mutable = !type->isConstQualified();
-//    if(canon_ptr != ptr) { // reference
-//        if(canon_ptr->isRecordType()) {
-//            return make_type(&canonical);
-//        }
-//        const auto other = ptr->getAs<clang::TypedefType>();
-//        auto str = type->getAsString();
-//        return new (allocator.allocate<LinkedType>()) LinkedType(str, nullptr);
-//    }
     const auto typeClass = ptr->getTypeClass();
     switch(typeClass) {
         case clang::Type::Adjusted:
@@ -270,7 +260,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             if(!pointee) {
                 return nullptr;
             }
-            return new (allocator.allocate<PointerType>()) PointerType(pointee, ZERO_LOC, is_mutable);
+            return new (allocator.allocate<PointerType>()) PointerType(pointee, ZERO_LOC, !type->isConstQualified());
         }
         case clang::Type::LValueReference:
             error("TODO: type with class LValueReference");
@@ -792,9 +782,161 @@ void CTranslator::translate(clang::ASTUnit *unit) {
     }
 }
 
+void collect_errors(
+        struct ErrorMsg **errors_ptr,
+        unsigned long *errors_len,
+        clang::ASTUnit::stored_diag_iterator it,
+        clang::ASTUnit::stored_diag_iterator end
+) {
+    ErrorMsg *errors = nullptr;
+    while(it != end) {
+        switch (it->getLevel()) {
+            case clang::DiagnosticsEngine::Ignored:
+            case clang::DiagnosticsEngine::Note:
+            case clang::DiagnosticsEngine::Remark:
+            case clang::DiagnosticsEngine::Warning:
+                continue;
+            case clang::DiagnosticsEngine::Error:
+            case clang::DiagnosticsEngine::Fatal:
+                break;
+        }
+
+        llvm::StringRef msg_str_ref = it->getMessage();
+
+        *errors_len += 1;
+        errors = reinterpret_cast<ErrorMsg *>(realloc(errors, sizeof(ErrorMsg) * *errors_len));
+        if (errors == nullptr) abort();
+        ErrorMsg *msg = &errors[*errors_len - 1];
+        memset(msg, 0, sizeof(*msg));
+
+        msg->msg_ptr = (const char *) msg_str_ref.bytes_begin();
+        msg->msg_len = msg_str_ref.size();
+
+        clang::FullSourceLoc fsl = it->getLocation();
+
+        // Ensure the source location is valid before expanding it
+        if (fsl.isInvalid()) {
+            std::cerr << "FullSourceLoc is invalid" << std::endl;
+            continue;
+        }
+        // Expand the location if possible
+        fsl = fsl.getFileLoc();
+
+        // The only known way to obtain a Loc without a manager associated
+        // to it is if you have a lot of errors clang emits "too many errors
+        // emitted, stopping now"
+        if (fsl.hasManager()) {
+            const clang::SourceManager &SM = fsl.getManager();
+
+            clang::PresumedLoc presumed_loc = SM.getPresumedLoc(fsl);
+            assert(!presumed_loc.isInvalid());
+
+            msg->line = presumed_loc.getLine() - 1;
+            msg->column = presumed_loc.getColumn() - 1;
+
+            clang::StringRef filename = presumed_loc.getFilename();
+            if (!filename.empty()) {
+                msg->filename_ptr = (const char *) filename.bytes_begin();
+                msg->filename_len = filename.size();
+            }
+
+            bool invalid;
+            clang::StringRef buffer = fsl.getBufferData(&invalid);
+
+            if (!invalid) {
+                msg->source = (const char *) buffer.bytes_begin();
+                msg->offset = SM.getFileOffset(fsl);
+            }
+        } else {
+            std::cerr << "NO Filemanager associated" << std::endl;
+        }
+        it++;
+    }
+    *errors_ptr = errors;
+}
+
+void collect_errors(
+        std::vector<Diag>& diags,
+        clang::ASTUnit::stored_diag_iterator it,
+        clang::ASTUnit::stored_diag_iterator end
+) {
+    ErrorMsg *errors = nullptr;
+    while(it != end) {
+        switch (it->getLevel()) {
+            case clang::DiagnosticsEngine::Ignored:
+            case clang::DiagnosticsEngine::Note:
+            case clang::DiagnosticsEngine::Remark:
+            case clang::DiagnosticsEngine::Warning:
+                continue;
+            case clang::DiagnosticsEngine::Error:
+            case clang::DiagnosticsEngine::Fatal:
+                break;
+        }
+
+        llvm::StringRef msg_str_ref = it->getMessage();
+
+        const auto msg_ptr = (const char *) msg_str_ref.bytes_begin();
+        const auto msg_len = msg_str_ref.size();
+
+        clang::FullSourceLoc fsl = it->getLocation();
+
+        // Ensure the source location is valid before expanding it
+        if (fsl.isInvalid()) {
+            std::cerr << "FullSourceLoc is invalid" << std::endl;
+            continue;
+        }
+        // Expand the location if possible
+        fsl = fsl.getFileLoc();
+
+        // The only known way to obtain a Loc without a manager associated
+        // to it is if you have a lot of errors clang emits "too many errors
+        // emitted, stopping now"
+        if (fsl.hasManager()) {
+            const clang::SourceManager &SM = fsl.getManager();
+
+            clang::PresumedLoc presumed_loc = SM.getPresumedLoc(fsl);
+            assert(!presumed_loc.isInvalid());
+
+            const auto line = presumed_loc.getLine() - 1;
+            const auto column = presumed_loc.getColumn() - 1;
+
+            clang::StringRef filename = presumed_loc.getFilename();
+//            if (!filename.empty()) {
+//                msg->filename_ptr = (const char *) filename.bytes_begin();
+//                msg->filename_len = filename.size();
+//            }
+
+            bool invalid;
+            clang::StringRef buffer = fsl.getBufferData(&invalid);
+
+//            if (!invalid) {
+//                msg->source = (const char *) buffer.bytes_begin();
+//                msg->offset = SM.getFileOffset(fsl);
+//            }
+
+            diags.emplace_back(
+                Range { Position { line, column }, Position { line, column } },
+                DiagSeverity::Error,
+                std::nullopt,
+                std::string(msg_ptr, msg_len)
+            );
+            auto& diag = diags.back();
+
+            if(!filename.empty()) {
+                diag.path_url.emplace((const char*) filename.bytes_begin(), filename.size());
+            }
+
+        } else {
+            std::cerr << "NO Filemanager associated" << std::endl;
+        }
+        it++;
+    }
+}
+
 clang::ASTUnit *ClangLoadFromCommandLine(
         const char **args_begin,
         const char **args_end,
+        std::vector<Diag>* diagnostics,
         struct ErrorMsg **errors_ptr,
         unsigned long *errors_len,
         const char *resources_path,
@@ -841,7 +983,9 @@ clang::ASTUnit *ClangLoadFromCommandLine(
             VFS);
     clang::ASTUnit *ast_unit = ast_unit_unique_ptr.release();
 
-    *errors_len = 0;
+    if(errors_len) {
+        *errors_len = 0;
+    }
 
     // Early failures in LoadFromCommandLine may return with ErrUnit unset.
     if (!ast_unit && !err_unit) {
@@ -852,74 +996,11 @@ clang::ASTUnit *ClangLoadFromCommandLine(
         // Take ownership of the err_unit ASTUnit object so that it won't be
         // free'd when we return, invalidating the error message pointers
         clang::ASTUnit *unit = ast_unit ? ast_unit : err_unit.release();
-        ErrorMsg *errors = nullptr;
-
-        for (clang::ASTUnit::stored_diag_iterator it = unit->stored_diag_begin(),
-                     it_end = unit->stored_diag_end(); it != it_end; ++it) {
-            switch (it->getLevel()) {
-                case clang::DiagnosticsEngine::Ignored:
-                case clang::DiagnosticsEngine::Note:
-                case clang::DiagnosticsEngine::Remark:
-                case clang::DiagnosticsEngine::Warning:
-                    continue;
-                case clang::DiagnosticsEngine::Error:
-                case clang::DiagnosticsEngine::Fatal:
-                    break;
-            }
-
-            llvm::StringRef msg_str_ref = it->getMessage();
-
-            *errors_len += 1;
-            errors = reinterpret_cast<ErrorMsg *>(realloc(errors, sizeof(ErrorMsg) * *errors_len));
-            if (errors == nullptr) abort();
-            ErrorMsg *msg = &errors[*errors_len - 1];
-            memset(msg, 0, sizeof(*msg));
-
-            msg->msg_ptr = (const char *) msg_str_ref.bytes_begin();
-            msg->msg_len = msg_str_ref.size();
-
-            clang::FullSourceLoc fsl = it->getLocation();
-
-            // Ensure the source location is valid before expanding it
-            if (fsl.isInvalid()) {
-                std::cerr << "FullSourceLoc is invalid" << std::endl;
-                continue;
-            }
-            // Expand the location if possible
-            fsl = fsl.getFileLoc();
-
-            // The only known way to obtain a Loc without a manager associated
-            // to it is if you have a lot of errors clang emits "too many errors
-            // emitted, stopping now"
-            if (fsl.hasManager()) {
-                const clang::SourceManager &SM = fsl.getManager();
-
-                clang::PresumedLoc presumed_loc = SM.getPresumedLoc(fsl);
-                assert(!presumed_loc.isInvalid());
-
-                msg->line = presumed_loc.getLine() - 1;
-                msg->column = presumed_loc.getColumn() - 1;
-
-                clang::StringRef filename = presumed_loc.getFilename();
-                if (!filename.empty()) {
-                    msg->filename_ptr = (const char *) filename.bytes_begin();
-                    msg->filename_len = filename.size();
-                }
-
-                bool invalid;
-                clang::StringRef buffer = fsl.getBufferData(&invalid);
-
-                if (!invalid) {
-                    msg->source = (const char *) buffer.bytes_begin();
-                    msg->offset = SM.getFileOffset(fsl);
-                }
-            } else {
-                std::cerr << "NO Filemanager associated" << std::endl;
-            }
+        if(diagnostics) {
+            collect_errors(*diagnostics, unit->stored_diag_begin(), unit->stored_diag_end());
+        } else {
+            collect_errors(errors_ptr, errors_len, unit->stored_diag_begin(), unit->stored_diag_end());
         }
-
-        *errors_ptr = errors;
-
         return nullptr;
     }
 
@@ -1134,42 +1215,22 @@ clang::ASTUnit* CTranslator::get_unit(
         const char* resources_path
 ) {
     //    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
-    ErrorMsg *errorMsg;
-    unsigned long errors_len = 0;
+//    ErrorMsg *errorMsg;
+//    unsigned long errors_len = 0;
     auto unit = ClangLoadFromCommandLine(
             args_begin,
             args_end,
-            &errorMsg,
-            &errors_len,
+            &diagnostics,
+            nullptr,
+            nullptr,
             resources_path,
             diags_engine
     );
-    if(errors_len > 0) {
-        std::cerr << std::to_string(errors_len) << " errors occurred when loading C files" << std::endl;
-        unsigned i = 0;
-        while (i < errors_len) {
-            const auto err = errorMsg + i;
-            if(err->filename_ptr) {
-                std::cerr << err->msg_ptr << " at " << err->filename_ptr << ":" << err->line << ":" << err->column << std::endl;
-            } else {
-                std::cerr << err->msg_ptr << std::endl;
-            }
-            i++;
-        }
-    }
     if (!unit) {
         diags_engine->dump();
         diags_engine->Reset();
         return nullptr;
     }
-#ifdef DEBUG
-    if (!errors.empty()) {
-        std::cerr << std::to_string(errors.size()) << " errors occurred when translating C files" << std::endl;
-        for (const auto &err : errors) {
-            std::cerr << err.message << std::endl;
-        }
-    }
-#endif
     return unit;
 }
 

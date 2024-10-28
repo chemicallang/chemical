@@ -48,12 +48,24 @@ struct ASTImportResult {
 struct ASTImportResultExt : ASTImportResult {
 
     /**
-     * this field provides cli_out, this is here
-     * because a file is imported concurrently, since multiple
-     * files are compiled, we use this field to put everything we want to print
-     * for that file into this variable and then print it
+     * diagnotics collected during the lexing process
      */
-    std::string cli_out;
+    std::vector<Diag> lex_diagnostics;
+
+    /**
+     * diagnostics collected during the parsing process
+     */
+    std::vector<Diag> parse_diagnostics;
+
+    /**
+     * the benchmark results are stored here, if user opted for benchmarking
+     */
+    std::unique_ptr<BenchmarkResults> lex_benchmark;
+
+    /**
+     * the parsing benchmarks are stored here, if user opted for benchmarking
+     */
+    std::unique_ptr<BenchmarkResults> parse_benchmark;
 
 };
 
@@ -187,7 +199,7 @@ public:
     /**
      * print given benchmark results
      */
-    void print_benchmarks(std::ostream& stream, const std::string& TAG, BenchmarkResults* results);
+    static void print_benchmarks(std::ostream& stream, const std::string& TAG, BenchmarkResults* results);
 
     /**
      * translates given import result to c using visitor

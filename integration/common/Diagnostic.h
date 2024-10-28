@@ -40,7 +40,7 @@ public:
     std::optional<DiagSeverity> severity;
 
     // a documentation url where this diagnostic can be explained
-    std::optional<std::string> doc_url;
+    std::optional<std::string> path_url;
 
     // message, This is the most important thing in this
     std::string message;

@@ -164,6 +164,24 @@ void import_in_module(std::vector<ASTNode*>& nodes, SymbolResolver& resolver, co
     resolver.diagnostics.clear();
 }
 
+bool empty_diags(ASTImportResultExt& result) {
+    return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
+}
+
+void print_results(ASTImportResultExt& result, const std::string& abs_path, bool benchmark) {
+    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
+    CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Converter");
+    if(benchmark) {
+        if(result.lex_benchmark) {
+            ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
+        }
+        if(result.parse_benchmark) {
+            ASTProcessor::print_benchmarks(std::cout, "Parser", result.parse_benchmark.get());
+        }
+    }
+    std::cout << std::flush;
+}
+
 int LabBuildCompiler::process_modules(LabJob* exe) {
 
     const auto job_type = exe->type;
@@ -410,7 +428,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 #endif
 
-        ASTImportResultExt result { ASTUnit(), CSTUnit(), false, false, "" };
+        ASTImportResultExt result { ASTUnit(), CSTUnit(), false, false, {}, {}, nullptr, nullptr };
 
         // start a module scope in symbol resolver, that we can dispose later
         resolver.module_scope_start();
@@ -498,10 +516,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             ASTUnit& unit = already_imported ? imported->second : result.unit;
 
             // print the benchmark or verbose output received from processing
-            if((options->benchmark || options->verbose) && !result.cli_out.empty()) {
+            if((options->benchmark || options->verbose) && !empty_diags(result)) {
                 std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
                 if(!already_imported) {
-                    std::cout << result.cli_out << std::flush;
+                    print_results(result, file.abs_path, options->benchmark);
                 }
             }
 
@@ -966,9 +984,9 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             }
 
             // print the benchmark or verbose output received from processing
-            if((options->benchmark || options->verbose) && !result.cli_out.empty()) {
+            if((options->benchmark || options->verbose) && !empty_diags(result)) {
                 std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-                std::cout << result.cli_out << std::flush;
+                print_results(result, file.abs_path, options->benchmark);
             }
 
             // symbol resolution

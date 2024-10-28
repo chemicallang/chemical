@@ -36,7 +36,7 @@ void CSTDiagnoser::diagnostic(const std::string_view &message, DiagSeverity seve
     diagnostic(message, "", &dummy, severity);
 }
 
-void CSTDiagnoser::print_diagnostics(const std::string_view& path, const std::string& tag) {
+void CSTDiagnoser::print_diagnostics(std::vector<Diag>& diagnostics, const std::string_view& path, const std::string& tag) {
     for (const auto &err: diagnostics) {
         err.ansi(std::cerr, path, tag) << std::endl;
     }

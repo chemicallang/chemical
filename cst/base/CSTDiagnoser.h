@@ -133,8 +133,15 @@ public:
     }
 
     /**
+     * would print the diagnostics to console
+     */
+    static void print_diagnostics(std::vector<Diag>& diagnostics, const std::string_view& path, const std::string& tag);
+
+    /**
      * would print diagnostics to console
      */
-    void print_diagnostics(const std::string_view& path, const std::string& tag);
+    void print_diagnostics(const std::string_view& path, const std::string& tag) {
+        print_diagnostics(diagnostics, path, tag);
+    }
 
 };

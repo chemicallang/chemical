@@ -19,7 +19,7 @@ typedef ImportGraphImporter Importer;
 void move_errors(std::vector<Diag> &from, std::vector<Diag> &to, const std::string& abs_path) {
     for (auto &dia: from) {
         if (dia.severity.has_value() && dia.severity.value() == DiagSeverity::Error) {
-            dia.doc_url.emplace(abs_path);
+            dia.path_url.emplace(abs_path);
             to.emplace_back(std::move(dia));
         }
     }

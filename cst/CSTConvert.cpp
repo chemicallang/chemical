@@ -1830,11 +1830,13 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                 bit_width_index = last_char_index;
                 suffix_index = sec_last_index;
             }
+            bit_width_size = 1;
         } else if(sec_last == 'u' && last_char != 'u' && last_char != 'U') {
             // at second last position i8 or u8 only 8 is valid as a single character
             is_unsigned = true;
             bit_width_index = last_char_index;
             suffix_index = sec_last_index;
+            bit_width_size = 1;
         } else if(value_size > 3) {
             const auto third_last_index = value_size - 3;
             const auto third_last = value[third_last_index];
@@ -1849,10 +1851,12 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                     bit_width_index = sec_last_index;
                     suffix_index = third_last_index;
                 }
+                bit_width_size = 2;
             } else if(third_last == 'u') {
                 is_unsigned = true;
                 bit_width_index = sec_last_index;
                 suffix_index = third_last_index;
+                bit_width_size = 2;
             } else if(value_size > 4) {
                 // considering i128, u128, ui128
                 const auto fourth_last_index = value_size - 4;
@@ -1867,10 +1871,12 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                         suffix_index = fourth_last_index;
                         bit_width_index = third_last_index;
                     }
+                    bit_width_size = 3;
                 } else if(fourth_last == 'u') {
                     is_unsigned = true;
                     suffix_index = fourth_last_index;
                     bit_width_index = third_last_index;
+                    bit_width_size = 3;
                 }
             }
         }

@@ -4,6 +4,7 @@
 
 #include "ASTAny.h"
 #include "utils/inline_attr.h"
+#include "BatchAllocator.h"
 
 namespace std {
     class mutex;
@@ -11,11 +12,11 @@ namespace std {
 
 /**
  * ASTAllocator is supposed to be the simplest class that allows
- * to allocate different AST classes, it allocates a pre-allocated size on
- * stack for faster allocation
- * It always manages memory for you, meaning when it dies, all the memory it allocated dies !
+ * to allocate different AST classes, It stores pointers to the allocated
+ * memory to auto destruct them when the allocator dies, when the allocator
+ * dies, everything allocated with it dies automatically
  */
-class ASTAllocator {
+class ASTAllocator final : public BatchAllocator {
 public:
 
     /**
@@ -49,24 +50,9 @@ public:
     }
 
     /**
-     * allocate a type and release it from allocator, this means
-     * the type must be destructed by the caller
-     * meaning we will
-     */
-    template<typename T>
-    FORCE_INLINE T* allocate_released() {
-        return (T*) (void*) allocate_released_size(sizeof(T), alignof(T));
-    }
-
-    /**
      * allocate a pointer with given object size and store the pointer
      */
     char* allocate_size(std::size_t obj_size, std::size_t alignment);
-
-    /**
-     * allocate a pointer with given object size and do not store the pointer
-     */
-    char* allocate_released_size(std::size_t obj_size, std::size_t alignment);
 
     /**
      * this is the index at which next allocation will be
@@ -103,43 +89,6 @@ protected:
     std::vector<std::vector<ASTAny*>> ptr_storage;
 
     /**
-     * the stack memory used to store objects on stack instead of heap
-     * given by the user
-     */
-    char* stack_memory;
-    /**
-     * the stack size is given by the user
-     */
-    std::size_t stack_memory_size;
-    /**
-     * how much of the stack memory has been consumed
-     * by default initialized to zero
-     */
-    std::size_t stack_offset;
-
-    /**
-     * heap memory is a vector of bytes (multiple), with the vector we batch heap allocations
-     * after initialize StackSize allocated on stack ends, we allocate another StackSize memory
-     * but on heap, and we keep using it for objects until that ends, we allocate another StackSize
-     * memory, this way we batch heap calls
-     */
-    std::vector<char*> heap_memory;
-    /**
-     * heap batch size is the memory allocated on the heap when stack memory ends
-     */
-    std::size_t heap_batch_size;
-
-    /**
-     * current heap offset
-     */
-    std::size_t heap_offset;
-
-    /**
-     * the mutex used to ensure memory safety when using multiple threads
-     */
-    std::mutex* allocator_mutex;
-
-    /**
      * pointer vector size, default 1000 pointers are allocated
      */
     static constexpr unsigned int PTR_VEC_SIZE = 1000;
@@ -156,14 +105,14 @@ protected:
     std::vector<ASTAny*>& get_ptr_storage();
 
     /**
+     * destructs the pointer storage
+     */
+    void destruct_ptr_storage();
+
+    /**
      * clear this pointer storage, only a single
      */
     void clear_ptr_storage();
-
-    /**
-     * does what it says
-     */
-    void destroy_memory();
 
     /**
      * will store the given pointer to destruct later
@@ -171,26 +120,5 @@ protected:
     inline void store_ptr(char* ptr) {
         get_ptr_storage().emplace_back((ASTAny*) (void*) ptr);
     }
-
-    /**
-     * reserve a large heap storage of size (StackSize)
-     * and reset current heap pointer and offset
-     */
-    char* reserve_heap_storage();
-
-    /**
-     * helper function to get moved heap pointer
-     */
-    char* offset_heap(char* const heap_ptr, std::size_t obj_size, std::size_t alignment);
-
-    /**
-     * provides a pointer for the given obj size, increments heap_current
-     */
-    char* object_heap_pointer(std::size_t obj_size, std::size_t alignment);
-
-    /**
-     * allocate will be called, without any mutex and pointer will not be stored
-     */
-    char* allocate_raw(std::size_t obj_size, std::size_t alignment);
 
 };

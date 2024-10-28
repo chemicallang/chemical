@@ -503,6 +503,7 @@ set(COMMON_SOURCES
         cst/SourceLocation.h
         ast/base/LocatedIdentifier.h
         utils/parse_num.h
+        ast/base/BatchAllocator.h
 )
 
 # Chemical LSP Executable Target

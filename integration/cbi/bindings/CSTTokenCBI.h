@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "lexer/model/LexTokenType.h"
+#include "parser/model/LexTokenType.h"
 #include <vector>
 
 class Position;

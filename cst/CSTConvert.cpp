@@ -53,7 +53,7 @@
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/DoWhileLoop.h"
-#include "lexer/model/CompilerBinder.h"
+#include "parser/model/CompilerBinder.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/ProvideStmt.h"

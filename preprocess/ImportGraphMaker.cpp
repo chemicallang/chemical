@@ -1,7 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ImportGraphMaker.h"
-#include "lexer/Lexi.h"
+#include "parser/Lexi.h"
 #include "stream/SourceProvider.h"
 #include "cst/base/CSTConverter.h"
 #include "ast/statements/Import.h"

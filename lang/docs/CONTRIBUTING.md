@@ -20,11 +20,11 @@ Here are the folders in the project and their explanation
 - [stream](../../stream) A single class defines the methods that are used to read from a `std::ifstream`, It's used by the `lexer` to read source code.
 
 
-- [lexer](../../lexer) The folder contains the lexer implementation in different files, These
+- [lexer](../../parser) The folder contains the lexer implementation in different files, These
 files contain functions for lexing different nodes / values / types.
   - You'd learn the lexer pretty fast by just visiting the source files present in the folders inside lexer folder.
   - The lexer creates a hierarchy of tokens, YES, It creates a CST straight from the source code. which is then converted to a AST using [CSTConvert](../../cst/CSTConvert.cpp)
-  - Checkout [Lexer](../../lexer/Lexer.h) for all functions that lexer has. 
+  - Checkout [Lexer](../../parser/Lexer.h) for all functions that lexer has. 
 
 
 - [cst](../../cst) The folder cst contains models for CST, As I've explained earlier A CST is created by the lexer instead of an AST.

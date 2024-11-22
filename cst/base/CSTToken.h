@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "lexer/model/LexTokenType.h"
+#include "parser/model/LexTokenType.h"
 #include "integration/common/Position.h"
 #include <string>
 #include <vector>

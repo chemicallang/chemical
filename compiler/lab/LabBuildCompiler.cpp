@@ -12,7 +12,7 @@
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
 #endif
-#include "lexer/Lexi.h"
+#include "parser/Lexi.h"
 #include "cst/base/CSTConverter.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/ASTProcessor.h"
@@ -33,7 +33,7 @@
 #include "utils/FileUtils.h"
 #include "compiler/backend/LLVMBackendContext.h"
 #include "preprocess/2c/2cBackendContext.h"
-#include "lexer/model/CompilerBinder.h"
+#include "parser/model/CompilerBinder.h"
 #include "compiler/SelfInvocation.h"
 
 #ifdef COMPILER_BUILD

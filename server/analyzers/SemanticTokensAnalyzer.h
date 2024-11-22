@@ -8,7 +8,7 @@
 
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "cst/base/CSTVisitor.h"
-#include "lexer/model/LexTokenType.h"
+#include "parser/model/LexTokenType.h"
 
 class SemanticTokensAnalyzer : public CSTVisitor {
 private:

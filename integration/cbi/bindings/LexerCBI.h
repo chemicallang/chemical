@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ast/utils/Operation.h"
-#include "lexer/model/LexTokenType.h"
+#include "parser/model/LexTokenType.h"
 #include "CBIUtils.h"
 #include "cst/base/CSTToken.h"
 

@@ -6,7 +6,7 @@
 #include "LabBuildCompilerOptions.h"
 #include "LabJob.h"
 #include "ctpl.h"
-#include "lexer/model/CompilerBinder.h"
+#include "parser/model/CompilerBinder.h"
 #include "cst/LocationManager.h"
 
 class ASTAllocator;

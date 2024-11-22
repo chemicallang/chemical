@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 27/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexDoWhileBlockTokens() {
+bool Parser::lexDoWhileBlockTokens() {
 
     if(!lexWSKeywordToken("do", '{')) {
         return false;

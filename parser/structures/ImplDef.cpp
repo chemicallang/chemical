@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 09/03/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-void Lexer::lexImplBlockTokens() {
+void Parser::lexImplBlockTokens() {
     do {
         lexWhitespaceAndNewLines();
         if(!(lexFunctionStructureTokens() || lexSingleLineCommentTokens() || lexMultiLineCommentTokens() || lexAnnotationMacro())) {
@@ -17,7 +17,7 @@ void Lexer::lexImplBlockTokens() {
     } while(provider.peek() != '}');
 }
 
-bool Lexer::lexImplTokens() {
+bool Parser::lexImplTokens() {
     if (lexWSKeywordToken("impl")) {
         auto start = tokens_size() - 1;
         lexGenericParametersList();

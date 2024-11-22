@@ -1,8 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-void Lexer::lexTypeList() {
+void Parser::lexTypeList() {
     do {
         lexWhitespaceToken();
         if (!lexTypeTokens()) {
@@ -12,7 +12,7 @@ void Lexer::lexTypeList() {
     } while (lexOperatorToken(','));
 }
 
-void Lexer::lexIdentifierList() {
+void Parser::lexIdentifierList() {
     do {
         lexWhitespaceToken();
         if (!lexIdentifierToken()) {
@@ -22,7 +22,7 @@ void Lexer::lexIdentifierList() {
     } while (lexOperatorToken(','));
 }
 
-bool Lexer::lexLambdaAfterParamsList(unsigned int start) {
+bool Parser::lexLambdaAfterParamsList(unsigned int start) {
     lexWhitespaceToken();
 
     if (!lexOperatorToken("=>")) {
@@ -41,7 +41,7 @@ bool Lexer::lexLambdaAfterParamsList(unsigned int start) {
     return true;
 }
 
-bool Lexer::lexLambdaValue() {
+bool Parser::lexLambdaValue() {
     if (lexOperatorToken('[')) {
 
         auto start = tokens_size() - 1;

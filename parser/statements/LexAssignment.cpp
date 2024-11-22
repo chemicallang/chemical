@@ -1,8 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexDivisionOperatorToken() {
+bool Parser::lexDivisionOperatorToken() {
     if(provider.peek() == '/' && provider.peek(1) != '/') {
         provider.increment_amount(1);
         storeOperationToken('/', Operation::Division);
@@ -12,7 +12,7 @@ bool Lexer::lexDivisionOperatorToken() {
     }
 }
 
-bool Lexer::lexLanguageOperatorToken() {
+bool Parser::lexLanguageOperatorToken() {
     return lexOperatorToken("&&", Operation::LogicalAND) || // logical
            lexOperatorToken("||", Operation::LogicalOR) ||
            // arithmetic
@@ -36,7 +36,7 @@ bool Lexer::lexLanguageOperatorToken() {
            lexOperatorToken("!=", Operation::IsNotEqual);
 }
 
-bool Lexer::lexAssignmentOperatorToken() {
+bool Parser::lexAssignmentOperatorToken() {
     return lexOperationToken('+', Operation::Addition) ||
            lexOperationToken('-', Operation::Subtraction) ||
            lexOperationToken('*', Operation::Multiplication) ||
@@ -50,7 +50,7 @@ bool Lexer::lexAssignmentOperatorToken() {
            lexOperatorToken(">>", Operation::RightShift);
 }
 
-bool Lexer::lexAssignmentTokens() {
+bool Parser::lexAssignmentTokens() {
 
     if (!lexAccessChainOrAddrOf()) {
         return false;

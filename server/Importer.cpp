@@ -93,7 +93,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string
     if (overridden_source.has_value()) {
         StringInputSource input_source(overridden_source.value());
         SourceProvider reader(&input_source);
-        Lexer lexer(path, reader, &binder);
+        Parser lexer(path, reader, &binder);
         lexer.lex();
         result->unit = std::move(lexer.unit);
         result->diags = std::move(lexer.diagnostics);
@@ -103,7 +103,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string
             return nullptr;
         }
         SourceProvider reader(&input_source);
-        Lexer lexer(path, reader, &binder);
+        Parser lexer(path, reader, &binder);
         lexer.lex();
         result->unit = std::move(lexer.unit);
         result->diags = std::move(lexer.diagnostics);
@@ -267,7 +267,7 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
     }
     // create a function that takes cst tokens in the import graph maker and creates a import graph
     SourceProvider reader(nullptr);
-    Lexer lexer(abs_path, reader, &binder);
+    Parser lexer(abs_path, reader, &binder);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(compiler_exe_path());
     WorkspaceImportGraphImporter importer(
@@ -321,7 +321,7 @@ void WorkspaceManager::get_ast_import_unit(
 
 WorkspaceImportGraphImporter::WorkspaceImportGraphImporter(
         ImportPathHandler* handler,
-        Lexer* lexer,
+        Parser* lexer,
         ImportGraphVisitor* converter,
         WorkspaceManager* manager
 ) : ImportGraphImporter(handler, lexer, converter), manager(manager) {

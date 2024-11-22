@@ -1,8 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexTypealiasStatement(unsigned start) {
+bool Parser::lexTypealiasStatement(unsigned start) {
     if(lexWSKeywordToken("typealias")) {
         if(lexIdentifierToken()) {
             lexWhitespaceToken();

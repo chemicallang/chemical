@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 26/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexRemainingExpression(unsigned start) {
+bool Parser::lexRemainingExpression(unsigned start) {
 
     lexWhitespaceToken();
     bool compounded = false;
@@ -43,7 +43,7 @@ bool Lexer::lexRemainingExpression(unsigned start) {
 
 // lexes lambda after comma which occurs after a parameter param : type,  <-----
 // this can be called after lparen to lex lambda, if it has no parameter
-bool condLexLambdaAfterComma(Lexer *lexer, unsigned int start) {
+bool condLexLambdaAfterComma(Parser *lexer, unsigned int start) {
     lexer->lexNewLineChars();
     if (!lexer->lexOperatorToken(')')) {
         return false;
@@ -52,13 +52,13 @@ bool condLexLambdaAfterComma(Lexer *lexer, unsigned int start) {
     return true;
 }
 
-void lexLambdaAfterComma(Lexer *lexer, unsigned int start) {
+void lexLambdaAfterComma(Parser *lexer, unsigned int start) {
     if (!condLexLambdaAfterComma(lexer, start)) {
         lexer->mal_value(start, "expected ')' after the lambda parameter list in parenthesized expression");
     }
 }
 
-bool Lexer::lexLambdaOrExprAfterLParen() {
+bool Parser::lexLambdaOrExprAfterLParen() {
     unsigned int start = tokens_size() - 1;
 
     lexWhitespaceToken();
@@ -127,7 +127,7 @@ bool Lexer::lexLambdaOrExprAfterLParen() {
 
 }
 
-bool Lexer::lexParenExpressionAfterLParen() {
+bool Parser::lexParenExpressionAfterLParen() {
 
     if (!lexExpressionTokens(false, false)) {
         error("expected a nested expression after starting parenthesis ( in the expression");
@@ -143,7 +143,7 @@ bool Lexer::lexParenExpressionAfterLParen() {
 
 }
 
-bool Lexer::lexParenExpression() {
+bool Parser::lexParenExpression() {
     if (lexOperatorToken('(')) {
         lexParenExpressionAfterLParen();
         return true;
@@ -152,7 +152,7 @@ bool Lexer::lexParenExpression() {
     }
 }
 
-bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
+bool Parser::lexExpressionTokens(bool lexStruct, bool lambda) {
 
     if (lexOperatorToken('-')) {
         auto start = tokens_size() - 1;

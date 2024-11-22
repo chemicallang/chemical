@@ -26,7 +26,7 @@ void move_errors(std::vector<Diag> &from, std::vector<Diag> &to, const std::stri
     from.clear();
 }
 
-ImportGraphImporter::ImportGraphImporter(ImportPathHandler* handler, Lexer* lexer, ImportGraphVisitor* converter) : handler(handler), lexer(lexer), converter(converter) {
+ImportGraphImporter::ImportGraphImporter(ImportPathHandler* handler, Parser* lexer, ImportGraphVisitor* converter) : handler(handler), lexer(lexer), converter(converter) {
 
 };
 
@@ -154,7 +154,7 @@ IGResult determine_import_graph(
         LocationManager& manager
 ) {
     SourceProvider reader(nullptr);
-    Lexer lexer("", reader);
+    Parser lexer("", reader);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(exe_path);
     ImportGraphImporter importer(
@@ -167,7 +167,7 @@ IGResult determine_import_graph(
 
 IGFile determine_ig_file(ImportPathHandler &handler, const std::string &abs_path) {
     SourceProvider reader(nullptr);
-    Lexer lexer(abs_path, reader);
+    Parser lexer(abs_path, reader);
     ImportGraphVisitor visitor;
     ImportGraphImporter importer(
             &handler,

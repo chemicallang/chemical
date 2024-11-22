@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 26/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexContinueStatement() {
+bool Parser::lexContinueStatement() {
     if(lexWSKeywordToken("continue", ';')) {
         compound_from(tokens_size() - 1, LexTokenType::CompContinue);
         return true;
@@ -15,7 +15,7 @@ bool Lexer::lexContinueStatement() {
     }
 }
 
-bool Lexer::lexBreakStatement() {
+bool Parser::lexBreakStatement() {
     if(lexWSKeywordToken("break", ';')) {
         auto start = tokens_size() - 1;
         // optionally lex value ahead
@@ -27,7 +27,7 @@ bool Lexer::lexBreakStatement() {
     }
 }
 
-bool Lexer::lexUnreachableStatement() {
+bool Parser::lexUnreachableStatement() {
     if(lexWSKeywordToken("unreachable", ';')) {
         compound_from(tokens_size() - 1, LexTokenType::CompUnreachable);
         return true;
@@ -36,7 +36,7 @@ bool Lexer::lexUnreachableStatement() {
     }
 }
 
-bool Lexer::lexForBlockTokens() {
+bool Parser::lexForBlockTokens() {
 
     if (!lexWSKeywordToken("for", '(')) {
         return false;
@@ -107,7 +107,7 @@ bool Lexer::lexForBlockTokens() {
 
 }
 
-bool Lexer::lexLoopBlockTokens(bool is_value) {
+bool Parser::lexLoopBlockTokens(bool is_value) {
 
     if (!lexWSKeywordToken("loop", '{')) {
         return false;

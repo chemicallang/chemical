@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 26/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexSingleLineCommentTokens() {
+bool Parser::lexSingleLineCommentTokens() {
     if(provider.increment("//")) {
         std::string comment = "//";
         while(!provider.eof() && !hasNewLine()) {
@@ -17,7 +17,7 @@ bool Lexer::lexSingleLineCommentTokens() {
     } else return false;
 }
 
-bool Lexer::lexMultiLineCommentTokens() {
+bool Parser::lexMultiLineCommentTokens() {
     if(provider.increment("/*")) {
         const auto savedPosition = Position { provider.lineNumber, provider.lineCharacterNumber - 2 };
         std::string comment = "/*";

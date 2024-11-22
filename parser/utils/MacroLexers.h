@@ -2,21 +2,21 @@
 
 #pragma once
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-void ignore_macro_lexer_fn(Lexer *lexer){
+void ignore_macro_lexer_fn(Parser *lexer){
 
 }
-void nested_level_macro_lexer_fn(Lexer *lexer){
+void nested_level_macro_lexer_fn(Parser *lexer){
     lexer->lexNestedLevelMultipleStatementsTokens();
 }
-void eval_expression_macro_lexer_fn(Lexer* lexer) {
+void eval_expression_macro_lexer_fn(Parser* lexer) {
     lexer->lexExpressionTokens(false, false);
 }
 
 const std::unordered_map<std::string, MacroLexerFn> MacroHandlers = {
         { "eval", eval_expression_macro_lexer_fn },
-        { "sizeof", [](Lexer *lexer) -> void {
+        { "sizeof", [](Parser *lexer) -> void {
             if(!lexer->lexTypeTokens()) {
                 lexer->mal_type(lexer->tokens_size() - 1, "expected a type in sizeof macro");
             }

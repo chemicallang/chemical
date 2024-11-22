@@ -4,10 +4,10 @@
 // Created by Waqas Tahir on 10/12/2023.
 //
 
-#include "Lexer.h"
+#include "Parser.h"
 #include "ast/types/LinkedType.h"
 
-Lexer::Lexer(
+Parser::Parser(
         std::string file_path,
         SourceProvider &provider,
         CompilerBinder* binder
@@ -15,7 +15,7 @@ Lexer::Lexer(
     unit.init();
 }
 
-void Lexer::lexTopLevelMultipleImportStatements() {
+void Parser::lexTopLevelMultipleImportStatements() {
     while (true) {
         lexWhitespaceAndNewLines();
         if (!lexImportStatement() && !lexSingleLineCommentTokens() && !lexMultiLineCommentTokens()) {
@@ -26,7 +26,7 @@ void Lexer::lexTopLevelMultipleImportStatements() {
     }
 }
 
-void Lexer::lexTopLevelMultipleStatementsTokens(bool break_at_no_stmt) {
+void Parser::lexTopLevelMultipleStatementsTokens(bool break_at_no_stmt) {
 
     // lex whitespace and new lines to reach a statement
     // lex a statement and then optional whitespace, lex semicolon
@@ -52,17 +52,17 @@ void Lexer::lexTopLevelMultipleStatementsTokens(bool break_at_no_stmt) {
 }
 
 
-void Lexer::lex() {
+void Parser::lex() {
     lexTopLevelMultipleImportStatements();
     lexTopLevelMultipleStatementsTokens();
 }
 
-void Lexer::reset() {
+void Parser::reset() {
     unit.reset();
     provider.reset();
 }
 
-void Lexer::diagnostic(Position start, const std::string &message, DiagSeverity severity) {
+void Parser::diagnostic(Position start, const std::string &message, DiagSeverity severity) {
     if(severity == DiagSeverity::Error) {
         has_errors = true;
     }

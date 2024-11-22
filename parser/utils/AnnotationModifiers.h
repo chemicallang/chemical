@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 #include <unordered_map>
 
 const std::unordered_map<std::string, AnnotationModifierFn> AnnotationModifiers = {

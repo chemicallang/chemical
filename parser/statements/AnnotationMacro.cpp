@@ -8,7 +8,7 @@
 #include "parser/utils/MacroLexers.h"
 #include "parser/model/CompilerBinder.h"
 
-bool Lexer::lexAnnotationMacro() {
+bool Parser::lexAnnotationMacro() {
 
     if (!(provider.peek() == '@' || provider.peek() == '#')) {
         return false;

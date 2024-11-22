@@ -2,6 +2,9 @@ import "./std.ch"
 
 public namespace std {
 
+@comptime
+public const STR_BUFF_SIZE = 16;
+
 public struct string {
 
     union {
@@ -15,7 +18,7 @@ public struct string {
             var capacity : size_t;
         } heap;
         struct {
-            var buffer : char[16];
+            var buffer : char[STR_BUFF_SIZE];
             var length : uchar;
         } sso;
     } storage;
@@ -118,7 +121,7 @@ public struct string {
 
     // ensures that capacity is larger than length given and memory is mutable
     func ensure_mut(&mut self, length : size_t) {
-        if((state == '0' || state == '1') && length < 16) {
+        if((state == '0' || state == '1') && length < STR_BUFF_SIZE) {
             if(state == '0') {
                 move_const_to_buffer();
             }
@@ -189,7 +192,7 @@ public struct string {
     func substring(&mut self, start : size_t, end : size_t) : string {
         var s : string
         const actual_len : size_t = end - start;
-        if(actual_len < 16) {
+        if(actual_len < STR_BUFF_SIZE) {
             s.state = '1'
             s.storage.sso.length = actual_len
             const d = data()
@@ -215,7 +218,7 @@ public struct string {
 
     func append(&mut self, value : char) {
         const length = size();
-        if((state == '0' || state == '1') && length < 15) {
+        if((state == '0' || state == '1') && length < (STR_BUFF_SIZE - 1)) {
             if(state == '0') {
                 move_const_to_buffer();
             }
@@ -242,7 +245,7 @@ public struct string {
                 return storage.constant.length;
             }
             '1' => {
-                return 16;
+                return STR_BUFF_SIZE;
             }
             '2' => {
                 return storage.heap.capacity;

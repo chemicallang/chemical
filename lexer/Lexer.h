@@ -13,6 +13,7 @@ class CompilerBinder;
  * the lexer is used to tokenize tokens
  */
 class Lexer {
+public:
 
     /**
      * the path to the file we are lexing

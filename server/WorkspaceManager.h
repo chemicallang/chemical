@@ -10,7 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
-#include "lexer/Lexi.h"
+#include "parser/Lexi.h"
 #include "utils/lspfwd.h"
 #include <future>
 #include "integration/cbi/model/LexResult.h"

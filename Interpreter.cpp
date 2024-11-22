@@ -4,7 +4,7 @@
 // Created by Waqas Tahir on 28/02/2024.
 //
 
-#include "lexer/Lexi.h"
+#include "parser/Lexi.h"
 #include "utils/Utils.h"
 #include "ast/utils/ExpressionEvaluator.h"
 #include "cst/base/CSTConverter.h"

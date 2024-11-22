@@ -1,7 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "LexerCBI.h"
-#include "lexer/Lexer.h"
+#include "parser/Lexer.h"
 
 SourceProvider* Lexerprovider(Lexer* lexer) {
     return &lexer->provider;

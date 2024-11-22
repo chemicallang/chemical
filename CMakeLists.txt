@@ -101,39 +101,39 @@ endif()
 
 # Add your common source files (excluding the main files)
 set(COMMON_SOURCES
-        lexer/Lexer.cpp
-        lexer/Lexer.h
+        parser/Lexer.cpp
+        parser/Lexer.h
         stream/SourceProvider.h
-        lexer/Lexi.h
-        lexer/statements/LexAssignment.cpp
-        lexer/statements/VarInitialization.cpp
-        lexer/statements/VarInitialization.cpp
-        lexer/statements/LexStatement.cpp
-        lexer/utils/LexWhitespace.cpp
-        lexer/utils/LexNumber.cpp
-        lexer/statements/LexType.cpp
+        parser/Lexi.h
+        parser/statements/LexAssignment.cpp
+        parser/statements/VarInitialization.cpp
+        parser/statements/VarInitialization.cpp
+        parser/statements/LexStatement.cpp
+        parser/utils/LexWhitespace.cpp
+        parser/utils/LexNumber.cpp
+        parser/statements/LexType.cpp
         stream/StreamPosition.h
-        lexer/Lexi.cpp
-        lexer/utils/LexValue.cpp
+        parser/Lexi.cpp
+        parser/utils/LexValue.cpp
         compiler/clang_driver.cpp
         utils/JsonUtils.cpp
         utils/JsonUtils.h
         utils/FileUtils.h
         utils/FileUtils.cpp
-        lexer/statements/Comment.cpp
-        lexer/utils/Helpers.cpp
-        lexer/statements/AccessChain.cpp
-        lexer/structures/ForBlock.cpp
-        lexer/structures/WhileBlock.cpp
-        lexer/structures/IfBlock.cpp
-        lexer/structures/Function.cpp
-        lexer/utils/Expression.cpp
-        lexer/structures/Block.cpp
-        lexer/statements/Import.cpp
-        lexer/structures/Enum.cpp
-        lexer/structures/Struct.cpp
-        lexer/structures/Interface.cpp
-        lexer/structures/DoWhile.cpp
+        parser/statements/Comment.cpp
+        parser/utils/Helpers.cpp
+        parser/statements/AccessChain.cpp
+        parser/structures/ForBlock.cpp
+        parser/structures/WhileBlock.cpp
+        parser/structures/IfBlock.cpp
+        parser/structures/Function.cpp
+        parser/utils/Expression.cpp
+        parser/structures/Block.cpp
+        parser/statements/Import.cpp
+        parser/structures/Enum.cpp
+        parser/structures/Struct.cpp
+        parser/structures/Interface.cpp
+        parser/structures/DoWhile.cpp
         ast/base/Value.h
         ast/utils/Operation.h
         ast/values/IntValue.h
@@ -157,7 +157,7 @@ set(COMMON_SOURCES
         ast/statements/Return.h
         ast/statements/Break.h
         ast/statements/Continue.h
-        lexer/model/LexTokenType.h
+        parser/model/LexTokenType.h
         utils/Utils.h
         utils/Utils.cpp
         ast/structures/Scope.h
@@ -179,9 +179,9 @@ set(COMMON_SOURCES
         ast/structures/LoopScope.h
         ast/base/LoopASTNode.h
         ast/structures/ImplDefinition.h
-        lexer/structures/ImplDef.cpp
+        parser/structures/ImplDef.cpp
         ast/statements/Comment.h
-        lexer/statements/AnnotationMacro.cpp
+        parser/statements/AnnotationMacro.cpp
         ast/base/BaseType.h
         compiler/Operation.cpp
         compiler/SymbolResolver.h
@@ -199,7 +199,7 @@ set(COMMON_SOURCES
         ast/types/AnyType.h
         utils/CmdUtils.h
         integration/common/Diagnostic.h
-        lexer/values/StructValue.cpp
+        parser/values/StructValue.cpp
         ast/values/StructValue.h
         ast/types/LinkedType.h
         stream/SourceProviderImpl.cpp
@@ -242,7 +242,7 @@ set(COMMON_SOURCES
         ast/types/LinkedType.cpp
         ast/types/GenericType.cpp
         ast/values/Expression.cpp
-        lexer/statements/Typealias.cpp
+        parser/statements/Typealias.cpp
         ast/statements/Typealias.cpp
         ast/statements/Typealias.h
         ast/statements/Continue.cpp
@@ -251,8 +251,8 @@ set(COMMON_SOURCES
         ast/statements/SwitchStatement.h
         ast/structures/TryCatch.cpp
         ast/structures/TryCatch.h
-        lexer/structures/TryCatch.cpp
-        lexer/structures/Switch.cpp
+        parser/structures/TryCatch.cpp
+        parser/structures/Switch.cpp
         ast/statements/Import.cpp
         compiler/SelfInvocation.h
         compiler/SelfInvocation.cpp
@@ -260,7 +260,7 @@ set(COMMON_SOURCES
         ast/values/CastedValue.h
         ast/values/LambdaFunction.h
         ast/values/LambdaFunction.cpp
-        lexer/values/LambdaValue.cpp
+        parser/values/LambdaValue.cpp
         cst/base/CSTToken.h
         utils/fwd/vector.h
         cst/CSTConvert.cpp
@@ -349,8 +349,8 @@ set(COMMON_SOURCES
         utils/PathUtils.h
         integration/cbi/bindings/CBI.h
         integration/cbi/bindings/CBI.cpp
-        lexer/CompilerBinder.cpp
-        lexer/model/CompilerBinder.h
+        parser/CompilerBinder.cpp
+        parser/model/CompilerBinder.h
         ast/utils/ASTUtils.h
         ast/utils/ASTUtils.cpp
         integration/libtcc/LibTccInteg.h
@@ -378,14 +378,14 @@ set(COMMON_SOURCES
         ast/statements/ThrowStatement.cpp
         ast/structures/Namespace.h
         ast/structures/Namespace.cpp
-        lexer/structures/Namespace.cpp
+        parser/structures/Namespace.cpp
         ast/base/ASTNode.cpp
         ast/values/SizeOfValue.h
         ast/values/SizeOfValue.cpp
         std/chem_string.h
         ast/structures/UnionDef.h
         ast/structures/UnionDef.cpp
-        lexer/structures/Union.cpp
+        parser/structures/Union.cpp
         std/hybrid_ptr.h
         ast/types/UnionType.h
         ast/types/UnionType.cpp
@@ -406,9 +406,9 @@ set(COMMON_SOURCES
         ast/statements/DestructStmt.cpp
         ast/values/RetStructParamValue.h
         ast/values/RetStructParamValue.cpp
-        lexer/utils/AnnotationModifiers.h
-        lexer/utils/ValueCreators.h
-        lexer/utils/MacroLexers.h
+        parser/utils/AnnotationModifiers.h
+        parser/utils/ValueCreators.h
+        parser/utils/MacroLexers.h
         compiler/lab/LabBuildContext.h
         compiler/lab/LabModule.h
         compiler/lab/LabBuildContext.cpp
@@ -435,7 +435,7 @@ set(COMMON_SOURCES
         ast/structures/VariantDefinition.h
         ast/structures/VariantDefinition.cpp
         ast/structures/VariantMemberParam.h
-        lexer/structures/Variant.cpp
+        parser/structures/Variant.cpp
         ast/base/ASTNodeKind.h
         ast/values/VariantCase.h
         ast/values/VariantCall.h
@@ -467,7 +467,7 @@ set(COMMON_SOURCES
         ast/structures/UnsafeBlock.cpp
         ast/base/ASTAllocator.h
         ast/base/ASTAllocator.cpp
-        lexer/model/CBIData.h
+        parser/model/CBIData.h
         integration/cbi/bindings/BuildContextCBI.h
         integration/cbi/bindings/BuildContextCBI.cpp
         integration/cbi/bindings/CBIUtils.h

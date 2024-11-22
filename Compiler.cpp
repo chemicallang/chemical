@@ -7,7 +7,7 @@
 #ifdef COMPILER_BUILD
 #include <llvm/TargetParser/Host.h>
 #endif
-#include "lexer/Lexi.h"
+#include "parser/Lexi.h"
 #include "utils/Environment.h"
 #include "utils/Utils.h"
 #include "compiler/InvokeUtils.h"

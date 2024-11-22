@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include "std/chem_string.h"
 #include "LabJobType.h"
-#include "lexer/model/CBIData.h"
+#include "parser/model/CBIData.h"
 
 struct LabModule;
 

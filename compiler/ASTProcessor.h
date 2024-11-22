@@ -8,7 +8,7 @@
 #include "ASTProcessorOptions.h"
 #include "preprocess/ImportGraphMaker.h"
 #include "ASTDiag.h"
-#include "lexer/model/CompilerBinder.h"
+#include "parser/model/CompilerBinder.h"
 #include "compiler/lab/LabModule.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/Benchmark.h"

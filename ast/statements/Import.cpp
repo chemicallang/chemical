@@ -2,7 +2,7 @@
 
 #include "Import.h"
 #include <filesystem>
-#include "lexer/Lexi.h"
+#include "parser/Lexi.h"
 #include "compiler/SymbolResolver.h"
 #include "preprocess/ImportPathHandler.h"
 #include "ast/base/GlobalInterpretScope.h"

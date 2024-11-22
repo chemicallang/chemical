@@ -4,8 +4,8 @@
 
 #include <memory>
 #include "cst/base/CSTConverter.h"
-#include "lexer/model/CompilerBinder.h"
-#include "lexer/Lexi.h"
+#include "parser/model/CompilerBinder.h"
+#include "parser/Lexi.h"
 #include "compiler/SymbolResolver.h"
 #include "preprocess/2c/2cASTVisitor.h"
 #include "utils/Benchmark.h"

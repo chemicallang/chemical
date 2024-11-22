@@ -164,19 +164,19 @@ void import_in_module(std::vector<ASTNode*>& nodes, SymbolResolver& resolver, co
     resolver.diagnostics.clear();
 }
 
-bool empty_diags(ASTImportResultExt& result) {
-    return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
+bool empty_diags(ASTFileResultExt& result) {
+    return result.lex_diagnostics.empty() && result.conv_diagnostics.empty() && !result.lex_benchmark && !result.conv_benchmark;
 }
 
-void print_results(ASTImportResultExt& result, const std::string& abs_path, bool benchmark) {
-    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
-    CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Converter");
+void print_results(ASTFileResultExt& result, const std::string& abs_path, bool benchmark) {
+    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Parser");
+    CSTDiagnoser::print_diagnostics(result.conv_diagnostics, abs_path, "Converter");
     if(benchmark) {
         if(result.lex_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
+            ASTProcessor::print_benchmarks(std::cout, "Parser", result.lex_benchmark.get());
         }
-        if(result.parse_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Parser", result.parse_benchmark.get());
+        if(result.conv_benchmark) {
+            ASTProcessor::print_benchmarks(std::cout, "Converter", result.conv_benchmark.get());
         }
     }
     std::cout << std::flush;
@@ -405,7 +405,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         flat_imports = processor.determine_mod_imports(mod);
 
         // send all files for concurrent processing (lex and parse)
-        std::vector<std::future<ASTImportResultExt>> futures;
+        std::vector<std::future<ASTFileResultExt>> futures;
         futures.reserve(flat_imports.size());
         i = 0;
         for(const auto& file : flat_imports) {
@@ -428,7 +428,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 #endif
 
-        ASTImportResultExt result { ASTUnit(), CSTUnit(), false, false, {}, {}, nullptr, nullptr };
+        ASTFileResultExt result {ASTUnit(), CSTUnit(), false, false, {}, {}, nullptr, nullptr };
 
         // start a module scope in symbol resolver, that we can dispose later
         resolver.module_scope_start();
@@ -854,12 +854,12 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
 #if defined(DEBUG_FUTURES) && DEBUG_FUTURES
 inline std::vector<ASTImportResultExt> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
 #else
-inline std::vector<std::future<ASTImportResultExt>> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
+inline std::vector<std::future<ASTFileResultExt>> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
 #endif
 #if defined(DEBUG_FUTURES) && DEBUG_FUTURES
     std::vector<ASTImportResultExt> lab_futures;
 #else
-    std::vector<std::future<ASTImportResultExt>> lab_futures;
+    std::vector<std::future<ASTFileResultExt>> lab_futures;
 #endif
     int i = 0;
     for (const auto &file: flat_imports) {
@@ -878,7 +878,7 @@ inline std::vector<std::future<ASTImportResultExt>> trigger_futures(ctpl::thread
 #if defined(DEBUG_FUTURES) && DEBUG_FUTURES
 inline ASTImportResultExt future_get(std::vector<ASTImportResultExt>& futures, int i) {
 #else
-inline ASTImportResultExt future_get(std::vector<std::future<ASTImportResultExt>>& futures, int i) {
+inline ASTFileResultExt future_get(std::vector<std::future<ASTFileResultExt>>& futures, int i) {
 #endif
 #if defined(DEBUG_FUTURES) && DEBUG_FUTURES
     return std::move(futures[i]);

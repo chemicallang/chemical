@@ -23,7 +23,7 @@
 #include "compiler/ctranslator/CTranslator.h"
 #endif
 
-ASTImportResultExt concurrent_processor(int id, int file_id, const FlatIGFile& file, ASTProcessor* processor) {
+ASTFileResultExt concurrent_processor(int id, int file_id, const FlatIGFile& file, ASTProcessor* processor) {
     return processor->import_file(file_id, file);
 }
 
@@ -217,7 +217,7 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
     }
 }
 
-ASTImportResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const std::string_view& abs_path) {
+ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const std::string_view& abs_path) {
 
     ASTUnit unit;
 
@@ -238,7 +238,7 @@ ASTImportResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const
         lexFile(&lexer, abs_path.data());
     }
     if (lexer.has_errors) {
-        return { ASTImportResult { std::move(unit), std::move(lexer.unit), false, false }, std::move(lexer.diagnostics), { }, std::move(lex_bm), nullptr };
+        return {ASTFileResult {std::move(unit), std::move(lexer.unit), false, false }, std::move(lexer.diagnostics), { }, std::move(lex_bm), nullptr };
     }
 
     // convert the tokens
@@ -262,11 +262,11 @@ ASTImportResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const
     }
     unit = converter.take_unit();
 
-    return { ASTImportResult { std::move(unit), std::move(lexer.unit), true, false }, std::move(lexer.diagnostics), std::move(converter.diagnostics), std::move(lex_bm), std::move(parse_bm) };
+    return {ASTFileResult {std::move(unit), std::move(lexer.unit), true, false }, std::move(lexer.diagnostics), std::move(converter.diagnostics), std::move(lex_bm), std::move(parse_bm) };
 
 }
 
-ASTImportResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFile& file) {
+ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFile& file) {
 
     auto& abs_path = file.abs_path;
 
@@ -301,9 +301,9 @@ ASTImportResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFi
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif
 
-        return { ASTImportResult { std::move(unit), CSTUnit(), true, true }, {},
+        return {ASTFileResult {std::move(unit), CSTUnit(), true, true }, {},
 #ifdef COMPILER_BUILD
-        std::move(translator->diagnostics)
+                std::move(translator->diagnostics)
 #else
                  {}
 #endif

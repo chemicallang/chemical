@@ -504,6 +504,11 @@ set(COMMON_SOURCES
         ast/base/LocatedIdentifier.h
         utils/parse_num.h
         ast/base/BatchAllocator.h
+        lexer/Lexer.h
+        lexer/Lexer.cpp
+        lexer/TokenType.h
+        lexer/Token.h
+        lexer/LexUnit.h
 )
 
 # Chemical LSP Executable Target

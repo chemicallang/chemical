@@ -86,6 +86,13 @@ public:
     void reset();
 
     /**
+     * check if operator is present at peek
+     */
+    inline bool isPeakOp(char op) {
+        return provider.peek() == op;
+    }
+
+    /**
      * get current tokens size
      */
     inline size_t tokens_size() {

@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 27/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-void Lexer::lexInterfaceBlockTokens() {
+void Parser::lexInterfaceBlockTokens() {
     do {
         lexWhitespaceAndNewLines();
         if(!(lexVarInitializationTokens(true, true) || lexFunctionStructureTokens(true) || lexSingleLineCommentTokens() || lexMultiLineCommentTokens())) {
@@ -17,7 +17,7 @@ void Lexer::lexInterfaceBlockTokens() {
     } while(provider.peek() != '}');
 }
 
-bool Lexer::lexInterfaceStructureTokens(unsigned start) {
+bool Parser::lexInterfaceStructureTokens(unsigned start) {
     if (lexWSKeywordToken("interface")) {
         if(!lexIdentifierToken()) {
             error("expected interface name after the interface keyword");

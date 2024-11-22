@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 27/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexVariantMemberTokens() {
+bool Parser::lexVariantMemberTokens() {
     if(lexIdentifierToken()) {
         unsigned start = tokens_size() - 1;
         if(lexOperatorToken('(')) {
@@ -25,7 +25,7 @@ bool Lexer::lexVariantMemberTokens() {
     }
 }
 
-void Lexer::lexVariantBlockTokens() {
+void Parser::lexVariantBlockTokens() {
     do {
         lexWhitespaceAndNewLines();
         if(!(
@@ -43,7 +43,7 @@ void Lexer::lexVariantBlockTokens() {
     lexWhitespaceToken();
 }
 
-bool Lexer::lexVariantStructureTokens(unsigned start_token) {
+bool Parser::lexVariantStructureTokens(unsigned start_token) {
     if(lexWSKeywordToken("variant")) {
         if (!lexIdentifierToken()) {
             error("expected a identifier as struct name");

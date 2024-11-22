@@ -5,57 +5,57 @@
 //
 
 #include "Lexi.h"
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 #include "stream/SourceProvider.h"
 #include "utils/Benchmark.h"
 #include "stream/FileInputSource.h"
 #include <iostream>
 
-void benchLex(Lexer *lexer, BenchmarkResults &results) {
+void benchLex(Parser *lexer, BenchmarkResults &results) {
     results.benchmark_begin();
     lexer->lex();
     results.benchmark_end();
 }
 
-void benchLexFile(Lexer* lexer, const char* path, BenchmarkResults& results) {
+void benchLexFile(Parser* lexer, const char* path, BenchmarkResults& results) {
     FileInputSource input_source(path);
     lexer->provider.switch_source(&input_source);
     benchLex(lexer, results);
 }
 
-void benchLexFile(Lexer* lexer, const char* path) {
+void benchLexFile(Parser* lexer, const char* path) {
     BenchmarkResults results{};
     benchLexFile(lexer, path, results);
 }
 
-void lexFile(Lexer* lexer, const char* path) {
+void lexFile(Parser* lexer, const char* path) {
     FileInputSource input_source(path);
     lexer->provider.switch_source(&input_source);
     lexer->lex();
 }
 
-Lexer benchLexFile(const std::string_view& path, InputSource& source) {
+Parser benchLexFile(const std::string_view& path, InputSource& source) {
     SourceProvider reader(&source);
-    Lexer lexer(std::string(path), reader);
+    Parser lexer(std::string(path), reader);
     BenchmarkResults results{};
     benchLex(&lexer, results);
     std::cout << "[Lex]" << " Completed " << results.representation() << std::endl;
     return lexer;
 }
 
-Lexer benchLexFile(const std::string_view& path) {
+Parser benchLexFile(const std::string_view& path) {
     FileInputSource input_source(path.data());
     return benchLexFile(path, input_source);
 }
 
-Lexer lexFile(const std::string_view& path, InputSource& input_source) {
+Parser lexFile(const std::string_view& path, InputSource& input_source) {
     SourceProvider reader(&input_source);
-    Lexer lexer(std::string(path), reader);
+    Parser lexer(std::string(path), reader);
     lexer.lex();
     return lexer;
 }
 
-Lexer lexFile(const std::string_view& path) {
+Parser lexFile(const std::string_view& path) {
     FileInputSource input_source(path.data());
     return lexFile(path, input_source);
 }

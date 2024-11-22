@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 27/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-void Lexer::lexUnionBlockTokens() {
+void Parser::lexUnionBlockTokens() {
     do {
         lexWhitespaceAndNewLines();
         if(!(
@@ -25,7 +25,7 @@ void Lexer::lexUnionBlockTokens() {
     lexWhitespaceToken();
 }
 
-bool Lexer::lexUnionStructureTokens(unsigned start_token, bool unnamed, bool direct_init) {
+bool Parser::lexUnionStructureTokens(unsigned start_token, bool unnamed, bool direct_init) {
     if(lexWSKeywordToken("union")) {
         bool has_identifier = false;
         if(!unnamed) {

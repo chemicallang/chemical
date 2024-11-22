@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 27/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexEnumBlockTokens() {
+bool Parser::lexEnumBlockTokens() {
     while(true) {
         lexWhitespaceAndNewLines();
         if(lexIdentifierToken()) {
@@ -33,7 +33,7 @@ bool Lexer::lexEnumBlockTokens() {
     return true;
 }
 
-bool Lexer::lexEnumStructureTokens(unsigned start) {
+bool Parser::lexEnumStructureTokens(unsigned start) {
     if(lexWSKeywordToken("enum")) {
         if(!lexIdentifierToken()) {
             error("expected a identifier as enum name");

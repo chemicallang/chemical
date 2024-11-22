@@ -1,8 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexTryCatchTokens() {
+bool Parser::lexTryCatchTokens() {
     if (lexWSKeywordToken("try")) {
         unsigned int start = tokens_size() - 1;
         if(lexAccessChain(false)) {

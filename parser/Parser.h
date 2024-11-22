@@ -22,24 +22,27 @@
 
 class CompilerBinder;
 
-class Lexer;
+class Parser;
 
 /**
  * A function that is called upon encountering an annotation
  */
-typedef void(*AnnotationModifierFn)(Lexer *lexer, CSTToken* token);
+typedef void(*AnnotationModifierFn)(Parser *lexer, CSTToken* token);
 
 /**
  * a value creator function
  */
-typedef void(*ValueCreatorFn)(Lexer *lexer);
+typedef void(*ValueCreatorFn)(Parser *lexer);
 
 /**
- * a function that lexes something inside a macro
+ * a function that parses something inside a macro
  */
-typedef void(*MacroLexerFn)(Lexer *lexer);
+typedef void(*MacroLexerFn)(Parser *lexer);
 
-class Lexer : public CSTDiagnoser {
+/**
+ * the parser that is used to parse
+ */
+class Parser : public CSTDiagnoser {
 public:
 
     /**
@@ -66,7 +69,7 @@ public:
     /**
      * initialize the lexer with this provider and path
      */
-    Lexer(
+    Parser(
         std::string file_path,
         SourceProvider &provider,
         CompilerBinder* binder = nullptr
@@ -406,13 +409,13 @@ public:
     /**
      * lexes a brace block, { statement(s) }
      */
-    bool lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer*));
+    bool lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Parser*));
 
     /**
      * lexes top level brace block
      */
     bool lexTopLevelBraceBlock(const std::string& forThing) {
-        return lexBraceBlock(forThing, [](Lexer* lexer){
+        return lexBraceBlock(forThing, [](Parser* lexer){
             lexer->lexTopLevelMultipleStatementsTokens(true);
         });
     }

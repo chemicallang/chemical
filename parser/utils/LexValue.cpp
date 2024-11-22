@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 24/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexCharToken() {
+bool Parser::lexCharToken() {
     if (provider.increment('\'')) {
         auto back = backPosition(1);
         std::string value = "'";
@@ -18,7 +18,7 @@ bool Lexer::lexCharToken() {
     }
 }
 
-bool Lexer::lexStringToken() {
+bool Parser::lexStringToken() {
     if (provider.increment('"')) {
         auto back = backPosition(1);
         std::string value = "\"";
@@ -30,7 +30,7 @@ bool Lexer::lexStringToken() {
     }
 }
 
-bool Lexer::lexBoolToken() {
+bool Parser::lexBoolToken() {
     if (provider.increment("true")) {
         emplace(LexTokenType::Bool, backPosition(4), "true");
         return true;
@@ -41,7 +41,7 @@ bool Lexer::lexBoolToken() {
     return false;
 }
 
-bool Lexer::lexNull() {
+bool Parser::lexNull() {
     if (provider.increment("null")) {
         emplace(LexTokenType::Null, backPosition(4), "null");
         return true;
@@ -50,21 +50,21 @@ bool Lexer::lexNull() {
     }
 }
 
-bool Lexer::lexValueToken() {
+bool Parser::lexValueToken() {
     return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken() || lexBoolToken() ||
            lexNull();
 }
 
-bool Lexer::lexAccessChainValueToken() {
+bool Parser::lexAccessChainValueToken() {
     return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken();
 }
 
-bool Lexer::lexConstantValue() {
+bool Parser::lexConstantValue() {
     return lexCharToken() || lexStringToken() || lexNumberToken() || lexBoolToken() ||
            lexNull() || lexAccessChainOrAddrOf() || lexAnnotationMacro();
 }
 
-bool Lexer::lexArrayInit() {
+bool Parser::lexArrayInit() {
     if (lexOperatorToken('{')) {
         auto start = tokens_size() - 1;
         do {
@@ -103,11 +103,11 @@ bool Lexer::lexArrayInit() {
     }
 }
 
-bool Lexer::lexAccessChainOrValue(bool lexStruct) {
+bool Parser::lexAccessChainOrValue(bool lexStruct) {
     return lexIfBlockTokens(true, true, false) || lexSwitchStatementBlock(true, true) || lexLoopBlockTokens(true) || lexAccessChainValueToken() || lexAccessChainOrAddrOf(lexStruct) || lexAnnotationMacro();
 }
 
-bool Lexer::lexValueNode() {
+bool Parser::lexValueNode() {
     if(lexAccessChainOrValue(true)) {
         auto start = tokens_size() - 1;
         compound_from(start, LexTokenType::CompValueNode);

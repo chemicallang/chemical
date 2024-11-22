@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 16/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexTopLevelAccessSpecifiedDecls() {
+bool Parser::lexTopLevelAccessSpecifiedDecls() {
     if(lexAccessSpecifier(false)) {
         auto start = tokens_size() - 1;
         const auto found = lexFunctionStructureTokens(start, true, true)
@@ -27,7 +27,7 @@ bool Lexer::lexTopLevelAccessSpecifiedDecls() {
     }
 }
 
-bool Lexer::lexTopLevelStatementTokens() {
+bool Parser::lexTopLevelStatementTokens() {
     return lexSingleLineCommentTokens() ||
            lexMultiLineCommentTokens() ||
            lexVarInitializationTokens(true) ||
@@ -48,7 +48,7 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexTopLevelAccessSpecifiedDecls();
 }
 
-bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
+bool Parser::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
     return lexSingleLineCommentTokens() ||
            lexMultiLineCommentTokens() ||
            lexVarInitializationTokens() ||
@@ -76,7 +76,7 @@ bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
            lexAssignmentTokens();
 }
 
-bool Lexer::lexStatementTokens() {
+bool Parser::lexStatementTokens() {
     return lexSingleLineCommentTokens() ||
            lexMultiLineCommentTokens() ||
            lexVarInitializationTokens() ||
@@ -101,7 +101,7 @@ bool Lexer::lexStatementTokens() {
            lexAssignmentTokens();
 }
 
-bool Lexer::lexThrowStatementTokens() {
+bool Parser::lexThrowStatementTokens() {
     if(lexWSKeywordToken("throw")) {
         auto start = tokens_size() - 1;
         if(lexValueToken()) {
@@ -116,7 +116,7 @@ bool Lexer::lexThrowStatementTokens() {
     }
 }
 
-bool Lexer::lexUsingStatement() {
+bool Parser::lexUsingStatement() {
     if(lexWSKeywordToken("using")) {
         auto start = tokens_size() - 1;
         lexWSKeywordToken("namespace");
@@ -133,7 +133,7 @@ bool Lexer::lexUsingStatement() {
     }
 }
 
-bool Lexer::lexProvideStatement() {
+bool Parser::lexProvideStatement() {
     if(lexWSKeywordToken("provide")) {
         unsigned start = tokens_size() - 1;
         if(!lexExpressionTokens()) {
@@ -150,7 +150,7 @@ bool Lexer::lexProvideStatement() {
     }
 }
 
-bool Lexer::lexComptimeBlock() {
+bool Parser::lexComptimeBlock() {
     if(lexWSKeywordToken("comptime", '{')) {
         unsigned start = tokens_size() - 1;
         if(!lexBraceBlock("comptime")) {

@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 27/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-void Lexer::lexNestedLevelMultipleStatementsTokens(bool is_value, bool lex_value_node) {
+void Parser::lexNestedLevelMultipleStatementsTokens(bool is_value, bool lex_value_node) {
 
     // lex whitespace and new lines to reach a statement
     // lex a statement and then optional whitespace, lex semicolon
@@ -21,7 +21,7 @@ void Lexer::lexNestedLevelMultipleStatementsTokens(bool is_value, bool lex_value
     }
 }
 
-void Lexer::lexMultipleStatementsTokens() {
+void Parser::lexMultipleStatementsTokens() {
 
     // lex whitespace and new lines to reach a statement
     // lex a statement and then optional whitespace, lex semicolon
@@ -36,7 +36,7 @@ void Lexer::lexMultipleStatementsTokens() {
     }
 }
 
-bool Lexer::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer*)) {
+bool Parser::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Parser*)) {
 
     // whitespace and new lines
     lexWhitespaceAndNewLines();
@@ -66,7 +66,7 @@ bool Lexer::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer
 
 }
 
-bool Lexer::lexBraceBlock(const std::string &forThing) {
+bool Parser::lexBraceBlock(const std::string &forThing) {
 
     // whitespace and new lines
     lexWhitespaceAndNewLines();
@@ -95,7 +95,7 @@ bool Lexer::lexBraceBlock(const std::string &forThing) {
     return true;
 }
 
-bool Lexer::lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_value, bool lex_value_node) {
+bool Parser::lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_value, bool lex_value_node) {
 
     // whitespace and new lines
     lexWhitespaceAndNewLines();

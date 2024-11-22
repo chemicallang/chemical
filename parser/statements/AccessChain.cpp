@@ -6,7 +6,7 @@
 
 #include "parser/utils/ValueCreators.h"
 
-bool Lexer::storeVariable(const std::string& identifier) {
+bool Parser::storeVariable(const std::string& identifier) {
     if (!identifier.empty()) {
         emplace(LexTokenType::Variable, backPosition(identifier.length()), identifier);
         return true;
@@ -15,7 +15,7 @@ bool Lexer::storeVariable(const std::string& identifier) {
     }
 }
 
-bool Lexer::storeIdentifier(const std::string &identifier) {
+bool Parser::storeIdentifier(const std::string &identifier) {
     if (!identifier.empty()) {
         emplace(LexTokenType::Identifier, backPosition(identifier.length()), identifier);
         return true;
@@ -24,7 +24,7 @@ bool Lexer::storeIdentifier(const std::string &identifier) {
     }
 }
 
-bool Lexer::storeVariable(chem::string* identifier) {
+bool Parser::storeVariable(chem::string* identifier) {
     if (!identifier->empty()) {
         emplace(LexTokenType::Variable, backPosition(identifier->size()), { identifier->data(), identifier->size() });
         return true;
@@ -33,7 +33,7 @@ bool Lexer::storeVariable(chem::string* identifier) {
     }
 }
 
-bool Lexer::storeIdentifier(chem::string* identifier) {
+bool Parser::storeIdentifier(chem::string* identifier) {
     if (!identifier->empty()) {
         emplace(LexTokenType::Identifier, backPosition(identifier->size()), { identifier->data(), identifier->size() });
         return true;
@@ -42,7 +42,7 @@ bool Lexer::storeIdentifier(chem::string* identifier) {
     }
 }
 
-bool Lexer::lexAccessChain(bool lexStruct, bool lex_as_node) {
+bool Parser::lexAccessChain(bool lexStruct, bool lex_as_node) {
 
     auto id = lexIdentifier();
     if(id.empty()) {
@@ -69,7 +69,7 @@ bool Lexer::lexAccessChain(bool lexStruct, bool lex_as_node) {
 
 }
 
-bool Lexer::lexAccessChainOrAddrOf(bool lexStruct) {
+bool Parser::lexAccessChainOrAddrOf(bool lexStruct) {
     if(lexOperatorToken('&')) {
         auto start = tokens_size() - 1;
         if(lexAccessChain(true)) {
@@ -90,14 +90,14 @@ bool Lexer::lexAccessChainOrAddrOf(bool lexStruct) {
     return lexAccessChain(lexStruct);
 }
 
-bool Lexer::lexAccessChainRecursive(bool lexStruct, unsigned chain_length) {
+bool Parser::lexAccessChainRecursive(bool lexStruct, unsigned chain_length) {
     if (!lexVariableToken()) {
         return false;
     }
     return lexAccessChainAfterId(lexStruct, chain_length + 1);
 }
 
-bool Lexer::lexFunctionCall(unsigned back_start) {
+bool Parser::lexFunctionCall(unsigned back_start) {
     if(lexOperatorToken('(')) {
         unsigned start = tokens_size() - back_start;
         do {
@@ -119,7 +119,7 @@ bool Lexer::lexFunctionCall(unsigned back_start) {
     }
 }
 
-void Lexer::lexGenericArgsList() {
+void Parser::lexGenericArgsList() {
     do {
         lexWhitespaceToken();
         if (!lexTypeTokens()) {
@@ -129,7 +129,7 @@ void Lexer::lexGenericArgsList() {
     } while (lexOperatorToken(','));
 }
 
-bool Lexer::lexGenericArgsListCompound() {
+bool Parser::lexGenericArgsListCompound() {
     if(lexOperatorToken('<')) {
         unsigned start = tokens_size() - 1;
         lexGenericArgsList();
@@ -144,7 +144,7 @@ bool Lexer::lexGenericArgsListCompound() {
     }
 }
 
-void Lexer::lexFunctionCallWithGenericArgsList() {
+void Parser::lexFunctionCallWithGenericArgsList() {
     lexGenericArgsListCompound();
     if(provider.peek() == '('){
         lexFunctionCall(2);
@@ -153,7 +153,7 @@ void Lexer::lexFunctionCallWithGenericArgsList() {
     }
 }
 
-bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
+bool Parser::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
 
     if(lexStruct) {
         lexWhitespaceToken();

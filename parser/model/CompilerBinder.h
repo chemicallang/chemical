@@ -7,7 +7,7 @@
 
 class ASTProcessor;
 
-class Lexer;
+class Parser;
 
 class CSTConverter;
 
@@ -41,7 +41,7 @@ struct BinderResult {
  * this function is a lex function, it takes the lexer cbi
  * which allows user to lex tokens
  */
-typedef void(*cbi_lex_macro_func)(Lexer* cbi);
+typedef void(*cbi_lex_macro_func)(Parser* cbi);
 
 /**
  * this function is a lex function, it takes the lexer cbi

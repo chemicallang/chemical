@@ -17,7 +17,7 @@
 #include "ast/base/ASTAllocator.h"
 #include "integration/cbi/bindings/CBI.h"
 
-class Lexer;
+class Parser;
 
 class CSTConverter;
 

@@ -226,7 +226,7 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
 
     // lex the file
     SourceProvider provider(nullptr);
-    Lexer lexer(std::string(abs_path), provider, &binder);
+    Parser lexer(std::string(abs_path), provider, &binder);
 //        if(options->isCBIEnabled) {
 //            bind_lexer_cbi(lexer_cbi.get(), &lexer);
 //        }

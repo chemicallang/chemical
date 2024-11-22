@@ -24,7 +24,7 @@ Here are the folders in the project and their explanation
 files contain functions for lexing different nodes / values / types.
   - You'd learn the lexer pretty fast by just visiting the source files present in the folders inside lexer folder.
   - The lexer creates a hierarchy of tokens, YES, It creates a CST straight from the source code. which is then converted to a AST using [CSTConvert](../../cst/CSTConvert.cpp)
-  - Checkout [Lexer](../../parser/Lexer.h) for all functions that lexer has. 
+  - Checkout [Lexer](../../parser/Parser.h) for all functions that lexer has. 
 
 
 - [cst](../../cst) The folder cst contains models for CST, As I've explained earlier A CST is created by the lexer instead of an AST.

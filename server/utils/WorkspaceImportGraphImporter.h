@@ -9,7 +9,7 @@ public:
 
     WorkspaceImportGraphImporter(
             ImportPathHandler *handler,
-            Lexer *lexer,
+            Parser *lexer,
             ImportGraphVisitor *converter,
             WorkspaceManager *manager
     );

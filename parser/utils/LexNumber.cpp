@@ -5,9 +5,9 @@
 //
 
 #include <memory>
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexUnsignedIntAsNumberToken() {
+bool Parser::lexUnsignedIntAsNumberToken() {
     auto number = provider.readUnsignedInt();
     if (!number.empty()) {
         emplace(LexTokenType::Number, backPosition(number.length()), number);
@@ -17,7 +17,7 @@ bool Lexer::lexUnsignedIntAsNumberToken() {
     }
 }
 
-bool Lexer::lexNumberToken() {
+bool Parser::lexNumberToken() {
     if(!provider.is_peak_number_char()) {
         return false;
     }

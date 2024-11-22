@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 26/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexReturnStatement() {
+bool Parser::lexReturnStatement() {
     if(lexWSKeywordToken("return", ';')) {
         unsigned int start = tokens_size() - 1;
         lexWhitespaceToken();
@@ -18,7 +18,7 @@ bool Lexer::lexReturnStatement() {
     }
 }
 
-bool Lexer::lexConstructorInitBlock() {
+bool Parser::lexConstructorInitBlock() {
     if(lexWSKeywordToken("init", '{')) {
         unsigned start = tokens_size() - 1;
         if(!lexOperatorToken('{')) {
@@ -45,7 +45,7 @@ bool Lexer::lexConstructorInitBlock() {
     }
 }
 
-bool Lexer::lexUnsafeBlock() {
+bool Parser::lexUnsafeBlock() {
     if(lexWSKeywordToken("unsafe", '{')) {
         unsigned start = tokens_size() - 1;
         if(!lexBraceBlock("unsafe_block")) {
@@ -59,7 +59,7 @@ bool Lexer::lexUnsafeBlock() {
     }
 }
 
-bool Lexer::lexDestructStatement() {
+bool Parser::lexDestructStatement() {
     if(lexWSKeywordToken("destruct", '[')) {
         unsigned start = tokens_size() - 1;
         if(lexOperatorToken('[')) {
@@ -87,7 +87,7 @@ bool Lexer::lexDestructStatement() {
     }
 }
 
-bool Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexImplicitParams, bool variadicParam) {
+bool Parser::lexParameterList(bool optionalTypes, bool defValues, bool lexImplicitParams, bool variadicParam) {
     do {
         lexWhitespaceAndNewLines();
         if(lexImplicitParams && lexOperatorToken('&')) {
@@ -141,7 +141,7 @@ bool Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexImplici
     return true;
 }
 
-bool Lexer::lexGenericParametersList() {
+bool Parser::lexGenericParametersList() {
     if(lexOperatorToken('<')) {
         unsigned start = tokens_size() - 1;
         while(true) {
@@ -181,7 +181,7 @@ bool Lexer::lexGenericParametersList() {
     }
 }
 
-bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
+bool Parser::lexAfterFuncKeyword(bool allow_extensions) {
 
     if(lexGenericParametersList() && has_errors) {
         return false;
@@ -252,7 +252,7 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
 }
 
-bool Lexer::lexFunctionSignatureTokens() {
+bool Parser::lexFunctionSignatureTokens() {
 
     if(!lexWSKeywordToken("func")) {
         return false;
@@ -262,7 +262,7 @@ bool Lexer::lexFunctionSignatureTokens() {
 
 }
 
-bool Lexer::lexFunctionStructureTokens(unsigned start, bool allow_declarations, bool allow_extensions) {
+bool Parser::lexFunctionStructureTokens(unsigned start, bool allow_declarations, bool allow_extensions) {
 
     if(!lexWSKeywordToken("func")) {
         return false;

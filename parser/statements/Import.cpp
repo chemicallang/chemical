@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 27/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexImportIdentifierList() {
+bool Parser::lexImportIdentifierList() {
     if (lexOperatorToken('{')) {
         do {
             lexWhitespaceAndNewLines();
@@ -24,7 +24,7 @@ bool Lexer::lexImportIdentifierList() {
     }
 }
 
-bool Lexer::lexImportStatement() {
+bool Parser::lexImportStatement() {
     if (!lexWSKeywordToken("import")) {
         return false;
     }

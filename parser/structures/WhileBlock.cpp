@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 26/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexWhileBlockTokens() {
+bool Parser::lexWhileBlockTokens() {
 
     if(!lexWSKeywordToken("while", '(')) {
         return false;

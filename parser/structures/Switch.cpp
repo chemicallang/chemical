@@ -1,8 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexMultipleSwitchCaseValues() {
+bool Parser::lexMultipleSwitchCaseValues() {
     bool has_single = false;
     do {
         if(has_single) {
@@ -16,7 +16,7 @@ bool Lexer::lexMultipleSwitchCaseValues() {
     return has_single;
 }
 
-bool Lexer::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
+bool Parser::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
     if (lexWSKeywordToken("switch", '(')) {
         auto start = tokens_size() - 1;
 

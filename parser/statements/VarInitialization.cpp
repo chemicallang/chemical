@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 16/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexVarInitializationTokens(unsigned start, bool allowDeclarations, bool requiredType) {
+bool Parser::lexVarInitializationTokens(unsigned start, bool allowDeclarations, bool requiredType) {
 
     auto lexed_const = lexWSKeywordToken("const");
 

@@ -101,8 +101,8 @@ endif()
 
 # Add your common source files (excluding the main files)
 set(COMMON_SOURCES
-        parser/Lexer.cpp
-        parser/Lexer.h
+        parser/Parser.cpp
+        parser/Parser.h
         stream/SourceProvider.h
         parser/Lexi.h
         parser/statements/LexAssignment.cpp

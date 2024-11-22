@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 2/19/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexLambdaTypeTokens(unsigned int start) {
+bool Parser::lexLambdaTypeTokens(unsigned int start) {
     if(lexOperatorToken('(')) {
         lexParameterList();
         if(!lexOperatorToken(')')) {
@@ -28,7 +28,7 @@ bool Lexer::lexLambdaTypeTokens(unsigned int start) {
     }
 }
 
-bool Lexer::lexGenericTypeAfterId(unsigned int start) {
+bool Parser::lexGenericTypeAfterId(unsigned int start) {
     if(lexOperatorToken('<')) {
         do {
             lexWhitespaceToken();
@@ -48,7 +48,7 @@ bool Lexer::lexGenericTypeAfterId(unsigned int start) {
     }
 }
 
-bool Lexer::lexRefOrGenericType() {
+bool Parser::lexRefOrGenericType() {
     unsigned start = tokens_size();
     auto id = provider.readIdentifier();
     if(id.empty()) {
@@ -61,7 +61,7 @@ bool Lexer::lexRefOrGenericType() {
     return true;
 }
 
-void Lexer::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
+void Parser::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
     if(lexOperatorToken('[')) {
         // optional array size
         lexExpressionTokens();
@@ -81,7 +81,7 @@ void Lexer::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
     }
 }
 
-bool Lexer::lexTypeId(std::string& type, unsigned int start) {
+bool Parser::lexTypeId(std::string& type, unsigned int start) {
     bool has_multiple = false;
     while(true) {
         if(provider.peek() == ':' && provider.peek(1) == ':') {
@@ -109,7 +109,7 @@ bool Lexer::lexTypeId(std::string& type, unsigned int start) {
     return true;
 }
 
-bool Lexer::lexTypeTokens() {
+bool Parser::lexTypeTokens() {
 
     if(lexOperatorToken('[')) {
         unsigned start = tokens_size() - 1;

@@ -4,9 +4,9 @@
 // Created by Waqas Tahir on 26/02/2024.
 //
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level) {
+bool Parser::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level) {
 
     if (!lexOperatorToken('(')) {
         mal_value_or_node(start, "expected a starting parenthesis ( when lexing a if block", is_value);
@@ -39,7 +39,7 @@ bool Lexer::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node
 
 }
 
-bool Lexer::lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level) {
+bool Parser::lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level) {
 
     if(!lexWSKeywordToken("if", '(')) {
         return false;

@@ -10,7 +10,7 @@
 #include <memory>
 #include "ImportPathHandler.h"
 
-class Lexer;
+class Parser;
 
 class ImportGraphVisitor;
 
@@ -24,13 +24,13 @@ class ImportGraphImporter {
 public:
 
     ImportPathHandler *handler;
-    Lexer *lexer;
+    Parser *lexer;
     ImportGraphVisitor *converter;
 
     /**
      * constructor
      */
-    ImportGraphImporter(ImportPathHandler *handler, Lexer *lexer, ImportGraphVisitor *converter);
+    ImportGraphImporter(ImportPathHandler *handler, Parser *lexer, ImportGraphVisitor *converter);
 
     /**
      * will lex the prepared source

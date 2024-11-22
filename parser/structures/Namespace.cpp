@@ -1,8 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexNamespaceTokens(unsigned start) {
+bool Parser::lexNamespaceTokens(unsigned start) {
     if(lexWSKeywordToken("namespace")) {
         if(!lexIdentifierToken()) {
             error("expected identifier for namespace name");

@@ -1,8 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
-#include "parser/Lexer.h"
+#include "parser/Parser.h"
 
-bool Lexer::lexStructValueTokens(unsigned back_start) {
+bool Parser::lexStructValueTokens(unsigned back_start) {
     if(lexOperatorToken('{')) {
 
         unsigned start = tokens_size() - 1 - back_start;

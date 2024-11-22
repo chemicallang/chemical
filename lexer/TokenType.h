@@ -6,8 +6,12 @@ enum class TokenType {
 
     // if, while
     Keyword,
-    // anything that can be written as is, for ex: ui8 after the number
-    Raw,
+
+    // whitespace tokens
+    Whitespace,
+
+    // new line character
+    NewLine,
 
     LParen, // (
     RParen, // )
@@ -33,7 +37,10 @@ enum class TokenType {
     Number,
 
     // when reached the end of file
-    EndOfFile
+    EndOfFile,
+
+    // usually means an error should occur
+    Unexpected
 
 
 

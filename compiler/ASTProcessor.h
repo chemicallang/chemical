@@ -34,18 +34,33 @@ class CTranslator;
 #endif
 
 /**
- * when a file is processed using ASTProcessor, it results in this result
+ * when a file is processed using ASTProcessor
  */
-struct ASTImportResult {
+struct ASTFileResult {
 
+    /**
+     * the ast unit we're concerned with
+     */
     ASTUnit unit;
+
+    /**
+     * the cst unit we're concerned with
+     */
     CSTUnit cst_unit;
+
+    /**
+     * should the processing be continued, this is false, if ast contained errors during conversion
+     */
     bool continue_processing;
+
+    /**
+     * if this unit belongs to a c file that was translated using clang
+     */
     bool is_c_file;
 
 };
 
-struct ASTImportResultExt : ASTImportResult {
+struct ASTFileResultExt : ASTFileResult {
 
     /**
      * diagnotics collected during the lexing process
@@ -53,9 +68,9 @@ struct ASTImportResultExt : ASTImportResult {
     std::vector<Diag> lex_diagnostics;
 
     /**
-     * diagnostics collected during the parsing process
+     * diagnostics collected during the conversion process
      */
-    std::vector<Diag> parse_diagnostics;
+    std::vector<Diag> conv_diagnostics;
 
     /**
      * the benchmark results are stored here, if user opted for benchmarking
@@ -65,7 +80,7 @@ struct ASTImportResultExt : ASTImportResult {
     /**
      * the parsing benchmarks are stored here, if user opted for benchmarking
      */
-    std::unique_ptr<BenchmarkResults> parse_benchmark;
+    std::unique_ptr<BenchmarkResults> conv_benchmark;
 
 };
 
@@ -183,13 +198,13 @@ public:
     /**
      * import chemical file with absolute path to it
      */
-    ASTImportResultExt import_chemical_file(unsigned int fileId, const std::string_view& absolute_path);
+    ASTFileResultExt import_chemical_file(unsigned int fileId, const std::string_view& absolute_path);
 
     /**
      * lex, parse and resolve symbols in file and return Scope containing nodes
      * without performing any symbol resolution
      */
-    ASTImportResultExt import_file(unsigned int fileId, const FlatIGFile& file);
+    ASTFileResultExt import_file(unsigned int fileId, const FlatIGFile& file);
 
     /**
      * function that performs symbol resolution
@@ -281,4 +296,4 @@ public:
 /**
  * this function can be called concurrently, to import files
  */
-ASTImportResultExt concurrent_processor(int id, int file_id, const FlatIGFile& file, ASTProcessor* processor);
+ASTFileResultExt concurrent_processor(int id, int file_id, const FlatIGFile& file, ASTProcessor* processor);

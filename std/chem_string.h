@@ -62,7 +62,7 @@ namespace chem {
 
         string(string& str) = delete;
 
-        string(string&& other) noexcept {
+        void _own(string& other) noexcept {
             state = other.state;
             switch(other.state) {
                 case '0':
@@ -82,6 +82,18 @@ namespace chem {
                     other.storage.constant.length = storage.heap.length;
                     break;
             }
+        }
+
+        inline string(string&& other) noexcept {
+            _own(other);
+        }
+
+        string& operator=(string&& other) noexcept {
+            if(state == '2') {
+                free(storage.heap.data);
+            }
+            _own(other);
+            return *this;
         }
 
         explicit string(const char* value, const size_t length) {
@@ -290,6 +302,11 @@ namespace chem {
                 storage.heap.data[(length + 1)] = '\0';
                 storage.heap.length = (length + 1);
             }
+        }
+
+        // will cause heap allocation
+        inline void reserve(std::size_t capacity) {
+            ensure_mut(capacity);
         }
 
         [[nodiscard]]

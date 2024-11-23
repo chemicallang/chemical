@@ -6,6 +6,7 @@
 #include "Token.h"
 #include "LexUnit.h"
 #include "std/chem_string.h"
+#include "MultiStrAllocator.h"
 
 class CompilerBinder;
 
@@ -16,14 +17,14 @@ class Lexer {
 public:
 
     /**
+     *
+     */
+    MultiStrAllocator allocator;
+
+    /**
      * the path to the file we are lexing
      */
     std::string file_path;
-
-    /**
-     * a single multi string is used for all strings found
-     */
-    chem::string multi_str;
 
     /**
      * the source provider is used to read the source
@@ -44,11 +45,6 @@ public:
             SourceProvider &provider,
             CompilerBinder* binder = nullptr
     );
-
-    /**
-     * a single char is put on multi string and pointer is returned
-     */
-    char* putSingleChar(char c);
 
     /**
      * the function to get the next token

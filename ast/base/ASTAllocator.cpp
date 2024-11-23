@@ -43,6 +43,8 @@ ASTAllocator::ASTAllocator(
 
 BatchAllocator& BatchAllocator::operator =(BatchAllocator&& other) noexcept {
 
+    this->~BatchAllocator();
+
     stack_memory = other.stack_memory;
     stack_memory_size = other.stack_memory_size;
     stack_offset = other.stack_offset;
@@ -210,6 +212,8 @@ char* BatchAllocator::offset_heap(char* const heap_ptr, std::size_t obj_size, st
 }
 
 char* BatchAllocator::object_heap_pointer(std::size_t obj_size, std::size_t alignment) {
+    // std::size_t aligned_heap_offset = get_aligned_heap_offset(alignment);
+    // TODO use aligned_heap_offset here
     if((heap_offset + obj_size) < heap_batch_size) {
         return offset_heap(heap_memory.back(), obj_size, alignment);
     } else {

@@ -8,7 +8,7 @@
 
 namespace chem {
 
-    constexpr int STR_BUFF_SIZE = 23;
+    constexpr int STR_BUFF_SIZE = 16;
 
     /**
      * the string used in chemical

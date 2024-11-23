@@ -18,6 +18,8 @@ namespace std {
 class BatchAllocator {
 public:
 
+    friend class AllocatorStrBuilder;
+
     /**
      * constructor
      */
@@ -97,6 +99,20 @@ protected:
      * the mutex used to ensure memory safety when using multiple threads
      */
     std::mutex* allocator_mutex;
+
+    /**
+     * get aligned stack offset
+     */
+    inline std::size_t get_aligned_stack_offset(std::size_t alignment) {
+        return (stack_offset + alignment - 1) & ~(alignment - 1);
+    }
+
+    /**
+     * get aligned heap offset
+     */
+    inline std::size_t get_aligned_heap_offset(std::size_t alignment) {
+        return (heap_offset + alignment - 1) & ~(alignment - 1);
+    }
 
     /**
      * does what it says

@@ -6,15 +6,8 @@ Lexer::Lexer(
         std::string file_path,
         SourceProvider &provider,
         CompilerBinder* binder
-) : file_path(std::move(file_path)), provider(provider), binder(binder) {
-    multi_str.reserve(250);
-}
+) : file_path(std::move(file_path)), provider(provider), binder(binder), allocator(1000) {
 
-char* Lexer::putSingleChar(char c) {
-    multi_str.append(c);
-    auto d = multi_str.mutable_data();
-    multi_str.append('\0');
-    return d;
 }
 
 bool isWhitespace(char p) {
@@ -44,6 +37,8 @@ Token Lexer::getNextToken() {
         case '%':
         case '!':
         case '.':
+        case ',':
+        case ';':
             return Token(TokenType::Operator, { nullptr, 1 }, pos);
         case -1:
             return Token(TokenType::EndOfFile, { nullptr, 0 }, pos);
@@ -65,7 +60,7 @@ Token Lexer::getNextToken() {
     if(std::isdigit(c)) {
         auto p = provider.peek();
         if(isWhitespace(p)) {
-
+            return Token(TokenType::Number, { allocator.char_ptr(p), 1 }, pos);
         } else {
 
         }
@@ -76,7 +71,7 @@ Token Lexer::getNextToken() {
 }
 
 void Lexer::getUnit(LexUnit& unit) {
-    unit.allocated_multi_str = std::move(multi_str);
+    unit.allocator = std::move(allocator);
     unit.tokens.reserve(250);
     while(true) {
         auto token = getNextToken();

@@ -509,6 +509,7 @@ set(COMMON_SOURCES
         lexer/TokenType.h
         lexer/Token.h
         lexer/LexUnit.h
+        lexer/MultiStrAllocator.h
 )
 
 # Chemical LSP Executable Target

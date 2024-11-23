@@ -6,6 +6,7 @@
 #include "ast/base/BatchAllocator.h"
 #include <vector>
 #include "std/chem_string.h"
+#include "MultiStrAllocator.h"
 
 /**
  * lex unit represents a single file completely lexed
@@ -13,9 +14,9 @@
 struct LexUnit {
 
     /**
-     * contains the multi string allocation
+     * strings present in source code are allocated using this allocator
      */
-    chem::string allocated_multi_str;
+    MultiStrAllocator allocator;
 
     /**
      * the tokens vector contains all the tokens

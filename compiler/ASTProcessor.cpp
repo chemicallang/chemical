@@ -227,6 +227,7 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
     std::unique_ptr<BenchmarkResults> parse_bm;
 
 #ifdef DEBUG
+    std::optional<Diag> trad_diag = std::nullopt;
     {
         // TODO remove this, debugging traditional lexer here
         FileInputSource inp_source(abs_path.data());
@@ -235,8 +236,8 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
         LexUnit lexUnit;
         lexer.getUnit(lexUnit);
         auto& last_token = lexUnit.tokens.back();
-        if(last_token.type != TokenType::EndOfFile) {
-//        parser.diagnostic(last_token.position, "[DEBUG_TRAD_LEXER] end of file is not present", DiagSeverity::Warning);
+        if(last_token.type == TokenType::Unexpected) {
+            trad_diag.emplace(CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", abs_path, last_token.position, last_token.position, DiagSeverity::Warning));
         }
     }
 #endif
@@ -244,6 +245,12 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
     // lex the file
     SourceProvider provider(nullptr);
     Parser parser(std::string(abs_path), provider, &binder);
+
+#ifdef DEBUG
+    if(trad_diag.has_value()) {
+        parser.diagnostics.emplace_back(trad_diag.value());
+    }
+#endif
 //        if(options->isCBIEnabled) {
 //            bind_lexer_cbi(lexer_cbi.get(), &lexer);
 //        }

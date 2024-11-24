@@ -49,35 +49,86 @@ const std::unordered_map<std::string_view, bool> keywords = {
         {
                 { "import", true },
                 { "if", true },
+                { "else", true },
                 { "while", true },
                 { "do", true },
+
+                // Control Flow Nodes
+                { "for", true },
+                { "switch", true },
+                { "return", true },
+
+                // Local Level Statements
+                { "break", true },
+                { "continue", true },
+                { "destruct", true },
+                { "provide", true },
+                { "unreachable", true },
+                { "init", true },
+                { "try", true },
+                { "catch", true },
+                { "throw", true },
+
+                // Values
                 { "true", true },
                 { "false", true },
-                { "func", true },
                 { "null", true },
+
+                // Access Specifiers
                 { "public", true },
                 { "private", true },
+                { "protected", true },
+                { "internal", true },
+
+                // Types
                 { "bool", true },
+
+                // Signed Integer Types
+                { "char", true },
+                { "short", true },
                 { "int", true },
                 { "long", true },
+                { "bigint", true },
+
+                // Unsigned Integer Types
+                { "uchar", true },
+                { "ushort", true },
                 { "uint", true },
                 { "ulong", true },
-                { "mut", true },
+                { "ubigint", true },
+
+                // Other Types
+                { "any", true },
+                { "double", true },
+                { "longdouble", true },
+                { "float", true },
+                { "int128", true },
+                { "uint128", true },
+                { "float128", true },
                 { "void", true },
-                { "self", true },
-                { "this", true },
+
+                // Top Level Statements
+                { "func", true },
+                { "typealias", true },
                 { "struct", true },
+                { "union", true },
+                { "variant", true },
                 { "interface", true },
                 { "impl", true },
                 { "namespace", true },
-                { "for", true },
+                { "enum", true },
+                { "var", true },
+                { "using", true },
+                { "comptime", true },
+
+                // Other Keywords
+                { "mut", true },
+                { "self", true },
+                { "this", true },
                 { "as", true },
                 { "is", true },
-                { "var", true },
                 { "dyn", true },
-                { "switch", true },
                 { "const", true },
-                { "return", true }
         }
 };
 
@@ -376,11 +427,16 @@ void Lexer::getUnit(LexUnit& unit) {
     unit.tokens.reserve(250);
     while(true) {
         auto token = getNextToken();
-        if(token.type == TokenType::EndOfFile || token.type == TokenType::Unexpected) {
-            break;
-        } else {
-            unit.tokens.emplace_back(token);
+        switch(token.type) {
+            case TokenType::EndOfFile:
+                goto exit_loop;
+            case TokenType::Unexpected:
+                unit.tokens.emplace_back(token);
+                goto exit_loop;
+            default:
+                unit.tokens.emplace_back(token);
         }
     }
+exit_loop:
     unit.allocator = std::move(allocator);
 }

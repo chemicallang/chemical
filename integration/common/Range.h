@@ -10,6 +10,10 @@ public:
     Position start, end;
 
     std::string representation() const {
-        return start.representation() + " - " + end.representation();
+        if(start.is_equal(end)) {
+            return start.representation();
+        } else {
+            return start.representation() + " - " + end.representation();
+        }
     }
 };

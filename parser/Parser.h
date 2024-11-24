@@ -922,11 +922,20 @@ public:
     }
 
     /**
+     * make a diagnostic with given parameters, for the current file
+     */
+    Diag make_diag(Position start, const std::string &message, DiagSeverity severity) {
+        return CSTDiagnoser::make_diag(message, file_path, start, provider.position(), severity);
+    }
+
+    /**
      * adds an error at the current stream position (which is the end), starting from the last token's end,
      * @param position the position (in the tokens vector) of the token at end of which error started
      * @param message the message for the error
      */
-    void diagnostic(Position start, const std::string &message, DiagSeverity severity);
+    void diagnostic(Position start, const std::string &message, DiagSeverity severity) {
+        add_diag(make_diag(start, message, severity));
+    }
 
     /**
      * get the last token from the unit

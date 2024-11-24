@@ -39,9 +39,21 @@ public:
     std::vector<Diag> diagnostics;
 
     /**
+     * create a diag with parameters
+     */
+    static Diag make_diag(const std::string_view& message, const std::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity);
+
+    /**
+     * add the given diagnostic
+     */
+    void add_diag(Diag diag);
+
+    /**
      * the actual diagnostic function that does everything
      */
-    void diagnostic(const std::string_view& message, const std::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity);
+    void diagnostic(const std::string_view& message, const std::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity) {
+        add_diag(make_diag(message, file_path, start, end, severity));
+    }
 
     /**
      * give diagnostics related to tokens

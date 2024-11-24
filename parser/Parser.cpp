@@ -61,18 +61,3 @@ void Parser::reset() {
     unit.reset();
     provider.reset();
 }
-
-void Parser::diagnostic(Position start, const std::string &message, DiagSeverity severity) {
-    if(severity == DiagSeverity::Error) {
-        has_errors = true;
-    }
-    diagnostics.emplace_back(
-            Range{
-                    start,
-                    {provider.getLineNumber(), provider.getLineCharNumber()}
-            },
-            severity,
-            std::nullopt,
-            message
-    );
-}

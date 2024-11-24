@@ -47,18 +47,11 @@ const auto NewlineWinCStr = "\r\n";
 
 const std::unordered_map<std::string_view, bool> keywords = {
         {
-                { "import", true },
-                { "if", true },
-                { "else", true },
-                { "while", true },
-                { "do", true },
 
-                // Control Flow Nodes
+                // Local Level Statements
                 { "for", true },
                 { "switch", true },
                 { "return", true },
-
-                // Local Level Statements
                 { "break", true },
                 { "continue", true },
                 { "destruct", true },
@@ -68,6 +61,10 @@ const std::unordered_map<std::string_view, bool> keywords = {
                 { "try", true },
                 { "catch", true },
                 { "throw", true },
+                { "if", true },
+                { "else", true },
+                { "while", true },
+                { "do", true },
 
                 // Values
                 { "true", true },
@@ -81,7 +78,6 @@ const std::unordered_map<std::string_view, bool> keywords = {
                 { "internal", true },
 
                 // Types
-                { "bool", true },
 
                 // Signed Integer Types
                 { "char", true },
@@ -98,6 +94,7 @@ const std::unordered_map<std::string_view, bool> keywords = {
                 { "ubigint", true },
 
                 // Other Types
+                { "bool", true },
                 { "any", true },
                 { "double", true },
                 { "longdouble", true },
@@ -108,6 +105,7 @@ const std::unordered_map<std::string_view, bool> keywords = {
                 { "void", true },
 
                 // Top Level Statements
+                { "import", true },
                 { "func", true },
                 { "typealias", true },
                 { "struct", true },

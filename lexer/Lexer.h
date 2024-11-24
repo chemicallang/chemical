@@ -25,12 +25,19 @@ struct LexerState {
      * for example comment mode, string mode which allows to collect tokens
      * as comments or strings, even symbols or operators
      */
-    bool other_mode;
+    bool other_mode = false;
 
     /**
-     * lexer has detected a single line comment
+     * lexer will try to collect next character as a character token
+     * or an escape sequence
      */
-    bool comment_mode;
+    bool char_mode = false;
+
+    /**
+     * lexer will try to collect next string until quotes as a string
+     * if escape quotes then multiple strings are made
+     */
+    bool string_mode = false;
 
 };
 

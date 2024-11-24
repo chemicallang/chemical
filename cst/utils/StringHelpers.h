@@ -5,6 +5,21 @@
 #include <string>
 #include "utils/fwd/functional.h"
 
+class SourceProvider;
+
+/**
+ * very simple, for 'n' it returns backslash n, for 'r' it returns backslash r
+ * 'x' is not supported
+ */
+char escaped_char(char current);
+
+/**
+ * if current is 'n' it returns backslash n
+ * current is the character to escape, provider can be provided to support
+ * x1b, current should be 'x' and provider must be at peek == 1 so we can increment both
+ */
+char escapable_char(SourceProvider& provider, char current);
+
 /**
  * will return the escaped character, for 'r' given at index, it will return '\r'
  *

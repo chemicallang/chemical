@@ -77,9 +77,11 @@ public:
      * constructor
      */
     MultiStrAllocator(std::size_t heapBatchSize) : BatchAllocator(nullptr, 0, heapBatchSize) {
-        // reserving a single heap batch size allocation for usage
-        // otherwise first allocation will fail
-        reserve_heap_storage();
+        if(heapBatchSize > 0) {
+            // reserving a single heap batch size allocation for usage
+            // otherwise first allocation will fail
+            reserve_heap_storage();
+        }
     }
 
     /**

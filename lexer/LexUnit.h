@@ -23,4 +23,12 @@ struct LexUnit {
      */
     std::vector<Token> tokens;
 
+    /**
+     * constructor
+     * The allocator is useless as it doesn't initialize itself
+     */
+    LexUnit() : allocator(0) {
+
+    }
+
 };

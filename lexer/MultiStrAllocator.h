@@ -49,6 +49,10 @@ public:
         return data;
     }
 
+    std::string_view finalize_view() {
+        return { finalize(), length };
+    }
+
     void append(char value) {
         if((capacity <= (length + 2))){
             resize((capacity * 2));
@@ -66,7 +70,7 @@ public:
  * and then that can only be reallocated or resized and when a new allocation occurs
  * the previous is finalized and cannot change
  */
-class MultiStrAllocator : protected BatchAllocator {
+class MultiStrAllocator : public BatchAllocator {
 public:
 
     /**
@@ -79,9 +83,9 @@ public:
     }
 
     /**
-     * the char will be stored in a c string, after this char a backslash zero is appended
+     * the char will be stored in a c string
      */
-    char* char_ptr(char c) {
+    char* char_to_c_str(char c) {
         auto ptr = object_heap_pointer(sizeof(char) * 2, alignof(char));
         *ptr = c;
         *(ptr + 1) = '\0';

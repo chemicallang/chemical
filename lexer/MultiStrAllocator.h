@@ -94,5 +94,16 @@ public:
         return ptr;
     }
 
+    /**
+     * convert two characters to a c string
+     */
+    char* two_chars_to_c_str(char c1, char c2) {
+        auto ptr = object_heap_pointer(sizeof(char) * 3, alignof(char));
+        *ptr = c1;
+        *(ptr + 1) = c2;
+        *(ptr + 2) = '\0';
+        return ptr;
+    }
+
 
 };

@@ -221,12 +221,10 @@ void read_str_text(AllocatorStrBuilder& str, SourceProvider& provider) {
 // reads the character and escapes it, if 'n' is at current position, we can say backslash n escape seq
 // if character is not a valid escape sequence unexpected token is returned
 Token read_escape_seq(MultiStrAllocator& allocator, SourceProvider& provider, const Position& pos) {
-    auto next = provider.readCharacter();
-    auto escaped = escapable_char(provider, next);
-    if(escaped != next) {
-        return Token(TokenType::EscapeSeq, { allocator.char_to_c_str(escaped), 1 }, pos);
+    if(provider.peek() != -1) {
+        return Token(TokenType::EscapeSeq, { allocator.two_chars_to_c_str('\\', provider.readCharacter()), 2 }, pos);
     } else {
-        return Token(TokenType::Unexpected, { allocator.char_to_c_str(escaped), 1 }, pos);
+        return Token(TokenType::Unexpected, { allocator.char_to_c_str('\\'), 1 }, pos);
     }
 }
 

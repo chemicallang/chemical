@@ -7,6 +7,9 @@ enum class TokenType {
     // if, while
     Keyword,
 
+    // anything not part of the language
+    Identifier,
+
     // whitespace tokens
     Whitespace,
 
@@ -29,6 +32,12 @@ enum class TokenType {
 
     // escape sequence inside quotes
     EscapeSeq,
+
+    // single line comment
+    SingleLineComment,
+
+    // multi line comment
+    MultiLineComment,
 
     // +, -, &, &&, || arithmetic or logical operators
     Operator,

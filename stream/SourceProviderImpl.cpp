@@ -421,7 +421,11 @@ unsigned int SourceProvider::readWhitespaces() {
     auto p = peek();
     while (p == ' ' || p == '\t') {
         readCharacter();
-        whitespaces++;
+        if(p == ' ') {
+            whitespaces++;
+        } else if(p == '\t') {
+            whitespaces += 4;
+        }
         p = peek();
     }
     return whitespaces;

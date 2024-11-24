@@ -2,54 +2,64 @@
 
 #include "StringHelpers.h"
 #include <functional>
+#include "stream/SourceProvider.h"
+
+char escaped_char(char current) {
+    switch (current) {
+        case 'a':
+            return '\a';
+        case 'f':
+            return '\f';
+        case 'r':
+            return '\r';
+        case 'n':
+            return '\n';
+        case '0':
+            return '\0';
+        case 't':
+            return '\t';
+        case 'v':
+            return '\v';
+        case 'b':
+            return '\b';
+        case '\\':
+            return '\\';
+        case '"':
+            return '"';
+        case '?':
+            return '\?';
+        default:
+            return current;
+    }
+}
 
 std::pair<char, unsigned int> escapable_char(const std::string &value, unsigned index) {
-    char actualChar;
-    switch (value[index]) {
-        case 'a':
-            actualChar = '\a';
-            break;
-        case 'f':
-            actualChar = '\f';
-            break;
-        case 'r':
-            actualChar = '\r';
-            break;
-        case 'n':
-            actualChar = '\n';
-            break;
-        case '0':
-            actualChar = '\0';
-            break;
-        case 't':
-            actualChar = '\t';
-            break;
-        case 'v':
-            actualChar = '\v';
-            break;
-        case 'b':
-            actualChar = '\b';
-            break;
-        case '\\':
-            actualChar = '\\';
-            break;
-        case '"':
-            actualChar = '"';
-            break;
-        case '?':
-            actualChar = '\?';
-            break;
-        case 'x':
-            if (index + 2 < value.size() && value[index + 1] == '1' && value[index + 2] == 'b') {
-                actualChar = '\x1b';
-                index = index + 2;
-            }
-            break;
-        default:
-            return {value[index], -1};
+    char current = value[index];
+    if(current != 'x') {
+        auto next = escaped_char(current);
+        if(next != current) {
+            return {next, index + 1 };
+        } else {
+            return {current, -1 };
+        }
+    } else if (index + 2 < value.size() && value[index + 1] == '1' && value[index + 2] == 'b') {
+        return { '\x1b', index + 3 };
     }
-    return {actualChar, index + 1};
+    return { current, -1 };
 }
+
+char escapable_char(SourceProvider& provider, char current) {
+    if(current == 'x') {
+        if(provider.increment('1') && provider.increment('b')) {
+            return '\x1b';
+        } else {
+            return current;
+        }
+    } else {
+        return escaped_char(current);
+    }
+}
+
 
 std::pair<char, bool> escape_single(const std::string &value, unsigned i) {
     if (i < value.size()) {

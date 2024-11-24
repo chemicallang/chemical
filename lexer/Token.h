@@ -14,7 +14,7 @@ struct Token {
     /**
      * the type of the token
      */
-    TokenType type;
+    enum TokenType type;
 
     /**
      * the value is the string in the token

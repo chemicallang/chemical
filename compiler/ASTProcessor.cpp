@@ -19,6 +19,8 @@
 #include "integration/cbi/bindings/CBI.h"
 #include "preprocess/RepresentationVisitor.h"
 #include <filesystem>
+#include "lexer/Lexer.h"
+
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
 #endif
@@ -224,21 +226,36 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
     std::unique_ptr<BenchmarkResults> lex_bm;
     std::unique_ptr<BenchmarkResults> parse_bm;
 
+#ifdef DEBUG
+    {
+        // TODO remove this, debugging traditional lexer here
+        FileInputSource inp_source(abs_path.data());
+        SourceProvider provider2(&inp_source);
+        Lexer lexer(std::string(abs_path), provider2, &binder);
+        LexUnit lexUnit;
+        lexer.getUnit(lexUnit);
+        auto& last_token = lexUnit.tokens.back();
+        if(last_token.type != TokenType::EndOfFile) {
+//        parser.diagnostic(last_token.position, "[DEBUG_TRAD_LEXER] end of file is not present", DiagSeverity::Warning);
+        }
+    }
+#endif
+
     // lex the file
     SourceProvider provider(nullptr);
-    Parser lexer(std::string(abs_path), provider, &binder);
+    Parser parser(std::string(abs_path), provider, &binder);
 //        if(options->isCBIEnabled) {
 //            bind_lexer_cbi(lexer_cbi.get(), &lexer);
 //        }
 
     if(options->benchmark) {
         lex_bm = std::make_unique<BenchmarkResults>();
-        benchLexFile(&lexer, abs_path.data(), *lex_bm);
+        benchLexFile(&parser, abs_path.data(), *lex_bm);
     } else {
-        lexFile(&lexer, abs_path.data());
+        lexFile(&parser, abs_path.data());
     }
-    if (lexer.has_errors) {
-        return {ASTFileResult {std::move(unit), std::move(lexer.unit), false, false }, std::move(lexer.diagnostics), { }, std::move(lex_bm), nullptr };
+    if (parser.has_errors) {
+        return {ASTFileResult {std::move(unit), std::move(parser.unit), false, false }, std::move(parser.diagnostics), { }, std::move(lex_bm), nullptr };
     }
 
     // convert the tokens
@@ -256,13 +273,13 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
             mod_allocator,
             file_allocator
     );
-    converter.convert(lexer.unit.tokens);
+    converter.convert(parser.unit.tokens);
     if(options->benchmark) {
         parse_bm->benchmark_end();
     }
     unit = converter.take_unit();
 
-    return {ASTFileResult {std::move(unit), std::move(lexer.unit), true, false }, std::move(lexer.diagnostics), std::move(converter.diagnostics), std::move(lex_bm), std::move(parse_bm) };
+    return {ASTFileResult {std::move(unit), std::move(parser.unit), true, false }, std::move(parser.diagnostics), std::move(converter.diagnostics), std::move(lex_bm), std::move(parse_bm) };
 
 }
 

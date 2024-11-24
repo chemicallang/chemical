@@ -6,23 +6,27 @@
 #include "rang.hpp"
 #include "cst/LocationManager.h"
 
-void CSTDiagnoser::diagnostic(const std::string_view& message, const std::string_view& filePath, const Position& start, const Position& end, DiagSeverity severity) {
-    if (severity == DiagSeverity::Error) {
+Diag CSTDiagnoser::make_diag(const std::string_view& message, const std::string_view& filePath, const Position& start, const Position& end, DiagSeverity severity) {
+    return Diag(
+            Range {
+                    start,
+                    end
+            },
+            severity,
+            std::string(filePath),
+            std::string(message)
+    );
+}
+
+void CSTDiagnoser::add_diag(Diag diag) {
+    if (diag.severity == DiagSeverity::Error) {
         if(early_errors) {
-            std::cerr << rang::fg::red << "[Debug_Error] " << message << " at " << filePath << ":"
-                      << start.representation() << rang::fg::reset << std::endl;
+            std::cerr << rang::fg::red << "[Debug_Error] " << diag.message << " at " << diag.path_url.value() << ":"
+                      << diag.range.start.representation() << rang::fg::reset << std::endl;
         }
         has_errors = true;
     }
-    diagnostics.emplace_back(
-            Range {
-                start,
-                end
-            },
-            severity,
-            std::nullopt,
-            std::string(message)
-    );
+    diagnostics.emplace_back(diag);
 }
 
 void CSTDiagnoser::token_diagnostic(const std::string_view& message, const std::string_view& file_path, CSTToken* start, CSTToken* end, DiagSeverity severity) {

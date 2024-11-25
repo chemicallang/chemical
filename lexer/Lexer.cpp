@@ -46,6 +46,10 @@ const auto NewlineCStr = "\n";
 const auto NewlineRCStr = "\r";
 const auto NewlineWinCStr = "\r\n";
 
+constexpr std::string_view view_str(const char* c_str) {
+    return { c_str };
+}
+
 const std::unordered_map<std::string_view, bool> keywords = {
         {
 
@@ -303,48 +307,48 @@ Token Lexer::getNextToken() {
     }
     switch(current) {
         case '{':
-            return Token(TokenType::LBrace, { LBraceCStr, 1 }, pos);
+            return Token(TokenType::LBrace, view_str(LBraceCStr), pos);
         case '}':
-            return Token(TokenType::RBrace, { RBraceCStr, 1 }, pos);
+            return Token(TokenType::RBrace, view_str(RBraceCStr), pos);
         case '(':
-            return Token(TokenType::LParen, { LParenCStr, 1 }, pos);
+            return Token(TokenType::LParen, view_str(LParenCStr), pos);
         case ')':
-            return Token(TokenType::RParen, { RParenCStr, 1 }, pos);
+            return Token(TokenType::RParen, view_str(RParenCStr), pos);
         case '[':
-            return Token(TokenType::LBracket, { LBracketCStr, 1 }, pos);
+            return Token(TokenType::LBracket, view_str(LBracketCStr), pos);
         case ']':
-            return Token(TokenType::RBracket, { RBracketCStr, 1 }, pos);
+            return Token(TokenType::RBracket, view_str(RBracketCStr), pos);
         case '+':
-            return Token(TokenType::Operator, { PlusOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(PlusOpCStr), pos);
         case '-':
-            return Token(TokenType::Operator, { MinusOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(MinusOpCStr), pos);
         case '*':
-            return Token(TokenType::Operator, { MulOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(MulOpCStr), pos);
         case '%':
-            return Token(TokenType::Operator, { ModOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(ModOpCStr), pos);
         case '!':
-            return Token(TokenType::Operator, { ExclOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(ExclOpCStr), pos);
         case '.':
-            return Token(TokenType::Operator, { DotOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(DotOpCStr), pos);
         case ',':
-            return Token(TokenType::Operator, { CommaOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(CommaOpCStr), pos);
         case ';':
-            return Token(TokenType::Operator, { SemiColOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(SemiColOpCStr), pos);
         case '@':
-            return Token(TokenType::Operator, { AnnotationAtCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(AnnotationAtCStr), pos);
         case '#':
-            return Token(TokenType::Operator, { MacroHashCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(MacroHashCStr), pos);
         case '<':
             if(provider.increment('=')) {
-                return Token(TokenType::Operator, { CmpLTEOpCStr, 2 }, pos);
+                return Token(TokenType::Operator, view_str(CmpLTEOpCStr), pos);
             } else {
-                return Token(TokenType::Operator, { CmpLTOpCStr, 1 }, pos);
+                return Token(TokenType::Operator, view_str(CmpLTOpCStr), pos);
             }
         case '>':
             if(provider.increment('=')) {
-                return Token(TokenType::Operator, { CmpGTEOpCStr, 2 }, pos);
+                return Token(TokenType::Operator, view_str(CmpGTEOpCStr), pos);
             } else {
-                return Token(TokenType::Operator, { CmpGTOpCStr, 1 }, pos);
+                return Token(TokenType::Operator, view_str(CmpGTOpCStr), pos);
             }
         case '/': {
             auto p = provider.peek();
@@ -361,56 +365,51 @@ Token Lexer::getNextToken() {
                 read_multi_line_comment_text(str, provider);
                 return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
             } else {
-                return Token(TokenType::Operator, {DivOpCStr, 1}, pos);
+                return Token(TokenType::Operator, view_str(DivOpCStr), pos);
             }
         }
         case '&':
             if(provider.increment('&')) {
-                return Token(TokenType::Operator, { LogAndOpCStr, 2 }, pos);
+                return Token(TokenType::Operator, view_str(LogAndOpCStr), pos);
             } else {
-                return Token(TokenType::Operator, { BitwiseAndOpCStr, 1 }, pos);
+                return Token(TokenType::Operator, view_str(BitwiseAndOpCStr), pos);
             }
         case '|':
             if(provider.increment('|')) {
-                return Token(TokenType::Operator, { LogOrOpCStr, 2 }, pos);
+                return Token(TokenType::Operator, view_str(LogOrOpCStr), pos);
             } else {
-                return Token(TokenType::Operator, { BitwiseOrOpCStr, 1 }, pos);
+                return Token(TokenType::Operator, view_str(BitwiseOrOpCStr), pos);
             }
         case ':':
             if(provider.increment(':')) {
-                return Token(TokenType::Operator, { ScopeResOpCStr, 2 }, pos);
+                return Token(TokenType::Operator, view_str(ScopeResOpCStr), pos);
             } else {
-                return Token(TokenType::Operator, { ColonOpCStr, 1 }, pos);
+                return Token(TokenType::Operator, view_str(ColonOpCStr), pos);
             }
         case '=':
             if(provider.increment('=')) {
-                return Token(TokenType::Operator, { CmpEqualOpCStr, 2 }, pos);
+                return Token(TokenType::Operator, view_str(CmpEqualOpCStr), pos);
             } else if(provider.increment('>')) {
-                return Token(TokenType::Operator, { LambOpCStr, 2 }, pos);
+                return Token(TokenType::Operator, view_str(LambOpCStr), pos);
             } else {
-                return Token(TokenType::Operator, { EqualOpCStr, 1 }, pos);
+                return Token(TokenType::Operator, view_str(EqualOpCStr), pos);
             }
         case '\'':
             other_mode = true;
             char_mode = true;
-            return Token(TokenType::Operator, { SingleQuotesOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(SingleQuotesOpCStr), pos);
         case '\"':
             other_mode = true;
             string_mode = true;
-            return Token(TokenType::Operator, { DoubleQuotesOpCStr, 1 }, pos);
+            return Token(TokenType::Operator, view_str(DoubleQuotesOpCStr), pos);
         case ' ':
             return Token(TokenType::Whitespace, { WSCStr, provider.readWhitespaces() + 1 }, pos);
         case '\t':
             return Token(TokenType::Whitespace, { WSCStr, provider.readWhitespaces() + 4 }, pos);
         case '\n':
-            return Token(TokenType::NewLine, { NewlineCStr, 1 }, pos);
+            return Token(TokenType::NewLine, view_str(NewlineCStr), pos);
         case '\r':
-            if(provider.peek() == '\n') {
-                provider.readCharacter();
-                return Token(TokenType::NewLine, { NewlineWinCStr, 2 }, pos);
-            } else {
-                return Token(TokenType::NewLine, { NewlineRCStr, 1 }, pos);
-            }
+            return win_new_line(provider, pos);
         default:
             break;
     }

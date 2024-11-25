@@ -4,7 +4,7 @@
 
 enum class TokenType {
 
-    // if, while
+    // var, func, if, while... are keywords
     Keyword,
 
     // anything not part of the language
@@ -33,10 +33,10 @@ enum class TokenType {
     // escape sequence inside quotes
     EscapeSeq,
 
-    // single line comment
+    // when this text is part of a single line comment
     SingleLineComment,
 
-    // multi line comment
+    // when this text is part of a multi line comment
     MultiLineComment,
 
     // +, -, &, &&, || arithmetic or logical operators

@@ -39,6 +39,11 @@ struct LexerState {
      */
     bool string_mode = false;
 
+    /**
+     * are we inside a multi line comment mode
+     */
+    bool comment_mode = false;
+
 };
 
 /**

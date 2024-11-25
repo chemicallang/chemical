@@ -39,6 +39,7 @@ const auto LambOpCStr = "=>";
 
 const auto SingleQuotesOpCStr = "'";
 const auto DoubleQuotesOpCStr = "\"";
+const auto MultilineCommentEndCStr = "*/";
 
 const auto WSCStr = " ";
 const auto NewlineCStr = "\n";
@@ -183,13 +184,11 @@ void read_current_line(AllocatorStrBuilder& str, SourceProvider& provider) {
 
 void read_multi_line_comment_text(AllocatorStrBuilder& str, SourceProvider& provider) {
     while(true) {
-        auto p = provider.readCharacter();
-        if(p == '*' && provider.peek() == '/') {
-            str.append('*');
-            str.append(provider.readCharacter());
+        auto p = provider.peek();
+        if(p == '\n' || p == '\r' || p == '*') {
             return;
         } else {
-            str.append(p);
+            str.append(provider.readCharacter());
         }
     }
 }
@@ -210,11 +209,20 @@ void read_id(AllocatorStrBuilder& str, SourceProvider& provider) {
 void read_str_text(AllocatorStrBuilder& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
-        if(p != '\\' && p != '\"') {
+        if(p != '\\' && p != '\"' && p != '\n' && p != '\r') {
             str.append(provider.readCharacter());
         } else {
             break;
         }
+    }
+}
+
+Token win_new_line(SourceProvider& provider, const Position& pos) {
+    if(provider.peek() == '\n') {
+        provider.readCharacter();
+        return Token(TokenType::NewLine, { NewlineWinCStr, 2 }, pos);
+    } else {
+        return Token(TokenType::NewLine, { NewlineRCStr, 1 }, pos);
     }
 }
 
@@ -248,18 +256,45 @@ Token Lexer::getNextToken() {
                 return Token(TokenType::Char, { allocator.char_to_c_str(current), 1 }, pos);
             }
         } else if(string_mode) {
-            if(current == '\\') {
-                return read_escape_seq(allocator, provider, pos);
-            } else if(current == '\"') {
-                string_mode = false;
-                other_mode = false;
-                auto pos2 = provider.position();
-                provider.readCharacter();
-                return Token(TokenType::Operator, { SingleQuotesOpCStr, 1 }, pos2);
+            switch(current) {
+                case '\\':
+                    return read_escape_seq(allocator, provider, pos);
+                case '"': {
+                    string_mode = false;
+                    other_mode = false;
+                    return Token(TokenType::Operator, { DoubleQuotesOpCStr, 1 }, pos);
+                }
+                case '\n':
+                    return Token(TokenType::NewLine, { NewlineCStr, 1 }, pos);
+                case '\r':
+                    return win_new_line(provider, pos);
+                default:
+                    AllocatorStrBuilder str(current, allocator);
+                    read_str_text(str, provider);
+                    return Token(TokenType::String, str.finalize_view(), pos);
+            }
+        } else if(comment_mode) {
+            switch(current) {
+                case '*': {
+                    if(provider.peek() == '/') {
+                        comment_mode = false;
+                        other_mode = false;
+                        provider.readCharacter();
+                        return Token(TokenType::MultiLineComment, {MultilineCommentEndCStr, 2 }, pos);
+                    } else {
+                        break;
+                    }
+                }
+                case '\n':
+                    return Token(TokenType::NewLine, { NewlineCStr, 1 }, pos);
+                case '\r':
+                    return win_new_line(provider, pos);
+                default:
+                    break;
             }
             AllocatorStrBuilder str(current, allocator);
-            read_str_text(str, provider);
-            return Token(TokenType::String, str.finalize_view(), pos);
+            read_multi_line_comment_text(str, provider);
+            return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
         } else {
 #ifdef DEBUG
             throw std::runtime_error("unknown mode triggered");
@@ -319,6 +354,8 @@ Token Lexer::getNextToken() {
                 read_current_line(str, provider);
                 return Token(TokenType::SingleLineComment, str.finalize_view(), pos);
             } else if(p == '*') {
+                other_mode = true;
+                comment_mode = true;
                 AllocatorStrBuilder str(current, allocator);
                 str.append(provider.readCharacter());
                 read_multi_line_comment_text(str, provider);
@@ -425,6 +462,8 @@ void Lexer::getUnit(LexUnit& unit) {
         auto token = getNextToken();
         switch(token.type) {
             case TokenType::EndOfFile:
+                // a single end of file token must be present so parser can stop
+                unit.tokens.emplace_back(token);
                 goto exit_loop;
             case TokenType::Unexpected:
                 unit.tokens.emplace_back(token);

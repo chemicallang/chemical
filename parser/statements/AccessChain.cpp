@@ -4,7 +4,9 @@
 // Created by Waqas Tahir on 26/02/2024.
 //
 
-#include "parser/utils/ValueCreators.h"
+#include "parser/Parser.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/NullValue.h"
 
 // function not required
 // TODO return the string view and consume token
@@ -40,6 +42,18 @@ Token* Parser::consumeOfType(TokenType type) {
     }
 }
 
+const std::unordered_map<std::string_view, ValueCreatorFn> ValueCreators = {
+        {"null", [](Parser *parser, ASTAllocator& allocator, Token* token) -> Value* {
+            return new (allocator.allocate<NullValue>()) NullValue(parser->loc_single(token));
+        }},
+        {"true", [](Parser *parser, ASTAllocator& allocator, Token* token) -> Value* {
+            return new (allocator.allocate<BoolValue>()) BoolValue(true, parser->loc_single(token));
+        }},
+        {"false", [](Parser *parser, ASTAllocator& allocator, Token* token) -> Value* {
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, parser->loc_single(token));
+        }}
+};
+
 bool Parser::lexAccessChain(bool lexStruct, bool lex_as_node) {
 
     auto id = consumeIdentifierOrKeyword();
@@ -49,8 +63,8 @@ bool Parser::lexAccessChain(bool lexStruct, bool lex_as_node) {
 
     auto creator = ValueCreators.find(id->value);
     if(creator != ValueCreators.end()) {
-        creator->second(this, id->position);
-        return true;
+        // TODO use passed allocator
+        return straight_value(creator->second(this, global_allocator, id));
     } else {
         storeVariable(id);
     }

@@ -15,8 +15,9 @@ Parser::Parser(
         LocationManager& loc_man,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
+        bool is64Bit,
         CompilerBinder* binder
-) : file_id(file_id), stored_file_path(file_path), token(start_token), beginning_token(start_token), loc_man(loc_man), global_allocator(global_allocator), mod_allocator(mod_allocator), binder(binder), unit() {
+) : file_id(file_id), stored_file_path(file_path), token(start_token), beginning_token(start_token), loc_man(loc_man), global_allocator(global_allocator), mod_allocator(mod_allocator), is64Bit(is64Bit), binder(binder), unit() {
     unit.init();
 }
 

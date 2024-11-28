@@ -109,10 +109,8 @@ set(COMMON_SOURCES
         parser/statements/VarInitialization.cpp
         parser/statements/LexStatement.cpp
         parser/utils/LexWhitespace.cpp
-        parser/utils/LexNumber.cpp
         parser/statements/LexType.cpp
         stream/StreamPosition.h
-        parser/Lexi.cpp
         parser/utils/LexValue.cpp
         compiler/clang_driver.cpp
         utils/JsonUtils.cpp
@@ -406,7 +404,6 @@ set(COMMON_SOURCES
         ast/values/RetStructParamValue.h
         ast/values/RetStructParamValue.cpp
         parser/utils/AnnotationModifiers.h
-        parser/utils/ValueCreators.h
         parser/utils/MacroLexers.h
         compiler/lab/LabBuildContext.h
         compiler/lab/LabModule.h
@@ -501,8 +498,8 @@ set(COMMON_SOURCES
         cst/LocationManager.cpp
         cst/SourceLocation.h
         ast/base/LocatedIdentifier.h
-        utils/parse_num.h
         ast/base/BatchAllocator.h
+        parser/utils/parse_num.h
         lexer/Lexer.h
         lexer/Lexer.cpp
         lexer/TokenType.h

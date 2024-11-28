@@ -44,7 +44,7 @@
 #endif
 
 #ifdef DEBUG
-#define DEBUG_FUTURES false
+#define DEBUG_FUTURES true
 #endif
 
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {

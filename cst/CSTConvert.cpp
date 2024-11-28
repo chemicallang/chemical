@@ -1680,25 +1680,20 @@ void CSTConverter::visitReferenceType(CSTToken* cst) {
 }
 
 void CSTConverter::visitGenericType(CSTToken* cst) {
-    const auto ref_tok = cst->tokens[0];
-    const auto& base = str_token(ref_tok);
-    if(base == "literal" && cst->tokens.size() == 4) {
-        const auto id = cst->tokens[2];
-        BaseType* child_type;
-        if(id->value() == "string") {
-            child_type = new (local<StringType>()) StringType(loc(id));
-        } else {
-            auto found = TypeMakers::PrimitiveMap.find(id->value());
-            if (found != TypeMakers::PrimitiveMap.end()) {
-                child_type = found->second(*local_allocator, is64Bit, loc(id));
-            } else {
-                child_type = new (local<LinkedType>()) LinkedType(id->value(), loc(id));
-            }
+    const auto ref_tok = cst->tokens[0]; // type or straight type
+    ref_tok->accept(this);
+    auto base_type = (LinkedType*) type();
+    if(base_type->type == "literal" && cst->tokens.size() == 4) {
+        const auto id_tok = cst->tokens[2]; // type or straight type
+        id_tok->accept(this);
+        auto child_type = type();
+        if(((LinkedType*) child_type)->type == "string") {
+            child_type = new (local<StringType>()) StringType(loc(id_tok));
         }
         put_type(new (local<LiteralType>()) LiteralType(child_type, loc(cst)), cst);
         return;
     }
-    auto generic_type = new (local<GenericType>()) GenericType(new (local<LinkedType>()) LinkedType(base, nullptr, loc(ref_tok)));
+    auto generic_type = new (local<GenericType>()) GenericType(base_type);
     unsigned i = 1;
     while(i < cst->tokens.size()) {
         if(cst->tokens[i]->is_type()) {

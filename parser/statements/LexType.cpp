@@ -5,6 +5,8 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/types/LinkedType.h"
+#include "compiler/PrimitiveTypeMap.h"
 
 bool Parser::lexLambdaTypeTokens(unsigned int start) {
     if(lexOperatorToken(TokenType::LParen)) {
@@ -101,7 +103,14 @@ bool Parser::lexTypeId(Token* type, unsigned int start) {
                 compound_from(start, LexTokenType::CompAccessChain);
                 compound_from(start, LexTokenType::CompLinkedValueType);
             } else {
-                emplace(LexTokenType::Type,type->position, std::string(type->value));
+                // TODO use passed allocator
+                auto& allocator = global_allocator;
+                auto primitive = TypeMakers::PrimitiveMap.find(type->value);
+                if (primitive == TypeMakers::PrimitiveMap.end()) {
+                    straight_type(new (allocator.allocate<LinkedType>()) LinkedType(std::string(type->value), loc_single(type)));
+                } else {
+                    straight_type(primitive->second(allocator, is64Bit, loc_single(type)));
+                }
             }
             break;
         }

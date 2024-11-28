@@ -318,7 +318,7 @@ public:
      */
     [[nodiscard]]
     bool is_type() const {
-        return is_comp_type() || type() == LexTokenType::Type;
+        return type() == LexTokenType::StraightType || is_comp_type() || type() == LexTokenType::Type;
     }
 
     /**

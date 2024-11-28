@@ -8,7 +8,7 @@
 
 bool Parser::lexDoWhileBlockTokens() {
 
-    if(!lexWSKeywordToken("do", '{')) {
+    if(!lexWSKeywordToken(TokenType::DoKw, TokenType::LBrace)) {
         return false;
     }
 
@@ -26,12 +26,12 @@ bool Parser::lexDoWhileBlockTokens() {
 
     lexWhitespaceToken();
 
-    if(!lexWSKeywordToken("while", '(')) {
+    if(!lexWSKeywordToken(TokenType::WhileKw, TokenType::LParen)) {
         mal_node(start, "expected 'while' with condition in a do while loop");
         return true;
     }
 
-    if(!lexOperatorToken('(')) {
+    if(!lexOperatorToken(TokenType::LParen)) {
         mal_node(start, "expected a starting parenthesis ( after keyword while for while block");
         return true;
     }
@@ -41,7 +41,7 @@ bool Parser::lexDoWhileBlockTokens() {
         return true;
     }
 
-    if(!lexOperatorToken(')')) {
+    if(!lexOperatorToken(TokenType::RParen)) {
         mal_node(start,"expected a closing parenthesis ) for while block");
         return true;
     }

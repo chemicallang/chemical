@@ -292,6 +292,12 @@ public:
         }
     }
 
+    void visitStraightValue(CSTToken* token) final;
+
+    void visitStraightType(CSTToken* token) final;
+
+    void visitStraightNode(CSTToken* token) final;
+
     // nodes
 
     void visitContinue(CSTToken* continueCst) final;

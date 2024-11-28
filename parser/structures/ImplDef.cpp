@@ -13,27 +13,27 @@ void Parser::lexImplBlockTokens() {
             break;
         }
         lexWhitespaceToken();
-        lexOperatorToken(';');
-    } while(provider.peek() != '}');
+        lexOperatorToken(TokenType::SemiColonSym);
+    } while(token->type != TokenType::RBrace);
 }
 
 bool Parser::lexImplTokens() {
-    if (lexWSKeywordToken("impl")) {
+    if (lexWSKeywordToken(TokenType::ImplKw)) {
         auto start = tokens_size() - 1;
         lexGenericParametersList();
         lexWhitespaceToken();
         if(!lexRefOrGenericType()) return true;
         lexWhitespaceToken();
-        if(lexWSKeywordToken("for")) {
+        if(lexWSKeywordToken(TokenType::ForKw)) {
             if(!lexRefOrGenericType()) return true;
             lexWhitespaceToken();
         }
-        if (!lexOperatorToken('{')) {
+        if (!lexOperatorToken(TokenType::LBrace)) {
             mal_node(start, "expected a '{' when starting an implementation");
             return true;
         }
         lexImplBlockTokens();
-        if (!lexOperatorToken('}')) {
+        if (!lexOperatorToken(TokenType::RBrace)) {
             mal_node(start,"expected a '}' when ending an implementation");
             return true;
         }

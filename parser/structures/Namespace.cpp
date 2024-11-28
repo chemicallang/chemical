@@ -3,7 +3,7 @@
 #include "parser/Parser.h"
 
 bool Parser::lexNamespaceTokens(unsigned start) {
-    if(lexWSKeywordToken("namespace")) {
+    if(lexWSKeywordToken(TokenType::NamespaceKw)) {
         if(!lexIdentifierToken()) {
             error("expected identifier for namespace name");
             return true;

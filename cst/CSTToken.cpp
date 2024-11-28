@@ -6,6 +6,15 @@
 
 void CSTToken::accept(CSTVisitor *visitor) {
     switch (tok_type) {
+        case LexTokenType::StraightValue:
+            visitor->visitStraightValue((CSTToken*) this);
+            return;
+        case LexTokenType::StraightType:
+            visitor->visitStraightType((CSTToken*) this);
+            return;
+        case LexTokenType::StraightNode:
+            visitor->visitStraightNode((CSTToken*) this);
+            return;
         case LexTokenType::CharOperator:
             visitor->visitCharOperatorToken((CSTToken*) this);
             return;

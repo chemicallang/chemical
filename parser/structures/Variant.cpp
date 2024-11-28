@@ -9,9 +9,9 @@
 bool Parser::lexVariantMemberTokens() {
     if(lexIdentifierToken()) {
         unsigned start = tokens_size() - 1;
-        if(lexOperatorToken('(')) {
+        if(lexOperatorToken(TokenType::LParen)) {
             lexParameterList(false, true, false, false);
-            if(!lexOperatorToken(')')) {
+            if(!lexOperatorToken(TokenType::RParen)) {
                 error("expected a ')' after variant member");
                 return true;
             }
@@ -38,13 +38,13 @@ void Parser::lexVariantBlockTokens() {
             break;
         }
         lexWhitespaceToken();
-        lexOperatorToken(';');
-    } while(provider.peek() != '}');
+        lexOperatorToken(TokenType::SemiColonSym);
+    } while(token->type != TokenType::RBrace);
     lexWhitespaceToken();
 }
 
 bool Parser::lexVariantStructureTokens(unsigned start_token) {
-    if(lexWSKeywordToken("variant")) {
+    if(lexWSKeywordToken(TokenType::VariantKw)) {
         if (!lexIdentifierToken()) {
             error("expected a identifier as struct name");
             return true;
@@ -63,12 +63,12 @@ bool Parser::lexVariantStructureTokens(unsigned start_token) {
 //            } while(lexOperatorToken(','));
 //        }
         lexWhitespaceToken();
-        if(!lexOperatorToken('{')) {
+        if(!lexOperatorToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return true;
         }
         lexVariantBlockTokens();
-        if(!lexOperatorToken('}')) {
+        if(!lexOperatorToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");
             return true;
         }

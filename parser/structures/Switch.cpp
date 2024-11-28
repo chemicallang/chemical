@@ -8,24 +8,24 @@ bool Parser::lexMultipleSwitchCaseValues() {
         if(has_single) {
             lexWhitespaceToken();
         }
-        if(lexWSKeywordToken("default", ':') || lexConstantValue()) {
+        if(lexWSKeywordToken(TokenType::DefaultKw, TokenType::ColonSym) || lexConstantValue()) {
             has_single = true;
         }
         lexWhitespaceToken();
-    } while(lexOperatorToken('|'));
+    } while(lexOperatorToken(TokenType::PipeSym));
     return has_single;
 }
 
 bool Parser::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
-    if (lexWSKeywordToken("switch", '(')) {
+    if (lexWSKeywordToken(TokenType::SwitchKw, TokenType::LParen)) {
         auto start = tokens_size() - 1;
 
-        if (lexOperatorToken('(')) {
+        if (lexOperatorToken(TokenType::LParen)) {
             if (!lexExpressionTokens()) {
                 mal_value_or_node(start, "expected an expression tokens in switch statement", is_value);
                 return true;
             }
-            if (!lexOperatorToken(')')) {
+            if (!lexOperatorToken(TokenType::RParen)) {
                 mal_value_or_node(start, "expected ')' in switch statement", is_value);
                 return true;
             }
@@ -34,7 +34,7 @@ bool Parser::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
             return true;
         }
         lexWhitespaceAndNewLines();
-        if (lexOperatorToken('{')) {
+        if (lexOperatorToken(TokenType::LBrace)) {
             while(true) {
                 lexWhitespaceAndNewLines();
 //                if(lexWSKeywordToken("default", ':')) {
@@ -56,12 +56,12 @@ bool Parser::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
                         break;
                     }
                     lexWhitespaceToken();
-                    if (lexOperatorToken(':')) {
+                    if (lexOperatorToken(TokenType::ColonSym)) {
                         auto bStart = tokens_size();
                         lexNestedLevelMultipleStatementsTokens();
                         compound_from(bStart, LexTokenType::CompBody);
                         continue;
-                    } else if (lexOperatorToken("=>")) {
+                    } else if (lexOperatorToken(TokenType::LambdaSym)) {
                         if(!lexBraceBlockOrSingleStmt("switch-case", is_value, lex_value_node)) {
                             mal_value_or_node(start, "expected a brace block after the '=>' in the switch case", is_value);
                             return true;
@@ -72,7 +72,7 @@ bool Parser::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
                     }
 //                }
             }
-            if(!lexOperatorToken('}')) {
+            if(!lexOperatorToken(TokenType::RBrace)) {
                 mal_value_or_node(start, "expected '}' for ending the switch block", is_value);
                 return true;
             }

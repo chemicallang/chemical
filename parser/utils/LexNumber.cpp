@@ -7,48 +7,15 @@
 #include <memory>
 #include "parser/Parser.h"
 
+// TODO remove this function
 bool Parser::lexUnsignedIntAsNumberToken() {
-    auto number = provider.readUnsignedInt();
-    if (!number.empty()) {
-        emplace(LexTokenType::Number, backPosition(number.length()), number);
-        return true;
-    } else {
-        return false;
-    }
+    return lexNumberToken();
 }
 
 bool Parser::lexNumberToken() {
-    if(!provider.is_peak_number_char()) {
-        return false;
-    }
-    std::string number;
-    provider.readAnyNumber(number);
-    if (!number.empty()) {
-        switch(provider.peek()) {
-            case 'f':
-            case 'F':
-            case 'l':
-            case 'L':
-                number += provider.readCharacter();
-                break;
-            case 'u':
-            case 'U':{
-                number += provider.readCharacter();
-                const auto p = provider.peek();
-                if(p == 'i') {
-                    number += provider.readCharacter();
-                }
-                provider.readNumber(number);
-                break;
-            }
-            case 'i':
-                // i16, i32, i64, i128
-                // u16, u32, u64, u128
-                number += provider.readCharacter();
-                provider.readNumber(number);
-                break;
-        }
-        emplace(LexTokenType::Number, backPosition(number.length()), number);
+    if(token->type == TokenType::Number) {
+        emplace(LexTokenType::Number, token->position, std::string(token->value));
+        token++;
         return true;
     } else {
         return false;

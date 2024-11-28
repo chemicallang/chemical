@@ -336,9 +336,9 @@ std::vector<IGFile> WorkspaceImportGraphImporter::process(const std::string &pat
     auto overridden_source = manager->get_overridden_source(path);
     if(overridden_source.has_value()){
         StringInputSource input_source(overridden_source.value());
-        lexer->provider.switch_source(&input_source);
+        parser->provider.switch_source(&input_source);
         lex_source(path, parent->errors);
-        return from_tokens(path, parent, lexer->unit.tokens);
+        return from_tokens(path, parent, parser->unit.tokens);
     } else {
         return ImportGraphImporter::process(path, range, parent);
     }

@@ -9,10 +9,11 @@
 #include "utils/Benchmark.h"
 #include "Utils.h"
 #include "cst/LocationManager.h"
+#include <fstream>
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
 #endif
-#include "parser/Lexi.h"
+#include "parser/Parser.h"
 #include "cst/base/CSTConverter.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/ASTProcessor.h"
@@ -852,12 +853,12 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
 }
 
 #if defined(DEBUG_FUTURES) && DEBUG_FUTURES
-inline std::vector<ASTImportResultExt> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
+inline std::vector<ASTFileResultExt> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
 #else
 inline std::vector<std::future<ASTFileResultExt>> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
 #endif
 #if defined(DEBUG_FUTURES) && DEBUG_FUTURES
-    std::vector<ASTImportResultExt> lab_futures;
+    std::vector<ASTFileResultExt> lab_futures;
 #else
     std::vector<std::future<ASTFileResultExt>> lab_futures;
 #endif
@@ -867,7 +868,7 @@ inline std::vector<std::future<ASTFileResultExt>> trigger_futures(ctpl::thread_p
 #if defined(DEBUG_FUTURES) && DEBUG_FUTURES
         lab_futures.push_back(concurrent_processor(i, fileId, file, processor));
 #else
-        lab_futures.push_back(pool.push(concurrent_processor, i, file, processor));
+        lab_futures.push_back(pool.push(concurrent_processor, fileId, file, processor));
 #endif
 
         i++;
@@ -876,7 +877,7 @@ inline std::vector<std::future<ASTFileResultExt>> trigger_futures(ctpl::thread_p
 }
 
 #if defined(DEBUG_FUTURES) && DEBUG_FUTURES
-inline ASTImportResultExt future_get(std::vector<ASTImportResultExt>& futures, int i) {
+inline ASTFileResultExt future_get(std::vector<ASTFileResultExt>& futures, int i) {
 #else
 inline ASTFileResultExt future_get(std::vector<std::future<ASTFileResultExt>>& futures, int i) {
 #endif

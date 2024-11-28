@@ -13,6 +13,10 @@
 //  this is for compatability between chemical cbi
 enum class LexTokenType : int {
 
+    StraightValue,
+    StraightType,
+    StraightNode,
+
     CharOperator,
     Operation,
     Char,

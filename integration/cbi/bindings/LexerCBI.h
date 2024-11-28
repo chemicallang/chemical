@@ -13,15 +13,9 @@ class SourceProvider;
 
 extern "C" {
 
-    SourceProvider* Lexerprovider(Parser* lexer);
-
     std::size_t Lexertokens_size(Parser* lexer);
 
     CSTToken* Lexerput(Parser* lexer, chem::string* value, LexTokenType token_type, unsigned int lineNumber, unsigned int lineCharNumber);
-
-    bool LexerstoreVariable(Parser* lexer, chem::string* str);
-
-    bool LexerstoreIdentifier(Parser* lexer, chem::string* str);
 
     void LexerlexGenericArgsList(Parser* lexer);
 
@@ -44,8 +38,6 @@ extern "C" {
     bool LexerlexVarInitializationTokens(Parser* lexer, unsigned start, bool allowDeclarations, bool requiredType);
 
     bool LexerlexAssignmentTokens(Parser* lexer);
-
-    bool LexerlexDivisionOperatorToken(Parser* lexer);
 
     bool LexerlexLanguageOperatorToken(Parser* lexer);
 
@@ -72,22 +64,6 @@ extern "C" {
     bool LexerlexStatementTokens(Parser* lexer);
 
     bool LexerlexThrowStatementTokens(Parser* lexer);
-
-    bool LexerlexOperatorToken(Parser* lexer, char op);
-
-    bool LexerlexOperatorTokenStr(Parser* lexer, chem::string* str);
-
-    void LexerstoreOperationToken(Parser* lexer, char token, Operation op);
-
-    bool LexerlexOperationToken(Parser* lexer, char token, Operation op);
-
-    bool LexerlexOperatorTokenStr2(Parser* lexer, chem::string* str, Operation op);
-
-    bool LexerlexKeywordToken(Parser* lexer, chem::string* str);
-
-    bool LexerlexWSKeywordToken(Parser* lexer, chem::string* str);
-
-    bool LexerlexWSKeywordToken2(Parser* lexer, chem::string* str, char may_end_at);
 
     void LexerlexTopLevelMultipleStatementsTokens(Parser* lexer, bool break_at_no_stmt);
 

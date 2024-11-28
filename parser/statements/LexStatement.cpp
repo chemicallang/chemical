@@ -102,7 +102,7 @@ bool Parser::lexStatementTokens() {
 }
 
 bool Parser::lexThrowStatementTokens() {
-    if(lexWSKeywordToken("throw")) {
+    if(lexWSKeywordToken(TokenType::ThrowKw)) {
         auto start = tokens_size() - 1;
         if(lexValueToken()) {
             error("expected a lambda value");
@@ -117,15 +117,15 @@ bool Parser::lexThrowStatementTokens() {
 }
 
 bool Parser::lexUsingStatement() {
-    if(lexWSKeywordToken("using")) {
+    if(lexWSKeywordToken(TokenType::UsingKw)) {
         auto start = tokens_size() - 1;
-        lexWSKeywordToken("namespace");
+        lexWSKeywordToken(TokenType::NamespaceKw);
         do {
             if(!lexIdentifierToken()) {
                 error("expected a identifier in using statement");
                 return true;
             }
-        } while(lexOperatorToken("::"));
+        } while(lexOperatorToken(TokenType::DoubleColonSym));
         compound_from(start, LexTokenType::CompUsing);
         return true;
     } else {
@@ -134,7 +134,7 @@ bool Parser::lexUsingStatement() {
 }
 
 bool Parser::lexProvideStatement() {
-    if(lexWSKeywordToken("provide")) {
+    if(lexWSKeywordToken(TokenType::ProvideKw)) {
         unsigned start = tokens_size() - 1;
         if(!lexExpressionTokens()) {
             error("expected a value after provide keyword");
@@ -151,7 +151,7 @@ bool Parser::lexProvideStatement() {
 }
 
 bool Parser::lexComptimeBlock() {
-    if(lexWSKeywordToken("comptime", '{')) {
+    if(lexWSKeywordToken(TokenType::ComptimeKw, TokenType::LBrace)) {
         unsigned start = tokens_size() - 1;
         if(!lexBraceBlock("comptime")) {
             mal_node(start, "missing body for provide statement");

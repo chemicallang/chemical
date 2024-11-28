@@ -6,33 +6,30 @@
 
 #include "parser/Parser.h"
 
-bool Parser::lexOperatorToken(char op) {
-    if(provider.increment(op)) {
-        emplace(LexTokenType::CharOperator, backPosition(1), std::string(1, op));
+bool Parser::lexOperatorToken(TokenType type) {
+    auto t = consumeOfType(type);
+    if(t) {
+        emplace(
+                t->value.size() == 1 ? LexTokenType::CharOperator : LexTokenType::StringOperator,
+                t->position,
+                std::string(t->value)
+            );
         return true;
     } else {
         return false;
     }
 }
 
-bool Parser::lexOperatorToken(const std::string_view& op) {
-    if(provider.increment(op)) {
-        emplace(LexTokenType::StringOperator, backPosition(op.length()), std::string(op));
-        return true;
-    } else {
-        return false;
-    }
-}
-
-void Parser::storeOperationToken(char token, Operation op) {
+void Parser::storeOperationToken(Token* token, Operation op) {
     std::string value;
     value.append(std::to_string((int) op));
-    value.append(1, token);
-    emplace(LexTokenType::Operation, backPosition(1), std::move(value));
+    value.append(token->value);
+    emplace(LexTokenType::Operation, token->position, std::move(value));
 }
 
-bool Parser::lexOperationToken(char token, Operation op) {
-    if(provider.increment(token)) {
+bool Parser::lexOperationToken(TokenType type, Operation op) {
+    auto t = consumeOfType(type);
+    if(t) {
         storeOperationToken(token, op);
         return true;
     } else {
@@ -40,22 +37,10 @@ bool Parser::lexOperationToken(char token, Operation op) {
     }
 }
 
-bool Parser::lexOperatorToken(const std::string_view& token, Operation op) {
-    if(provider.increment(token)) {
-        std::string value;
-        value.append(std::to_string((int) op));
-        value.append(token);
-        emplace(LexTokenType::Operation, backPosition(token.length()), value);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-bool Parser::lexWSKeywordToken(const std::string_view& keyword) {
-    if(provider.increment(keyword, true) && provider.peek(keyword.size()) == ' ') {
-        provider.increment_amount(keyword.size());
-        emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
+bool Parser::lexWSKeywordToken(TokenType type) {
+    auto t = consumeOfType(type);
+    if(t) {
+        emplace(LexTokenType::Keyword, t->position, std::string(t->value));
         lexWhitespaceToken();
         return true;
     } else {
@@ -63,52 +48,44 @@ bool Parser::lexWSKeywordToken(const std::string_view& keyword) {
     }
 }
 
-bool Parser::lexWSKeywordToken(const std::string_view& keyword, char may_end_at) {
-    if(provider.increment(keyword, true)) {
-        const auto peek = provider.peek(keyword.size());
-        if(peek == ' ' || peek == '\t') {
-            provider.increment_amount(keyword.size());
-            emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
-            lexWhitespaceToken();
-            return true;
-        } else if(peek == may_end_at) {
-            provider.increment_amount(keyword.size());
-            emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
-            return true;
-        }
-    }
-    return false;
+// TODO remove this function, as the caller
+// already checks for presence of may_end_at
+// whitespace is checked during lexing to separate keyword token
+bool Parser::lexWSKeywordToken(TokenType type, TokenType may_end_at) {
+    return lexWSKeywordToken(type);
 }
 
-bool Parser::lexKeywordToken(const std::string_view& keyword) {
-    if(provider.increment(keyword)) {
-        emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
+bool Parser::lexKeywordToken(TokenType type) {
+    auto t = consumeOfType(type);
+    if(t) {
+        emplace(LexTokenType::Keyword, t->position, std::string(t->value));
         return true;
     } else {
         return false;
     }
 }
 
-static bool read_gen_type_token(Parser& lexer);
+static bool read_gen_type_token(Parser& parser);
 
-static bool read_arr_type_token(Parser& lexer);
+static bool read_arr_type_token(Parser& parser);
 
-static bool read_pointer_type(Parser& lexer);
+static bool read_pointer_type(Parser& parser);
 
-static bool read_type_involving_token(Parser& lexer) {
-    auto& provider = lexer.provider;
-    if(!provider.readIdentifier().empty()) {
-        read_gen_type_token(lexer) || read_arr_type_token(lexer) || read_pointer_type(lexer);
+static bool read_type_involving_token(Parser& parser) {
+    const auto type = parser.token->type;
+    if(type == TokenType::Identifier || Parser::isKeyword(type)) {
+        parser.token++;
+        read_gen_type_token(parser) || read_arr_type_token(parser) || read_pointer_type(parser);
         return true;
     } else {
         return false;
     }
 }
 
-static bool read_pointer_type(Parser& lexer) {
-    auto& provider = lexer.provider;
-    if(provider.increment('*')) {
-        while(provider.increment('*')) {
+static bool read_pointer_type(Parser& parser) {
+    auto t = parser.consumeOfType(TokenType::MultiplySym);
+    if(t) {
+        while(parser.consumeOfType(TokenType::MultiplySym)) {
             // do nothing
         }
         return true;
@@ -117,12 +94,11 @@ static bool read_pointer_type(Parser& lexer) {
     }
 }
 
-static bool read_arr_type_token(Parser& lexer) {
-    auto& provider = lexer.provider;
-    if(provider.increment('[')) {
-        provider.readUnsignedInt();
-        if(!provider.increment(']')) {
-            lexer.error("unknown token in look ahead operation for generics, expected '>'");
+static bool read_arr_type_token(Parser& parser) {
+    if(parser.consumeOfType(TokenType::LBracket)) {
+        parser.consumeOfType(TokenType::Number);
+        if(!parser.consumeOfType(TokenType::RBracket)) {
+            parser.error("unknown token in look ahead operation for generics, expected '>'");
         }
         return true;
     } else {
@@ -130,12 +106,11 @@ static bool read_arr_type_token(Parser& lexer) {
     }
 }
 
-static bool read_gen_type_token(Parser& lexer) {
-    auto& provider = lexer.provider;
-    if(provider.increment('<')) {
-        read_type_involving_token(lexer);
-        if(!provider.increment('>')) {
-            lexer.error("unknown token in look ahead operation for generics, expected '>'");
+static bool read_gen_type_token(Parser& parser) {
+    if(parser.consumeOfType(TokenType::LessThanSym)) {
+        read_type_involving_token(parser);
+        if(!parser.consumeOfType(TokenType::GreaterThanSym)) {
+            parser.error("unknown token in look ahead operation for generics, expected '>'");
         }
         return true;
     } else {
@@ -144,22 +119,22 @@ static bool read_gen_type_token(Parser& lexer) {
 }
 
 bool Parser::isGenericEndAhead() {
-    const auto position = provider.getStreamPosition();
-    provider.increment('<');
+    auto current_token = token;
+    consumeOfType(TokenType::LessThanSym);
     auto& lexer = *this;
     do {
         readWhitespace();
         if (!read_type_involving_token(lexer)) {
-            provider.restore(position);
+            token = current_token;
             return false;
         }
         readWhitespace();
-    } while (provider.increment(','));
-    const bool is_generic = provider.increment('>');
-    provider.restore(position);
+    } while (consumeOfType(TokenType::CommaSym));
+    const bool is_generic = consumeOfType(TokenType::GreaterThanSym);
+    token = current_token;
     return is_generic;
 }
 
 bool Parser::lexAccessSpecifier(bool internal, bool protect) {
-    return lexWSKeywordToken("public") || lexWSKeywordToken("private") || (internal && lexWSKeywordToken("internal")) || (protect && lexWSKeywordToken("protected"));
+    return lexWSKeywordToken(TokenType::PublicKw) || lexWSKeywordToken(TokenType::PrivateKw) || (internal && lexWSKeywordToken(TokenType::InternalKw)) || (protect && lexWSKeywordToken(TokenType::ProtectedKw));
 }

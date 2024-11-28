@@ -8,7 +8,7 @@
 
 bool Parser::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level) {
 
-    if (!lexOperatorToken('(')) {
+    if (!lexOperatorToken(TokenType::LParen)) {
         mal_value_or_node(start, "expected a starting parenthesis ( when lexing a if block", is_value);
         return false;
     }
@@ -18,7 +18,7 @@ bool Parser::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_nod
         return false;
     }
 
-    if (!lexOperatorToken(')')) {
+    if (!lexOperatorToken(TokenType::RParen)) {
         mal_value_or_node(start, "expected a ending parenthesis ) when lexing a if block", is_value);
         return false;
     }
@@ -41,7 +41,7 @@ bool Parser::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_nod
 
 bool Parser::lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level) {
 
-    if(!lexWSKeywordToken("if", '(')) {
+    if(!lexWSKeywordToken(TokenType::IfKw, TokenType::LParen)) {
         return false;
     }
 
@@ -55,9 +55,9 @@ bool Parser::lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level
     lexWhitespaceAndNewLines();
 
     // keep lexing else if blocks until last else appears
-    while (lexWSKeywordToken("else", '{')) {
+    while (lexWSKeywordToken(TokenType::ElseKw, TokenType::LBrace)) {
         lexWhitespaceAndNewLines();
-        if(lexWSKeywordToken("if", '(')) {
+        if(lexWSKeywordToken(TokenType::IfKw, TokenType::LParen)) {
             if(!lexIfExprAndBlock(start, is_value, lex_value_node, top_level)) {
                 return true;
             }

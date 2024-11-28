@@ -33,13 +33,13 @@ void Parser::lexStructBlockTokens() {
             break;
         }
         lexWhitespaceToken();
-        lexOperatorToken(';');
-    } while(provider.peek() != '}');
+        lexOperatorToken(TokenType::SemiColonSym);
+    } while(token->type != TokenType::RBrace);
     lexWhitespaceToken();
 }
 
 bool Parser::lexStructStructureTokens(unsigned start, bool unnamed, bool direct_init) {
-    if(lexWSKeywordToken("struct")) {
+    if(lexWSKeywordToken(TokenType::StructKw)) {
         bool has_identifier = false;
         if(!unnamed) {
             has_identifier = lexIdentifierToken();
@@ -51,7 +51,7 @@ bool Parser::lexStructStructureTokens(unsigned start, bool unnamed, bool direct_
         lexWhitespaceToken();
         lexGenericParametersList();
         lexWhitespaceToken();
-        if(lexOperatorToken(':')) {
+        if(lexOperatorToken(TokenType::ColonSym)) {
             do {
                 lexWhitespaceToken();
                 lexAccessSpecifier(false, true);
@@ -59,15 +59,15 @@ bool Parser::lexStructStructureTokens(unsigned start, bool unnamed, bool direct_
                     return true;
                 }
                 lexWhitespaceToken();
-            } while(lexOperatorToken(','));
+            } while(lexOperatorToken(TokenType::CommaSym));
         }
         lexWhitespaceToken();
-        if(!lexOperatorToken('{')) {
+        if(!lexOperatorToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return true;
         }
         lexStructBlockTokens();
-        if(!lexOperatorToken('}')) {
+        if(!lexOperatorToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");
             return true;
         }

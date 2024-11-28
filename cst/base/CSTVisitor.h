@@ -21,6 +21,18 @@ public:
         visitCommon(token);
     }
 
+    virtual void visitStraightValue(CSTToken* token) {
+
+    }
+
+    virtual void visitStraightType(CSTToken* token) {
+
+    }
+
+    virtual void visitStraightNode(CSTToken* token) {
+
+    }
+
     virtual void visitVarInit(CSTToken *varInit) {
         visitCompoundCommon(varInit);
     }

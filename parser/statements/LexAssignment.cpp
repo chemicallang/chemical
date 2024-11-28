@@ -2,52 +2,42 @@
 
 #include "parser/Parser.h"
 
-bool Parser::lexDivisionOperatorToken() {
-    if(provider.peek() == '/' && provider.peek(1) != '/') {
-        provider.increment_amount(1);
-        storeOperationToken('/', Operation::Division);
-        return true;
-    } else {
-        return false;
-    }
-}
-
 bool Parser::lexLanguageOperatorToken() {
-    return lexOperatorToken("&&", Operation::LogicalAND) || // logical
-           lexOperatorToken("||", Operation::LogicalOR) ||
+    return lexOperationToken(TokenType::LogicalAndSym, Operation::LogicalAND) || // logical
+           lexOperationToken(TokenType::LogicalOrSym, Operation::LogicalOR) ||
            // arithmetic
-           lexOperationToken('+', Operation::Addition) ||
-           lexOperationToken('-', Operation::Subtraction) ||
-           lexOperationToken('*', Operation::Multiplication) ||
-           lexDivisionOperatorToken() ||
-           lexOperationToken('%', Operation::Modulus) ||
-           lexOperationToken('&', Operation::BitwiseAND) ||
-           lexOperationToken('|', Operation::BitwiseOR) ||
-           lexOperationToken('^', Operation::BitwiseXOR) ||
+           lexOperationToken(TokenType::PlusSym, Operation::Addition) ||
+           lexOperationToken(TokenType::MinusSym, Operation::Subtraction) ||
+           lexOperationToken(TokenType::MultiplySym, Operation::Multiplication) ||
+           lexOperationToken(TokenType::DivideSym, Operation::Division) ||
+           lexOperationToken(TokenType::ModSym, Operation::Modulus) ||
+           lexOperationToken(TokenType::AmpersandSym, Operation::BitwiseAND) ||
+           lexOperationToken(TokenType::PipeSym, Operation::BitwiseOR) ||
+           lexOperationToken(TokenType::CaretUpSym, Operation::BitwiseXOR) ||
            // shift
-           lexOperatorToken("<<", Operation::LeftShift) ||
-            lexOperatorToken(">>", Operation::RightShift) ||
+           lexOperationToken(TokenType::LeftShiftSym, Operation::LeftShift) ||
+            lexOperationToken(TokenType::RightShiftSym, Operation::RightShift) ||
            // conditional
-           lexOperatorToken(">=", Operation::GreaterThanOrEqual) ||
-            lexOperatorToken("<=", Operation::LessThanOrEqual) ||
-            lexOperationToken('>', Operation::GreaterThan) ||
-            lexOperationToken('<', Operation::LessThan) ||
-            lexOperatorToken("==", Operation::IsEqual) ||
-           lexOperatorToken("!=", Operation::IsNotEqual);
+           lexOperationToken(TokenType::GreaterThanOrEqualSym, Operation::GreaterThanOrEqual) ||
+            lexOperationToken(TokenType::LessThanOrEqualSym, Operation::LessThanOrEqual) ||
+            lexOperationToken(TokenType::GreaterThanSym, Operation::GreaterThan) ||
+            lexOperationToken(TokenType::LessThanSym, Operation::LessThan) ||
+            lexOperationToken(TokenType::DoubleEqualSym, Operation::IsEqual) ||
+            lexOperationToken(TokenType::NotEqualSym, Operation::IsNotEqual);
 }
 
 bool Parser::lexAssignmentOperatorToken() {
-    return lexOperationToken('+', Operation::Addition) ||
-           lexOperationToken('-', Operation::Subtraction) ||
-           lexOperationToken('*', Operation::Multiplication) ||
-           lexOperationToken('/', Operation::Division) ||
-           lexOperationToken('%', Operation::Modulus) ||
-           lexOperationToken('&', Operation::BitwiseAND) ||
-           lexOperationToken('|', Operation::BitwiseOR) ||
-           lexOperationToken('^', Operation::BitwiseXOR) ||
+    return lexOperationToken(TokenType::PlusSym, Operation::Addition) ||
+           lexOperationToken(TokenType::MinusSym, Operation::Subtraction) ||
+           lexOperationToken(TokenType::MultiplySym, Operation::Multiplication) ||
+           lexOperationToken(TokenType::DivideSym, Operation::Division) ||
+           lexOperationToken(TokenType::ModSym, Operation::Modulus) ||
+           lexOperationToken(TokenType::AmpersandSym, Operation::BitwiseAND) ||
+           lexOperationToken(TokenType::PipeSym, Operation::BitwiseOR) ||
+           lexOperationToken(TokenType::CaretUpSym, Operation::BitwiseXOR) ||
            // shift
-           lexOperatorToken("<<", Operation::LeftShift) ||
-           lexOperatorToken(">>", Operation::RightShift);
+           lexOperationToken(TokenType::LeftShiftSym, Operation::LeftShift) ||
+            lexOperationToken(TokenType::RightShiftSym, Operation::RightShift);
 }
 
 bool Parser::lexAssignmentTokens() {
@@ -59,7 +49,7 @@ bool Parser::lexAssignmentTokens() {
     auto start = tokens_size() - 1;
 
     // increment or decrement
-    if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
+    if (lexOperationToken(TokenType::DoublePlusSym, Operation::PostfixIncrement) || lexOperationToken(TokenType::DoubleMinusSym, Operation::PostfixDecrement)) {
         compound_from(start, LexTokenType::CompIncDec);
         return true;
     }
@@ -72,7 +62,7 @@ bool Parser::lexAssignmentTokens() {
     auto assOp = lexAssignmentOperatorToken();
 
     // =
-    if (!lexOperatorToken('=')) {
+    if (!lexOperatorToken(TokenType::EqualSym)) {
         if (assOp) {
             error("expected an equal for assignment after the assignment operator");
         }

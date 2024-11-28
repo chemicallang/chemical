@@ -7,7 +7,7 @@
 #include "parser/Parser.h"
 
 bool Parser::lexReturnStatement() {
-    if(lexWSKeywordToken("return", ';')) {
+    if(lexWSKeywordToken(TokenType::ReturnKw, TokenType::SemiColonSym)) {
         unsigned int start = tokens_size() - 1;
         lexWhitespaceToken();
         lexExpressionTokens(true);
@@ -19,21 +19,21 @@ bool Parser::lexReturnStatement() {
 }
 
 bool Parser::lexConstructorInitBlock() {
-    if(lexWSKeywordToken("init", '{')) {
+    if(lexWSKeywordToken(TokenType::InitKw, TokenType::LBrace)) {
         unsigned start = tokens_size() - 1;
-        if(!lexOperatorToken('{')) {
+        if(!lexOperatorToken(TokenType::LBrace)) {
             error("expected a '{' after init for init block");
             return true;
         }
         while(true) {
             lexWhitespaceAndNewLines();
             if(lexAccessChain(false, true)) {
-                lexOperatorToken(';');
+                lexOperatorToken(TokenType::SemiColonSym);
             } else {
                 break;
             }
         }
-        if(!lexOperatorToken('}')) {
+        if(!lexOperatorToken(TokenType::RBrace)) {
             error("expected a '}' for ending the init block");
             return true;
         }
@@ -46,7 +46,7 @@ bool Parser::lexConstructorInitBlock() {
 }
 
 bool Parser::lexUnsafeBlock() {
-    if(lexWSKeywordToken("unsafe", '{')) {
+    if(lexWSKeywordToken(TokenType::UnsafeKw, TokenType::LBrace)) {
         unsigned start = tokens_size() - 1;
         if(!lexBraceBlock("unsafe_block")) {
             error("expected a braced block after 'unsafe' keyword");
@@ -60,14 +60,14 @@ bool Parser::lexUnsafeBlock() {
 }
 
 bool Parser::lexDestructStatement() {
-    if(lexWSKeywordToken("destruct", '[')) {
+    if(lexWSKeywordToken(TokenType::DestructKw, TokenType::LBracket)) {
         unsigned start = tokens_size() - 1;
-        if(lexOperatorToken('[')) {
+        if(lexOperatorToken(TokenType::LBracket)) {
             lexWhitespaceToken();
             // optional value
             lexAccessChainOrValue();
             lexWhitespaceToken();
-            if(!lexOperatorToken(']')) {
+            if(!lexOperatorToken(TokenType::RBracket)) {
                 error("expected a ']' after the access chain value");
                 return true;
             }
@@ -90,9 +90,9 @@ bool Parser::lexDestructStatement() {
 bool Parser::lexParameterList(bool optionalTypes, bool defValues, bool lexImplicitParams, bool variadicParam) {
     do {
         lexWhitespaceAndNewLines();
-        if(lexImplicitParams && lexOperatorToken('&')) {
+        if(lexImplicitParams && lexOperatorToken(TokenType::AmpersandSym)) {
             const auto start = tokens_size() - 1;
-            lexWSKeywordToken("mut"); // optional mut keyword
+            lexWSKeywordToken(TokenType::MutKw); // optional mut keyword
             if(lexIdentifierToken()) {
                 compound_from(start, LexTokenType::CompFunctionParam);
                 lexWhitespaceToken();
@@ -105,16 +105,16 @@ bool Parser::lexParameterList(bool optionalTypes, bool defValues, bool lexImplic
         if(lexIdentifierToken()) {
             unsigned int start = tokens_size() - 1;
             lexWhitespaceToken();
-            if(lexOperatorToken(':')) {
+            if(lexOperatorToken(TokenType::ColonSym)) {
                 lexWhitespaceToken();
                 if(lexTypeTokens()) {
-                    if(variadicParam && lexOperatorToken("...")) {
+                    if(variadicParam && lexOperatorToken(TokenType::TripleDotSym)) {
                         compound_from(start, LexTokenType::CompFunctionParam);
                         break;
                     }
                     if(defValues) {
                         lexWhitespaceToken();
-                        if (lexOperatorToken('=')) {
+                        if (lexOperatorToken(TokenType::EqualSym)) {
                             lexWhitespaceToken();
                             if (!lexValueToken()) {
                                 error("expected value after '=' for default value for the parameter");
@@ -137,12 +137,12 @@ bool Parser::lexParameterList(bool optionalTypes, bool defValues, bool lexImplic
             }
         }
         lexWhitespaceToken();
-    } while(lexOperatorToken(','));
+    } while(lexOperatorToken(TokenType::CommaSym));
     return true;
 }
 
 bool Parser::lexGenericParametersList() {
-    if(lexOperatorToken('<')) {
+    if(lexOperatorToken(TokenType::LessThanSym)) {
         unsigned start = tokens_size() - 1;
         while(true) {
             lexWhitespaceToken();
@@ -150,7 +150,7 @@ bool Parser::lexGenericParametersList() {
                 break;
             }
             lexWhitespaceToken();
-            if(lexOperatorToken(':')) {
+            if(lexOperatorToken(TokenType::ColonSym)) {
                 lexWhitespaceToken();
                 if(!lexTypeTokens()) {
                     error("expected a type after ':' in generic parameter list");
@@ -158,7 +158,7 @@ bool Parser::lexGenericParametersList() {
                 }
                 lexWhitespaceToken();
             }
-            if(lexOperatorToken('=')) {
+            if(lexOperatorToken(TokenType::EqualSym)) {
                 lexWhitespaceToken();
                 if(!lexTypeTokens()) {
                     error("expected a default type after '=' in generic parameter list");
@@ -166,11 +166,11 @@ bool Parser::lexGenericParametersList() {
                 }
                 lexWhitespaceToken();
             }
-            if(!lexOperatorToken(',')) {
+            if(!lexOperatorToken(TokenType::CommaSym)) {
                 break;
             }
         }
-        if(!lexOperatorToken('>')) {
+        if(!lexOperatorToken(TokenType::GreaterThanSym)) {
             error("expected a '>' for ending the generic parameters list");
             return true;
         }
@@ -189,7 +189,7 @@ bool Parser::lexAfterFuncKeyword(bool allow_extensions) {
 
     lexWhitespaceToken();
 
-    if(allow_extensions && lexOperatorToken('(')) {
+    if(allow_extensions && lexOperatorToken(TokenType::LParen)) {
         lexWhitespaceToken();
         unsigned start = tokens_size();
         if(!lexIdentifierToken()) {
@@ -197,7 +197,7 @@ bool Parser::lexAfterFuncKeyword(bool allow_extensions) {
             return false;
         }
         lexWhitespaceToken();
-        if(!lexOperatorToken(':')) {
+        if(!lexOperatorToken(TokenType::ColonSym)) {
             error("expected ':' in extension function after identifier for receiver");
             return false;
         }
@@ -208,7 +208,7 @@ bool Parser::lexAfterFuncKeyword(bool allow_extensions) {
         }
         compound_from(start, LexTokenType::CompFunctionParam);
         lexWhitespaceToken();
-        if(!lexOperatorToken(')')) {
+        if(!lexOperatorToken(TokenType::RParen)) {
             error("expected ')' in extension function after receiver");
             return false;
         }
@@ -222,7 +222,7 @@ bool Parser::lexAfterFuncKeyword(bool allow_extensions) {
 
     lexWhitespaceToken();
 
-    if(!lexOperatorToken('(')) {
+    if(!lexOperatorToken(TokenType::LParen)) {
         error("expected a starting parenthesis ( in a function signature");
         return false;
     }
@@ -233,14 +233,14 @@ bool Parser::lexAfterFuncKeyword(bool allow_extensions) {
 
     lexWhitespaceAndNewLines();
 
-    if(!lexOperatorToken(')')) {
+    if(!lexOperatorToken(TokenType::RParen)) {
         error("expected a closing parenthesis ) when ending a function signature");
         return false;
     }
 
     lexWhitespaceToken();
 
-    if(lexOperatorToken(':')) {
+    if(lexOperatorToken(TokenType::ColonSym)) {
         lexWhitespaceToken();
         if(!lexTypeTokens()) {
             error("expected a return type for function after ':'");
@@ -254,7 +254,7 @@ bool Parser::lexAfterFuncKeyword(bool allow_extensions) {
 
 bool Parser::lexFunctionSignatureTokens() {
 
-    if(!lexWSKeywordToken("func")) {
+    if(!lexWSKeywordToken(TokenType::FuncKw)) {
         return false;
     }
 
@@ -264,7 +264,7 @@ bool Parser::lexFunctionSignatureTokens() {
 
 bool Parser::lexFunctionStructureTokens(unsigned start, bool allow_declarations, bool allow_extensions) {
 
-    if(!lexWSKeywordToken("func")) {
+    if(!lexWSKeywordToken(TokenType::FuncKw)) {
         return false;
     }
 

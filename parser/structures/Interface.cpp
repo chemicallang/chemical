@@ -13,12 +13,12 @@ void Parser::lexInterfaceBlockTokens() {
             break;
         }
         lexWhitespaceToken();
-        lexOperatorToken(';');
-    } while(provider.peek() != '}');
+        lexOperatorToken(TokenType::SemiColonSym);
+    } while(token->type != TokenType::RBrace);
 }
 
 bool Parser::lexInterfaceStructureTokens(unsigned start) {
-    if (lexWSKeywordToken("interface")) {
+    if (lexWSKeywordToken(TokenType::InterfaceKw)) {
         if(!lexIdentifierToken()) {
             error("expected interface name after the interface keyword");
             return true;
@@ -26,13 +26,13 @@ bool Parser::lexInterfaceStructureTokens(unsigned start) {
         lexWhitespaceToken();
         lexGenericParametersList();
         lexWhitespaceToken();
-        if (!lexOperatorToken('{')) {
+        if (!lexOperatorToken(TokenType::LBrace)) {
             error("expected a '{' when starting an interface block");
             return true;
         }
         lexInterfaceBlockTokens();
         lexWhitespaceToken();
-        if (!lexOperatorToken('}')) {
+        if (!lexOperatorToken(TokenType::RBrace)) {
             error("expected a '}' when ending an interface block");
             return true;
         }

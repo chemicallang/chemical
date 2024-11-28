@@ -10,6 +10,8 @@
 #include <memory>
 #include "ImportPathHandler.h"
 
+class Lexer;
+
 class Parser;
 
 class ImportGraphVisitor;
@@ -24,13 +26,13 @@ class ImportGraphImporter {
 public:
 
     ImportPathHandler *handler;
-    Parser *lexer;
+    Parser *parser;
     ImportGraphVisitor *converter;
 
     /**
      * constructor
      */
-    ImportGraphImporter(ImportPathHandler *handler, Parser *lexer, ImportGraphVisitor *converter);
+    ImportGraphImporter(ImportPathHandler *handler, Parser *parser, ImportGraphVisitor *converter);
 
     /**
      * will lex the prepared source
@@ -134,7 +136,8 @@ IGFile determine_import_graph_file(
 IGResult determine_import_graph(
     ImportGraphImporter* importer,
     std::vector<CSTToken*> &tokens,
-    FlatIGFile &file
+    FlatIGFile &file,
+    Parser* parser
 );
 
 /**
@@ -150,22 +153,22 @@ IGResult determine_import_graph(
 /**
  * this determines the IG file, the root if file for the given absolute_path
  */
-IGFile determine_ig_file(ImportPathHandler &path_handler, const std::string &abs_path);
+IGFile determine_ig_file(ImportPathHandler &path_handler, Parser* parser, const std::string &abs_path);
 
 /**
  * this determines the IG file, the root if file for the given absolute_path
  */
-IGFile determine_ig_file(const std::string &exe_path, const std::string &abs_path);
+IGFile determine_ig_file(Parser* parser, const std::string &exe_path, const std::string &abs_path);
 
 /**
  * determines import graph, which is data structure
  */
-IGResult determine_import_graph(ImportPathHandler &path_handler, const std::string &abs_path);
+IGResult determine_import_graph(ImportPathHandler &path_handler, Parser* parser, const std::string &abs_path);
 
 /**
  * determines import graph, which is data structure
  */
-IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path);
+IGResult determine_import_graph(Parser* parser, const std::string &exe_path, const std::string &abs_path);
 
 /**
  * construct's a list representation from the given IGFile

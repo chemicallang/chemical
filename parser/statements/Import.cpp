@@ -7,15 +7,15 @@
 #include "parser/Parser.h"
 
 bool Parser::lexImportIdentifierList() {
-    if (lexOperatorToken('{')) {
+    if (lexOperatorToken(TokenType::LBrace)) {
         do {
             lexWhitespaceAndNewLines();
             if (!lexIdentifierToken()) {
                 break;
             }
             lexWhitespaceToken();
-        } while (lexOperatorToken(','));
-        if (!lexOperatorToken('}')) {
+        } while (lexOperatorToken(TokenType::CommaSym));
+        if (!lexOperatorToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' after identifier list in import statement");
         }
         return true;
@@ -25,18 +25,18 @@ bool Parser::lexImportIdentifierList() {
 }
 
 bool Parser::lexImportStatement() {
-    if (!lexWSKeywordToken("import")) {
+    if (!lexWSKeywordToken(TokenType::ImportKw)) {
         return false;
     }
     unsigned int start = tokens_size() - 1;
     if (lexStringToken()) {
-        if(lexWhitespaceToken() && lexWSKeywordToken("as")) {
+        if(lexWhitespaceToken() && lexWSKeywordToken(TokenType::AsKw)) {
             if(!lexIdentifierToken()) {
                 error("expected identifier after 'as' in import statement");
                 return true;
             }
         }
-        if(lexWhitespaceToken() && lexWSKeywordToken("if")) {
+        if(lexWhitespaceToken() && lexWSKeywordToken(TokenType::IfKw)) {
             if(!lexIdentifierToken()) {
                 error("Expected identifier after 'if' in import statement");
                 return true;
@@ -47,7 +47,7 @@ bool Parser::lexImportStatement() {
     } else {
         if (lexIdentifierToken() || lexImportIdentifierList()) {
             lexWhitespaceToken();
-            if (lexWSKeywordToken("from")) {
+            if (lexWSKeywordToken(TokenType::FromKw)) {
                 if (!lexStringToken()) {
                     error("expected path after 'from' in import statement");
                     return true;

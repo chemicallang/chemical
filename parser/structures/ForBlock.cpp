@@ -7,7 +7,7 @@
 #include "parser/Parser.h"
 
 bool Parser::lexContinueStatement() {
-    if(lexWSKeywordToken("continue", ';')) {
+    if(lexWSKeywordToken(TokenType::ContinueKw, TokenType::SemiColonSym)) {
         compound_from(tokens_size() - 1, LexTokenType::CompContinue);
         return true;
     } else {
@@ -16,7 +16,7 @@ bool Parser::lexContinueStatement() {
 }
 
 bool Parser::lexBreakStatement() {
-    if(lexWSKeywordToken("break", ';')) {
+    if(lexWSKeywordToken(TokenType::BreakKw, TokenType::SemiColonSym)) {
         auto start = tokens_size() - 1;
         // optionally lex value ahead
         lexAccessChainOrValue();
@@ -28,7 +28,7 @@ bool Parser::lexBreakStatement() {
 }
 
 bool Parser::lexUnreachableStatement() {
-    if(lexWSKeywordToken("unreachable", ';')) {
+    if(lexWSKeywordToken(TokenType::UnreachableKw, TokenType::SemiColonSym)) {
         compound_from(tokens_size() - 1, LexTokenType::CompUnreachable);
         return true;
     } else {
@@ -38,14 +38,14 @@ bool Parser::lexUnreachableStatement() {
 
 bool Parser::lexForBlockTokens() {
 
-    if (!lexWSKeywordToken("for", '(')) {
+    if (!lexWSKeywordToken(TokenType::ForKw, TokenType::LParen)) {
         return false;
     }
 
     unsigned start = tokens_size() - 1;
 
     // start parenthesis
-    if(!lexOperatorToken('(')) {
+    if(!lexOperatorToken(TokenType::LParen)) {
         error("expected a starting parenthesis ( in a for block");
         return true;
     }
@@ -57,7 +57,7 @@ bool Parser::lexForBlockTokens() {
     }
 
     // lex ;
-    if(!lexOperatorToken(';')){
+    if(!lexOperatorToken(TokenType::SemiColonSym)){
         error("expected semicolon ; after the initialization in for loop");
         return true;
     }
@@ -71,7 +71,7 @@ bool Parser::lexForBlockTokens() {
         return true;
     }
 
-    if(!lexOperatorToken(';')){
+    if(!lexOperatorToken(TokenType::SemiColonSym)){
         error("expected semicolon ; after the condition in for loop");
         return true;
     }
@@ -86,7 +86,7 @@ bool Parser::lexForBlockTokens() {
     }
 
     // end parenthesis
-    if(!lexOperatorToken(')')) {
+    if(!lexOperatorToken(TokenType::RParen)) {
         error("expected a closing parenthesis ) in a for block");
         return true;
     }
@@ -109,7 +109,7 @@ bool Parser::lexForBlockTokens() {
 
 bool Parser::lexLoopBlockTokens(bool is_value) {
 
-    if (!lexWSKeywordToken("loop", '{')) {
+    if (!lexWSKeywordToken(TokenType::LoopKw, TokenType::LBrace)) {
         return false;
     }
 

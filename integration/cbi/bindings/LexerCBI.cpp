@@ -3,10 +3,6 @@
 #include "LexerCBI.h"
 #include "parser/Parser.h"
 
-SourceProvider* Lexerprovider(Parser* lexer) {
-    return &lexer->provider;
-}
-
 std::size_t Lexertokens_size(Parser* lexer)  {
     return lexer->tokens_size();
 }
@@ -14,14 +10,6 @@ std::size_t Lexertokens_size(Parser* lexer)  {
 CSTToken* Lexerput(Parser* lexer, chem::string* value, LexTokenType token_type, unsigned int lineNumber, unsigned int lineCharNumber) {
     lexer->emplace(token_type, { lineNumber, lineCharNumber }, value->to_view());
     return lexer->unit.tokens.back();
-}
-
-bool LexerstoreVariable(Parser* lexer, chem::string* str)  {
-    return lexer->storeVariable(str);
-}
-
-bool LexerstoreIdentifier(Parser* lexer, chem::string* str)  {
-    return lexer->storeIdentifier(str);
 }
 
 void LexerlexGenericArgsList(Parser* lexer)  {
@@ -66,10 +54,6 @@ bool LexerlexVarInitializationTokens(Parser* lexer, unsigned start, bool allowDe
 
 bool LexerlexAssignmentTokens(Parser* lexer)  {
     return lexer->lexAssignmentTokens();
-}
-
-bool LexerlexDivisionOperatorToken(Parser* lexer)  {
-    return lexer->lexDivisionOperatorToken();
 }
 
 bool LexerlexLanguageOperatorToken(Parser* lexer)  {
@@ -122,38 +106,6 @@ bool LexerlexStatementTokens(Parser* lexer)  {
 
 bool LexerlexThrowStatementTokens(Parser* lexer)  {
     return lexer->lexThrowStatementTokens();
-}
-
-bool LexerlexOperatorToken(Parser* lexer, char op)  {
-    return lexer->lexOperatorToken(op);
-}
-
-bool LexerlexOperatorTokenStr(Parser* lexer, chem::string* str)  {
-    return lexer->lexOperatorToken({ str->data(), str->size() });
-}
-
-void LexerstoreOperationToken(Parser* lexer, char token, Operation op)  {
-    return lexer->storeOperationToken(token, op);
-}
-
-bool LexerlexOperationToken(Parser* lexer, char token, Operation op)  {
-    return lexer->lexOperationToken(token, op);
-}
-
-bool LexerlexOperatorTokenStr2(Parser* lexer, chem::string* str, Operation op)  {
-    return lexer->lexOperatorToken({ str->data(), str->size() }, op);
-}
-
-bool LexerlexKeywordToken(Parser* lexer, chem::string* str)  {
-    return lexer->lexKeywordToken({ str->data(), str->size() });
-}
-
-bool LexerlexWSKeywordToken(Parser* lexer, chem::string* str)  {
-    return lexer->lexWSKeywordToken({ str->data(), str->size() });
-}
-
-bool LexerlexWSKeywordToken2(Parser* lexer, chem::string* str, char may_end_at)  {
-    return lexer->lexWSKeywordToken({ str->data(), str->size() }, may_end_at);
 }
 
 void LexerlexTopLevelMultipleStatementsTokens(Parser* lexer, bool break_at_no_stmt)  {

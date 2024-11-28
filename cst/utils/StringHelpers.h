@@ -28,7 +28,7 @@ char escapable_char(SourceProvider& provider, char current);
  * e.g "\r" the index would be 1, as if cursor is before r like |r
  * @return new index, at where the escaped char ends
  */
-std::pair<char, unsigned int> escapable_char(const std::string& value, unsigned index);
+std::pair<char, int> escapable_char(const std::string_view& value, unsigned index);
 
 /**
  * escape a single escapable character at index

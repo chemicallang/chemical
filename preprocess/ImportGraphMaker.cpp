@@ -1,7 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ImportGraphMaker.h"
-#include "parser/Lexi.h"
+#include "parser/Parser.h"
+#include "lexer/Lexer.h"
 #include "stream/SourceProvider.h"
 #include "cst/base/CSTConverter.h"
 #include "ast/statements/Import.h"
@@ -11,6 +12,8 @@
 #include "cst/utils/CSTUtils.h"
 #include "ImportPathHandler.h"
 #include "utils/PathUtils.h"
+#include "cst/LocationManager.h"
+#include "stream/FileInputSource.h"
 #include <sstream>
 #include <iostream>
 
@@ -26,17 +29,17 @@ void move_errors(std::vector<Diag> &from, std::vector<Diag> &to, const std::stri
     from.clear();
 }
 
-ImportGraphImporter::ImportGraphImporter(ImportPathHandler* handler, Parser* lexer, ImportGraphVisitor* converter) : handler(handler), lexer(lexer), converter(converter) {
+ImportGraphImporter::ImportGraphImporter(ImportPathHandler* handler, Parser* parser, ImportGraphVisitor* converter) : handler(handler), parser(parser), converter(converter) {
 
 };
 
 void ImportGraphImporter::lex_source(const std::string& path, std::vector<Diag>& errors) {
     // lex
-    lexer->unit.reset();
-    lexer->lexTopLevelMultipleImportStatements();
-    if (lexer->has_errors) {
-        move_errors(lexer->diagnostics, errors, path);
-        lexer->has_errors = false;
+    parser->unit.reset();
+    parser->lexTopLevelMultipleImportStatements();
+    if (parser->has_errors) {
+        move_errors(parser->diagnostics, errors, path);
+        parser->has_errors = false;
     }
 }
 
@@ -45,8 +48,9 @@ void ImportGraphVisitor::visitImport(CSTToken *cst) {
     if(2 < cst->tokens.size() && is_keyword(cst->tokens[2], "as")) {
         as_identifier = str_token(cst->tokens[3]);
     }
+    auto str_val = (Value*) cst->tokens[1]->straight.data_ptr;
     imports.emplace_back(
-            FlatIGFile { escaped_str_token(cst->tokens[1]), escaped_str_token(cst->tokens[1]), std::move(as_identifier) },
+            FlatIGFile { str_val->get_the_string(), str_val->get_the_string(), std::move(as_identifier) },
             Range { cst->start_token()->position(), cst->end_token()->position() }
     );
 }
@@ -96,12 +100,17 @@ std::vector<IGFile> ImportGraphImporter::process(const std::string &path, const 
         );
         return {};
     }
-    lexer->provider.switch_source(&source);
+    SourceProvider provider(&source);
+    Lexer lexer(path, provider, nullptr);
+    LexUnit unit;
+    lexer.getUnit(unit);
+    parser->file_id = parser->loc_man.encodeFile(path);
+    parser->token = unit.tokens.data();
     lex_source(path, parent->errors);
     return from_tokens(
             path,
             parent,
-            lexer->unit.tokens
+            parser->unit.tokens
     );
 }
 
@@ -130,7 +139,7 @@ IGFile from_import(
             );
         }
     }
-    file.files = importer->process(flat_file.abs_path, importSt->range, &file);
+    file.files = importer->process(flat_file.abs_path, flat_file.range, &file);
     return file;
 }
 
@@ -151,43 +160,40 @@ IGResult determine_import_graph(
         const std::string& exe_path,
         std::vector<CSTToken*>& tokens,
         FlatIGFile &asker,
-        LocationManager& manager
+        Parser* parser
 ) {
     SourceProvider reader(nullptr);
-    Parser lexer("", reader);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(exe_path);
     ImportGraphImporter importer(
             &handler,
-            &lexer,
+            parser,
             &visitor
     );
     return determine_import_graph(&importer, tokens, asker);
 }
 
-IGFile determine_ig_file(ImportPathHandler &handler, const std::string &abs_path) {
-    SourceProvider reader(nullptr);
-    Parser lexer(abs_path, reader);
+IGFile determine_ig_file(ImportPathHandler &handler, Parser* parser, const std::string &abs_path) {
     ImportGraphVisitor visitor;
     ImportGraphImporter importer(
             &handler,
-            &lexer,
+            parser,
             &visitor
     );
     return from_import(&importer, nullptr, abs_path, nullptr);
 }
 
-IGFile determine_ig_file(const std::string &exe_path, const std::string &abs_path) {
+IGFile determine_ig_file(Parser* parser,const std::string &exe_path, const std::string &abs_path) {
     ImportPathHandler handler(exe_path);
-    return determine_ig_file(handler, abs_path);
+    return determine_ig_file(handler, parser, abs_path);
 }
 
-IGResult determine_import_graph(ImportPathHandler &path_handler, const std::string &abs_path) {
-    return IGResult { determine_ig_file(path_handler, abs_path) };
+IGResult determine_import_graph(ImportPathHandler &path_handler, Parser* parser, const std::string &abs_path) {
+    return IGResult { determine_ig_file(path_handler, parser, abs_path) };
 }
 
-IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path) {
-    return IGResult { determine_ig_file(exe_path, abs_path) };
+IGResult determine_import_graph(Parser* parser, const std::string &exe_path, const std::string &abs_path) {
+    return IGResult { determine_ig_file(parser, exe_path, abs_path) };
 }
 
 //bool IGFile::depth_first(const std::function<bool(IGFile*)>& fn) {

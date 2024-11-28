@@ -13,7 +13,7 @@ bool Parser::lexTypealiasStatement(unsigned start) {
             if(!lexTypeTokens()) {
                 error("expected a type after '='");
             }
-            compound_collectable(start, LexTokenType::CompTypealias);
+            compound_from(start, LexTokenType::CompTypealias);
         } else {
             error("expected a type for typealias statement");
         }

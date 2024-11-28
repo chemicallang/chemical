@@ -121,6 +121,11 @@ public:
     uint64_t loc(Position& start, Position& end);
 
     /**
+     * get location for a single token
+     */
+    uint64_t loc_single(Token* t);
+
+    /**
      * lex everything to LexTokens, tokens go into 'tokens' member property
      */
     void lex();
@@ -779,15 +784,31 @@ public:
     bool lexAnnotationMacro();
 
     /**
-     * lexes a null value
+     * parses the null value, otherwise returns nullptr
      */
-    bool lexNull();
+    Value* parseNull(ASTAllocator& allocator);
+
+    /**
+     * lexes a null value
+     * @deprecated
+     */
+    bool lexNull() {
+        return straight_value(parseNull(global_allocator));
+    }
+
+    /**
+     * parses a bool value otherwise returns nullptr
+     */
+    Value* parseBoolValue(ASTAllocator& allocator);
 
     /**
      * lexes a bool, true or false
      * @return whether a bool has been lexed
+     * @deprecated
      */
-    bool lexBoolToken();
+    bool lexBoolToken() {
+        return straight_value(parseBoolValue(global_allocator));
+    }
 
     /**
       * lex a unsigned int as number token
@@ -952,20 +973,13 @@ public:
 
     /**
      * put tokens in a compound token of specified type, starting from start
+     * @deprecated
      */
     void compound_from(unsigned int start, LexTokenType type) {
         std::vector<CSTToken*> slice;
         take_from(slice, start, tokens_size());
         unit.emplace_compound(type);
         unit.tokens.back()->tokens = std::move(slice);
-    }
-
-    /**
-     * a helper function to collect
-     */
-    [[deprecated]]
-    void compound_collectable(unsigned int start, LexTokenType type) {
-        compound_from(start, type);
     }
 
     /**

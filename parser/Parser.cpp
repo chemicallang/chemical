@@ -28,6 +28,11 @@ uint64_t Parser::loc(Position& start, Position& end) {
     return loc_man.addLocation(file_id, start.line, start.character, end.line, end.character);
 }
 
+uint64_t Parser::loc_single(Token* t) {
+    auto& pos = t->position;
+    return loc_man.addLocation(file_id, pos.line, pos.character, pos.line, pos.character + token->value.size());
+}
+
 void Parser::lexTopLevelMultipleImportStatements() {
     while (true) {
         lexWhitespaceAndNewLines();

@@ -8,6 +8,8 @@
 #include "ast/values/CharValue.h"
 #include "ast/values/StringValue.h"
 #include "cst/utils/StringHelpers.h"
+#include "ast/values/NullValue.h"
+#include "ast/values/BoolValue.h"
 
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
     if(token->type == TokenType::SingleQuoteSym) {
@@ -94,29 +96,26 @@ Value* Parser::parseStringValue(ASTAllocator& allocator) {
     }
 }
 
-bool Parser::lexBoolToken() {
+Value* Parser::parseBoolValue(ASTAllocator& allocator) {
     auto first = consumeOfType(TokenType::TrueKw);
     if(first) {
-        emplace(LexTokenType::Bool, first->position, "true");
-        return true;
+        return new (allocator.allocate<BoolValue>()) BoolValue(true, loc_single(token));
     } else {
         auto second = consumeOfType(TokenType::FalseKw);
         if(second) {
-            emplace(LexTokenType::Bool, second->position, "true");
-            return true;
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, loc_single(token));
         } else {
-            return false;
+            return nullptr;
         }
     }
 }
 
-bool Parser::lexNull() {
+Value* Parser::parseNull(ASTAllocator& allocator) {
     auto current = consumeOfType(TokenType::NullKw);
     if(current) {
-        emplace(LexTokenType::Null, current->position, "null");
-        return true;
+        return new (allocator.allocate<NullValue>()) NullValue(loc_single(token));
     } else {
-        return false;
+        return nullptr;
     }
 }
 

@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/VariableIdentifier.h"
 
 // function not required
 // TODO return the string view and consume token
@@ -66,7 +67,9 @@ bool Parser::lexAccessChain(bool lexStruct, bool lex_as_node) {
         // TODO use passed allocator
         return straight_value(creator->second(this, global_allocator, id));
     } else {
-        storeVariable(id);
+        // TODO use passed allocator
+        auto value = new (global_allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(id->value), loc_single(id));
+        straight_value(value);
     }
 
     auto start = tokens_size() - 1;

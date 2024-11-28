@@ -60,7 +60,7 @@ namespace TypeMakers {
 
     BaseType *make_void_type(ASTAllocator& allocator, bool is64Bit, SourceLocation location);
 
-    const std::unordered_map<std::string, PrimitiveTypeProvider> PrimitiveMap = {
+    const std::unordered_map<std::string_view, PrimitiveTypeProvider> PrimitiveMap = {
             {"any",       TypeMakers::make_any_type},
             {"bool",      TypeMakers::make_bool_type},
             {"char",      TypeMakers::make_char_type},

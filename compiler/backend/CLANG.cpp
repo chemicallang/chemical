@@ -54,7 +54,7 @@
 #include "utils/PathUtils.h"
 #include <filesystem>
 #include "compiler/Codegen.h"
-#include "utils/parse_num.h"
+#include "parser/utils/parse_num.h"
 
 struct ErrorMsg {
     const char *filename_ptr; // can be null

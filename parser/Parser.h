@@ -37,7 +37,7 @@ typedef void(*AnnotationModifierFn)(Parser *lexer, CSTToken* token);
 /**
  * a value creator function
  */
-typedef void(*ValueCreatorFn)(Parser *lexer, Position& pos);
+typedef Value*(*ValueCreatorFn)(Parser *lexer, ASTAllocator& allocator, Token* token);
 
 /**
  * a function that parses something inside a macro
@@ -98,6 +98,11 @@ public:
     ASTAllocator& mod_allocator;
 
     /**
+     * the ast we're generating, is it for a 64 bit target
+     */
+    bool is64Bit;
+
+    /**
      * initialize the lexer with this provider and path
      */
     Parser(
@@ -107,6 +112,7 @@ public:
         LocationManager& loc_man,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
+        bool is64Bit,
         CompilerBinder* binder = nullptr
     );
 
@@ -199,6 +205,11 @@ public:
     inline void storeVariable(Token* token) {
         emplace(LexTokenType::Variable, token->position, std::string(token->value));
     }
+
+    /**
+     * parses a variable otherwise returns nullptr
+     */
+    Value* parseVariableIdentifier(ASTAllocator& allocator);
 
     /**
      * lex a variable token into tokens until the until character occurs
@@ -816,10 +827,18 @@ public:
     bool lexUnsignedIntAsNumberToken();
 
     /**
+     * parses a number value
+     */
+    Value* parseNumberValue(ASTAllocator& allocator);
+
+    /**
      * lex an number token
      * @return whether a token was lexed or not
+     * @deprecated
      */
-    bool lexNumberToken();
+    bool lexNumberToken() {
+        return straight_value(parseNumberValue(global_allocator));
+    }
 
     /**
      * lexes tokens for a complete struct object initialization

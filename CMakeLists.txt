@@ -104,7 +104,6 @@ set(COMMON_SOURCES
         parser/Parser.cpp
         parser/Parser.h
         stream/SourceProvider.h
-        parser/Lexi.h
         parser/statements/LexAssignment.cpp
         parser/statements/VarInitialization.cpp
         parser/statements/VarInitialization.cpp

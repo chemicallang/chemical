@@ -35,6 +35,13 @@ public:
          * this struct is used for compound tokens
          */
         std::vector<CSTToken*> tokens;
+        /**
+         * contains a value, node or type
+         */
+        struct {
+            Position position;
+            void* data_ptr;
+        } straight;
     };
 
 #ifdef LSP_BUILD
@@ -61,15 +68,33 @@ public:
     }
 
     /**
+     * token with type straight
+     */
+    CSTToken(LexTokenType type, void* data, const Position& pos) : tok_type(type) {
+        new(&straight.position) Position(pos);
+        straight.data_ptr = data;
+    }
+
+    /**
      * deleted copy constructor
      */
     CSTToken(const CSTToken& other) = delete;
+
+    /**
+     * a helper function
+     */
+    static inline bool isStraight(LexTokenType type) {
+        return type == LexTokenType::StraightNode || type == LexTokenType::StraightType || type == LexTokenType::StraightValue;
+    }
 
     /**
      * deleted move constructor
      */
     CSTToken(CSTToken&& other) {
         tok_type = other.tok_type;
+        if(isStraight(tok_type)) {
+            return;
+        }
         if(other.compound()) {
             new(&tokens) std::vector<CSTToken*>(std::move(other.tokens));
         } else {
@@ -112,7 +137,11 @@ public:
      * get the position of this token
      */
     inline const Position& position() const {
-        return flat.position;
+        if(isStraight(tok_type)) {
+            return straight.position;
+        } else {
+            return flat.position;
+        }
     }
 
     /**
@@ -134,7 +163,11 @@ public:
      */
     [[nodiscard]]
     inline unsigned int lineNumber() const {
-        return flat.position.line;
+        if(isStraight(tok_type)) {
+            return straight.position.line;
+        } else {
+            return flat.position.line;
+        }
     }
 
     /**
@@ -142,7 +175,11 @@ public:
      */
     [[nodiscard]]
     inline unsigned int lineCharNumber() const {
-        return flat.position.character;
+        if(isStraight(tok_type)) {
+            return straight.position.character;
+        } else {
+            return flat.position.character;
+        }
     }
 
     /**
@@ -337,7 +374,7 @@ public:
      */
     [[nodiscard]]
     inline static bool is_value(LexTokenType type) {
-        return is_comp_value(type) || is_primitive_var(type) || type == LexTokenType::CompMacro;
+        return type == LexTokenType::StraightValue || is_comp_value(type) || is_primitive_var(type) || type == LexTokenType::CompMacro;
     }
 
     /**
@@ -364,6 +401,9 @@ public:
      * default destructor
      */
     ~CSTToken() {
+        if(isStraight(tok_type)) {
+            return;
+        }
         if(compound()) {
             tokens.~vector();
         } else {

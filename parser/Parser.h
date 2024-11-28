@@ -19,6 +19,11 @@
 #include "model/CompilerBinder.h"
 #include "integration/cbi/bindings/CBI.h"
 #include "cst/base/CSTDiagnoser.h"
+#include "lexer/Token.h"
+#include "ast/base/ASTAllocator.h"
+#include "ast/base/Value.h"
+#include "ast/base/ASTNode.h"
+#include "ast/base/BaseType.h"
 
 class CompilerBinder;
 
@@ -32,7 +37,7 @@ typedef void(*AnnotationModifierFn)(Parser *lexer, CSTToken* token);
 /**
  * a value creator function
  */
-typedef void(*ValueCreatorFn)(Parser *lexer);
+typedef void(*ValueCreatorFn)(Parser *lexer, Position& pos);
 
 /**
  * a function that parses something inside a macro
@@ -46,14 +51,30 @@ class Parser : public CSTDiagnoser {
 public:
 
     /**
-     * the path to the file we are lexing
+     * stored for debugging
+     * TODO remove this
      */
-    std::string file_path;
+    std::string_view stored_file_path;
 
     /**
-     * provides access to the source code to lex
+     * The file id to use with location manager
      */
-    SourceProvider &provider;
+    unsigned int file_id;
+
+    /**
+     * the current token
+     */
+    Token* token;
+
+    /**
+     * we save this to reset the parser
+     */
+    Token* beginning_token;
+
+    /**
+     * the location manager is used to encode locations
+     */
+    LocationManager& loc_man;
 
     /**
      * a unit contains everything that's allocated
@@ -67,13 +88,37 @@ public:
     CompilerBinder* const binder;
 
     /**
+     * the global allocator for the job
+     */
+    ASTAllocator& global_allocator;
+
+    /**
+     * the module allocator for the job
+     */
+    ASTAllocator& mod_allocator;
+
+    /**
      * initialize the lexer with this provider and path
      */
     Parser(
-        std::string file_path,
-        SourceProvider &provider,
+        unsigned int file_id,
+        std::string_view file_path,
+        Token* start_token,
+        LocationManager& loc_man,
+        ASTAllocator& global_allocator,
+        ASTAllocator& mod_allocator,
         CompilerBinder* binder = nullptr
     );
+
+    /**
+     * get the file path
+     */
+    std::string_view file_path();
+
+    /**
+     * get a encoded location
+     */
+    uint64_t loc(Position& start, Position& end);
 
     /**
      * lex everything to LexTokens, tokens go into 'tokens' member property
@@ -86,83 +131,81 @@ public:
     void reset();
 
     /**
-     * check if operator is present at peek
-     */
-    inline bool isPeakOp(char op) {
-        return provider.peek() == op;
-    }
-
-    /**
      * get current tokens size
      */
     inline size_t tokens_size() {
         return unit.tokens.size();
     }
 
-    /**
-     * lex a string that contains alphabetical characters only
-     * @return alphabetical string or empty if not found
-     */
-    inline std::string lexAlpha() {
-        return provider.readAlpha();
-    }
-
-    /**
-     * lex a alpha numeric string until until character occurs
-     */
-    inline std::string lexAlphaNum() {
-        return provider.readAlphaNum();
-    }
-
-    /**
-     * lexes an identifier
-     * it doesn't add it as a token use lex Identifier token for that
-     */
-    inline std::string lexIdentifier() {
-        return provider.readIdentifier();
-    }
-
     // ------------- Functions exposed to chemical begin here
 
     /**
-     * consumes a identifier and store as a variable token
-     * @return true if identifier is not empty, false if it is
+     * parses the token of type
+     * will skip new line, comment token, multi line comment tokens to check for this
      */
-    bool storeVariable(const std::string &identifier);
+    Token* consumeOfType(enum TokenType type);
 
     /**
-     * consumes a identifier and store as an identifier token
-     * @return true if identifier is not empty, false if it is
+     * check if given token type is a keyword
      */
-    bool storeIdentifier(const std::string &identifier);
+    static inline bool isKeyword(enum TokenType type) {
+        return type > TokenType::IndexKwStart && type < TokenType::IndexKwEnd;
+    }
 
     /**
-     * consumes a identifier and store as a variable token
-     * @return true if identifier is not empty, false if it is
+     * consume a identifier or keyword at the current location
      */
-    bool storeVariable(chem::string* identifier);
+    Token* consumeIdentifierOrKeyword() {
+        auto& t = *token;
+        const auto type = t.type;
+        if(type == TokenType::Identifier || isKeyword(type)) {
+            token++;
+            return &t;
+        } else {
+            return nullptr;
+        }
+    }
 
     /**
-     * consumes a identifier and store as an identifier token
-     * @return true if identifier is not empty, false if it is
+     * consume strictly a single identifier
      */
-    bool storeIdentifier(chem::string* identifier);
+    Token* consumeIdentifier() {
+        auto& t = *token;
+        if(t.type == TokenType::Identifier) {
+            token++;
+            return &t;
+        } else {
+            return nullptr;
+        }
+    }
+
+    /**
+     * store the token as a identifier cst token
+     * @deprecated
+     */
+    inline void storeIdentifier(Token* token) {
+        emplace(LexTokenType::Identifier, token->position, std::string(token->value));
+    }
+
+    /**
+     * store the token as a variable cst token
+     * @deprecated
+     */
+    inline void storeVariable(Token* token) {
+        emplace(LexTokenType::Variable, token->position, std::string(token->value));
+    }
 
     /**
      * lex a variable token into tokens until the until character occurs
      * only lexes the token if the identifier is not empty
      */
-    inline bool lexVariableToken() {
-        return storeVariable(lexIdentifier());
-    }
+    bool lexVariableToken();
 
     /**
      * lex an identifier token into tokens until the until character occurs
      * only lexes the token if the identifier is not empty
      */
-    inline bool lexIdentifierToken() {
-        return storeIdentifier(lexIdentifier());
-    }
+    bool lexIdentifierToken();
 
     /**
      * it will lex generic args list, it should be called after the '<'
@@ -245,13 +288,6 @@ public:
     bool lexAssignmentTokens();
 
     /**
-     * exclusive method for division operator
-     * since it checks that after a single slash (/) the next is also not slash (/)
-     * which would make it a comment
-     */
-    bool lexDivisionOperatorToken();
-
-    /**
      * This lexes a operation token in between two values
      * for example x (token) y -> x + y or x - y
      * @return whether the language operator token has been lexed
@@ -297,7 +333,7 @@ public:
     /**
      * lex type id
      */
-    bool lexTypeId(std::string& type, unsigned int start);
+    bool lexTypeId(Token* type, unsigned int start);
 
     /**
      * lex type tokens
@@ -337,46 +373,34 @@ public:
      * lexes the given operator as length 1 character operator token
      * @return whether the token was found
      */
-    bool lexOperatorToken(char op);
-
-    /**
-     * lexes the given operator as a string operator token
-     * @return whether the token was found
-     */
-    bool lexOperatorToken(const std::string_view& op);
+    bool lexOperatorToken(enum TokenType type);
 
     /**
      * store an operation token
      */
-    void storeOperationToken(char token, Operation op);
+    void storeOperationToken(Token* token, Operation op);
 
     /**
      * lexes the given operator as length 1 character operator token
      * @return whether the token was found
      */
-    bool lexOperationToken(char token, Operation op);
-
-    /**
-     * lexes the given operator as a string operator token
-     * @return whether the token was found
-     */
-    bool lexOperatorToken(const std::string_view& token, Operation op);
+    bool lexOperationToken(enum TokenType type, Operation op);
 
     /**
      * lexes a keyword token for the given keyword
      * @return  whether the keyword was found
      */
-    bool lexKeywordToken(const std::string_view& keyword);
+    bool lexKeywordToken(enum TokenType type);
 
     /**
      * lexes a keyword token, after which whitespace is present
      */
-    bool lexWSKeywordToken(const std::string_view& keyword);
+    bool lexWSKeywordToken(enum TokenType type);
 
     /**
      * lex a whitespaced keyword token, which may end at the given character if not whitespace
      */
-    bool lexWSKeywordToken(const std::string_view& keyword, char may_end_at);
+    bool lexWSKeywordToken(enum TokenType type, enum TokenType may_end_at);
 
     /**
      * All top levels statements lexed, These include
@@ -694,21 +718,60 @@ public:
     /**
      * a utility function to lex whitespace tokens and also skip new lines
      */
-    inline void lexWhitespaceAndNewLines() {
-        provider.readWhitespacesAndNewLines();
+    void lexWhitespaceAndNewLines();
+
+    /**
+     * parses a single string value using the given allocator
+     */
+    Value* parseStringValue(ASTAllocator& allocator);
+
+    /**
+     * store direct value ast cst token
+     */
+    bool straight_data(LexTokenType type, ASTAny* value) {
+        auto pos = token->position;
+        if(value) {
+            emplace(type, value, pos);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    inline bool straight_value(Value* value) {
+        return straight_data(LexTokenType::StraightValue, value);
+    }
+
+    inline bool straight_type(BaseType* type) {
+        return straight_data(LexTokenType::StraightType, type);
+    }
+
+    inline bool straight_node(ASTNode* node) {
+        return straight_data(LexTokenType::StraightNode, node);
     }
 
     /**
      * lexes a string token, string is enclosed inside double quotes
      * @return whether a string has been lexed
+     * @deprecated
      */
-    bool lexStringToken();
+    inline bool lexStringToken() {
+        return straight_value(parseStringValue(global_allocator));
+    }
+
+    /**
+     * a single character value is parsed
+     */
+    Value* parseCharValue(ASTAllocator& allocator);
 
     /**
      * lexes a char token, char is enclosed inside single quotes
      * @return whether a char has been lexed
+     * @deprecated
      */
-    bool lexCharToken();
+    inline bool lexCharToken() {
+        return straight_value(parseCharValue(global_allocator));
+    }
 
     /**
      * lex hash macro
@@ -906,26 +969,23 @@ public:
     }
 
     /**
-     * check if there's a new line at current position
-     * @return true if there's a newline otherwise false
-     */
-    inline bool hasNewLine() {
-        return provider.hasNewLine();
-    }
-
-    /**
      * All the chars that cause new line
      * for example \n \r
      */
     inline bool lexNewLineChars() {
-        return provider.readNewLineChars();
+        if(token->type == TokenType::NewLine) {
+            token++;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
      * make a diagnostic with given parameters, for the current file
      */
     Diag make_diag(Position start, const std::string &message, DiagSeverity severity) {
-        return CSTDiagnoser::make_diag(message, file_path, start, provider.position(), severity);
+        return CSTDiagnoser::make_diag(message, file_path(), start, token->position, severity);
     }
 
     /**
@@ -933,8 +993,8 @@ public:
      * @param position the position (in the tokens vector) of the token at end of which error started
      * @param message the message for the error
      */
-    void diagnostic(Position start, const std::string &message, DiagSeverity severity) {
-        add_diag(make_diag(start, message, severity));
+    void diagnostic(Position start, const std::string_view &message, DiagSeverity severity) {
+        add_diag(CSTDiagnoser::make_diag(message, file_path(), start, token->position, severity));
     }
 
     /**
@@ -968,14 +1028,14 @@ public:
      * a helper function
      */
     inline void diagnostic(std::string& message, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, file_path, unit_last_token()->end_token(), severity);
+        CSTDiagnoser::diagnostic(message, file_path(), unit_last_token()->end_token(), severity);
     }
 
     /**
      * a helper function
      */
     inline void diagnostic(std::string_view& message, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, file_path, unit_last_token()->end_token(), severity);
+        CSTDiagnoser::diagnostic(message, file_path(), unit_last_token()->end_token(), severity);
     }
 
     /**
@@ -1035,6 +1095,13 @@ public:
     }
 
     /**
+     * save error at given error token position
+     */
+    inline void error(std::string_view message, Token* err_token) {
+        diagnostic(err_token->position, message, DiagSeverity::Error);
+    }
+
+    /**
      * malformed value
      */
     void mal_value(unsigned start, std::string& message) {
@@ -1088,32 +1155,6 @@ public:
     void mal_value_or_node(unsigned start, std::string_view message, bool is_value) {
         diagnostic(message, DiagSeverity::Error);
         compound_from(start, is_value ? LexTokenType::CompMalformedValue : LexTokenType::CompMalformedNode);
-    }
-
-    /**
-     * returns the token position at the very current position
-     */
-    inline Position position() {
-        return provider.position();
-    }
-
-    /**
-     * when you have read the character from the stream, you create a position, \n\n
-     * it corresponds to the position at the end of the character and not at the start \n\n
-     * instead of saving the position in a variable before you read and consume characters \n
-     * You should get position after reading the characters and basically subtract the length of the token \n\n
-     * You can provide the length of the token to this function \n\n
-     * Note that token must be on the same line
-     */
-    inline Position backPosition(unsigned int back) {
-        return provider.backPosition(back);
-    }
-
-    /**
-     * gets the line number from the provider
-     */
-    inline unsigned int lineNumber() {
-        return provider.getLineNumber();
     }
 
 protected:

@@ -6,13 +6,26 @@
 
 #include "Parser.h"
 #include "ast/types/LinkedType.h"
+#include "cst/LocationManager.h"
 
 Parser::Parser(
-        std::string file_path,
-        SourceProvider &provider,
+        unsigned int file_id,
+        std::string_view file_path,
+        Token* start_token,
+        LocationManager& loc_man,
+        ASTAllocator& global_allocator,
+        ASTAllocator& mod_allocator,
         CompilerBinder* binder
-) : file_path(std::move(file_path)), provider(provider), binder(binder), unit() {
+) : file_id(file_id), stored_file_path(file_path), token(start_token), beginning_token(start_token), loc_man(loc_man), global_allocator(global_allocator), mod_allocator(mod_allocator), binder(binder), unit() {
     unit.init();
+}
+
+std::string_view Parser::file_path() {
+    return stored_file_path;
+}
+
+uint64_t Parser::loc(Position& start, Position& end) {
+    return loc_man.addLocation(file_id, start.line, start.character, end.line, end.character);
 }
 
 void Parser::lexTopLevelMultipleImportStatements() {
@@ -22,7 +35,7 @@ void Parser::lexTopLevelMultipleImportStatements() {
             break;
         }
         lexWhitespaceToken();
-        lexOperatorToken(';');
+        lexOperatorToken(TokenType::SemiColonSym);
     }
 }
 
@@ -34,20 +47,17 @@ void Parser::lexTopLevelMultipleStatementsTokens(bool break_at_no_stmt) {
     while (true) {
         lexWhitespaceAndNewLines();
         if (!lexTopLevelStatementTokens()) {
-            if (break_at_no_stmt || provider.eof() || provider.peek() == -1) {
+            if (break_at_no_stmt || token->type == TokenType::EndOfFile) {
                 break;
             } else {
-                // skip to new line
-                auto from_position = provider.getStreamPosition();
-                while (!lexNewLineChars() && !(provider.eof() || provider.peek() == -1)) {
-                    provider.readCharacter();
-                }
-                diagnostic({ from_position.line, from_position.character }, "skipped due to invalid syntax before it", DiagSeverity::Error);
+                // skip the current token
+                diagnostic(token->position, "skipped due to invalid syntax before it", DiagSeverity::Error);
+                token++;
                 continue;
             }
         }
         lexWhitespaceToken();
-        lexOperatorToken(';');
+        lexOperatorToken(TokenType::SemiColonSym);
     }
 }
 
@@ -59,5 +69,5 @@ void Parser::lex() {
 
 void Parser::reset() {
     unit.reset();
-    provider.reset();
+    token = beginning_token;
 }

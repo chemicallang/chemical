@@ -6,52 +6,50 @@
 
 #include "parser/utils/ValueCreators.h"
 
-bool Parser::storeVariable(const std::string& identifier) {
-    if (!identifier.empty()) {
-        emplace(LexTokenType::Variable, backPosition(identifier.length()), identifier);
+// function not required
+// TODO return the string view and consume token
+bool Parser::lexVariableToken() {
+    auto id = consumeIdentifierOrKeyword();
+    if(id) {
+        emplace(LexTokenType::Variable, id->position, std::string(id->value));
         return true;
     } else {
         return false;
     }
 }
 
-bool Parser::storeIdentifier(const std::string &identifier) {
-    if (!identifier.empty()) {
-        emplace(LexTokenType::Identifier, backPosition(identifier.length()), identifier);
+// function not required
+// TODO return the string view and consume token
+bool Parser::lexIdentifierToken() {
+    auto id = consumeIdentifierOrKeyword();
+    if(id) {
+        emplace(LexTokenType::Identifier, id->position, std::string(id->value));
         return true;
     } else {
         return false;
     }
 }
 
-bool Parser::storeVariable(chem::string* identifier) {
-    if (!identifier->empty()) {
-        emplace(LexTokenType::Variable, backPosition(identifier->size()), { identifier->data(), identifier->size() });
-        return true;
+Token* Parser::consumeOfType(TokenType type) {
+    auto& t = *token;
+    if(t.type == type) {
+        token++;
+        return &t;
     } else {
-        return false;
-    }
-}
-
-bool Parser::storeIdentifier(chem::string* identifier) {
-    if (!identifier->empty()) {
-        emplace(LexTokenType::Identifier, backPosition(identifier->size()), { identifier->data(), identifier->size() });
-        return true;
-    } else {
-        return false;
+        return nullptr;
     }
 }
 
 bool Parser::lexAccessChain(bool lexStruct, bool lex_as_node) {
 
-    auto id = lexIdentifier();
-    if(id.empty()) {
+    auto id = consumeIdentifierOrKeyword();
+    if(id == nullptr) {
         return false;
     }
 
-    auto creator = ValueCreators.find(id);
+    auto creator = ValueCreators.find(id->value);
     if(creator != ValueCreators.end()) {
-        creator->second(this);
+        creator->second(this, id->position);
         return true;
     } else {
         storeVariable(id);
@@ -70,7 +68,7 @@ bool Parser::lexAccessChain(bool lexStruct, bool lex_as_node) {
 }
 
 bool Parser::lexAccessChainOrAddrOf(bool lexStruct) {
-    if(lexOperatorToken('&')) {
+    if(lexOperatorToken(TokenType::AmpersandSym)) {
         auto start = tokens_size() - 1;
         if(lexAccessChain(true)) {
             compound_from(start, LexTokenType::CompAddrOf);
@@ -78,7 +76,7 @@ bool Parser::lexAccessChainOrAddrOf(bool lexStruct) {
             error("expected a value after '&' for address of");
         }
         return true;
-    } else if(lexOperatorToken('*')) {
+    } else if(lexOperatorToken(TokenType::MultiplySym)) {
         auto start = tokens_size() - 1;
         if(lexAccessChain(false)) {
             compound_from(start, LexTokenType::CompDeference);
@@ -98,7 +96,7 @@ bool Parser::lexAccessChainRecursive(bool lexStruct, unsigned chain_length) {
 }
 
 bool Parser::lexFunctionCall(unsigned back_start) {
-    if(lexOperatorToken('(')) {
+    if(lexOperatorToken(TokenType::LParen)) {
         unsigned start = tokens_size() - back_start;
         do {
             lexWhitespaceAndNewLines();
@@ -106,9 +104,9 @@ bool Parser::lexFunctionCall(unsigned back_start) {
                 break;
             }
             lexWhitespaceToken();
-        } while (lexOperatorToken(','));
+        } while (lexOperatorToken(TokenType::CommaSym));
         lexWhitespaceAndNewLines();
-        if (!lexOperatorToken(')')) {
+        if (!lexOperatorToken(TokenType::RParen)) {
             error("expected a ')' for a function call, after starting '('");
             return true;
         }
@@ -126,14 +124,14 @@ void Parser::lexGenericArgsList() {
             break;
         }
         lexWhitespaceToken();
-    } while (lexOperatorToken(','));
+    } while (lexOperatorToken(TokenType::CommaSym));
 }
 
 bool Parser::lexGenericArgsListCompound() {
-    if(lexOperatorToken('<')) {
+    if(lexOperatorToken(TokenType::LessThanSym)) {
         unsigned start = tokens_size() - 1;
         lexGenericArgsList();
-        if (!lexOperatorToken('>')) {
+        if (!lexOperatorToken(TokenType::GreaterThanSym)) {
             error("expected a '>' for generic list in function call");
             return true;
         }
@@ -146,7 +144,7 @@ bool Parser::lexGenericArgsListCompound() {
 
 void Parser::lexFunctionCallWithGenericArgsList() {
     lexGenericArgsListCompound();
-    if(provider.peek() == '('){
+    if(token->type == TokenType::LParen){
         lexFunctionCall(2);
     } else {
         error("expected a '(' after the generic list in function call");
@@ -157,7 +155,7 @@ bool Parser::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
 
     if(lexStruct) {
         lexWhitespaceToken();
-        if(provider.peek() == '{') {
+        if(token->type == TokenType::LBrace) {
             if(chain_length > 1) {
                 compound_from(tokens_size() - chain_length, LexTokenType::CompAccessChain);
             }
@@ -166,12 +164,12 @@ bool Parser::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
     }
 
     // when there is generic args after the identifier StructName<int, float> or func_name<int, float>()
-    if (provider.peek() == '<' && isGenericEndAhead()) {
+    if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
         lexGenericArgsListCompound();
         lexWhitespaceToken();
-        if(provider.peek() == '(') {
+        if(token->type == TokenType::LParen) {
             lexFunctionCall(2);
-        } else if(lexStruct && provider.peek() == '{') {
+        } else if(lexStruct && token->type == TokenType::LBrace) {
             if(chain_length > 1) {
                 compound_from(tokens_size() - chain_length, LexTokenType::CompAccessChain);
             }
@@ -181,8 +179,8 @@ bool Parser::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
         }
     }
 
-    while(provider.peek() == '(' || provider.peek() == '[') {
-        while(lexOperatorToken('[')) {
+    while(token->type == TokenType::LParen || token->type == TokenType::LBracket) {
+        while(lexOperatorToken(TokenType::LBracket)) {
             unsigned start = tokens_size() - 1;
             do {
                 lexWhitespaceToken();
@@ -191,17 +189,17 @@ bool Parser::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
                     return true;
                 }
                 lexWhitespaceToken();
-                if (!lexOperatorToken(']')) {
+                if (!lexOperatorToken(TokenType::RBracket)) {
                     error("expected a closing bracket ] in access chain");
                     return true;
                 }
-            } while (lexOperatorToken('['));
+            } while (lexOperatorToken(TokenType::LBracket));
             compound_from(start, LexTokenType::CompIndexOp);
         }
         while(true) {
-            if (provider.peek() == '(') {
+            if (token->type == TokenType::LParen) {
                 lexFunctionCall(1);
-            } else if(provider.peek() == '<') {
+            } else if(token->type == TokenType::LessThanSym) {
                 lexFunctionCallWithGenericArgsList();
             } else {
                 break;
@@ -209,10 +207,10 @@ bool Parser::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
         }
     }
 
-    if(lexOperatorToken('.') && !lexAccessChainRecursive(false)) {
+    if(lexOperatorToken(TokenType::DotSym) && !lexAccessChainRecursive(false)) {
         error("expected a identifier after the dot . in the access chain");
         return true;
-    } else if(lexOperatorToken("::") && !lexAccessChainRecursive(lexStruct, chain_length + 1)) {
+    } else if(lexOperatorToken(TokenType::DoubleColonSym) && !lexAccessChainRecursive(lexStruct, chain_length + 1)) {
         error("expected a identifier after the :: in the access chain");
         return true;
     }

@@ -5,14 +5,14 @@
 #include "parser/Parser.h"
 #include <unordered_map>
 
-const std::unordered_map<std::string, ValueCreatorFn> ValueCreators = {
-        {"null", [](Parser *lexer) -> void {
-            lexer->emplace(LexTokenType::Null, lexer->backPosition(4), "null");
+const std::unordered_map<std::string_view, ValueCreatorFn> ValueCreators = {
+        {"null", [](Parser *lexer, Position& pos) -> void {
+            lexer->emplace(LexTokenType::Null, pos, "null");
         }},
-        {"true", [](Parser *lexer) -> void {
-            lexer->emplace(LexTokenType::Bool, lexer->backPosition(4), "true");
+        {"true", [](Parser *lexer, Position& pos) -> void {
+            lexer->emplace(LexTokenType::Bool, pos, "true");
         }},
-        {"false", [](Parser *lexer) -> void {
-            lexer->emplace(LexTokenType::Bool, lexer->backPosition(5), "false");
+        {"false", [](Parser *lexer, Position& pos) -> void {
+            lexer->emplace(LexTokenType::Bool, pos, "false");
         }}
 };

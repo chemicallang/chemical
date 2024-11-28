@@ -17,7 +17,7 @@ void Parser::lexNestedLevelMultipleStatementsTokens(bool is_value, bool lex_valu
             break;
         }
         lexWhitespaceToken();
-        lexOperatorToken(';');
+        lexOperatorToken(TokenType::SemiColonSym);
     }
 }
 
@@ -32,7 +32,7 @@ void Parser::lexMultipleStatementsTokens() {
             break;
         }
         lexWhitespaceToken();
-        lexOperatorToken(';');
+        lexOperatorToken(TokenType::SemiColonSym);
     }
 }
 
@@ -44,7 +44,7 @@ bool Parser::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Pars
     unsigned start = tokens_size();
 
     // starting brace
-    if (!lexOperatorToken('{')) {
+    if (!lexOperatorToken(TokenType::LBrace)) {
         return false;
     }
 
@@ -55,7 +55,7 @@ bool Parser::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Pars
     isLexImportStatement = prevImportState;
 
     // ending brace
-    if (!lexOperatorToken('}')) {
+    if (!lexOperatorToken(TokenType::RBrace)) {
         error("expected a closing brace '}' for [" + forThing + "]");
         return true;
     }
@@ -74,7 +74,7 @@ bool Parser::lexBraceBlock(const std::string &forThing) {
     unsigned start = tokens_size();
 
     // starting brace
-    if (!lexOperatorToken('{')) {
+    if (!lexOperatorToken(TokenType::LBrace)) {
         return false;
     }
 
@@ -85,7 +85,7 @@ bool Parser::lexBraceBlock(const std::string &forThing) {
     isLexImportStatement = prevImportState;
 
     // ending brace
-    if (!lexOperatorToken('}')) {
+    if (!lexOperatorToken(TokenType::RBrace)) {
         error("expected a closing brace '}' for [" + forThing + "]");
         return true;
     }
@@ -101,10 +101,10 @@ bool Parser::lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_valu
     lexWhitespaceAndNewLines();
 
     // starting brace
-    if (!lexOperatorToken('{')) {
+    if (!lexOperatorToken(TokenType::LBrace)) {
         if(lexNestedLevelStatementTokens(is_value, lex_value_node) || (lex_value_node && lexValueNode())) {
             lexWhitespaceAndNewLines();
-            if (lexOperatorToken(';')) {
+            if (lexOperatorToken(TokenType::SemiColonSym)) {
                 lexWhitespaceAndNewLines();
             }
             return true;
@@ -121,7 +121,7 @@ bool Parser::lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_valu
     isLexImportStatement = prevImportState;
 
     // ending brace
-    if (!lexOperatorToken('}')) {
+    if (!lexOperatorToken(TokenType::RBrace)) {
         error("expected a closing brace '}' for [" + forThing + "]");
         return true;
     }

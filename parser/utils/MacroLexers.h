@@ -14,7 +14,7 @@ void eval_expression_macro_lexer_fn(Parser* lexer) {
     lexer->lexExpressionTokens(false, false);
 }
 
-const std::unordered_map<std::string, MacroLexerFn> MacroHandlers = {
+const std::unordered_map<std::string_view, MacroLexerFn> MacroHandlers = {
         { "eval", eval_expression_macro_lexer_fn },
         { "sizeof", [](Parser *lexer) -> void {
             if(!lexer->lexTypeTokens()) {

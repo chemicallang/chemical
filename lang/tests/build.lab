@@ -90,7 +90,7 @@ func build(ctx : *mut BuildContext) {
     const exe_name = string("chemical-tests");
     const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), { })
     const ext_cpp_module = ctx.cpp_file_module(string("ext_cpp"), relative_path(string("ext/file2.cpp")), { })
-    const std_module = ctx.chemical_dir_module(string("std"), relative_path(string("..libs/std")), { })
+    const std_module = ctx.chemical_dir_module(string("std"), relative_path(string("../libs/std")), { })
     ctx.include_headers(std_module, {
         string("stdio.h"),
         string("stdlib.h")
@@ -101,9 +101,9 @@ func build(ctx : *mut BuildContext) {
     const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), dependencies);
 
     // cbi integration
-    const cbi_name = string("html");
-    const entry_mod = ctx.chemical_dir_module(string("html"), relative_path(string("../libs/html")), {});
-    ctx.build_cbi(&cbi_name, entry_mod, { entry_mod });
+    // const cbi_name = string("html");
+    // const entry_mod = ctx.chemical_dir_module(string("html"), relative_path(string("../libs/html")), {});
+    // ctx.build_cbi(&cbi_name, entry_mod, { entry_mod });
 
     const do_llvm_ir = false;
     const do_asm = false;

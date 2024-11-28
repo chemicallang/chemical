@@ -3,10 +3,10 @@
 #include "parser/Parser.h"
 
 bool Parser::lexTypealiasStatement(unsigned start) {
-    if(lexWSKeywordToken("typealias")) {
+    if(lexWSKeywordToken(TokenType::TypealiasKw)) {
         if(lexIdentifierToken()) {
             lexWhitespaceToken();
-            if(!lexOperatorToken('=')) {
+            if(!lexOperatorToken(TokenType::EqualSym)) {
                 error("expected '=' after the type tokens");
             }
             lexWhitespaceToken();

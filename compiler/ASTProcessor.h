@@ -296,4 +296,4 @@ public:
 /**
  * this function can be called concurrently, to import files
  */
-ASTFileResultExt concurrent_processor(int id, int file_id, const FlatIGFile& file, ASTProcessor* processor);
+ASTFileResultExt concurrent_processor(int id, unsigned int file_id, const FlatIGFile& file, ASTProcessor* processor);

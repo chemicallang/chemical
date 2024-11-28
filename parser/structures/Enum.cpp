@@ -11,14 +11,14 @@ bool Parser::lexEnumBlockTokens() {
         lexWhitespaceAndNewLines();
         if(lexIdentifierToken()) {
             lexWhitespaceToken();
-            if(lexOperatorToken('=')) {
+            if(lexOperatorToken(TokenType::EqualSym)) {
                 lexWhitespaceToken();
                 if(!lexConstantValue()) {
                     error("expected a value after '=' operator");
                     return false;
                 }
             }
-            if(lexOperatorToken(',')) {
+            if(lexOperatorToken(TokenType::CommaSym)) {
                 continue;
             } else {
                 lexWhitespaceAndNewLines();
@@ -34,20 +34,20 @@ bool Parser::lexEnumBlockTokens() {
 }
 
 bool Parser::lexEnumStructureTokens(unsigned start) {
-    if(lexWSKeywordToken("enum")) {
+    if(lexWSKeywordToken(TokenType::EnumKw)) {
         if(!lexIdentifierToken()) {
             error("expected a identifier as enum name");
             return true;
         }
         lexWhitespaceToken();
-        if(!lexOperatorToken('{')) {
+        if(!lexOperatorToken(TokenType::LBrace)) {
             error("expected a '{' for after the enum name");
             return true;
         }
         if(!lexEnumBlockTokens()) {
             return true;
         }
-        if(!lexOperatorToken('}')) {
+        if(!lexOperatorToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' in enum block");
             return true;
         }

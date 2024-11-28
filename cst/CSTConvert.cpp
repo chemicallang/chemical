@@ -839,7 +839,9 @@ void CSTConverter::visitAssignment(CSTToken* assignment) {
 
 void CSTConverter::visitImport(CSTToken* cst) {
     std::vector<std::string> ids;
-    put_node(new (global<ImportStatement>()) ImportStatement(escaped_str_token(cst->tokens[1]), ids, parent_node, loc(cst)), cst);
+    cst->tokens[1]->accept(this);
+    auto str_val = (Value*) cst->tokens[1]->straight.data_ptr;
+    put_node(new (global<ImportStatement>()) ImportStatement(str_val->get_the_string(), ids, parent_node, loc(cst)), cst);
 }
 
 void CSTConverter::visitReturn(CSTToken* cst) {
@@ -953,6 +955,18 @@ void CSTConverter::visitLinkedValueType(CSTToken* ref_value) {
 
 void CSTConverter::visitContinue(CSTToken* continueCst) {
     put_node(new (local<ContinueStatement>()) ContinueStatement(current_loop_node, parent_node, loc(continueCst)), continueCst);
+}
+
+void CSTConverter::visitStraightValue(CSTToken* token) {
+    put_value((Value*) token->straight.data_ptr, token);
+}
+
+void CSTConverter::visitStraightType(CSTToken* token) {
+    put_type((BaseType*) token->straight.data_ptr, token);
+}
+
+void CSTConverter::visitStraightNode(CSTToken* token) {
+    put_node((ASTNode*) token->straight.data_ptr, token);
 }
 
 void CSTConverter::visitBreak(CSTToken* breakCST) {

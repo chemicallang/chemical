@@ -3,27 +3,28 @@
 #include "parser/Parser.h"
 
 bool Parser::lexStructValueTokens(unsigned back_start) {
-    if(lexOperatorToken('{')) {
+    if(lexOperatorToken(TokenType::LBrace)) {
 
         unsigned start = tokens_size() - 1 - back_start;
 
         // lex struct member value tokens
         do {
             lexWhitespaceAndNewLines();
-            auto identifier = lexIdentifier();
-            if(storeIdentifier(identifier)) {
+            auto id = consumeIdentifierOrKeyword();
+            if(id) {
+                storeIdentifier(id);
                 lexWhitespaceToken();
-                if(!lexOperatorToken(':')) {
-                    mal_value(start, "expected a ':' for initializing struct member " + identifier);
+                if(!lexOperatorToken(TokenType::ColonSym)) {
+                    mal_value(start, "expected a ':' for initializing struct member " + std::string(id->value));
                     return true;
                 }
                 lexWhitespaceToken();
                 if(!(lexExpressionTokens(true) || lexArrayInit())) {
-                    mal_value(start, "expected an expression after ':' for struct member " + identifier);
+                    mal_value(start, "expected an expression after ':' for struct member " + std::string(id->value));
                     return true;
                 }
                 lexWhitespaceToken();
-                lexOperatorToken(',');
+                lexOperatorToken(TokenType::CommaSym);
             } else {
                 break;
             }
@@ -31,7 +32,7 @@ bool Parser::lexStructValueTokens(unsigned back_start) {
 
         lexWhitespaceAndNewLines();
 
-        if(!lexOperatorToken('}')) {
+        if(!lexOperatorToken(TokenType::RBrace)) {
             mal_value(start, "expected '}' for struct value");
             return true;
         }

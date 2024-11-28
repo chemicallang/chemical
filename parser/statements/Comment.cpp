@@ -7,25 +7,25 @@
 #include "parser/Parser.h"
 
 bool Parser::lexSingleLineCommentTokens() {
-    if(provider.increment("//")) {
-        std::string comment = "//";
-        while(!provider.eof() && !hasNewLine()) {
-            comment.append(1, provider.readCharacter());
-        }
-        emplace(LexTokenType::Comment, backPosition(comment.length()), comment);
+    if(token->type == TokenType::SingleLineComment) {
+        token++;
+        emplace(LexTokenType::Comment, token->position, std::string(token->value));
         return true;
-    } else return false;
+    } else {
+        return false;
+    }
 }
 
 bool Parser::lexMultiLineCommentTokens() {
-    if(provider.increment("/*")) {
-        const auto savedPosition = Position { provider.lineNumber, provider.lineCharacterNumber - 2 };
-        std::string comment = "/*";
-        while(!provider.eof() && !provider.increment("*/")) {
-            comment.append(1, provider.readCharacter());
+    // TODO improve this function
+    if(token->type == TokenType::MultiLineComment) {
+        auto& pos = token->position;
+        std::string value;
+        while(token->type == TokenType::MultiLineComment) {
+            value.append(token->value);
+            token++;
         }
-        comment.append("*/");
-        emplace(LexTokenType::MultilineComment, savedPosition, comment);
+        emplace(LexTokenType::MultilineComment, pos, value);
         return true;
     } else {
         return false;

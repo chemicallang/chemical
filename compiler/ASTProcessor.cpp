@@ -5,7 +5,7 @@
 #include <memory>
 #include "cst/base/CSTConverter.h"
 #include "parser/model/CompilerBinder.h"
-#include "parser/Lexi.h"
+#include "parser/Parser.h"
 #include "compiler/SymbolResolver.h"
 #include "preprocess/2c/2cASTVisitor.h"
 #include "utils/Benchmark.h"
@@ -20,12 +20,14 @@
 #include "preprocess/RepresentationVisitor.h"
 #include <filesystem>
 #include "lexer/Lexer.h"
+#include "stream/FileInputSource.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
 #endif
 
-ASTFileResultExt concurrent_processor(int id, int file_id, const FlatIGFile& file, ASTProcessor* processor) {
+ASTFileResultExt concurrent_processor(int id, unsigned int file_id, const FlatIGFile& file, ASTProcessor* processor) {
     return processor->import_file(file_id, file);
 }
 
@@ -60,19 +62,19 @@ ASTProcessor::ASTProcessor(
 
 }
 
-void put_import_graph(ImportPathHandler& handler, std::vector<IGFile>& files, const std::vector<std::string>& paths) {
+void put_import_graph(ImportPathHandler& handler, Parser* parser, std::vector<IGFile>& files, const std::vector<std::string>& paths) {
     for (const auto& path : paths) {
-        auto local = determine_import_graph(handler, path);
+        auto local = determine_import_graph(handler, parser, path);
         files.emplace_back(local.root);
     }
 }
 
-void put_import_graph(ImportPathHandler& handler, IGResult& result, const std::vector<std::string>& paths) {
+void put_import_graph(ImportPathHandler& handler, Parser* parser, IGResult& result, const std::vector<std::string>& paths) {
     if(paths.size() == 1) {
-        result = determine_import_graph(handler, paths[0]);
+        result = determine_import_graph(handler, parser, paths[0]);
     } else {
         for (const auto& path : paths) {
-            auto local = determine_import_graph(handler, path);
+            auto local = determine_import_graph(handler, parser, path);
             result.root.files.emplace_back(local.root);
         }
     }
@@ -82,15 +84,17 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<std::st
 
     std::vector<IGFile> files;
 
+    Parser parser(0, "", nullptr, loc_man, job_allocator, mod_allocator, &binder);
+
     // preparing the import graph
     if (options->benchmark) {
         BenchmarkResults bm{};
         bm.benchmark_begin();
-        put_import_graph(path_handler, files, c_paths);
+        put_import_graph(path_handler, &parser, files, c_paths);
         bm.benchmark_end();
         std::cout << "[IGGraph] " << bm.representation() << std::endl;
     } else {
-        put_import_graph(path_handler, files, c_paths);
+        put_import_graph(path_handler, &parser, files, c_paths);
     }
 
     // print errors in ig
@@ -226,40 +230,36 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
     std::unique_ptr<BenchmarkResults> lex_bm;
     std::unique_ptr<BenchmarkResults> parse_bm;
 
-#ifdef DEBUG
-    std::optional<Diag> trad_diag = std::nullopt;
-    {
-        // TODO remove this, debugging traditional lexer here
-        FileInputSource inp_source(abs_path.data());
-        SourceProvider provider2(&inp_source);
-        Lexer lexer(std::string(abs_path), provider2, &binder);
-        LexUnit lexUnit;
-        lexer.getUnit(lexUnit);
+    FileInputSource inp_source(abs_path.data());
+    SourceProvider provider2(&inp_source);
+    Lexer lexer(std::string(abs_path), provider2, &binder);
+    LexUnit lexUnit;
+
+    lexer.getUnit(lexUnit);
+
+    // parse the file
+    Parser parser(fileId, abs_path, lexUnit.tokens.data(), resolver->comptime_scope.loc_man, job_allocator, mod_allocator, &binder);
+
+    // put the lexing diagnostic into the parser diagnostic for now
+    if(!lexUnit.tokens.empty()) {
         auto& last_token = lexUnit.tokens.back();
-        if(last_token.type == TokenType::Unexpected) {
-            trad_diag.emplace(CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", abs_path, last_token.position, last_token.position, DiagSeverity::Warning));
+        if (last_token.type == TokenType::Unexpected) {
+            parser.diagnostics.emplace_back(
+                    CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", abs_path,
+                                            last_token.position, last_token.position, DiagSeverity::Warning));
         }
     }
-#endif
-
-    // lex the file
-    SourceProvider provider(nullptr);
-    Parser parser(std::string(abs_path), provider, &binder);
-
-#ifdef DEBUG
-    if(trad_diag.has_value()) {
-        parser.diagnostics.emplace_back(trad_diag.value());
-    }
-#endif
 //        if(options->isCBIEnabled) {
 //            bind_lexer_cbi(lexer_cbi.get(), &lexer);
 //        }
 
     if(options->benchmark) {
         lex_bm = std::make_unique<BenchmarkResults>();
-        benchLexFile(&parser, abs_path.data(), *lex_bm);
+        lex_bm->benchmark_begin();
+        parser.lex();
+        lex_bm->benchmark_end();
     } else {
-        lexFile(&parser, abs_path.data());
+        parser.lex();
     }
     if (parser.has_errors) {
         return {ASTFileResult {std::move(unit), std::move(parser.unit), false, false }, std::move(parser.diagnostics), { }, std::move(lex_bm), nullptr };

@@ -10,7 +10,7 @@ bool Parser::lexRemainingExpression(unsigned start) {
 
     lexWhitespaceToken();
     bool compounded = false;
-    if (lexWSKeywordToken("as")) {
+    if (lexWSKeywordToken(TokenType::AsKw)) {
         if (!lexTypeTokens()) {
             error("expected a type for casting after 'as' in expression");
             return false;
@@ -18,7 +18,7 @@ bool Parser::lexRemainingExpression(unsigned start) {
         compound_from(start, LexTokenType::CompCastValue);
         lexWhitespaceToken();
         compounded = true;
-    } else if(lexWSKeywordToken("is") || lexWSKeywordToken("!is")) {
+    } else if(lexWSKeywordToken(TokenType::IsKw)) {
         if (!lexTypeTokens()) {
             error("expected a type after 'is' or '!is' in expression");
             return false;
@@ -45,7 +45,7 @@ bool Parser::lexRemainingExpression(unsigned start) {
 // this can be called after lparen to lex lambda, if it has no parameter
 bool condLexLambdaAfterComma(Parser *lexer, unsigned int start) {
     lexer->lexNewLineChars();
-    if (!lexer->lexOperatorToken(')')) {
+    if (!lexer->lexOperatorToken(TokenType::RParen)) {
         return false;
     }
     lexer->lexLambdaAfterParamsList(start);
@@ -74,12 +74,12 @@ bool Parser::lexLambdaOrExprAfterLParen() {
 
     bool has_whitespace = lexWhitespaceToken();
 
-    if (provider.peek() == ')') {
+    if (token->type == TokenType::RParen) {
         compound_from(start + 1, LexTokenType::CompFunctionParam);
-        lexOperatorToken(')');
+        lexOperatorToken(TokenType::RParen);
         lexLambdaAfterParamsList(start);
         return true;
-    } else if (lexOperatorToken(':')) {
+    } else if (lexOperatorToken(TokenType::ColonSym)) {
         lexWhitespaceToken();
         if (lexTypeTokens()) {
             lexWhitespaceToken();
@@ -87,14 +87,14 @@ bool Parser::lexLambdaOrExprAfterLParen() {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
         compound_from(start + 1, LexTokenType::CompFunctionParam);
-        if (lexOperatorToken(',')) {
+        if (lexOperatorToken(TokenType::CommaSym)) {
             lexParameterList(true, false);
         }
         lexLambdaAfterComma(this, start);
         return true;
-    } else if (provider.peek() == ',') {
+    } else if (token->type == TokenType::CommaSym) {
         compound_from(start + 1, LexTokenType::CompFunctionParam);
-        lexOperatorToken(',');
+        lexOperatorToken(TokenType::CommaSym);
         lexParameterList(true, false);
         lexLambdaAfterComma(this, start);
         return true;
@@ -102,12 +102,12 @@ bool Parser::lexLambdaOrExprAfterLParen() {
 
     if(has_whitespace) {
         lexRemainingExpression(start + 1);
-        if(lexOperatorToken(')')) {
+        if(lexOperatorToken(TokenType::RParen)) {
             if(!lexRemainingExpression(start)) {
                 compound_from(start, LexTokenType::CompExpression);
             }
             return true;
-        } else if(lexRemainingExpression(start + 1) && lexOperatorToken(')')) {
+        } else if(lexRemainingExpression(start + 1) && lexOperatorToken(TokenType::RParen)) {
             compound_from(start, LexTokenType::CompExpression);
         } else {
             error("expected ')' after the nested parenthesized expression");
@@ -119,7 +119,7 @@ bool Parser::lexLambdaOrExprAfterLParen() {
             compound_from(start + 1, LexTokenType::CompAccessChain);
         }
         lexRemainingExpression(start);
-        if(!lexOperatorToken(')')) {
+        if(!lexOperatorToken(TokenType::RParen)) {
             error("expected a ')' after the access chain");
         }
         return true;
@@ -134,7 +134,7 @@ bool Parser::lexParenExpressionAfterLParen() {
         return false;
     };
 
-    if (!lexOperatorToken(')')) {
+    if (!lexOperatorToken(TokenType::RParen)) {
         error("missing ) in the expression");
         return false;
     }
@@ -144,7 +144,7 @@ bool Parser::lexParenExpressionAfterLParen() {
 }
 
 bool Parser::lexParenExpression() {
-    if (lexOperatorToken('(')) {
+    if (lexOperatorToken(TokenType::LParen)) {
         lexParenExpressionAfterLParen();
         return true;
     } else {
@@ -154,7 +154,7 @@ bool Parser::lexParenExpression() {
 
 bool Parser::lexExpressionTokens(bool lexStruct, bool lambda) {
 
-    if (lexOperatorToken('-')) {
+    if (lexOperatorToken(TokenType::MinusSym)) {
         auto start = tokens_size() - 1;
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '-' negative");
@@ -165,7 +165,7 @@ bool Parser::lexExpressionTokens(bool lexStruct, bool lambda) {
         return true;
     }
 
-    if (lexOperatorToken('!')) {
+    if (lexOperatorToken(TokenType::NotSym)) {
         auto start = tokens_size() - 1;
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '!' not");
@@ -176,7 +176,7 @@ bool Parser::lexExpressionTokens(bool lexStruct, bool lambda) {
         return true;
     }
 
-    if (lexOperatorToken('(')) {
+    if (lexOperatorToken(TokenType::LParen)) {
         unsigned start = tokens_size() - 1;
         if (lambda && lexLambdaOrExprAfterLParen()) {
             return true;
@@ -195,10 +195,10 @@ bool Parser::lexExpressionTokens(bool lexStruct, bool lambda) {
 
     lexWhitespaceToken();
 
-    if (provider.peek() == '<' && isGenericEndAhead()) {
+    if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
         auto start = tokens_size() - 1;
         lexFunctionCallWithGenericArgsList();
-        if(lexOperatorToken('.') && !lexAccessChainRecursive(false)) {
+        if(lexOperatorToken(TokenType::DotSym) && !lexAccessChainRecursive(false)) {
             error("expected a identifier after the dot . in the access chain");
             return false;
         }

@@ -33,11 +33,11 @@ char escaped_char(char current) {
     }
 }
 
-std::pair<char, unsigned int> escapable_char(const std::string &value, unsigned index) {
+std::pair<char, int> escapable_char(const std::string_view &value, unsigned index) {
     char current = value[index];
     if(current != 'x') {
         auto next = escaped_char(current);
-        if(next != current) {
+        if(next != current || next == '\\') {
             return {next, index + 1 };
         } else {
             return {current, -1 };

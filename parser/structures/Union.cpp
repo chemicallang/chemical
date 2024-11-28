@@ -20,13 +20,13 @@ void Parser::lexUnionBlockTokens() {
             break;
         }
         lexWhitespaceToken();
-        lexOperatorToken(';');
-    } while(provider.peek() != '}');
+        lexOperatorToken(TokenType::SemiColonSym);
+    } while(token->type != TokenType::RBrace);
     lexWhitespaceToken();
 }
 
 bool Parser::lexUnionStructureTokens(unsigned start_token, bool unnamed, bool direct_init) {
-    if(lexWSKeywordToken("union")) {
+    if(lexWSKeywordToken(TokenType::UnionKw)) {
         bool has_identifier = false;
         if(!unnamed) {
             has_identifier = lexIdentifierToken();
@@ -36,12 +36,12 @@ bool Parser::lexUnionStructureTokens(unsigned start_token, bool unnamed, bool di
             }
         }
         lexWhitespaceToken();
-        if(!lexOperatorToken('{')) {
+        if(!lexOperatorToken(TokenType::LBrace)) {
             error("expected a '{' for union block");
             return true;
         }
         lexUnionBlockTokens();
-        if(!lexOperatorToken('}')) {
+        if(!lexOperatorToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for union block");
             return true;
         }

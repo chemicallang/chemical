@@ -9,7 +9,7 @@ void Parser::lexTypeList() {
             break;
         }
         lexWhitespaceToken();
-    } while (lexOperatorToken(','));
+    } while (lexOperatorToken(TokenType::CommaSym));
 }
 
 void Parser::lexIdentifierList() {
@@ -19,13 +19,13 @@ void Parser::lexIdentifierList() {
             break;
         }
         lexWhitespaceToken();
-    } while (lexOperatorToken(','));
+    } while (lexOperatorToken(TokenType::CommaSym));
 }
 
 bool Parser::lexLambdaAfterParamsList(unsigned int start) {
     lexWhitespaceToken();
 
-    if (!lexOperatorToken("=>")) {
+    if (!lexOperatorToken(TokenType::LambdaSym)) {
         mal_value(start, "expected '=>' for a lambda");
         return false;
     }
@@ -42,13 +42,13 @@ bool Parser::lexLambdaAfterParamsList(unsigned int start) {
 }
 
 bool Parser::lexLambdaValue() {
-    if (lexOperatorToken('[')) {
+    if (lexOperatorToken(TokenType::LBracket)) {
 
         auto start = tokens_size() - 1;
 
         do {
             lexWhitespaceAndNewLines();
-            bool lexed_amp = lexOperatorToken('&');
+            bool lexed_amp = lexOperatorToken(TokenType::AmpersandSym);
             if (!lexVariableToken()) {
                 if(lexed_amp) {
                     error("expected identifier after '&'");
@@ -56,14 +56,14 @@ bool Parser::lexLambdaValue() {
                 }
             }
             lexWhitespaceToken();
-        } while (lexOperatorToken(','));
+        } while (lexOperatorToken(TokenType::CommaSym));
 
-        if (!lexOperatorToken(']')) {
+        if (!lexOperatorToken(TokenType::RBracket)) {
             error("expected ']' after lambda function capture list");
             return true;
         }
 
-        if (!lexOperatorToken('(')) {
+        if (!lexOperatorToken(TokenType::LParen)) {
             error("expected '(' for lambda parameter list");
             return true;
         }
@@ -74,7 +74,7 @@ bool Parser::lexLambdaValue() {
 
         lexNewLineChars();
 
-        if (!lexOperatorToken(')')) {
+        if (!lexOperatorToken(TokenType::RParen)) {
             mal_value(start, "expected ')' after the lambda parameter list");
             return true;
         }

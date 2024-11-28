@@ -8,9 +8,9 @@
 
 bool Parser::lexVarInitializationTokens(unsigned start, bool allowDeclarations, bool requiredType) {
 
-    auto lexed_const = lexWSKeywordToken("const");
+    auto lexed_const = lexWSKeywordToken(TokenType::ConstKw);
 
-    if (!lexed_const && !lexWSKeywordToken("var")) {
+    if (!lexed_const && !lexWSKeywordToken(TokenType::VarKw)) {
         return false;
     }
 
@@ -26,7 +26,7 @@ bool Parser::lexVarInitializationTokens(unsigned start, bool allowDeclarations, 
     bool has_type = false;
 
     // :
-    if (lexOperatorToken(':')) {
+    if (lexOperatorToken(TokenType::ColonSym)) {
 
         // whitespace
         lexWhitespaceToken();
@@ -48,7 +48,7 @@ bool Parser::lexVarInitializationTokens(unsigned start, bool allowDeclarations, 
     }
 
     // equal sign
-    if (!lexOperatorToken('=')) {
+    if (!lexOperatorToken(TokenType::EqualSym)) {
         if(!allowDeclarations) {
             error("expected an = sign for the initialization of the variable");
             return true;

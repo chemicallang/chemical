@@ -10,37 +10,53 @@
 
 bool Parser::lexAnnotationMacro() {
 
-    if (!(provider.peek() == '@' || provider.peek() == '#')) {
+    if (!(token->type == TokenType::AtSym || token->type == TokenType::HashSym)) {
         return false;
     }
 
-    auto isAnnotation = provider.peek() == '@';
+    auto isAnnotation = token->type == TokenType::AtSym;
+    auto& bare_start_pos = token->position;
+    token++;
+    auto& start_pos = token->position;
     chem::string macro_full_chem;
-    macro_full_chem.append(provider.readCharacter());
-//    auto macro_full = std::string(1, provider.readCharacter());
-    provider.readAnnotationIdentifier(&macro_full_chem);
-    auto macro_full = macro_full_chem.to_std_string();
-    auto macro = macro_full_chem.substring(1, macro_full_chem.size()).to_std_string();
+    macro_full_chem.append(isAnnotation ? '@' : '#');
+    while(true) {
+        auto& tok = *token;
+        auto tok_type = tok.type;
+        if(tok_type == TokenType::Identifier || Parser::isKeyword(tok_type)) {
+            macro_full_chem.append(tok.value);
+            token++;
+        } else if(tok_type == TokenType::DotSym) {
+            // dots are allowed in macro or annotation names
+            macro_full_chem.append('.');
+            token++;
+        } else {
+            break;
+        }
+    }
+    // macro name without the # or @ symbol
+    auto macro_view = std::string_view { macro_full_chem.data() + 1, macro_full_chem.size() - 1 };
+    auto macro = std::string(macro_view);
 
     // if it's annotation
     if (isAnnotation) {
         unsigned start = tokens_size();
-        emplace(LexTokenType::Annotation, backPosition(macro.size()), macro_full);
-        if(lexOperatorToken('(')) {
+        emplace(LexTokenType::Annotation, start_pos, macro_full_chem.to_std_string());
+        if(lexOperatorToken(TokenType::LParen)) {
             do {
                 lexWhitespaceToken();
                 if(!lexValueToken()) {
                     break;
                 }
                 lexWhitespaceToken();
-            } while (lexOperatorToken(','));
-            if(!lexOperatorToken(')')) {
+            } while (lexOperatorToken(TokenType::CommaSym));
+            if(!lexOperatorToken(TokenType::RParen)) {
                 error("expected a ')' after '(' to call an annotation");
                 return true;
             }
             compound_from(start, LexTokenType::CompAnnotation);
         }
-        auto found = AnnotationModifiers.find(macro);
+        auto found = AnnotationModifiers.find(macro_view);
         if (found != AnnotationModifiers.end()) {
             found->second(this, unit.tokens[start]);
         }
@@ -49,10 +65,10 @@ bool Parser::lexAnnotationMacro() {
 
     auto start = tokens_size();
 
-    emplace(LexTokenType::Identifier, backPosition(macro.size()), macro_full);
+    emplace(LexTokenType::Identifier, start_pos, macro_full_chem.to_std_string());
 
     lexWhitespaceToken();
-    if (lexOperatorToken('{')) {
+    if (lexOperatorToken(TokenType::LBrace)) {
 
         lexWhitespaceAndNewLines();
 
@@ -76,7 +92,7 @@ bool Parser::lexAnnotationMacro() {
     }
 
     lexWhitespaceAndNewLines();
-    if (!lexOperatorToken('}')) {
+    if (!lexOperatorToken(TokenType::RBrace)) {
         error("expected '}' for the macro " + macro + " ending");
         return true;
     }

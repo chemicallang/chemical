@@ -7,11 +7,31 @@
 #include <memory>
 
 bool Parser::readWhitespace() {
-    const auto c = provider.peek();
-    if(c != ' ' && c != '\t') return false;
-    return provider.readWhitespaces() > 0;
+    if(token->type == TokenType::Whitespace) {
+        token++;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool Parser::lexWhitespaceToken() {
+    // we do not store the whitespace token
+    // but we may for formatting one day
     return readWhitespace();
+}
+
+void Parser::lexWhitespaceAndNewLines() {
+    while(true) {
+        switch(token->type) {
+            // case TokenType::SingleLineComment:
+            // case TokenType::MultiLineComment:
+            case TokenType::Whitespace:
+            case TokenType::NewLine:
+                token++;
+                break;
+            default:
+                return;
+        }
+    }
 }

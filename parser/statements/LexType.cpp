@@ -7,13 +7,13 @@
 #include "parser/Parser.h"
 
 bool Parser::lexLambdaTypeTokens(unsigned int start) {
-    if(lexOperatorToken('(')) {
+    if(lexOperatorToken(TokenType::LParen)) {
         lexParameterList();
-        if(!lexOperatorToken(')')) {
+        if(!lexOperatorToken(TokenType::RParen)) {
             error("expected a ')' after the ')' in lambda function type");
         }
         lexWhitespaceToken();
-        if(lexOperatorToken("=>")) {
+        if(lexOperatorToken(TokenType::LambdaSym)) {
             lexWhitespaceToken();
             if(!lexTypeTokens()) {
                 error("expected a return type for lambda function type");
@@ -29,16 +29,16 @@ bool Parser::lexLambdaTypeTokens(unsigned int start) {
 }
 
 bool Parser::lexGenericTypeAfterId(unsigned int start) {
-    if(lexOperatorToken('<')) {
+    if(lexOperatorToken(TokenType::LessThanSym)) {
         do {
             lexWhitespaceToken();
             if(!lexTypeTokens()) {
                 break;
             }
             lexWhitespaceToken();
-        } while(lexOperatorToken(','));
+        } while(lexOperatorToken(TokenType::CommaSym));
         lexWhitespaceToken();
-        if(!lexOperatorToken('>')) {
+        if(!lexOperatorToken(TokenType::GreaterThanSym)) {
             error("expected '>' for generic type");
         }
         compound_from(start, LexTokenType::CompGenericType);
@@ -50,46 +50,46 @@ bool Parser::lexGenericTypeAfterId(unsigned int start) {
 
 bool Parser::lexRefOrGenericType() {
     unsigned start = tokens_size();
-    auto id = provider.readIdentifier();
-    if(id.empty()) {
+    auto id = consumeIdentifierOrKeyword();
+    if(!id) {
         error("missing struct / interface name in inheritance list of the struct");
         return false;
     }
-    emplace(LexTokenType::Type, backPosition(id.length()), id);
+    emplace(LexTokenType::Type, id->position, std::string(id->value));
     lexWhitespaceToken();
     lexGenericTypeAfterId(start);
     return true;
 }
 
 void Parser::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
-    if(lexOperatorToken('[')) {
+    if(lexOperatorToken(TokenType::LBracket)) {
         // optional array size
         lexExpressionTokens();
-        if(!lexOperatorToken(']')) {
+        if(!lexOperatorToken(TokenType::RBracket)) {
             error("expected ']' for array type");
             return;
         }
         compound_from(start, LexTokenType::CompArrayType);
     }
-    while(lexOperatorToken('*')) {
+    while(lexOperatorToken(TokenType::MultiplySym)) {
         warning("deprecated syntax, pointer should be before type");
         compound_from(start, LexTokenType::CompPointerType);
     }
-    if(lexOperatorToken('&')) {
+    if(lexOperatorToken(TokenType::AmpersandSym)) {
         warning("deprecated syntax, reference should be before type");
         compound_from(start, LexTokenType::CompReferenceType);
     }
 }
 
-bool Parser::lexTypeId(std::string& type, unsigned int start) {
+bool Parser::lexTypeId(Token* type, unsigned int start) {
     bool has_multiple = false;
     while(true) {
-        if(provider.peek() == ':' && provider.peek(1) == ':') {
-            emplace(LexTokenType::Variable, backPosition(type.length()), type);
-            lexOperatorToken("::");
-            auto new_type = provider.readIdentifier();
-            if(new_type.empty()) {
-                error("expected an identifier after '" + type + "::' for a type");
+        if(token->type == TokenType::DoubleColonSym) {
+            emplace(LexTokenType::Variable, type->position, std::string(type->value));
+            lexOperatorToken(TokenType::DoubleColonSym);
+            auto new_type = consumeIdentifierOrKeyword();
+            if(!new_type) {
+                error("expected an identifier after '" + std::string(type->value) + "::' for a type");
                 return false;
             } else {
                 has_multiple = true;
@@ -97,11 +97,11 @@ bool Parser::lexTypeId(std::string& type, unsigned int start) {
             }
         } else {
             if(has_multiple) {
-                emplace(LexTokenType::Variable, backPosition(type.length()), type);
+                emplace(LexTokenType::Variable, type->position, std::string(type->value));
                 compound_from(start, LexTokenType::CompAccessChain);
                 compound_from(start, LexTokenType::CompLinkedValueType);
             } else {
-                emplace(LexTokenType::Type, backPosition(type.length()), type);
+                emplace(LexTokenType::Type,type->position, std::string(type->value));
             }
             break;
         }
@@ -111,9 +111,9 @@ bool Parser::lexTypeId(std::string& type, unsigned int start) {
 
 bool Parser::lexTypeTokens() {
 
-    if(lexOperatorToken('[')) {
+    if(lexOperatorToken(TokenType::LBracket)) {
         unsigned start = tokens_size() - 1;
-        if(!lexOperatorToken(']')) {
+        if(!lexOperatorToken(TokenType::RBracket)) {
             error("expected ']' after '[' for lambda type");
             return true;
         }
@@ -128,7 +128,7 @@ bool Parser::lexTypeTokens() {
         return true;
     }
 
-    if(lexOperatorToken('*')) {
+    if(lexOperatorToken(TokenType::MultiplySym)) {
         unsigned start = tokens_size() - 1;
         if(!lexTypeTokens()) {
             error("expected a type after the *");
@@ -136,7 +136,7 @@ bool Parser::lexTypeTokens() {
         }
         compound_from(start, LexTokenType::CompPointerType);
         return true;
-    } else if(lexOperatorToken('&')) {
+    } else if(lexOperatorToken(TokenType::AmpersandSym)) {
         unsigned start = tokens_size() - 1;
         if(!lexTypeTokens()) {
             error("expected a type after the &");
@@ -146,7 +146,7 @@ bool Parser::lexTypeTokens() {
         return true;
     }
 
-    if(lexWSKeywordToken("dyn") || lexWSKeywordToken("mut")) {
+    if(lexWSKeywordToken(TokenType::DynKw) || lexWSKeywordToken(TokenType::MutKw)) {
         unsigned start = tokens_size() - 1;
         if(!lexTypeTokens()) {
             error("expected a type after the qualifier");
@@ -156,8 +156,8 @@ bool Parser::lexTypeTokens() {
         return true;
     }
 
-    std::string type = provider.readIdentifier();
-    if(type.empty()) return false;
+    auto type = consumeIdentifierOrKeyword();
+    if(!type) return false;
     unsigned start = tokens_size();
     if(!lexTypeId(type, start)) {
         return true;

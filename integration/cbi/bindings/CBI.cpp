@@ -174,8 +174,6 @@ void lexer_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
             { "LexerlexUnsignedIntAsNumberToken", (void*) LexerlexUnsignedIntAsNumberToken },
             { "LexerlexNumberToken", (void*) LexerlexNumberToken },
             { "LexerlexStructValueTokens", (void*) LexerlexStructValueTokens },
-            { "LexerlexValueToken", (void*) LexerlexValueToken },
-            { "LexerlexSwitchCaseValue", (void*) LexerlexSwitchCaseValue },
             { "LexerlexAccessChainValueToken", (void*) LexerlexAccessChainValueToken },
             { "LexerlexArrayInit", (void*) LexerlexArrayInit },
             { "LexerlexAccessChainOrValue", (void*) LexerlexAccessChainOrValue },

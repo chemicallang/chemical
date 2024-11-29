@@ -1199,7 +1199,7 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
                         error("multiple defaults in switch statement detected", tok);
                     }
                     i++;
-                } else if(is_char_op(tok, '|')) {
+                } else if(is_char_op(tok, ',')) {
                     i++;
                 } else {
                     break;

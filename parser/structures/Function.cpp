@@ -116,7 +116,7 @@ bool Parser::lexParameterList(bool optionalTypes, bool defValues, bool lexImplic
                         lexWhitespaceToken();
                         if (lexOperatorToken(TokenType::EqualSym)) {
                             lexWhitespaceToken();
-                            if (!lexValueToken()) {
+                            if (!lexExpressionTokens()) {
                                 error("expected value after '=' for default value for the parameter");
                                 break;
                             }

@@ -13,7 +13,7 @@ bool Parser::lexEnumBlockTokens() {
             lexWhitespaceToken();
             if(lexOperatorToken(TokenType::EqualSym)) {
                 lexWhitespaceToken();
-                if(!lexConstantValue()) {
+                if(!lexExpressionTokens()) {
                     error("expected a value after '=' operator");
                     return false;
                 }

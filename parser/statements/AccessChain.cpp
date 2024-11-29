@@ -33,6 +33,15 @@ bool Parser::lexIdentifierToken() {
     }
 }
 
+bool Parser::consumeToken(enum TokenType type) {
+    if(token->type == type) {
+        token++;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 Token* Parser::consumeOfType(TokenType type) {
     auto& t = *token;
     if(t.type == type) {

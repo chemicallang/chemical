@@ -103,6 +103,26 @@ public:
     bool is64Bit;
 
     /**
+     * top level nodes
+     */
+    std::vector<ASTNode*> nodes;
+
+    /**
+     * types found when visiting tokens
+     */
+    std::vector<BaseType*> types;
+
+    /**
+     * values found when visiting tokens
+     */
+    std::vector<Value*> values;
+
+    /**
+     * current parent node
+     */
+    ASTNode* parent_node = nullptr;
+
+    /**
      * initialize the lexer with this provider and path
      */
     Parser(
@@ -127,7 +147,14 @@ public:
     uint64_t loc(Position& start, Position& end);
 
     /**
-     * get location for a single token
+     * get a encoded location
+     */
+    inline uint64_t loc(Token* start, Token* end) {
+        return loc(start->position, end->position);
+    }
+
+    /**
+     * get location for a single token that is on the same line
      */
     uint64_t loc_single(Token* t);
 
@@ -149,6 +176,11 @@ public:
     }
 
     // ------------- Functions exposed to chemical begin here
+
+    /**
+     * consume the current token if it's given type
+     */
+    bool consumeToken(enum TokenType type);
 
     /**
      * parses the token of type
@@ -347,9 +379,16 @@ public:
     void lexArrayAndPointerTypesAfterTypeId(unsigned int start);
 
     /**
+     * parse type id
+     */
+    BaseType* parseTypeId(ASTAllocator& allocator, Token* type);
+
+    /**
      * lex type id
      */
-    bool lexTypeId(Token* type, unsigned int start);
+    bool lexTypeId(Token* type) {
+        return straight_type(parseTypeId(global_allocator, type));
+    }
 
     /**
      * lex type tokens
@@ -764,6 +803,18 @@ public:
 
     inline bool straight_node(ASTNode* node) {
         return straight_data(LexTokenType::StraightNode, node);
+    }
+
+    inline void push_value(Value* value) {
+        values.emplace_back(value);
+    }
+
+    inline void push_type(BaseType* type) {
+        types.emplace_back(type);
+    }
+
+    inline void push_node(ASTNode* node) {
+        nodes.emplace_back(node);
     }
 
     /**

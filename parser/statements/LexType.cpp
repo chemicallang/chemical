@@ -7,6 +7,9 @@
 #include "parser/Parser.h"
 #include "ast/types/LinkedType.h"
 #include "compiler/PrimitiveTypeMap.h"
+#include "ast/values/VariableIdentifier.h"
+#include "ast/values/AccessChain.h"
+#include "ast/types/LinkedValueType.h"
 
 bool Parser::lexLambdaTypeTokens(unsigned int start) {
     if(lexOperatorToken(TokenType::LParen)) {
@@ -83,39 +86,41 @@ void Parser::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
     }
 }
 
-bool Parser::lexTypeId(Token* type, unsigned int start) {
-    bool has_multiple = false;
+BaseType* Parser::parseTypeId(ASTAllocator& allocator, Token* type) {
+    Token* first_type = type;
+    AccessChain* chain = nullptr;
     while(true) {
         if(token->type == TokenType::DoubleColonSym) {
-            emplace(LexTokenType::Variable, type->position, std::string(type->value));
-            lexOperatorToken(TokenType::DoubleColonSym);
+            token++;
+            auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(type->value), loc_single(type), true);
             auto new_type = consumeIdentifierOrKeyword();
             if(!new_type) {
                 error("expected an identifier after '" + std::string(type->value) + "::' for a type");
-                return false;
+                return nullptr;
             } else {
-                has_multiple = true;
+                if(chain) {
+                    chain->values.emplace_back(id);
+                } else {
+                    chain = new (allocator.allocate<AccessChain>()) AccessChain({ id }, parent_node, false, 0);
+                }
                 type = new_type;
             }
         } else {
-            if(has_multiple) {
-                emplace(LexTokenType::Variable, type->position, std::string(type->value));
-                compound_from(start, LexTokenType::CompAccessChain);
-                compound_from(start, LexTokenType::CompLinkedValueType);
+            if(chain) {
+                auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(type->value), loc_single(type));
+                chain->values.emplace_back(id);
+                chain->location = loc(first_type, type);
+                return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->location);
             } else {
-                // TODO use passed allocator
-                auto& allocator = global_allocator;
                 auto primitive = TypeMakers::PrimitiveMap.find(type->value);
                 if (primitive == TypeMakers::PrimitiveMap.end()) {
-                    straight_type(new (allocator.allocate<LinkedType>()) LinkedType(std::string(type->value), loc_single(type)));
+                    return new (allocator.allocate<LinkedType>()) LinkedType(std::string(type->value), loc_single(type));
                 } else {
-                    straight_type(primitive->second(allocator, is64Bit, loc_single(type)));
+                    return primitive->second(allocator, is64Bit, loc_single(type));
                 }
             }
-            break;
         }
     }
-    return true;
 }
 
 bool Parser::lexTypeTokens() {
@@ -168,7 +173,7 @@ bool Parser::lexTypeTokens() {
     auto type = consumeIdentifierOrKeyword();
     if(!type) return false;
     unsigned start = tokens_size();
-    if(!lexTypeId(type, start)) {
+    if(!lexTypeId(type)) {
         return true;
     }
     lexGenericTypeAfterId(start);

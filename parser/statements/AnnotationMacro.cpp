@@ -45,7 +45,7 @@ bool Parser::lexAnnotationMacro() {
         if(lexOperatorToken(TokenType::LParen)) {
             do {
                 lexWhitespaceToken();
-                if(!lexValueToken()) {
+                if(!lexExpressionTokens()) {
                     break;
                 }
                 lexWhitespaceToken();

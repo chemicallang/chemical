@@ -175,10 +175,6 @@ extern "C" {
 
     bool LexerlexStructValueTokens(Parser* lexer, unsigned back_start);
 
-    bool LexerlexValueToken(Parser* lexer);
-
-    bool LexerlexSwitchCaseValue(Parser* lexer);
-
     bool LexerlexAccessChainValueToken(Parser* lexer);
 
     bool LexerlexArrayInit(Parser* lexer);

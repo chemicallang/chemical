@@ -167,18 +167,8 @@ Value* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
     }
 }
 
-bool Parser::lexValueToken() {
-    return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken() || lexBoolToken() ||
-           lexNull();
-}
-
 bool Parser::lexAccessChainValueToken() {
     return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken();
-}
-
-bool Parser::lexConstantValue() {
-    return lexCharToken() || lexStringToken() || lexNumberToken() || lexBoolToken() ||
-           lexNull() || lexAccessChainOrAddrOf() || lexAnnotationMacro();
 }
 
 bool Parser::lexArrayInit() {

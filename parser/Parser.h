@@ -846,16 +846,6 @@ public:
     bool lexStructValueTokens(unsigned back_start);
 
     /**
-     * lexes value tokens like integer, string
-     */
-    bool lexValueToken();
-
-    /**
-     * lexes a value token for switch
-     */
-    bool lexConstantValue();
-
-    /**
      * lexes multiple switch case values separated with '|'
      */
     bool lexMultipleSwitchCaseValues();

@@ -328,14 +328,6 @@ bool LexerlexStructValueTokens(Parser* lexer, unsigned back_start)  {
     return lexer->lexStructValueTokens(back_start);
 }
 
-bool LexerlexValueToken(Parser* lexer)  {
-    return lexer->lexValueToken();
-}
-
-bool LexerlexSwitchCaseValue(Parser* lexer)  {
-    return lexer->lexConstantValue();
-}
-
 bool LexerlexAccessChainValueToken(Parser* lexer)  {
     return lexer->lexAccessChainValueToken();
 }

@@ -18,7 +18,7 @@ func test_switch_statement() {
     test("switch statement with multiple cases - 1", () => {
        var j = 0;
        switch(j) {
-            0 | 1 => {
+            0 , 1 => {
                 return true;
             }
             default => {
@@ -29,7 +29,7 @@ func test_switch_statement() {
     test("switch statement with multiple cases - 2", () => {
        var j = 1;
        switch(j) {
-            0 | 1 => {
+            0 , 1 => {
                 return true;
             }
             default => {
@@ -40,7 +40,7 @@ func test_switch_statement() {
     test("switch statement with multiple cases - 3", () => {
        var j = 3;
        switch(j) {
-            0 | 1 => {
+            0 , 1 => {
                 return false;
             }
             default => {
@@ -51,7 +51,7 @@ func test_switch_statement() {
     test("switch statement with multiple cases with default - 1", () => {
        var j = 0;
        switch(j) {
-            0 | 1 | default => {
+            0 , 1 , default => {
                 return true;
             }
             3 => {
@@ -62,7 +62,7 @@ func test_switch_statement() {
     test("switch statement with multiple cases with default - 2", () => {
        var j = 3;
        switch(j) {
-            0 | 1 | default => {
+            0 , 1 , default => {
                 return false;
             }
             3 => {
@@ -73,7 +73,7 @@ func test_switch_statement() {
     test("switch statement with multiple cases with default - 3", () => {
        var j = 4;
        switch(j) {
-            0 | 1 | default => {
+            0 , 1 , default => {
                 return true;
             }
             3 => {

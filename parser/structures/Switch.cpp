@@ -8,11 +8,11 @@ bool Parser::lexMultipleSwitchCaseValues() {
         if(has_single) {
             lexWhitespaceToken();
         }
-        if(lexWSKeywordToken(TokenType::DefaultKw, TokenType::ColonSym) || lexConstantValue()) {
+        if(lexWSKeywordToken(TokenType::DefaultKw, TokenType::ColonSym) || lexExpressionTokens()) {
             has_single = true;
         }
         lexWhitespaceToken();
-    } while(lexOperatorToken(TokenType::PipeSym));
+    } while(lexOperatorToken(TokenType::CommaSym));
     return has_single;
 }
 

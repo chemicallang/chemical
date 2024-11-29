@@ -104,7 +104,7 @@ bool Parser::lexStatementTokens() {
 bool Parser::lexThrowStatementTokens() {
     if(lexWSKeywordToken(TokenType::ThrowKw)) {
         auto start = tokens_size() - 1;
-        if(lexValueToken()) {
+        if(lexExpressionTokens()) {
             error("expected a lambda value");
         } else {
             return false;

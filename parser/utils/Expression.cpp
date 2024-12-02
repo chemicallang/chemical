@@ -152,6 +152,13 @@ bool Parser::lexParenExpression() {
     }
 }
 
+Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool parseLambda) {
+
+    // TODO
+    return nullptr;
+
+}
+
 bool Parser::lexExpressionTokens(bool lexStruct, bool lambda) {
 
     if (lexOperatorToken(TokenType::MinusSym)) {

@@ -538,12 +538,13 @@ Token Lexer::getNextToken() {
     } else if(current == '_' || std::isalpha(current)) {
         AllocatorStrBuilder str(current, allocator);
         read_id(str, provider);
-        auto view = str.finalize_view();
+        auto view = str.current_view();
         auto found = keywords.find(view);
         if(found != keywords.end()) {
-            return Token(found->second, view, pos);
+            str.deallocate();
+            return Token(found->second, found->first, pos);
         } else {
-            return Token(TokenType::Identifier, view, pos);
+            return Token(TokenType::Identifier, str.finalize_view(), pos);
         }
     }
     return Token(TokenType::Unexpected, { nullptr, 0 }, pos);

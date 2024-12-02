@@ -5,6 +5,9 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/FunctionParam.h"
+#include "ast/types/LinkedType.h"
+#include "ast/types/ReferenceType.h"
 
 bool Parser::lexReturnStatement() {
     if(lexWSKeywordToken(TokenType::ReturnKw, TokenType::SemiColonSym)) {
@@ -85,6 +88,85 @@ bool Parser::lexDestructStatement() {
     } else {
         return false;
     }
+}
+
+bool Parser::parseParameterList(
+        ASTAllocator& allocator,
+        std::vector<FunctionParam*>& parameters,
+        bool optionalTypes,
+        bool defValues,
+        bool lexImplicitParams,
+        bool variadicParam
+) {
+    unsigned int index = 0;
+    do {
+        lexWhitespaceAndNewLines();
+        if(lexImplicitParams) {
+            auto ampersand = consumeOfType(TokenType::AmpersandSym);
+            if (ampersand) {
+                auto is_mutable = consumeWSOfType(TokenType::MutKw) != nullptr; // optional mut keyword
+                auto id = consumeIdentifierOrKeyword();
+                if (id) {
+                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(std::string(id->value), nullptr, loc_single(id)), loc_single(id), is_mutable);
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(id->value), ref_to_linked,
+                                                                                        index, nullptr, true,
+                                                                                        current_func_type, loc(ampersand, id));
+                    parameters.emplace_back(param);
+                    readWhitespace();
+                    index++;
+                    continue;
+                } else {
+                    error("expected a identifier right after '&' in the first function parameter as a 'self' parameter");
+                    return false;
+                }
+            }
+        }
+        auto id = consumeIdentifierOrKeyword();
+        if(id) {
+            readWhitespace();
+            if(consumeToken(TokenType::ColonSym)) {
+                lexWhitespaceToken();
+                auto type = parseType(allocator);
+                if(type) {
+                    if(variadicParam && consumeToken(TokenType::TripleDotSym)) {
+                        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(id->value), type, index, nullptr, false, current_func_type, loc_single(id));
+                        parameters.emplace_back(param);
+                        return true;
+                    }
+                    Value* defValue;
+                    if(defValues) {
+                        readWhitespace();
+                        if (consumeToken(TokenType::EqualSym)) {
+                            readWhitespace();
+                            auto expr = parseExpression(allocator);
+                            if(expr) {
+                                defValue = expr;
+                            } else {
+                                error("expected value after '=' for default value for the parameter");
+                                break;
+                            }
+                        }
+                    }
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(id->value), type, index, defValue, false, current_func_type, loc_single(id));
+                    parameters.emplace_back(param);
+                } else {
+                    error("missing a type token for the function parameter, expected type after the colon");
+                    return false;
+                }
+            } else {
+                if(optionalTypes) {
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(id->value), nullptr, index, nullptr, false, current_func_type, loc_single(id));
+                    parameters.emplace_back(param);
+                } else {
+                    error("expected colon ':' in function parameter list after the parameter name ");
+                    return false;
+                }
+            }
+        }
+        lexWhitespaceToken();
+        index++;
+    } while(consumeToken(TokenType::CommaSym));
+    return false;
 }
 
 bool Parser::lexParameterList(bool optionalTypes, bool defValues, bool lexImplicitParams, bool variadicParam) {

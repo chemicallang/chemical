@@ -26,6 +26,7 @@
 #include "ast/values/DoubleValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/values/ArrayValue.h"
 #include "parse_num.h"
 
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
@@ -158,7 +159,7 @@ Value* Parser::parseNumberValue(ASTAllocator& allocator) {
     }
 }
 
-Value* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
+VariableIdentifier* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
     auto id = consumeIdentifierOrKeyword();
     if(id) {
         return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(id->value), loc_single(id));
@@ -169,6 +170,57 @@ Value* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
 
 bool Parser::lexAccessChainValueToken() {
     return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken();
+}
+
+Value* Parser::parseArrayInit(ASTAllocator& allocator) {
+    auto token1 = consumeOfType(TokenType::LBrace);
+    if (token1) {
+        std::vector<Value*> arrayValues;
+        do {
+            lexWhitespaceAndNewLines();
+            auto expr = parseExpression(allocator, true);
+            if(expr) {
+                arrayValues.emplace_back(expr);
+            } else {
+                auto init = parseArrayInit(allocator);
+                if(init) {
+                    arrayValues.emplace_back(init);
+                } else {
+                    break;
+                }
+            }
+            lexWhitespaceAndNewLines();
+        } while (consumeToken(TokenType::CommaSym));
+        if (!consumeToken(TokenType::RBrace)) {
+            error("expected a '}' when lexing an array");
+            return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(arrayValues), nullptr, { }, loc(token1, token), allocator);
+        }
+        lexWhitespaceToken();
+        auto type = parseType(allocator);
+        std::vector<unsigned int> sizes;
+        if(type) {
+            lexWhitespaceToken();
+            if (consumeToken(TokenType::LParen)) {
+                do {
+                    lexWhitespaceToken();
+                    auto number = parseNumberValue(allocator);
+                    if(number) {
+                        sizes.emplace_back((unsigned int) number->get_the_int());
+                    } else {
+                        break;
+                    }
+                    lexWhitespaceToken();
+                } while (consumeToken(TokenType::CommaSym));
+                lexWhitespaceToken();
+                if (!consumeToken(TokenType::RParen)) {
+                    error("expected a ')' when ending array size");
+                }
+            }
+        }
+        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(arrayValues), type, std::move(sizes), loc(token1, token), allocator);
+    } else {
+        return nullptr;
+    }
 }
 
 bool Parser::lexArrayInit() {

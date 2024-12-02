@@ -49,6 +49,14 @@ public:
         return data;
     }
 
+    void deallocate() {
+        adjust_ptr(data, capacity, 0);
+    }
+
+    [[nodiscard]] std::string_view current_view() const {
+        return { data, length };
+    }
+
     std::string_view finalize_view() {
         return { finalize(), length };
     }

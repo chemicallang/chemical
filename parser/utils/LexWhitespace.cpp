@@ -15,13 +15,7 @@ bool Parser::readWhitespace() {
     }
 }
 
-bool Parser::lexWhitespaceToken() {
-    // we do not store the whitespace token
-    // but we may for formatting one day
-    return readWhitespace();
-}
-
-void Parser::lexWhitespaceAndNewLines() {
+void Parser::consumeWhitespaceAndNewLines() {
     while(true) {
         switch(token->type) {
             // case TokenType::SingleLineComment:

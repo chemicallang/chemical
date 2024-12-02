@@ -123,6 +123,11 @@ public:
     ASTNode* parent_node = nullptr;
 
     /**
+     * current function type
+     */
+    FunctionType* current_func_type = nullptr;
+
+    /**
      * initialize the lexer with this provider and path
      */
     Parser(
@@ -189,6 +194,12 @@ public:
     Token* consumeOfType(enum TokenType type);
 
     /**
+     * parses the token of type
+     * will skip new line, comment token, multi line comment tokens to check for this
+     */
+    Token* consumeWSOfType(enum TokenType type);
+
+    /**
      * check if given token type is a keyword
      */
     static inline bool isKeyword(enum TokenType type) {
@@ -241,7 +252,12 @@ public:
     /**
      * parses a variable otherwise returns nullptr
      */
-    Value* parseVariableIdentifier(ASTAllocator& allocator);
+    VariableIdentifier* parseVariableIdentifier(ASTAllocator& allocator);
+
+    /**
+     * get malformed input for the given location
+     */
+    MalformedInput* malformed(SourceLocation loc);
 
     /**
      * lex a variable token into tokens until the until character occurs
@@ -269,6 +285,11 @@ public:
     bool lexGenericArgsListCompound();
 
     /**
+     * parse generic argument list
+     */
+    void parseGenericArgsList(std::vector<BaseType*>& outArgs, ASTAllocator& allocator);
+
+    /**
      * lexes a function call, after the '<' for generic start
      */
     void lexFunctionCallWithGenericArgsList();
@@ -277,6 +298,11 @@ public:
      * lexes a function call, that is args ')' without function name
      */
     bool lexFunctionCall(unsigned back_start);
+
+    /**
+     * parse a function call
+     */
+    FunctionCall* parseFunctionCall(ASTAllocator& allocator);
 
     /**
      * lexes a keyword access specifier public, private, internal & (if protect is true, then protected)
@@ -292,12 +318,35 @@ public:
      */
     bool lexAccessChainAfterId(bool lexStruct = false, unsigned int chain_length = 1);
 
+    BaseType* ref_type_from(ASTAllocator& allocator, AccessChain* chain);
+
+    /**
+     * after an identifier has been consumed
+     * we call this method to lex an access chain after it
+     * identifier .element1.element2.element3
+     * this is the method called by lexAccessChain after finding a identifier
+     * @param assChain is the access chain in an assignment
+     */
+    Value* parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct = false);
+
+    /**
+     * this method does not compound the access chain, so can be called recursively
+     * this method is called by lexAccessChain to not compound access chains nested in it
+     * @param assChain is the access chain in an assignment
+     */
+    Value* parseAccessChainRecursive(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct = false);
+
     /**
      * this method does not compound the access chain, so can be called recursively
      * this method is called by lexAccessChain to not compound access chains nested in it
      * @param assChain is the access chain in an assignment
      */
     bool lexAccessChainRecursive(bool lexStruct = false, unsigned int chain_length = 0);
+
+    /**
+     * parse access chain
+     */
+    Value* parseAccessChain(ASTAllocator& allocator, bool parseStruct = false);
 
     /**
      * this lexes an access chain like x.y.z or just simply an identifier
@@ -311,6 +360,12 @@ public:
      * so this allows a.b.c or &a.b.c
      */
     bool lexAccessChainOrAddrOf(bool lexStruct = false);
+
+    /**
+     * it lexes a access chain, but allows a '&' operator before it to get the address of value
+     * so this allows a.b.c or &a.b.c
+     */
+    Value* parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruct = false);
 
     /**
      * lex allowDeclarations or initialization tokens
@@ -364,9 +419,19 @@ public:
     bool lexLambdaTypeTokens(unsigned int start);
 
     /**
+     * parse lambda type
+     */
+    BaseType* parseLambdaType(ASTAllocator& allocator, bool isCapturing);
+
+    /**
      * will lex a generic type after identifier
      */
     bool lexGenericTypeAfterId(unsigned int start);
+
+    /**
+     * parses a generic type after id
+     */
+    BaseType* parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* type);
 
     /**
      * will lex a referenced or generic type
@@ -379,6 +444,11 @@ public:
     void lexArrayAndPointerTypesAfterTypeId(unsigned int start);
 
     /**
+     * parse array and pointer type after id
+     */
+    BaseType* parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId);
+
+    /**
      * parse type id
      */
     BaseType* parseTypeId(ASTAllocator& allocator, Token* type);
@@ -389,6 +459,11 @@ public:
     bool lexTypeId(Token* type) {
         return straight_type(parseTypeId(global_allocator, type));
     }
+
+    /**
+     * parse a single type
+     */
+    BaseType* parseType(ASTAllocator& allocator);
 
     /**
      * lex type tokens
@@ -580,6 +655,11 @@ public:
     bool lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level);
 
     /**
+     * parse an if statement
+     */
+    IfStatement* parseIfStatement(ASTAllocator& allocator, bool is_value, bool lex_value_node, bool top_level);
+
+    /**
      * lex if block
      */
     bool lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level);
@@ -609,6 +689,19 @@ public:
      * @return true when no errors occurred
      */
     bool lexParameterList(bool optionalTypes = false, bool defValues = true, bool lexImplicitParams = true, bool variadicParam = true);
+
+    /**
+     * parse parameter list
+     * @return whether the function is variadic or not
+     */
+    bool parseParameterList(
+            ASTAllocator& allocator,
+            std::vector<FunctionParam*>& parameters,
+            bool optionalTypes = false,
+            bool defValues = true,
+            bool lexImplicitParams = true,
+            bool variadicParam = true
+    );
 
     /**
     * lexes a function signature with parameters
@@ -767,13 +860,24 @@ public:
 
     /**
      * lex whitespace tokens
+     * @deprecated
      */
-    bool lexWhitespaceToken();
+    bool lexWhitespaceToken() {
+        return readWhitespace();
+    }
 
     /**
      * a utility function to lex whitespace tokens and also skip new lines
      */
-    void lexWhitespaceAndNewLines();
+    void consumeWhitespaceAndNewLines();
+
+    /**
+     * use consumeWhitespaceAndNewLines
+     * @deprecated
+     */
+    void lexWhitespaceAndNewLines() {
+        consumeWhitespaceAndNewLines();
+    }
 
     /**
      * parses a single string value using the given allocator
@@ -892,6 +996,11 @@ public:
     }
 
     /**
+     * parses struct value after the identifier
+     */
+    StructValue* parseStructValue(ASTAllocator& allocator, BaseType* refType, Position& start);
+
+    /**
      * lexes tokens for a complete struct object initialization
      */
     bool lexStructValueTokens(unsigned back_start);
@@ -911,6 +1020,11 @@ public:
      * for easy array creation
      */
     bool lexArrayInit();
+
+    /**
+     * parses array initialization
+     */
+    Value* parseArrayInit(ASTAllocator& allocator);
 
     /**
      * lexes access chain like x.y.z or a value like 10, could be int, string, char
@@ -967,6 +1081,12 @@ public:
      * lex a parenthesized expression '(x + 5)'
      */
     bool lexParenExpression();
+
+    /**
+     * lexes an expression token which can contain access chain and values
+     * @return whether an expression has been lexed, the expression can also be a single identifier or value
+     */
+    Value* parseExpression(ASTAllocator& allocator, bool parseStruct = false, bool parseLambda = true);
 
     /**
      * lexes an expression token which can contain access chain and values

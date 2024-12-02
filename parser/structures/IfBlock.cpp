@@ -5,6 +5,7 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/If.h"
 
 bool Parser::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level) {
 
@@ -36,6 +37,12 @@ bool Parser::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_nod
     }
 
     return true;
+
+}
+
+IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bool lex_value_node, bool top_level) {
+
+    return nullptr;
 
 }
 

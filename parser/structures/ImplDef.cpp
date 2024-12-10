@@ -5,40 +5,58 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/ImplDefinition.h"
 
-void Parser::lexImplBlockTokens() {
-    do {
-        lexWhitespaceAndNewLines();
-        if(!(lexFunctionStructureTokens() || lexSingleLineCommentTokens() || lexMultiLineCommentTokens() || lexAnnotationMacro())) {
-            break;
+ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+    if (consumeWSOfType(TokenType::ImplKw)) {
+
+        auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, 0);
+
+        annotate(impl);
+
+        parseGenericParametersList(allocator, impl->generic_params);
+        lexWhitespaceToken();
+        auto type = parseLinkedOrGenericType(allocator);
+        if(type) {
+            impl->interface_type = type;
+        } else {
+            return impl;
         }
         lexWhitespaceToken();
-        lexOperatorToken(TokenType::SemiColonSym);
-    } while(token->type != TokenType::RBrace);
-}
-
-bool Parser::lexImplTokens() {
-    if (lexWSKeywordToken(TokenType::ImplKw)) {
-        auto start = tokens_size() - 1;
-        lexGenericParametersList();
-        lexWhitespaceToken();
-        if(!lexRefOrGenericType()) return true;
-        lexWhitespaceToken();
-        if(lexWSKeywordToken(TokenType::ForKw)) {
-            if(!lexRefOrGenericType()) return true;
+        if(consumeWSOfType(TokenType::ForKw)) {
+            auto type = parseLinkedOrGenericType(allocator);
+            if(type) {
+                impl->struct_type = type;
+            } else {
+                return impl;
+            }
             lexWhitespaceToken();
+        } else {
+            impl->struct_type = nullptr;
         }
-        if (!lexOperatorToken(TokenType::LBrace)) {
-            mal_node(start, "expected a '{' when starting an implementation");
-            return true;
+        if (!consumeToken(TokenType::LBrace)) {
+            error("expected a '{' when starting an implementation");
+            return impl;
         }
-        lexImplBlockTokens();
-        if (!lexOperatorToken(TokenType::RBrace)) {
-            mal_node(start,"expected a '}' when ending an implementation");
-            return true;
+
+        auto prev_parent_node = parent_node;
+        parent_node = impl;
+        do {
+            lexWhitespaceAndNewLines();
+            if(parseVariableAndFunctionInto(impl, allocator, AccessSpecifier::Public)) {
+                lexWhitespaceToken();
+                lexOperatorToken(TokenType::SemiColonSym);
+            } else {
+                break;
+            }
+        } while(token->type != TokenType::RBrace);
+        parent_node = prev_parent_node;
+
+        if (!consumeToken(TokenType::RBrace)) {
+            error("expected a '}' when ending an implementation");
+            return impl;
         }
-        compound_from(start, LexTokenType::CompImpl);
-        return true;
+        return impl;
     }
-    return false;
+    return nullptr;
 }

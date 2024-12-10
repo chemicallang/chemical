@@ -3,9 +3,9 @@
 #include "Lexer.h"
 #include <unordered_map>
 #include "cst/utils/StringHelpers.h"
+#include "parser/model/CompilerBinder.h"
 
 const auto AnnotationAtCStr = "@";
-const auto MacroHashCStr = "#";
 
 const auto LBraceCStr = "{";
 const auto RBraceCStr = "}";
@@ -151,7 +151,7 @@ Lexer::Lexer(
         std::string file_path,
         SourceProvider &provider,
         CompilerBinder* binder
-) : file_path(std::move(file_path)), provider(provider), binder(binder), allocator(3000) {
+) : file_path(std::move(file_path)), provider(provider), binder(binder), allocator(3000), user_lexer(nullptr) {
 
 }
 
@@ -383,6 +383,10 @@ Token Lexer::getNextToken() {
             AllocatorStrBuilder str(current, allocator);
             read_multi_line_comment_text(str, provider);
             return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
+        } else if(user_mode) {
+            Token t;
+            user_lexer(&t, this);
+            return t;
         } else {
 #ifdef DEBUG
             throw std::runtime_error("unknown mode triggered");
@@ -445,8 +449,19 @@ Token Lexer::getNextToken() {
             return Token(TokenType::SemiColonSym, view_str(SemiColOpCStr), pos);
         case '@':
             return Token(TokenType::AtSym, view_str(AnnotationAtCStr), pos);
-        case '#':
-            return Token(TokenType::HashSym, view_str(MacroHashCStr), pos);
+        case '#': {
+            AllocatorStrBuilder str('#', allocator);
+            read_id(str, provider);
+            // TODO remove check for binder, as it will never be (should not be) nullptr
+            if(binder) {
+                auto& functions_map = binder->initializeLexerFunctions;
+                auto found = functions_map.find(str.current_view());
+                if(found != functions_map.end()) {
+                    found->second(this);
+                }
+            }
+            return Token(TokenType::HashMacro, str.finalize_view(), pos);
+        }
         case '<':
             if(provider.increment('=')) {
                 return Token(TokenType::LessThanOrEqualSym, view_str(CmpLTEOpCStr), pos);

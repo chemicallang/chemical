@@ -5,216 +5,340 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/values/NotValue.h"
+#include "ast/values/Negative.h"
+#include "ast/values/CastedValue.h"
+#include "ast/values/IsValue.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/LambdaFunction.h"
+#include "ast/values/VariableIdentifier.h"
+#include "ast/structures/FunctionParam.h"
 
-bool Parser::lexRemainingExpression(unsigned start) {
+void shunting_yard_on_operator(ValueAndOperatorStack& stack, ValueAndOperatorStack& final, Operation o1) {
+    auto o1_precedence = to_precedence(o1);
+    while (!stack.isEmpty() && stack.has_operation_top()) {
+        auto o2_precedence = to_precedence(stack.peakOperator());
+        if (o2_precedence > o1_precedence || (o1_precedence == o2_precedence && is_assoc_left_to_right(o1))) {
+            final.putOperator(stack.popOperator());
+        } else {
+            break;
+        }
+    }
+    stack.putOperator(o1);
+}
+
+/**
+ * the implementation of shunting yard algorithm
+ * https://en.wikipedia.org/wiki/Shunting_yard_algorithm
+ */
+void Parser::parseExpressionWith(ASTAllocator& allocator, ValueAndOperatorStack& stack, ValueAndOperatorStack& final) {
+
+    // it's important to keep track of whether value or operation should be parsed first
+    // Why: To differentiate between negative values and operations
+    // in 3 - -4 <-- first minus symbol is subtraction operator, the second minus symbol creates negative 4 value
+    // if we parse token by token, when we arrive -4, we can mistakenly parse second symbol as subtraction operator and put it onto stack
+    // there's an opposite case where value is always parsed first and subtraction operator is consumed
+    // inside the negative value, in a simple expression 3 - 4 doesn't mean 3 value and -4 value, it means
+    // 3 value subtract 4 value
+    // to solve this problem, we use a boolean value_first, which indicates value should be parsed first
+    // otherwise operator is parsed first, because two operators or two values cannot appear consecutively
+    // like 3 + + 4 or 3 value 4 value doesn't make it a valid expression
+
+    bool value_first = true;
+    while (token->type != TokenType::EndOfFile) {
+        if(value_first) {
+            auto valueOrAc = parseAccessChainOrValue(allocator);
+            if(valueOrAc) {
+                final.putValue(valueOrAc);
+                value_first = false;
+            } else {
+                auto o1 = parseOperation();
+                if(o1.has_value()) {
+                    shunting_yard_on_operator(stack, final, o1.value());
+                    value_first = true;
+                } else {
+                    goto other_values;
+                }
+            }
+        } else {
+            auto o1 = parseOperation();
+            if(o1.has_value()) {
+                shunting_yard_on_operator(stack, final, o1.value());
+                value_first = true;
+            } else {
+                auto valueOrAc = parseAccessChainOrValue(allocator);
+                if(valueOrAc) {
+                    final.putValue(valueOrAc);
+                    value_first = false;
+                } else {
+                    goto other_values;
+                }
+            }
+        }
+        continue;
+        other_values:
+        if (consumeToken(TokenType::LParen)) {
+            stack.putCharacter('(');
+        } else if (token->type == TokenType::RParen) {
+            bool found = false;
+            while (!stack.empty() && !found) {
+                if (stack.has_operation_top()) {
+                    final.putOperator(stack.popOperator());
+                } else if (stack.has_character_top()) {
+                    if (stack.peakChar() == '(') {
+                        found = true;
+                        stack.popChar();
+                    } else {
+                        final.putCharacter(stack.popChar());
+                    }
+                }
+            }
+            if (found) {
+                token++;
+            } else {
+                break;
+            }
+        } else {
+            if (token->type == TokenType::Whitespace) {
+                token++;
+            } else {
+                break;
+            }
+        }
+    }
+    stack.putAllInto(final);
+}
+
+Value* Parser::parseRemainingExpression(ASTAllocator& allocator, Value* first_value) {
 
     lexWhitespaceToken();
-    bool compounded = false;
-    if (lexWSKeywordToken(TokenType::AsKw)) {
-        if (!lexTypeTokens()) {
-            error("expected a type for casting after 'as' in expression");
-            return false;
-        }
-        compound_from(start, LexTokenType::CompCastValue);
-        lexWhitespaceToken();
-        compounded = true;
-    } else if(lexWSKeywordToken(TokenType::IsKw)) {
-        if (!lexTypeTokens()) {
-            error("expected a type after 'is' or '!is' in expression");
-            return false;
-        }
-        compound_from(start, LexTokenType::CompIsValue);
-        lexWhitespaceToken();
-        compounded = true;
-    }
-    if (!lexLanguageOperatorToken()) {
-        return compounded;
-    }
-    lexWhitespaceToken();
-    if (!lexExpressionTokens(false, false)) {
-        error("expected an expression after the operator token in the expression");
-        return false;
+
+    auto operation = parseOperation();
+    if(!operation.has_value()) {
+        return first_value;
     }
 
-    compound_from(start, LexTokenType::CompExpression);
-    return true;
+    readWhitespace();
+
+    ValueAndOperatorStack stack;
+    ValueAndOperatorStack final;
+
+    stack.putOperator(operation.value());
+    final.putValue(first_value);
+
+    parseExpressionWith(allocator, stack, final);
+
+    return final.toExpressionRaw(allocator, is64Bit, 0);
 
 }
+
 
 // lexes lambda after comma which occurs after a parameter param : type,  <-----
 // this can be called after lparen to lex lambda, if it has no parameter
-bool condLexLambdaAfterComma(Parser *lexer, unsigned int start) {
+LambdaFunction* condLexLambdaAfterComma(Parser *lexer, ASTAllocator& allocator, LambdaFunction* func) {
     lexer->lexNewLineChars();
-    if (!lexer->lexOperatorToken(TokenType::RParen)) {
-        return false;
+    if (!lexer->consumeToken(TokenType::RParen)) {
+        return nullptr;
     }
-    lexer->lexLambdaAfterParamsList(start);
-    return true;
+    if(!func) {
+        func = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, lexer->parent_node, 0);
+    }
+    lexer->parseLambdaAfterParamsList(allocator, func);
+    return func;
 }
 
-void lexLambdaAfterComma(Parser *lexer, unsigned int start) {
-    if (!condLexLambdaAfterComma(lexer, start)) {
-        lexer->mal_value(start, "expected ')' after the lambda parameter list in parenthesized expression");
+LambdaFunction* parseLambdaAfterComma(Parser *lexer, ASTAllocator& allocator, LambdaFunction* func) {
+    auto lambda = condLexLambdaAfterComma(lexer, allocator, func);
+    if (!lambda) {
+        lexer->error("expected ')' after the lambda parameter list in parenthesized expression");
     }
+    return lambda;
 }
 
-bool Parser::lexLambdaOrExprAfterLParen() {
-    unsigned int start = tokens_size() - 1;
+Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
     lexWhitespaceToken();
 
     // a lambda with no params
-    if (condLexLambdaAfterComma(this, start)) {
-        return true;
+    auto first_lamb = condLexLambdaAfterComma(this, allocator, nullptr);
+    if (first_lamb) {
+        return first_lamb;
     }
 
-    if (!lexVariableToken()) {
-        return false;
+    auto identifier = consumeIdentifierOrKeyword();
+    if (!identifier) {
+        return nullptr;
     }
 
     bool has_whitespace = lexWhitespaceToken();
 
-    if (token->type == TokenType::RParen) {
-        compound_from(start + 1, LexTokenType::CompFunctionParam);
-        lexOperatorToken(TokenType::RParen);
-        lexLambdaAfterParamsList(start);
-        return true;
-    } else if (lexOperatorToken(TokenType::ColonSym)) {
+    if (consumeToken(TokenType::RParen)) {
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), nullptr, 0, nullptr, false, lamb, 0);
+        lamb->params.emplace_back(param);
+        parseLambdaAfterParamsList(allocator, lamb);
+        return lamb;
+    } else if (consumeToken(TokenType::ColonSym)) {
         lexWhitespaceToken();
-        if (lexTypeTokens()) {
+        auto type = parseType(allocator);
+        if (type) {
             lexWhitespaceToken();
         } else {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
-        compound_from(start + 1, LexTokenType::CompFunctionParam);
-        if (lexOperatorToken(TokenType::CommaSym)) {
-            lexParameterList(true, false);
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), type, 0, nullptr, false, lamb, 0);
+        lamb->params.emplace_back(param);
+        if (consumeToken(TokenType::CommaSym)) {
+            parseParameterList(allocator, lamb->params, true, false);
         }
-        lexLambdaAfterComma(this, start);
-        return true;
-    } else if (token->type == TokenType::CommaSym) {
-        compound_from(start + 1, LexTokenType::CompFunctionParam);
-        lexOperatorToken(TokenType::CommaSym);
-        lexParameterList(true, false);
-        lexLambdaAfterComma(this, start);
-        return true;
+        parseLambdaAfterComma(this, allocator,  lamb);
+        return lamb;
+    } else if (consumeToken(TokenType::CommaSym)) {
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), nullptr, 0, nullptr, false, lamb, 0);
+        lamb->params.emplace_back(param);
+        parseParameterList(allocator, lamb->params, true, false);
+        parseLambdaAfterComma(this, allocator, lamb);
+        return lamb;
     }
 
     if(has_whitespace) {
-        lexRemainingExpression(start + 1);
-        if(lexOperatorToken(TokenType::RParen)) {
-            if(!lexRemainingExpression(start)) {
-                compound_from(start, LexTokenType::CompExpression);
-            }
-            return true;
-        } else if(lexRemainingExpression(start + 1) && lexOperatorToken(TokenType::RParen)) {
-            compound_from(start, LexTokenType::CompExpression);
+        auto first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(identifier->value), loc_single(identifier), false);
+        auto value = parseAfterValue(allocator, first_value);
+        auto expr = parseRemainingExpression(allocator, value);
+        if(consumeToken(TokenType::RParen)) {
+            return parseRemainingExpression(allocator, expr);
         } else {
-            error("expected ')' after the nested parenthesized expression");
+            auto second_expression = parseRemainingExpression(allocator, expr);
+            if(!consumeToken(TokenType::RParen)) {
+                error("expected ')' after the nested parenthesized expression");
+            }
+            return second_expression;
         }
-        return true;
     } else {
-        lexAccessChainAfterId();
-        if(!unit.tokens[start + 1]->is_struct_value()) {
-            compound_from(start + 1, LexTokenType::CompAccessChain);
-        }
-        lexRemainingExpression(start);
-        if(!lexOperatorToken(TokenType::RParen)) {
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, false, 0);
+        auto value = parseAccessChainAfterId(allocator, chain, identifier->position);
+        auto expr = parseRemainingExpression(allocator, value);
+        if(!consumeToken(TokenType::RParen)) {
             error("expected a ')' after the access chain");
         }
-        return true;
+        return expr;
     }
-
 }
 
-bool Parser::lexParenExpressionAfterLParen() {
+Value* Parser::parseParenExpression(ASTAllocator& allocator) {
+    if(consumeToken(TokenType::LParen)) {
 
-    if (!lexExpressionTokens(false, false)) {
-        error("expected a nested expression after starting parenthesis ( in the expression");
-        return false;
-    };
+        auto expression = parseExpression(allocator, false, false);
+        if(!expression) {
+            error("expected a nested expression after '(' in the expression");
+            return nullptr;
+        }
 
-    if (!lexOperatorToken(TokenType::RParen)) {
-        error("missing ) in the expression");
-        return false;
-    }
+        if (!consumeToken(TokenType::RParen)) {
+            error("missing ')' in the expression");
+            return nullptr;
+        }
 
-    return true;
+        return expression;
 
-}
-
-bool Parser::lexParenExpression() {
-    if (lexOperatorToken(TokenType::LParen)) {
-        lexParenExpressionAfterLParen();
-        return true;
     } else {
-        return false;
+        return nullptr;
+    }
+}
+
+NotValue* Parser::parseNotValue(ASTAllocator& allocator) {
+    if (consumeToken(TokenType::NotSym)) {
+        readWhitespace();
+        auto parenExpression = parseParenExpression(allocator);
+        if(parenExpression) {
+            return new (allocator.allocate<NotValue>()) NotValue(parenExpression, 0);
+        } else {
+            auto acValue = parseAccessChainOrValue(allocator, false);
+            if(acValue) {
+                return new (allocator.allocate<NotValue>()) NotValue(acValue, 0);
+            } else {
+                error("expected an expression after '!' not");
+                return nullptr;
+            }
+        }
+    } else {
+        return nullptr;
+    }
+}
+
+NegativeValue* Parser::parseNegativeValue(ASTAllocator& allocator) {
+    if (consumeToken(TokenType::MinusSym)) {
+        readWhitespace();
+        auto parenExpression = parseParenExpression(allocator);
+        if(parenExpression) {
+            return new (allocator.allocate<NegativeValue>()) NegativeValue(parenExpression, 0);
+        } else {
+            auto acValue = parseAccessChainOrValue(allocator, false);
+            if(acValue) {
+                return new (allocator.allocate<NegativeValue>()) NegativeValue(acValue, 0);
+            } else {
+                error("expected an expression after '-' negative");
+                return nullptr;
+            }
+        }
+    } else {
+        return nullptr;
     }
 }
 
 Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool parseLambda) {
 
-    // TODO
-    return nullptr;
-
-}
-
-bool Parser::lexExpressionTokens(bool lexStruct, bool lambda) {
-
-    if (lexOperatorToken(TokenType::MinusSym)) {
-        auto start = tokens_size() - 1;
-        if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
-            error("expected an expression after '-' negative");
-            return false;
+    if (token->type == TokenType::LParen) {
+        if(parseLambda) {
+            token++;
+            auto value = parseLambdaOrExprAfterLParen(allocator);
+            if(value) {
+                return value;
+            } else {
+                token--;
+            }
         }
-        compound_from(start, LexTokenType::CompNegative);
-        lexRemainingExpression(start);
-        return true;
+        auto parenExpression = parseParenExpression(allocator);
+        if(parenExpression) {
+            return parseRemainingExpression(allocator, parenExpression);
+        }
     }
 
-    if (lexOperatorToken(TokenType::NotSym)) {
-        auto start = tokens_size() - 1;
-        if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
-            error("expected an expression after '!' not");
-            return false;
+    auto& start_pos = token->position;
+    auto first_value = parseAccessChainOrValue(allocator, parseStruct);
+    if(first_value) {
+        if(parseStruct && first_value->val_kind() == ValueKind::StructValue) {
+            return first_value;
         }
-        compound_from(start, LexTokenType::CompNot);
-        lexRemainingExpression(start);
-        return true;
-    }
-
-    if (lexOperatorToken(TokenType::LParen)) {
-        unsigned start = tokens_size() - 1;
-        if (lambda && lexLambdaOrExprAfterLParen()) {
-            return true;
-        }
-        if(lexParenExpressionAfterLParen() && !lexRemainingExpression(start)) {
-            compound_from(start, LexTokenType::CompExpression);
-        }
-        return true;
-    }
-
-    if (!lexAccessChainOrValue(lexStruct)) {
-        return false;
-    } else if(lexStruct && unit.tokens[tokens_size() - 1]->is_struct_value()) {
-        return true;
+    } else {
+        return nullptr;
     }
 
     lexWhitespaceToken();
 
     if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
-        auto start = tokens_size() - 1;
-        lexFunctionCallWithGenericArgsList();
-        if(lexOperatorToken(TokenType::DotSym) && !lexAccessChainRecursive(false)) {
-            error("expected a identifier after the dot . in the access chain");
-            return false;
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, false, 0);
+        std::vector<BaseType*> genArgs;
+        parseGenericArgsList(genArgs, allocator);
+        if(token->type == TokenType::LParen) {
+            auto call = parseFunctionCall(allocator);
+            call->generic_list = std::move(genArgs);
+        } else {
+            error("expected a '(' after the generic list in function call");
         }
-        compound_from(start, LexTokenType::CompAccessChain);
-        return true;
+        if(consumeToken(TokenType::DotSym)) {
+            auto value = parseAccessChainRecursive(allocator, chain, start_pos, false);
+            if(!value || value != chain) {
+                error("expected a identifier after the dot . in the access chain");
+                return nullptr;
+            }
+        }
+        return chain;
     }
 
-    lexRemainingExpression(tokens_size() - 1);
-
-    return true;
+    return parseRemainingExpression(allocator, first_value);
 
 }

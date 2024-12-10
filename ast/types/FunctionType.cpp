@@ -460,9 +460,50 @@ bool FunctionType::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
     return true;
 }
 
+bool FunctionType::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
+    const auto moved = find_moved_chain_value(id);
+    if(moved) {
+        diagnoser.error("cannot move '" + id->representation() + "' as '" + moved->representation() + "' has been moved" , id, moved);
+        return false;
+    }
+    const auto linked = id->linked;
+    const auto linked_kind = linked->kind();
+    if (linked_kind == ASTNodeKind::VarInitStmt) {
+        const auto init = linked->as_var_init_unsafe();
+#ifdef DEBUG
+        if(init->get_has_moved()) {
+            diagnoser.error("found var init that skipped move check, identifier '" + init->identifier() + "' has already been moved", id);
+            return false;
+        }
+#endif
+        init->moved();
+    } else if(linked_kind == ASTNodeKind::FunctionParam) {
+        const auto param = linked->as_func_param_unsafe();
+#ifdef DEBUG
+        if(param->get_has_moved()) {
+            diagnoser.error("found function param that skipped move check, identifier '" + param->name + "' has already been moved", id);
+            return false;
+        }
+#endif
+        param->moved();
+    }
+    mark_moved_no_check(id);
+    return true;
+}
+
 bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     const auto chain = value->as_access_chain();
     if(chain) {
+        if(chain->values.size() == 1) {
+            auto id = chain->values.back()->as_identifier();
+            if(id) {
+                auto did = mark_moved_id(id, diagnoser);
+                if(did) {
+                    chain->is_moved = true;
+                }
+                return did;
+            }
+        }
         const auto moved = find_moved_chain_value(chain);
         if(moved) {
             diagnoser.error("cannot move '" + chain->chain_representation() + "' as '" + moved->representation() + "' has been moved" , (ASTNode*) chain, (ASTNode*) moved);
@@ -473,34 +514,7 @@ bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     } else {
         const auto id = value->as_identifier();
         if(id) {
-            const auto moved = find_moved_chain_value(id);
-            if(moved) {
-                diagnoser.error("cannot move '" + id->representation() + "' as '" + moved->representation() + "' has been moved" , id, moved);
-                return false;
-            }
-            const auto linked = value->linked_node();
-            const auto linked_kind = linked->kind();
-            if (linked_kind == ASTNodeKind::VarInitStmt) {
-                const auto init = linked->as_var_init_unsafe();
-#ifdef DEBUG
-                if(init->get_has_moved()) {
-                    diagnoser.error("found var init that skipped move check, identifier '" + init->identifier() + "' has already been moved", id);
-                    return false;
-                }
-#endif
-                init->moved();
-            } else if(linked_kind == ASTNodeKind::FunctionParam) {
-                const auto param = linked->as_func_param_unsafe();
-#ifdef DEBUG
-                if(param->get_has_moved()) {
-                    diagnoser.error("found function param that skipped move check, identifier '" + param->name + "' has already been moved", id);
-                    return false;
-                }
-#endif
-                param->moved();
-            }
-            mark_moved_no_check(id);
-            return true;
+            return mark_moved_id(id, diagnoser);
         }
     }
     return false;

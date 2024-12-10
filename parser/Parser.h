@@ -24,13 +24,24 @@
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
 #include "ast/base/BaseType.h"
+#include "ast/base/Annotation.h"
+#include "ast/base/LocatedIdentifier.h"
+#include "cst/utils/ValueAndOperatorStack.h"
 
 class CompilerBinder;
 
 class Parser;
 
+class GlobalInterpretScope;
+
 /**
  * A function that is called upon encountering an annotation
+ */
+typedef void(*AnnotationModifierFunc)(Parser *parser, AnnotableNode* node);
+
+/**
+ * A function that is called upon encountering an annotation
+ * @deprecated
  */
 typedef void(*AnnotationModifierFn)(Parser *lexer, CSTToken* token);
 
@@ -98,24 +109,19 @@ public:
     ASTAllocator& mod_allocator;
 
     /**
+     * interpret scope can be used to evaluate expressions during parsing
+     */
+    GlobalInterpretScope& comptime_scope;
+
+    /**
      * the ast we're generating, is it for a 64 bit target
      */
     bool is64Bit;
 
     /**
-     * top level nodes
+     * these are annotation modifier functions that will be called on the next node
      */
-    std::vector<ASTNode*> nodes;
-
-    /**
-     * types found when visiting tokens
-     */
-    std::vector<BaseType*> types;
-
-    /**
-     * values found when visiting tokens
-     */
-    std::vector<Value*> values;
+    std::vector<AnnotationModifierFunc> annotations;
 
     /**
      * current parent node
@@ -128,6 +134,11 @@ public:
     FunctionType* current_func_type = nullptr;
 
     /**
+     * current loop node is stored here
+     */
+    LoopASTNode* current_loop_node = nullptr;
+
+    /**
      * initialize the lexer with this provider and path
      */
     Parser(
@@ -137,6 +148,7 @@ public:
         LocationManager& loc_man,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
+        GlobalInterpretScope& scope,
         bool is64Bit,
         CompilerBinder* binder = nullptr
     );
@@ -149,7 +161,24 @@ public:
     /**
      * get a encoded location
      */
-    uint64_t loc(Position& start, Position& end);
+    uint64_t loc(const Position& start, const Position& end);
+
+    /**
+     * get a located identifier
+     */
+    LocatedIdentifier loc_id(const std::string_view& value, const Position& pos);
+
+    /**
+     * get a located identifier
+     */
+    inline LocatedIdentifier loc_id(Token* token) {
+        return loc_id(token->value, token->position);
+    }
+
+    /**
+     * get the ending position of the token
+     */
+    Position end_pos(Token* token);
 
     /**
      * get a encoded location
@@ -159,14 +188,31 @@ public:
     }
 
     /**
-     * get location for a single token that is on the same line
+     * get a location single at the position
      */
-    uint64_t loc_single(Token* t);
+    uint64_t loc_single(Position& position, unsigned int length);
 
     /**
-     * lex everything to LexTokens, tokens go into 'tokens' member property
+     * get location for a single token that is on the same line
      */
-    void lex();
+    inline uint64_t loc_single(Token* t) {
+        return loc_single(t->position, t->value.size());
+    }
+
+    /**
+     * suppose to be called on a node which can take annotations
+     */
+    void annotate(AnnotableNode* node) {
+        for(auto annot : annotations) {
+            annot(this, node);
+        }
+        annotations.clear();
+    }
+
+    /**
+     * parses nodes into the given vector
+     */
+    void parse(std::vector<ASTNode*>& nodes);
 
     /**
      * reset the lexer, for re-lexing a new file, if it has lexed a file before
@@ -181,6 +227,8 @@ public:
     }
 
     // ------------- Functions exposed to chemical begin here
+
+public:
 
     /**
      * consume the current token if it's given type
@@ -200,19 +248,12 @@ public:
     Token* consumeWSOfType(enum TokenType type);
 
     /**
-     * check if given token type is a keyword
-     */
-    static inline bool isKeyword(enum TokenType type) {
-        return type > TokenType::IndexKwStart && type < TokenType::IndexKwEnd;
-    }
-
-    /**
      * consume a identifier or keyword at the current location
      */
     Token* consumeIdentifierOrKeyword() {
         auto& t = *token;
         const auto type = t.type;
-        if(type == TokenType::Identifier || isKeyword(type)) {
+        if(type == TokenType::Identifier || Token::isKeyword(type)) {
             token++;
             return &t;
         } else {
@@ -255,49 +296,15 @@ public:
     VariableIdentifier* parseVariableIdentifier(ASTAllocator& allocator);
 
     /**
-     * get malformed input for the given location
-     */
-    MalformedInput* malformed(SourceLocation loc);
-
-    /**
      * lex a variable token into tokens until the until character occurs
      * only lexes the token if the identifier is not empty
      */
     bool lexVariableToken();
 
     /**
-     * lex an identifier token into tokens until the until character occurs
-     * only lexes the token if the identifier is not empty
-     */
-    bool lexIdentifierToken();
-
-    /**
-     * it will lex generic args list, it should be called after the '<'
-     * after this function a '>' should be lexed as well, and then
-     * compound it into a generic args list
-     */
-    void lexGenericArgsList();
-
-    /**
-     * this will compound the generic args list
-     * It expects '<' and then generic args and then '>'
-     */
-    bool lexGenericArgsListCompound();
-
-    /**
      * parse generic argument list
      */
     void parseGenericArgsList(std::vector<BaseType*>& outArgs, ASTAllocator& allocator);
-
-    /**
-     * lexes a function call, after the '<' for generic start
-     */
-    void lexFunctionCallWithGenericArgsList();
-
-    /**
-     * lexes a function call, that is args ')' without function name
-     */
-    bool lexFunctionCall(unsigned back_start);
 
     /**
      * parse a function call
@@ -307,16 +314,15 @@ public:
     /**
      * lexes a keyword access specifier public, private, internal & (if protect is true, then protected)
      */
-    bool lexAccessSpecifier(bool internal = true, bool protect = false);
+    std::optional<AccessSpecifier> parseAccessSpecifier();
 
     /**
-     * after an identifier has been consumed
-     * we call this method to lex an access chain after it
-     * identifier .element1.element2.element3
-     * this is the method called by lexAccessChain after finding a identifier
-     * @param assChain is the access chain in an assignment
+     * parses a accesss specifier, if not then default is returned
      */
-    bool lexAccessChainAfterId(bool lexStruct = false, unsigned int chain_length = 1);
+    AccessSpecifier parseAccessSpecifier(AccessSpecifier def) {
+        auto s = parseAccessSpecifier();
+        return s.has_value() ? s.value() : def;
+    }
 
     BaseType* ref_type_from(ASTAllocator& allocator, AccessChain* chain);
 
@@ -349,19 +355,6 @@ public:
     Value* parseAccessChain(ASTAllocator& allocator, bool parseStruct = false);
 
     /**
-     * this lexes an access chain like x.y.z or just simply an identifier
-     * @param assChain is the access chain in an assignment
-     * @param lexStruct also lex a struct if found -> StructName { v1, v2 }
-     */
-    bool lexAccessChain(bool lexStruct = false, bool lex_as_node = false);
-
-    /**
-     * it lexes a access chain, but allows a '&' operator before it to get the address of value
-     * so this allows a.b.c or &a.b.c
-     */
-    bool lexAccessChainOrAddrOf(bool lexStruct = false);
-
-    /**
      * it lexes a access chain, but allows a '&' operator before it to get the address of value
      * so this allows a.b.c or &a.b.c
      */
@@ -374,28 +367,19 @@ public:
      * like #var x : int; when false however, it'll be strict initialization
      * @return whether it was able to lex the tokens for the statement
      */
-    bool lexVarInitializationTokens(unsigned start, bool allowDeclarations = true, bool requiredType = false);
-
-    /**
-     * a helper function
-     */
-    bool lexVarInitializationTokens(bool allowDeclarations = true, bool requiredType = false) {
-        return lexVarInitializationTokens(tokens_size(), allowDeclarations, requiredType);
-    }
+    VarInitStatement* parseVarInitializationTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allowDeclarations = true, bool requiredType = false);
 
     /**
      * lex assignment tokens
      * like x = 5;
      * @return whether it was able to lex teh tokens for the statement
      */
-    bool lexAssignmentTokens();
+    ASTNode* parseAssignmentStmt(ASTAllocator& allocator);
 
     /**
-     * This lexes a operation token in between two values
-     * for example x (token) y -> x + y or x - y
-     * @return whether the language operator token has been lexed
+     * parses a single expression
      */
-    bool lexLanguageOperatorToken();
+    std::optional<Operation> parseOperation();
 
     /**
      * this is invoked by expressions , when user types sum < identifier, it can mean two things
@@ -411,12 +395,7 @@ public:
      * in this case, equal sign is ignored and operation is determined solely based on the token before it
      * @return whether the language operator token has been lexed
      */
-    bool lexAssignmentOperatorToken();
-
-    /**
-     * lex lambda type tokens
-     */
-    bool lexLambdaTypeTokens(unsigned int start);
+    std::optional<Operation> parseAssignmentOperator();
 
     /**
      * parse lambda type
@@ -424,24 +403,14 @@ public:
     BaseType* parseLambdaType(ASTAllocator& allocator, bool isCapturing);
 
     /**
-     * will lex a generic type after identifier
-     */
-    bool lexGenericTypeAfterId(unsigned int start);
-
-    /**
      * parses a generic type after id
      */
     BaseType* parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* type);
 
     /**
-     * will lex a referenced or generic type
+     * parses a generic type or single linked type
      */
-    bool lexRefOrGenericType();
-
-    /**
-     * lex array and pointer types after type id
-     */
-    void lexArrayAndPointerTypesAfterTypeId(unsigned int start);
+    BaseType* parseLinkedOrGenericType(ASTAllocator& allocator);
 
     /**
      * parse array and pointer type after id
@@ -454,21 +423,9 @@ public:
     BaseType* parseTypeId(ASTAllocator& allocator, Token* type);
 
     /**
-     * lex type id
-     */
-    bool lexTypeId(Token* type) {
-        return straight_type(parseTypeId(global_allocator, type));
-    }
-
-    /**
      * parse a single type
      */
     BaseType* parseType(ASTAllocator& allocator);
-
-    /**
-     * lex type tokens
-     */
-    bool lexTypeTokens();
 
     /**
      * top level access specified declarations
@@ -476,28 +433,27 @@ public:
     bool lexTopLevelAccessSpecifiedDecls();
 
     /**
+     * top level access specified declarations
+     */
+    ASTNode* parseTopLevelAccessSpecifiedDecls(ASTAllocator& allocator);
+
+    /**
      * lexes a single top level statement, top level means in file scope, These include
      * functions, structs, interfaces, implementations, enum, annotations
      * comments, variable initialization with value, constants
      */
-    bool lexTopLevelStatementTokens();
+    ASTNode* parseTopLevelStatement(ASTAllocator& allocator);
 
     /**
      * lexes a single nested level statement, nested level means not top level (must not be in file scope)
      * These exclude functions, enum, structs, interfaces, implementations in nested scopes
      */
-    bool lexNestedLevelStatementTokens(bool is_value = false, bool lex_value_node = false);
+    ASTNode* parseNestedLevelStatementTokens(ASTAllocator& allocator, bool is_value = false, bool parse_value_node = false);
 
     /**
-     * lexes a single statement (of any type)
-     * @return whether a statement was lexed successfully
+     * parse throw statement
      */
-    bool lexStatementTokens();
-
-    /**
-     * lex throw statement
-     */
-    bool lexThrowStatementTokens();
+    ThrowStatement* parseThrowStatement(ASTAllocator& allocator);
 
     /**
      * lexes the given operator as length 1 character operator token
@@ -537,7 +493,7 @@ public:
      * functions, structs, interfaces, implementations
      * comments, variable initialization with value, constants
      */
-    void lexTopLevelMultipleStatementsTokens(bool break_at_no_stmt = false);
+    void parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool break_at_no_stmt = false);
 
     /**
      * All import statements defined at top level will be lexed
@@ -546,16 +502,16 @@ public:
     void lexTopLevelMultipleImportStatements();
 
     /**
+     * All import statements defined at top level will be lexed
+     * @param should cause error on invalid syntax, or stop
+     */
+    void parseTopLevelMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes);
+
+    /**
      * lexes a multiple nested level statement, nested level means not top level (must not be in file scope)
      * These exclude functions, enum, structs, interfaces, implementations in nested scopes
      */
-    void lexNestedLevelMultipleStatementsTokens(bool is_value = false, bool lex_value_node = false);
-
-    /**
-     * this lexes the tokens inside the body of a structure
-     * this basically lexes multiple statements
-     */
-    void lexMultipleStatementsTokens();
+    void parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool is_value = false, bool parse_value_node = false);
 
     /**
      * lex single comment comment
@@ -563,33 +519,38 @@ public:
     bool lexSingleLineCommentTokens();
 
     /**
+     * parse a single line comment node
+     */
+    Comment* parseSingleLineComment(ASTAllocator& allocator);
+
+    /**
+     * parses a multi line comment node
+     */
+    Comment* parseMultiLineComment(ASTAllocator& allocator);
+
+    /**
      * lex multi line comment tokens
      */
     bool lexMultiLineCommentTokens();
+    /**
+     * parses a brace block, { statement(s) }
+     */
+    std::optional<Scope> parseBraceBlock(const std::string_view &forThing, ASTAllocator& allocator, void(*nested_lexer)(Parser*, ASTAllocator& allocator, std::vector<ASTNode*>& nodes));
 
     /**
-     * lexes a brace block, { statement(s) }
+     * parses a brace bock with nested statements
      */
-    bool lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Parser*));
+    std::optional<Scope> parseBraceBlock(const std::string_view &forThing, ASTNode* parent_node, ASTAllocator& allocator);
 
     /**
      * lexes top level brace block
      */
-    bool lexTopLevelBraceBlock(const std::string& forThing) {
-        return lexBraceBlock(forThing, [](Parser* lexer){
-            lexer->lexTopLevelMultipleStatementsTokens(true);
-        });
-    }
+    std::optional<Scope> parseTopLevelBraceBlock(ASTAllocator& allocator, const std::string_view& forThing);
 
     /**
-     * lexes a brace block, { statement(s) }
+     * parses a brace block or a value node
      */
-    bool lexBraceBlock(const std::string &forThing = "");
-
-    /**
-     * lexes a brace block or a value
-     */
-    bool lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_value, bool lex_value_node);
+    std::optional<Scope> parseBraceBlockOrValueNode(ASTAllocator& allocator, const std::string_view& forThing, bool is_value, bool parse_value_node);
 
     /**
      * lexes import identifier list example : { something, something }
@@ -601,94 +562,82 @@ public:
      */
     bool lexImportStatement();
 
-    /**
-     * lexes a single delete statement
-     */
-    bool lexDestructStatement();
+    bool lexIdentifierToken();
 
     /**
-     * lexes return statement
+     * lexes import statement
      */
-    bool lexReturnStatement();
+    ImportStatement* parseImportStatement(ASTAllocator& allocator);
 
     /**
-     * lexes a constructor init block, this is only present in functions
+     * parse destruct statement
      */
-    bool lexConstructorInitBlock();
+    DestructStmt* parseDestructStatement(ASTAllocator& allocator);
 
     /**
-     * lexes an unsafe block
+     * parses a single return statement
      */
-    bool lexUnsafeBlock();
+    ReturnStatement* parseReturnStatement(ASTAllocator& allocator);
 
     /**
-     * lexes break statement
+     * parses a constructor init block
      */
-    bool lexBreakStatement();
+    InitBlock* parseConstructorInitBlock(ASTAllocator& allocator);
 
     /**
-     * lexes a unreachable statement
+     * parse a unsafe block
      */
-    bool lexUnreachableStatement();
+    UnsafeBlock* parseUnsafeBlock(ASTAllocator& allocator);
 
     /**
-     * lexes a single typealias statement
+     * parse break statement
      */
-    bool lexTypealiasStatement(unsigned start);
+    BreakStatement* parseBreakStatement(ASTAllocator& allocator);
 
     /**
-     * a helper function
+     * parses a single unreachable statement
      */
-    bool lexTypealiasStatement() {
-        return lexTypealiasStatement(tokens_size());
-    }
+    UnreachableStmt* parseUnreachableStatement(ASTAllocator& allocator);
 
     /**
-     * lexes continue statement
+     * parses a single typealias statement
      */
-    bool lexContinueStatement();
+    TypealiasStatement* parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
-     * lexes a single if expr and the body without else if or else
-     * meaning '(' expr ')' '{' body '}'
+     * parses a single continue statement
      */
-    bool lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level);
+    ContinueStatement* parseContinueStatement(ASTAllocator& allocator);
+
+    /**
+     * parse If expression and block, this useful as if can contain multiple ifs using else if
+     */
+    std::optional<std::pair<Value*, Scope>> parseIfExprAndBlock(ASTAllocator& allocator, bool is_value, bool lex_value_node, bool top_level);
 
     /**
      * parse an if statement
      */
-    IfStatement* parseIfStatement(ASTAllocator& allocator, bool is_value, bool lex_value_node, bool top_level);
+    IfStatement* parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level);
 
     /**
-     * lex if block
+     * parses a single do while loop
      */
-    bool lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level);
+    DoWhileLoop* parseDoWhileLoop(ASTAllocator& allocator);
 
     /**
-     * lex do while block
+     * parses a single while loop
      */
-    bool lexDoWhileBlockTokens();
+    WhileLoop* parseWhileLoop(ASTAllocator& allocator);
 
     /**
-     * lex while block
+     * parses a single for loop
      */
-    bool lexWhileBlockTokens();
-
-    /**
-     * lex for block tokens
-     */
-    bool lexForBlockTokens();
+    ForLoop* parseForLoop(ASTAllocator& allocator);
 
     /**
      * lex loop block tokens
      */
-    bool lexLoopBlockTokens(bool is_value);
-
-    /**
-     * lex parameter list
-     * @return true when no errors occurred
-     */
-    bool lexParameterList(bool optionalTypes = false, bool defValues = true, bool lexImplicitParams = true, bool variadicParam = true);
+    LoopBlock* parseLoopBlockTokens(ASTAllocator& allocator, bool is_value);
 
     /**
      * parse parameter list
@@ -704,154 +653,79 @@ public:
     );
 
     /**
-    * lexes a function signature with parameters
-    */
-    bool lexFunctionSignatureTokens();
-
-    /**
      * this occurs right after the function name
      */
-    bool lexGenericParametersList();
-
-    /**
-     * lex after func keyword has been incremented
-     */
-    bool lexAfterFuncKeyword(bool allow_extensions = false);
+    bool parseGenericParametersList(ASTAllocator& allocator, std::vector<GenericTypeParameter*>& params);
 
     /**
      * lexes a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
      */
-    bool lexFunctionStructureTokens(unsigned start, bool allow_declaration = false, bool allow_extensions = false);
+    FunctionDeclaration* parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allow_declaration = false, bool allow_extensions = false);
 
     /**
-     * a helper function
+     * parses a interface structure
      */
-    bool lexFunctionStructureTokens(bool allow_declaration = false, bool allow_extensions = false) {
-        return lexFunctionStructureTokens(tokens_size(), allow_declaration, allow_extensions);
-    }
+    InterfaceDefinition* parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
-     * lexes interface block, this means { member(s) }
-     * without the `interface` keyword and name identifier
+     * parse namespace tokens
      */
-    void lexInterfaceBlockTokens();
+    Namespace* parseNamespace(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
-     * lexes a interface structure
+     * parses a single struct member
      */
-    bool lexInterfaceStructureTokens(unsigned start);
+    StructMember* parseStructMember(ASTAllocator& allocator);
 
     /**
-     * a helper function
+     * parses a single unnamed struct
      */
-    bool lexInterfaceStructureTokens() {
-        return lexInterfaceStructureTokens(tokens_size());
-    }
+    UnnamedStruct* parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifier specifier);
 
-    /**
-     * lex namespace tokens
-     */
-    bool lexNamespaceTokens(unsigned start);
+    bool parseVariableMemberInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier);
 
-    /**
-     * a helper function
-     */
-    bool lexNamespaceTokens() {
-        return lexNamespaceTokens(tokens_size());
-    }
-
-    /**
-     * lexes a single member of the struct
-     */
-    bool lexStructMemberTokens();
-
-    /**
-     * lexes struct block, this means { member(s) }
-     * without the `struct` keyword and name identifier
-     */
-    void lexStructBlockTokens();
+    bool parseVariableAndFunctionInto(MembersContainer* container, ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * lexes a struct block
      */
-    bool lexStructStructureTokens(unsigned start, bool unnamed = false, bool direct_init = false);
+    StructDefinition* parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool unnamed = false, bool direct_init = false);
 
     /**
-     * a helper function
+     * parses a single variant member
      */
-    bool lexStructStructureTokens(bool unnamed = false, bool direct_init = false) {
-        return lexStructStructureTokens(tokens_size(), unnamed, direct_init);
-    }
+    VariantMember* parseVariantMember(ASTAllocator& allocator, VariantDefinition* definition);
 
     /**
-     * lexes a single member of the struct
+     * parses variant members and functions into the variant definition
      */
-    bool lexVariantMemberTokens();
-
-    /**
-     * lexes struct block, this means { member(s) }
-     * without the `struct` keyword and name identifier
-     */
-    void lexVariantBlockTokens();
+    bool parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* def, AccessSpecifier specifier);
 
     /**
      * lexes a struct block
      */
-    bool lexVariantStructureTokens(unsigned start);
+    VariantDefinition* parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
-     * a helper function
+     * parses a single unnamed union
      */
-    bool lexVariantStructureTokens() {
-        return lexVariantStructureTokens(tokens_size());
-    }
-
-    /**
-     * lexes struct block, this means { member(s) }
-     * without the `struct` keyword and name identifier
-     */
-    void lexUnionBlockTokens();
+    UnnamedUnion* parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * lexes a struct block
      */
-    bool lexUnionStructureTokens(unsigned start, bool unnamed = false, bool direct_init = false);
+    UnionDef* parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool unnamed = false, bool direct_init = false);
 
     /**
-     * a helper function
+     * parses impl token
      */
-    bool lexUnionStructureTokens(bool unnamed = false, bool direct_init = false) {
-        return lexUnionStructureTokens(tokens_size(), unnamed, direct_init);
-    }
-
-    /**
-     * lexes a impl block tokens
-     */
-    void lexImplBlockTokens();
-
-    /**
-     * lexes a impl block
-     */
-    bool lexImplTokens();
-
-    /**
-     * lexes an enum block, this means { enum(s) }
-     * without the `enum` keyword and name identifier
-     */
-    bool lexEnumBlockTokens();
+    ImplDefinition* parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * lexes a enum block
      */
-    bool lexEnumStructureTokens(unsigned start);
-
-    /**
-     * helper function
-     */
-    bool lexEnumStructureTokens() {
-        return lexEnumStructureTokens(tokens_size());
-    }
+    EnumDeclaration* parseEnumStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * reads whitespace at current position
@@ -909,18 +783,6 @@ public:
         return straight_data(LexTokenType::StraightNode, node);
     }
 
-    inline void push_value(Value* value) {
-        values.emplace_back(value);
-    }
-
-    inline void push_type(BaseType* type) {
-        types.emplace_back(type);
-    }
-
-    inline void push_node(ASTNode* node) {
-        nodes.emplace_back(node);
-    }
-
     /**
      * lexes a string token, string is enclosed inside double quotes
      * @return whether a string has been lexed
@@ -945,9 +807,14 @@ public:
     }
 
     /**
-     * lex hash macro
+     * parse a single annotation, the annotation is stored in annotations vector
      */
-    bool lexAnnotationMacro();
+    bool parseAnnotation(ASTAllocator& allocator);
+
+    /**
+     * parses a macro value
+     */
+    Value* parseMacroValue(ASTAllocator& allocator);
 
     /**
      * parses the null value, otherwise returns nullptr
@@ -955,31 +822,9 @@ public:
     Value* parseNull(ASTAllocator& allocator);
 
     /**
-     * lexes a null value
-     * @deprecated
-     */
-    bool lexNull() {
-        return straight_value(parseNull(global_allocator));
-    }
-
-    /**
      * parses a bool value otherwise returns nullptr
      */
     Value* parseBoolValue(ASTAllocator& allocator);
-
-    /**
-     * lexes a bool, true or false
-     * @return whether a bool has been lexed
-     * @deprecated
-     */
-    bool lexBoolToken() {
-        return straight_value(parseBoolValue(global_allocator));
-    }
-
-    /**
-      * lex a unsigned int as number token
-      */
-    bool lexUnsignedIntAsNumberToken();
 
     /**
      * parses a number value
@@ -987,39 +832,14 @@ public:
     Value* parseNumberValue(ASTAllocator& allocator);
 
     /**
-     * lex an number token
-     * @return whether a token was lexed or not
-     * @deprecated
-     */
-    bool lexNumberToken() {
-        return straight_value(parseNumberValue(global_allocator));
-    }
-
-    /**
      * parses struct value after the identifier
      */
     StructValue* parseStructValue(ASTAllocator& allocator, BaseType* refType, Position& start);
 
     /**
-     * lexes tokens for a complete struct object initialization
-     */
-    bool lexStructValueTokens(unsigned back_start);
-
-    /**
-     * lexes multiple switch case values separated with '|'
-     */
-    bool lexMultipleSwitchCaseValues();
-
-    /**
      * values like integer and string, but appearing in access chain
      */
-    bool lexAccessChainValueToken();
-
-    /**
-     * lexes array syntax values like [1,2,3,4]
-     * for easy array creation
-     */
-    bool lexArrayInit();
+    Value* parseAccessChainValueToken(ASTAllocator& allocator);
 
     /**
      * parses array initialization
@@ -1027,35 +847,37 @@ public:
     Value* parseArrayInit(ASTAllocator& allocator);
 
     /**
+     * values in provide are supported very less
+     */
+    Value* parseProvideValue(ASTAllocator& allocator);
+
+    /**
+     * user can write things after the value, like a cast
+     * 123 as int, or 123 is int, this function takes care of parsing
+     * all values afterward a parsed value inside the expression
+     */
+    Value* parseAfterValue(ASTAllocator& allocator, Value* value);
+
+    /**
      * lexes access chain like x.y.z or a value like 10, could be int, string, char
      */
-    bool lexAccessChainOrValue(bool lexStruct = false);
+    Value* parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct = false);
 
     /**
-     * a value is lexed but as a node
+     * parse value node
      */
-    bool lexValueNode();
-
-    /**
-     * lexes a identifier list like id1,id2
-     */
-    void lexTypeList();
-
-    /**
-     * lexes a identifier list like id1,id2
-     */
-    void lexIdentifierList();
+    ValueNode* parseValueNode(ASTAllocator& allocator);
 
     /**
      * lex lambda after params list
      * @return true if there are no errors
      */
-    bool lexLambdaAfterParamsList(unsigned int start);
+    bool parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction* lambda);
 
     /**
-     * lexes a single lambda function (PARAM1, PARAM2)[CAP1, CAP2] => {}
+     * parses a single lambda function (PARAM1, PARAM2)[CAP1, CAP2] => {}
      */
-    bool lexLambdaValue();
+    LambdaFunction* parseLambdaValue(ASTAllocator& allocator);
 
     /**
      * lexes remaining expression, this is used by lexExpressionTokens
@@ -1063,24 +885,33 @@ public:
      * for example in expression a + b, after lexing a + b will lexed by this function
      * @param start is the start of the expression, index in tokens vector !
      */
-    bool lexRemainingExpression(unsigned start);
+    Value* parseRemainingExpression(ASTAllocator& allocator, Value* first_value);
 
     /**
      * it will lex a lambda meaning '() => {}' in a paren expression
      * it assumes you've already consumed '('
      */
-    bool lexLambdaOrExprAfterLParen();
+    Value* parseLambdaOrExprAfterLParen(ASTAllocator& allocator);
 
     /**
-     * it will lex a paren expression, meaning '(' expr ')'
-     * it assumes you've already consumed '('
+     * parses a parenthesized expression
      */
-    bool lexParenExpressionAfterLParen();
+    Value* parseParenExpression(ASTAllocator& allocator);
 
     /**
-     * lex a parenthesized expression '(x + 5)'
+     * just a helper function for parsing expressions
      */
-    bool lexParenExpression();
+    void parseExpressionWith(ASTAllocator& allocator, ValueAndOperatorStack& stack, ValueAndOperatorStack& final);
+
+    /**
+     * parses a single not value
+     */
+    NotValue* parseNotValue(ASTAllocator& allocator);
+
+    /**
+     * parses a single negative value
+     */
+    NegativeValue* parseNegativeValue(ASTAllocator& allocator);
 
     /**
      * lexes an expression token which can contain access chain and values
@@ -1089,35 +920,29 @@ public:
     Value* parseExpression(ASTAllocator& allocator, bool parseStruct = false, bool parseLambda = true);
 
     /**
-     * lexes an expression token which can contain access chain and values
-     * @return whether an expression has been lexed, the expression can also be a single identifier or value
-     */
-    bool lexExpressionTokens(bool lexStruct = false, bool lambda = true);
-
-    /**
      * lexes switch block
      */
-    bool lexSwitchStatementBlock(bool is_value = false, bool lex_value_node = false);
+    SwitchStatement* parseSwitchStatementBlock(ASTAllocator& allocator, bool is_value = false, bool parse_value_node = false);
 
     /**
-     * lexes try catch block statements
+     * parse try catch
      */
-    bool lexTryCatchTokens();
+    TryCatch* parseTryCatch(ASTAllocator& allocator);
 
     /**
      * lex using statement
      */
-    bool lexUsingStatement();
+    UsingStmt* parseUsingStatement(ASTAllocator& allocator);
 
     /**
      * lex provide statement
      */
-    bool lexProvideStatement();
+    ProvideStmt* parseProvideStatement(ASTAllocator& allocator);
 
     /**
      * lexes a comptime block
      */
-    bool lexComptimeBlock();
+    ComptimeBlock* parseComptimeBlock(ASTAllocator& allocator);
 
     // -------------------------------- Exposed till here
 
@@ -1229,7 +1054,7 @@ public:
      * a helper function
      */
     inline void diagnostic(std::string_view& message, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, file_path(), unit_last_token()->end_token(), severity);
+        CSTDiagnoser::diagnostic(message, file_path(), token->position, token->position, severity);
     }
 
     /**
@@ -1350,44 +1175,5 @@ public:
         diagnostic(message, DiagSeverity::Error);
         compound_from(start, is_value ? LexTokenType::CompMalformedValue : LexTokenType::CompMalformedNode);
     }
-
-protected:
-
-    /**
-     * -----------------------------------------
-     * Developer Note:
-     * when the member bool starts with "is" (e.g isLexReturnStatement)
-     * it means this variable is a state, in case of return statement
-     * when a function block is found, this variable is set to true
-     * so that statements inside that block can contain return statement
-     * when the block finishes this variable is set to false, to disallow return statements
-     * so these variables can be switched on and off in the middle of the lexing
-     * -----------------------------------------
-     */
-
-    /**
-     * when true, return statements will be lexed
-     */
-    bool isLexReturnStatement = false;
-
-    /**
-     * when true, continue statements will be lexed
-     */
-    bool isLexContinueStatement = false;
-
-    /**
-     * when true, break statements will be lexed
-     */
-    bool isLexBreakStatement = false;
-
-    /**
-     * when true, init block in lexed
-     */
-    bool isLexInitBlock = false;
-
-    /**
-     * when true, import statements will be lexed
-     */
-    bool isLexImportStatement = true;
 
 };

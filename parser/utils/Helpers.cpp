@@ -73,7 +73,7 @@ static bool read_pointer_type(Parser& parser);
 
 static bool read_type_involving_token(Parser& parser) {
     const auto type = parser.token->type;
-    if(type == TokenType::Identifier || Parser::isKeyword(type)) {
+    if(type == TokenType::Identifier || Token::isKeyword(type)) {
         parser.token++;
         read_gen_type_token(parser) || read_arr_type_token(parser) || read_pointer_type(parser);
         return true;
@@ -135,6 +135,21 @@ bool Parser::isGenericEndAhead() {
     return is_generic;
 }
 
-bool Parser::lexAccessSpecifier(bool internal, bool protect) {
-    return lexWSKeywordToken(TokenType::PublicKw) || lexWSKeywordToken(TokenType::PrivateKw) || (internal && lexWSKeywordToken(TokenType::InternalKw)) || (protect && lexWSKeywordToken(TokenType::ProtectedKw));
+std::optional<AccessSpecifier> Parser::parseAccessSpecifier() {
+    switch(token->type) {
+        case TokenType::PublicKw:
+            token++;
+            return AccessSpecifier::Public;
+        case TokenType::PrivateKw:
+            token++;
+            return AccessSpecifier::Private;
+        case TokenType::InternalKw:
+            token++;
+            return AccessSpecifier::Internal;
+        case TokenType::ProtectedKw:
+            token++;
+            return AccessSpecifier::Protected;
+        default:
+            return std::nullopt;
+    }
 }

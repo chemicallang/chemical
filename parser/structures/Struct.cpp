@@ -5,79 +5,234 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/UnnamedStruct.h"
 
-bool Parser::lexStructMemberTokens() {
-    if(lexVarInitializationTokens(true, true)) {
-        auto& last = unit.tokens.back();
-        if(last->tok_type == LexTokenType::CompVarInit) {
-            last->tok_type = LexTokenType::CompStructMember;
+StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
+
+    auto constId = consumeWSOfType(TokenType::ConstKw);
+    if(!constId) {
+        auto varId = consumeWSOfType(TokenType::VarKw);
+        if(!varId) {
+            return nullptr;
         }
-        return true;
-    } else {
-        return false;
     }
+
+    readWhitespace();
+
+    auto identifier = consumeIdentifierOrKeyword();
+    if(!identifier) {
+        return nullptr;
+    }
+
+    auto member = new (allocator.allocate<StructMember>()) StructMember(std::string(identifier->value), nullptr, nullptr, parent_node, 0, constId != nullptr, AccessSpecifier::Public);
+
+    readWhitespace();
+
+    if(!consumeWSOfType(TokenType::ColonSym)) {
+        error("expected a colon symbol after the identifier");
+    }
+
+    auto type = parseType(allocator);
+    if(type) {
+        member->type = type;
+    }
+
+    readWhitespace();
+
+    if(consumeToken(TokenType::EqualSym)) {
+        readWhitespace();
+        auto value = parseExpression(allocator);
+        if(value) {
+            member->defValue = value;
+        } else {
+            error("expected a value after equal symbol for member initialization");
+        }
+    }
+
+    return member;
+
 }
 
-void Parser::lexStructBlockTokens() {
-    do {
-        lexWhitespaceAndNewLines();
-        if(!(
-            lexStructMemberTokens() ||
-            lexFunctionStructureTokens(true) ||
-            lexSingleLineCommentTokens() ||
-            lexMultiLineCommentTokens() ||
-            lexUnionStructureTokens(true, true) ||
-            lexStructStructureTokens(true, true) ||
-            lexAnnotationMacro()
-        )) {
-            break;
-        }
-        lexWhitespaceToken();
-        lexOperatorToken(TokenType::SemiColonSym);
-    } while(token->type != TokenType::RBrace);
-    lexWhitespaceToken();
-}
+UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifier specifier) {
 
-bool Parser::lexStructStructureTokens(unsigned start, bool unnamed, bool direct_init) {
-    if(lexWSKeywordToken(TokenType::StructKw)) {
-        bool has_identifier = false;
-        if(!unnamed) {
-            has_identifier = lexIdentifierToken();
-            if (!has_identifier) {
-                error("expected a identifier as struct name");
-                return true;
-            }
-        }
+    if(consumeWSOfType(TokenType::StructKw)) {
+
+        auto decl = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct("", parent_node, 0, specifier);
+
         lexWhitespaceToken();
-        lexGenericParametersList();
-        lexWhitespaceToken();
-        if(lexOperatorToken(TokenType::ColonSym)) {
+        if(consumeToken(TokenType::ColonSym)) {
             do {
                 lexWhitespaceToken();
-                lexAccessSpecifier(false, true);
-                if(!lexRefOrGenericType()) {
-                    return true;
+                auto specifier = parseAccessSpecifier(AccessSpecifier::Public);
+                auto type = parseLinkedOrGenericType(allocator);
+                if(!type) {
+                    return decl;
                 }
+                decl->inherited.emplace_back(new InheritedType(type, specifier));
                 lexWhitespaceToken();
-            } while(lexOperatorToken(TokenType::CommaSym));
+            } while(consumeToken(TokenType::CommaSym));
         }
         lexWhitespaceToken();
-        if(!lexOperatorToken(TokenType::LBrace)) {
+        if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
-            return true;
+            return decl;
         }
-        lexStructBlockTokens();
-        if(!lexOperatorToken(TokenType::RBrace)) {
+
+        do {
+            lexWhitespaceAndNewLines();
+            if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
+                lexWhitespaceToken();
+                lexOperatorToken(TokenType::SemiColonSym);
+            } else {
+                break;
+            }
+        } while(token->type != TokenType::RBrace);
+        lexWhitespaceToken();
+
+        if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");
-            return true;
+            return decl;
         }
-        if(lexWhitespaceToken() && !has_identifier && direct_init && !lexIdentifierToken()) {
-            error("expected an identifier after the '}' for anonymous struct definition");
-            return true;
+        if(lexWhitespaceToken()) {
+            auto id = consumeIdentifierOrKeyword();
+            if(id) {
+                decl->name = id->value;
+            } else {
+                error("expected an identifier after the '}' for anonymous struct definition");
+                return decl;
+            }
         }
-        compound_from(start, LexTokenType::CompStructDef);
-        return true;
+        return decl;
     } else {
-        return false;
+        return nullptr;
+    }
+
+}
+
+bool Parser::parseVariableMemberInto(VariablesContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier) {
+    auto member = parseStructMember(allocator);
+    if(member) {
+        annotate(member);
+        decl->variables[member->name] = member;
+        return true;
+    }
+    auto comment = parseSingleLineComment(allocator);
+    if(comment) {
+        // TODO store comments somewhere
+        return true;
+    }
+    auto multilineComment = parseMultiLineComment(allocator);
+    if(multilineComment) {
+        // TODO store multiline comments somewhere
+        return true;
+    }
+    auto unionStructure = parseUnnamedUnion(allocator, specifier);
+    if(unionStructure) {
+        annotate(unionStructure);
+        decl->variables[unionStructure->name] = unionStructure;
+        return true;
+    }
+    auto unnamedStruct = parseUnnamedStruct(allocator, specifier);
+    if(unnamedStruct) {
+        annotate(unnamedStruct);
+        decl->variables[unnamedStruct->name] = unnamedStruct;
+        return true;
+    }
+    auto annotation = parseAnnotation(allocator);
+    if(annotation) {
+        return true;
+    }
+    return false;
+}
+
+bool Parser::parseVariableAndFunctionInto(MembersContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier) {
+    if(parseVariableMemberInto(decl, allocator, specifier)) return true;
+    auto funcDecl = parseFunctionStructureTokens(allocator, specifier, true);
+    if(funcDecl) {
+        annotate(funcDecl);
+        decl->insert_multi_func(funcDecl);
+        return true;
+    }
+    return false;
+}
+
+StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool unnamed, bool direct_init) {
+    if(consumeWSOfType(TokenType::StructKw)) {
+
+        std::string_view id_str;
+        LocatedIdentifier locId;
+        if(unnamed) {
+            id_str = "";
+            locId = loc_id("", { 0, 0 });
+        } else {
+            auto identifier = consumeIdentifierOrKeyword();
+            if (identifier) {
+                id_str = identifier->value;
+                locId = loc_id(identifier);
+            } else {
+                error("expected a identifier as struct name");
+                return nullptr;
+            }
+        }
+
+        auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(std::move(locId), parent_node, 0, specifier);
+
+        annotate(decl);
+
+        auto prev_parent_node = parent_node;
+        parent_node = decl;
+
+        lexWhitespaceToken();
+        parseGenericParametersList(allocator, decl->generic_params);
+        lexWhitespaceToken();
+        if(consumeToken(TokenType::ColonSym)) {
+            do {
+                lexWhitespaceToken();
+                auto specifier = parseAccessSpecifier(AccessSpecifier::Public);
+                auto type = parseLinkedOrGenericType(allocator);
+                if(!type) {
+                    return decl;
+                }
+                decl->inherited.emplace_back(new InheritedType(type, specifier));
+                lexWhitespaceToken();
+            } while(consumeToken(TokenType::CommaSym));
+        }
+        lexWhitespaceToken();
+        if(!consumeToken(TokenType::LBrace)) {
+            error("expected a '{' for struct block");
+            return decl;
+        }
+
+        do {
+            lexWhitespaceAndNewLines();
+            if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
+                lexWhitespaceToken();
+                lexOperatorToken(TokenType::SemiColonSym);
+            } else {
+                break;
+            }
+        } while(token->type != TokenType::RBrace);
+
+        if(!consumeToken(TokenType::RBrace)) {
+            error("expected a closing bracket '}' for struct block");
+            return decl;
+        }
+
+        parent_node = prev_parent_node;
+
+        if(lexWhitespaceToken() && id_str.empty() && direct_init) {
+            auto id = consumeIdentifierOrKeyword();
+            if(id) {
+                decl->identifier = loc_id(id);
+            } else {
+                error("expected an identifier after the '}' for anonymous struct definition");
+                return decl;
+            }
+        }
+        return decl;
+    } else {
+        return nullptr;
     }
 }

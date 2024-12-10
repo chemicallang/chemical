@@ -5,128 +5,149 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/LoopBlock.h"
+#include "ast/statements/Break.h"
+#include "ast/statements/Continue.h"
+#include "ast/statements/Unreachable.h"
+#include "ast/structures/ForLoop.h"
 
-bool Parser::lexContinueStatement() {
-    if(lexWSKeywordToken(TokenType::ContinueKw, TokenType::SemiColonSym)) {
-        compound_from(tokens_size() - 1, LexTokenType::CompContinue);
-        return true;
+ContinueStatement* Parser::parseContinueStatement(ASTAllocator& allocator) {
+    if(consumeWSOfType(TokenType::ContinueKw)) {
+        auto stmt = new (allocator.allocate<ContinueStatement>()) ContinueStatement(current_loop_node, parent_node, 0);
+        return stmt;
     } else {
-        return false;
+        return nullptr;
     }
 }
 
-bool Parser::lexBreakStatement() {
-    if(lexWSKeywordToken(TokenType::BreakKw, TokenType::SemiColonSym)) {
-        auto start = tokens_size() - 1;
-        // optionally lex value ahead
-        lexAccessChainOrValue();
-        compound_from(start, LexTokenType::CompBreak);
-        return true;
+BreakStatement* Parser::parseBreakStatement(ASTAllocator& allocator) {
+    if(consumeWSOfType(TokenType::BreakKw)) {
+        auto stmt = new (allocator.allocate<BreakStatement>()) BreakStatement(current_loop_node, parent_node, 0);
+        auto value = parseAccessChainOrValue(allocator);
+        if(value) {
+            stmt->value = value;
+        } else {
+            stmt->value = nullptr;
+        }
+        return stmt;
     } else {
-        return false;
+        return nullptr;
     }
 }
 
-bool Parser::lexUnreachableStatement() {
-    if(lexWSKeywordToken(TokenType::UnreachableKw, TokenType::SemiColonSym)) {
-        compound_from(tokens_size() - 1, LexTokenType::CompUnreachable);
-        return true;
+UnreachableStmt* Parser::parseUnreachableStatement(ASTAllocator& allocator) {
+    if(consumeWSOfType(TokenType::UnreachableKw)) {
+        auto stmt = new (allocator.allocate<UnreachableStmt>()) UnreachableStmt(parent_node, 0);
+        return stmt;
     } else {
-        return false;
+        return nullptr;
     }
 }
 
-bool Parser::lexForBlockTokens() {
+ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
 
-    if (!lexWSKeywordToken(TokenType::ForKw, TokenType::LParen)) {
-        return false;
+    if (!consumeWSOfType(TokenType::ForKw)) {
+        return nullptr;
     }
 
-    unsigned start = tokens_size() - 1;
+    auto loop = new (allocator.allocate<ForLoop>()) ForLoop(nullptr, nullptr, nullptr, { nullptr, 0 }, parent_node, 0);
 
     // start parenthesis
-    if(!lexOperatorToken(TokenType::LParen)) {
+    if(!consumeToken(TokenType::LParen)) {
         error("expected a starting parenthesis ( in a for block");
-        return true;
+        return loop;
     }
 
-    // lex strict initialization
-    if(!lexVarInitializationTokens(false)) {
+    auto statement = parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, false);
+    if(statement) {
+        loop->initializer = statement;
+    } else {
         error("expected a var initialization in for loop");
-        return true;
+        return loop;
     }
 
     // lex ;
-    if(!lexOperatorToken(TokenType::SemiColonSym)){
+    if(!consumeToken(TokenType::SemiColonSym)){
         error("expected semicolon ; after the initialization in for loop");
-        return true;
+        return loop;
     }
 
     // whitespace
     lexWhitespaceToken();
 
     // lex conditional expression
-    if(!lexExpressionTokens()) {
+    auto expr = parseExpression(allocator);
+    if(expr) {
+        loop->conditionExpr = expr;
+    } else {
         error("expected a conditional expression after the var initialization in for loop");
-        return true;
+        return loop;
     }
 
-    if(!lexOperatorToken(TokenType::SemiColonSym)){
+    if(!consumeToken(TokenType::SemiColonSym)){
         error("expected semicolon ; after the condition in for loop");
-        return true;
+        return loop;
     }
 
     // whitespace
     lexWhitespaceToken();
 
     // lex assignment token
-    if(!lexAssignmentTokens()) {
+    auto assignment = parseAssignmentStmt(allocator);
+    if(assignment) {
+        loop->incrementerExpr = assignment;
+    } else {
         error("missing assignment in for loop after the condition");
-        return true;
+        return loop;
     }
 
     // end parenthesis
-    if(!lexOperatorToken(TokenType::RParen)) {
+    if(!consumeToken(TokenType::RParen)) {
         error("expected a closing parenthesis ) in a for block");
-        return true;
+        return loop;
     }
 
     // { statement(s) } with continue & break support
-    isLexContinueStatement = true;
-    isLexBreakStatement = true;
-    if(!lexBraceBlock("forloop")) {
+    auto prev_loop_node = current_loop_node;
+    current_loop_node = loop;
+    auto block = parseBraceBlock("forloop", loop, allocator);
+    if(block.has_value()) {
+        loop->body.nodes = std::move(block.value().nodes);
+        loop->body.location = block.value().location;
+    } else {
         error("expected a brace block in a for block");
-        return true;
+        current_loop_node = prev_loop_node;
+        return loop;
     }
-    isLexContinueStatement = false;
-    isLexBreakStatement = false;
+    current_loop_node = prev_loop_node;
 
-    compound_from(start, LexTokenType::CompForLoop);
-
-    return true;
+    return loop;
 
 }
 
-bool Parser::lexLoopBlockTokens(bool is_value) {
+LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) {
 
-    if (!lexWSKeywordToken(TokenType::LoopKw, TokenType::LBrace)) {
-        return false;
+    auto kw = consumeWSOfType(TokenType::LoopKw);
+    if (!kw) {
+        return nullptr;
     }
 
-    unsigned start = tokens_size() - 1;
+    auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock({ parent_node, 0 }, parent_node, 0);
 
     // { statement(s) } with continue & break support
-    isLexContinueStatement = true;
-    isLexBreakStatement = true;
-    if(!lexBraceBlock("forloop")) {
+    auto prev_loop_node = current_loop_node;
+    current_loop_node = loopBlock;
+    auto block = parseBraceBlock("loop", loopBlock, allocator);
+    if(block.has_value()) {
+        auto& blk = block.value();
+        loopBlock->body = { std::move(blk.nodes), blk.parent_node, blk.location };
+    } else {
         error("expected a brace block in a for block");
-        return true;
+        current_loop_node = prev_loop_node;
+        return loopBlock;
     }
-    isLexContinueStatement = false;
-    isLexBreakStatement = false;
+    current_loop_node = prev_loop_node;
 
-    compound_from(start, is_value ? LexTokenType::CompLoopValue : LexTokenType::CompLoopBlock);
-
-    return true;
+    return loopBlock;
 
 }

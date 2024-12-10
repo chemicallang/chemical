@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CBIData.h"
+#include "compiler/cbi/Model.h"
 #include <unordered_map>
 
 class ASTProcessor;
@@ -57,8 +58,20 @@ public:
 
     /**
      * cached pointers of functions
+     * @deprecated
      */
     std::unordered_map<std::string, void*> cached_func;
+
+    /**
+     * all the initializer functions are indexed in the single unordered map
+     */
+    std::unordered_map<std::string_view, UserLexerInitializeFn> initializeLexerFunctions;
+
+    /**
+     * parseMacroValue functions are called by the parser to provide a value for a given macro
+     * when parsing
+     */
+    std::unordered_map<std::string_view, UserParserParseMacroValueFn> parseMacroValueFunctions;
 
     /**
      * contains a map between cbi_name and module data
@@ -115,6 +128,7 @@ public:
 
     /**
      * provides a pointer to function contained inside cbi
+     * @deprecated please use provide_indexed_func
      */
     void* provide_func(const std::string& cbi_name, const std::string& funcName);
 

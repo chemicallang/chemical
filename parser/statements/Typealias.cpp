@@ -1,24 +1,31 @@
 // Copyright (c) Qinetik 2024.
 
 #include "parser/Parser.h"
+#include "ast/statements/Typealias.h"
 
-bool Parser::lexTypealiasStatement(unsigned start) {
-    if(lexWSKeywordToken(TokenType::TypealiasKw)) {
-        if(lexIdentifierToken()) {
-            lexWhitespaceToken();
-            if(!lexOperatorToken(TokenType::EqualSym)) {
-                error("expected '=' after the type tokens");
-            }
-            lexWhitespaceToken();
-            if(!lexTypeTokens()) {
-                error("expected a type after '='");
-            }
-            compound_from(start, LexTokenType::CompTypealias);
-        } else {
+TypealiasStatement* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifier specifier) {
+    if(consumeWSOfType(TokenType::TypealiasKw)) {
+        auto id = consumeIdentifierOrKeyword();
+        if(!id) {
             error("expected a type for typealias statement");
+            return nullptr;
         }
-        return true;
+        auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(id), nullptr, parent_node, 0, specifier);
+        annotate(alias);
+        lexWhitespaceToken();
+        if(!consumeToken(TokenType::EqualSym)) {
+            error("expected '=' after the type tokens");
+        }
+        lexWhitespaceToken();
+        auto type = parseType(allocator);
+        if(type) {
+            alias->actual_type = type;
+        } else {
+            error("expected a type after '='");
+            return alias;
+        }
+        return alias;
     } else {
-        return false;
+        return nullptr;
     }
 }

@@ -5,38 +5,43 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/statements/VarInit.h"
 
-bool Parser::lexVarInitializationTokens(unsigned start, bool allowDeclarations, bool requiredType) {
+VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allowDeclarations, bool requiredType) {
 
-    auto lexed_const = lexWSKeywordToken(TokenType::ConstKw);
+    auto parsed_const = consumeWSOfType(TokenType::ConstKw);
 
-    if (!lexed_const && !lexWSKeywordToken(TokenType::VarKw)) {
-        return false;
+    if (!parsed_const && !consumeWSOfType(TokenType::VarKw)) {
+        return nullptr;
     }
 
-    // identifier
-    if (!lexIdentifierToken()) {
+    auto id = consumeIdentifierOrKeyword();
+    if(!id) {
         error("expected an identifier for variable initialization");
-        return true;
+        return nullptr;
     }
+
+    auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(parsed_const, loc_id(id), nullptr, nullptr, parent_node, 0, specifier);
+
+    auto prev_parent_node = parent_node;
+    parent_node = stmt;
+
+    annotate(stmt);
 
     // whitespace
     lexWhitespaceToken();
 
-    bool has_type = false;
-
     // :
-    if (lexOperatorToken(TokenType::ColonSym)) {
+    if (consumeToken(TokenType::ColonSym)) {
 
         // whitespace
         lexWhitespaceToken();
 
         // type
-        if(lexTypeTokens()) {
-            has_type = true;
-        } else if(requiredType) {
+        stmt->type = parseType(allocator);
+        if(!stmt->type && requiredType) {
             error("expected type tokens for variable initialization");
-            return true;
+            return stmt;
         }
 
         // whitespace
@@ -44,34 +49,41 @@ bool Parser::lexVarInitializationTokens(unsigned start, bool allowDeclarations, 
 
     } else if(requiredType) {
         error("expected ':' for type");
-        return true;
+        return stmt;
     }
 
     // equal sign
-    if (!lexOperatorToken(TokenType::EqualSym)) {
+    if (!consumeToken(TokenType::EqualSym)) {
         if(!allowDeclarations) {
             error("expected an = sign for the initialization of the variable");
-            return true;
-        } else if(has_type) {
-            compound_from(start, LexTokenType::CompVarInit);
+            return stmt;
+        } else if(stmt->type) {
+            parent_node = prev_parent_node;
+            return stmt;
         } else {
             error("a type or value is required to initialize a variable");
-            return true;
+            return stmt;
         }
-        return true;
     }
 
     // whitespace
     lexWhitespaceToken();
 
     // value
-    if (!(lexExpressionTokens(true) || lexArrayInit())) {
-        error("expected an expression / array for variable initialization");
-        return true;
+    auto expr = parseExpression(allocator, true);
+    if(expr) {
+        stmt->value = expr;
+    } else {
+        auto init = parseArrayInit(allocator);
+        if(init) {
+            stmt->value = init;
+        } else {
+            error("expected an expression / array for variable initialization");
+            return stmt;
+        }
     }
 
-    compound_from(start, LexTokenType::CompVarInit);
+    parent_node = prev_parent_node;
 
-    return true;
-
+    return stmt;
 }

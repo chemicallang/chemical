@@ -16,14 +16,18 @@
 #include "ast/types/DynamicType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/FunctionType.h"
+#include "ast/types/LiteralType.h"
+#include "ast/types/StringType.h"
 
 BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
     auto t1 = consumeOfType(TokenType::LParen);
     if(t1) {
 
-        std::vector<FunctionParam*> params;
-        BaseType* returnType;
-        bool isVariadic = parseParameterList(allocator, params);
+        auto func_type = new (allocator.allocate<FunctionType>()) FunctionType({}, nullptr, false, isCapturing, parent_node, loc_single(t1));
+        auto prev_func_type = current_func_type;
+        current_func_type = func_type;
+        const auto isVariadic = parseParameterList(allocator, func_type->params);
+        func_type->setIsVariadic(isVariadic);
         if(!consumeToken(TokenType::RParen)) {
             error("expected a ')' after the ')' in lambda function type");
         }
@@ -32,58 +36,17 @@ BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
             lexWhitespaceToken();
             auto type = parseType(allocator);
             if(type) {
-                returnType = type;
+                func_type->returnType = type;
             } else {
                 error("expected a return type for lambda function type");
             }
         } else {
             error("expected '=>' for lambda function type");
         }
-        return new (allocator.allocate<FunctionType>()) FunctionType(params, returnType, isVariadic, isCapturing, parent_node, loc_single(t1));
+        current_func_type = prev_func_type;
+        return func_type;
     } else {
         return nullptr;
-    }
-}
-
-bool Parser::lexLambdaTypeTokens(unsigned int start) {
-    if(lexOperatorToken(TokenType::LParen)) {
-        lexParameterList();
-        if(!lexOperatorToken(TokenType::RParen)) {
-            error("expected a ')' after the ')' in lambda function type");
-        }
-        lexWhitespaceToken();
-        if(lexOperatorToken(TokenType::LambdaSym)) {
-            lexWhitespaceToken();
-            if(!lexTypeTokens()) {
-                error("expected a return type for lambda function type");
-            }
-        } else {
-            error("expected '=>' for lambda function type");
-        }
-        compound_from(start, LexTokenType::CompFunctionType);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-bool Parser::lexGenericTypeAfterId(unsigned int start) {
-    if(lexOperatorToken(TokenType::LessThanSym)) {
-        do {
-            lexWhitespaceToken();
-            if(!lexTypeTokens()) {
-                break;
-            }
-            lexWhitespaceToken();
-        } while(lexOperatorToken(TokenType::CommaSym));
-        lexWhitespaceToken();
-        if(!lexOperatorToken(TokenType::GreaterThanSym)) {
-            error("expected '>' for generic type");
-        }
-        compound_from(start, LexTokenType::CompGenericType);
-        return true;
-    } else {
-        return false;
     }
 }
 
@@ -104,6 +67,16 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         if(!consumeToken(TokenType::GreaterThanSym)) {
             error("expected '>' for generic type");
         }
+
+        // TODO this is not ideal
+        if(types.size() == 1 && idType->linked_name() == "literal") {
+            auto underlying = types.back();
+            if(underlying->kind() == BaseTypeKind::Linked && ((LinkedType*) underlying)->linked_name() == "string") {
+                underlying = new (allocator.allocate<StringType>()) StringType(underlying->encoded_location());
+            }
+            return new (allocator.allocate<LiteralType>()) LiteralType(underlying, idType->encoded_location());
+        }
+
         // TODO Generic Type doesn't support linked value type
         return new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types));
     } else {
@@ -111,17 +84,15 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
     }
 }
 
-bool Parser::lexRefOrGenericType() {
-    unsigned start = tokens_size();
+BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
     auto id = consumeIdentifierOrKeyword();
     if(!id) {
         error("missing struct / interface name in inheritance list of the struct");
-        return false;
+        return nullptr;
     }
-    emplace(LexTokenType::Type, id->position, std::string(id->value));
+    auto idType = new (allocator.allocate<LinkedType>()) LinkedType(std::string(id->value), loc_single(id));
     lexWhitespaceToken();
-    lexGenericTypeAfterId(start);
-    return true;
+    return parseGenericTypeAfterId(allocator, idType);
 }
 
 BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId) {
@@ -151,26 +122,6 @@ BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, 
         typeId = new (allocator.allocate<ReferenceType>()) ReferenceType(typeId, loc_single(t));
     }
     return typeId;
-}
-
-void Parser::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
-    if(lexOperatorToken(TokenType::LBracket)) {
-        // optional array size
-        lexExpressionTokens();
-        if(!lexOperatorToken(TokenType::RBracket)) {
-            error("expected ']' for array type");
-            return;
-        }
-        compound_from(start, LexTokenType::CompArrayType);
-    }
-    while(lexOperatorToken(TokenType::MultiplySym)) {
-        warning("deprecated syntax, pointer should be before type");
-        compound_from(start, LexTokenType::CompPointerType);
-    }
-    if(lexOperatorToken(TokenType::AmpersandSym)) {
-        warning("deprecated syntax, reference should be before type");
-        compound_from(start, LexTokenType::CompReferenceType);
-    }
 }
 
 BaseType* Parser::parseTypeId(ASTAllocator& allocator, Token* type) {
@@ -207,6 +158,37 @@ BaseType* Parser::parseTypeId(ASTAllocator& allocator, Token* type) {
                 }
             }
         }
+    }
+}
+
+BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, SourceLocation loc) {
+    auto t = elem_type;
+    const auto kind = elem_type->kind();
+    switch(kind) {
+        case BaseTypeKind::Array:{
+            // since dyn Phone[] means (dyn Phone)[] and not dyn (Phone[])
+            const auto arr_elem_type = ((ArrayType*) t)->elem_type;
+            ((ArrayType*) t)->elem_type = new (allocator.allocate<DynamicType>()) DynamicType(arr_elem_type, loc);
+            return t;
+        }
+        case BaseTypeKind::Pointer: {
+            // since dyn Phone* or dyn *Phone means (dyn Phone)* or *(dyn Phone) and not dyn (*Phone) or dyn (Phone*)
+            const auto ptr_elem_type = ((PointerType*) t)->type;
+            ((PointerType*) t)->type = new(allocator.allocate<DynamicType>()) DynamicType(ptr_elem_type, loc);
+            return t;
+        }
+        case BaseTypeKind::Reference: {
+            // since dyn &Phone or dyn &Phone means (dyn Phone)& or &(dyn Phone) and not dyn (&Phone) or dyn (Phone&)
+            const auto ref_elem_type = ((ReferenceType*) t)->type;
+            ((ReferenceType*) t)->type = new(allocator.allocate<DynamicType>()) DynamicType(ref_elem_type, loc);
+            return t;
+        }
+        case BaseTypeKind::Linked:
+        case BaseTypeKind::Generic:
+            return new (allocator.allocate<DynamicType>()) DynamicType(t, loc);
+        default:
+            // TODO error out unknown child type with dynamic type
+            return new (allocator.allocate<DynamicType>()) DynamicType(t, loc);
     }
 }
 
@@ -259,7 +241,7 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
     if(dynToken) {
         auto type = parseType(allocator);
         if(type) {
-            return new (allocator.allocate<DynamicType>()) DynamicType(type, loc_single(dynToken));
+            return make_dynamic_type(allocator, type, loc_single(dynToken));
         } else {
             error("expected a type after the qualifier");
             return nullptr;
@@ -287,64 +269,4 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
     type = parseGenericTypeAfterId(allocator, type);
     type = parseArrayAndPointerTypesAfterTypeId(allocator, type);
     return type;
-}
-
-bool Parser::lexTypeTokens() {
-
-    if(lexOperatorToken(TokenType::LBracket)) {
-        unsigned start = tokens_size() - 1;
-        if(!lexOperatorToken(TokenType::RBracket)) {
-            error("expected ']' after '[' for lambda type");
-            return true;
-        }
-        lexWhitespaceToken();
-        if(!lexLambdaTypeTokens(start)) {
-            error("expected a lambda type after '[]'");
-        }
-        return true;
-    }
-
-    if(lexLambdaTypeTokens(tokens_size())) {
-        return true;
-    }
-
-    if(lexOperatorToken(TokenType::MultiplySym)) {
-        unsigned start = tokens_size() - 1;
-        if(!lexTypeTokens()) {
-            error("expected a type after the *");
-            return false;
-        }
-        compound_from(start, LexTokenType::CompPointerType);
-        return true;
-    } else if(lexOperatorToken(TokenType::AmpersandSym)) {
-        unsigned start = tokens_size() - 1;
-        if(!lexTypeTokens()) {
-            error("expected a type after the &");
-            return false;
-        }
-        compound_from(start, LexTokenType::CompReferenceType);
-        return true;
-    }
-
-    if(lexWSKeywordToken(TokenType::DynKw) || lexWSKeywordToken(TokenType::MutKw)) {
-        unsigned start = tokens_size() - 1;
-        if(!lexTypeTokens()) {
-            error("expected a type after the qualifier");
-            return false;
-        }
-        compound_from(start, LexTokenType::CompQualifiedType);
-        return true;
-    }
-
-    auto type = consumeIdentifierOrKeyword();
-    if(!type) return false;
-    unsigned start = tokens_size();
-    if(!lexTypeId(type)) {
-        return true;
-    }
-    lexGenericTypeAfterId(start);
-    lexArrayAndPointerTypesAfterTypeId(start);
-
-    return true;
-
 }

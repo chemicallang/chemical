@@ -7,87 +7,99 @@
 #include "parser/Parser.h"
 #include "ast/structures/If.h"
 
-bool Parser::lexIfExprAndBlock(unsigned start, bool is_value, bool lex_value_node, bool top_level) {
+std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator& allocator, bool is_value, bool lex_value_node, bool top_level) {
 
-    if (!lexOperatorToken(TokenType::LParen)) {
-        mal_value_or_node(start, "expected a starting parenthesis ( when lexing a if block", is_value);
-        return false;
+    auto lp = consumeOfType(TokenType::LParen);
+    if (!lp) {
+        error("expected a starting parenthesis ( when lexing a if block");
+        return std::nullopt;
     }
 
-    if (!lexExpressionTokens()) {
-        mal_value_or_node(start, "expected a conditional expression when lexing a if block", is_value);
-        return false;
+    auto expr = parseExpression(allocator);
+    if(!expr) {
+        error("expected a conditional expression when lexing a if block");
+        return std::nullopt;
     }
 
-    if (!lexOperatorToken(TokenType::RParen)) {
-        mal_value_or_node(start, "expected a ending parenthesis ) when lexing a if block", is_value);
-        return false;
+    if (!consumeToken(TokenType::RParen)) {
+        error("expected a ending parenthesis ) when lexing a if block");
+        return std::pair { expr, Scope { parent_node, loc_single(lp) } };
     }
 
     if(top_level) {
-        if (!lexTopLevelBraceBlock("else")) {
-            mal_value_or_node(start, "expected a brace block after the else while lexing an if statement", is_value);
-            return false;
+        auto scope = parseTopLevelBraceBlock(allocator, "else");
+        if(scope.has_value()) {
+            return std::pair { expr, std::move(scope.value()) };
+        } else {
+            error("expected a brace block after the else while lexing an if statement");
+            return std::pair { expr, Scope { parent_node, loc_single(lp) } };
         }
     } else {
-        if (!lexBraceBlockOrSingleStmt("if", is_value, lex_value_node)) {
-            mal_value_or_node(start, "expected a brace block when lexing a brace block", is_value);
-            return false;
+        auto blk = parseBraceBlockOrValueNode(allocator, "if", is_value, lex_value_node);
+        if(blk.has_value()) {
+            return std::pair { expr, std::move(blk.value()) };
+        } else {
+            error("expected a brace block when lexing a brace block");
+            return std::pair { expr, Scope { parent_node, loc_single(lp) } };
         }
     }
 
-    return true;
-
 }
 
-IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bool lex_value_node, bool top_level) {
+IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level) {
 
-    return nullptr;
-
-}
-
-bool Parser::lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level) {
-
-    if(!lexWSKeywordToken(TokenType::IfKw, TokenType::LParen)) {
-        return false;
+    auto first = consumeWSOfType(TokenType::IfKw);
+    if(!first) {
+        return nullptr;
     }
 
-    auto start = tokens_size() - 1;
+    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, { nullptr, 0 }, {}, std::nullopt, parent_node, is_value, 0);
 
-    if(!lexIfExprAndBlock(start, is_value, lex_value_node, top_level)) {
-        return true;
+    auto exprBlock = parseIfExprAndBlock(allocator, is_value, parse_value_node, top_level);
+    if(exprBlock.has_value()) {
+        auto& exprBlockValue = exprBlock.value();
+        statement->condition = exprBlockValue.first;
+        statement->ifBody = std::move(exprBlockValue.second);
+    } else {
+        return statement;
     }
 
     // lex whitespace
     lexWhitespaceAndNewLines();
 
     // keep lexing else if blocks until last else appears
-    while (lexWSKeywordToken(TokenType::ElseKw, TokenType::LBrace)) {
+    while (consumeWSOfType(TokenType::ElseKw) != nullptr) {
         lexWhitespaceAndNewLines();
-        if(lexWSKeywordToken(TokenType::IfKw, TokenType::LParen)) {
-            if(!lexIfExprAndBlock(start, is_value, lex_value_node, top_level)) {
-                return true;
+        if(consumeWSOfType(TokenType::IfKw)) {
+            auto exprBlock2 = parseIfExprAndBlock(allocator, is_value, parse_value_node, top_level);
+            if(exprBlock2.has_value()) {
+                statement->elseIfs.emplace_back(std::move(exprBlock2.value()));
+            } else {
+                return statement;
             }
             lexWhitespaceToken();
         } else {
             if(top_level) {
-                if (!lexTopLevelBraceBlock("else")) {
-                    mal_node(start,"expected a brace block after the else while lexing an if statement");
-                    return true;
+                auto block = parseTopLevelBraceBlock(allocator, "else");
+                if(block.has_value()) {
+                    statement->elseBody = std::move(block.value());
+                } else {
+                    error("expected a brace block after the else while parsing an if statement");
+                    return statement;
                 }
             } else {
-                if (!lexBraceBlockOrSingleStmt("else", is_value, lex_value_node)) {
-                    mal_node(start,"expected a brace block after the else while lexing an if statement");
-                    return true;
+                auto block = parseBraceBlockOrValueNode(allocator, "else", is_value, parse_value_node);
+                if(block.has_value()) {
+                    statement->elseBody = std::move(block.value());
+                } else {
+                    error("expected a brace block after the else while lexing an if statement");
+                    return statement;
                 }
             }
-            compound_from(start, is_value ? LexTokenType::CompIfValue :  LexTokenType::CompIf);
-            return true;
+            return statement;
         }
     }
 
-    compound_from(start, is_value ? LexTokenType::CompIfValue :  LexTokenType::CompIf);
-
-    return true;
+    return statement;
 
 }

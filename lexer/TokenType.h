@@ -96,6 +96,8 @@ enum class TokenType {
     String,
     // when the value is inside single quotes
     Char,
+    // #macro_name
+    HashMacro,
 
     // escape sequence inside quotes
     EscapeSeq,
@@ -128,8 +130,6 @@ enum class TokenType {
 
     // @
     AtSym,
-    // #
-    HashSym,
 
     // =
     EqualSym,

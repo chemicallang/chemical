@@ -5,76 +5,144 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/Variantdefinition.h"
+#include "ast/structures/VariantMember.h"
+#include "ast/structures/VariantMemberParam.h"
 
-bool Parser::lexVariantMemberTokens() {
-    if(lexIdentifierToken()) {
-        unsigned start = tokens_size() - 1;
-        if(lexOperatorToken(TokenType::LParen)) {
-            lexParameterList(false, true, false, false);
-            if(!lexOperatorToken(TokenType::RParen)) {
-                error("expected a ')' after variant member");
-                return true;
+VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefinition* definition) {
+    auto id = consumeIdentifierOrKeyword();
+    if(id) {
+        auto member = new (allocator.allocate<VariantMember>()) VariantMember(std::string(id->value), definition, loc_single(id));
+        annotate(member);
+        readWhitespace();
+        if(consumeToken(TokenType::LParen)) {
+
+            unsigned int index = 0;
+            while(true) {
+
+                auto paramId = consumeIdentifierOrKeyword();
+                if(paramId) {
+
+                    readWhitespace();
+
+                    auto param = new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(std::string(paramId->value), index, false, nullptr, nullptr, member, 0);
+                    member->values[std::string(paramId->value)] = param;
+
+                    if(!consumeToken(TokenType::ColonSym)) {
+                        error("expected ':' after the variant member parameter");
+                    }
+
+                    readWhitespace();
+
+                    auto type = parseType(allocator);
+                    if(type) {
+                        param->type = type;
+                    }
+
+                    readWhitespace();
+
+                    if(consumeToken(TokenType::EqualSym)) {
+                        auto defValue = parseExpression(allocator);
+                        if(defValue) {
+                            param->def_value = defValue;
+                        }
+                    }
+
+                    readWhitespace();
+
+                    if(consumeToken(TokenType::CommaSym)) {
+                        readWhitespace();
+                        continue;
+                    }
+
+                    index++;
+                } else {
+                    break;
+                }
             }
-            compound_from(start, LexTokenType::CompVariantMember);
-        } else {
-            error("expected a '(' after identifier in variant member");
+
+            if(!consumeToken(TokenType::RParen)) {
+                error("expected a ')' after the variant member");
+            }
+
         }
-        return true;
+        return member;
     } else {
-        return false;
+        return nullptr;
     }
 }
 
-void Parser::lexVariantBlockTokens() {
-    do {
-        lexWhitespaceAndNewLines();
-        if(!(
-            lexFunctionStructureTokens() ||
-            lexSingleLineCommentTokens() ||
-            lexMultiLineCommentTokens() ||
-            lexAnnotationMacro() ||
-            lexVariantMemberTokens()
-        )) {
-            break;
-        }
-        lexWhitespaceToken();
-        lexOperatorToken(TokenType::SemiColonSym);
-    } while(token->type != TokenType::RBrace);
-    lexWhitespaceToken();
+bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* decl, AccessSpecifier specifier) {
+    auto comment = parseSingleLineComment(allocator);
+    if(comment) {
+        // TODO store comments somewhere
+        return true;
+    }
+    auto multilineComment = parseMultiLineComment(allocator);
+    if(multilineComment) {
+        // TODO store multiline comments somewhere
+        return true;
+    }
+    auto annotation = parseAnnotation(allocator);
+    if(annotation) {
+        return true;
+    }
+    auto funcDecl = parseFunctionStructureTokens(allocator, specifier, true);
+    if(funcDecl) {
+        annotate(funcDecl);
+        decl->insert_multi_func(funcDecl);
+        return true;
+    }
+    auto variantMember = parseVariantMember(allocator, decl);
+    if(variantMember) {
+        decl->variables[variantMember->name] = variantMember;
+        return true;
+    }
+    return false;
+
 }
 
-bool Parser::lexVariantStructureTokens(unsigned start_token) {
-    if(lexWSKeywordToken(TokenType::VariantKw)) {
-        if (!lexIdentifierToken()) {
+VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+    if(consumeWSOfType(TokenType::VariantKw)) {
+        auto id = consumeIdentifierOrKeyword();
+        if (!id) {
             error("expected a identifier as struct name");
-            return true;
+            return nullptr;
         }
+
+        auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(id), parent_node, 0, specifier);
+
+        annotate(decl);
+
         lexWhitespaceToken();
-        lexGenericParametersList();
-//        lexWhitespaceToken();
-//        if(lexOperatorToken(':')) {
-//            do {
-//                lexWhitespaceToken();
-//                lexAccessSpecifier(false, true);
-//                if(!lexRefOrGenericType()) {
-//                    return true;
-//                }
-//                lexWhitespaceToken();
-//            } while(lexOperatorToken(','));
-//        }
+        parseGenericParametersList(allocator, decl->generic_params);
+
         lexWhitespaceToken();
-        if(!lexOperatorToken(TokenType::LBrace)) {
+        if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
-            return true;
+            return decl;
         }
-        lexVariantBlockTokens();
-        if(!lexOperatorToken(TokenType::RBrace)) {
+
+        auto prev_parent_type = parent_node;
+        parent_node = decl;
+        do {
+            lexWhitespaceAndNewLines();
+            if(parseAnyVariantMember(allocator, decl, AccessSpecifier::Public)) {
+                readWhitespace();
+                consumeOfType(TokenType::SemiColonSym);
+            } else {
+                break;
+            }
+        } while(token->type != TokenType::RBrace);
+        lexWhitespaceToken();
+        parent_node = prev_parent_type;
+
+        if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");
-            return true;
+            return decl;
         }
-        compound_from(start_token, LexTokenType::CompVariant);
-        return true;
+        return decl;
     } else {
-        return false;
+        return nullptr;
     }
 }

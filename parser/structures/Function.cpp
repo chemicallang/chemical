@@ -8,85 +8,90 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/types/VoidType.h"
+#include "ast/structures/GenericTypeParameter.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/ExtensionFunction.h"
+#include "ast/structures/UnsafeBlock.h"
+#include "ast/structures/InitBlock.h"
+#include "ast/statements/Return.h"
+#include "ast/statements/DestructStmt.h"
 
-bool Parser::lexReturnStatement() {
-    if(lexWSKeywordToken(TokenType::ReturnKw, TokenType::SemiColonSym)) {
-        unsigned int start = tokens_size() - 1;
+ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
+    if(consumeWSOfType(TokenType::ReturnKw)) {
         lexWhitespaceToken();
-        lexExpressionTokens(true);
-        compound_from(start, LexTokenType::CompReturn);
-        return true;
+        auto stmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(nullptr, current_func_type, parent_node, 0);
+        auto expr = parseExpression(allocator, true);
+        if(expr) {
+            stmt->value = expr;
+        }
+        return stmt;
     } else {
-        return false;
+        return nullptr;
     }
 }
 
-bool Parser::lexConstructorInitBlock() {
-    if(lexWSKeywordToken(TokenType::InitKw, TokenType::LBrace)) {
-        unsigned start = tokens_size() - 1;
-        if(!lexOperatorToken(TokenType::LBrace)) {
-            error("expected a '{' after init for init block");
-            return true;
+InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
+    if(consumeWSOfType(TokenType::InitKw)) {
+        auto init = new (allocator.allocate<InitBlock>()) InitBlock({ nullptr, 0 }, parent_node, 0);
+        auto block = parseBraceBlock("init-block", init, allocator);
+        if(block.has_value()) {
+            init->scope = std::move(block.value());
+        } else {
+            error("expected a block after init");
         }
-        while(true) {
-            lexWhitespaceAndNewLines();
-            if(lexAccessChain(false, true)) {
-                lexOperatorToken(TokenType::SemiColonSym);
-            } else {
-                break;
-            }
-        }
-        if(!lexOperatorToken(TokenType::RBrace)) {
-            error("expected a '}' for ending the init block");
-            return true;
-        }
-        compound_from(start + 1, LexTokenType::CompBody);
-        compound_from(start, LexTokenType::CompInitBlock);
-        return true;
+        return init;
     } else {
-        return false;
+        return nullptr;
     }
 }
 
-bool Parser::lexUnsafeBlock() {
-    if(lexWSKeywordToken(TokenType::UnsafeKw, TokenType::LBrace)) {
-        unsigned start = tokens_size() - 1;
-        if(!lexBraceBlock("unsafe_block")) {
+UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
+    if(consumeWSOfType(TokenType::UnsafeKw)) {
+        auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock({ nullptr, 0 }, 0);
+        auto block = parseBraceBlock("unsafe_block", unsafe, allocator);
+        if(block.has_value()) {
+            unsafe->scope = std::move(block.value());
+        } else {
             error("expected a braced block after 'unsafe' keyword");
-            return true;
+            return nullptr;
         }
-        compound_from(start, LexTokenType::CompUnsafeBlock);
-        return true;
+        return unsafe;
     } else {
-        return false;
+        return nullptr;
     }
 }
 
-bool Parser::lexDestructStatement() {
-    if(lexWSKeywordToken(TokenType::DestructKw, TokenType::LBracket)) {
-        unsigned start = tokens_size() - 1;
-        if(lexOperatorToken(TokenType::LBracket)) {
+DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
+    if(consumeWSOfType(TokenType::DestructKw)) {
+        auto stmt = new (allocator.allocate<DestructStmt>()) DestructStmt(nullptr, nullptr, false, parent_node, 0);
+        if(consumeToken(TokenType::LBracket)) {
             lexWhitespaceToken();
-            // optional value
-            lexAccessChainOrValue();
+            stmt->is_array = true;
+            auto value = parseAccessChainOrValue(allocator);
+            if(value) {
+                stmt->array_value = value;
+            }
             lexWhitespaceToken();
-            if(!lexOperatorToken(TokenType::RBracket)) {
+            if(!consumeToken(TokenType::RBracket)) {
                 error("expected a ']' after the access chain value");
-                return true;
+                return stmt;
             }
             if(!lexWhitespaceToken()) {
                 error("expected whitespace after ']' in destruct statement");
-                return true;
+                return stmt;
             }
         }
-        if(!lexAccessChainOrValue()) {
+        auto value = parseAccessChainOrValue(allocator);
+        if(value) {
+            stmt->identifier = value;
+        } else {
             error("expected a pointer value for the destruct statement");
-            return true;
+            return stmt;
         }
-        compound_from(start, LexTokenType::CompDestruct);
-        return true;
+        return stmt;
     } else {
-        return false;
+        return nullptr;
     }
 }
 
@@ -133,7 +138,7 @@ bool Parser::parseParameterList(
                         parameters.emplace_back(param);
                         return true;
                     }
-                    Value* defValue;
+                    Value* defValue = nullptr;
                     if(defValues) {
                         readWhitespace();
                         if (consumeToken(TokenType::EqualSym)) {
@@ -169,203 +174,169 @@ bool Parser::parseParameterList(
     return false;
 }
 
-bool Parser::lexParameterList(bool optionalTypes, bool defValues, bool lexImplicitParams, bool variadicParam) {
-    do {
-        lexWhitespaceAndNewLines();
-        if(lexImplicitParams && lexOperatorToken(TokenType::AmpersandSym)) {
-            const auto start = tokens_size() - 1;
-            lexWSKeywordToken(TokenType::MutKw); // optional mut keyword
-            if(lexIdentifierToken()) {
-                compound_from(start, LexTokenType::CompFunctionParam);
-                lexWhitespaceToken();
-                continue;
-            } else {
-                error("expected a identifier right after '&' in the first function parameter as a 'self' parameter");
-                return false;
-            }
-        }
-        if(lexIdentifierToken()) {
-            unsigned int start = tokens_size() - 1;
-            lexWhitespaceToken();
-            if(lexOperatorToken(TokenType::ColonSym)) {
-                lexWhitespaceToken();
-                if(lexTypeTokens()) {
-                    if(variadicParam && lexOperatorToken(TokenType::TripleDotSym)) {
-                        compound_from(start, LexTokenType::CompFunctionParam);
-                        break;
-                    }
-                    if(defValues) {
-                        lexWhitespaceToken();
-                        if (lexOperatorToken(TokenType::EqualSym)) {
-                            lexWhitespaceToken();
-                            if (!lexExpressionTokens()) {
-                                error("expected value after '=' for default value for the parameter");
-                                break;
-                            }
-                        }
-                    }
-                    compound_from(start, LexTokenType::CompFunctionParam);
-                } else {
-                    error("missing a type token for the function parameter, expected type after the colon");
-                    return false;
-                }
-            } else {
-                if(optionalTypes) {
-                    compound_from(start, LexTokenType::CompFunctionParam);
-                } else {
-                    error("expected colon ':' in function parameter list after the parameter name ");
-                    return false;
-                }
-            }
-        }
-        lexWhitespaceToken();
-    } while(lexOperatorToken(TokenType::CommaSym));
-    return true;
-}
-
-bool Parser::lexGenericParametersList() {
-    if(lexOperatorToken(TokenType::LessThanSym)) {
-        unsigned start = tokens_size() - 1;
+bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<GenericTypeParameter*>& params) {
+    if(consumeToken(TokenType::LessThanSym)) {
+        unsigned int param_index = 0;
         while(true) {
             lexWhitespaceToken();
-            if(!lexIdentifierToken()) {
+            auto id = consumeIdentifierOrKeyword();
+            if(!id) {
                 break;
             }
+            auto parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(std::string(id->value), nullptr, nullptr, parent_node, param_index, 0);
+            params.emplace_back(parameter);
             lexWhitespaceToken();
-            if(lexOperatorToken(TokenType::ColonSym)) {
+            if(consumeToken(TokenType::ColonSym)) {
                 lexWhitespaceToken();
-                if(!lexTypeTokens()) {
+                auto type = parseType(allocator);
+                if(type) {
+                    parameter->at_least_type = type;
+                } else {
                     error("expected a type after ':' in generic parameter list");
                     return true;
                 }
                 lexWhitespaceToken();
             }
-            if(lexOperatorToken(TokenType::EqualSym)) {
+            if(consumeToken(TokenType::EqualSym)) {
                 lexWhitespaceToken();
-                if(!lexTypeTokens()) {
+                auto type = parseType(allocator);
+                if(type) {
+                    parameter->def_type = type;
+                } else {
                     error("expected a default type after '=' in generic parameter list");
                     return true;
                 }
                 lexWhitespaceToken();
             }
-            if(!lexOperatorToken(TokenType::CommaSym)) {
+            if(!consumeToken(TokenType::CommaSym)) {
                 break;
             }
         }
-        if(!lexOperatorToken(TokenType::GreaterThanSym)) {
+        if(!consumeToken(TokenType::GreaterThanSym)) {
             error("expected a '>' for ending the generic parameters list");
             return true;
         }
-        compound_from(start, LexTokenType::CompGenericParamsList);
         return true;
     } else {
         return false;
     }
 }
 
-bool Parser::lexAfterFuncKeyword(bool allow_extensions) {
+FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allow_declaration, bool allow_extensions) {
 
-    if(lexGenericParametersList() && has_errors) {
-        return false;
+    if(!consumeWSOfType(TokenType::FuncKw)) {
+        return nullptr;
+    }
+
+    std::vector<GenericTypeParameter*> gen_params;
+
+    readWhitespace();
+
+    if(parseGenericParametersList(allocator, gen_params) && has_errors) {
+        return nullptr;
     }
 
     lexWhitespaceToken();
 
-    if(allow_extensions && lexOperatorToken(TokenType::LParen)) {
+    FunctionDeclaration* decl;
+
+    if(allow_extensions && consumeToken(TokenType::LParen)) {
+        auto ext_func = new (allocator.allocate<ExtensionFunction>()) ExtensionFunction(loc_id("", {0, 0}), { "", nullptr, nullptr, 0 }, {}, nullptr, false, parent_node, 0, std::nullopt, specifier);;
+        decl = ext_func;
         lexWhitespaceToken();
-        unsigned start = tokens_size();
-        if(!lexIdentifierToken()) {
+        auto id = consumeIdentifierOrKeyword();
+        if(id) {
+            ext_func->receiver.name = id->value;
+        } else {
             error("expected identifier for receiver in extension function after '('");
-            return false;
+            return decl;
         }
         lexWhitespaceToken();
-        if(!lexOperatorToken(TokenType::ColonSym)) {
+        if(!consumeToken(TokenType::ColonSym)) {
             error("expected ':' in extension function after identifier for receiver");
-            return false;
+            return decl;
         }
         lexWhitespaceToken();
-        if(!lexTypeTokens()) {
+        auto type = parseType(allocator);
+        if(type) {
+            ext_func->receiver.type = type;
+        } else {
             error("expected type after ':' in extension function for receiver");
-            return false;
+            return decl;
         }
-        compound_from(start, LexTokenType::CompFunctionParam);
         lexWhitespaceToken();
-        if(!lexOperatorToken(TokenType::RParen)) {
+        if(!consumeToken(TokenType::RParen)) {
             error("expected ')' in extension function after receiver");
-            return false;
+            return decl;
         }
         lexWhitespaceToken();
+    } else {
+        decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id("", {0, 0}), {}, nullptr, false, parent_node, 0, std::nullopt, specifier, false);
     }
 
-    if(!lexIdentifierToken()) {
+    for(auto param : gen_params) {
+        param->parent_node = decl;
+    }
+    decl->generic_params = std::move(gen_params);
+
+    annotate(decl);
+
+    auto name = consumeIdentifierOrKeyword();
+    if(name) {
+        decl->set_identifier(loc_id(name));
+    } else {
         error("function name is missing after the keyword 'func'");
-        return false;
+        return decl;
     }
 
     lexWhitespaceToken();
 
-    if(!lexOperatorToken(TokenType::LParen)) {
+    if(!consumeToken(TokenType::LParen)) {
         error("expected a starting parenthesis ( in a function signature");
-        return false;
-    }
-
-    if(!lexParameterList()) {
-        return false;
-    }
-
-    lexWhitespaceAndNewLines();
-
-    if(!lexOperatorToken(TokenType::RParen)) {
-        error("expected a closing parenthesis ) when ending a function signature");
-        return false;
-    }
-
-    lexWhitespaceToken();
-
-    if(lexOperatorToken(TokenType::ColonSym)) {
-        lexWhitespaceToken();
-        if(!lexTypeTokens()) {
-            error("expected a return type for function after ':'");
-            return true; // return true, since type is not found, but we continue lexing other function
-        }
-    }
-
-    return true;
-
-}
-
-bool Parser::lexFunctionSignatureTokens() {
-
-    if(!lexWSKeywordToken(TokenType::FuncKw)) {
-        return false;
-    }
-
-    return lexAfterFuncKeyword();
-
-}
-
-bool Parser::lexFunctionStructureTokens(unsigned start, bool allow_declarations, bool allow_extensions) {
-
-    if(!lexWSKeywordToken(TokenType::FuncKw)) {
-        return false;
-    }
-
-    if(!lexAfterFuncKeyword(allow_extensions)) {
-        return true;
+        return decl;
     }
 
     // inside the block allow return statements
-    auto prevReturn = isLexReturnStatement;
-    isLexReturnStatement = true;
-    isLexInitBlock = true;
-    if(!lexBraceBlock("function") && !allow_declarations) {
+    auto prev_func_type = current_func_type;
+    current_func_type = decl;
+    auto prev_parent_node = parent_node;
+    parent_node = decl;
+
+    auto isVariadic = parseParameterList(allocator, decl->params);
+    decl->setIsVariadic(isVariadic);
+
+    lexWhitespaceAndNewLines();
+
+    if(!consumeToken(TokenType::RParen)) {
+        error("expected a closing parenthesis ) when ending a function signature");
+        return decl;
+    }
+
+    lexWhitespaceToken();
+
+    if(consumeToken(TokenType::ColonSym)) {
+        lexWhitespaceToken();
+        auto type = parseType(allocator);
+        if(type) {
+            decl->returnType = type;
+        } else {
+            error("expected a return type for function after ':'");
+            return decl;
+        }
+    } else {
+        decl->returnType = new (allocator.allocate<VoidType>()) VoidType(0);
+    }
+
+    auto block = parseBraceBlock("function", decl, allocator);
+    if(block.has_value()) {
+        decl->body.emplace(block->parent_node, block->location);
+        decl->body->nodes = std::move(block->nodes);
+    } else if(!allow_declaration) {
         error("expected the function definition after the signature");
     }
-    isLexInitBlock = false;
-    isLexReturnStatement = prevReturn;
+    current_func_type = prev_func_type;
+    parent_node = prev_parent_node;
 
-    compound_from(start, LexTokenType::CompFunction);
-
-    return true;
+    return decl;
 
 }

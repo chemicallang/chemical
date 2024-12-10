@@ -477,6 +477,9 @@ int main(int argc, char *argv[]) {
         CompilerBinder binder(argv[0]);
         LabBuildCompiler compiler(binder, &compiler_opts);
 
+        // Prepare compiler options
+        prepare_options(&compiler_opts);
+
         // translate the build.lab to a c file (for debugging)
         if(output.has_value() && output.value().ends_with(".c")) {
             LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_folder), { }, { });
@@ -489,7 +492,6 @@ int main(int argc, char *argv[]) {
         }
 
         LabBuildContext context(&compiler_opts, std::string(args[0]));
-        prepare_options(&compiler_opts);
         compiler_opts.def_mode = mode;
 
         // giving build args to lab build context

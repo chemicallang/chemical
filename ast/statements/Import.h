@@ -20,6 +20,7 @@ public:
 
     std::vector<std::string> identifiers;
     std::string filePath; ///< The file path to import.
+    std::string as_identifier;
     ASTNode* parent_node;
     SourceLocation location;
 

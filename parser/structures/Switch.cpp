@@ -1,87 +1,88 @@
 // Copyright (c) Qinetik 2024.
 
 #include "parser/Parser.h"
+#include "ast/statements/SwitchStatement.h"
 
-bool Parser::lexMultipleSwitchCaseValues() {
-    bool has_single = false;
-    do {
-        if(has_single) {
-            lexWhitespaceToken();
-        }
-        if(lexWSKeywordToken(TokenType::DefaultKw, TokenType::ColonSym) || lexExpressionTokens()) {
-            has_single = true;
-        }
-        lexWhitespaceToken();
-    } while(lexOperatorToken(TokenType::CommaSym));
-    return has_single;
-}
+SwitchStatement* Parser::parseSwitchStatementBlock(ASTAllocator& allocator, bool is_value, bool parse_value_node) {
+    if (consumeWSOfType(TokenType::SwitchKw)) {
 
-bool Parser::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
-    if (lexWSKeywordToken(TokenType::SwitchKw, TokenType::LParen)) {
-        auto start = tokens_size() - 1;
+        auto stmt = new (allocator.allocate<SwitchStatement>()) SwitchStatement(nullptr, parent_node, is_value, 0);
 
-        if (lexOperatorToken(TokenType::LParen)) {
-            if (!lexExpressionTokens()) {
-                mal_value_or_node(start, "expected an expression tokens in switch statement", is_value);
-                return true;
+        if (consumeToken(TokenType::LParen)) {
+            auto expr = parseExpression(allocator);
+            if(expr) {
+                stmt->expression = expr;
+            } else {
+                error("expected an expression tokens in switch statement");
+                return stmt;
             }
-            if (!lexOperatorToken(TokenType::RParen)) {
-                mal_value_or_node(start, "expected ')' in switch statement", is_value);
-                return true;
+            if (!consumeToken(TokenType::RParen)) {
+                error("expected ')' in switch statement");
+                return stmt;
             }
         } else {
-            mal_value_or_node(start, "expect '(' after keyword 'switch' for the expression", is_value);
-            return true;
+            error("expect '(' after keyword 'switch' for the expression");
+            return stmt;
         }
         lexWhitespaceAndNewLines();
-        if (lexOperatorToken(TokenType::LBrace)) {
+        if (consumeToken(TokenType::LBrace)) {
             while(true) {
                 lexWhitespaceAndNewLines();
-//                if(lexWSKeywordToken("default", ':')) {
-//                    if (lexOperatorToken(':')) {
-//                        auto bStart = tokens_size();
-//                        lexNestedLevelMultipleStatementsTokens();
-//                        compound_from(bStart, LexTokenType::CompBody);
-//                    } else if (lexOperatorToken("=>")) {
-//                        if(!lexBraceBlockOrSingleStmt("switch-default", is_value, lex_value_node)) {
-//                            mal_value_or_node(start, "expected a brace block after the '=>' in the switch default case", is_value);
-//                            return true;
-//                        }
-//                    } else {
-//                        mal_value_or_node(start, "expected ':' or '=>' after 'default' in switch statement", is_value);
-//                        return true;
-//                    }
-//                } else {
-                    if (!lexMultipleSwitchCaseValues()) {
-                        break;
+                bool has_single = false;
+                int body_index = (int) stmt->scopes.size();
+                do {
+                    if(has_single) {
+                        lexWhitespaceToken();
                     }
-                    lexWhitespaceToken();
-                    if (lexOperatorToken(TokenType::ColonSym)) {
-                        auto bStart = tokens_size();
-                        lexNestedLevelMultipleStatementsTokens();
-                        compound_from(bStart, LexTokenType::CompBody);
-                        continue;
-                    } else if (lexOperatorToken(TokenType::LambdaSym)) {
-                        if(!lexBraceBlockOrSingleStmt("switch-case", is_value, lex_value_node)) {
-                            mal_value_or_node(start, "expected a brace block after the '=>' in the switch case", is_value);
-                            return true;
+                    if(consumeWSOfType(TokenType::DefaultKw)) {
+                        has_single = true;
+                        if(stmt->defScopeInd == -1) {
+                            stmt->defScopeInd = body_index;
+                        } else {
+                            error("multiple default scopes detected");
                         }
                     } else {
-                        mal_value_or_node(start, "expected ':' or '=>' after 'case' in switch statement", is_value);
-                        return true;
+                        auto expr = parseExpression(allocator);
+                        if(expr) {
+                            has_single = true;
+                            stmt->cases.emplace_back(expr, body_index);
+                        } else {
+                            break;
+                        }
                     }
-//                }
+                    lexWhitespaceToken();
+                } while(consumeToken(TokenType::CommaSym));
+                if(!has_single) {
+                    break;
+                }
+                lexWhitespaceToken();
+                stmt->scopes.emplace_back(parent_node, 0);
+                auto& scope = stmt->scopes.back();
+                if (consumeToken(TokenType::ColonSym)) {
+                    parseNestedLevelMultipleStatementsTokens(allocator, scope.nodes);
+                    continue;
+                } else if (consumeToken(TokenType::LambdaSym)) {
+                    auto braceBlock = parseBraceBlockOrValueNode(allocator, "switch-case", is_value, parse_value_node);
+                    if(braceBlock.has_value()) {
+                        scope = std::move(braceBlock.value());
+                    } else {
+                        error("expected a brace block after the '=>' in the switch case");
+                        return stmt;
+                    }
+                } else {
+                    error("expected ':' or '=>' after 'case' in switch statement");
+                    return stmt;
+                }
             }
-            if(!lexOperatorToken(TokenType::RBrace)) {
-                mal_value_or_node(start, "expected '}' for ending the switch block", is_value);
-                return true;
+            if(!consumeToken(TokenType::RBrace)) {
+                error("expected '}' for ending the switch block");
+                return stmt;
             }
         } else {
-            mal_value_or_node(start, "expected '{' after switch", is_value);
-            return true;
+            error("expected '{' after switch");
+            return stmt;
         }
-        compound_from(start, is_value ? LexTokenType::CompSwitchValue : LexTokenType::CompSwitch);
-        return true;
+        return stmt;
     }
-    return false;
+    return nullptr;
 }

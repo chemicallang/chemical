@@ -12,6 +12,7 @@
 #include "ast/structures/MembersContainer.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
 #include "integration/cbi/bindings/CBI.h"
+#include "parser/CBI.h"
 #include "rang.hpp"
 
 void handle_error(void *opaque, const char *msg){
@@ -20,6 +21,8 @@ void handle_error(void *opaque, const char *msg){
 }
 
 CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_path)) {
+    parseMacroValueFunctions["#sizeof"] = parseSizeOfValue;
+    parseMacroValueFunctions["#eval"] = parseEvalValue;
     source_provider_symbol_map(interface_maps["SourceProvider"]);
     lexer_symbol_map(interface_maps["Lexer"]);
     cst_diagnoser_symbol_map(interface_maps["CSTDiagnoser"]);

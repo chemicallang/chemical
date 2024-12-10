@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ast/base/AnnotableNode.h"
 #include "ast/values/AccessChain.h"
 
 /**

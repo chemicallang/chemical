@@ -5,55 +5,72 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/EnumMember.h"
+#include "ast/values/IntValue.h"
 
-bool Parser::lexEnumBlockTokens() {
-    while(true) {
-        lexWhitespaceAndNewLines();
-        if(lexIdentifierToken()) {
-            lexWhitespaceToken();
-            if(lexOperatorToken(TokenType::EqualSym)) {
+EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+    if(consumeWSOfType(TokenType::EnumKw)) {
+        auto id = consumeIdentifierOrKeyword();
+        if(!id) {
+            error("expected a identifier as enum name");
+            return nullptr;
+        }
+        auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(id), {}, parent_node, 0, specifier);
+
+        annotate(decl);
+
+        lexWhitespaceToken();
+        if(!consumeToken(TokenType::LBrace)) {
+            error("expected a '{' for after the enum name");
+            return decl;
+        }
+        unsigned int index = 0;
+        while(true) {
+            lexWhitespaceAndNewLines();
+            auto memberId = consumeIdentifierOrKeyword();
+            if(memberId) {
+                auto member = new (allocator.allocate<EnumMember>()) EnumMember(std::string(memberId->value), index, nullptr, decl, loc_single(memberId));
+                decl->members[std::string(memberId->value)] = member;
                 lexWhitespaceToken();
-                if(!lexExpressionTokens()) {
-                    error("expected a value after '=' operator");
-                    return false;
+                if(consumeToken(TokenType::EqualSym)) {
+                    lexWhitespaceToken();
+                    auto expr = parseExpression(allocator);
+                    if(expr) {
+                        member->init_value = expr;
+                    } else {
+                        error("expected a value after '=' operator");
+                        return decl;
+                    }
+                } else {
+                    member->init_value = new (allocator.allocate<IntValue>()) IntValue((int) index, 0);;
                 }
-            }
-            if(lexOperatorToken(TokenType::CommaSym)) {
-                continue;
+                index++;
+                if(consumeToken(TokenType::CommaSym)) {
+                    continue;
+                } else {
+                    lexWhitespaceAndNewLines();
+                    break;
+                }
             } else {
-                lexWhitespaceAndNewLines();
+                auto singly = parseSingleLineComment(allocator);
+                if(singly) {
+                    continue;
+                } else {
+                    auto multily = parseMultiLineComment(allocator);
+                    if(multily) {
+                        continue;
+                    }
+                }
                 break;
             }
-        } else if(lexSingleLineCommentTokens() || lexMultiLineCommentTokens()) {
-            continue;
-        } else {
-            break;
-        }
-    };
-    return true;
-}
-
-bool Parser::lexEnumStructureTokens(unsigned start) {
-    if(lexWSKeywordToken(TokenType::EnumKw)) {
-        if(!lexIdentifierToken()) {
-            error("expected a identifier as enum name");
-            return true;
-        }
-        lexWhitespaceToken();
-        if(!lexOperatorToken(TokenType::LBrace)) {
-            error("expected a '{' for after the enum name");
-            return true;
-        }
-        if(!lexEnumBlockTokens()) {
-            return true;
-        }
-        if(!lexOperatorToken(TokenType::RBrace)) {
+        };
+        if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' in enum block");
-            return true;
+            return decl;
         }
-        compound_from(start, LexTokenType::CompEnumDecl);
-        return true;
+        return decl;
     } else {
-        return false;
+        return nullptr;
     }
 }

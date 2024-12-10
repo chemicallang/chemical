@@ -6,6 +6,7 @@
 #include "Token.h"
 #include "LexUnit.h"
 #include "MultiStrAllocator.h"
+#include "compiler/cbi/Model.h"
 
 class CompilerBinder;
 
@@ -14,9 +15,11 @@ namespace chem {
 }
 
 /**
- * lexer state is just boolean struct
- * which is limited to 32 bits at the moment
- * all options default value must be false
+ * our state has two limits
+ * 1 - all options default value must be false
+ * 2 - we are only allowed 9 booleans, which can be encoded
+ * in 9 bits inside the final format of 32 bit integer we will use
+ * to represent our lexer state
  */
 struct LexerState {
 
@@ -44,6 +47,14 @@ struct LexerState {
      */
     bool comment_mode = false;
 
+    /**
+     * is user mode means a user lexer or a self provided user
+     * lexer is being used, which is just a function pointer that
+     * will provide the next token, this boolean can be encoded
+     * in the user id part of the final state integer
+     */
+    bool user_mode = false;
+
 };
 
 /**
@@ -51,6 +62,12 @@ struct LexerState {
  */
 class Lexer : public LexerState {
 public:
+
+    /**
+     * user lexer is the lexer we will activate upon encountering a
+     * macro which starts with a hash symbol
+     */
+    UserLexerGetNextTokenFn user_lexer;
 
     /**
      * the allocator used for strings found in the source code

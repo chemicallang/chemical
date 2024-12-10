@@ -1,90 +1,95 @@
 // Copyright (c) Qinetik 2024.
 
 #include "parser/Parser.h"
+#include "ast/values/LambdaFunction.h"
+#include "ast/structures/CapturedVariable.h"
+#include "ast/statements/Return.h"
 
-void Parser::lexTypeList() {
-    do {
-        lexWhitespaceToken();
-        if (!lexTypeTokens()) {
-            break;
-        }
-        lexWhitespaceToken();
-    } while (lexOperatorToken(TokenType::CommaSym));
-}
+bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction* lambda) {
 
-void Parser::lexIdentifierList() {
-    do {
-        lexWhitespaceToken();
-        if (!lexIdentifierToken()) {
-            break;
-        }
-        lexWhitespaceToken();
-    } while (lexOperatorToken(TokenType::CommaSym));
-}
-
-bool Parser::lexLambdaAfterParamsList(unsigned int start) {
     lexWhitespaceToken();
 
-    if (!lexOperatorToken(TokenType::LambdaSym)) {
-        mal_value(start, "expected '=>' for a lambda");
+    if (!consumeToken(TokenType::LambdaSym)) {
+        error("expected '=>' for a lambda");
         return false;
     }
 
     lexWhitespaceToken();
 
-    if (!(lexBraceBlock("lambda") || lexExpressionTokens())) {
-        mal_value(start, "expected lambda body");
-        return false;
+    auto prev_func_type = current_func_type;
+    current_func_type = lambda;
+    auto braceBlock = parseBraceBlock("lambda", parent_node, allocator);
+    if(braceBlock.has_value()) {
+        lambda->scope = std::move(braceBlock.value());
+    } else {
+        auto expr = parseExpression(allocator);
+        if(expr) {
+            auto returnStmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(expr, lambda, &lambda->scope, ZERO_LOC);
+            lambda->scope.nodes.emplace_back(returnStmt);
+        } else {
+            error("expected lambda body");
+            current_func_type = prev_func_type;
+            return false;
+        }
     }
+    current_func_type = prev_func_type;
 
-    compound_from(start, LexTokenType::CompLambda);
     return true;
 }
 
-bool Parser::lexLambdaValue() {
-    if (lexOperatorToken(TokenType::LBracket)) {
+LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
+    if (consumeToken(TokenType::LBracket)) {
 
-        auto start = tokens_size() - 1;
+        auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
 
+        lambda->setIsCapturing(true);
+
+        // the capture list
+        unsigned int index = 0;
         do {
             lexWhitespaceAndNewLines();
-            bool lexed_amp = lexOperatorToken(TokenType::AmpersandSym);
-            if (!lexVariableToken()) {
+            bool lexed_amp = consumeOfType(TokenType::AmpersandSym);
+            auto id = consumeIdentifierOrKeyword();
+            if(id) {
+                auto variable = new (allocator.allocate<CapturedVariable>()) CapturedVariable(std::string(id->value), index, lexed_amp, loc_single(id));
+                variable->lambda = lambda;
+                lambda->captureList.emplace_back(variable);
+            } else {
                 if(lexed_amp) {
                     error("expected identifier after '&'");
-                    return true;
+                    return lambda;
                 }
             }
             lexWhitespaceToken();
-        } while (lexOperatorToken(TokenType::CommaSym));
+            index++;
+        } while (consumeToken(TokenType::CommaSym));
 
-        if (!lexOperatorToken(TokenType::RBracket)) {
+        if (!consumeToken(TokenType::RBracket)) {
             error("expected ']' after lambda function capture list");
-            return true;
+            return lambda;
         }
 
-        if (!lexOperatorToken(TokenType::LParen)) {
+        if (!consumeToken(TokenType::LParen)) {
             error("expected '(' for lambda parameter list");
-            return true;
+            return lambda;
         }
 
-        if(!lexParameterList(true, false)) {
-            return true;
-        }
+        auto isVariadic = parseParameterList(allocator, lambda->params, true, false);
+        lambda->setIsVariadic(isVariadic);
 
         lexNewLineChars();
 
-        if (!lexOperatorToken(TokenType::RParen)) {
-            mal_value(start, "expected ')' after the lambda parameter list");
-            return true;
+        if (!consumeToken(TokenType::RParen)) {
+            error("expected ')' after the lambda parameter list");
+            return lambda;
         }
 
-        if(!lexLambdaAfterParamsList(start)) {
-            return true;
+        if(!parseLambdaAfterParamsList(allocator, lambda)) {
+            return lambda;
         }
 
-        return true;
+        return lambda;
     } else {
-        return false;
+        return nullptr;
     }
 }

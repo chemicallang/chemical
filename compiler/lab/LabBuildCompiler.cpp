@@ -447,7 +447,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             for(auto& include : mod->includes) {
                 const auto abs_path = include.to_std_string();
                 unsigned fileId = loc_man.encodeFile(abs_path);
-                auto imported_file = processor.import_chemical_file(fileId, abs_path);
+                auto imported_file = processor.import_chemical_file_new(fileId, abs_path);
                 auto& nodes = imported_file.unit.scope.nodes;
                 import_in_module(nodes, resolver, abs_path);
 #ifdef COMPILER_BUILD

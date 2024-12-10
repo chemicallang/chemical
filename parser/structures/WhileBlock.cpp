@@ -5,44 +5,49 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/WhileLoop.h"
 
-bool Parser::lexWhileBlockTokens() {
+WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
 
-    if(!lexWSKeywordToken(TokenType::WhileKw, TokenType::LParen)) {
-        return false;
+    if(!consumeWSOfType(TokenType::WhileKw)) {
+        return nullptr;
     }
 
-    auto start = tokens_size() - 1;
+    auto loop = new (allocator.allocate<WhileLoop>()) WhileLoop(nullptr, { nullptr, 0 }, parent_node, 0);
 
-    if(!lexOperatorToken(TokenType::LParen)) {
-        mal_node(start, "expected a starting parenthesis ( after keyword while for while block");
-        return true;
+    if(!consumeToken(TokenType::LParen)) {
+        error("expected a starting parenthesis ( after keyword while for while block");
+        return loop;
     }
 
-    if(!lexExpressionTokens()) {
-        mal_node(start, "expected a conditional statement for while block");
-        return true;
+    auto expr = parseExpression(allocator);
+    if(expr) {
+        loop->condition = expr;
+    } else {
+        error("expected a conditional statement for while block");
+        return loop;
     }
 
-    if(!lexOperatorToken(TokenType::RParen)) {
-        mal_node(start, "expected a closing parenthesis ) for while block");
-        return true;
+    if(!consumeToken(TokenType::RParen)) {
+        error("expected a closing parenthesis ) for while block");
+        return loop;
     }
 
     // { statement(s) } with continue & break support
-    auto prevLexContinue = isLexContinueStatement;
-    auto prevLexBreak = isLexBreakStatement;
-    isLexContinueStatement = true;
-    isLexBreakStatement = true;
-    if(!lexBraceBlock("whileloop")) {
-        mal_node(start, "expected a brace block { statement(s) } when lexing a while block");
-        return true;
+    auto prev_loop_node = current_loop_node;
+    current_loop_node = loop;
+    auto block = parseBraceBlock("whileloop", loop, allocator);
+    if(block.has_value()) {
+        auto& blk = block.value();
+        loop->body.nodes = std::move(blk.nodes);
+        loop->body.parent_node = blk.parent_node;
+    } else {
+        error("expected a brace block { statement(s) } when lexing a while block");
+        current_loop_node = prev_loop_node;
+        return loop;
     }
-    isLexContinueStatement = prevLexContinue;
-    isLexBreakStatement = prevLexBreak;
+    current_loop_node = prev_loop_node;
 
-    compound_from(start, LexTokenType::CompWhile);
-
-    return true;
+    return loop;
 
 }

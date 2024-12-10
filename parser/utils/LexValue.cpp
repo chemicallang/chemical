@@ -27,6 +27,13 @@
 #include "ast/values/NumberValue.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/LambdaFunction.h"
+#include "ast/values/CastedValue.h"
+#include "ast/values/IsValue.h"
+#include "ast/values/ValueNode.h"
+#include "ast/structures/If.h"
+#include "ast/statements/SwitchStatement.h"
+#include "ast/structures/LoopBlock.h"
 #include "parse_num.h"
 
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
@@ -137,11 +144,6 @@ Value* Parser::parseNull(ASTAllocator& allocator) {
     }
 }
 
-// TODO remove this function
-bool Parser::lexUnsignedIntAsNumberToken() {
-    return lexNumberToken();
-}
-
 Value* Parser::parseNumberValue(ASTAllocator& allocator) {
     if(token->type == TokenType::Number) {
         // we take the mutable value of the token
@@ -168,23 +170,31 @@ VariableIdentifier* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
     }
 }
 
-bool Parser::lexAccessChainValueToken() {
-    return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken();
+Value* Parser::parseAccessChainValueToken(ASTAllocator& allocator) {
+    auto charVal = parseCharValue(allocator);
+    if(charVal) return charVal;
+    auto strVal = parseStringValue(allocator);
+    if(strVal) return strVal;
+    auto lambVal = parseLambdaValue(allocator);
+    if(lambVal) return lambVal;
+    auto numbVal = parseNumberValue(allocator);
+    if(numbVal) return numbVal;
+    return nullptr;
 }
 
 Value* Parser::parseArrayInit(ASTAllocator& allocator) {
     auto token1 = consumeOfType(TokenType::LBrace);
     if (token1) {
-        std::vector<Value*> arrayValues;
+        auto arrayValue = new (allocator.allocate<ArrayValue>()) ArrayValue({}, nullptr, { }, loc(token1, token), allocator);
         do {
             lexWhitespaceAndNewLines();
             auto expr = parseExpression(allocator, true);
             if(expr) {
-                arrayValues.emplace_back(expr);
+                arrayValue->values.emplace_back(expr);
             } else {
                 auto init = parseArrayInit(allocator);
                 if(init) {
-                    arrayValues.emplace_back(init);
+                    arrayValue->values.emplace_back(init);
                 } else {
                     break;
                 }
@@ -193,11 +203,10 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
         } while (consumeToken(TokenType::CommaSym));
         if (!consumeToken(TokenType::RBrace)) {
             error("expected a '}' when lexing an array");
-            return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(arrayValues), nullptr, { }, loc(token1, token), allocator);
+            return arrayValue;
         }
         lexWhitespaceToken();
         auto type = parseType(allocator);
-        std::vector<unsigned int> sizes;
         if(type) {
             lexWhitespaceToken();
             if (consumeToken(TokenType::LParen)) {
@@ -205,7 +214,7 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
                     lexWhitespaceToken();
                     auto number = parseNumberValue(allocator);
                     if(number) {
-                        sizes.emplace_back((unsigned int) number->get_the_int());
+                        arrayValue->sizes.emplace_back((unsigned int) number->get_the_int());
                     } else {
                         break;
                     }
@@ -217,62 +226,86 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
                 }
             }
         }
-        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(arrayValues), type, std::move(sizes), loc(token1, token), allocator);
+        arrayValue->created_type = new (allocator.allocate<ArrayType>()) ArrayType(type, arrayValue->array_size(), ZERO_LOC);
+        return arrayValue;
     } else {
         return nullptr;
     }
 }
 
-bool Parser::lexArrayInit() {
-    if (lexOperatorToken(TokenType::LBrace)) {
-        auto start = tokens_size() - 1;
-        do {
-            lexWhitespaceAndNewLines();
-            if (!(lexExpressionTokens(true) || lexArrayInit())) {
-                break;
+Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value) {
+entry:
+    switch(token->type) {
+        case TokenType::AsKw: {
+            token++;
+            readWhitespace();
+            auto type = parseType(allocator);
+            auto casted_value = new(allocator.allocate<CastedValue>()) CastedValue(value, type, 0);
+            if (!type) {
+                error("expected a type for casting after 'as' in expression");
             }
-            lexWhitespaceAndNewLines();
-        } while (lexOperatorToken(TokenType::CommaSym));
-        if (!lexOperatorToken(TokenType::RBrace)) {
-            mal_value(start, "expected a '}' when lexing an array");
-            return true;
+            return casted_value;
         }
-        lexWhitespaceToken();
-        if (lexTypeTokens()) {
-            lexWhitespaceToken();
-            if (lexOperatorToken(TokenType::LParen)) {
-                do {
-                    lexWhitespaceToken();
-                    if (!lexNumberToken()) {
-                        break;
-                    }
-                    lexWhitespaceToken();
-                } while (lexOperatorToken(TokenType::CommaSym));
-                lexWhitespaceToken();
-                if (!lexOperatorToken(TokenType::RParen)) {
-                    mal_value(start, "expected a ')' when ending array size");
-                    return true;
-                }
+        case TokenType::IsKw: {
+            token++;
+            readWhitespace();
+            auto type = parseType(allocator);
+            auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, false, 0);
+            if (!type) {
+                error("expected a type after 'is' or '!is' in expression");
             }
+            return isValue;
         }
-        compound_from(start, LexTokenType::CompArrayValue);
-        return true;
-    } else {
-        return false;
+        case TokenType::Whitespace:
+            token++;
+            goto entry;
+        default:
+            return value;
     }
 }
 
-bool Parser::lexAccessChainOrValue(bool lexStruct) {
-    return lexIfBlockTokens(true, true, false) || lexSwitchStatementBlock(true, true) || lexLoopBlockTokens(true) || lexAccessChainValueToken() || lexAccessChainOrAddrOf(lexStruct) || lexAnnotationMacro();
+Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct) {
+    auto ifStmt = parseIfStatement(allocator, true, true, false);
+    if(ifStmt) {
+        return ifStmt;
+    }
+    auto switchStmt = parseSwitchStatementBlock(allocator, true, true);
+    if(switchStmt) {
+        return switchStmt;
+    }
+    auto loopBlk = parseLoopBlockTokens(allocator, true);
+    if(loopBlk) {
+        return loopBlk;
+    }
+    auto acValue = parseAccessChainValueToken(allocator);
+    if(acValue) {
+        return parseAfterValue(allocator, acValue);
+    }
+    auto notValue = parseNotValue(allocator);
+    if(notValue) {
+        return parseAfterValue(allocator, (Value*) notValue);
+    }
+    auto negValue = parseNegativeValue(allocator);
+    if(negValue) {
+        return parseAfterValue(allocator, (Value*) negValue);
+    }
+    auto ac = parseAccessChainOrAddrOf(allocator, parseStruct);
+    if(ac) {
+        return parseAfterValue(allocator, ac);
+    }
+    auto macroVal = parseMacroValue(allocator);
+    if(macroVal) {
+        return parseAfterValue(allocator, macroVal);
+    }
+    return nullptr;
 }
 
-bool Parser::lexValueNode() {
-    if(lexAccessChainOrValue(true)) {
-        auto start = tokens_size() - 1;
-        compound_from(start, LexTokenType::CompValueNode);
-        return true;
+ValueNode* Parser::parseValueNode(ASTAllocator& allocator) {
+    auto acVal = parseAccessChainOrValue(allocator, true);
+    if(acVal) {
+        return new (allocator.allocate<ValueNode>()) ValueNode(acVal, parent_node, acVal->encoded_location());
     } else {
-        return false;
+        return nullptr;
     }
 }
 

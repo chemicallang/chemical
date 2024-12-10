@@ -84,7 +84,17 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<std::st
 
     std::vector<IGFile> files;
 
-    Parser parser(0, "", nullptr, loc_man, job_allocator, mod_allocator, &binder);
+    Parser parser(
+            0,
+            "",
+            nullptr,
+            loc_man,
+            job_allocator,
+            mod_allocator,
+            resolver->comptime_scope,
+            resolver->is64Bit,
+            &binder
+    );
 
     // preparing the import graph
     if (options->benchmark) {
@@ -223,7 +233,7 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
     }
 }
 
-ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const std::string_view& abs_path) {
+ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, const std::string_view& abs_path) {
 
     ASTUnit unit;
 
@@ -238,7 +248,17 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
     lexer.getUnit(lexUnit);
 
     // parse the file
-    Parser parser(fileId, abs_path, lexUnit.tokens.data(), resolver->comptime_scope.loc_man, job_allocator, mod_allocator, &binder);
+    Parser parser(
+            fileId,
+            abs_path,
+            lexUnit.tokens.data(),
+            resolver->comptime_scope.loc_man,
+            job_allocator,
+            mod_allocator,
+            resolver->comptime_scope,
+            resolver->is64Bit,
+            &binder
+    );
 
     // put the lexing diagnostic into the parser diagnostic for now
     if(!lexUnit.tokens.empty()) {
@@ -256,10 +276,10 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
     if(options->benchmark) {
         lex_bm = std::make_unique<BenchmarkResults>();
         lex_bm->benchmark_begin();
-        parser.lex();
+        parser.parse(unit.scope.nodes);
         lex_bm->benchmark_end();
     } else {
-        parser.lex();
+        parser.parse(unit.scope.nodes);
     }
     if (parser.has_errors) {
         return {ASTFileResult {std::move(unit), std::move(parser.unit), false, false }, std::move(parser.diagnostics), { }, std::move(lex_bm), nullptr };
@@ -271,22 +291,22 @@ ASTFileResultExt ASTProcessor::import_chemical_file(unsigned int fileId, const s
         parse_bm->benchmark_begin();
     }
 
-    CSTConverter converter(
-            fileId,
-            options->is64Bit,
-            resolver->comptime_scope,
-            binder,
-            job_allocator,
-            mod_allocator,
-            file_allocator
-    );
-    converter.convert(parser.unit.tokens);
-    if(options->benchmark) {
-        parse_bm->benchmark_end();
-    }
-    unit = converter.take_unit();
+//    CSTConverter converter(
+//            fileId,
+//            options->is64Bit,
+//            resolver->comptime_scope,
+//            binder,
+//            job_allocator,
+//            mod_allocator,
+//            file_allocator
+//    );
+//    converter.convert(parser.unit.tokens);
+//    if(options->benchmark) {
+//        parse_bm->benchmark_end();
+//    }
+//    unit = converter.take_unit();
 
-    return {ASTFileResult {std::move(unit), std::move(parser.unit), true, false }, std::move(parser.diagnostics), std::move(converter.diagnostics), std::move(lex_bm), std::move(parse_bm) };
+    return {ASTFileResult {std::move(unit), std::move(parser.unit), true, false }, std::move(parser.diagnostics), {}, std::move(lex_bm), std::move(parse_bm) };
 
 }
 
@@ -335,7 +355,7 @@ ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFile
 
     } else {
 
-        return import_chemical_file(fileId, file.abs_path);
+        return import_chemical_file_new(fileId, file.abs_path);
 
     }
 

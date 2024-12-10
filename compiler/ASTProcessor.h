@@ -198,7 +198,7 @@ public:
     /**
      * import chemical file with absolute path to it
      */
-    ASTFileResultExt import_chemical_file(unsigned int fileId, const std::string_view& absolute_path);
+    ASTFileResultExt import_chemical_file_new(unsigned int fileId, const std::string_view& absolute_path);
 
     /**
      * lex, parse and resolve symbols in file and return Scope containing nodes

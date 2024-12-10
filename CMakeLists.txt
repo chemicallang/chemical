@@ -403,8 +403,6 @@ set(COMMON_SOURCES
         ast/statements/DestructStmt.cpp
         ast/values/RetStructParamValue.h
         ast/values/RetStructParamValue.cpp
-        parser/utils/AnnotationModifiers.h
-        parser/utils/MacroLexers.h
         compiler/lab/LabBuildContext.h
         compiler/lab/LabModule.h
         compiler/lab/LabBuildContext.cpp
@@ -506,6 +504,8 @@ set(COMMON_SOURCES
         lexer/Token.h
         lexer/LexUnit.h
         lexer/MultiStrAllocator.h
+        compiler/cbi/Model.h
+        parser/CBI.h
 )
 
 # Chemical LSP Executable Target

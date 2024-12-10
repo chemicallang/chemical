@@ -303,6 +303,11 @@ public:
     bool check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser);
 
     /**
+     * specific function marking identifier moved
+     */
+    bool mark_moved_id(VariableIdentifier* value, ASTDiagnoser& diagnoser);
+
+    /**
      * checks if the value is movable and moves it (marks it move and all that)
      * @return true if moved otherwise false
      */

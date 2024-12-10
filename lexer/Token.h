@@ -26,4 +26,11 @@ struct Token {
      */
     Position position;
 
+    /**
+     * check if given token type is a keyword
+     */
+    static inline bool isKeyword(enum TokenType type) {
+        return type > TokenType::IndexKwStart && type < TokenType::IndexKwEnd;
+    }
+
 };

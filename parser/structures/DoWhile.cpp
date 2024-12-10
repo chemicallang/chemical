@@ -5,49 +5,56 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/DoWhileLoop.h"
 
-bool Parser::lexDoWhileBlockTokens() {
+DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
 
-    if(!lexWSKeywordToken(TokenType::DoKw, TokenType::LBrace)) {
-        return false;
+    if(!consumeWSOfType(TokenType::DoKw)) {
+        return nullptr;
     }
 
-    unsigned start = tokens_size() - 1;
+    auto loop = new (allocator.allocate<DoWhileLoop>()) DoWhileLoop(nullptr, { nullptr, 0 }, parent_node, 0);
 
     // { statement(s) } with continue & break support
-    isLexContinueStatement = true;
-    isLexBreakStatement = true;
-    if(!lexBraceBlock("dowhileloop")) {
-        mal_node(start, "expected a brace block { statement(s) } when lexing a while block");
-        return true;
+    auto prev_loop_node = current_loop_node;
+    current_loop_node = loop;
+    auto block = parseBraceBlock("dowhileloop", loop, allocator);
+    if(block.has_value()) {
+        auto& blk = block.value();
+        loop->body.nodes = std::move(blk.nodes);
+        loop->body.parent_node = blk.parent_node;
+    } else {
+        error("expected a brace block { statement(s) } when lexing a while block");
+        current_loop_node = prev_loop_node;
+        return loop;
     }
-    isLexContinueStatement = false;
-    isLexBreakStatement = false;
+    current_loop_node = prev_loop_node;
 
     lexWhitespaceToken();
 
-    if(!lexWSKeywordToken(TokenType::WhileKw, TokenType::LParen)) {
-        mal_node(start, "expected 'while' with condition in a do while loop");
-        return true;
+    if(!consumeWSOfType(TokenType::WhileKw)) {
+        error("expected 'while' with condition in a do while loop");
+        return loop;
     }
 
-    if(!lexOperatorToken(TokenType::LParen)) {
-        mal_node(start, "expected a starting parenthesis ( after keyword while for while block");
-        return true;
+    if(!consumeToken(TokenType::LParen)) {
+        error("expected a starting parenthesis ( after keyword while for while block");
+        return loop;
     }
 
-    if(!lexExpressionTokens()) {
-        mal_node(start,"expected a conditional statement for while block");
-        return true;
+    auto expr = parseExpression(allocator);
+    if(expr) {
+        loop->condition = expr;
+    } else {
+        error("expected a conditional statement for while block");
+        return loop;
     }
 
-    if(!lexOperatorToken(TokenType::RParen)) {
-        mal_node(start,"expected a closing parenthesis ) for while block");
-        return true;
+    if(!consumeToken(TokenType::RParen)) {
+        error("expected a closing parenthesis ) for while block");
+        return loop;
     }
 
-    compound_from(start, LexTokenType::CompDoWhile);
-
-    return true;
+    return loop;
 
 }

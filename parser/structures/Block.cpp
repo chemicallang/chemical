@@ -5,128 +5,115 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/Scope.h"
+#include "ast/values/ValueNode.h"
 
-void Parser::lexNestedLevelMultipleStatementsTokens(bool is_value, bool lex_value_node) {
-
-    // lex whitespace and new lines to reach a statement
-    // lex a statement and then optional whitespace, lex semicolon
-
-    while(true) {
-        lexWhitespaceAndNewLines();
-        if(!lexNestedLevelStatementTokens(is_value, lex_value_node))  {
-            break;
-        }
-        lexWhitespaceToken();
-        lexOperatorToken(TokenType::SemiColonSym);
-    }
-}
-
-void Parser::lexMultipleStatementsTokens() {
+void Parser::parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool is_value, bool parse_value_node) {
 
     // lex whitespace and new lines to reach a statement
     // lex a statement and then optional whitespace, lex semicolon
 
     while(true) {
         lexWhitespaceAndNewLines();
-        if(!lexStatementTokens())  {
-            break;
+        auto stmt = parseNestedLevelStatementTokens(allocator, is_value, parse_value_node);
+        if(stmt) {
+            nodes.emplace_back(stmt);
+        } else {
+            if(!parseAnnotation(allocator)) {
+                break;
+            }
         }
         lexWhitespaceToken();
-        lexOperatorToken(TokenType::SemiColonSym);
+        consumeToken(TokenType::SemiColonSym);
     }
 }
 
-bool Parser::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Parser*)) {
+std::optional<Scope> Parser::parseBraceBlock(const std::string_view &forThing, ASTAllocator& allocator, void(*nested_lexer)(Parser*, ASTAllocator& allocator, std::vector<ASTNode*>& nodes)) {
 
     // whitespace and new lines
     lexWhitespaceAndNewLines();
 
-    unsigned start = tokens_size();
-
     // starting brace
-    if (!lexOperatorToken(TokenType::LBrace)) {
-        return false;
+    auto lb = consumeOfType(TokenType::LBrace);
+    if (!lb) {
+        return std::nullopt;
     }
+
+    Scope scope(parent_node, loc_single(lb));
 
     // multiple statements
-    auto prevImportState = isLexImportStatement;
-    isLexImportStatement = false;
-    nested_lexer(this);
-    isLexImportStatement = prevImportState;
+    nested_lexer(this, allocator, scope.nodes);
 
     // ending brace
-    if (!lexOperatorToken(TokenType::RBrace)) {
-        error("expected a closing brace '}' for [" + forThing + "]");
-        return true;
+    if (!consumeToken(TokenType::RBrace)) {
+        error("expected a closing brace '}' for [" + std::string(forThing) + "]");
     }
 
-    compound_from(start, LexTokenType::CompBody);
-
-    return true;
+    return scope;
 
 }
 
-bool Parser::lexBraceBlock(const std::string &forThing) {
-
-    // whitespace and new lines
-    lexWhitespaceAndNewLines();
-
-    unsigned start = tokens_size();
-
-    // starting brace
-    if (!lexOperatorToken(TokenType::LBrace)) {
-        return false;
-    }
-
-    // multiple statements
-    auto prevImportState = isLexImportStatement;
-    isLexImportStatement = false;
-    lexNestedLevelMultipleStatementsTokens();
-    isLexImportStatement = prevImportState;
-
-    // ending brace
-    if (!lexOperatorToken(TokenType::RBrace)) {
-        error("expected a closing brace '}' for [" + forThing + "]");
-        return true;
-    }
-
-    compound_from(start, LexTokenType::CompBody);
-
-    return true;
+std::optional<Scope> Parser::parseBraceBlock(const std::string_view &forThing, ASTNode* new_parent_node, ASTAllocator& allocator) {
+    auto prev_parent = parent_node;
+    parent_node = new_parent_node;
+    auto returnValue = parseBraceBlock(forThing, allocator, [](Parser* parser, ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
+        parser->parseNestedLevelMultipleStatementsTokens(allocator, nodes);
+    });
+    parent_node = prev_parent;
+    return returnValue;
 }
 
-bool Parser::lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_value, bool lex_value_node) {
+std::optional<Scope> Parser::parseTopLevelBraceBlock(ASTAllocator& allocator, const std::string_view& forThing) {
+    return parseBraceBlock(forThing, allocator, [](Parser* parser, ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
+        parser->parseTopLevelMultipleStatements(allocator, nodes, true);
+    });
+}
+
+std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator, const std::string_view& forThing, bool is_value, bool parse_value_node) {
 
     // whitespace and new lines
     lexWhitespaceAndNewLines();
 
     // starting brace
-    if (!lexOperatorToken(TokenType::LBrace)) {
-        if(lexNestedLevelStatementTokens(is_value, lex_value_node) || (lex_value_node && lexValueNode())) {
+    auto lb = consumeOfType(TokenType::LBrace);
+    if (!lb) {
+        if (parse_value_node) {
+            auto valNode = parseValueNode(allocator);
+            if (valNode) {
+                lexWhitespaceAndNewLines();
+                if (consumeToken(TokenType::SemiColonSym)) {
+                    lexWhitespaceAndNewLines();
+                }
+                return Scope{{valNode}, parent_node, valNode->encoded_location()};
+            } else {
+                return std::nullopt;
+            }
+        }
+        auto nested_stmt = parseNestedLevelStatementTokens(allocator, is_value, parse_value_node);
+        if (nested_stmt) {
             lexWhitespaceAndNewLines();
-            if (lexOperatorToken(TokenType::SemiColonSym)) {
+            if (consumeToken(TokenType::SemiColonSym)) {
                 lexWhitespaceAndNewLines();
             }
-            return true;
-        };
-        return false;
+            return Scope{{nested_stmt}, parent_node, nested_stmt->encoded_location()};
+        }
+        return std::nullopt;
     }
 
-    unsigned start = tokens_size() - 1;
+    Scope scope(parent_node, 0);
 
     // multiple statements
-    auto prevImportState = isLexImportStatement;
-    isLexImportStatement = false;
-    lexNestedLevelMultipleStatementsTokens(false, lex_value_node);
-    isLexImportStatement = prevImportState;
+    parseNestedLevelMultipleStatementsTokens(allocator, scope.nodes, false, parse_value_node);
 
     // ending brace
-    if (!lexOperatorToken(TokenType::RBrace)) {
-        error("expected a closing brace '}' for [" + forThing + "]");
-        return true;
+    auto rb = consumeOfType(TokenType::RBrace);
+    if (!rb) {
+        error("expected a closing brace '}' for [" + std::string(forThing) + "]");
+        return scope;
     }
 
-    compound_from(start, LexTokenType::CompBody);
+    scope.location = loc(lb->position, rb->position);
 
-    return true;
+    return scope;
+
 }

@@ -4,100 +4,105 @@
 // Created by Waqas Tahir on 10/03/2024.
 //
 
-#include "parser/utils/AnnotationModifiers.h"
-#include "parser/utils/MacroLexers.h"
+#include "ast/base/AnnotableNode.h"
 #include "parser/model/CompilerBinder.h"
+#include "parser/Parser.h"
 
-bool Parser::lexAnnotationMacro() {
+const std::unordered_map<std::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
+        { "inline:", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::Inline); } },
+        { "inline:always", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::AlwaysInline); } },
+        { "noinline", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::NoInline); } },
+        { "inline:no", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::NoInline); } },
+        { "inline:hint", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::InlineHint); } },
+        { "compiler.inline", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::CompilerInline); } },
+        { "size:opt", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::OptSize); } },
+        { "size:min", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::MinSize); } },
+        { "comptime", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::CompTime); } },
+        { "compiler.interface", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::CompilerInterface); } },
+        { "constructor", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Constructor); } },
+        { "make", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Constructor); } },
+        { "delete", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Delete); } },
+        { "override", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Override); } },
+        { "unsafe", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Unsafe); } },
+        { "no_init", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::NoInit); }},
+        { "extern", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Extern); }},
+        { "implicit", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Implicit); }},
+        { "propagate", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Propagate); }},
+        { "direct_init", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::DirectInit); }},
+        { "no_return", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::NoReturn); }},
+        { "cpp", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Cpp); }},
+        { "clear", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Clear); }},
+        { "copy", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Copy); }},
+        { "deprecated", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Deprecated); }},
+        { "move", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Move); }},
+};
 
-    if (!(token->type == TokenType::AtSym || token->type == TokenType::HashSym)) {
+bool find_annot(Parser* parser, std::string_view& view) {
+    auto found = AnnotationModifierFunctions.find(view);
+    if(found != AnnotationModifierFunctions.end()) {
+        parser->annotations.emplace_back(found->second);
+        return true;
+    } else {
+        parser->error("unknown annotation found @'" + std::string(view) + "'");
+        return true;
+    }
+}
+
+bool Parser::parseAnnotation(ASTAllocator& allocator) {
+    if(token->type != TokenType::AtSym) {
         return false;
     }
-
-    auto isAnnotation = token->type == TokenType::AtSym;
-    auto& bare_start_pos = token->position;
     token++;
-    auto& start_pos = token->position;
-    chem::string macro_full_chem;
-    macro_full_chem.append(isAnnotation ? '@' : '#');
-    while(true) {
-        auto& tok = *token;
-        auto tok_type = tok.type;
-        if(tok_type == TokenType::Identifier || Parser::isKeyword(tok_type)) {
-            macro_full_chem.append(tok.value);
-            token++;
-        } else if(tok_type == TokenType::DotSym) {
-            // dots are allowed in macro or annotation names
-            macro_full_chem.append('.');
-            token++;
-        } else {
-            break;
-        }
-    }
-    // macro name without the # or @ symbol
-    auto macro_view = std::string_view { macro_full_chem.data() + 1, macro_full_chem.size() - 1 };
-    auto macro = std::string(macro_view);
-
-    // if it's annotation
-    if (isAnnotation) {
-        unsigned start = tokens_size();
-        emplace(LexTokenType::Annotation, start_pos, macro_full_chem.to_std_string());
-        if(lexOperatorToken(TokenType::LParen)) {
-            do {
-                lexWhitespaceToken();
-                if(!lexExpressionTokens()) {
-                    break;
+    auto tok = consumeIdentifierOrKeyword();
+    if(tok) {
+        auto next_token_type = token->type;
+        if(next_token_type == TokenType::DotSym || next_token_type == TokenType::ColonSym || next_token_type == TokenType::DoubleColonSym) {
+            std::string value;
+            value.append(tok->value);
+            while(true) {
+                auto& cur_tok = *token;
+                auto tok_type = cur_tok.type;
+                switch(tok_type) {
+                    case TokenType::DotSym:
+                        value.append(1, '.');
+                        break;
+                    case TokenType::DoubleColonSym:
+                        value.append(2, ':');
+                        break;
+                    case TokenType::ColonSym:
+                        value.append(1, ':');
+                        break;
+                    default:
+                        if(Token::isKeyword(tok_type) || tok_type == TokenType::Identifier) {
+                            value.append(cur_tok.value);
+                        } else {
+                            goto end_loop;
+                        }
                 }
-                lexWhitespaceToken();
-            } while (lexOperatorToken(TokenType::CommaSym));
-            if(!lexOperatorToken(TokenType::RParen)) {
-                error("expected a ')' after '(' to call an annotation");
-                return true;
+                token++;
+                continue;
+                end_loop:
+                    break;
             }
-            compound_from(start, LexTokenType::CompAnnotation);
-        }
-        auto found = AnnotationModifiers.find(macro_view);
-        if (found != AnnotationModifiers.end()) {
-            found->second(this, unit.tokens[start]);
-        }
-        return true;
-    }
-
-    auto start = tokens_size();
-
-    emplace(LexTokenType::Identifier, start_pos, macro_full_chem.to_std_string());
-
-    lexWhitespaceToken();
-    if (lexOperatorToken(TokenType::LBrace)) {
-
-        lexWhitespaceAndNewLines();
-
-        // check if this macro has a lexer defined
-        auto macro_lexer = MacroHandlers.find(macro);
-        if (macro_lexer != MacroHandlers.end()) {
-            macro_lexer->second(this);
+            auto view = std::string_view(value);
+            return find_annot(this, view);
         } else {
-            auto lex_func = binder->provide_lex_macro_func(macro);
-            if(lex_func) {
-                lex_func(this);
-            } else {
-                error("couldn't find lexMacro function in cbi '" + macro + "', make sure the function is public");
-                return true;
-            }
+            return find_annot(this, tok->value);
         }
-
     } else {
-        error("expected '{' after the macro " + macro);
+        error("expected an identifier or keyword after '@' for annotation");
         return true;
     }
-
-    lexWhitespaceAndNewLines();
-    if (!lexOperatorToken(TokenType::RBrace)) {
-        error("expected '}' for the macro " + macro + " ending");
-        return true;
+}
+Value* Parser::parseMacroValue(ASTAllocator& allocator) {
+    auto& t = *token;
+    if(t.type == TokenType::HashMacro) {
+        auto& map = binder->parseMacroValueFunctions;
+        auto found = map.find(t.value);
+        if(found != map.end()) {
+            token++;
+            return found->second(this, &allocator);
+        }
     }
-
-    compound_from(start, LexTokenType::CompMacro);
-    return true;
-
+    return nullptr;
 }

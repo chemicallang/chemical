@@ -5,39 +5,48 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/InterfaceDefinition.h"
 
-void Parser::lexInterfaceBlockTokens() {
-    do {
-        lexWhitespaceAndNewLines();
-        if(!(lexVarInitializationTokens(true, true) || lexFunctionStructureTokens(true) || lexSingleLineCommentTokens() || lexMultiLineCommentTokens())) {
-            break;
-        }
-        lexWhitespaceToken();
-        lexOperatorToken(TokenType::SemiColonSym);
-    } while(token->type != TokenType::RBrace);
-}
+InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
-bool Parser::lexInterfaceStructureTokens(unsigned start) {
-    if (lexWSKeywordToken(TokenType::InterfaceKw)) {
-        if(!lexIdentifierToken()) {
+    if (consumeWSOfType(TokenType::InterfaceKw)) {
+        auto id = consumeIdentifierOrKeyword();
+        if(!id) {
             error("expected interface name after the interface keyword");
-            return true;
+            return nullptr;
         }
+        auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(id), parent_node, 0, specifier);
+
+        annotate(decl);
+
         lexWhitespaceToken();
-        lexGenericParametersList();
+        parseGenericParametersList(allocator, decl->generic_params);
         lexWhitespaceToken();
-        if (!lexOperatorToken(TokenType::LBrace)) {
+
+        if (!consumeToken(TokenType::LBrace)) {
             error("expected a '{' when starting an interface block");
-            return true;
+            return decl;
         }
-        lexInterfaceBlockTokens();
-        lexWhitespaceToken();
-        if (!lexOperatorToken(TokenType::RBrace)) {
+
+        auto prev_parent_node = parent_node;
+        parent_node = decl;
+        do {
+            lexWhitespaceAndNewLines();
+            if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
+                lexWhitespaceToken();
+                lexOperatorToken(TokenType::SemiColonSym);
+            } else {
+                break;
+            }
+        } while(token->type != TokenType::RBrace);
+        parent_node = prev_parent_node;
+
+        if (!consumeToken(TokenType::RBrace)) {
             error("expected a '}' when ending an interface block");
-            return true;
+            return decl;
         }
-        compound_from(start, LexTokenType::CompInterface);
-        return true;
+        return decl;
     }
-    return false;
+    return nullptr;
+
 }

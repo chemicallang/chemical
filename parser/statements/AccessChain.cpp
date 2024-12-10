@@ -138,51 +138,22 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
 }
 
-bool Parser::lexAccessChain(bool lexStruct, bool lex_as_node) {
-
-    auto id = consumeIdentifierOrKeyword();
-    if(id == nullptr) {
-        return false;
-    }
-
-    auto creator = ValueCreators.find(id->value);
-    if(creator != ValueCreators.end()) {
-        // TODO use passed allocator
-        return straight_value(creator->second(this, global_allocator, id));
-    } else {
-        // TODO use passed allocator
-        auto value = new (global_allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(id->value), loc_single(id));
-        straight_value(value);
-    }
-
-    auto start = tokens_size() - 1;
-
-    lexAccessChainAfterId(lexStruct);
-
-    if(start < tokens_size() && !unit.tokens[start]->is_struct_value()) {
-        compound_from(start, lex_as_node ? LexTokenType::CompAccessChainNode : LexTokenType::CompAccessChain);
-    }
-
-    return true;
-
-}
-
 Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruct) {
     auto token1 = consumeOfType(TokenType::AmpersandSym);
-    if(token1) {
+    if (token1) {
         auto chain = parseAccessChain(allocator, true);
-        if(chain) {
-            return new (allocator.allocate<AddrOfValue>()) AddrOfValue(chain, loc_single(token1));
+        if (chain) {
+            return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, loc_single(token1));
         } else {
             error("expected a value after '&' for address of");
             return nullptr;
         }
     } else {
         auto token2 = consumeOfType(TokenType::MultiplySym);
-        if(token2) {
+        if (token2) {
             auto chain = parseAccessChain(allocator, false);
-            if(chain) {
-                return new (allocator.allocate<DereferenceValue>()) DereferenceValue(chain, loc_single(token2));
+            if (chain) {
+                return new(allocator.allocate<DereferenceValue>()) DereferenceValue(chain, loc_single(token2));
             } else {
                 error("expected a value after '*' for dereference");
                 return nullptr;
@@ -190,34 +161,6 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
         }
     }
     return parseAccessChain(allocator, parseStruct);
-}
-
-bool Parser::lexAccessChainOrAddrOf(bool lexStruct) {
-    if(lexOperatorToken(TokenType::AmpersandSym)) {
-        auto start = tokens_size() - 1;
-        if(lexAccessChain(true)) {
-            compound_from(start, LexTokenType::CompAddrOf);
-        } else {
-            error("expected a value after '&' for address of");
-        }
-        return true;
-    } else if(lexOperatorToken(TokenType::MultiplySym)) {
-        auto start = tokens_size() - 1;
-        if(lexAccessChain(false)) {
-            compound_from(start, LexTokenType::CompDeference);
-        } else {
-            error("expected a value after '*' for dereference");
-        }
-        return true;
-    }
-    return lexAccessChain(lexStruct);
-}
-
-bool Parser::lexAccessChainRecursive(bool lexStruct, unsigned chain_length) {
-    if (!lexVariableToken()) {
-        return false;
-    }
-    return lexAccessChainAfterId(lexStruct, chain_length + 1);
 }
 
 Value* Parser::parseAccessChainRecursive(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct) {
@@ -258,53 +201,6 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator) {
     }
 }
 
-bool Parser::lexFunctionCall(unsigned back_start) {
-    if(lexOperatorToken(TokenType::LParen)) {
-        unsigned start = tokens_size() - back_start;
-        do {
-            lexWhitespaceAndNewLines();
-            if (!(lexExpressionTokens(true) || lexArrayInit())) {
-                break;
-            }
-            lexWhitespaceToken();
-        } while (lexOperatorToken(TokenType::CommaSym));
-        lexWhitespaceAndNewLines();
-        if (!lexOperatorToken(TokenType::RParen)) {
-            error("expected a ')' for a function call, after starting '('");
-            return true;
-        }
-        compound_from(start, LexTokenType::CompFunctionCall);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-void Parser::lexGenericArgsList() {
-    do {
-        lexWhitespaceToken();
-        if (!lexTypeTokens()) {
-            break;
-        }
-        lexWhitespaceToken();
-    } while (lexOperatorToken(TokenType::CommaSym));
-}
-
-bool Parser::lexGenericArgsListCompound() {
-    if(lexOperatorToken(TokenType::LessThanSym)) {
-        unsigned start = tokens_size() - 1;
-        lexGenericArgsList();
-        if (!lexOperatorToken(TokenType::GreaterThanSym)) {
-            error("expected a '>' for generic list in function call");
-            return true;
-        }
-        compound_from(start, LexTokenType::CompGenericList);
-        return true;
-    } else {
-        return false;
-    }
-}
-
 void Parser::parseGenericArgsList(std::vector<BaseType*>& outArgs, ASTAllocator& allocator) {
     if(consumeToken(TokenType::LessThanSym)) {
         do {
@@ -319,15 +215,6 @@ void Parser::parseGenericArgsList(std::vector<BaseType*>& outArgs, ASTAllocator&
         if (!consumeToken(TokenType::GreaterThanSym)) {
             error("expected a '>' for generic list in function call");
         }
-    }
-}
-
-void Parser::lexFunctionCallWithGenericArgsList() {
-    lexGenericArgsListCompound();
-    if(token->type == TokenType::LParen){
-        lexFunctionCall(2);
-    } else {
-        error("expected a '(' after the generic list in function call");
     }
 }
 
@@ -350,7 +237,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
     }
 
     // when there is generic args after the identifier StructName<int, float> or func_name<int, float>()
-    if (token->type == TokenType::LessThanSym) {
+    if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
         std::vector<BaseType*> genArgs;
         parseGenericArgsList(genArgs, allocator);
         readWhitespace();
@@ -376,29 +263,26 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
 
     // index operator, function call with generic items
     while(token->type == TokenType::LParen || token->type == TokenType::LBracket) {
-        std::vector<Value*> indexOpValues;
-        auto firstLBracket = consumeOfType(TokenType::LBracket);
-        Token* closingToken = firstLBracket;
-        do {
-            readWhitespace();
-            auto expr = parseExpression(allocator);
-            if(!expr) {
-                error("expected an expression in indexing operators for access chain");
-                auto index_op = new (allocator.allocate<IndexOperator>()) IndexOperator(indexOpValues, loc(firstLBracket, closingToken));
-                chain->values.emplace_back(index_op);
-                return chain;
+        if(token->type == TokenType::LBracket) {
+            auto indexOp = new(allocator.allocate<IndexOperator>()) IndexOperator({}, 0);
+            chain->values.emplace_back(indexOp);
+            while (token->type == TokenType::LBracket) {
+                token++;
+                readWhitespace();
+                auto expr = parseExpression(allocator);
+                if (!expr) {
+                    error("expected an expression in indexing operators for access chain");
+                    return chain;
+                }
+                indexOp->values.emplace_back(expr);
+                readWhitespace();
+                auto rbToken = consumeOfType(TokenType::RBracket);
+                if (!rbToken) {
+                    error("expected a closing bracket ] in access chain");
+                    return chain;
+                }
             }
-            readWhitespace();
-            if (!consumeToken(TokenType::RBracket)) {
-                error("expected a closing bracket ] in access chain");
-                auto index_op = new (allocator.allocate<IndexOperator>()) IndexOperator(indexOpValues, loc(firstLBracket, closingToken));
-                chain->values.emplace_back(index_op);
-                return chain;
-            }
-            indexOpValues.emplace_back(expr);
-        } while (consumeToken(TokenType::LBracket));
-        auto indexOp = new (allocator.allocate<IndexOperator>()) IndexOperator(std::move(indexOpValues), loc(firstLBracket, closingToken));
-        chain->values.emplace_back(indexOp);
+        }
         while(true) {
             if (token->type == TokenType::LParen) {
                 auto call = parseFunctionCall(allocator);
@@ -420,82 +304,19 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
     }
 
     // TODO false for parseStruct being sent here, should be changed to parseStruct
-    if(lexOperatorToken(TokenType::DotSym) && !parseAccessChainRecursive(allocator, chain, start, false)) {
-        error("expected a identifier after the dot . in the access chain");
-        return chain;
-    } else if(lexOperatorToken(TokenType::DoubleColonSym) && !parseAccessChainRecursive(allocator, chain, start, parseStruct)) {
-        error("expected a identifier after the :: in the access chain");
-        return chain;
+    if(consumeToken(TokenType::DotSym)) {
+        return parseAccessChainRecursive(allocator, chain, start, false);
+    } else if(consumeToken(TokenType::DoubleColonSym)) {
+        auto lastId = chain->values.back();
+        auto id = lastId->as_identifier();
+        if(id) {
+            id->is_ns = true;
+        } else {
+            error("double colon '::' after unknown value");
+        }
+        return parseAccessChainRecursive(allocator, chain, start, parseStruct);
     }
 
     return chain;
-
-}
-
-bool Parser::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
-
-    if(lexStruct) {
-        lexWhitespaceToken();
-        if(token->type == TokenType::LBrace) {
-            if(chain_length > 1) {
-                compound_from(tokens_size() - chain_length, LexTokenType::CompAccessChain);
-            }
-            return lexStructValueTokens(1);
-        }
-    }
-
-    // when there is generic args after the identifier StructName<int, float> or func_name<int, float>()
-    if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
-        lexGenericArgsListCompound();
-        lexWhitespaceToken();
-        if(token->type == TokenType::LParen) {
-            lexFunctionCall(2);
-        } else if(lexStruct && token->type == TokenType::LBrace) {
-            if(chain_length > 1) {
-                compound_from(tokens_size() - chain_length, LexTokenType::CompAccessChain);
-            }
-            return lexStructValueTokens(2);
-        } else {
-            error("expected a '(' or '{' after the generic list for a function call or struct initialization");
-        }
-    }
-
-    while(token->type == TokenType::LParen || token->type == TokenType::LBracket) {
-        while(lexOperatorToken(TokenType::LBracket)) {
-            unsigned start = tokens_size() - 1;
-            do {
-                lexWhitespaceToken();
-                if (!lexExpressionTokens()) {
-                    error("expected an expression in indexing operators for access chain");
-                    return true;
-                }
-                lexWhitespaceToken();
-                if (!lexOperatorToken(TokenType::RBracket)) {
-                    error("expected a closing bracket ] in access chain");
-                    return true;
-                }
-            } while (lexOperatorToken(TokenType::LBracket));
-            compound_from(start, LexTokenType::CompIndexOp);
-        }
-        while(true) {
-            if (token->type == TokenType::LParen) {
-                lexFunctionCall(1);
-            } else if(token->type == TokenType::LessThanSym) {
-                lexFunctionCallWithGenericArgsList();
-            } else {
-                break;
-            }
-        }
-    }
-
-    if(lexOperatorToken(TokenType::DotSym) && !lexAccessChainRecursive(false)) {
-        error("expected a identifier after the dot . in the access chain");
-        return true;
-    } else if(lexOperatorToken(TokenType::DoubleColonSym) && !lexAccessChainRecursive(lexStruct, chain_length + 1)) {
-        error("expected a identifier after the :: in the access chain");
-        return true;
-    }
-
-    return true;
 
 }

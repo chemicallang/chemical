@@ -993,13 +993,27 @@ void move_identifier(ToCAstVisitor& visitor, VariableIdentifier* id) {
     }
 }
 
+void move_chain(ToCAstVisitor& visitor, AccessChain* chain) {
+    if(chain->values.size() == 1) {
+        auto identifier = chain->values.back()->as_identifier();
+        if(identifier) {
+            if (chain->is_moved) {
+                identifier->is_moved = true;
+            }
+            move_identifier(visitor, identifier);
+        }
+        return;
+    }
+    if(chain->is_moved) {
+        moved_value_call(visitor, chain);
+    }
+}
+
 // will call clear function on given value
 void move_value(ToCAstVisitor& visitor, Value* value) {
     const auto chain = value->as_access_chain();
     if(chain) {
-        if(chain->is_moved) {
-            moved_value_call(visitor, chain);
-        }
+        move_chain(visitor, chain);
     } else {
         const auto id = value->as_identifier();
         if(id) {
@@ -1016,19 +1030,19 @@ void move_func_call(ToCAstVisitor& visitor, FunctionCall* call) {
 }
 
 // will call clear functions as required on the access chain
-void move_access_chain(ToCAstVisitor& visitor, AccessChain* chain) {
-    for(auto& value : chain->values) {
-        const auto func_call = value->as_func_call();
-        if(func_call) {
-            move_func_call(visitor, func_call);
-        } else {
-            const auto nested = value->as_access_chain();
-            if(nested) {
-                move_access_chain(visitor, nested);
-            }
-        }
-    }
-}
+//void move_access_chain(ToCAstVisitor& visitor, AccessChain* chain) {
+//    for(auto& value : chain->values) {
+//        const auto func_call = value->as_func_call();
+//        if(func_call) {
+//            move_func_call(visitor, func_call);
+//        } else {
+//            const auto nested = value->as_access_chain();
+//            if(nested) {
+//                move_access_chain(visitor, nested);
+//            }
+//        }
+//    }
+//}
 
 void CBeforeStmtVisitor::visit(FunctionCall *call) {
     auto func_type = call->function_type(visitor.allocator);
@@ -1222,9 +1236,7 @@ void CBeforeStmtVisitor::visit(AccessChain *chain) {
 
     CommonVisitor::visit(chain);
 
-    if(chain->is_moved) {
-        moved_value_call(visitor, chain);
-    }
+    move_chain(visitor, chain);
 
     const auto start = 0;
     const auto end = chain->values.size();
@@ -1628,6 +1640,13 @@ void CDestructionVisitor::destruct_arr_ptr(const std::string &self_name, Value* 
 
 void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_return) {
     if(current_return) {
+        const auto chain = current_return->as_access_chain();
+        if(chain && chain->values.size() == 1) {
+            auto id = chain->values.back()->as_identifier();
+            if(id && id->linked == job.initializer) {
+                return;
+            }
+        }
         const auto id = current_return->as_identifier();
         if (id && id->linked == job.initializer) {
             return;
@@ -4480,6 +4499,8 @@ void ToCAstVisitor::visit(LambdaFunction *func) {
 }
 
 void ToCAstVisitor::visit(AnyType *any_type) {
+    // TODO change this to void
+    // TODO because *any should mean void*, not void**
     write("void*");
 }
 

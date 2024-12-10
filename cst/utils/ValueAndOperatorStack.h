@@ -31,8 +31,12 @@ public:
 
     std::vector<VOPItemContainer> container;
 
-    bool empty() {
+    bool empty() const {
         return container.empty();
+    }
+
+    void clear() {
+        container.clear();
     }
 
     inline bool isEmpty() {
@@ -89,6 +93,12 @@ public:
         return container.back().type == ItemType::Value;
     }
 
+    bool has_char_top(char value) {
+        if (container.empty()) return false;
+        auto& last = container.back();
+        return last.type == ItemType::Char && last.item.character == value;
+    }
+
     Value *peakValue() {
         return has_value_top() ? container.back().item.value : nullptr;
     }
@@ -123,8 +133,7 @@ public:
         return c;
     }
 
-    Expression* toExpressionRaw(ASTAllocator& allocator, bool is64Bit, SourceLocation location) {
-        ValueAndOperatorStack stack;
+    Expression* toExpressionRaw(ValueAndOperatorStack& stack, ASTAllocator& allocator, bool is64Bit, SourceLocation location) {
         int i = 0;
         while(i < container.size()) {
             auto item = container[i];
@@ -151,6 +160,11 @@ public:
             i++;
         }
         return (Expression *) stack.peakValue();
+    }
+
+    Expression* toExpressionRaw(ASTAllocator& allocator, bool is64Bit, SourceLocation location) {
+        ValueAndOperatorStack stack;
+        return toExpressionRaw(stack, allocator, is64Bit, location);
     }
 
 };

@@ -5,53 +5,113 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/UnionDef.h"
+#include "ast/structures/UnnamedUnion.h"
 
-void Parser::lexUnionBlockTokens() {
-    do {
-        lexWhitespaceAndNewLines();
-        if(!(
-            lexStructMemberTokens() ||
-            lexFunctionStructureTokens() ||
-            lexSingleLineCommentTokens() ||
-            lexMultiLineCommentTokens() ||
-            lexStructStructureTokens(true, true) ||
-            lexAnnotationMacro()
-        )) {
-            break;
-        }
+UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier specifier) {
+
+    if(consumeWSOfType(TokenType::UnionKw)) {
+
+
+        auto decl = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion("", parent_node, 0, specifier);
+
+        annotate(decl);
+
         lexWhitespaceToken();
-        lexOperatorToken(TokenType::SemiColonSym);
-    } while(token->type != TokenType::RBrace);
-    lexWhitespaceToken();
-}
+        if(!consumeToken(TokenType::LBrace)) {
+            error("expected a '{' for union block");
+            return decl;
+        }
 
-bool Parser::lexUnionStructureTokens(unsigned start_token, bool unnamed, bool direct_init) {
-    if(lexWSKeywordToken(TokenType::UnionKw)) {
-        bool has_identifier = false;
-        if(!unnamed) {
-            has_identifier = lexIdentifierToken();
-            if (!has_identifier) {
-                error("expected a identifier as union name");
-                return true;
+        auto prev_parent_node = parent_node;
+        parent_node = decl;
+        do {
+            lexWhitespaceAndNewLines();
+            if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
+                lexWhitespaceToken();
+                lexOperatorToken(TokenType::SemiColonSym);
+            } else {
+                break;
+            }
+        } while(token->type != TokenType::RBrace);
+        parent_node = prev_parent_node;
+
+        if(!consumeToken(TokenType::RBrace)) {
+            error("expected a closing bracket '}' for union block");
+            return decl;
+        }
+        if(lexWhitespaceToken()) {
+            auto id = consumeIdentifierOrKeyword();
+            if(id) {
+                decl->name = id->value;
+            } else {
+                error("expected an identifier after the '}' for anonymous union definition");
+                return decl;
             }
         }
-        lexWhitespaceToken();
-        if(!lexOperatorToken(TokenType::LBrace)) {
-            error("expected a '{' for union block");
-            return true;
-        }
-        lexUnionBlockTokens();
-        if(!lexOperatorToken(TokenType::RBrace)) {
-            error("expected a closing bracket '}' for union block");
-            return true;
-        }
-        if(lexWhitespaceToken() && !has_identifier && direct_init && !lexIdentifierToken()) {
-            error("expected an identifier after the '}' for anonymous union definition");
-            return true;
-        }
-        compound_from(start_token, LexTokenType::CompUnionDef);
-        return true;
+        return decl;
     } else {
-        return false;
+        return nullptr;
     }
+
+}
+
+UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool unnamed, bool direct_init) {
+
+    if(consumeWSOfType(TokenType::UnionKw)) {
+
+
+        std::string_view id_str;
+        LocatedIdentifier locId;
+        if(unnamed) {
+            id_str = "";
+            locId = loc_id("", { 0, 0 });
+        } else {
+            auto identifier = consumeIdentifierOrKeyword();
+            if (identifier) {
+                id_str = identifier->value;
+                locId = loc_id(identifier);
+            } else {
+                error("expected a identifier as struct name");
+                return nullptr;
+            }
+        }
+
+        auto decl = new (allocator.allocate<UnionDef>()) UnionDef(locId, parent_node, 0, specifier);
+
+        lexWhitespaceToken();
+        if(!consumeToken(TokenType::LBrace)) {
+            error("expected a '{' for union block");
+            return decl;
+        }
+
+        do {
+            lexWhitespaceAndNewLines();
+            if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
+                lexWhitespaceToken();
+                lexOperatorToken(TokenType::SemiColonSym);
+            } else {
+                break;
+            }
+        } while(token->type != TokenType::RBrace);
+        lexWhitespaceToken();
+
+        if(!consumeToken(TokenType::RBrace)) {
+            error("expected a closing bracket '}' for union block");
+            return decl;
+        }
+        if(lexWhitespaceToken() && id_str.empty() && direct_init) {
+            auto id = consumeIdentifierOrKeyword();
+            if(id) {
+                decl->identifier = loc_id(id);
+            } else {
+                error("expected an identifier after the '}' for anonymous union definition");
+                return decl;
+            }
+        }
+        return decl;
+    } else {
+        return nullptr;
+    }
+
 }

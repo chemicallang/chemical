@@ -106,9 +106,13 @@ AccessChain::AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, 
 }
 
 BaseType* AccessChain::create_type(ASTAllocator& allocator) {
+    const auto values_size = values.size();
+    if(values_size == 1) {
+        return values[0]->create_type(allocator);
+    }
     std::unordered_map<uint16_t, int16_t> active;
     set_generic_iterations(allocator, active);
-    auto type = values[values.size() - 1]->create_type(allocator);
+    auto type = values[values_size - 1]->create_type(allocator);
     if(type) {
         const auto pure = type->pure_type();
         if (pure && type != pure) {
@@ -144,6 +148,9 @@ bool AccessChain::primitive() {
 }
 
 bool AccessChain::compile_time_computable() {
+    if(values.size() == 1) {
+        return values[0]->compile_time_computable();
+    }
     // first value should always be compile time computable
     // a.b <--- a should be a compile time computable var init
     // 'b' here is a member of struct, where 'a' is the struct value

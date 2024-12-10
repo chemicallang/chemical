@@ -1,18 +1,26 @@
 // Copyright (c) Qinetik 2024.
 
 #include "parser/Parser.h"
+#include "ast/structures/Namespace.h"
+#include "ast/structures/Scope.h"
 
-bool Parser::lexNamespaceTokens(unsigned start) {
-    if(lexWSKeywordToken(TokenType::NamespaceKw)) {
-        if(!lexIdentifierToken()) {
+Namespace* Parser::parseNamespace(ASTAllocator& allocator, AccessSpecifier specifier) {
+    if(consumeWSOfType(TokenType::NamespaceKw)) {
+        auto id = consumeIdentifierOrKeyword();
+        if(!id) {
             error("expected identifier for namespace name");
-            return true;
+            return nullptr;
         }
-        auto result = lexTopLevelBraceBlock("namespace");
-        if(result) {
-            compound_from(start, LexTokenType::CompNamespace);
+        auto ns = new (allocator.allocate<Namespace>()) Namespace(std::string(id->value), parent_node, 0, specifier);
+        annotate(ns);
+        auto prev_parent_node = parent_node;
+        parent_node = ns;
+        auto result = parseTopLevelBraceBlock(allocator, "namespace");
+        if(result.has_value()) {
+            ns->nodes = std::move(result.value().nodes);
         }
-        return result;
+        parent_node = prev_parent_node;
+        return ns;
     }
-    return false;
+    return nullptr;
 }

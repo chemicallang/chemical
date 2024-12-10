@@ -18,10 +18,10 @@ bool VariableIdentifier::link(SymbolResolver &linker, bool check_access) {
             linker.current_func_type->check_id(this, linker);
         }
         if(linked->as_namespace() && !is_ns){
-            linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
-        } else {
-            return true;
+            // TODO enable this, so we can check user uses :: for static access
+//            linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
         }
+        return true;
     } else {
         linker.error("variable identifier '" + value + "' not found", this);
     }

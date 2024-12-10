@@ -1,91 +1,178 @@
 // Copyright (c) Qinetik 2024.
 
 #include "parser/Parser.h"
+#include "ast/statements/Assignment.h"
+#include "ast/values/IntValue.h"
+#include "ast/values/NumberValue.h"
+#include "ast/values/AccessChain.h"
 
-bool Parser::lexLanguageOperatorToken() {
-    return lexOperationToken(TokenType::LogicalAndSym, Operation::LogicalAND) || // logical
-           lexOperationToken(TokenType::LogicalOrSym, Operation::LogicalOR) ||
-           // arithmetic
-           lexOperationToken(TokenType::PlusSym, Operation::Addition) ||
-           lexOperationToken(TokenType::MinusSym, Operation::Subtraction) ||
-           lexOperationToken(TokenType::MultiplySym, Operation::Multiplication) ||
-           lexOperationToken(TokenType::DivideSym, Operation::Division) ||
-           lexOperationToken(TokenType::ModSym, Operation::Modulus) ||
-           lexOperationToken(TokenType::AmpersandSym, Operation::BitwiseAND) ||
-           lexOperationToken(TokenType::PipeSym, Operation::BitwiseOR) ||
-           lexOperationToken(TokenType::CaretUpSym, Operation::BitwiseXOR) ||
-           // shift
-           lexOperationToken(TokenType::LeftShiftSym, Operation::LeftShift) ||
-            lexOperationToken(TokenType::RightShiftSym, Operation::RightShift) ||
-           // conditional
-           lexOperationToken(TokenType::GreaterThanOrEqualSym, Operation::GreaterThanOrEqual) ||
-            lexOperationToken(TokenType::LessThanOrEqualSym, Operation::LessThanOrEqual) ||
-            lexOperationToken(TokenType::GreaterThanSym, Operation::GreaterThan) ||
-            lexOperationToken(TokenType::LessThanSym, Operation::LessThan) ||
-            lexOperationToken(TokenType::DoubleEqualSym, Operation::IsEqual) ||
-            lexOperationToken(TokenType::NotEqualSym, Operation::IsNotEqual);
+std::optional<Operation> Parser::parseOperation() {
+    switch(token->type) {
+        case TokenType::LogicalAndSym:
+            token++;
+            return Operation::LogicalAND;
+        case TokenType::LogicalOrSym:
+            token++;
+            return Operation::LogicalOR;
+            // arithmetic
+        case TokenType::PlusSym:
+            token++;
+            return Operation::Addition;
+        case TokenType::MinusSym:
+            token++;
+            return Operation::Subtraction;
+        case TokenType::MultiplySym:
+            token++;
+            return Operation::Multiplication;
+        case TokenType::DivideSym:
+            token++;
+            return Operation::Division;
+        case TokenType::ModSym:
+            token++;
+            return Operation::Modulus;
+        case TokenType::AmpersandSym:
+            token++;
+            return Operation::BitwiseAND;
+        case TokenType::PipeSym:
+            token++;
+            return Operation::BitwiseOR;
+        case TokenType::CaretUpSym:
+            token++;
+            return Operation::BitwiseXOR;
+            // shift
+        case TokenType::LeftShiftSym:
+            token++;
+            return Operation::LeftShift;
+        case TokenType::RightShiftSym:
+            token++;
+            return Operation::RightShift;
+            // conditional
+        case TokenType::GreaterThanOrEqualSym:
+            token++;
+            return Operation::GreaterThanOrEqual;
+        case TokenType::LessThanOrEqualSym:
+            token++;
+            return Operation::LessThanOrEqual;
+        case TokenType::GreaterThanSym:
+            token++;
+            return Operation::GreaterThan;
+        case TokenType::LessThanSym:
+            token++;
+            return Operation::LessThan;
+        case TokenType::DoubleEqualSym:
+            token++;
+            return Operation::IsEqual;
+        case TokenType::NotEqualSym:
+            token++;
+            return Operation::IsNotEqual;
+        default:
+            return std::nullopt;
+    }
 }
 
-bool Parser::lexAssignmentOperatorToken() {
-    return lexOperationToken(TokenType::PlusSym, Operation::Addition) ||
-           lexOperationToken(TokenType::MinusSym, Operation::Subtraction) ||
-           lexOperationToken(TokenType::MultiplySym, Operation::Multiplication) ||
-           lexOperationToken(TokenType::DivideSym, Operation::Division) ||
-           lexOperationToken(TokenType::ModSym, Operation::Modulus) ||
-           lexOperationToken(TokenType::AmpersandSym, Operation::BitwiseAND) ||
-           lexOperationToken(TokenType::PipeSym, Operation::BitwiseOR) ||
-           lexOperationToken(TokenType::CaretUpSym, Operation::BitwiseXOR) ||
-           // shift
-           lexOperationToken(TokenType::LeftShiftSym, Operation::LeftShift) ||
-            lexOperationToken(TokenType::RightShiftSym, Operation::RightShift);
+std::optional<Operation> Parser::parseAssignmentOperator() {
+    switch(token->type) {
+        case TokenType::PlusSym:
+            token++;
+            return Operation::Addition;
+        case TokenType::MinusSym:
+            token++;
+            return Operation::Subtraction;
+        case TokenType::MultiplySym:
+            token++;
+            return Operation::Multiplication;
+        case TokenType::DivideSym:
+            token++;
+            return Operation::Division;
+        case TokenType::ModSym:
+            token++;
+            return Operation::Modulus;
+        case TokenType::AmpersandSym:
+            token++;
+            return Operation::BitwiseAND;
+        case TokenType::PipeSym:
+            token++;
+            return Operation::BitwiseOR;
+        case TokenType::CaretUpSym:
+            token++;
+            return Operation::BitwiseXOR;
+        case TokenType::LeftShiftSym:
+            token++;
+            return Operation::LeftShift;
+        case TokenType::RightShiftSym:
+            token++;
+            return Operation::RightShift;
+        default:
+            return std::nullopt;
+    }
 }
 
-bool Parser::lexAssignmentTokens() {
+ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
 
-    if (!lexAccessChainOrAddrOf()) {
-        return false;
+    auto lhs = parseAccessChainOrAddrOf(allocator);
+    if(!lhs) {
+        return nullptr;
     }
 
-    auto start = tokens_size() - 1;
-
     // increment or decrement
-    if (lexOperationToken(TokenType::DoublePlusSym, Operation::PostfixIncrement) || lexOperationToken(TokenType::DoubleMinusSym, Operation::PostfixDecrement)) {
-        compound_from(start, LexTokenType::CompIncDec);
-        return true;
+    switch(token->type) {
+        case TokenType::DoublePlusSym: {
+            token++;
+            auto rhs = new (allocator.allocate<NumberValue>()) NumberValue(1, 0);
+            auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, rhs, Operation::Addition, parent_node, 0);
+            return stmt;
+        }
+        case TokenType::DoubleMinusSym:{
+            token++;
+            auto rhs = new (allocator.allocate<NumberValue>()) NumberValue(1, 0);
+            auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, rhs, Operation::Subtraction, parent_node, 0);
+            return stmt;
+        }
+        default:
+            break;
     }
 
     // whitespace
     lexWhitespaceToken();
 
-
     // lex the operator before the equal sign
-    auto assOp = lexAssignmentOperatorToken();
+    auto assOp = parseAssignmentOperator();
 
     // =
-    if (!lexOperatorToken(TokenType::EqualSym)) {
-        if (assOp) {
+    if (!consumeToken(TokenType::EqualSym)) {
+        if (assOp.has_value()) {
             error("expected an equal for assignment after the assignment operator");
         }
-        auto& chain = *unit.tokens[start];
-        if(chain.tok_type == LexTokenType::CompAccessChain) {
-            chain.tok_type = LexTokenType::CompAccessChainNode;
-            return true;
-        } else {
-            return false;
+        if (lhs->val_kind() == ValueKind::AccessChain) {
+            auto chain = lhs->as_access_chain();
+            chain->is_node = true;
+            return chain;
         }
+    }
+
+    auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, nullptr, Operation::Assignment, parent_node, 0);
+
+    if(assOp.has_value()) {
+        stmt->assOp = assOp.value();
     }
 
     // whitespace
     lexWhitespaceToken();
 
     // value
-    if (!(lexExpressionTokens(true) || lexArrayInit())) {
-        error("expected a value for variable assignment");
-        return true;
+    auto expr = parseExpression(allocator, true);
+    if(expr) {
+        stmt->value = expr;
+    } else {
+        auto init = parseArrayInit(allocator);
+        if(init) {
+            stmt->value = expr;
+        } else {
+            error("expected a value for variable assignment");
+            return stmt;
+        }
     }
 
-    compound_from(start, LexTokenType::CompAssignment);
-
-    return true;
+    return stmt;
 
 }

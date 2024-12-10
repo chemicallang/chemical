@@ -61,9 +61,10 @@ InterfaceDefinition* BaseType::linked_dyn_interface() {
 }
 
 std::string& BaseType::linked_name() {
-    if(kind() == BaseTypeKind::Linked) {
+    const auto k = kind();
+    if(k == BaseTypeKind::Linked) {
         return ((LinkedType*) (this))->type;
-    } else if(kind() == BaseTypeKind::Generic) {
+    } else if(k == BaseTypeKind::Generic) {
         return ((GenericType*) (this))->referenced->type;
     } else {
 #ifdef DEBUG

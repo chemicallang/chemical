@@ -118,6 +118,10 @@ public:
         data.specifier = specifier;
     }
 
+    inline void set_identifier(LocatedIdentifier id) {
+        identifier = std::move(id);
+    }
+
     inline const std::string& name() const {
         return identifier.identifier;
     }

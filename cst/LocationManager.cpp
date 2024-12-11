@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 unsigned int LocationManager::encodeFile(const std::string& filePath) {
+    std::lock_guard guard(file_mutex);
     auto itr = file_paths.find(filePath);
     if(itr == file_paths.end()) {
         const auto s = file_paths.size();

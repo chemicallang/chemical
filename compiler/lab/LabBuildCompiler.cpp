@@ -169,6 +169,10 @@ bool empty_diags(ASTFileResultExt& result) {
     return result.lex_diagnostics.empty() && result.conv_diagnostics.empty() && !result.lex_benchmark && !result.conv_benchmark;
 }
 
+bool empty_diags(ASTFileResultNew& result) {
+    return result.lex_diagnostics.empty() && result.conv_diagnostics.empty() && !result.lex_benchmark && !result.conv_benchmark;
+}
+
 void print_results(ASTFileResultExt& result, const std::string& abs_path, bool benchmark) {
     CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Parser");
     CSTDiagnoser::print_diagnostics(result.conv_diagnostics, abs_path, "Converter");
@@ -181,6 +185,35 @@ void print_results(ASTFileResultExt& result, const std::string& abs_path, bool b
         }
     }
     std::cout << std::flush;
+}
+
+void print_results(ASTFileResultNew& result, const std::string& abs_path, bool benchmark) {
+    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Parser");
+    CSTDiagnoser::print_diagnostics(result.conv_diagnostics, abs_path, "Converter");
+    if(benchmark) {
+        if(result.lex_benchmark) {
+            ASTProcessor::print_benchmarks(std::cout, "Parser", result.lex_benchmark.get());
+        }
+        if(result.conv_benchmark) {
+            ASTProcessor::print_benchmarks(std::cout, "Converter", result.conv_benchmark.get());
+        }
+    }
+    std::cout << std::flush;
+}
+
+void flatten(std::vector<ASTFileResultNew*>& flat_out, ASTFileResultNew& single_file) {
+    for(auto& file : single_file.imports) {
+        flatten(flat_out, file);
+    }
+    flat_out.emplace_back(&single_file);
+}
+
+std::vector<ASTFileResultNew*> flatten(std::vector<ASTFileResultNew>& files) {
+    std::vector<ASTFileResultNew*> flat_out;
+    for(auto& file : files) {
+        flatten(flat_out, file);
+    }
+    return flat_out;
 }
 
 int LabBuildCompiler::process_modules(LabJob* exe) {
@@ -551,7 +584,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                             imports_from_other_mods.emplace_back(file.abs_path);
                         }
                         // this is probably a different module, so we'll declare the file (if not declared)
-                        processor.declare_in_c(c_visitor, unit.scope, file);
+                        processor.declare_in_c(c_visitor, unit.scope, file.abs_path);
                         unit.declared_in[mod] = true;
                     }
                 } else {
@@ -559,7 +592,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                         current_mod_files.emplace_back(file.abs_path);
                     }
                     // translating to c
-                    processor.translate_to_c(c_visitor, unit.scope, file);
+                    processor.translate_to_c(c_visitor, unit.scope.nodes, file.abs_path);
                 }
             }
 #ifdef COMPILER_BUILD
@@ -582,7 +615,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 if(options->verbose) {
                     std::cout << rang::fg::magenta << "[Shrinking] " << file.abs_path << rang::fg::reset << std::endl;
                 }
-                processor.shrink_nodes(shrinker, std::move(result.unit), file);
+                processor.shrink_nodes(shrinker, std::move(result.unit), file.abs_path);
             }
 
             // clear everything we allocated using file allocator to make it re-usable
@@ -1046,7 +1079,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             lab_processor.translate_to_c(c_visitor, result.unit.scope, file);
 
             // shrinking the nodes
-            lab_processor.shrink_nodes(shrinker, std::move(result.unit), file);
+            lab_processor.shrink_nodes(shrinker, std::move(result.unit), file.abs_path);
 
             i++;
         }

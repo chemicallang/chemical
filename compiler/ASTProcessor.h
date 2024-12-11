@@ -235,9 +235,19 @@ public:
      */
     void import_chemical_files(
             ctpl::thread_pool& pool,
+            const std::string_view& base_path,
             std::vector<ASTFileResultNew>& out_files,
             const std::span<std::pair<std::string_view, unsigned int>>& files,
             std::unordered_map<std::string_view, bool>& done_files
+    );
+
+    /**
+     * determine module imports
+     */
+    void determine_mod_imports(
+            ctpl::thread_pool& pool,
+            std::vector<ASTFileResultNew>& out_files,
+            LabModule* module
     );
 
     /**

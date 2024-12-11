@@ -201,17 +201,23 @@ void print_results(ASTFileResultNew& result, const std::string& abs_path, bool b
     std::cout << std::flush;
 }
 
-void flatten(std::vector<ASTFileResultNew*>& flat_out, ASTFileResultNew& single_file) {
-    for(auto& file : single_file.imports) {
-        flatten(flat_out, file);
+void flatten(std::vector<ASTFileResultNew*>& flat_out, std::unordered_map<std::string_view, bool>& done_files, ASTFileResultNew* single_file) {
+    for(auto& file : single_file->imports) {
+        flatten(flat_out, done_files, file);
     }
-    flat_out.emplace_back(&single_file);
+    auto view = std::string_view(single_file->abs_path);
+    auto found = done_files.find(view);
+    if(found == done_files.end()) {
+        done_files[view] = true;
+        flat_out.emplace_back(single_file);
+    }
 }
 
-std::vector<ASTFileResultNew*> flatten(std::vector<ASTFileResultNew>& files) {
+std::vector<ASTFileResultNew*> flatten(std::vector<ASTFileResultNew*>& files) {
     std::vector<ASTFileResultNew*> flat_out;
-    for(auto& file : files) {
-        flatten(flat_out, file);
+    std::unordered_map<std::string_view, bool> done_files;
+    for(auto file : files) {
+        flatten(flat_out, done_files, file);
     }
     return flat_out;
 }
@@ -334,7 +340,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     auto dependencies = flatten_dedupe_sorted(exe->dependencies);
 
     // allocating required variables before going into loop
-    std::vector<FlatIGFile> flat_imports;
     int i;
     int compile_result = 0;
     bool do_compile = job_type != LabJobType::ToCTranslation && job_type != LabJobType::CBI;
@@ -436,20 +441,23 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 
         // get flat file map of this module
-        flat_imports = processor.determine_mod_imports(mod);
+//        flat_imports = processor.determine_mod_imports(mod);
 
         // send all files for concurrent processing (lex and parse)
-        std::vector<std::future<ASTFileResultExt>> futures;
-        futures.reserve(flat_imports.size());
-        i = 0;
-        for(const auto& file : flat_imports) {
-            auto already_imported = processor.shrinked_unit.find(file.abs_path);
-            if(already_imported == processor.shrinked_unit.end()) {
-                const auto fileId = loc_man.encodeFile(file.abs_path);
-                futures.emplace_back(pool.push(concurrent_processor, fileId, file, &processor));
-                i++;
-            }
-        }
+//        std::vector<std::future<ASTFileResultExt>> futures;
+//        futures.reserve(flat_imports.size());
+//        i = 0;
+//        for(const auto& file : flat_imports) {
+//            auto already_imported = processor.shrinked_unit.find(file.abs_path);
+//            if(already_imported == processor.shrinked_unit.end()) {
+//                const auto fileId = loc_man.encodeFile(file.abs_path);
+//                futures.emplace_back(pool.push(concurrent_processor, fileId, file, &processor));
+//                i++;
+//            }
+//        }
+
+        std::vector<ASTFileResultNew*> module_files;
+        processor.determine_mod_imports(pool, module_files, mod);
 
         if(use_tcc) {
             // preparing translation
@@ -461,8 +469,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             gen.module_init(mod->name.to_std_string());
         }
 #endif
-
-        ASTFileResultExt result {ASTUnit(), CSTUnit(), false, false, {}, {}, nullptr, nullptr };
 
         // start a module scope in symbol resolver, that we can dispose later
         resolver.module_scope_start();
@@ -527,11 +533,21 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
         // sequentially compile each file
         i = 0;
-        for(const auto& file : flat_imports) {
+        auto flattened_files = flatten(module_files);
+        for(auto file_ptr : flattened_files) {
+
+            auto& file = *file_ptr;
+            auto& result = file;
 
             // check file exists
             if(file.abs_path.empty()) {
                 std::cerr << rang::fg::red << "error: file not found '" << file.import_path << "'" << rang::fg::reset << std::endl;
+                compile_result = 1;
+                break;
+            }
+
+            if(!result.read_error.empty()) {
+                std::cerr << rang::fg::red << "error: when reading file '" << file.abs_path << "' with message '" << result.read_error << "'" << rang::fg::reset << std::endl;
                 compile_result = 1;
                 break;
             }
@@ -544,10 +560,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 result.is_c_file = false;
             } else {
                 // get the processed result
-                result = std::move(futures[i++].get());
+//                result = std::move(file);
             }
 
-            ASTUnit& unit = already_imported ? imported->second : result.unit;
+            ASTUnit& unit = already_imported ? imported->second : file.unit;
 
             // print the benchmark or verbose output received from processing
             if((options->benchmark || options->verbose) && !empty_diags(result)) {
@@ -601,12 +617,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     auto declared_in = unit.declared_in.find(mod);
                     if(declared_in == unit.declared_in.end()) {
                         // this is probably a different module, so we'll declare the file (if not declared)
-                        processor.declare_nodes(gen, unit.scope, file);
+                        processor.declare_nodes(gen, unit.scope, file.abs_path);
                         unit.declared_in[mod] = true;
                     }
                 } else {
                     // compiling the nodes
-                    processor.compile_nodes(gen, unit.scope, file);
+                    processor.compile_nodes(gen, unit.scope.nodes, file.abs_path);
                 }
             }
 #endif
@@ -626,8 +642,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         // going over each file in the module, to remove non-public nodes
         // so when we declare the nodes in other module, we don't consider non-public nodes
         // because non-public nodes are only present in the module allocator which will be cleared
-        for(const auto& file : flat_imports) {
-            auto file_unit = processor.shrinked_unit.find(file.abs_path);
+        for(const auto file : module_files) {
+            auto file_unit = processor.shrinked_unit.find(file->abs_path);
             if(file_unit != processor.shrinked_unit.end()) {
                 auto& nodes = file_unit->second.scope.nodes;
                 auto itr = nodes.begin();
@@ -658,7 +674,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 
         // disposing data
-        futures.clear();
         mod_allocator->clear();
 
         if(use_tcc) {

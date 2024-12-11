@@ -70,6 +70,11 @@ struct ASTFileMetaData {
      */
     std::string abs_path;
 
+    /**
+     * the as identifier is used with import statements to import files
+     */
+    std::string as_identifier;
+
 };
 
 

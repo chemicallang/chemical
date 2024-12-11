@@ -976,7 +976,18 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     );
 
     // get flat imports
-    auto flat_imports = lab_processor.flat_imports(path);
+    ASTFileResultNew blResult;
+    auto buildLabFileId = loc_man.encodeFile(path);
+    ASTFileMetaData buildLabMetaData(buildLabFileId, path, path);
+
+    lab_processor.import_chemical_file(&blResult, pool, buildLabMetaData);
+
+    print_results(blResult, path, options->benchmark);
+
+    if(!blResult.continue_processing) {
+        return nullptr;
+    }
+
     int compile_result = 0;
 
     // compiler interfaces the lab files imports
@@ -1020,13 +1031,16 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
     {
 
-        auto lab_futures = trigger_futures(pool, flat_imports, &lab_processor);
+        std::vector<ASTFileResultNew*> files_to_flatten = { &blResult };
+        auto module_files = flatten(files_to_flatten);
 
         // processing each build.lab file and creating C output
         int i = 0;
-        for (const auto &file: flat_imports) {
+        for (const auto file_ptr : module_files) {
 
-            auto result = future_get(lab_futures, i);
+            auto& file = *file_ptr;
+
+            auto& result = file;
             if (!result.continue_processing) {
                 compile_result = false;
                 break;
@@ -1047,7 +1061,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             lab_resolver.reset_errors();
 
             // the last build.lab file is whose build method is to be called
-            bool is_last = i == flat_imports.size() - 1;
+            bool is_last = i == module_files.size() - 1;
             if (is_last) {
                 auto found = finder(lab_resolver, file.abs_path);
                 if (!found) {
@@ -1091,7 +1105,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             c_visitor.reset();
 
             // translate build.lab file to c
-            lab_processor.translate_to_c(c_visitor, result.unit.scope, file);
+            lab_processor.translate_to_c(c_visitor, result.unit.scope.nodes, file.abs_path);
 
             // shrinking the nodes
             lab_processor.shrink_nodes(shrinker, std::move(result.unit), file.abs_path);

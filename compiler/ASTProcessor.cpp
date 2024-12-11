@@ -22,13 +22,14 @@
 #include "lexer/Lexer.h"
 #include "stream/FileInputSource.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "ast/statements/Import.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
 #endif
 
 ASTFileResultExt concurrent_processor(int id, unsigned int file_id, const FlatIGFile& file, ASTProcessor* processor) {
-    return processor->import_file(file_id, file);
+    return processor->import_file(file_id, file.abs_path);
 }
 
 std::string ASTProcessorOptions::get_resources_path() {
@@ -233,6 +234,92 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
     }
 }
 
+ASTFileResultNew concurrent_file_importer(
+        int id,
+        ctpl::thread_pool* pool,
+        ASTProcessor* processor,
+        unsigned int fileId,
+        const std::string_view& file_path,
+        std::unordered_map<std::string_view, bool>& done_files
+) {
+    return processor->import_chemical_file(*pool, fileId, file_path, done_files);
+}
+
+void ASTProcessor::import_chemical_files(
+        ctpl::thread_pool& pool,
+        std::vector<ASTFileResultNew>& out_files,
+        const std::span<std::pair<std::string_view, unsigned int>>& files,
+        std::unordered_map<std::string_view, bool>& done_files
+) {
+
+    std::vector<std::future<ASTFileResultNew>> futures;
+
+    // lock the import mutex to sync
+    import_mutex.lock();
+
+    // launch all files concurrently
+    for(auto& file_pair : files) {
+
+        auto& file_id = file_pair.second;
+        auto& file = file_pair.first;
+
+        // check whether we have launched this file or not
+        auto found = done_files.find(file);
+        if(found != done_files.end()) {
+            // do the next file
+            continue;
+        }
+
+        // set the flag for done and launch it
+        done_files[file] = true;
+        futures.emplace_back(pool.push(concurrent_file_importer, &pool, this, file_id, file, done_files));
+
+    }
+
+    // unlock the mutex to let go
+    import_mutex.unlock();
+
+    // put each file sequentially into the out_files
+    for(auto& future : futures) {
+        out_files.emplace_back(future.get());
+    }
+
+}
+
+ASTFileResultNew ASTProcessor::import_chemical_file(
+        ctpl::thread_pool& pool,
+        unsigned int fileId,
+        const std::string_view& file,
+        std::unordered_map<std::string_view, bool>& done_files
+) {
+
+    auto result = import_file(fileId, file);
+
+    // figure out files imported by this file
+    std::vector<std::pair<std::string_view, unsigned int>> imports;
+    auto& file_nodes = result.unit.scope.nodes;
+    for(auto node : file_nodes) {
+        auto kind = node->kind();
+        if(kind == ASTNodeKind::ImportStmt) {
+            auto stmt = node->as_import_stmt_unsafe();
+            imports.emplace_back(stmt->filePath, loc_man.encodeFile(stmt->filePath));
+        } else {
+            break;
+        }
+    }
+
+    ASTFileResultNew final_result;
+
+    final_result.is_c_file = result.is_c_file;
+    final_result.continue_processing = result.continue_processing;
+    final_result.nodes = std::move(result.unit.scope.nodes);
+
+    import_chemical_files(pool, final_result.imports, imports, done_files);
+
+    return final_result;
+
+}
+
 ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, const std::string_view& abs_path) {
 
     ASTUnit unit;
@@ -310,9 +397,7 @@ ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, con
 
 }
 
-ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFile& file) {
-
-    auto& abs_path = file.abs_path;
+ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const std::string_view& abs_path) {
 
     auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
 
@@ -331,7 +416,7 @@ ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFile
 
         translator->translate(
             options->exe_path.c_str(),
-            abs_path.c_str(),
+            abs_path.data(),
             options->resources_path.c_str()
         );
 
@@ -355,7 +440,7 @@ ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const FlatIGFile
 
     } else {
 
-        return import_chemical_file_new(fileId, file.abs_path);
+        return import_chemical_file_new(fileId, abs_path);
 
     }
 

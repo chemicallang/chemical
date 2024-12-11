@@ -1088,6 +1088,13 @@ public:
     }
 
     /**
+     * return if this is an import statement
+     */
+    inline ImportStatement *as_import_stmt_unsafe() {
+        return (ImportStatement*) this;
+    }
+
+    /**
      * return if this is a implementation def
      */
     inline ImplDefinition* as_impl_def_unsafe() {

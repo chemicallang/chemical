@@ -16,6 +16,8 @@
 #include "cst/base/CSTUnit.h"
 #include "ast/base/ASTAllocator.h"
 #include "integration/cbi/bindings/CBI.h"
+#include <span>
+#include <mutex>
 
 class Parser;
 
@@ -32,6 +34,34 @@ class ToCAstVisitor;
 class CTranslator;
 
 #endif
+
+namespace ctpl {
+    class thread_pool;
+}
+
+struct ASTFileResultData {
+
+    /**
+     * should the processing be continued, this is false, if ast contained errors
+     */
+    bool continue_processing;
+
+    /**
+     * if this unit belongs to a c file that was translated using clang
+     */
+    bool is_c_file;
+
+};
+
+
+struct ASTFileResultNew : ASTFileResultData {
+
+    std::vector<ASTNode*> nodes;
+
+    std::vector<ASTFileResultNew> imports;
+
+};
+
 
 /**
  * when a file is processed using ASTProcessor
@@ -104,6 +134,11 @@ public:
      * import path handler, handles paths, '@' symbols in paths, determining their absolute paths
      */
     ImportPathHandler path_handler;
+
+    /**
+     * import mutex is used to synchronize launching of multiple files
+     */
+    std::mutex import_mutex;
 
     /**
      * When a file is processed, we shrink it's nodes (remove function bodies) using the
@@ -196,6 +231,26 @@ public:
     std::vector<FlatIGFile> determine_mod_imports(LabModule* module);
 
     /**
+     * this imports the given files in parallel using the given thread pool
+     */
+    void import_chemical_files(
+            ctpl::thread_pool& pool,
+            std::vector<ASTFileResultNew>& out_files,
+            const std::span<std::pair<std::string_view, unsigned int>>& files,
+            std::unordered_map<std::string_view, bool>& done_files
+    );
+
+    /**
+     * import a single file and all it's imports (in parallel) using the given thread pool
+     */
+    ASTFileResultNew import_chemical_file(
+            ctpl::thread_pool& pool,
+            unsigned int fileId,
+            const std::string_view& file,
+            std::unordered_map<std::string_view, bool>& done_files
+    );
+
+    /**
      * import chemical file with absolute path to it
      */
     ASTFileResultExt import_chemical_file_new(unsigned int fileId, const std::string_view& absolute_path);
@@ -204,7 +259,7 @@ public:
      * lex, parse and resolve symbols in file and return Scope containing nodes
      * without performing any symbol resolution
      */
-    ASTFileResultExt import_file(unsigned int fileId, const FlatIGFile& file);
+    ASTFileResultExt import_file(unsigned int fileId, const std::string_view& absolute_path);
 
     /**
      * function that performs symbol resolution

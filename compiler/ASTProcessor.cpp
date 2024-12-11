@@ -144,6 +144,49 @@ void getFilesInDirectory(std::vector<std::string>& filePaths, const std::string&
     }
 }
 
+void ASTProcessor::determine_mod_imports(
+        ctpl::thread_pool& pool,
+        std::vector<ASTFileResultNew>& out_files,
+        LabModule* module
+) {
+    switch(module->type) {
+        case LabModuleType::Files: {
+            std::vector<std::pair<std::string_view, unsigned int>> files;
+            for (auto& str: module->paths) {
+                auto abs_path = canonical_path(str.data());
+                if (abs_path.empty()) {
+                    std::cerr << "error: couldn't determine canonical path for file '" << str.data() << "' in module '"
+                              << module->name << '\'' << std::endl;
+                }
+                auto fileId = loc_man.encodeFile(abs_path);
+                files.emplace_back(loc_man.getPathForFileId(fileId), fileId);
+            }
+            std::unordered_map<std::string_view, bool> done_files;
+            import_chemical_files(pool, "./", out_files, files, done_files);
+            return;
+        }
+        case LabModuleType::ObjFile:
+        case LabModuleType::CFile:
+        case LabModuleType::CPPFile:
+            return;
+        case LabModuleType::Directory:
+            const auto& dir_path = module->paths[0];
+            if (!std::filesystem::exists(dir_path.data()) || !std::filesystem::is_directory(dir_path.data())) {
+                std::cerr << "error: directory doesn't exist '" << dir_path << "' for module '" << module->name.data() << '\'' << std::endl;
+                return;
+            }
+            std::vector<std::string> filePaths;
+            getFilesInDirectory(filePaths, dir_path.data());
+            std::vector<std::pair<std::string_view, unsigned int>> files;
+            for (auto& abs_path: filePaths) {
+                auto fileId = loc_man.encodeFile(abs_path);
+                files.emplace_back(loc_man.getPathForFileId(fileId), fileId);
+            }
+            std::unordered_map<std::string_view, bool> done_files;
+            import_chemical_files(pool, "./", out_files, files, done_files);
+            return;
+    }
+}
 
 std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
     switch(module->type) {
@@ -247,6 +290,7 @@ ASTFileResultNew concurrent_file_importer(
 
 void ASTProcessor::import_chemical_files(
         ctpl::thread_pool& pool,
+        const std::string_view& base_path,
         std::vector<ASTFileResultNew>& out_files,
         const std::span<std::pair<std::string_view, unsigned int>>& files,
         std::unordered_map<std::string_view, bool>& done_files
@@ -261,7 +305,9 @@ void ASTProcessor::import_chemical_files(
     for(auto& file_pair : files) {
 
         auto& file_id = file_pair.second;
-        auto& file = file_pair.first;
+        // TODO improve parameter passing here
+        auto file_result = path_handler.resolve_import_path(std::string(base_path), std::string(file_pair.first));
+        auto file = std::string_view(file_result.replaced);
 
         // check whether we have launched this file or not
         auto found = done_files.find(file);
@@ -314,7 +360,7 @@ ASTFileResultNew ASTProcessor::import_chemical_file(
     final_result.continue_processing = result.continue_processing;
     final_result.nodes = std::move(result.unit.scope.nodes);
 
-    import_chemical_files(pool, final_result.imports, imports, done_files);
+    import_chemical_files(pool, file, final_result.imports, imports, done_files);
 
     return final_result;
 

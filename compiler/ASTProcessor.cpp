@@ -151,7 +151,7 @@ void ASTProcessor::determine_mod_imports(
 ) {
     switch(module->type) {
         case LabModuleType::Files: {
-            std::vector<std::pair<std::string_view, unsigned int>> files;
+            std::vector<ASTFileMetaData> files;
             for (auto& str: module->paths) {
                 auto abs_path = canonical_path(str.data());
                 if (abs_path.empty()) {
@@ -159,7 +159,7 @@ void ASTProcessor::determine_mod_imports(
                               << module->name << '\'' << std::endl;
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(loc_man.getPathForFileId(fileId), fileId);
+                files.emplace_back(fileId, abs_path, abs_path);
             }
             std::unordered_map<std::string_view, bool> done_files;
             import_chemical_files(pool, "./", out_files, files, done_files);
@@ -177,10 +177,10 @@ void ASTProcessor::determine_mod_imports(
             }
             std::vector<std::string> filePaths;
             getFilesInDirectory(filePaths, dir_path.data());
-            std::vector<std::pair<std::string_view, unsigned int>> files;
+            std::vector<ASTFileMetaData> files;
             for (auto& abs_path: filePaths) {
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(loc_man.getPathForFileId(fileId), fileId);
+                files.emplace_back(fileId, abs_path, abs_path);
             }
             std::unordered_map<std::string_view, bool> done_files;
             import_chemical_files(pool, "./", out_files, files, done_files);
@@ -281,18 +281,17 @@ ASTFileResultNew concurrent_file_importer(
         int id,
         ctpl::thread_pool* pool,
         ASTProcessor* processor,
-        unsigned int fileId,
-        const std::string_view& file_path,
+        ASTFileMetaData& fileData,
         std::unordered_map<std::string_view, bool>& done_files
 ) {
-    return processor->import_chemical_file(*pool, fileId, file_path, done_files);
+    return processor->import_chemical_file(*pool, fileData, done_files);
 }
 
 void ASTProcessor::import_chemical_files(
         ctpl::thread_pool& pool,
         const std::string_view& base_path,
         std::vector<ASTFileResultNew>& out_files,
-        const std::span<std::pair<std::string_view, unsigned int>>& files,
+        const std::span<ASTFileMetaData>& files,
         std::unordered_map<std::string_view, bool>& done_files
 ) {
 
@@ -302,12 +301,11 @@ void ASTProcessor::import_chemical_files(
     import_mutex.lock();
 
     // launch all files concurrently
-    for(auto& file_pair : files) {
+    for(auto& fileData : files) {
 
-        auto& file_id = file_pair.second;
-        // TODO improve parameter passing here
-        auto file_result = path_handler.resolve_import_path(std::string(base_path), std::string(file_pair.first));
-        auto file = std::string_view(file_result.replaced);
+        const auto file_id = fileData.file_id;
+        const auto& abs_path = fileData.abs_path;
+        auto file = std::string_view(abs_path);
 
         // check whether we have launched this file or not
         auto found = done_files.find(file);
@@ -318,7 +316,7 @@ void ASTProcessor::import_chemical_files(
 
         // set the flag for done and launch it
         done_files[file] = true;
-        futures.emplace_back(pool.push(concurrent_file_importer, &pool, this, file_id, file, done_files));
+        futures.emplace_back(pool.push(concurrent_file_importer, &pool, this, fileData, done_files));
 
     }
 
@@ -334,33 +332,36 @@ void ASTProcessor::import_chemical_files(
 
 ASTFileResultNew ASTProcessor::import_chemical_file(
         ctpl::thread_pool& pool,
-        unsigned int fileId,
-        const std::string_view& file,
+        ASTFileMetaData& fileData,
         std::unordered_map<std::string_view, bool>& done_files
 ) {
 
-    auto result = import_file(fileId, file);
+    auto result = import_file(fileData.file_id, fileData.abs_path);
 
     // figure out files imported by this file
-    std::vector<std::pair<std::string_view, unsigned int>> imports;
+    std::vector<ASTFileMetaData> imports;
     auto& file_nodes = result.unit.scope.nodes;
     for(auto node : file_nodes) {
         auto kind = node->kind();
         if(kind == ASTNodeKind::ImportStmt) {
             auto stmt = node->as_import_stmt_unsafe();
-            imports.emplace_back(stmt->filePath, loc_man.encodeFile(stmt->filePath));
+            auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, std::string(stmt->filePath));
+            if(replaceResult.error.empty()) {
+                auto fileId = loc_man.encodeFile(replaceResult.replaced);
+                imports.emplace_back(fileId, stmt->filePath, replaceResult.replaced);
+            } else {
+                std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "'" << std::endl;
+            }
         } else {
             break;
         }
     }
 
-    ASTFileResultNew final_result;
+    ASTFileResultNew final_result({ result.continue_processing, result.is_c_file }, fileData, {}, {});
 
-    final_result.is_c_file = result.is_c_file;
-    final_result.continue_processing = result.continue_processing;
     final_result.nodes = std::move(result.unit.scope.nodes);
 
-    import_chemical_files(pool, file, final_result.imports, imports, done_files);
+    import_chemical_files(pool, fileData.abs_path, final_result.imports, imports, done_files);
 
     return final_result;
 

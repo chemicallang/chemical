@@ -53,11 +53,37 @@ struct ASTFileResultData {
 
 };
 
+struct ASTFileMetaData {
 
-struct ASTFileResultNew : ASTFileResultData {
+    /**
+     * the id of the file
+     */
+    unsigned int file_id;
 
+    /**
+     * the path used when user imported the file
+     */
+    std::string import_path;
+
+    /**
+     * the absolute path determined to the file
+     */
+    std::string abs_path;
+
+};
+
+
+struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
+
+    /**
+     * the parsed nodes
+     */
     std::vector<ASTNode*> nodes;
 
+    /**
+     * the imported files by this file, these files don't contain duplicates
+     * or already imported files
+     */
     std::vector<ASTFileResultNew> imports;
 
 };
@@ -237,7 +263,7 @@ public:
             ctpl::thread_pool& pool,
             const std::string_view& base_path,
             std::vector<ASTFileResultNew>& out_files,
-            const std::span<std::pair<std::string_view, unsigned int>>& files,
+            const std::span<ASTFileMetaData>& files,
             std::unordered_map<std::string_view, bool>& done_files
     );
 
@@ -255,8 +281,7 @@ public:
      */
     ASTFileResultNew import_chemical_file(
             ctpl::thread_pool& pool,
-            unsigned int fileId,
-            const std::string_view& file,
+            ASTFileMetaData& fileData,
             std::unordered_map<std::string_view, bool>& done_files
     );
 
@@ -266,7 +291,7 @@ public:
     ASTFileResultExt import_chemical_file_new(unsigned int fileId, const std::string_view& absolute_path);
 
     /**
-     * lex, parse and resolve symbols in file and return Scope containing nodes
+     * lex, parse in file and return Scope containing nodes
      * without performing any symbol resolution
      */
     ASTFileResultExt import_file(unsigned int fileId, const std::string_view& absolute_path);

@@ -84,7 +84,12 @@ struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
      * the imported files by this file, these files don't contain duplicates
      * or already imported files
      */
-    std::vector<ASTFileResultNew> imports;
+    std::vector<ASTFileResultNew*> imports;
+
+    /**
+     * if read error occurred this would contain it
+     */
+    std::string read_error;
 
     /**
      * diagnotics collected during the lexing process
@@ -137,6 +142,11 @@ struct ASTFileResult {
 };
 
 struct ASTFileResultExt : ASTFileResult {
+
+    /**
+     * the read error is stored here if occurred
+     */
+    std::string read_error;
 
     /**
      * diagnotics collected during the lexing process
@@ -201,6 +211,12 @@ public:
      *
      */
     std::unordered_map<std::string, ASTUnit> shrinked_unit;
+
+    /**
+     * cache is where files parsed are stored, before parsing the
+     * file we search for it in this cache
+     */
+    std::unordered_map<std::string, ASTFileResultNew> cache;
 
     /**
      * the compiler binder that will be used
@@ -281,9 +297,8 @@ public:
      */
     void import_chemical_files(
             ctpl::thread_pool& pool,
-            std::vector<ASTFileResultNew>& out_files,
-            const std::span<ASTFileMetaData>& files,
-            std::unordered_map<std::string_view, bool>& done_files
+            std::vector<ASTFileResultNew*>& out_files,
+            std::vector<ASTFileMetaData>& files
     );
 
     /**
@@ -291,17 +306,17 @@ public:
      */
     void determine_mod_imports(
             ctpl::thread_pool& pool,
-            std::vector<ASTFileResultNew>& out_files,
+            std::vector<ASTFileResultNew*>& out_files,
             LabModule* module
     );
 
     /**
      * import a single file and all it's imports (in parallel) using the given thread pool
      */
-    ASTFileResultNew import_chemical_file(
+    void import_chemical_file(
+            ASTFileResultNew* out_file,
             ctpl::thread_pool& pool,
-            ASTFileMetaData& fileData,
-            std::unordered_map<std::string_view, bool>& done_files
+            ASTFileMetaData& fileData
     );
 
     /**
@@ -395,7 +410,7 @@ public:
     void declare_nodes(
         Codegen& gen,
         Scope& import_res,
-        const FlatIGFile &file
+        const std::string& file
     );
 
 #endif

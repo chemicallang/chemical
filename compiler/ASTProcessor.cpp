@@ -146,7 +146,7 @@ void getFilesInDirectory(std::vector<std::string>& filePaths, const std::string&
 
 void ASTProcessor::determine_mod_imports(
         ctpl::thread_pool& pool,
-        std::vector<ASTFileResultNew>& out_files,
+        std::vector<ASTFileResultNew*>& out_files,
         LabModule* module
 ) {
     switch(module->type) {
@@ -161,8 +161,7 @@ void ASTProcessor::determine_mod_imports(
                 auto fileId = loc_man.encodeFile(abs_path);
                 files.emplace_back(fileId, abs_path, abs_path);
             }
-            std::unordered_map<std::string_view, bool> done_files;
-            import_chemical_files(pool, out_files, files, done_files);
+            import_chemical_files(pool, out_files, files);
             return;
         }
         case LabModuleType::ObjFile:
@@ -182,8 +181,7 @@ void ASTProcessor::determine_mod_imports(
                 auto fileId = loc_man.encodeFile(abs_path);
                 files.emplace_back(fileId, abs_path, abs_path);
             }
-            std::unordered_map<std::string_view, bool> done_files;
-            import_chemical_files(pool, out_files, files, done_files);
+            import_chemical_files(pool, out_files, files);
             return;
     }
 }
@@ -277,27 +275,29 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
     }
 }
 
-ASTFileResultNew concurrent_file_importer(
+ASTFileResultNew* concurrent_file_importer(
         int id,
-        ctpl::thread_pool* pool,
         ASTProcessor* processor,
-        ASTFileMetaData& fileData,
-        std::unordered_map<std::string_view, bool>& done_files
+        ctpl::thread_pool& pool,
+        ASTFileResultNew* out_file,
+        ASTFileMetaData& fileData
 ) {
-    return processor->import_chemical_file(*pool, fileData, done_files);
+    processor->import_chemical_file(out_file, pool, fileData);
+    return out_file;
 }
+
+struct future_ptr_union {
+    ASTFileResultNew* result = nullptr;
+    std::future<ASTFileResultNew*> future;
+};
 
 void ASTProcessor::import_chemical_files(
         ctpl::thread_pool& pool,
-        std::vector<ASTFileResultNew>& out_files,
-        const std::span<ASTFileMetaData>& files,
-        std::unordered_map<std::string_view, bool>& done_files
+        std::vector<ASTFileResultNew*>& out_files,
+        std::vector<ASTFileMetaData>& files
 ) {
 
-    std::vector<std::future<ASTFileResultNew>> futures;
-
-    // lock the import mutex to sync
-    import_mutex.lock();
+    std::vector<future_ptr_union> futures;
 
     // launch all files concurrently
     for(auto& fileData : files) {
@@ -306,33 +306,44 @@ void ASTProcessor::import_chemical_files(
         const auto& abs_path = fileData.abs_path;
         auto file = std::string_view(abs_path);
 
-        // check whether we have launched this file or not
-        auto found = done_files.find(file);
-        if(found != done_files.end()) {
-            // do the next file
-            continue;
+        ASTFileResultNew* out_file;
+
+        {
+            std::lock_guard<std::mutex> guard(import_mutex);
+            auto found = cache.find(abs_path);
+            if (found != cache.end()) {
+//                 std::cout << "not launching file : " << fileData.abs_path << std::endl;
+                futures.emplace_back(&found->second);
+                continue;
+            }
+
+//            std::cout << "launching file : " << fileData.abs_path << std::endl;
+            out_file = &cache[abs_path];
         }
 
-        // set the flag for done and launch it
-        done_files[file] = true;
-        futures.emplace_back(pool.push(concurrent_file_importer, &pool, this, fileData, done_files));
+        futures.emplace_back(
+                nullptr,
+                pool.push(concurrent_file_importer, this, std::ref(pool), out_file, fileData)
+        );
 
     }
 
-    // unlock the mutex to let go
-    import_mutex.unlock();
-
     // put each file sequentially into the out_files
-    for(auto& future : futures) {
-        out_files.emplace_back(future.get());
+    for(auto& wrap : futures) {
+        if(wrap.result) {
+            out_files.emplace_back(wrap.result);
+        } else {
+            // ensure job completion
+            out_files.emplace_back(wrap.future.get());
+        }
     }
 
 }
 
-ASTFileResultNew ASTProcessor::import_chemical_file(
+void ASTProcessor::import_chemical_file(
+        ASTFileResultNew* out_result,
         ctpl::thread_pool& pool,
-        ASTFileMetaData& fileData,
-        std::unordered_map<std::string_view, bool>& done_files
+        ASTFileMetaData& fileData
 ) {
 
     auto result = import_file(fileData.file_id, fileData.abs_path);
@@ -358,6 +369,7 @@ ASTFileResultNew ASTProcessor::import_chemical_file(
 
     ASTFileResultNew final_result(
             { result.continue_processing, result.is_c_file }, fileData, std::move(result.unit), {},
+            result.read_error,
             std::move(result.lex_diagnostics),
             std::move(result.conv_diagnostics),
             std::move(result.lex_benchmark),
@@ -366,27 +378,42 @@ ASTFileResultNew ASTProcessor::import_chemical_file(
 
     if(!imports.empty()) {
 
-        import_chemical_files(pool, final_result.imports, imports, done_files);
+        import_chemical_files(pool, final_result.imports, imports);
 
     }
 
-    return final_result;
+    // TODO optimize this
+    *out_result = std::move(final_result);
 
 }
 
 ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, const std::string_view& abs_path) {
 
-    ASTUnit unit;
+    ASTFileResultExt result;
+    auto& unit = result.unit;
 
     std::unique_ptr<BenchmarkResults> lex_bm;
     std::unique_ptr<BenchmarkResults> parse_bm;
 
     FileInputSource inp_source(abs_path.data());
+    if(inp_source.has_error()) {
+        result.read_error = inp_source.error_message();
+        std::cerr << rang::fg::red << "error: when reading file " << abs_path << " because " << result.read_error << rang::fg::reset << std::endl;
+        return result;
+    }
+
     SourceProvider provider2(&inp_source);
     Lexer lexer(std::string(abs_path), provider2, &binder);
     LexUnit lexUnit;
 
-    lexer.getUnit(lexUnit);
+    if(options->benchmark) {
+        result.lex_benchmark = std::make_unique<BenchmarkResults>();
+        result.lex_benchmark->benchmark_begin();
+        lexer.getUnit(lexUnit);
+        result.lex_benchmark->benchmark_end();
+    } else {
+        lexer.getUnit(lexUnit);
+    }
 
     // parse the file
     Parser parser(
@@ -414,40 +441,31 @@ ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, con
 //            bind_lexer_cbi(lexer_cbi.get(), &lexer);
 //        }
 
+//    if(abs_path == "D:\\Programming\\Cpp\\zig-bootstrap\\chemical\\lang\\libs\\std\\vector.ch") {
+//        int i = 0;
+//    }
+
     if(options->benchmark) {
-        lex_bm = std::make_unique<BenchmarkResults>();
-        lex_bm->benchmark_begin();
+        result.conv_benchmark = std::make_unique<BenchmarkResults>();
+        result.conv_benchmark->benchmark_begin();
         parser.parse(unit.scope.nodes);
-        lex_bm->benchmark_end();
+        result.conv_benchmark->benchmark_end();
     } else {
         parser.parse(unit.scope.nodes);
     }
-    if (parser.has_errors) {
-        return {ASTFileResult {std::move(unit), std::move(parser.unit), false, false }, std::move(parser.diagnostics), { }, std::move(lex_bm), nullptr };
+
+    // TODO remove this, still needed for cst being processed by import graph
+    result.cst_unit = std::move(parser.unit);
+
+    if(parser.has_errors) {
+        result.continue_processing = false;
     }
 
-    // convert the tokens
-    if(options->benchmark) {
-        parse_bm = std::make_unique<BenchmarkResults>();
-        parse_bm->benchmark_begin();
-    }
+    result.is_c_file = false;
+    result.lex_diagnostics = {};
+    result.conv_diagnostics = std::move(parser.diagnostics);
 
-//    CSTConverter converter(
-//            fileId,
-//            options->is64Bit,
-//            resolver->comptime_scope,
-//            binder,
-//            job_allocator,
-//            mod_allocator,
-//            file_allocator
-//    );
-//    converter.convert(parser.unit.tokens);
-//    if(options->benchmark) {
-//        parse_bm->benchmark_end();
-//    }
-//    unit = converter.take_unit();
-
-    return {ASTFileResult {std::move(unit), std::move(parser.unit), true, false }, std::move(parser.diagnostics), {}, std::move(lex_bm), std::move(parse_bm) };
+    return result;
 
 }
 
@@ -484,7 +502,7 @@ ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const std::strin
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif
 
-        return {ASTFileResult {std::move(unit), CSTUnit(), true, true }, {},
+        return {ASTFileResult {std::move(unit), CSTUnit(), true, true }, "", {},
 #ifdef COMPILER_BUILD
                 std::move(translator->diagnostics)
 #else

@@ -36,7 +36,7 @@ void ASTProcessor::compile_nodes(
 void ASTProcessor::declare_nodes(
         Codegen& gen,
         Scope& import_res,
-        const FlatIGFile &file
+        const std::string& abs_path
 ) {
     auto& nodes_vec = import_res.nodes;
     std::unique_ptr<BenchmarkResults> bm_results;
@@ -56,7 +56,7 @@ void ASTProcessor::declare_nodes(
         print_benchmarks(std::cout, "Compile", bm_results.get());
     }
     if(!gen.diagnostics.empty()) {
-        gen.print_diagnostics(file.abs_path, "Compile");
+        gen.print_diagnostics(abs_path, "Compile");
         gen.diagnostics.clear();
     }
 }

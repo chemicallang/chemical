@@ -42,6 +42,12 @@ private:
     tsl::ordered_map<std::string, bool> file_paths;
 
     /**
+     * the mutex is used when encoding file paths
+     * to ensure multiple invocations are synchronized
+     */
+    std::mutex file_mutex;
+
+    /**
      * the mutex is used when adding locations because
      * locations can be added concurrently, only large locations use the mutex
      * other are encoded concurrently

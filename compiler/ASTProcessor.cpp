@@ -162,7 +162,7 @@ void ASTProcessor::determine_mod_imports(
                 files.emplace_back(fileId, abs_path, abs_path);
             }
             std::unordered_map<std::string_view, bool> done_files;
-            import_chemical_files(pool, "./", out_files, files, done_files);
+            import_chemical_files(pool, out_files, files, done_files);
             return;
         }
         case LabModuleType::ObjFile:
@@ -183,7 +183,7 @@ void ASTProcessor::determine_mod_imports(
                 files.emplace_back(fileId, abs_path, abs_path);
             }
             std::unordered_map<std::string_view, bool> done_files;
-            import_chemical_files(pool, "./", out_files, files, done_files);
+            import_chemical_files(pool, out_files, files, done_files);
             return;
     }
 }
@@ -289,7 +289,6 @@ ASTFileResultNew concurrent_file_importer(
 
 void ASTProcessor::import_chemical_files(
         ctpl::thread_pool& pool,
-        const std::string_view& base_path,
         std::vector<ASTFileResultNew>& out_files,
         const std::span<ASTFileMetaData>& files,
         std::unordered_map<std::string_view, bool>& done_files
@@ -348,20 +347,28 @@ ASTFileResultNew ASTProcessor::import_chemical_file(
             auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, std::string(stmt->filePath));
             if(replaceResult.error.empty()) {
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
-                imports.emplace_back(fileId, stmt->filePath, replaceResult.replaced);
+                imports.emplace_back(fileId, stmt->filePath, std::move(replaceResult.replaced));
             } else {
-                std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "'" << std::endl;
+                std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
             }
         } else {
             break;
         }
     }
 
-    ASTFileResultNew final_result({ result.continue_processing, result.is_c_file }, fileData, {}, {});
+    ASTFileResultNew final_result(
+            { result.continue_processing, result.is_c_file }, fileData, std::move(result.unit), {},
+            std::move(result.lex_diagnostics),
+            std::move(result.conv_diagnostics),
+            std::move(result.lex_benchmark),
+            std::move(result.conv_benchmark)
+    );
 
-    final_result.nodes = std::move(result.unit.scope.nodes);
+    if(!imports.empty()) {
 
-    import_chemical_files(pool, fileData.abs_path, final_result.imports, imports, done_files);
+        import_chemical_files(pool, final_result.imports, imports, done_files);
+
+    }
 
     return final_result;
 
@@ -525,7 +532,7 @@ void ASTProcessor::translate_to_c(
 void ASTProcessor::declare_in_c(
         ToCAstVisitor& visitor,
         Scope& import_res,
-        const FlatIGFile& file
+        const std::string& abs_path
 ) {
     // translating the nodes
 //    std::vector<ASTNode*> imported_generics;
@@ -536,7 +543,7 @@ void ASTProcessor::declare_in_c(
 //    visitor.translate(imported_generics);
     visitor.declare(import_res.nodes);
     if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(file.abs_path, "2cTranslation");
+        visitor.print_diagnostics(abs_path, "2cTranslation");
         std::cout << std::endl;
     }
     visitor.reset_errors();
@@ -545,8 +552,8 @@ void ASTProcessor::declare_in_c(
 void ASTProcessor::shrink_nodes(
         ShrinkingVisitor& shrinker,
         ASTUnit unit,
-        const FlatIGFile& file
+        const std::string& abs_path
 ) {
     shrinker.visit(unit.scope.nodes);
-    shrinked_unit[file.abs_path] = std::move(unit);
+    shrinked_unit[abs_path] = std::move(unit);
 }

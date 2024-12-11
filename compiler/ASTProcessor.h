@@ -76,15 +76,35 @@ struct ASTFileMetaData {
 struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
 
     /**
-     * the parsed nodes
+     * the parsed unit
      */
-    std::vector<ASTNode*> nodes;
+    ASTUnit unit;
 
     /**
      * the imported files by this file, these files don't contain duplicates
      * or already imported files
      */
     std::vector<ASTFileResultNew> imports;
+
+    /**
+     * diagnotics collected during the lexing process
+     */
+    std::vector<Diag> lex_diagnostics;
+
+    /**
+     * diagnostics collected during the conversion process
+     */
+    std::vector<Diag> conv_diagnostics;
+
+    /**
+     * the benchmark results are stored here, if user opted for benchmarking
+     */
+    std::unique_ptr<BenchmarkResults> lex_benchmark;
+
+    /**
+     * the parsing benchmarks are stored here, if user opted for benchmarking
+     */
+    std::unique_ptr<BenchmarkResults> conv_benchmark;
 
 };
 
@@ -261,7 +281,6 @@ public:
      */
     void import_chemical_files(
             ctpl::thread_pool& pool,
-            const std::string_view& base_path,
             std::vector<ASTFileResultNew>& out_files,
             const std::span<ASTFileMetaData>& files,
             std::unordered_map<std::string_view, bool>& done_files
@@ -336,7 +355,7 @@ public:
     void declare_in_c(
         ToCAstVisitor& visitor,
         Scope& import_res,
-        const FlatIGFile& file
+        const std::string& file
     );
 
     /**
@@ -345,7 +364,7 @@ public:
     void shrink_nodes(
         ShrinkingVisitor& visitor,
         ASTUnit unit,
-        const FlatIGFile& file
+        const std::string& file
     );
 
 #ifdef COMPILER_BUILD

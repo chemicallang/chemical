@@ -16,16 +16,6 @@ Comment* Parser::parseSingleLineComment(ASTAllocator& allocator) {
     }
 }
 
-bool Parser::lexSingleLineCommentTokens() {
-    if(token->type == TokenType::SingleLineComment) {
-        token++;
-        emplace(LexTokenType::Comment, token->position, std::string(token->value));
-        return true;
-    } else {
-        return false;
-    }
-}
-
 Comment* Parser::parseMultiLineComment(ASTAllocator& allocator) {
     // TODO improve this function
     if(token->type == TokenType::MultiLineComment) {
@@ -40,21 +30,5 @@ Comment* Parser::parseMultiLineComment(ASTAllocator& allocator) {
         return new (allocator.allocate<Comment>()) Comment(value, false, parent_node, loc(pos, end_pos(last_token)));
     } else {
         return nullptr;
-    }
-}
-
-bool Parser::lexMultiLineCommentTokens() {
-    // TODO improve this function
-    if(token->type == TokenType::MultiLineComment) {
-        auto& pos = token->position;
-        std::string value;
-        while(token->type == TokenType::MultiLineComment) {
-            value.append(token->value);
-            token++;
-        }
-        emplace(LexTokenType::MultilineComment, pos, value);
-        return true;
-    } else {
-        return false;
     }
 }

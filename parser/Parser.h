@@ -9,7 +9,6 @@
 #include <utility>
 #include <vector>
 #include "stream/SourceProvider.h"
-#include "cst/base/CSTUnit.h"
 #include "parser/model/tokens/NumberToken.h"
 #include "ast/utils/Operation.h"
 #include "integration/common/Diagnostic.h"
@@ -86,11 +85,6 @@ public:
      * the location manager is used to encode locations
      */
     LocationManager& loc_man;
-
-    /**
-     * a unit contains everything that's allocated
-     */
-    CSTUnit unit;
 
     /**
      * the binder that will be used to compile binding code
@@ -216,15 +210,9 @@ public:
 
     /**
      * reset the lexer, for re-lexing a new file, if it has lexed a file before
+     * @deprecated
      */
     void reset();
-
-    /**
-     * get current tokens size
-     */
-    inline size_t tokens_size() {
-        return unit.tokens.size();
-    }
 
     // ------------- Functions exposed to chemical begin here
 
@@ -275,31 +263,9 @@ public:
     }
 
     /**
-     * store the token as a identifier cst token
-     * @deprecated
-     */
-    inline void storeIdentifier(Token* token) {
-        emplace(LexTokenType::Identifier, token->position, std::string(token->value));
-    }
-
-    /**
-     * store the token as a variable cst token
-     * @deprecated
-     */
-    inline void storeVariable(Token* token) {
-        emplace(LexTokenType::Variable, token->position, std::string(token->value));
-    }
-
-    /**
      * parses a variable otherwise returns nullptr
      */
     VariableIdentifier* parseVariableIdentifier(ASTAllocator& allocator);
-
-    /**
-     * lex a variable token into tokens until the until character occurs
-     * only lexes the token if the identifier is not empty
-     */
-    bool lexVariableToken();
 
     /**
      * parse generic argument list
@@ -430,11 +396,6 @@ public:
     /**
      * top level access specified declarations
      */
-    bool lexTopLevelAccessSpecifiedDecls();
-
-    /**
-     * top level access specified declarations
-     */
     ASTNode* parseTopLevelAccessSpecifiedDecls(ASTAllocator& allocator);
 
     /**
@@ -456,50 +417,11 @@ public:
     ThrowStatement* parseThrowStatement(ASTAllocator& allocator);
 
     /**
-     * lexes the given operator as length 1 character operator token
-     * @return whether the token was found
-     */
-    bool lexOperatorToken(enum TokenType type);
-
-    /**
-     * store an operation token
-     */
-    void storeOperationToken(Token* token, Operation op);
-
-    /**
-     * lexes the given operator as length 1 character operator token
-     * @return whether the token was found
-     */
-    bool lexOperationToken(enum TokenType type, Operation op);
-
-    /**
-     * lexes a keyword token for the given keyword
-     * @return  whether the keyword was found
-     */
-    bool lexKeywordToken(enum TokenType type);
-
-    /**
-     * lexes a keyword token, after which whitespace is present
-     */
-    bool lexWSKeywordToken(enum TokenType type);
-
-    /**
-     * lex a whitespaced keyword token, which may end at the given character if not whitespace
-     */
-    bool lexWSKeywordToken(enum TokenType type, enum TokenType may_end_at);
-
-    /**
      * All top levels statements lexed, These include
      * functions, structs, interfaces, implementations
      * comments, variable initialization with value, constants
      */
     void parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool break_at_no_stmt = false);
-
-    /**
-     * All import statements defined at top level will be lexed
-     * @param should cause error on invalid syntax, or stop
-     */
-    void lexTopLevelMultipleImportStatements();
 
     /**
      * All import statements defined at top level will be lexed
@@ -514,11 +436,6 @@ public:
     void parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool is_value = false, bool parse_value_node = false);
 
     /**
-     * lex single comment comment
-     */
-    bool lexSingleLineCommentTokens();
-
-    /**
      * parse a single line comment node
      */
     Comment* parseSingleLineComment(ASTAllocator& allocator);
@@ -528,10 +445,6 @@ public:
      */
     Comment* parseMultiLineComment(ASTAllocator& allocator);
 
-    /**
-     * lex multi line comment tokens
-     */
-    bool lexMultiLineCommentTokens();
     /**
      * parses a brace block, { statement(s) }
      */
@@ -551,18 +464,6 @@ public:
      * parses a brace block or a value node
      */
     std::optional<Scope> parseBraceBlockOrValueNode(ASTAllocator& allocator, const std::string_view& forThing, bool is_value, bool parse_value_node);
-
-    /**
-     * lexes import identifier list example : { something, something }
-     */
-    bool lexImportIdentifierList();
-
-    /**
-     * lexes import statement
-     */
-    bool lexImportStatement();
-
-    bool lexIdentifierToken();
 
     /**
      * lexes import statement
@@ -759,52 +660,9 @@ public:
     Value* parseStringValue(ASTAllocator& allocator);
 
     /**
-     * store direct value ast cst token
-     */
-    bool straight_data(LexTokenType type, ASTAny* value) {
-        auto pos = token->position;
-        if(value) {
-            emplace(type, value, pos);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    inline bool straight_value(Value* value) {
-        return straight_data(LexTokenType::StraightValue, value);
-    }
-
-    inline bool straight_type(BaseType* type) {
-        return straight_data(LexTokenType::StraightType, type);
-    }
-
-    inline bool straight_node(ASTNode* node) {
-        return straight_data(LexTokenType::StraightNode, node);
-    }
-
-    /**
-     * lexes a string token, string is enclosed inside double quotes
-     * @return whether a string has been lexed
-     * @deprecated
-     */
-    inline bool lexStringToken() {
-        return straight_value(parseStringValue(global_allocator));
-    }
-
-    /**
      * a single character value is parsed
      */
     Value* parseCharValue(ASTAllocator& allocator);
-
-    /**
-     * lexes a char token, char is enclosed inside single quotes
-     * @return whether a char has been lexed
-     * @deprecated
-     */
-    inline bool lexCharToken() {
-        return straight_value(parseCharValue(global_allocator));
-    }
 
     /**
      * parse a single annotation, the annotation is stored in annotations vector
@@ -947,47 +805,6 @@ public:
     // -------------------------------- Exposed till here
 
     /**
-     * emplaces the token at the end
-     */
-    template<typename... Args>
-    inline constexpr void emplace(Args&&... args) {
-        unit.emplace(std::forward<Args>(args)...);
-    }
-
-    /**
-     * emplaces the token at the end
-     */
-    inline constexpr void emplace(LexTokenType type, const Position& position, const std::string_view& view) {
-        unit.emplace(type, position, view);
-    }
-
-    /**
-     * takes elements (by removing) from tokens vector, starting from start position, till end
-     */
-    void take_from(std::vector<CSTToken*>& slice, unsigned int start, unsigned int end) {
-        unsigned size = end - start;
-        slice.reserve(size);
-        unsigned i = start;
-        while(i < end) {
-            slice.push_back(unit.tokens[i]);
-            i++;
-        }
-        auto begin = unit.tokens.begin() + start;
-        unit.tokens.erase(begin, begin + size);
-    }
-
-    /**
-     * put tokens in a compound token of specified type, starting from start
-     * @deprecated
-     */
-    void compound_from(unsigned int start, LexTokenType type) {
-        std::vector<CSTToken*> slice;
-        take_from(slice, start, tokens_size());
-        unit.emplace_compound(type);
-        unit.tokens.back()->tokens = std::move(slice);
-    }
-
-    /**
      * All the chars that cause new line
      * for example \n \r
      */
@@ -1017,13 +834,6 @@ public:
     }
 
     /**
-     * get the last token from the unit
-     */
-    inline CSTToken* unit_last_token() {
-        return unit.tokens[unit.tokens.size() - 1];
-    }
-
-    /**
      * This just calls the diagnostic method above giving it the position
      */
     inline void diagnostic(CSTToken* token, const std::string &message, DiagSeverity severity) {
@@ -1037,17 +847,14 @@ public:
      * and up until the current stream position
      */
     inline void diagnostic(const std::string &message, DiagSeverity severity) {
-        std::string rep;
-        auto token = unit_last_token();
-        token->end_token()->append_representation(rep);
-        diagnostic(token->start_token(), message + " got \"" + rep + "\"", severity);
+        diagnostic(token->position, message + " got \"" + token->value.data() + "\"", severity);
     }
 
     /**
      * a helper function
      */
     inline void diagnostic(std::string& message, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, file_path(), unit_last_token()->end_token(), severity);
+        CSTDiagnoser::diagnostic(message, file_path(), token->position, token->position, severity);
     }
 
     /**
@@ -1118,62 +925,6 @@ public:
      */
     inline void error(std::string_view message, Token* err_token) {
         diagnostic(err_token->position, message, DiagSeverity::Error);
-    }
-
-    /**
-     * malformed value
-     */
-    void mal_value(unsigned start, std::string& message) {
-        diagnostic(message, DiagSeverity::Error);
-        compound_from(start, LexTokenType::CompMalformedValue);
-    }
-
-    /**
-     * malformed node
-     */
-    void mal_node(unsigned start, std::string& message) {
-        diagnostic(message, DiagSeverity::Error);
-        compound_from(start, LexTokenType::CompMalformedNode);
-    }
-
-    /**
-     * malformed type
-     */
-    void mal_type(unsigned start, std::string& message) {
-        diagnostic(message, DiagSeverity::Error);
-        compound_from(start, LexTokenType::CompMalformedType);
-    }
-
-    /**
-     * malformed value
-     */
-    void mal_value(unsigned start, std::string_view message) {
-        diagnostic(message, DiagSeverity::Error);
-        compound_from(start, LexTokenType::CompMalformedValue);
-    }
-
-    /**
-     * malformed node
-     */
-    void mal_node(unsigned start, std::string_view message) {
-        diagnostic(message, DiagSeverity::Error);
-        compound_from(start, LexTokenType::CompMalformedNode);
-    }
-
-    /**
-     * malformed type
-     */
-    void mal_type(unsigned start, std::string_view message) {
-        diagnostic(message, DiagSeverity::Error);
-        compound_from(start, LexTokenType::CompMalformedType);
-    }
-
-    /**
-     * malformed node
-     */
-    void mal_value_or_node(unsigned start, std::string_view message, bool is_value) {
-        diagnostic(message, DiagSeverity::Error);
-        compound_from(start, is_value ? LexTokenType::CompMalformedValue : LexTokenType::CompMalformedNode);
     }
 
 };

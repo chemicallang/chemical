@@ -45,7 +45,7 @@ ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier
             lexWhitespaceAndNewLines();
             if(parseVariableAndFunctionInto(impl, allocator, AccessSpecifier::Public)) {
                 lexWhitespaceToken();
-                lexOperatorToken(TokenType::SemiColonSym);
+                consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
             }

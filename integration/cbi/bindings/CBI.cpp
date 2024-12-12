@@ -2,7 +2,6 @@
 
 #include "CBI.h"
 #include "SourceProviderCBI.h"
-#include "LexerCBI.h"
 #include "BuildContextCBI.h"
 #include "CSTTokenCBI.h"
 #include "CSTconverterCBI.h"
@@ -92,9 +91,9 @@ void cst_diagnoser_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
 }
 
 void lexer_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
+    // TODO remove this
     sym_map = {
-            { "Lexertokens_size", (void*) Lexertokens_size },
-            { "Lexerput", (void*) Lexerput },
+
     };
 }
 

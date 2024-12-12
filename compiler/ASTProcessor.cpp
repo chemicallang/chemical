@@ -371,9 +371,9 @@ void ASTProcessor::import_chemical_file(
             { result.continue_processing, result.is_c_file }, fileData, std::move(result.unit), {},
             result.read_error,
             std::move(result.lex_diagnostics),
-            std::move(result.conv_diagnostics),
+            std::move(result.parse_diagnostics),
             std::move(result.lex_benchmark),
-            std::move(result.conv_benchmark)
+            std::move(result.parse_benchmark)
     );
 
     if(!imports.empty()) {
@@ -441,21 +441,14 @@ ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, con
 //            bind_lexer_cbi(lexer_cbi.get(), &lexer);
 //        }
 
-//    if(abs_path == "D:\\Programming\\Cpp\\zig-bootstrap\\chemical\\lang\\libs\\std\\vector.ch") {
-//        int i = 0;
-//    }
-
     if(options->benchmark) {
-        result.conv_benchmark = std::make_unique<BenchmarkResults>();
-        result.conv_benchmark->benchmark_begin();
+        result.parse_benchmark = std::make_unique<BenchmarkResults>();
+        result.parse_benchmark->benchmark_begin();
         parser.parse(unit.scope.nodes);
-        result.conv_benchmark->benchmark_end();
+        result.parse_benchmark->benchmark_end();
     } else {
         parser.parse(unit.scope.nodes);
     }
-
-    // TODO remove this, still needed for cst being processed by import graph
-    result.cst_unit = std::move(parser.unit);
 
     if(parser.has_errors) {
         result.continue_processing = false;
@@ -463,7 +456,7 @@ ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, con
 
     result.is_c_file = false;
     result.lex_diagnostics = {};
-    result.conv_diagnostics = std::move(parser.diagnostics);
+    result.parse_diagnostics = std::move(parser.diagnostics);
 
     return result;
 
@@ -502,7 +495,7 @@ ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const std::strin
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif
 
-        return {ASTFileResult {std::move(unit), CSTUnit(), true, true }, "", {},
+        return {ASTFileResult {std::move(unit), true, true }, "", {},
 #ifdef COMPILER_BUILD
                 std::move(translator->diagnostics)
 #else

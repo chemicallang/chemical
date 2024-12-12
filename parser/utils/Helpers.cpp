@@ -6,65 +6,6 @@
 
 #include "parser/Parser.h"
 
-bool Parser::lexOperatorToken(TokenType type) {
-    auto t = consumeOfType(type);
-    if(t) {
-        emplace(
-                t->value.size() == 1 ? LexTokenType::CharOperator : LexTokenType::StringOperator,
-                t->position,
-                std::string(t->value)
-            );
-        return true;
-    } else {
-        return false;
-    }
-}
-
-void Parser::storeOperationToken(Token* token, Operation op) {
-    std::string value;
-    value.append(std::to_string((int) op));
-    value.append(token->value);
-    emplace(LexTokenType::Operation, token->position, std::move(value));
-}
-
-bool Parser::lexOperationToken(TokenType type, Operation op) {
-    auto t = consumeOfType(type);
-    if(t) {
-        storeOperationToken(token, op);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-bool Parser::lexWSKeywordToken(TokenType type) {
-    auto t = consumeOfType(type);
-    if(t) {
-        emplace(LexTokenType::Keyword, t->position, std::string(t->value));
-        lexWhitespaceToken();
-        return true;
-    } else {
-        return false;
-    }
-}
-
-// TODO remove this function, as the caller
-// already checks for presence of may_end_at
-// whitespace is checked during lexing to separate keyword token
-bool Parser::lexWSKeywordToken(TokenType type, TokenType may_end_at) {
-    return lexWSKeywordToken(type);
-}
-
-bool Parser::lexKeywordToken(TokenType type) {
-    auto t = consumeOfType(type);
-    if(t) {
-        emplace(LexTokenType::Keyword, t->position, std::string(t->value));
-        return true;
-    } else {
-        return false;
-    }
-}
-
 static bool read_gen_type_token(Parser& parser);
 
 static bool read_arr_type_token(Parser& parser);

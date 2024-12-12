@@ -467,8 +467,6 @@ set(COMMON_SOURCES
         integration/cbi/bindings/CBIUtils.h
         integration/cbi/bindings/SourceProviderCBI.cpp
         integration/cbi/bindings/SourceProviderCBI.h
-        integration/cbi/bindings/LexerCBI.h
-        integration/cbi/bindings/LexerCBI.cpp
         integration/cbi/bindings/CSTTokenCBI.h
         integration/cbi/bindings/CSTTokenCBI.cpp
         integration/cbi/bindings/PtrVecCBI.h

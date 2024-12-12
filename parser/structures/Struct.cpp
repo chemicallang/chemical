@@ -84,7 +84,7 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
             lexWhitespaceAndNewLines();
             if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
                 lexWhitespaceToken();
-                lexOperatorToken(TokenType::SemiColonSym);
+                consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
             }
@@ -199,7 +199,7 @@ StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, Ac
             lexWhitespaceAndNewLines();
             if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
                 lexWhitespaceToken();
-                lexOperatorToken(TokenType::SemiColonSym);
+                consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
             }

@@ -34,7 +34,7 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
             lexWhitespaceAndNewLines();
             if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
                 lexWhitespaceToken();
-                lexOperatorToken(TokenType::SemiColonSym);
+                consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
             }

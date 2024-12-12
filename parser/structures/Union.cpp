@@ -29,7 +29,7 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
             lexWhitespaceAndNewLines();
             if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
                 lexWhitespaceToken();
-                lexOperatorToken(TokenType::SemiColonSym);
+                consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
             }
@@ -78,7 +78,7 @@ UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpeci
             lexWhitespaceAndNewLines();
             if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
                 lexWhitespaceToken();
-                lexOperatorToken(TokenType::SemiColonSym);
+                consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
             }

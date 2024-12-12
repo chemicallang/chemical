@@ -277,7 +277,6 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
     }
     auto typeToken = consumeIdentifierOrKeyword();
     if(!typeToken) return nullptr;
-    unsigned start = tokens_size();
     auto type = parseTypeId(allocator, typeToken);
     if(!type) {
         return nullptr;

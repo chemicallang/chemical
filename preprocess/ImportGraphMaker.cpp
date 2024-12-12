@@ -35,8 +35,8 @@ ImportGraphImporter::ImportGraphImporter(ImportPathHandler* handler, Parser* par
 
 void ImportGraphImporter::lex_source(const std::string& path, std::vector<Diag>& errors) {
     // lex
-    parser->unit.reset();
-    parser->lexTopLevelMultipleImportStatements();
+//    parser->unit.reset();
+//    parser->lexTopLevelMultipleImportStatements();
     if (parser->has_errors) {
         move_errors(parser->diagnostics, errors, path);
         parser->has_errors = false;
@@ -107,10 +107,11 @@ std::vector<IGFile> ImportGraphImporter::process(const std::string &path, const 
     parser->file_id = parser->loc_man.encodeFile(path);
     parser->token = unit.tokens.data();
     lex_source(path, parent->errors);
+    std::vector<CSTToken*> redundant;
     return from_tokens(
             path,
             parent,
-            parser->unit.tokens
+            redundant
     );
 }
 

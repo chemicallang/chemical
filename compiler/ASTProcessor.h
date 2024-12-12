@@ -104,7 +104,7 @@ struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
     /**
      * diagnostics collected during the conversion process
      */
-    std::vector<Diag> conv_diagnostics;
+    std::vector<Diag> parse_diagnostics;
 
     /**
      * the benchmark results are stored here, if user opted for benchmarking
@@ -114,7 +114,7 @@ struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
     /**
      * the parsing benchmarks are stored here, if user opted for benchmarking
      */
-    std::unique_ptr<BenchmarkResults> conv_benchmark;
+    std::unique_ptr<BenchmarkResults> parse_benchmark;
 
 };
 
@@ -128,11 +128,6 @@ struct ASTFileResult {
      * the ast unit we're concerned with
      */
     ASTUnit unit;
-
-    /**
-     * the cst unit we're concerned with
-     */
-    CSTUnit cst_unit;
 
     /**
      * should the processing be continued, this is false, if ast contained errors during conversion
@@ -161,7 +156,7 @@ struct ASTFileResultExt : ASTFileResult {
     /**
      * diagnostics collected during the conversion process
      */
-    std::vector<Diag> conv_diagnostics;
+    std::vector<Diag> parse_diagnostics;
 
     /**
      * the benchmark results are stored here, if user opted for benchmarking
@@ -171,7 +166,7 @@ struct ASTFileResultExt : ASTFileResult {
     /**
      * the parsing benchmarks are stored here, if user opted for benchmarking
      */
-    std::unique_ptr<BenchmarkResults> conv_benchmark;
+    std::unique_ptr<BenchmarkResults> parse_benchmark;
 
 };
 

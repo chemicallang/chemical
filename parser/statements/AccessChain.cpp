@@ -18,30 +18,6 @@
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
 
-// function not required
-// TODO return the string view and consume token
-bool Parser::lexVariableToken() {
-    auto id = consumeIdentifierOrKeyword();
-    if(id) {
-        emplace(LexTokenType::Variable, id->position, std::string(id->value));
-        return true;
-    } else {
-        return false;
-    }
-}
-
-// function not required
-// TODO return the string view and consume token
-bool Parser::lexIdentifierToken() {
-    auto id = consumeIdentifierOrKeyword();
-    if(id) {
-        emplace(LexTokenType::Identifier, id->position, std::string(id->value));
-        return true;
-    } else {
-        return false;
-    }
-}
-
 bool Parser::consumeToken(enum TokenType type) {
     if(token->type == type) {
         token++;

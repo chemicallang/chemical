@@ -23,9 +23,9 @@ Parser::Parser(
         CompilerBinder* binder
 ) : file_id(file_id), stored_file_path(file_path), token(start_token),
     beginning_token(start_token), loc_man(loc_man), global_allocator(global_allocator),
-    mod_allocator(mod_allocator), is64Bit(is64Bit), binder(binder), unit(), comptime_scope(comptime_scope)
+    mod_allocator(mod_allocator), is64Bit(is64Bit), binder(binder), comptime_scope(comptime_scope)
 {
-    unit.init();
+
 }
 
 std::string_view Parser::file_path() {
@@ -50,17 +50,6 @@ LocatedIdentifier Parser::loc_id(const std::string_view& value, const Position& 
 
 uint64_t Parser::loc_single(Position& pos, unsigned int length) {
     return loc_man.addLocation(file_id, pos.line, pos.character, pos.line, pos.character + length);
-}
-
-void Parser::lexTopLevelMultipleImportStatements() {
-    while (true) {
-        lexWhitespaceAndNewLines();
-        if (!lexImportStatement() && !lexSingleLineCommentTokens() && !lexMultiLineCommentTokens()) {
-            break;
-        }
-        lexWhitespaceToken();
-        lexOperatorToken(TokenType::SemiColonSym);
-    }
 }
 
 void Parser::parseTopLevelMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
@@ -178,6 +167,5 @@ Value* parseEvalValue(Parser* parser, ASTAllocator* allocator_ptr) {
 }
 
 void Parser::reset() {
-    unit.reset();
     token = beginning_token;
 }

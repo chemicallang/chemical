@@ -690,7 +690,7 @@ public:
     /**
      * lexes a struct block
      */
-    StructDefinition* parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool unnamed = false, bool direct_init = false);
+    StructDefinition* parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * parses a single variant member
@@ -715,7 +715,7 @@ public:
     /**
      * lexes a struct block
      */
-    UnionDef* parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool unnamed = false, bool direct_init = false);
+    UnionDef* parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * parses impl token

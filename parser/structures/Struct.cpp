@@ -158,26 +158,16 @@ bool Parser::parseVariableAndFunctionInto(MembersContainer* decl, ASTAllocator& 
     return false;
 }
 
-StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool unnamed, bool direct_init) {
+StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::StructKw)) {
 
-        std::string_view id_str;
-        LocatedIdentifier locId;
-        if(unnamed) {
-            id_str = "";
-            locId = loc_id("", { 0, 0 });
-        } else {
-            auto identifier = consumeIdentifierOrKeyword();
-            if (identifier) {
-                id_str = identifier->value;
-                locId = loc_id(identifier);
-            } else {
-                error("expected a identifier as struct name");
-                return nullptr;
-            }
+        auto identifier = consumeIdentifierOrKeyword();
+        if (!identifier) {
+            error("expected a identifier as struct name");
+            return nullptr;
         }
 
-        auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(std::move(locId), parent_node, 0, specifier);
+        auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(loc_id(identifier), parent_node, 0, specifier);
 
         annotate(decl);
 
@@ -222,15 +212,6 @@ StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, Ac
 
         parent_node = prev_parent_node;
 
-        if(lexWhitespaceToken() && id_str.empty() && direct_init) {
-            auto id = consumeIdentifierOrKeyword();
-            if(id) {
-                decl->identifier = loc_id(id);
-            } else {
-                error("expected an identifier after the '}' for anonymous struct definition");
-                return decl;
-            }
-        }
         return decl;
     } else {
         return nullptr;

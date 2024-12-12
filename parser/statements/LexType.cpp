@@ -161,6 +161,11 @@ BaseType* Parser::parseTypeId(ASTAllocator& allocator, Token* type) {
     }
 }
 
+/**
+ * since dyn Phone[] means (dyn Phone)[] and not dyn (Phone[])
+ * since dyn Phone* or dyn *Phone means (dyn Phone)* or *(dyn Phone) and not dyn (*Phone) or dyn (Phone*)
+ * since dyn &Phone or dyn &Phone means (dyn Phone)& or &(dyn Phone) and not dyn (&Phone) or dyn (Phone&)
+ */
 BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, SourceLocation loc) {
     auto t = elem_type;
     const auto kind = elem_type->kind();
@@ -192,6 +197,17 @@ BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, Source
     }
 }
 
+/**
+ * here's how mutable, dynamic and pointer types work
+ * *mut Phone <-- direct linked type made mutable, ptr before type finds the linked type, makes itself mutable \n
+ * *mut dyn Phone <-- mut finds dynamic type, get's the linked type, makes it mutable, ptr before type, finds the dynamic type, makes it self mutable based on it's child linked type \n
+ * *dyn mut Phone <-- mut finds linked type, makes it mutable, ptr before type finds dynamic type, makes it self mutable based on it's child linked type type \n
+ * **mut Phone <-- pointer finds pointer, makes itself mutable based on it \n
+ * mut Phone* <-- mut finds pointer type, makes its child linked type mutable \n
+ * mut dyn Phone* <-- mut finds dyn type, makes its child linked type mutable \n
+ * dyn mut Phone* <--- mut finds pointer type, makes it's child linked type mutable \n
+ * mut Phone** <-- mut finds pointer type, makes it's child pointer type mutable and grand child linked type mutable \n
+ */
 BaseType* Parser::parseType(ASTAllocator& allocator) {
 
     auto t1 = consumeOfType(TokenType::LBracket);

@@ -56,28 +56,17 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
 }
 
-UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool unnamed, bool direct_init) {
+UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
     if(consumeWSOfType(TokenType::UnionKw)) {
 
-
-        std::string_view id_str;
-        LocatedIdentifier locId;
-        if(unnamed) {
-            id_str = "";
-            locId = loc_id("", { 0, 0 });
-        } else {
-            auto identifier = consumeIdentifierOrKeyword();
-            if (identifier) {
-                id_str = identifier->value;
-                locId = loc_id(identifier);
-            } else {
-                error("expected a identifier as struct name");
-                return nullptr;
-            }
+        auto identifier = consumeIdentifierOrKeyword();
+        if (!identifier) {
+            error("expected a identifier as struct name");
+            return nullptr;
         }
 
-        auto decl = new (allocator.allocate<UnionDef>()) UnionDef(locId, parent_node, 0, specifier);
+        auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(identifier), parent_node, 0, specifier);
 
         lexWhitespaceToken();
         if(!consumeToken(TokenType::LBrace)) {
@@ -100,15 +89,7 @@ UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpeci
             error("expected a closing bracket '}' for union block");
             return decl;
         }
-        if(lexWhitespaceToken() && id_str.empty() && direct_init) {
-            auto id = consumeIdentifierOrKeyword();
-            if(id) {
-                decl->identifier = loc_id(id);
-            } else {
-                error("expected an identifier after the '}' for anonymous union definition");
-                return decl;
-            }
-        }
+
         return decl;
     } else {
         return nullptr;

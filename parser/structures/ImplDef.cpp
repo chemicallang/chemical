@@ -8,9 +8,15 @@
 #include "ast/structures/ImplDefinition.h"
 
 ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
-    if (consumeWSOfType(TokenType::ImplKw)) {
 
-        auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, 0);
+    auto& tok = *token;
+
+    if (tok.type == TokenType::ImplKw) {
+
+        token++;
+        readWhitespace();
+
+        auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, loc_single(tok));
 
         annotate(impl);
 

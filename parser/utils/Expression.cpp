@@ -110,7 +110,7 @@ void Parser::parseExpressionWith(ASTAllocator& allocator, ValueAndOperatorStack&
     stack.putAllInto(final);
 }
 
-Value* Parser::parseRemainingExpression(ASTAllocator& allocator, Value* first_value) {
+Value* Parser::parseRemainingExpression(ASTAllocator& allocator, Value* first_value, Token* start_tok) {
 
     lexWhitespaceToken();
 
@@ -129,7 +129,7 @@ Value* Parser::parseRemainingExpression(ASTAllocator& allocator, Value* first_va
 
     parseExpressionWith(allocator, stack, final);
 
-    return final.toExpressionRaw(allocator, is64Bit, 0);
+    return final.toExpressionRaw(allocator, is64Bit, loc_single(start_tok));
 
 }
 
@@ -175,7 +175,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
     if (consumeToken(TokenType::RParen)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), nullptr, 0, nullptr, false, lamb, 0);
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
         parseLambdaAfterParamsList(allocator, lamb);
         return lamb;
@@ -188,7 +188,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), type, 0, nullptr, false, lamb, 0);
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), type, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
         if (consumeToken(TokenType::CommaSym)) {
             parseParameterList(allocator, lamb->params, true, false);
@@ -197,7 +197,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         return lamb;
     } else if (consumeToken(TokenType::CommaSym)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), nullptr, 0, nullptr, false, lamb, 0);
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
         parseParameterList(allocator, lamb->params, true, false);
         parseLambdaAfterComma(this, allocator, lamb);
@@ -206,21 +206,21 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
     if(has_whitespace) {
         auto first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(identifier->value), loc_single(identifier), false);
-        auto value = parseAfterValue(allocator, first_value);
-        auto expr = parseRemainingExpression(allocator, value);
+        auto value = parseAfterValue(allocator, first_value, identifier);
+        auto expr = parseRemainingExpression(allocator, value, identifier);
         if(consumeToken(TokenType::RParen)) {
-            return parseRemainingExpression(allocator, expr);
+            return parseRemainingExpression(allocator, expr, identifier);
         } else {
-            auto second_expression = parseRemainingExpression(allocator, expr);
+            auto second_expression = parseRemainingExpression(allocator, expr, identifier);
             if(!consumeToken(TokenType::RParen)) {
                 error("expected ')' after the nested parenthesized expression");
             }
             return second_expression;
         }
     } else {
-        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, false, 0);
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, false, loc_single(identifier));
         auto value = parseAccessChainAfterId(allocator, chain, identifier->position);
-        auto expr = parseRemainingExpression(allocator, value);
+        auto expr = parseRemainingExpression(allocator, value, identifier);
         if(!consumeToken(TokenType::RParen)) {
             error("expected a ')' after the access chain");
         }
@@ -250,15 +250,17 @@ Value* Parser::parseParenExpression(ASTAllocator& allocator) {
 }
 
 NotValue* Parser::parseNotValue(ASTAllocator& allocator) {
-    if (consumeToken(TokenType::NotSym)) {
+    auto& tok = *token;
+    if (tok.type == TokenType::NotSym) {
+        token++;
         readWhitespace();
         auto parenExpression = parseParenExpression(allocator);
         if(parenExpression) {
-            return new (allocator.allocate<NotValue>()) NotValue(parenExpression, 0);
+            return new (allocator.allocate<NotValue>()) NotValue(parenExpression, loc_single(tok));
         } else {
             auto acValue = parseAccessChainOrValue(allocator, false);
             if(acValue) {
-                return new (allocator.allocate<NotValue>()) NotValue(acValue, 0);
+                return new (allocator.allocate<NotValue>()) NotValue(acValue, loc_single(tok));
             } else {
                 error("expected an expression after '!' not");
                 return nullptr;
@@ -270,15 +272,17 @@ NotValue* Parser::parseNotValue(ASTAllocator& allocator) {
 }
 
 NegativeValue* Parser::parseNegativeValue(ASTAllocator& allocator) {
-    if (consumeToken(TokenType::MinusSym)) {
+    auto& tok = *token;
+    if (tok.type == TokenType::MinusSym) {
+        token++;
         readWhitespace();
         auto parenExpression = parseParenExpression(allocator);
         if(parenExpression) {
-            return new (allocator.allocate<NegativeValue>()) NegativeValue(parenExpression, 0);
+            return new (allocator.allocate<NegativeValue>()) NegativeValue(parenExpression, loc_single(tok));
         } else {
             auto acValue = parseAccessChainOrValue(allocator, false);
             if(acValue) {
-                return new (allocator.allocate<NegativeValue>()) NegativeValue(acValue, 0);
+                return new (allocator.allocate<NegativeValue>()) NegativeValue(acValue, loc_single(tok));
             } else {
                 error("expected an expression after '-' negative");
                 return nullptr;
@@ -301,13 +305,15 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
                 token--;
             }
         }
+        const auto start_tok = token;
         auto parenExpression = parseParenExpression(allocator);
         if(parenExpression) {
-            return parseRemainingExpression(allocator, parenExpression);
+            return parseRemainingExpression(allocator, parenExpression, start_tok);
         }
     }
 
-    auto& start_pos = token->position;
+    auto& start_tok = *token;
+    auto& start_pos = start_tok.position;
     auto first_value = parseAccessChainOrValue(allocator, parseStruct);
     if(first_value) {
         if(parseStruct && first_value->val_kind() == ValueKind::StructValue) {
@@ -320,7 +326,7 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
     lexWhitespaceToken();
 
     if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
-        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, false, 0);
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, false, loc_single(start_tok));
         std::vector<BaseType*> genArgs;
         parseGenericArgsList(genArgs, allocator);
         if(token->type == TokenType::LParen) {
@@ -339,6 +345,6 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
         return chain;
     }
 
-    return parseRemainingExpression(allocator, first_value);
+    return parseRemainingExpression(allocator, first_value, &start_tok);
 
 }

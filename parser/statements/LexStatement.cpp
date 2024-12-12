@@ -232,8 +232,11 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
 }
 
 ThrowStatement* Parser::parseThrowStatement(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::ThrowKw)) {
-        auto stmt = new (allocator.allocate<ThrowStatement>()) ThrowStatement(nullptr, parent_node, 0);
+    auto& tok = *token;
+    if(tok.type == TokenType::ThrowKw) {
+        token++;
+        auto stmt = new (allocator.allocate<ThrowStatement>()) ThrowStatement(nullptr, parent_node, loc_single(tok));
+        readWhitespace();
         auto expr = parseExpression(allocator);
         if(expr) {
             stmt->value = expr;
@@ -246,9 +249,12 @@ ThrowStatement* Parser::parseThrowStatement(ASTAllocator& allocator) {
 }
 
 UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::UsingKw)) {
+    auto& tok = *token;
+    if(tok.type == TokenType::UsingKw) {
+        token++;
+        readWhitespace();
         auto has_namespace = consumeWSOfType(TokenType::NamespaceKw);
-        auto stmt = new (allocator.allocate<UsingStmt>()) UsingStmt({}, parent_node, has_namespace, 0);
+        auto stmt = new (allocator.allocate<UsingStmt>()) UsingStmt({}, parent_node, has_namespace, loc_single(tok));
         do {
             auto id = parseVariableIdentifier(allocator);
             if(id) {
@@ -289,8 +295,11 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
 }
 
 ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::ProvideKw)) {
-        auto stmt = new (allocator.allocate<ProvideStmt>()) ProvideStmt(nullptr, "", { nullptr, 0 }, parent_node, 0);
+    auto& tok = *token;
+    if(tok.type == TokenType::ProvideKw) {
+        token++;
+        readWhitespace();
+        auto stmt = new (allocator.allocate<ProvideStmt>()) ProvideStmt(nullptr, "", { nullptr, 0 }, parent_node, loc_single(tok));
         auto val = parseProvideValue(allocator);
         if(val) {
             stmt->value = val;
@@ -326,8 +335,11 @@ ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {
 }
 
 ComptimeBlock* Parser::parseComptimeBlock(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::ComptimeKw)) {
-        auto ctBlock = new (allocator.allocate<ComptimeBlock>()) ComptimeBlock({ nullptr, 0 }, parent_node, 0);
+    auto& tok = *token;
+    if(tok.type == TokenType::ComptimeKw) {
+        token++;
+        readWhitespace();
+        auto ctBlock = new (allocator.allocate<ComptimeBlock>()) ComptimeBlock({ nullptr, 0 }, parent_node, loc_single(tok));
         auto block = parseBraceBlock("comptime", ctBlock, allocator);
         if(block.has_value()) {
             ctBlock->body = std::move(block.value());

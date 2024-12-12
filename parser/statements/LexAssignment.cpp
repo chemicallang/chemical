@@ -109,31 +109,34 @@ std::optional<Operation> Parser::parseAssignmentOperator() {
 
 ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
 
+    auto& start_tok = *token;
+
     auto lhs = parseAccessChainOrAddrOf(allocator);
     if(!lhs) {
         return nullptr;
     }
 
     // increment or decrement
-    switch(token->type) {
+    auto& tok = *token;
+    switch(tok.type) {
         case TokenType::DoublePlusSym: {
             token++;
-            auto rhs = new (allocator.allocate<NumberValue>()) NumberValue(1, 0);
-            auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, rhs, Operation::Addition, parent_node, 0);
+            auto rhs = new (allocator.allocate<NumberValue>()) NumberValue(1, loc_single(tok));
+            auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, rhs, Operation::Addition, parent_node, loc_single(start_tok));
             return stmt;
         }
         case TokenType::DoubleMinusSym:{
             token++;
-            auto rhs = new (allocator.allocate<NumberValue>()) NumberValue(1, 0);
-            auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, rhs, Operation::Subtraction, parent_node, 0);
+            auto rhs = new (allocator.allocate<NumberValue>()) NumberValue(1, loc_single(tok));
+            auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, rhs, Operation::Subtraction, parent_node, loc_single(start_tok));
             return stmt;
         }
+        case TokenType::Whitespace:
+            token++;
+            break;
         default:
             break;
     }
-
-    // whitespace
-    lexWhitespaceToken();
 
     // lex the operator before the equal sign
     auto assOp = parseAssignmentOperator();
@@ -150,7 +153,7 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
         }
     }
 
-    auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, nullptr, Operation::Assignment, parent_node, 0);
+    auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, nullptr, Operation::Assignment, parent_node, loc_single(start_tok));
 
     if(assOp.has_value()) {
         stmt->assOp = assOp.value();

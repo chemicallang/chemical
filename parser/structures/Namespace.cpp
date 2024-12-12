@@ -5,13 +5,16 @@
 #include "ast/structures/Scope.h"
 
 Namespace* Parser::parseNamespace(ASTAllocator& allocator, AccessSpecifier specifier) {
-    if(consumeWSOfType(TokenType::NamespaceKw)) {
+    auto& tok = *token;
+    if(tok.type == TokenType::NamespaceKw) {
+        token++;
+        readWhitespace();
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
             error("expected identifier for namespace name");
             return nullptr;
         }
-        auto ns = new (allocator.allocate<Namespace>()) Namespace(std::string(id->value), parent_node, 0, specifier);
+        auto ns = new (allocator.allocate<Namespace>()) Namespace(std::string(id->value), parent_node, loc_single(tok), specifier);
         annotate(ns);
         auto prev_parent_node = parent_node;
         parent_node = ns;

@@ -48,18 +48,6 @@ Token* Parser::consumeWSOfType(enum TokenType type) {
     }
 }
 
-const std::unordered_map<std::string_view, ValueCreatorFn> ValueCreators = {
-        {"null", [](Parser *parser, ASTAllocator& allocator, Token* token) -> Value* {
-            return new (allocator.allocate<NullValue>()) NullValue(parser->loc_single(token));
-        }},
-        {"true", [](Parser *parser, ASTAllocator& allocator, Token* token) -> Value* {
-            return new (allocator.allocate<BoolValue>()) BoolValue(true, parser->loc_single(token));
-        }},
-        {"false", [](Parser *parser, ASTAllocator& allocator, Token* token) -> Value* {
-            return new (allocator.allocate<BoolValue>()) BoolValue(false, parser->loc_single(token));
-        }}
-};
-
 Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
     auto id = consumeIdentifierOrKeyword();
@@ -106,7 +94,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
             break;
     }
 
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain({}, parent_node, false, 0);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain({}, parent_node, false, loc_single(id));
     auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(id->value), loc_single(id));
     chain->values.emplace_back(identifier);
 
@@ -150,9 +138,10 @@ Value* Parser::parseAccessChainRecursive(ASTAllocator& allocator, AccessChain* c
 }
 
 FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator) {
-    auto lParen = consumeToken(TokenType::LParen);
-    if(lParen) {
-        auto call = new (allocator.allocate<FunctionCall>()) FunctionCall({}, 0);
+    auto& lParenTok = *token;
+    if(lParenTok.type == TokenType::LParen) {
+        auto call = new (allocator.allocate<FunctionCall>()) FunctionCall({}, loc_single(lParenTok));
+        token++;
         do {
             consumeWhitespaceAndNewLines();
             auto expr = parseExpression(allocator, true);
@@ -240,7 +229,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
     // index operator, function call with generic items
     while(token->type == TokenType::LParen || token->type == TokenType::LBracket) {
         if(token->type == TokenType::LBracket) {
-            auto indexOp = new(allocator.allocate<IndexOperator>()) IndexOperator({}, 0);
+            auto indexOp = new(allocator.allocate<IndexOperator>()) IndexOperator({}, loc_single(token));
             chain->values.emplace_back(indexOp);
             while (token->type == TokenType::LBracket) {
                 token++;

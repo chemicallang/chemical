@@ -9,11 +9,15 @@
 
 DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
 
-    if(!consumeWSOfType(TokenType::DoKw)) {
+    auto& tok = *token;
+
+    if(tok.type != TokenType::DoKw) {
         return nullptr;
     }
 
-    auto loop = new (allocator.allocate<DoWhileLoop>()) DoWhileLoop(nullptr, { nullptr, 0 }, parent_node, 0);
+    token++;
+
+    auto loop = new (allocator.allocate<DoWhileLoop>()) DoWhileLoop(nullptr, { nullptr, 0 }, parent_node, loc_single(tok));
 
     // { statement(s) } with continue & break support
     auto prev_loop_node = current_loop_node;

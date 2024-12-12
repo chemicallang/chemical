@@ -9,11 +9,14 @@
 
 VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allowDeclarations, bool requiredType) {
 
-    auto parsed_const = consumeWSOfType(TokenType::ConstKw);
-
-    if (!parsed_const && !consumeWSOfType(TokenType::VarKw)) {
+    auto& start_tok = *token;
+    auto is_const = start_tok.type == TokenType::ConstKw;
+    if(!is_const && start_tok.type != TokenType::VarKw) {
         return nullptr;
     }
+
+    token++;
+    readWhitespace();
 
     auto id = consumeIdentifierOrKeyword();
     if(!id) {
@@ -21,7 +24,7 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
         return nullptr;
     }
 
-    auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(parsed_const, loc_id(id), nullptr, nullptr, parent_node, 0, specifier);
+    auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(is_const, loc_id(id), nullptr, nullptr, parent_node, loc_single(start_tok), specifier);
 
     auto prev_parent_node = parent_node;
     parent_node = stmt;

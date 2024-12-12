@@ -22,7 +22,7 @@ Parser::Parser(
         bool is64Bit,
         CompilerBinder* binder
 ) : file_id(file_id), stored_file_path(file_path), token(start_token),
-    beginning_token(start_token), loc_man(loc_man), global_allocator(global_allocator),
+    loc_man(loc_man), global_allocator(global_allocator),
     mod_allocator(mod_allocator), is64Bit(is64Bit), binder(binder), comptime_scope(comptime_scope)
 {
 
@@ -164,8 +164,4 @@ Value* parseEvalValue(Parser* parser, ASTAllocator* allocator_ptr) {
         parser->error("expected a value in #eval");
         return nullptr;
     }
-}
-
-void Parser::reset() {
-    token = beginning_token;
 }

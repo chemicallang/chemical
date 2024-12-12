@@ -504,6 +504,8 @@ set(COMMON_SOURCES
         lexer/MultiStrAllocator.h
         compiler/cbi/Model.h
         parser/CBI.h
+        std/chem_span.h
+        std/chem_string_view.h
 )
 
 # Chemical LSP Executable Target

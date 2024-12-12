@@ -18,9 +18,11 @@
 #include "ast/statements/DestructStmt.h"
 
 ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::ReturnKw)) {
+    auto& tok = *token;
+    if(tok.type == TokenType::ReturnKw) {
+        token++;
         lexWhitespaceToken();
-        auto stmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(nullptr, current_func_type, parent_node, 0);
+        auto stmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(nullptr, current_func_type, parent_node, loc_single(tok));
         auto expr = parseExpression(allocator, true);
         if(expr) {
             stmt->value = expr;
@@ -32,8 +34,11 @@ ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
 }
 
 InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::InitKw)) {
-        auto init = new (allocator.allocate<InitBlock>()) InitBlock({ nullptr, 0 }, parent_node, 0);
+    auto& tok = *token;
+    if(tok.type == TokenType::InitKw) {
+        token++;
+        readWhitespace();
+        auto init = new (allocator.allocate<InitBlock>()) InitBlock({ nullptr, 0 }, parent_node, loc_single(tok));
         auto block = parseBraceBlock("init-block", init, allocator);
         if(block.has_value()) {
             init->scope = std::move(block.value());
@@ -47,8 +52,11 @@ InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
 }
 
 UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::UnsafeKw)) {
-        auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock({ nullptr, 0 }, 0);
+    auto& tok = *token;
+    if(tok.type == TokenType::UnsafeKw) {
+        token++;
+        readWhitespace();
+        auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock({ nullptr, 0 }, loc_single(tok));
         auto block = parseBraceBlock("unsafe_block", unsafe, allocator);
         if(block.has_value()) {
             unsafe->scope = std::move(block.value());
@@ -63,8 +71,11 @@ UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
 }
 
 DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::DestructKw)) {
-        auto stmt = new (allocator.allocate<DestructStmt>()) DestructStmt(nullptr, nullptr, false, parent_node, 0);
+    auto& tok = *token;
+    if(tok.type == TokenType::DestructKw) {
+        token++;
+        readWhitespace();
+        auto stmt = new (allocator.allocate<DestructStmt>()) DestructStmt(nullptr, nullptr, false, parent_node, loc_single(tok));
         if(consumeToken(TokenType::LBracket)) {
             lexWhitespaceToken();
             stmt->is_array = true;
@@ -183,7 +194,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
             if(!id) {
                 break;
             }
-            auto parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(std::string(id->value), nullptr, nullptr, parent_node, param_index, 0);
+            auto parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(std::string(id->value), nullptr, nullptr, parent_node, param_index, loc_single(id));
             params.emplace_back(parameter);
             lexWhitespaceToken();
             if(consumeToken(TokenType::ColonSym)) {
@@ -314,7 +325,9 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
 
     lexWhitespaceToken();
 
-    if(consumeToken(TokenType::ColonSym)) {
+    auto& tok = *token;
+    if(tok.type == TokenType::ColonSym) {
+        token++;
         lexWhitespaceToken();
         auto type = parseType(allocator);
         if(type) {
@@ -324,7 +337,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
             return decl;
         }
     } else {
-        decl->returnType = new (allocator.allocate<VoidType>()) VoidType(0);
+        decl->returnType = new (allocator.allocate<VoidType>()) VoidType(loc_single(tok));
     }
 
     auto block = parseBraceBlock("function", decl, allocator);

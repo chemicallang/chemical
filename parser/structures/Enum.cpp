@@ -10,13 +10,16 @@
 #include "ast/values/IntValue.h"
 
 EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
-    if(consumeWSOfType(TokenType::EnumKw)) {
+    auto& start_tok = *token;
+    if(start_tok.type == TokenType::EnumKw) {
+        token++;
+        readWhitespace();
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
             error("expected a identifier as enum name");
             return nullptr;
         }
-        auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(id), {}, parent_node, 0, specifier);
+        auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(id), {}, parent_node, loc_single(start_tok), specifier);
 
         annotate(decl);
 
@@ -43,7 +46,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
                         return decl;
                     }
                 } else {
-                    member->init_value = new (allocator.allocate<IntValue>()) IntValue((int) index, 0);;
+                    member->init_value = new (allocator.allocate<IntValue>()) IntValue((int) index, loc_single(memberId));;
                 }
                 index++;
                 if(consumeToken(TokenType::CommaSym)) {

@@ -48,12 +48,15 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
 
 IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level) {
 
-    auto first = consumeWSOfType(TokenType::IfKw);
-    if(!first) {
+    auto& first = *token;
+    if(first.type != TokenType::IfKw) {
         return nullptr;
     }
 
-    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, { nullptr, 0 }, {}, std::nullopt, parent_node, is_value, 0);
+    token++;
+    readWhitespace();
+
+    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, { nullptr, 0 }, {}, std::nullopt, parent_node, is_value, loc_single(first));
 
     auto exprBlock = parseIfExprAndBlock(allocator, is_value, parse_value_node, top_level);
     if(exprBlock.has_value()) {

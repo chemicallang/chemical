@@ -12,8 +12,11 @@
 #include "ast/structures/ForLoop.h"
 
 ContinueStatement* Parser::parseContinueStatement(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::ContinueKw)) {
-        auto stmt = new (allocator.allocate<ContinueStatement>()) ContinueStatement(current_loop_node, parent_node, 0);
+    auto& tok = *token;
+    if(tok.type == TokenType::ContinueKw) {
+        token++;
+        readWhitespace();
+        auto stmt = new (allocator.allocate<ContinueStatement>()) ContinueStatement(current_loop_node, parent_node, loc_single(tok));
         return stmt;
     } else {
         return nullptr;
@@ -21,8 +24,11 @@ ContinueStatement* Parser::parseContinueStatement(ASTAllocator& allocator) {
 }
 
 BreakStatement* Parser::parseBreakStatement(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::BreakKw)) {
-        auto stmt = new (allocator.allocate<BreakStatement>()) BreakStatement(current_loop_node, parent_node, 0);
+    auto& tok = *token;
+    if(tok.type == TokenType::BreakKw) {
+        token++;
+        readWhitespace();
+        auto stmt = new (allocator.allocate<BreakStatement>()) BreakStatement(current_loop_node, parent_node, loc_single(tok));
         auto value = parseAccessChainOrValue(allocator);
         if(value) {
             stmt->value = value;
@@ -36,8 +42,11 @@ BreakStatement* Parser::parseBreakStatement(ASTAllocator& allocator) {
 }
 
 UnreachableStmt* Parser::parseUnreachableStatement(ASTAllocator& allocator) {
-    if(consumeWSOfType(TokenType::UnreachableKw)) {
-        auto stmt = new (allocator.allocate<UnreachableStmt>()) UnreachableStmt(parent_node, 0);
+    auto& tok = *token;
+    if(tok.type == TokenType::UnreachableKw) {
+        token++;
+        readWhitespace();
+        const auto stmt = new (allocator.allocate<UnreachableStmt>()) UnreachableStmt(parent_node, loc_single(tok));
         return stmt;
     } else {
         return nullptr;
@@ -46,11 +55,16 @@ UnreachableStmt* Parser::parseUnreachableStatement(ASTAllocator& allocator) {
 
 ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
 
-    if (!consumeWSOfType(TokenType::ForKw)) {
+    auto& tok = *token;
+
+    if (tok.type != TokenType::ForKw) {
         return nullptr;
     }
 
-    auto loop = new (allocator.allocate<ForLoop>()) ForLoop(nullptr, nullptr, nullptr, { nullptr, 0 }, parent_node, 0);
+    token++;
+    readWhitespace();
+
+    auto loop = new (allocator.allocate<ForLoop>()) ForLoop(nullptr, nullptr, nullptr, { nullptr, 0 }, parent_node, loc_single(tok));
 
     // start parenthesis
     if(!consumeToken(TokenType::LParen)) {
@@ -127,12 +141,15 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
 
 LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) {
 
-    auto kw = consumeWSOfType(TokenType::LoopKw);
-    if (!kw) {
+    auto& tok = *token;
+    if (tok.type != TokenType::LoopKw) {
         return nullptr;
     }
 
-    auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock({ parent_node, 0 }, parent_node, 0);
+    token++;
+    readWhitespace();
+
+    auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock({ parent_node, 0 }, parent_node, loc_single(tok));
 
     // { statement(s) } with continue & break support
     auto prev_loop_node = current_loop_node;

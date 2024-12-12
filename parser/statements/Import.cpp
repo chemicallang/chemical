@@ -8,10 +8,13 @@
 #include "ast/statements/Import.h"
 
 ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
-    if (!consumeWSOfType(TokenType::ImportKw)) {
+    auto& kw_tok = *token;
+    if (kw_tok.type != TokenType::ImportKw) {
         return nullptr;
     }
-    auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement("", {}, parent_node, 0);
+    auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement("", {}, parent_node, loc_single(kw_tok));
+    token++;
+    readWhitespace();
     auto str = parseStringValue(allocator);
     if (str) {
         stmt->filePath = str->get_the_string();
@@ -48,8 +51,10 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
         }
         lexWhitespaceToken();
         if (consumeWSOfType(TokenType::FromKw)) {
-            auto str = parseStringValue(allocator);
-            if(!str) {
+            auto str2 = parseStringValue(allocator);
+            if(str2) {
+                // TODO handle this
+            } else {
                 error("expected path after 'from' in import statement");
                 return stmt;
             }

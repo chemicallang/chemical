@@ -77,11 +77,6 @@ public:
     Token* token;
 
     /**
-     * we save this to reset the parser
-     */
-    Token* beginning_token;
-
-    /**
      * the location manager is used to encode locations
      */
     LocationManager& loc_man;
@@ -194,6 +189,13 @@ public:
     }
 
     /**
+     * get location for a single token that is on the same line
+     */
+    inline uint64_t loc_single(Token& t) {
+        return loc_single(t.position, t.value.size());
+    }
+
+    /**
      * suppose to be called on a node which can take annotations
      */
     void annotate(AnnotableNode* node) {
@@ -207,12 +209,6 @@ public:
      * parses nodes into the given vector
      */
     void parse(std::vector<ASTNode*>& nodes);
-
-    /**
-     * reset the lexer, for re-lexing a new file, if it has lexed a file before
-     * @deprecated
-     */
-    void reset();
 
     // ------------- Functions exposed to chemical begin here
 
@@ -714,7 +710,7 @@ public:
      * 123 as int, or 123 is int, this function takes care of parsing
      * all values afterward a parsed value inside the expression
      */
-    Value* parseAfterValue(ASTAllocator& allocator, Value* value);
+    Value* parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token);
 
     /**
      * lexes access chain like x.y.z or a value like 10, could be int, string, char
@@ -743,7 +739,7 @@ public:
      * for example in expression a + b, after lexing a + b will lexed by this function
      * @param start is the start of the expression, index in tokens vector !
      */
-    Value* parseRemainingExpression(ASTAllocator& allocator, Value* first_value);
+    Value* parseRemainingExpression(ASTAllocator& allocator, Value* first_value, Token* start_tok);
 
     /**
      * it will lex a lambda meaning '() => {}' in a paren expression

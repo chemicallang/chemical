@@ -139,7 +139,7 @@ BaseType* Parser::parseTypeId(ASTAllocator& allocator, Token* type) {
                 if(chain) {
                     chain->values.emplace_back(id);
                 } else {
-                    chain = new (allocator.allocate<AccessChain>()) AccessChain({ id }, parent_node, false, 0);
+                    chain = new (allocator.allocate<AccessChain>()) AccessChain({ id }, parent_node, false, loc_single(first_type));
                 }
                 type = new_type;
             }

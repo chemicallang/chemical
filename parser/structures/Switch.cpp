@@ -4,9 +4,15 @@
 #include "ast/statements/SwitchStatement.h"
 
 SwitchStatement* Parser::parseSwitchStatementBlock(ASTAllocator& allocator, bool is_value, bool parse_value_node) {
-    if (consumeWSOfType(TokenType::SwitchKw)) {
 
-        auto stmt = new (allocator.allocate<SwitchStatement>()) SwitchStatement(nullptr, parent_node, is_value, 0);
+    auto& tok = *token;
+
+    if (tok.type == TokenType::SwitchKw) {
+
+        token++;
+        readWhitespace();
+
+        auto stmt = new (allocator.allocate<SwitchStatement>()) SwitchStatement(nullptr, parent_node, is_value, loc_single(tok));
 
         if (consumeToken(TokenType::LParen)) {
             auto expr = parseExpression(allocator);

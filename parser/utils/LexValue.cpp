@@ -75,7 +75,7 @@ Value* Parser::parseStringValue(ASTAllocator& allocator) {
     auto t = consumeOfType(TokenType::DoubleQuoteSym);
     if (t) {
         auto& start_pos = t->position;
-        auto value = new (allocator.allocate<StringValue>()) StringValue("", 0);
+        auto value = new (allocator.allocate<StringValue>()) StringValue("", loc_single(t));
         while(true) {
             const auto current = token;
             switch(current->type) {
@@ -233,14 +233,14 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
     }
 }
 
-Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value) {
+Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token) {
 entry:
     switch(token->type) {
         case TokenType::AsKw: {
             token++;
             readWhitespace();
             auto type = parseType(allocator);
-            auto casted_value = new(allocator.allocate<CastedValue>()) CastedValue(value, type, 0);
+            auto casted_value = new(allocator.allocate<CastedValue>()) CastedValue(value, type, loc_single(start_token));
             if (!type) {
                 error("expected a type for casting after 'as' in expression");
             }
@@ -250,7 +250,7 @@ entry:
             token++;
             readWhitespace();
             auto type = parseType(allocator);
-            auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, false, 0);
+            auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, false, loc_single(start_token));
             if (!type) {
                 error("expected a type after 'is' or '!is' in expression");
             }
@@ -265,6 +265,7 @@ entry:
 }
 
 Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct) {
+    const auto start_token = token;
     auto ifStmt = parseIfStatement(allocator, true, true, false);
     if(ifStmt) {
         return ifStmt;
@@ -279,23 +280,23 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
     }
     auto acValue = parseAccessChainValueToken(allocator);
     if(acValue) {
-        return parseAfterValue(allocator, acValue);
+        return parseAfterValue(allocator, acValue, start_token);
     }
     auto notValue = parseNotValue(allocator);
     if(notValue) {
-        return parseAfterValue(allocator, (Value*) notValue);
+        return parseAfterValue(allocator, (Value*) notValue, start_token);
     }
     auto negValue = parseNegativeValue(allocator);
     if(negValue) {
-        return parseAfterValue(allocator, (Value*) negValue);
+        return parseAfterValue(allocator, (Value*) negValue, start_token);
     }
     auto ac = parseAccessChainOrAddrOf(allocator, parseStruct);
     if(ac) {
-        return parseAfterValue(allocator, ac);
+        return parseAfterValue(allocator, ac, start_token);
     }
     auto macroVal = parseMacroValue(allocator);
     if(macroVal) {
-        return parseAfterValue(allocator, macroVal);
+        return parseAfterValue(allocator, macroVal, start_token);
     }
     return nullptr;
 }

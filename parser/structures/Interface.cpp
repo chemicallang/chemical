@@ -9,13 +9,17 @@
 
 InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
-    if (consumeWSOfType(TokenType::InterfaceKw)) {
+    auto& tok = *token;
+
+    if (tok.type == TokenType::InterfaceKw) {
+        token++;
+        readWhitespace();
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
             error("expected interface name after the interface keyword");
             return nullptr;
         }
-        auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(id), parent_node, 0, specifier);
+        auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(id), parent_node, loc_single(tok), specifier);
 
         annotate(decl);
 

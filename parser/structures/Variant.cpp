@@ -25,7 +25,7 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
 
                     readWhitespace();
 
-                    auto param = new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(std::string(paramId->value), index, false, nullptr, nullptr, member, 0);
+                    auto param = new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(std::string(paramId->value), index, false, nullptr, nullptr, member, loc_single(paramId));
                     member->values[std::string(paramId->value)] = param;
 
                     if(!consumeToken(TokenType::ColonSym)) {

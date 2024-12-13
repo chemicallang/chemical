@@ -227,7 +227,15 @@ char* BatchAllocator::object_heap_pointer(std::size_t obj_size, std::size_t alig
         } else {
             // just allocate the entire object on heap
             // and do not move heap pointer
-            return static_cast<char*>(::operator new(obj_size, std::align_val_t(alignment)));
+            const auto ptr = static_cast<char*>(::operator new(obj_size, std::align_val_t(alignment)));
+            if(heap_memory.empty()) {
+                heap_memory.emplace_back(ptr);
+            } else {
+                const auto current = heap_memory.back();
+                heap_memory[heap_memory.size() - 1] = ptr;
+                heap_memory.emplace_back(current);
+            }
+            return ptr;
         }
     }
 }

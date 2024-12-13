@@ -27,7 +27,7 @@ public:
      */
     SerialStrAllocator(
             std::size_t heapBatchSize
-    ) : allocator(nullptr, 0, heapBatchSize), data(allocator.object_heap_pointer(3, 1)),
+    ) : allocator(nullptr, 0, heapBatchSize), data(heapBatchSize > 0 ? allocator.object_heap_pointer(3, 1) : nullptr),
         length(0), capacity(3) {}
 
     void init_new() {

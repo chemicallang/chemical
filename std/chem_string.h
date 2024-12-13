@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "chem_string_view.h"
 
 namespace chem {
 
@@ -223,19 +224,23 @@ namespace chem {
             }
         }
 
-        void append(const char* value){
+        inline void append(const char* value){
             append(value, strlen(value));
         }
 
-        void append(const string* value){
+        inline void append(const string* value){
             append(value->data(), value->size());
         }
 
-        void append(const std::string_view& str) {
+        inline void append(const std::string_view& str) {
             append(str.data(), str.size());
         }
 
-        void append(const std::string& str) {
+        inline void append(const std::string& str) {
+            append(str.data(), str.size());
+        }
+
+        inline void append(const chem::string_view& str) {
             append(str.data(), str.size());
         }
 

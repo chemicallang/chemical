@@ -34,19 +34,19 @@ namespace chem {
                 : data_(str), size_(len) {}
 
         constexpr reference operator[](size_type idx) const {
-            if (idx >= size_) throw std::out_of_range("string_view index out of range");
+//            if (idx >= size_) throw std::out_of_range("string_view index out of range");
             return data_[idx];
         }
 
         [[nodiscard]]
         constexpr reference front() const {
-            if (size_ == 0) throw std::out_of_range("string_view is empty");
+//            if (size_ == 0) throw std::out_of_range("string_view is empty");
             return data_[0];
         }
 
         [[nodiscard]]
         constexpr reference back() const {
-            if (size_ == 0) throw std::out_of_range("string_view is empty");
+//            if (size_ == 0) throw std::out_of_range("string_view is empty");
             return data_[size_ - 1];
         }
 
@@ -71,6 +71,41 @@ namespace chem {
         [[nodiscard]]
         constexpr const_iterator cend() const noexcept { return data_ + size_; }
 
+        [[nodiscard]]
+        inline constexpr std::string str() const noexcept {
+            return { data_, size_ };
+        }
+
+        [[nodiscard]]
+        inline constexpr std::string_view view() const noexcept {
+            return { data_, size_ };
+        }
+
+        friend bool operator==(const string_view& lhs, const string_view& rhs) {
+            return lhs.size() == rhs.size() &&
+                   std::equal(lhs.begin(), lhs.end(), rhs.begin());
+        }
+
+        friend bool operator!=(const string_view& lhs, const string_view& rhs) {
+            return !(lhs == rhs);
+        }
+
+        friend bool operator<(const string_view& lhs, const string_view& rhs) {
+            return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+        }
+
+        friend bool operator<=(const string_view& lhs, const string_view& rhs) {
+            return !(rhs < lhs);
+        }
+
+        friend bool operator>(const string_view& lhs, const string_view& rhs) {
+            return rhs < lhs;
+        }
+
+        friend bool operator>=(const string_view& lhs, const string_view& rhs) {
+            return !(lhs < rhs);
+        }
+
     private:
         const char* data_;
         size_type size_;
@@ -78,28 +113,19 @@ namespace chem {
 
 }
 
-// Overloaded operators for comparison
-inline bool operator==(const chem::string_view& lhs, const chem::string_view& rhs) {
-    return lhs.size() == rhs.size() &&
-           std::equal(lhs.begin(), lhs.end(), rhs.begin());
-}
-
-inline bool operator!=(const chem::string_view& lhs, const chem::string_view& rhs) {
-    return !(lhs == rhs);
-}
-
-inline bool operator<(const chem::string_view& lhs, const chem::string_view& rhs) {
-    return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
-}
-
-inline bool operator<=(const chem::string_view& lhs, const chem::string_view& rhs) {
-    return !(rhs < lhs);
-}
-
-inline bool operator>(const chem::string_view& lhs, const chem::string_view& rhs) {
-    return rhs < lhs;
-}
-
-inline bool operator>=(const chem::string_view& lhs, const chem::string_view& rhs) {
-    return !(lhs < rhs);
+// Hash specialization for my_string_view
+namespace std {
+    template <>
+    struct hash<chem::string_view> {
+        // Hash Specialization Using FNV-1a
+        std::size_t operator()(const chem::string_view& s) const noexcept {
+            std::size_t hash = 0xcbf29ce484222325; // FNV offset basis
+            std::size_t prime = 0x100000001b3;     // FNV prime
+            for (char c : s) {
+                hash ^= static_cast<std::size_t>(c);
+                hash *= prime;
+            }
+            return hash;
+        }
+    };
 }

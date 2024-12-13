@@ -316,7 +316,7 @@ ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {
         readWhitespace();
         auto id = consumeIdentifierOrKeyword();
         if(id) {
-            stmt->identifier = id->value;
+            stmt->identifier = id->value.str();
         } else {
             error("expected identifier after 'as'");
             return stmt;

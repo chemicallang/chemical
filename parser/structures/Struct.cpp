@@ -26,7 +26,7 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
         return nullptr;
     }
 
-    auto member = new (allocator.allocate<StructMember>()) StructMember(std::string(identifier->value), nullptr, nullptr, parent_node, 0, constId != nullptr, AccessSpecifier::Public);
+    auto member = new (allocator.allocate<StructMember>()) StructMember(identifier->value.str(), nullptr, nullptr, parent_node, 0, constId != nullptr, AccessSpecifier::Public);
 
     readWhitespace();
 
@@ -98,7 +98,7 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
         if(lexWhitespaceToken()) {
             auto id = consumeIdentifierOrKeyword();
             if(id) {
-                decl->name = id->value;
+                decl->name = id->value.str();
             } else {
                 error("expected an identifier after the '}' for anonymous struct definition");
                 return decl;

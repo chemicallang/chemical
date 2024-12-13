@@ -175,7 +175,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
     if (consumeToken(TokenType::RParen)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(identifier->value.str(), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
         parseLambdaAfterParamsList(allocator, lamb);
         return lamb;
@@ -188,7 +188,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), type, 0, nullptr, false, lamb, loc_single(identifier));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(identifier->value.str(), type, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
         if (consumeToken(TokenType::CommaSym)) {
             parseParameterList(allocator, lamb->params, true, false);
@@ -197,7 +197,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         return lamb;
     } else if (consumeToken(TokenType::CommaSym)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(identifier->value), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(identifier->value.str(), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
         parseParameterList(allocator, lamb->params, true, false);
         parseLambdaAfterComma(this, allocator, lamb);
@@ -205,7 +205,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
     }
 
     if(has_whitespace) {
-        auto first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(identifier->value), loc_single(identifier), false);
+        auto first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(identifier->value.str(), loc_single(identifier), false);
         auto value = parseAfterValue(allocator, first_value, identifier);
         auto expr = parseRemainingExpression(allocator, value, identifier);
         if(consumeToken(TokenType::RParen)) {

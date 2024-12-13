@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/BatchAllocator.h"
+#include "std/chem_string_view.h"
 
 class AllocatorStrBuilder {
 public:
@@ -53,11 +54,11 @@ public:
         adjust_ptr(data, capacity, 0);
     }
 
-    [[nodiscard]] std::string_view current_view() const {
+    [[nodiscard]] chem::string_view current_view() const {
         return { data, length };
     }
 
-    std::string_view finalize_view() {
+    chem::string_view finalize_view() {
         return { finalize(), length };
     }
 

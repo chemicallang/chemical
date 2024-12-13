@@ -155,7 +155,7 @@ public:
     /**
      * get a located identifier
      */
-    LocatedIdentifier loc_id(const std::string_view& value, const Position& pos);
+    LocatedIdentifier loc_id(const chem::string_view& value, const Position& pos);
 
     /**
      * get a located identifier

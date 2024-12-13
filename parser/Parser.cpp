@@ -40,11 +40,11 @@ Position Parser::end_pos(Token* token) {
     return { token->position.line, (unsigned int) (token->position.character + token->value.size()) };
 }
 
-LocatedIdentifier Parser::loc_id(const std::string_view& value, const Position& pos) {
+LocatedIdentifier Parser::loc_id(const chem::string_view& value, const Position& pos) {
 #ifdef LSP_BUILD
-    return { std::string(value), loc_single(pos, value.size()) };
+    return { std::string(value.data(), value.size()), loc_single(pos, value.size()) };
 #else
-    return { std::string(value) };
+    return { std::string(value.data(), value.size()) };
 #endif
 }
 

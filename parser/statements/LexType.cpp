@@ -90,7 +90,7 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
         error("missing struct / interface name in inheritance list of the struct");
         return nullptr;
     }
-    auto idType = new (allocator.allocate<LinkedType>()) LinkedType(std::string(id->value), loc_single(id));
+    auto idType = new (allocator.allocate<LinkedType>()) LinkedType(id->value.str(), loc_single(id));
     lexWhitespaceToken();
     return parseGenericTypeAfterId(allocator, idType);
 }
@@ -130,10 +130,10 @@ BaseType* Parser::parseTypeId(ASTAllocator& allocator, Token* type) {
     while(true) {
         if(token->type == TokenType::DoubleColonSym) {
             token++;
-            auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(type->value), loc_single(type), true);
+            auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(type->value.str(), loc_single(type), true);
             auto new_type = consumeIdentifierOrKeyword();
             if(!new_type) {
-                error("expected an identifier after '" + std::string(type->value) + "::' for a type");
+                error("expected an identifier after '" + type->value.str() + "::' for a type");
                 return nullptr;
             } else {
                 if(chain) {
@@ -145,14 +145,14 @@ BaseType* Parser::parseTypeId(ASTAllocator& allocator, Token* type) {
             }
         } else {
             if(chain) {
-                auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(type->value), loc_single(type));
+                auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(type->value.str(), loc_single(type));
                 chain->values.emplace_back(id);
                 chain->location = loc(first_type, type);
                 return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->location);
             } else {
                 auto primitive = TypeMakers::PrimitiveMap.find(type->value);
                 if (primitive == TypeMakers::PrimitiveMap.end()) {
-                    return new (allocator.allocate<LinkedType>()) LinkedType(std::string(type->value), loc_single(type));
+                    return new (allocator.allocate<LinkedType>()) LinkedType(type->value.str(), loc_single(type));
                 } else {
                     return primitive->second(allocator, is64Bit, loc_single(type));
                 }

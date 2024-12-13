@@ -123,8 +123,8 @@ bool Parser::parseParameterList(
                 auto is_mutable = consumeWSOfType(TokenType::MutKw) != nullptr; // optional mut keyword
                 auto id = consumeIdentifierOrKeyword();
                 if (id) {
-                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(std::string(id->value), nullptr, loc_single(id)), loc_single(id), is_mutable);
-                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(id->value), ref_to_linked,
+                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(id->value.str(), nullptr, loc_single(id)), loc_single(id), is_mutable);
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(id->value.str(), ref_to_linked,
                                                                                         index, nullptr, true,
                                                                                         current_func_type, loc(ampersand, id));
                     parameters.emplace_back(param);
@@ -145,7 +145,7 @@ bool Parser::parseParameterList(
                 auto type = parseType(allocator);
                 if(type) {
                     if(variadicParam && consumeToken(TokenType::TripleDotSym)) {
-                        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(id->value), type, index, nullptr, false, current_func_type, loc_single(id));
+                        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(id->value.str(), type, index, nullptr, false, current_func_type, loc_single(id));
                         parameters.emplace_back(param);
                         return true;
                     }
@@ -163,7 +163,7 @@ bool Parser::parseParameterList(
                             }
                         }
                     }
-                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(id->value), type, index, defValue, false, current_func_type, loc_single(id));
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(id->value.str(), type, index, defValue, false, current_func_type, loc_single(id));
                     parameters.emplace_back(param);
                 } else {
                     error("missing a type token for the function parameter, expected type after the colon");
@@ -171,7 +171,7 @@ bool Parser::parseParameterList(
                 }
             } else {
                 if(optionalTypes) {
-                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(std::string(id->value), nullptr, index, nullptr, false, current_func_type, loc_single(id));
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(id->value.str(), nullptr, index, nullptr, false, current_func_type, loc_single(id));
                     parameters.emplace_back(param);
                 } else {
                     error("expected colon ':' in function parameter list after the parameter name ");
@@ -194,7 +194,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
             if(!id) {
                 break;
             }
-            auto parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(std::string(id->value), nullptr, nullptr, parent_node, param_index, loc_single(id));
+            auto parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(id->value.str(), nullptr, nullptr, parent_node, param_index, loc_single(id));
             params.emplace_back(parameter);
             lexWhitespaceToken();
             if(consumeToken(TokenType::ColonSym)) {
@@ -257,7 +257,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
         lexWhitespaceToken();
         auto id = consumeIdentifierOrKeyword();
         if(id) {
-            ext_func->receiver.name = id->value;
+            ext_func->receiver.name = id->value.str();
         } else {
             error("expected identifier for receiver in extension function after '('");
             return decl;

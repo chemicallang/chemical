@@ -5,25 +5,23 @@ void SourceProvider::restore(const StreamPosition &position) {
     const auto curr_pos = stream->tell();
     if(curr_pos != position.pos) {
         stream->seek(position.pos, SEEK_SET);
-        bufferFill(position.bufferSize);
+        bufferFill();
     }
     lineNumber = position.line;
     lineCharacterNumber = position.character;
     bufferPos = position.bufferPos;
 }
 
-void SourceProvider::bufferFill(size_t size) {
-    buffer.clear();
-    buffer.resize(size);
-    size_t bytesRead = stream->read(buffer.data(), size);
-    buffer.resize(bytesRead);
+void SourceProvider::bufferFill() {
+    size_t bytesRead = stream->read(buffer, BUFFER_CAPACITY);
+    bufferSize = bytesRead;
     bufferPos = 0;
 }
 
 char SourceProvider::readCharacter() {
-    if (bufferPos >= buffer.size()) {
+    if (bufferPos >= bufferSize) {
         bufferFill();
-        if (buffer.empty()) {
+        if (bufferSize == 0) {
             return EOF;
         }
     }
@@ -33,7 +31,7 @@ char SourceProvider::readCharacter() {
 }
 
 bool SourceProvider::eof() const {
-    if (bufferPos < buffer.size()) {
+    if (bufferPos < bufferSize) {
         return false; // Still data in the buffer
     }
     if(stream->tell() == -1) {
@@ -51,9 +49,9 @@ bool SourceProvider::eof() const {
 }
 
 char SourceProvider::peek() {
-    if (bufferPos >= buffer.size()) {
+    if (bufferPos >= bufferSize) {
         bufferFill();
-        if (buffer.empty()) {
+        if (bufferSize == 0) {
             return EOF;
         }
     }
@@ -123,11 +121,11 @@ unsigned int SourceProvider::getLineCharNumber() const {
 }
 
 StreamPosition SourceProvider::getStreamPosition() {
-    if(bufferPos >= buffer.size()) {
+    if(bufferPos >= bufferSize) {
         bufferFill();
     }
     return StreamPosition {
-            stream->tell(), lineNumber, lineCharacterNumber, buffer.size(), bufferPos
+            stream->tell(), lineNumber, lineCharacterNumber, bufferPos
     };
 }
 
@@ -135,7 +133,6 @@ void SourceProvider::reset() {
     stream->seek(0, SEEK_SET);
     lineCharacterNumber = 0;
     lineNumber = 0;
-    buffer.clear();
     bufferPos = 0;
 }
 
@@ -143,7 +140,6 @@ void SourceProvider::switch_source(InputSource* source) {
     stream = source;
     lineCharacterNumber = 0;
     lineNumber = 0;
-    buffer.clear();
     bufferPos = 0;
 }
 

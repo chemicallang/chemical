@@ -149,9 +149,9 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
 
 Lexer::Lexer(
         std::string file_path,
-        SourceProvider &provider,
+        InputSource* input,
         CompilerBinder* binder
-) : file_path(std::move(file_path)), provider(provider), binder(binder), str(3000), user_lexer(nullptr) {
+) : file_path(std::move(file_path)), provider(input), binder(binder), str(3000), user_lexer(nullptr) {
 
 }
 

@@ -64,6 +64,11 @@ class Lexer : public LexerState {
 public:
 
     /**
+     * source provide helps in reading source
+     */
+    SourceProvider provider;
+
+    /**
      * user lexer is the lexer we will activate upon encountering a
      * macro which starts with a hash symbol
      */
@@ -80,11 +85,6 @@ public:
     std::string file_path;
 
     /**
-     * the source provider is used to read the source
-     */
-    SourceProvider& provider;
-
-    /**
      * the binder that will be used to compile binding code
      * if not present, cbi is considered disabled
      */
@@ -95,7 +95,7 @@ public:
      */
     Lexer(
             std::string file_path,
-            SourceProvider &provider,
+            InputSource* source,
             CompilerBinder* binder = nullptr
     );
 

@@ -402,8 +402,7 @@ ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, con
         return result;
     }
 
-    SourceProvider provider2(&inp_source);
-    Lexer lexer(std::string(abs_path), provider2, &binder);
+    Lexer lexer(std::string(abs_path), &inp_source, &binder);
     LexUnit lexUnit;
 
     if(options->benchmark) {

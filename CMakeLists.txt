@@ -501,11 +501,12 @@ set(COMMON_SOURCES
         lexer/TokenType.h
         lexer/Token.h
         lexer/LexUnit.h
-        lexer/MultiStrAllocator.h
+        std/alloc/SerialStrAllocator.h
         compiler/cbi/Model.h
         parser/CBI.h
         std/chem_span.h
         std/chem_string_view.h
+        std/alloc/SerialVecBuilder.h
 )
 
 # Chemical LSP Executable Target

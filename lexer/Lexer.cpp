@@ -160,7 +160,7 @@ bool isWhitespace(char p) {
 }
 
 // read digits into the string
-void read_digits(AllocatorStrBuilder& str, SourceProvider& provider) {
+void read_digits(SerialAllocStrBuilder& str, SourceProvider& provider) {
     while(true) {
         auto next = provider.peek();
         if(std::isdigit(next)) {
@@ -172,7 +172,7 @@ void read_digits(AllocatorStrBuilder& str, SourceProvider& provider) {
 }
 
 // assumes that a digit exists at current location
-bool read_floating_digits(AllocatorStrBuilder& str, SourceProvider& provider) {
+bool read_floating_digits(SerialAllocStrBuilder& str, SourceProvider& provider) {
     read_digits(str, provider);
     if(provider.increment('.')) {
         str.append('.');
@@ -184,7 +184,7 @@ bool read_floating_digits(AllocatorStrBuilder& str, SourceProvider& provider) {
 }
 
 // reads  numbers with suffixes 123i8, 124ui16 123u32
-void read_number(AllocatorStrBuilder& str, SourceProvider& provider) {
+void read_number(SerialAllocStrBuilder& str, SourceProvider& provider) {
     if(read_floating_digits(str, provider)) {
         auto next = provider.peek();
         if(next == 'f') {
@@ -221,7 +221,7 @@ void read_number(AllocatorStrBuilder& str, SourceProvider& provider) {
     }
 }
 
-void read_current_line(AllocatorStrBuilder& str, SourceProvider& provider) {
+void read_current_line(SerialAllocStrBuilder& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p != '\n' && p != '\r') {
@@ -232,7 +232,7 @@ void read_current_line(AllocatorStrBuilder& str, SourceProvider& provider) {
     }
 }
 
-void read_multi_line_comment_text(AllocatorStrBuilder& str, SourceProvider& provider) {
+void read_multi_line_comment_text(SerialAllocStrBuilder& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p == '\n' || p == '\r' || p == '*') {
@@ -243,7 +243,7 @@ void read_multi_line_comment_text(AllocatorStrBuilder& str, SourceProvider& prov
     }
 }
 
-void read_id(AllocatorStrBuilder& str, SourceProvider& provider) {
+void read_id(SerialAllocStrBuilder& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p == '_' || std::isalnum(p)) {
@@ -256,7 +256,7 @@ void read_id(AllocatorStrBuilder& str, SourceProvider& provider) {
 
 // text that occurs inside chemical string, inside double quotes
 // we stop at any backslash or double quote
-void read_str_text(AllocatorStrBuilder& str, SourceProvider& provider) {
+void read_str_text(SerialAllocStrBuilder& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p != '\\' && p != '"' && p != '\n' && p != '\r') {
@@ -278,8 +278,8 @@ Token win_new_line(SourceProvider& provider, const Position& pos) {
 
 // reads the character and escapes it, if 'n' is at current position, we can say backslash n escape seq
 // if character is not a valid escape sequence unexpected token is returned
-Token read_escape_seq_in_str(MultiStrAllocator& allocator, SourceProvider& provider, const Position& pos) {
-    AllocatorStrBuilder builder('\\', allocator);
+Token read_escape_seq_in_str(SerialStrAllocator& allocator, SourceProvider& provider, const Position& pos) {
+    SerialAllocStrBuilder builder('\\', allocator);
     while(true) {
         switch(provider.peek()) {
             case -1:
@@ -306,8 +306,8 @@ Token read_escape_seq_in_str(MultiStrAllocator& allocator, SourceProvider& provi
     return Token(TokenType::EscapeSeq, builder.finalize_view(), pos);
 }
 
-Token read_escape_seq_in_char(MultiStrAllocator& allocator, SourceProvider& provider, const Position& pos) {
-    AllocatorStrBuilder builder('\\', allocator);
+Token read_escape_seq_in_char(SerialStrAllocator& allocator, SourceProvider& provider, const Position& pos) {
+    SerialAllocStrBuilder builder('\\', allocator);
     while(true) {
         switch(provider.peek()) {
             case -1:
@@ -357,7 +357,7 @@ Token Lexer::getNextToken() {
                 case '\r':
                     return win_new_line(provider, pos);
                 default:
-                    AllocatorStrBuilder str(current, allocator);
+                    SerialAllocStrBuilder str(current, allocator);
                     read_str_text(str, provider);
                     return Token(TokenType::String, str.finalize_view(), pos);
             }
@@ -380,7 +380,7 @@ Token Lexer::getNextToken() {
                 default:
                     break;
             }
-            AllocatorStrBuilder str(current, allocator);
+            SerialAllocStrBuilder str(current, allocator);
             read_multi_line_comment_text(str, provider);
             return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
         } else if(user_mode) {
@@ -450,7 +450,7 @@ Token Lexer::getNextToken() {
         case '@':
             return Token(TokenType::AtSym, view_str(AnnotationAtCStr), pos);
         case '#': {
-            AllocatorStrBuilder str('#', allocator);
+            SerialAllocStrBuilder str('#', allocator);
             read_id(str, provider);
             // TODO remove check for binder, as it will never be (should not be) nullptr
             if(binder) {
@@ -481,14 +481,14 @@ Token Lexer::getNextToken() {
         case '/': {
             auto p = provider.peek();
             if (p == '/') {
-                AllocatorStrBuilder str(current, allocator);
+                SerialAllocStrBuilder str(current, allocator);
                 str.append(provider.readCharacter());
                 read_current_line(str, provider);
                 return Token(TokenType::SingleLineComment, str.finalize_view(), pos);
             } else if(p == '*') {
                 other_mode = true;
                 comment_mode = true;
-                AllocatorStrBuilder str(current, allocator);
+                SerialAllocStrBuilder str(current, allocator);
                 str.append(provider.readCharacter());
                 read_multi_line_comment_text(str, provider);
                 return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
@@ -546,12 +546,12 @@ Token Lexer::getNextToken() {
         if(isWhitespace(p)) {
             return Token(TokenType::Number, { allocator.char_to_c_str(current), 1 }, pos);
         } else {
-            AllocatorStrBuilder str(current, allocator);
+            SerialAllocStrBuilder str(current, allocator);
             read_number(str, provider);
             return Token(TokenType::Number, str.finalize_view(), pos);
         }
     } else if(current == '_' || std::isalpha(current)) {
-        AllocatorStrBuilder str(current, allocator);
+        SerialAllocStrBuilder str(current, allocator);
         read_id(str, provider);
         auto view = str.current_view();
         auto found = keywords.find(view);

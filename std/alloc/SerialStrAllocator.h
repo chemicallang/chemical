@@ -5,20 +5,35 @@
 #include "ast/base/BatchAllocator.h"
 #include "std/chem_string_view.h"
 
-class SerialAllocStrBuilder {
+/**
+ * it's supposed to be used in a single threaded context
+ * this supports serial allocations which means one allocation occurs
+ * and then that can only be reallocated or resized and when a new allocation occurs
+ * the previous is finalized and cannot change
+ */
+class SerialStrAllocator {
 public:
 
-    BatchAllocator& allocator;
+    /**
+     * the underlying batch allocator
+     */
+    BatchAllocator allocator;
     char* data;
     std::size_t length;
     std::size_t capacity;
 
-    SerialAllocStrBuilder(
-            char value,
-            BatchAllocator& allocator
-    ) : allocator(allocator), data(allocator.object_heap_pointer(3, 1)), length(1), capacity(3) {
-        *data = value;
-        *(data + 1) = '\0';
+    /**
+     * constructor
+     */
+    SerialStrAllocator(
+            std::size_t heapBatchSize
+    ) : allocator(nullptr, 0, heapBatchSize), data(allocator.object_heap_pointer(3, 1)),
+        length(0), capacity(3) {}
+
+    void init_new() {
+        data = allocator.object_heap_pointer(3, 1);
+        length = 0;
+        capacity = 3;
     }
 
     void adjust_ptr(char*& ptr, const size_t old_size, const size_t new_size) {
@@ -47,11 +62,14 @@ public:
     char* finalize() {
         // length + 1 because length doesn't include the last \0
         adjust_ptr(data, capacity, length + 1);
-        return data;
+        const auto d = data;
+        init_new();
+        return d;
     }
 
     void deallocate() {
         adjust_ptr(data, capacity, 0);
+        init_new();
     }
 
     [[nodiscard]] chem::string_view current_view() const {
@@ -59,7 +77,12 @@ public:
     }
 
     chem::string_view finalize_view() {
-        return { finalize(), length };
+        // length + 1 because length doesn't include the last \0
+        adjust_ptr(data, capacity, length + 1);
+        const auto d = data;
+        const auto l = length;
+        init_new();
+        return { d, l };
     }
 
     void append(char value) {
@@ -70,46 +93,5 @@ public:
         data[(length + 1)] = '\0';
         length = (length + 1);
     }
-
-};
-
-/**
- * it's supposed to be used in a single threaded context
- * this supports serial allocations which means one allocation occurs
- * and then that can only be reallocated or resized and when a new allocation occurs
- * the previous is finalized and cannot change
- */
-class SerialStrAllocator {
-public:
-
-    /**
-     * the underlying batch allocator
-     */
-    BatchAllocator allocator;
-
-    /**
-     * constructor
-     */
-    SerialStrAllocator(std::size_t heapBatchSize) : allocator(nullptr, 0, heapBatchSize) {
-
-    }
-
-    /**
-     * the char will be stored in a c string
-     */
-    char* char_to_c_str(char c) {
-        auto ptr = allocator.object_heap_pointer(sizeof(char) * 2, alignof(char));
-        *ptr = c;
-        *(ptr + 1) = '\0';
-        return ptr;
-    }
-
-    /**
-     * allow implicit type conversion to batch allocator
-     */
-    inline operator BatchAllocator& () {
-        return allocator;
-    }
-
 
 };

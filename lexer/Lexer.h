@@ -72,7 +72,7 @@ public:
     /**
      * the allocator used for strings found in the source code
      */
-    SerialStrAllocator allocator;
+    SerialStrAllocator str;
 
     /**
      * the path to the file we are lexing

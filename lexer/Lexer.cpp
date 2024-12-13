@@ -151,7 +151,7 @@ Lexer::Lexer(
         std::string file_path,
         SourceProvider &provider,
         CompilerBinder* binder
-) : file_path(std::move(file_path)), provider(provider), binder(binder), allocator(3000), user_lexer(nullptr) {
+) : file_path(std::move(file_path)), provider(provider), binder(binder), str(3000), user_lexer(nullptr) {
 
 }
 
@@ -160,7 +160,7 @@ bool isWhitespace(char p) {
 }
 
 // read digits into the string
-void read_digits(SerialAllocStrBuilder& str, SourceProvider& provider) {
+void read_digits(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto next = provider.peek();
         if(std::isdigit(next)) {
@@ -172,7 +172,7 @@ void read_digits(SerialAllocStrBuilder& str, SourceProvider& provider) {
 }
 
 // assumes that a digit exists at current location
-bool read_floating_digits(SerialAllocStrBuilder& str, SourceProvider& provider) {
+bool read_floating_digits(SerialStrAllocator& str, SourceProvider& provider) {
     read_digits(str, provider);
     if(provider.increment('.')) {
         str.append('.');
@@ -184,7 +184,7 @@ bool read_floating_digits(SerialAllocStrBuilder& str, SourceProvider& provider) 
 }
 
 // reads  numbers with suffixes 123i8, 124ui16 123u32
-void read_number(SerialAllocStrBuilder& str, SourceProvider& provider) {
+void read_number(SerialStrAllocator& str, SourceProvider& provider) {
     if(read_floating_digits(str, provider)) {
         auto next = provider.peek();
         if(next == 'f') {
@@ -221,7 +221,7 @@ void read_number(SerialAllocStrBuilder& str, SourceProvider& provider) {
     }
 }
 
-void read_current_line(SerialAllocStrBuilder& str, SourceProvider& provider) {
+void read_current_line(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p != '\n' && p != '\r') {
@@ -232,7 +232,7 @@ void read_current_line(SerialAllocStrBuilder& str, SourceProvider& provider) {
     }
 }
 
-void read_multi_line_comment_text(SerialAllocStrBuilder& str, SourceProvider& provider) {
+void read_multi_line_comment_text(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p == '\n' || p == '\r' || p == '*') {
@@ -243,7 +243,7 @@ void read_multi_line_comment_text(SerialAllocStrBuilder& str, SourceProvider& pr
     }
 }
 
-void read_id(SerialAllocStrBuilder& str, SourceProvider& provider) {
+void read_id(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p == '_' || std::isalnum(p)) {
@@ -256,7 +256,7 @@ void read_id(SerialAllocStrBuilder& str, SourceProvider& provider) {
 
 // text that occurs inside chemical string, inside double quotes
 // we stop at any backslash or double quote
-void read_str_text(SerialAllocStrBuilder& str, SourceProvider& provider) {
+void read_str_text(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p != '\\' && p != '"' && p != '\n' && p != '\r') {
@@ -278,8 +278,8 @@ Token win_new_line(SourceProvider& provider, const Position& pos) {
 
 // reads the character and escapes it, if 'n' is at current position, we can say backslash n escape seq
 // if character is not a valid escape sequence unexpected token is returned
-Token read_escape_seq_in_str(SerialStrAllocator& allocator, SourceProvider& provider, const Position& pos) {
-    SerialAllocStrBuilder builder('\\', allocator);
+Token read_escape_seq_in_str(SerialStrAllocator& builder, SourceProvider& provider, const Position& pos) {
+    builder.append('\\');
     while(true) {
         switch(provider.peek()) {
             case -1:
@@ -306,8 +306,8 @@ Token read_escape_seq_in_str(SerialStrAllocator& allocator, SourceProvider& prov
     return Token(TokenType::EscapeSeq, builder.finalize_view(), pos);
 }
 
-Token read_escape_seq_in_char(SerialStrAllocator& allocator, SourceProvider& provider, const Position& pos) {
-    SerialAllocStrBuilder builder('\\', allocator);
+Token read_escape_seq_in_char(SerialStrAllocator& builder, SourceProvider& provider, const Position& pos) {
+    builder.append('\\');
     while(true) {
         switch(provider.peek()) {
             case -1:
@@ -335,18 +335,19 @@ Token Lexer::getNextToken() {
     if(other_mode) {
         if(char_mode) {
             if(current == '\\') {
-                return read_escape_seq_in_char(allocator, provider, pos);
+                return read_escape_seq_in_char(str, provider, pos);
             } else if(current == '\'') {
                 char_mode = false;
                 other_mode = false;
                 return Token(TokenType::SingleQuoteSym, view_str(SingleQuotesOpCStr), pos);
             } else {
-                return Token(TokenType::Char, { allocator.char_to_c_str(current), 1 }, pos);
+                str.append(current);
+                return Token(TokenType::Char, str.finalize_view(), pos);
             }
         } else if(string_mode) {
             switch(current) {
                 case '\\':
-                    return read_escape_seq_in_str(allocator, provider, pos);
+                    return read_escape_seq_in_str(str, provider, pos);
                 case '"': {
                     string_mode = false;
                     other_mode = false;
@@ -357,7 +358,7 @@ Token Lexer::getNextToken() {
                 case '\r':
                     return win_new_line(provider, pos);
                 default:
-                    SerialAllocStrBuilder str(current, allocator);
+                    str.append(current);
                     read_str_text(str, provider);
                     return Token(TokenType::String, str.finalize_view(), pos);
             }
@@ -380,7 +381,7 @@ Token Lexer::getNextToken() {
                 default:
                     break;
             }
-            SerialAllocStrBuilder str(current, allocator);
+            str.append(current);
             read_multi_line_comment_text(str, provider);
             return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
         } else if(user_mode) {
@@ -450,7 +451,7 @@ Token Lexer::getNextToken() {
         case '@':
             return Token(TokenType::AtSym, view_str(AnnotationAtCStr), pos);
         case '#': {
-            SerialAllocStrBuilder str('#', allocator);
+            str.append('#');
             read_id(str, provider);
             // TODO remove check for binder, as it will never be (should not be) nullptr
             if(binder) {
@@ -481,14 +482,14 @@ Token Lexer::getNextToken() {
         case '/': {
             auto p = provider.peek();
             if (p == '/') {
-                SerialAllocStrBuilder str(current, allocator);
+                str.append(current);
                 str.append(provider.readCharacter());
                 read_current_line(str, provider);
                 return Token(TokenType::SingleLineComment, str.finalize_view(), pos);
             } else if(p == '*') {
                 other_mode = true;
                 comment_mode = true;
-                SerialAllocStrBuilder str(current, allocator);
+                str.append(current);
                 str.append(provider.readCharacter());
                 read_multi_line_comment_text(str, provider);
                 return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
@@ -544,14 +545,15 @@ Token Lexer::getNextToken() {
     if(std::isdigit(current)) {
         auto p = provider.peek();
         if(isWhitespace(p)) {
-            return Token(TokenType::Number, { allocator.char_to_c_str(current), 1 }, pos);
+            str.append(current);
+            return Token(TokenType::Number, str.finalize_view(), pos);
         } else {
-            SerialAllocStrBuilder str(current, allocator);
+            str.append(current);
             read_number(str, provider);
             return Token(TokenType::Number, str.finalize_view(), pos);
         }
     } else if(current == '_' || std::isalpha(current)) {
-        SerialAllocStrBuilder str(current, allocator);
+        str.append(current);
         read_id(str, provider);
         auto view = str.current_view();
         auto found = keywords.find(view);
@@ -601,5 +603,5 @@ void Lexer::getUnit(LexUnit& unit) {
         }
     }
 exit_loop:
-    unit.allocator = std::move(allocator);
+    unit.allocator = std::move(str);
 }

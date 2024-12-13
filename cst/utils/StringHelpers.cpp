@@ -48,6 +48,21 @@ std::pair<char, int> escapable_char(const std::string_view &value, unsigned inde
     return { current, -1 };
 }
 
+std::pair<char, int> escapable_char(const chem::string_view &value, unsigned index) {
+    char current = value[index];
+    if(current != 'x') {
+        auto next = escaped_char(current);
+        if(next != current || next == '\\') {
+            return {next, index + 1 };
+        } else {
+            return {current, -1 };
+        }
+    } else if (index + 2 < value.size() && value[index + 1] == '1' && value[index + 2] == 'b') {
+        return { '\x1b', index + 3 };
+    }
+    return { current, -1 };
+}
+
 char escapable_char(SourceProvider& provider, char current) {
     if(current == 'x') {
         if(provider.increment('1') && provider.increment('b')) {

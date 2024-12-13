@@ -21,7 +21,7 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
         if(lexWhitespaceToken() && consumeWSOfType(TokenType::AsKw)) {
             auto id = consumeIdentifierOrKeyword();
             if(id) {
-                stmt->as_identifier = id->value;
+                stmt->as_identifier = id->value.str();
             } else {
                 error("expected identifier after 'as' in import statement");
                 return stmt;

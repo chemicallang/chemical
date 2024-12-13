@@ -51,7 +51,7 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
             bool lexed_amp = consumeOfType(TokenType::AmpersandSym);
             auto id = consumeIdentifierOrKeyword();
             if(id) {
-                auto variable = new (allocator.allocate<CapturedVariable>()) CapturedVariable(std::string(id->value), index, lexed_amp, loc_single(id));
+                auto variable = new (allocator.allocate<CapturedVariable>()) CapturedVariable(id->value.str(), index, lexed_amp, loc_single(id));
                 variable->lambda = lambda;
                 lambda->captureList.emplace_back(variable);
             } else {

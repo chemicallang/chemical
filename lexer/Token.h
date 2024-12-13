@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #pragma once
+#include "std/chem_string_view.h"
 
 #include <string_view>
 #include "TokenType.h"
@@ -19,7 +20,7 @@ struct Token {
     /**
      * the value is the string in the token
      */
-    std::string_view value;
+    chem::string_view value;
 
     /**
      * the location is where the token is

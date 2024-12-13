@@ -939,12 +939,12 @@ void CSTConverter::visitTypealias(CSTToken* alias) {
 }
 
 void CSTConverter::visitTypeToken(CSTToken* token) {
-    auto primitive = TypeMakers::PrimitiveMap.find(token->value());
-    if (primitive == TypeMakers::PrimitiveMap.end()) {
-        put_type(new (local<LinkedType>()) LinkedType(token->value(), loc(token)), token);
-    } else {
-        put_type(primitive->second(*local_allocator, is64Bit, loc(token)), token);
-    }
+//    auto primitive = TypeMakers::PrimitiveMap.find(token->value());
+//    if (primitive == TypeMakers::PrimitiveMap.end()) {
+//        put_type(new (local<LinkedType>()) LinkedType(token->value(), loc(token)), token);
+//    } else {
+//        put_type(primitive->second(*local_allocator, is64Bit, loc(token)), token);
+//    }
 }
 
 void CSTConverter::visitLinkedValueType(CSTToken* ref_value) {

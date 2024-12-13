@@ -8,7 +8,7 @@
 #include "parser/model/CompilerBinder.h"
 #include "parser/Parser.h"
 
-const std::unordered_map<std::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
+const std::unordered_map<chem::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
         { "inline:", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::Inline); } },
         { "inline:always", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::AlwaysInline); } },
         { "noinline", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::NoInline); } },
@@ -37,13 +37,13 @@ const std::unordered_map<std::string_view, const AnnotationModifierFunc> Annotat
         { "move", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Move); }},
 };
 
-bool find_annot(Parser* parser, std::string_view& view) {
+bool find_annot(Parser* parser, chem::string_view& view) {
     auto found = AnnotationModifierFunctions.find(view);
     if(found != AnnotationModifierFunctions.end()) {
         parser->annotations.emplace_back(found->second);
         return true;
     } else {
-        parser->error("unknown annotation found @'" + std::string(view) + "'");
+        parser->error("unknown annotation found @'" + view.str() + "'");
         return true;
     }
 }
@@ -58,7 +58,7 @@ bool Parser::parseAnnotation(ASTAllocator& allocator) {
         auto next_token_type = token->type;
         if(next_token_type == TokenType::DotSym || next_token_type == TokenType::ColonSym || next_token_type == TokenType::DoubleColonSym) {
             std::string value;
-            value.append(tok->value);
+            value.append(tok->value.view());
             while(true) {
                 auto& cur_tok = *token;
                 auto tok_type = cur_tok.type;
@@ -74,7 +74,7 @@ bool Parser::parseAnnotation(ASTAllocator& allocator) {
                         break;
                     default:
                         if(Token::isKeyword(tok_type) || tok_type == TokenType::Identifier) {
-                            value.append(cur_tok.value);
+                            value.append(cur_tok.value.view());
                         } else {
                             goto end_loop;
                         }
@@ -84,7 +84,7 @@ bool Parser::parseAnnotation(ASTAllocator& allocator) {
                 end_loop:
                     break;
             }
-            auto view = std::string_view(value);
+            auto view = chem::string_view(value.data(), value.size());
             return find_annot(this, view);
         } else {
             return find_annot(this, tok->value);

@@ -33,8 +33,8 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
             lexWhitespaceAndNewLines();
             auto memberId = consumeIdentifierOrKeyword();
             if(memberId) {
-                auto member = new (allocator.allocate<EnumMember>()) EnumMember(std::string(memberId->value), index, nullptr, decl, loc_single(memberId));
-                decl->members[std::string(memberId->value)] = member;
+                auto member = new (allocator.allocate<EnumMember>()) EnumMember(memberId->value.str(), index, nullptr, decl, loc_single(memberId));
+                decl->members[memberId->value.str()] = member;
                 lexWhitespaceToken();
                 if(consumeToken(TokenType::EqualSym)) {
                     lexWhitespaceToken();

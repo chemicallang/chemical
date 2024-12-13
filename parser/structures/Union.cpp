@@ -43,7 +43,7 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
         if(lexWhitespaceToken()) {
             auto id = consumeIdentifierOrKeyword();
             if(id) {
-                decl->name = id->value;
+                decl->name = id->value.str();
             } else {
                 error("expected an identifier after the '}' for anonymous union definition");
                 return decl;

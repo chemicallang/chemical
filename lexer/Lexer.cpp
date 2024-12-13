@@ -54,11 +54,11 @@ const auto NewlineCStr = "\n";
 const auto NewlineRCStr = "\r";
 const auto NewlineWinCStr = "\r\n";
 
-constexpr std::string_view view_str(const char* c_str) {
+constexpr chem::string_view view_str(const char* c_str) {
     return { c_str };
 }
 
-const std::unordered_map<std::string_view, TokenType> keywords = {
+const std::unordered_map<chem::string_view, TokenType> keywords = {
         {
 
                 // Local Level Statements

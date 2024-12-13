@@ -5,6 +5,7 @@
 #include "CBIData.h"
 #include "compiler/cbi/Model.h"
 #include <unordered_map>
+#include "std/chem_string_view.h"
 
 class ASTProcessor;
 
@@ -65,13 +66,13 @@ public:
     /**
      * all the initializer functions are indexed in the single unordered map
      */
-    std::unordered_map<std::string_view, UserLexerInitializeFn> initializeLexerFunctions;
+    std::unordered_map<chem::string_view, UserLexerInitializeFn> initializeLexerFunctions;
 
     /**
      * parseMacroValue functions are called by the parser to provide a value for a given macro
      * when parsing
      */
-    std::unordered_map<std::string_view, UserParserParseMacroValueFn> parseMacroValueFunctions;
+    std::unordered_map<chem::string_view, UserParserParseMacroValueFn> parseMacroValueFunctions;
 
     /**
      * contains a map between cbi_name and module data

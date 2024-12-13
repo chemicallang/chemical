@@ -74,9 +74,9 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
         case TokenType::RBrace:
         case TokenType::RBracket:
         case TokenType::CommaSym:
-            return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(id->value), loc_single(id));;
+            return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(id->value.str(), loc_single(id));;
         case TokenType::LBrace: {
-            auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(std::string(id->value), loc_single(id));
+            auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(id->value.str(), loc_single(id));
             return parseStructValue(allocator, ref_type, id->position);
         }
         case TokenType::Whitespace: {
@@ -84,7 +84,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
             auto tokenType2 = token->type;
             if(tokenType2 == TokenType::LBrace) {
                 // StructName {
-                auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(std::string(id->value), loc_single(id));
+                auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(id->value.str(), loc_single(id));
                 return parseStructValue(allocator, ref_type, id->position);
             } else {
                 break;
@@ -95,7 +95,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
     }
 
     auto chain = new (allocator.allocate<AccessChain>()) AccessChain({}, parent_node, false, loc_single(id));
-    auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(id->value), loc_single(id));
+    auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(id->value.str(), loc_single(id));
     chain->values.emplace_back(identifier);
 
     return parseAccessChainAfterId(allocator, chain, id->position, parseStruct);

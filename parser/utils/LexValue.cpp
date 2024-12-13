@@ -80,7 +80,7 @@ Value* Parser::parseStringValue(ASTAllocator& allocator) {
             const auto current = token;
             switch(current->type) {
                 case TokenType::String:
-                    value->value.append(current->value);
+                    value->value.append(current->value.view());
                     token++;
                     break;
                 case TokenType::NewLine:
@@ -164,7 +164,7 @@ Value* Parser::parseNumberValue(ASTAllocator& allocator) {
 VariableIdentifier* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
     auto id = consumeIdentifierOrKeyword();
     if(id) {
-        return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(std::string(id->value), loc_single(id));
+        return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(id->value.str(), loc_single(id));
     } else {
         return nullptr;
     }

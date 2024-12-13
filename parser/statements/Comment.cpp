@@ -10,7 +10,7 @@
 Comment* Parser::parseSingleLineComment(ASTAllocator& allocator) {
     if(token->type == TokenType::SingleLineComment) {
         token++;
-        return new (allocator.allocate<Comment>()) Comment(std::string(token->value), false, parent_node, loc_single(token));
+        return new (allocator.allocate<Comment>()) Comment(token->value.str(), false, parent_node, loc_single(token));
     } else {
         return nullptr;
     }
@@ -23,7 +23,7 @@ Comment* Parser::parseMultiLineComment(ASTAllocator& allocator) {
         Token* last_token = token;
         std::string value;
         while(token->type == TokenType::MultiLineComment) {
-            value.append(token->value);
+            value.append(token->value.view());
             last_token = token;
             token++;
         }

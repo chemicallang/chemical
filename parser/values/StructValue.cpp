@@ -5,7 +5,7 @@
 #include "ast/base/MalformedInput.h"
 
 StructMemberInitializer* initializer(ASTAllocator& allocator, StructValue* struct_value, Token* id, Value* value) {
-    return new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(std::string(id->value), value, struct_value);
+    return new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(id->value.str(), value, struct_value);
 }
 
 StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType, Position& start) {
@@ -21,19 +21,19 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
             if(id) {
                 readWhitespace();
                 if(!consumeToken(TokenType::ColonSym)) {
-                    error("expected a ':' for initializing struct member " + std::string(id->value));
+                    error("expected a ':' for initializing struct member " + id->value.str());
                     return structValue;
                 }
                 readWhitespace();
                 auto expression = parseExpression(allocator, true);
                 if(expression) {
-                    structValue->values[std::string(id->value)] = initializer(allocator, structValue, id, expression);
+                    structValue->values[id->value.str()] = initializer(allocator, structValue, id, expression);
                 } else {
                     auto arrayInit = parseArrayInit(allocator);
                     if(arrayInit) {
-                        structValue->values[std::string(id->value)] = initializer(allocator, structValue, id, arrayInit);
+                        structValue->values[id->value.str()] = initializer(allocator, structValue, id, arrayInit);
                     } else {
-                        error("expected an expression after ':' for struct member " + std::string(id->value));
+                        error("expected an expression after ':' for struct member " + id->value.str());
                         return structValue;
                     }
                 }

@@ -174,28 +174,28 @@ bool empty_diags(ASTFileResultNew& result) {
 }
 
 void print_results(ASTFileResultExt& result, const std::string& abs_path, bool benchmark) {
-    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Parser");
-    CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Converter");
+    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
+    CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Parser");
     if(benchmark) {
         if(result.lex_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Parser", result.lex_benchmark.get());
+            ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
         }
         if(result.parse_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Converter", result.parse_benchmark.get());
+            ASTProcessor::print_benchmarks(std::cout, "Parser", result.parse_benchmark.get());
         }
     }
     std::cout << std::flush;
 }
 
 void print_results(ASTFileResultNew& result, const std::string& abs_path, bool benchmark) {
-    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Parser");
-    CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Converter");
+    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
+    CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Parser");
     if(benchmark) {
         if(result.lex_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Parser", result.lex_benchmark.get());
+            ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
         }
         if(result.parse_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Converter", result.parse_benchmark.get());
+            ASTProcessor::print_benchmarks(std::cout, "Parser", result.parse_benchmark.get());
         }
     }
     std::cout << std::flush;

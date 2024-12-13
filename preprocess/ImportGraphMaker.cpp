@@ -100,8 +100,7 @@ std::vector<IGFile> ImportGraphImporter::process(const std::string &path, const 
         );
         return {};
     }
-    SourceProvider provider(&source);
-    Lexer lexer(path, provider, nullptr);
+    Lexer lexer(path, &source, nullptr);
     LexUnit unit;
     lexer.getUnit(unit);
     parser->file_id = parser->loc_man.encodeFile(path);

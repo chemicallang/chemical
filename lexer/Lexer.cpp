@@ -155,10 +155,6 @@ Lexer::Lexer(
 
 }
 
-bool isWhitespace(char p) {
-    return p == ' ' || p == '\t' || p == '\n' || p == '\r';
-}
-
 // read digits into the string
 void read_digits(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
@@ -543,15 +539,9 @@ Token Lexer::getNextToken() {
             break;
     }
     if(std::isdigit(current)) {
-        auto p = provider.peek();
-        if(isWhitespace(p)) {
-            str.append(current);
-            return Token(TokenType::Number, str.finalize_view(), pos);
-        } else {
-            str.append(current);
-            read_number(str, provider);
-            return Token(TokenType::Number, str.finalize_view(), pos);
-        }
+        str.append(current);
+        read_number(str, provider);
+        return Token(TokenType::Number, str.finalize_view(), pos);
     } else if(current == '_' || std::isalpha(current)) {
         str.append(current);
         read_id(str, provider);

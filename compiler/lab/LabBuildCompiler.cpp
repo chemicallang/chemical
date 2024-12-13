@@ -165,26 +165,8 @@ void import_in_module(std::vector<ASTNode*>& nodes, SymbolResolver& resolver, co
     resolver.diagnostics.clear();
 }
 
-bool empty_diags(ASTFileResultExt& result) {
-    return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
-}
-
 bool empty_diags(ASTFileResultNew& result) {
     return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
-}
-
-void print_results(ASTFileResultExt& result, const std::string& abs_path, bool benchmark) {
-    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
-    CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Parser");
-    if(benchmark) {
-        if(result.lex_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
-        }
-        if(result.parse_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Parser", result.parse_benchmark.get());
-        }
-    }
-    std::cout << std::flush;
 }
 
 void print_results(ASTFileResultNew& result, const std::string& abs_path, bool benchmark) {

@@ -20,16 +20,6 @@ void SourceProvider::bufferFill(size_t size) {
     bufferPos = 0;
 }
 
-bool SourceProvider::bufferStretch(uint16_t read_size) {
-    const auto curr_size = buffer.size();
-    buffer.resize(curr_size + read_size);
-    auto bytesRead = stream->read(buffer.data() + curr_size, read_size);
-    if(bytesRead < read_size) {
-        buffer.resize(curr_size + bytesRead);
-    }
-    return bytesRead > 0;
-}
-
 char SourceProvider::readCharacter() {
     if (bufferPos >= buffer.size()) {
         bufferFill();
@@ -70,14 +60,6 @@ char SourceProvider::peek() {
     return buffer[bufferPos];
 }
 
-char SourceProvider::peek(unsigned int ahead) {
-    const size_t targetPos = bufferPos + ahead;
-    if (targetPos >= buffer.size()) {
-        bufferStretch();
-    }
-    return buffer[targetPos];
-}
-
 void SourceProvider::readUntil(chem::string* into, char stop) {
     char currChar;
     while (true) {
@@ -110,22 +92,6 @@ bool SourceProvider::increment(char c) {
     return false;
 }
 
-bool SourceProvider::increment_spaced(char c) {
-    if(peek() == c && (peek(1) == ' ' || peek(1) == '\t')) {
-        readCharacter();
-        return true;
-    }
-    return false;
-}
-
-bool SourceProvider::increment_spaced(const std::string_view& text) {
-    if(increment(text, true) && (peek(text.size()) == ' ' || peek(text.size()) == '\t')) {
-        increment_amount(text.size());
-        return true;
-    }
-    return false;
-}
-
 std::string SourceProvider::readAllFromHere() {
     std::string source;
     while (!eof()) {
@@ -138,30 +104,6 @@ void SourceProvider::printAll() {
     while (!eof()) {
         std::cout << readCharacter();
     }
-}
-
-bool SourceProvider::increment(const std::string_view& text, bool peek) {
-    if(bufferPos >= buffer.size()) {
-        bufferFill();
-        if(buffer.empty()) {
-            return false;
-        }
-    }
-    unsigned int pos = bufferPos;
-    for (char c : text) {
-        if (pos >= buffer.size()) {
-            if (!bufferStretch()) {
-                return false;
-            }
-        }
-        if (buffer[pos++] != c) {
-            return false;
-        }
-    }
-    if (!peek) {
-        increment_amount(text.size());
-    }
-    return true;
 }
 
 void SourceProvider::increment_amount(unsigned amount) {
@@ -249,17 +191,6 @@ void SourceProvider::readAnything(std::string& str, char until) {
     while (!eof() && peek() != until) {
         str.append(1, readCharacter());
     }
-}
-
-std::string SourceProvider::readUntil(const std::string_view& ending, bool consume) {
-    std::string content;
-    while (!eof() && peek() != -1) {
-        if (peek() == ending[0] && increment(ending, !consume)) {
-            break;
-        }
-        content += readCharacter();
-    }
-    return content;
 }
 
 void SourceProvider::readUnsignedInt(chem::string* str) {

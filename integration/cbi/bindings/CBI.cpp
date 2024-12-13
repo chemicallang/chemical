@@ -64,7 +64,6 @@ void source_provider_symbol_map(std::unordered_map<std::string_view, void*>& sym
         { "SourceProvidereof", (void*) SourceProvidereof },
         { "SourceProviderpeek", (void*) SourceProviderpeek },
         { "SourceProviderreadUntil", (void*) SourceProviderreadUntil },
-        { "SourceProviderincrement", (void*) SourceProviderincrement },
         { "SourceProviderincrement_char", (void*) SourceProviderincrement_char },
         { "SourceProvidergetLineNumber", (void*) SourceProvidergetLineNumber },
         { "SourceProvidergetLineCharNumber", (void*) SourceProvidergetLineCharNumber },

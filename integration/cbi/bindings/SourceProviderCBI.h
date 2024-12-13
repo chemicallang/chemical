@@ -16,8 +16,6 @@ extern "C" {
 
     void SourceProviderreadUntil(SourceProvider* provider, chem::string* into, char stop);
 
-    bool SourceProviderincrement(SourceProvider* provider, chem::string* text, bool peek);
-
     bool SourceProviderincrement_char(SourceProvider* provider, char c);
 
     unsigned int SourceProvidergetLineNumber(SourceProvider* provider);

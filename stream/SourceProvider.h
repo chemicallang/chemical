@@ -57,18 +57,6 @@ public:
     }
 
     /**
-     * stretch the buffer to fit more, when required, returns true if stretches otherwise false
-     */
-    bool bufferStretch(uint16_t amount);
-
-    /**
-     * stretch the buffer, returns true if stretches otherwise false
-     */
-    bool bufferStretch() {
-        return bufferStretch(100);
-    }
-
-    /**
      * handles the character read from the stream
      * changes line number and character number based on the character
      */
@@ -124,11 +112,6 @@ public:
     }
 
     /**
-     * peaks the character at current pos + ahead
-     */
-    char peek(unsigned int ahead);
-
-    /**
      * reads the stream until this (stop) character occurs
      * @param stop the stopping character
      * @return everything read until stop character, it doesn't include the stopping character
@@ -153,31 +136,11 @@ public:
     }
 
     /**
-     * if text is present at current pos in the stream, increments the stream with text.length()
-     * @param text to increment
-     * @param peek peeks only, doesn't increment
-     * @return true if incremented by text length otherwise false
-     */
-    bool increment(const std::string_view& text, bool peek = false);
-
-    /**
      * if char c is present at current pos, increments the stream with character
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
      */
     bool increment(char c);
-
-    /**
-     * will also expect a whitespace after the character
-     * whitespace is not consumed
-     */
-    bool increment_spaced(char c);
-
-    /**
-     * will also expect a whitespace after the text
-     * whitespace is not consumed
-     */
-    bool increment_spaced(const std::string_view& text);
 
     /**
      * increment by given amount
@@ -223,13 +186,6 @@ public:
      * reset the buffer and switch to the given source
      */
     void switch_source(InputSource* source);
-
-    /**
-     * reads until the given ending appears into a string and returns it
-     * @param consume, should it also consume the ending text
-     */
-    [[nodiscard]]
-    std::string readUntil(const std::string_view& ending, bool consume = true);
 
     /**
      * will read everything to the given string

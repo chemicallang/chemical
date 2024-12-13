@@ -19,10 +19,6 @@ void SourceProviderreadUntil(SourceProvider* provider, chem::string* into, char 
     return provider->readUntil(into, stop);
 }
 
-bool SourceProviderincrement(SourceProvider* provider, chem::string* text, bool peek)  {
-    return provider->increment({ text->data(), text->size() }, peek);
-}
-
 bool SourceProviderincrement_char(SourceProvider* provider, char c)  {
     return provider->increment(c);
 }

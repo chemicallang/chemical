@@ -5,7 +5,7 @@
 #include "stream/SourceProvider.h"
 #include "Token.h"
 #include "LexUnit.h"
-#include "MultiStrAllocator.h"
+#include "std/alloc/SerialStrAllocator.h"
 #include "compiler/cbi/Model.h"
 
 class CompilerBinder;
@@ -72,7 +72,7 @@ public:
     /**
      * the allocator used for strings found in the source code
      */
-    MultiStrAllocator allocator;
+    SerialStrAllocator allocator;
 
     /**
      * the path to the file we are lexing

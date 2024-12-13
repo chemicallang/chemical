@@ -5,7 +5,7 @@
 #include "ast/base/BatchAllocator.h"
 #include "std/chem_string_view.h"
 
-class AllocatorStrBuilder {
+class SerialAllocStrBuilder {
 public:
 
     BatchAllocator& allocator;
@@ -13,7 +13,7 @@ public:
     std::size_t length;
     std::size_t capacity;
 
-    AllocatorStrBuilder(
+    SerialAllocStrBuilder(
             char value,
             BatchAllocator& allocator
     ) : allocator(allocator), data(allocator.object_heap_pointer(3, 1)), length(1), capacity(3) {
@@ -79,18 +79,14 @@ public:
  * and then that can only be reallocated or resized and when a new allocation occurs
  * the previous is finalized and cannot change
  */
-class MultiStrAllocator : public BatchAllocator {
+class SerialStrAllocator : public BatchAllocator {
 public:
 
     /**
      * constructor
      */
-    MultiStrAllocator(std::size_t heapBatchSize) : BatchAllocator(nullptr, 0, heapBatchSize) {
-        if(heapBatchSize > 0) {
-            // reserving a single heap batch size allocation for usage
-            // otherwise first allocation will fail
-            reserve_heap_storage();
-        }
+    SerialStrAllocator(std::size_t heapBatchSize) : BatchAllocator(nullptr, 0, heapBatchSize) {
+
     }
 
     /**
@@ -100,17 +96,6 @@ public:
         auto ptr = object_heap_pointer(sizeof(char) * 2, alignof(char));
         *ptr = c;
         *(ptr + 1) = '\0';
-        return ptr;
-    }
-
-    /**
-     * convert two characters to a c string
-     */
-    char* two_chars_to_c_str(char c1, char c2) {
-        auto ptr = object_heap_pointer(sizeof(char) * 3, alignof(char));
-        *ptr = c1;
-        *(ptr + 1) = c2;
-        *(ptr + 2) = '\0';
         return ptr;
     }
 

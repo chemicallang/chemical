@@ -10,6 +10,11 @@ BatchAllocator::BatchAllocator(
 ) : stack_memory(stackMemory), stack_memory_size(stackSize), stack_offset(0),
     heap_offset(heapBatchSize), heap_batch_size(heapBatchSize)
 {
+    if((stack_memory == nullptr || stackSize == 0) && heapBatchSize > 0) {
+        // reserving a single heap batch size allocation for usage
+        // otherwise first allocation will fail
+        reserve_heap_storage();
+    }
     allocator_mutex = new std::mutex;
 }
 

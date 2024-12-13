@@ -12,7 +12,6 @@ struct StreamPosition {
     off_t pos;
     unsigned int line;
     unsigned int character;
-    size_t bufferSize;
     size_t bufferPos;  // Position within the buffer
 
 //    [[nodiscard]]

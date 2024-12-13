@@ -18,6 +18,11 @@ class SourceProvider {
 public:
 
     /**
+     * the capacity of the buffer
+     */
+    constexpr static size_t BUFFER_CAPACITY = 1024;
+
+    /**
      * this counts lines, zero-based
      * On every character read, the provider checks if the line has ended and increments
      */
@@ -30,9 +35,17 @@ public:
     unsigned int lineCharacterNumber = 0;
 
     /**
-     * buffered input is used
+     * the buffer is where we load characters from the input source
+     * gradually in small blocks
      */
-    std::vector<char> buffer;
+    char buffer[BUFFER_CAPACITY];
+
+    /**
+     * the buffer size is the characters we read into the buffer
+     * from the input source, input source may have less characters than
+     * capacity, this will always be less than capacity
+     */
+    size_t bufferSize = 0;
 
     /**
      * buffer position
@@ -40,21 +53,9 @@ public:
     size_t bufferPos = 0;
 
     /**
-     * buffer size
-     */
-    size_t bufferSize = 1024;
-
-    /**
      * fills the buffer
      */
-    void bufferFill(size_t size);
-
-    /**
-     * fills the buffer
-     */
-    inline void bufferFill() {
-        bufferFill(bufferSize);
-    }
+    void bufferFill();
 
     /**
      * handles the character read from the stream

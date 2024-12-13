@@ -79,13 +79,18 @@ public:
  * and then that can only be reallocated or resized and when a new allocation occurs
  * the previous is finalized and cannot change
  */
-class SerialStrAllocator : public BatchAllocator {
+class SerialStrAllocator {
 public:
+
+    /**
+     * the underlying batch allocator
+     */
+    BatchAllocator allocator;
 
     /**
      * constructor
      */
-    SerialStrAllocator(std::size_t heapBatchSize) : BatchAllocator(nullptr, 0, heapBatchSize) {
+    SerialStrAllocator(std::size_t heapBatchSize) : allocator(nullptr, 0, heapBatchSize) {
 
     }
 
@@ -93,10 +98,17 @@ public:
      * the char will be stored in a c string
      */
     char* char_to_c_str(char c) {
-        auto ptr = object_heap_pointer(sizeof(char) * 2, alignof(char));
+        auto ptr = allocator.object_heap_pointer(sizeof(char) * 2, alignof(char));
         *ptr = c;
         *(ptr + 1) = '\0';
         return ptr;
+    }
+
+    /**
+     * allow implicit type conversion to batch allocator
+     */
+    inline operator BatchAllocator& () {
+        return allocator;
     }
 
 

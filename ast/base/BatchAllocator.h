@@ -18,6 +18,7 @@ namespace std {
 class BatchAllocator {
 public:
 
+    friend class SerialStrAllocator;
     friend class SerialAllocStrBuilder;
 
     template<typename T>

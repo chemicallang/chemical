@@ -19,7 +19,7 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 
 void TypealiasStatement::declare_top_level(SymbolResolver &linker) {
     actual_type->link(linker);
-    linker.declare_node(name(), this, specifier, false);
+    linker.declare_node(name_view(), this, specifier, false);
 }
 
 BaseType* TypealiasStatement::create_value_type(ASTAllocator& allocator) {

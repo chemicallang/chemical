@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <string>
+#include "std/chem_string_view.h"
 #include <unordered_map>
 
 class ASTNode;

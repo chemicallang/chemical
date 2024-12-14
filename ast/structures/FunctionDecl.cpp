@@ -1325,7 +1325,7 @@ void FunctionDeclaration::accept(Visitor *visitor) {
 }
 
 void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
-    linker.declare_function(name(), this);
+    linker.declare_function(name_view(), this);
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
@@ -1359,7 +1359,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
         FunctionType::data.signature_resolved = true;
     }
     linker.scope_end();
-    linker.declare_function(name(), this, specifier());
+    linker.declare_function(name_view(), this, specifier());
 }
 
 bool FunctionDeclaration::ensure_has_init_block() {

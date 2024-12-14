@@ -243,7 +243,7 @@ ASTNode* VariantDefinition::child(const std::string &child_name) {
 }
 
 void VariantDefinition::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name(), this, specifier, true);
+    linker.declare_node(name_view(), this, specifier, true);
 }
 
 void VariantDefinition::declare_and_link(SymbolResolver &linker) {

@@ -111,7 +111,7 @@ BaseType* UnionDef::known_type() {
 }
 
 void UnionDef::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name(), this, specifier, true);
+    linker.declare_node(name_view(), this, specifier, true);
 }
 
 void UnionDef::declare_and_link(SymbolResolver &linker) {

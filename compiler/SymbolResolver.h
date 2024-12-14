@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "std/chem_string_view.h"
 #include "ASTDiagnoser.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/ASTAllocator.h"
@@ -67,7 +68,7 @@ struct SymResScope {
      * that's because strings are stored inside AST, which is not disposed
      * until symbol resolution is completed
      */
-    std::unordered_map<std::string_view, ASTNode*> symbols;
+    std::unordered_map<chem::string_view, ASTNode*> symbols;
 
 };
 
@@ -97,21 +98,21 @@ private:
      * declares a node with string : name
      * DO NOT USE THIS FUNCTION TO DECLARE SYMBOLS
      */
-    void declare_quietly(const std::string &name, ASTNode *node);
+    void declare_quietly(const chem::string_view &name, ASTNode *node);
 
     /**
      * will try to override this function, notice the '&' in the previous pointer
      * if successfully overridden, it will modify the previous location inside the symbol table
      * to be this declaration and return true
      */
-    bool overload_function(const std::string& name, ASTNode*& previous, FunctionDeclaration* declaration);
+    bool overload_function(const chem::string_view& name, ASTNode*& previous, FunctionDeclaration* declaration);
 
     /**
      * helper method that should be used to declare functions that takes into account
      * multiple methods with same names
      * @return true if a new symbol was declared
      */
-    bool declare_function_quietly(const std::string& name, FunctionDeclaration* declaration);
+    bool declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration);
 
 public:
 
@@ -189,12 +190,19 @@ public:
     /**
      * find a symbol only in current file
      */
-    ASTNode *find_in_current_file(const std::string& name);
+    ASTNode *find_in_current_file(const chem::string_view& name);
 
     /**
      * find a symbol on current symbol map
      */
-    ASTNode *find(const std::string& name);
+    ASTNode *find(const chem::string_view& name);
+
+    /**
+     * find a symbol on current symbol map
+     */
+    ASTNode* find(std::string& name) {
+        return find(chem::string_view(name.data(), name.size()));
+    }
 
     /**
      * is the codegen for arch 64bit
@@ -252,14 +260,14 @@ public:
      * for example using namespace some; this will always be disposed unless propagate annotation exists
      * above it
      */
-    std::vector<std::pair<SymResScope*, std::string_view>> dispose_file_symbols;
+    std::vector<std::pair<SymResScope*, chem::string_view>> dispose_file_symbols;
 
     /**
      * stores symbols that will be disposed after this module has been completely symbol resolved
      * for example symbols that are internal in module are stored on this vector for disposing
      * at the end of module, struct without a public keyword (internal by default)
      */
-    std::vector<std::pair<SymResScope*, std::string_view>> dispose_module_symbols;
+    std::vector<std::pair<SymResScope*, chem::string_view>> dispose_module_symbols;
 
     /**
      * constructor
@@ -282,103 +290,133 @@ public:
     /**
      * duplicate symbol error
      */
-    void dup_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node);
+    void dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node);
+
+    /**
+     * duplicate symbol error
+     */
+    inline void dup_sym_error(std::string& name, ASTNode* previous, ASTNode* new_node) {
+        dup_sym_error(chem::string_view(name.data(), name.size()), previous, new_node);
+    }
 
     /**
      * duplicate runtime symbol error
      */
-    void dup_runtime_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node);
+    void dup_runtime_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node);
 
     /**
      * declare a symbol that will disposed at the end of this module
      */
-    void declare(const std::string &name, ASTNode *node);
+    void declare(const chem::string_view &name, ASTNode *node);
+
+    /**
+     * declare name for which you own a string name
+     */
+    inline void declare(std::string& name, ASTNode* node) {
+        declare(chem::string_view(name.data(), name.size()), node);
+    }
 
     /**
      * declare a symbol that will be disposed at the end of this file instead of module
      */
-    void declare_file_disposable(const std::string &name, ASTNode *node);
+    void declare_file_disposable(const chem::string_view &name, ASTNode *node);
+
+    /**
+     * declare a symbol that will be disposed at the end of this file instead of module
+     */
+    inline void declare_file_disposable(std::string &name, ASTNode *node) {
+        declare_file_disposable(chem::string_view(name.data(), name.size()), node);
+    }
 
     /**
      * this is the ultimate declare function for a node (except top level functions)
      * it will declare the node according to the given specifier, private symbols disposed at the end of file
      * internal symbols disposed at the end of module, has_runtime dictates whether it's runtime_name will be declared
      */
-    void declare_node(const std::string& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime);
+    void declare_node(const chem::string_view& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime);
+
+    /**
+     * this is the ultimate declare function for a node (except top level functions)
+     * it will declare the node according to the given specifier, private symbols disposed at the end of file
+     * internal symbols disposed at the end of module, has_runtime dictates whether it's runtime_name will be declared
+     */
+    inline void declare_node(std::string& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime) {
+        declare_node(chem::string_view(name.data(), name.size()), node, specifier, has_runtime);
+    }
 
     /**
      * declare a exported symbol
      */
-    void declare_exported(const std::string &name, ASTNode *node) {
+    void declare_exported(const chem::string_view &name, ASTNode *node) {
         declare_quietly(name, node);
     }
 
     /**
      * declare a runtime symbol
      */
-    void declare_runtime(const std::string& name, ASTNode* node);
+    void declare_runtime(const chem::string_view& name, ASTNode* node);
 
     /**
      * declare an exported runtime symbol
      */
-    void declare_exported_runtime(const std::string& name, const std::string& runtime_name, ASTNode* node);
+    void declare_exported_runtime(const chem::string_view& name, const chem::string_view& runtime_name, ASTNode* node);
 
     /**
      * symbol will be undeclared if present, otherwise error if error_out
      */
-    bool undeclare(const std::string_view& name);
+    bool undeclare(const chem::string_view& name);
 
     /**
      * symbol will be undecalred if present, only in the current scope
      */
-    bool undeclare_in_current_file(const std::string_view& name);
+    bool undeclare_in_current_file(const chem::string_view& name);
 
     /**
      * undeclare in current module
      */
-    bool undeclare_in_current_module(const std::string_view& name);
+    bool undeclare_in_current_module(const chem::string_view& name);
 
     /**
      * symbol will be undeclared in other files (not current file)
      * only a single symbol is undeclared
      */
-    bool undeclare_in_scopes_above(const std::string_view& name, int until);
+    bool undeclare_in_scopes_above(const chem::string_view& name, int until);
 
     /**
      * symbol will be checked for duplicates in other files (not current file)
      * if a single symbol exists in other files, an dup sym error is created
      */
-    bool dup_check_in_scopes_above(const std::string& name, ASTNode* new_node, int until);
+    bool dup_check_in_scopes_above(const chem::string_view& name, ASTNode* new_node, int until);
 
     /**
      * helper method that should be used to declare functions that takes into account
      * multiple methods with same names, it will declare function with access specifier
      * internal, which means function is visible to files in current module
      */
-    void declare_function(const std::string& name, FunctionDeclaration* declaration);
+    void declare_function(const chem::string_view& name, FunctionDeclaration* declaration);
 
     /**
      * helper method that should be used to declare functions that are private
      */
-    void declare_private_function(const std::string& name, FunctionDeclaration* declaration);
+    void declare_private_function(const chem::string_view& name, FunctionDeclaration* declaration);
 
     /**
      * this is the ultimate function that is used to declare functions, it will take into account
      * it's access specifier, it will also overload the function (in current scope, if feasible)
      */
-    void declare_function(const std::string& name, FunctionDeclaration* decl, AccessSpecifier specifier);
+    void declare_function(const chem::string_view& name, FunctionDeclaration* decl, AccessSpecifier specifier);
 
     /**
      * an exported function is declared using this method
      */
-    void declare_exported_function(const std::string& name, FunctionDeclaration* declaration) {
+    void declare_exported_function(const chem::string_view& name, FunctionDeclaration* declaration) {
         declare_function_quietly(name, declaration);
     }
 
     /**
      * declare exported runtime function
      */
-    void declare_exported_runtime_func(const std::string& name, const std::string& runtime_name, FunctionDeclaration* decl) {
+    void declare_exported_runtime_func(const chem::string_view& name, const chem::string_view& runtime_name, FunctionDeclaration* decl) {
         declare_function_quietly(name, decl);
         declare_runtime(runtime_name, (ASTNode*) decl);
     }

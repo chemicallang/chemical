@@ -42,9 +42,13 @@ public:
 
     }
 
-    inline const std::string& name() {
-        return located_id.identifier;
+    inline const std::string name() {
+        return located_id.identifier.str();
     };
+
+    inline const chem::string_view& name_view() {
+        return located_id.identifier;
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -68,7 +72,7 @@ public:
 
     void declare_top_level(SymbolResolver &linker) final;
 
-    const std::string& ns_node_identifier() final {
+    const std::string ns_node_identifier() final {
         return name();
     }
 

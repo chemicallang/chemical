@@ -1374,9 +1374,9 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     container.compiler_namespace.declare_top_level(resolver);
     container.std_namespace.declare_top_level(resolver);
 
-    resolver.declare(container.defined.name(), &container.defined);
-    resolver.declare(container.defThing.decl.name(), &container.defThing.decl);
-    resolver.declare(container.defThing.defStmt.identifier(), &container.defThing.defStmt);
+    resolver.declare(container.defined.name_view(), &container.defined);
+    resolver.declare(container.defThing.decl.name_view(), &container.defThing.decl);
+    resolver.declare(container.defThing.defStmt.id_view(), &container.defThing.defStmt);
 
     container.defThing.clear_values();
     // we recreate the target data, because the allocator disposes at the end of each job

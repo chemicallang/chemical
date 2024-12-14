@@ -17,13 +17,13 @@ void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const std::s
     if(found == extended.end()) {
         extended[node_id] = node;
     } else {
-        linker.dup_sym_error(node_id, found->second, node);
+        linker.dup_sym_error(chem::string_view(node_id.data(), node_id.size()), found->second, node);
     }
 }
 
 void Namespace::declare_extended_in_linker(SymbolResolver& linker) {
-    for(const auto& node_pair : extended) {
-        linker.declare(node_pair.first, node_pair.second);
+    for(auto& node_pair : extended) {
+        linker.declare(chem::string_view(node_pair.first.data(), node_pair.first.size()), node_pair.second);
     }
 }
 

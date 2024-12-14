@@ -285,7 +285,7 @@ ASTNode *VarInitStatement::child(const std::string &name) {
 
 void VarInitStatement::declare_top_level(SymbolResolver &linker) {
     if(is_top_level()) {
-        linker.declare_node(identifier(), this, specifier(), true);
+        linker.declare_node(id_view(), this, specifier(), true);
     }
 }
 
@@ -297,7 +297,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
         linker.current_func_type->mark_moved_value(linker.allocator, value, known_type(), linker, type != nullptr);
     }
     if(!is_top_level()) {
-        linker.declare(identifier(), this);
+        linker.declare(id_view(), this);
     }
     if(type && value) {
         if(!type->satisfies(linker.allocator, value, false)) {

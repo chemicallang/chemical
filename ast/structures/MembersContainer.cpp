@@ -646,7 +646,7 @@ bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
     if(found == indexes.end()) {
         insert_func(decl);
     } else {
-        auto result = handle_name_overload_function(decl->name(), found->second, decl);
+        auto result = handle_name_overload_function(decl->name_view(), found->second, decl);
         if(!result.duplicates.empty()) {
             return false;
         } else if(result.new_multi_func_node) {

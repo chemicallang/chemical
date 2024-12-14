@@ -105,6 +105,11 @@ public:
     Token getNextToken();
 
     /**
+     * get the tokens by lexing whole file at once
+     */
+    void getTokens(std::vector<Token>& tokens);
+
+    /**
      * get the entire unit, lexing whole file at once
      */
     void getUnit(LexUnit& outUnit);

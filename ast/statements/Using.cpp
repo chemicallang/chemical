@@ -43,22 +43,21 @@ void UsingStmt::declare_top_level(SymbolResolver &linker) {
 //            }
             for(auto& node_pair : ns->extended) {
                 const auto node = node_pair.second;
-                auto& id = node->ns_node_identifier();
                 if(no_propagate) {
-                    linker.declare_file_disposable(id, node);
+                    linker.declare_file_disposable(chem::string_view(node_pair.first.data(), node_pair.first.size()), node);
                 } else {
-                    linker.declare(id, node);
+                    linker.declare(chem::string_view(node_pair.first.data(), node_pair.first.size()), node);
                 }
             }
         } else {
             linker.error("expected value to be a namespace, however it isn't", this);
         }
     } else {
-        auto& id = linked->ns_node_identifier();
+        node_id = linked->ns_node_identifier();
         if(no_propagate) {
-            linker.declare_file_disposable(id, linked);
+            linker.declare_file_disposable(node_id, linked);
         } else {
-            linker.declare(id, linked);
+            linker.declare(node_id, linked);
         }
     }
 }

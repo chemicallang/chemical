@@ -22,21 +22,21 @@ SymbolResolver::SymbolResolver(
     dispose_module_symbols.reserve(100);
 }
 
-void SymbolResolver::dup_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node) {
-    std::string err("duplicate symbol being declared, symbol '" + name + "' already exists");
+void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
+    std::string err("duplicate symbol being declared, symbol '" + name.str() + "' already exists");
 //    err.append("\nprevious : " + previous->representation() + "\n");
 //    err.append("new : " + new_node->representation() + "\n");
     error(err, new_node);
 }
 
-void SymbolResolver::dup_runtime_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node) {
-    std::string err("duplicate runtime symbol being declared " + name + " symbol already exists");
+void SymbolResolver::dup_runtime_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
+    std::string err("duplicate runtime symbol being declared " + name.str() + " symbol already exists");
 //    err.append("\nprevious : " + previous->representation() + "\n");
 //    err.append("new : " + new_node->representation() + "\n");
     error(err, new_node); // < --- this is a warning at the moment
 }
 
-ASTNode *SymbolResolver::find_in_current_file(const std::string& name) {
+ASTNode *SymbolResolver::find_in_current_file(const chem::string_view& name) {
     int i = current.size() - 1;
     while (i >= 0) {
         const auto& last = *current[i];
@@ -54,7 +54,7 @@ ASTNode *SymbolResolver::find_in_current_file(const std::string& name) {
     return nullptr;
 }
 
-ASTNode *SymbolResolver::find(const std::string &name) {
+ASTNode *SymbolResolver::find(const chem::string_view &name) {
     int i = (int) current.size() - 1;
     while (i >= 0) {
         const auto& last = *current[i];
@@ -67,7 +67,7 @@ ASTNode *SymbolResolver::find(const std::string &name) {
     return nullptr;
 }
 
-void SymbolResolver::declare_quietly(const std::string& name, ASTNode* node) {
+void SymbolResolver::declare_quietly(const chem::string_view& name, ASTNode* node) {
     if(name == "_") {
         // symbols with name '_' aren't declared
         return;
@@ -93,21 +93,22 @@ void SymbolResolver::declare_quietly(const std::string& name, ASTNode* node) {
     }
 }
 
-void SymbolResolver::declare_exported_runtime(const std::string& name, const std::string& runtime_name, ASTNode* node) {
+void SymbolResolver::declare_exported_runtime(const chem::string_view& name, const chem::string_view& runtime_name, ASTNode* node) {
     declare_quietly(name, node);
     declare_runtime(runtime_name, node);
 }
 
-void SymbolResolver::declare_runtime(const std::string& name, ASTNode* node) {
-    auto found = runtime_symbols.find(name);
+void SymbolResolver::declare_runtime(const chem::string_view& name, ASTNode* node) {
+    auto str = name.str();
+    auto found = runtime_symbols.find(str);
     if(found == runtime_symbols.end()) {
-        runtime_symbols[name] = node;
+        runtime_symbols[str] = node;
     } else {
         dup_runtime_sym_error(name, found->second, node);
     };
 }
 
-bool SymbolResolver::undeclare(const std::string_view& name) {
+bool SymbolResolver::undeclare(const chem::string_view& name) {
     int i = current.size() - 1;
     while (i >= 0) {
         auto& last = *current[i];
@@ -121,7 +122,7 @@ bool SymbolResolver::undeclare(const std::string_view& name) {
     return false;
 }
 
-bool SymbolResolver::undeclare_in_current_file(const std::string_view& name) {
+bool SymbolResolver::undeclare_in_current_file(const chem::string_view& name) {
     auto& last_scope = *current.back();
     if(last_scope.kind == SymResScopeKind::File) {
         return last_scope.symbols.erase(name) > 0;
@@ -146,7 +147,7 @@ bool SymbolResolver::undeclare_in_current_file(const std::string_view& name) {
 //    return false;
 }
 
-bool SymbolResolver::undeclare_in_current_module(const std::string_view& name) {
+bool SymbolResolver::undeclare_in_current_module(const chem::string_view& name) {
     int i = (int) current.size() - 1;
     while (i >= 0) {
         auto& scope = *current[i];
@@ -163,7 +164,7 @@ bool SymbolResolver::undeclare_in_current_module(const std::string_view& name) {
     return false;
 }
 
-bool SymbolResolver::undeclare_in_scopes_above(const std::string_view& name, int i) {
+bool SymbolResolver::undeclare_in_scopes_above(const chem::string_view& name, int i) {
     while (i >= 0) {
         auto& scope = *current[i];
         auto found = scope.symbols.find(name);
@@ -176,7 +177,7 @@ bool SymbolResolver::undeclare_in_scopes_above(const std::string_view& name, int
     return false;
 }
 
-bool SymbolResolver::dup_check_in_scopes_above(const std::string& name, ASTNode* new_node, int i) {
+bool SymbolResolver::dup_check_in_scopes_above(const chem::string_view& name, ASTNode* new_node, int i) {
     while (i >= 0) {
         auto& scope = *current[i];
         auto found = scope.symbols.find(name);
@@ -189,14 +190,14 @@ bool SymbolResolver::dup_check_in_scopes_above(const std::string& name, ASTNode*
     return false;
 }
 
-bool SymbolResolver::overload_function(const std::string& name, ASTNode*& previous, FunctionDeclaration* declaration) {
+bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode*& previous, FunctionDeclaration* declaration) {
     if(declaration->has_annotation(AnnotationKind::Override)) {
         const auto func = previous->as_function();
         if (func->returnType->is_same(declaration->returnType) && func->do_param_types_match(declaration->params, false)) {
             previous = declaration;
             return true;
         } else {
-            dup_sym_error(declaration->name(), previous, declaration);
+            dup_sym_error(declaration->name_view(), previous, declaration);
             error("function " + declaration->name() + " cannot override because it's parameter types and return type don't match", (AnnotableNode*) declaration);
             return false;
         }
@@ -215,7 +216,7 @@ bool SymbolResolver::overload_function(const std::string& name, ASTNode*& previo
     return false;
 }
 
-bool SymbolResolver::declare_function_quietly(const std::string& name, FunctionDeclaration* declaration) {
+bool SymbolResolver::declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration) {
     auto& last = *current.back();
     auto found = last.symbols.find(name);
     if(found == last.symbols.end()) {
@@ -227,7 +228,7 @@ bool SymbolResolver::declare_function_quietly(const std::string& name, FunctionD
     }
 }
 
-void SymbolResolver::declare(const std::string &name, ASTNode *node) {
+void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
     declare_quietly(name, node);
     auto& scope = *current.back();
 #ifdef DEBUG
@@ -240,7 +241,7 @@ void SymbolResolver::declare(const std::string &name, ASTNode *node) {
     }
 }
 
-void SymbolResolver::declare_file_disposable(const std::string &name, ASTNode *node) {
+void SymbolResolver::declare_file_disposable(const chem::string_view &name, ASTNode *node) {
     declare_quietly(name, node);
     auto& scope = *current.back();
     if(scope.kind == SymResScopeKind::File) {
@@ -248,7 +249,7 @@ void SymbolResolver::declare_file_disposable(const std::string &name, ASTNode *n
     }
 }
 
-void SymbolResolver::declare_function(const std::string& name, FunctionDeclaration* declaration) {
+void SymbolResolver::declare_function(const chem::string_view& name, FunctionDeclaration* declaration) {
     const auto new_sym = declare_function_quietly(name, declaration);
     auto& scope = *current.back();
 #ifdef DEBUG
@@ -261,7 +262,7 @@ void SymbolResolver::declare_function(const std::string& name, FunctionDeclarati
     }
 }
 
-void SymbolResolver::declare_private_function(const std::string& name, FunctionDeclaration* declaration) {
+void SymbolResolver::declare_private_function(const chem::string_view& name, FunctionDeclaration* declaration) {
     const auto new_sym = declare_function_quietly(name, declaration);
     auto& scope = *current.back();
     if(new_sym && scope.kind == SymResScopeKind::File) {
@@ -269,7 +270,7 @@ void SymbolResolver::declare_private_function(const std::string& name, FunctionD
     }
 }
 
-void SymbolResolver::declare_node(const std::string& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime) {
+void SymbolResolver::declare_node(const chem::string_view& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime) {
     switch(specifier) {
         case AccessSpecifier::Private:
         case AccessSpecifier::Protected:
@@ -278,7 +279,8 @@ void SymbolResolver::declare_node(const std::string& name, ASTNode* node, Access
         case AccessSpecifier::Public:
             declare_exported(name, node);
             if(has_runtime) {
-                declare_runtime(node->runtime_name_str(), node);
+                auto str = node->runtime_name_str();
+                declare_runtime(chem::string_view(str.data(), str.size()), node);
             }
             return;
         case AccessSpecifier::Internal:
@@ -287,15 +289,18 @@ void SymbolResolver::declare_node(const std::string& name, ASTNode* node, Access
     }
 }
 
-void SymbolResolver::declare_function(const std::string& name, FunctionDeclaration* decl, AccessSpecifier specifier) {
+void SymbolResolver::declare_function(const chem::string_view& name, FunctionDeclaration* decl, AccessSpecifier specifier) {
     switch(specifier) {
         case AccessSpecifier::Private:
         case AccessSpecifier::Protected:
             declare_private_function(name, decl);
             return;
         case AccessSpecifier::Public:
-            declare_exported_function(name, decl);
-            declare_runtime(decl->runtime_name_str(), decl);
+            {
+                declare_exported_function(name, decl);
+                auto str = decl->runtime_name_str();
+                declare_runtime(chem::string_view(str.data(), str.size()), decl);
+            }
             return;
         case AccessSpecifier::Internal:
             declare_function(name, decl);

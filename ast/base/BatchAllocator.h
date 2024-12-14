@@ -61,6 +61,11 @@ public:
     char* allocate_released_size(std::size_t obj_size, std::size_t alignment);
 
     /**
+     * allocate the given string on the allocator and get a c string
+     */
+    char* allocate_str(const char* data, std::size_t size);
+
+    /**
       * destructor
       */
     ~BatchAllocator();

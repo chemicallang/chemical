@@ -30,12 +30,16 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
-    inline const std::string& name() const {
+    inline const std::string name() const {
+        return located_id.identifier.str();
+    }
+
+    inline const chem::string_view& name_view() const {
         return located_id.identifier;
     }
 
-    inline const std::string& identifier() const {
-        return located_id.identifier;
+    inline const std::string identifier() const {
+        return located_id.identifier.str();
     }
 
     SourceLocation encoded_location() final {
@@ -58,7 +62,7 @@ public:
         return parent_node;
     }
 
-    const std::string& ns_node_identifier() final {
+    const std::string ns_node_identifier() final {
         return name();
     }
 

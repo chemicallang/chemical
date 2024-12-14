@@ -379,12 +379,12 @@ void StructDefinition::accept(Visitor *visitor) {
 }
 
 void StructDefinition::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name(), this, specifier, true);
+    linker.declare_node(name_view(), this, specifier, true);
     is_direct_init = has_annotation(AnnotationKind::DirectInit);
 }
 
 void StructDefinition::redeclare_top_level(SymbolResolver &linker) {
-    linker.declare(name(), this);
+    linker.declare(name_view(), this);
 }
 
 void StructDefinition::declare_and_link(SymbolResolver &linker) {

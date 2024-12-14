@@ -122,8 +122,12 @@ public:
         identifier = std::move(id);
     }
 
-    inline const std::string& name() const {
+    inline const chem::string_view& name_view() {
         return identifier.identifier;
+    }
+
+    inline const std::string name() const {
+        return identifier.identifier.str();
     }
 
     inline uint8_t multi_func_index() {
@@ -178,7 +182,7 @@ public:
         return parent_node;
     }
 
-    const std::string& ns_node_identifier() final {
+    const std::string ns_node_identifier() final {
         return name();
     }
 

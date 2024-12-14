@@ -42,9 +42,9 @@ Position Parser::end_pos(Token* token) {
 
 LocatedIdentifier Parser::loc_id(const chem::string_view& value, const Position& pos) {
 #ifdef LSP_BUILD
-    return { std::string(value.data(), value.size()), loc_single(pos, value.size()) };
+    return { value, loc_single(pos, value.size()) };
 #else
-    return { std::string(value.data(), value.size()) };
+    return { value };
 #endif
 }
 

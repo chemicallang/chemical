@@ -15,6 +15,10 @@ public:
     AccessChain chain;
     bool is_namespace = false;
     SourceLocation location;
+    /**
+     * TODO remove this, this is for containing node identifier
+     */
+    std::string node_id;
 
     UsingStmt(
         std::vector<ChainValue*> values,

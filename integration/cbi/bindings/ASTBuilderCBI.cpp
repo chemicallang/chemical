@@ -91,6 +91,18 @@
 #include "ast/structures/UnsafeBlock.h"
 #include "std/chem_string.h"
 
+/**
+ * this function doesn't work, we need to allocate the string on the allocator
+ * @deprecated
+ */
+constexpr LocatedIdentifier LOC_ID(const std::string& identifier, SourceLocation location) {
+#ifdef LSP_BUILD
+    return { identifier, location };
+#else
+    return { chem::string_view(identifier.data(), identifier.size()) };
+#endif
+}
+
 AnyType* ASTBuildermake_any_type(CSTConverter* converter, uint64_t location) {
     return new (converter->local<AnyType>()) AnyType(location);
 }

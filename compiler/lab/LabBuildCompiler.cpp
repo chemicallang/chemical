@@ -468,7 +468,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             for(auto& include : mod->includes) {
                 const auto abs_path = include.to_std_string();
                 unsigned fileId = loc_man.encodeFile(abs_path);
-                auto imported_file = processor.import_chemical_file_new(fileId, abs_path);
+                ASTFileResultNew imported_file;
+                processor.import_chemical_file(imported_file, fileId, abs_path);
                 auto& nodes = imported_file.unit.scope.nodes;
                 import_in_module(nodes, resolver, abs_path);
 #ifdef COMPILER_BUILD
@@ -882,42 +883,6 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
 #endif
 }
 
-#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
-inline std::vector<ASTFileResultExt> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
-#else
-inline std::vector<std::future<ASTFileResultExt>> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
-#endif
-#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
-    std::vector<ASTFileResultExt> lab_futures;
-#else
-    std::vector<std::future<ASTFileResultExt>> lab_futures;
-#endif
-    int i = 0;
-    for (const auto &file: flat_imports) {
-        const auto fileId = processor->loc_man.encodeFile(file.abs_path);
-#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
-        lab_futures.push_back(concurrent_processor(i, fileId, file, processor));
-#else
-        lab_futures.push_back(pool.push(concurrent_processor, fileId, file, processor));
-#endif
-
-        i++;
-    }
-    return lab_futures;
-}
-
-#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
-inline ASTFileResultExt future_get(std::vector<ASTFileResultExt>& futures, int i) {
-#else
-inline ASTFileResultExt future_get(std::vector<std::future<ASTFileResultExt>>& futures, int i) {
-#endif
-#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
-    return std::move(futures[i]);
-#else
-    return futures[i].get();
-#endif
-}
-
 TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::string& path) {
 
     // set the build context
@@ -962,9 +927,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     auto buildLabFileId = loc_man.encodeFile(path);
     ASTFileMetaData buildLabMetaData(buildLabFileId, path, path);
 
-    lab_processor.import_chemical_file(&blResult, pool, buildLabMetaData);
-
-    print_results(blResult, path, options->benchmark);
+    lab_processor.import_chemical_file(blResult, pool, buildLabMetaData);
 
     if(!blResult.continue_processing) {
         return nullptr;

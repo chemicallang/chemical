@@ -103,6 +103,7 @@ struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
 
     /**
      * diagnostics collected during the conversion process
+     * These diagnostics will be translation diagnostics, if it's a c file
      */
     std::vector<Diag> parse_diagnostics;
 
@@ -113,58 +114,7 @@ struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
 
     /**
      * the parsing benchmarks are stored here, if user opted for benchmarking
-     */
-    std::unique_ptr<BenchmarkResults> parse_benchmark;
-
-};
-
-
-/**
- * when a file is processed using ASTProcessor
- */
-struct ASTFileResult {
-
-    /**
-     * the ast unit we're concerned with
-     */
-    ASTUnit unit;
-
-    /**
-     * should the processing be continued, this is false, if ast contained errors during conversion
-     */
-    bool continue_processing;
-
-    /**
-     * if this unit belongs to a c file that was translated using clang
-     */
-    bool is_c_file;
-
-};
-
-struct ASTFileResultExt : ASTFileResult {
-
-    /**
-     * the read error is stored here if occurred
-     */
-    std::string read_error;
-
-    /**
-     * diagnotics collected during the lexing process
-     */
-    std::vector<Diag> lex_diagnostics;
-
-    /**
-     * diagnostics collected during the conversion process
-     */
-    std::vector<Diag> parse_diagnostics;
-
-    /**
-     * the benchmark results are stored here, if user opted for benchmarking
-     */
-    std::unique_ptr<BenchmarkResults> lex_benchmark;
-
-    /**
-     * the parsing benchmarks are stored here, if user opted for benchmarking
+     * This will be c translation benchmarks, if it's c file
      */
     std::unique_ptr<BenchmarkResults> parse_benchmark;
 
@@ -314,7 +264,7 @@ public:
      * import a single file and all it's imports (in parallel) using the given thread pool
      */
     void import_chemical_file(
-            ASTFileResultNew* out_file,
+            ASTFileResultNew& result,
             ctpl::thread_pool& pool,
             ASTFileMetaData& fileData
     );
@@ -322,13 +272,13 @@ public:
     /**
      * import chemical file with absolute path to it
      */
-    ASTFileResultExt import_chemical_file_new(unsigned int fileId, const std::string_view& absolute_path);
+    void import_chemical_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& absolute_path);
 
     /**
      * lex, parse in file and return Scope containing nodes
      * without performing any symbol resolution
      */
-    ASTFileResultExt import_file(unsigned int fileId, const std::string_view& absolute_path);
+    void import_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& absolute_path);
 
     /**
      * function that performs symbol resolution
@@ -416,8 +366,3 @@ public:
 #endif
 
 };
-
-/**
- * this function can be called concurrently, to import files
- */
-ASTFileResultExt concurrent_processor(int id, unsigned int file_id, const FlatIGFile& file, ASTProcessor* processor);

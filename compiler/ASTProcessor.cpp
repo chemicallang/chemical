@@ -28,10 +28,6 @@
 #include "compiler/ctranslator/CTranslator.h"
 #endif
 
-ASTFileResultExt concurrent_processor(int id, unsigned int file_id, const FlatIGFile& file, ASTProcessor* processor) {
-    return processor->import_file(file_id, file.abs_path);
-}
-
 std::string ASTProcessorOptions::get_resources_path() {
     if(!resources_path.empty()) return resources_path;
     resources_path = resources_path_rel_to_exe(exe_path);
@@ -282,7 +278,7 @@ ASTFileResultNew* concurrent_file_importer(
         ASTFileResultNew* out_file,
         ASTFileMetaData& fileData
 ) {
-    processor->import_chemical_file(out_file, pool, fileData);
+    processor->import_chemical_file(*out_file, pool, fileData);
     return out_file;
 }
 
@@ -299,14 +295,15 @@ void ASTProcessor::import_chemical_files(
 
     std::vector<future_ptr_union> futures;
 
+    // pointer variable to be used inside the for loop
+    ASTFileResultNew* out_file;
+
     // launch all files concurrently
     for(auto& fileData : files) {
 
         const auto file_id = fileData.file_id;
         const auto& abs_path = fileData.abs_path;
         auto file = std::string_view(abs_path);
-
-        ASTFileResultNew* out_file;
 
         {
             std::lock_guard<std::mutex> guard(import_mutex);
@@ -320,6 +317,8 @@ void ASTProcessor::import_chemical_files(
 //            std::cout << "launching file : " << fileData.abs_path << std::endl;
             out_file = &cache[abs_path];
         }
+
+        out_file->import_path = fileData.import_path;
 
         futures.emplace_back(
                 nullptr,
@@ -341,12 +340,12 @@ void ASTProcessor::import_chemical_files(
 }
 
 void ASTProcessor::import_chemical_file(
-        ASTFileResultNew* out_result,
+        ASTFileResultNew& result,
         ctpl::thread_pool& pool,
         ASTFileMetaData& fileData
 ) {
 
-    auto result = import_file(fileData.file_id, fileData.abs_path);
+    import_file(result, fileData.file_id, fileData.abs_path);
 
     // figure out files imported by this file
     std::vector<ASTFileMetaData> imports;
@@ -367,29 +366,16 @@ void ASTProcessor::import_chemical_file(
         }
     }
 
-    ASTFileResultNew final_result(
-            { result.continue_processing, result.is_c_file }, fileData, std::move(result.unit), {},
-            result.read_error,
-            std::move(result.lex_diagnostics),
-            std::move(result.parse_diagnostics),
-            std::move(result.lex_benchmark),
-            std::move(result.parse_benchmark)
-    );
-
     if(!imports.empty()) {
 
-        import_chemical_files(pool, final_result.imports, imports);
+        import_chemical_files(pool, result.imports, imports);
 
     }
 
-    // TODO optimize this
-    *out_result = std::move(final_result);
-
 }
 
-ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, const std::string_view& abs_path) {
+void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& abs_path) {
 
-    ASTFileResultExt result;
     auto& unit = result.unit;
 
     std::unique_ptr<BenchmarkResults> lex_bm;
@@ -399,7 +385,7 @@ ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, con
     if(inp_source.has_error()) {
         result.read_error = inp_source.error_message();
         std::cerr << rang::fg::red << "error: when reading file " << abs_path << " because " << result.read_error << rang::fg::reset << std::endl;
-        return result;
+        return;
     }
 
     Lexer lexer(std::string(abs_path), &inp_source, &binder);
@@ -413,6 +399,9 @@ ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, con
     } else {
         lexer.getUnit(lexUnit);
     }
+
+    // lexer doesn't have diagnostics
+    // result.lex_diagnostics = {};
 
     // parse the file
     Parser parser(
@@ -449,25 +438,27 @@ ASTFileResultExt ASTProcessor::import_chemical_file_new(unsigned int fileId, con
         parser.parse(unit.scope.nodes);
     }
 
+    result.parse_diagnostics = std::move(parser.diagnostics);
+
     if(parser.has_errors) {
         result.continue_processing = false;
     }
 
     result.is_c_file = false;
-    result.lex_diagnostics = {};
-    result.parse_diagnostics = std::move(parser.diagnostics);
-
-    return result;
 
 }
 
-ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const std::string_view& abs_path) {
+void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& abs_path) {
 
     auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
+    result.is_c_file = is_c_file;
+    result.abs_path = abs_path;
+    result.file_id = fileId;
+    result.continue_processing = true;
 
     if (is_c_file) {
 
-        ASTUnit unit;
+        auto& unit = result.unit;
 
         std::unique_ptr<BenchmarkResults> bm;
 
@@ -490,21 +481,17 @@ ASTFileResultExt ASTProcessor::import_file(unsigned int fileId, const std::strin
             bm->benchmark_end();
         }
 
+        result.parse_diagnostics = std::move(translator->diagnostics);
+
 #elif defined(TCC_BUILD) && defined(DEBUG)
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif
 
-        return {ASTFileResult {std::move(unit), true, true }, "", {},
-#ifdef COMPILER_BUILD
-                std::move(translator->diagnostics)
-#else
-                 {}
-#endif
-                 , nullptr, std::move(bm) };
+        result.parse_benchmark = std::move(bm);
 
     } else {
 
-        return import_chemical_file_new(fileId, abs_path);
+        import_chemical_file(result, fileId, abs_path);
 
     }
 

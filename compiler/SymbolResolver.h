@@ -72,6 +72,20 @@ struct SymResScope {
 
 };
 
+struct SymbolRef {
+
+    /**
+     * the index to scope is stored
+     */
+    std::size_t scope_index;
+
+    /**
+     * the symbol view
+     */
+    chem::string_view symbol;
+
+};
+
 class CTranslator;
 
 /**
@@ -86,7 +100,7 @@ private:
      * this is vector of scopes, the last scope is current scope
      * The first scope is the top level scope
      */
-    std::vector<std::unique_ptr<SymResScope>> current;
+    std::vector<SymResScope> current;
 
     /**
      * runtime symbols that are checked for conflicts with other nodes
@@ -157,7 +171,7 @@ public:
      * symbols are expected to exist in other files
      */
     void file_scope_start() {
-        current.emplace_back(new SymResScope(SymResScopeKind::File));
+        current.emplace_back(SymResScopeKind::File);
     }
 
     /**
@@ -168,7 +182,7 @@ public:
      * only in a specific module
      */
     void module_scope_start() {
-        current.emplace_back(new SymResScope(SymResScopeKind::Module));
+        current.emplace_back(SymResScopeKind::Module);
     }
 
     /**
@@ -176,7 +190,7 @@ public:
      * it would put a scope on current vector
      */
     void scope_start() {
-        current.emplace_back(new SymResScope(SymResScopeKind::Default));
+        current.emplace_back(SymResScopeKind::Default);
     }
 
     /**
@@ -260,14 +274,14 @@ public:
      * for example using namespace some; this will always be disposed unless propagate annotation exists
      * above it
      */
-    std::vector<std::pair<SymResScope*, chem::string_view>> dispose_file_symbols;
+    std::vector<SymbolRef> dispose_file_symbols;
 
     /**
      * stores symbols that will be disposed after this module has been completely symbol resolved
      * for example symbols that are internal in module are stored on this vector for disposing
      * at the end of module, struct without a public keyword (internal by default)
      */
-    std::vector<std::pair<SymResScope*, chem::string_view>> dispose_module_symbols;
+    std::vector<SymbolRef> dispose_module_symbols;
 
     /**
      * constructor
@@ -284,7 +298,7 @@ public:
      * if the current where the symbols are being declared is a file scope
      */
     bool is_current_file_scope() {
-        return current.back()->kind == SymResScopeKind::File;
+        return current.back().kind == SymResScopeKind::File;
     }
 
     /**

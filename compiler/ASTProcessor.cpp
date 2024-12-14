@@ -409,7 +409,7 @@ void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int f
     }
 
     // move the serial string allocator
-    result.serial_str_alloc = std::move(lexer.str.allocator);
+    unit.serial_str_alloc = std::move(lexer.str.allocator);
 
     // lexer doesn't have diagnostics
     // result.lex_diagnostics = {};

@@ -81,11 +81,6 @@ struct ASTFileMetaData {
 struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
 
     /**
-     * this allocator was used to serially allocate strings in the lexer or parser
-     */
-    BatchAllocator serial_str_alloc;
-
-    /**
      * the parsed unit
      */
     ASTUnit unit;
@@ -122,13 +117,6 @@ struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
      * This will be c translation benchmarks, if it's c file
      */
     std::unique_ptr<BenchmarkResults> parse_benchmark;
-
-    /**
-     * the constructor is used to allocate ast file result and pass it on
-     */
-    ASTFileResult() : serial_str_alloc(nullptr, 0, 0) {
-
-    }
 
 };
 

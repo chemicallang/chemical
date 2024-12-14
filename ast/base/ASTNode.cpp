@@ -26,6 +26,26 @@
 #include "compiler/Codegen.h"
 #endif
 
+LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string identifier) {
+    const auto size = identifier.size();
+    const auto ptr = allocator.allocate_str(identifier.data(), size);
+#ifdef LSP_BUILD
+    return { chem::string_view(ptr, size), ZERO_LOC };
+#else
+    return { chem::string_view(ptr, size) };
+#endif
+}
+
+//LocatedIdentifier LOC_ID(BatchAllocator& allocator, std::string identifier, SourceLocation location) {
+//    const auto size = identifier.size();
+//    const auto ptr = allocate(allocator, identifier.data(), size);
+//#ifdef LSP_BUILD
+//    return { chem::string_view(ptr, size), location };
+//#else
+//    return { chem::string_view(ptr, size) };
+//#endif
+//}
+
 std::string ASTNode::representation() {
     std::ostringstream ostring;
     RepresentationVisitor visitor(ostring);

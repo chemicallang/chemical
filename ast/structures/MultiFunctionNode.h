@@ -48,7 +48,7 @@ public:
 };
 
 OverridableFuncHandlingResult handle_name_overload_function(
-        const std::string& name,
+        const chem::string_view& name,
         ASTNode* previous_node,
         FunctionDeclaration* declaration
 );

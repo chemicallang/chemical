@@ -262,3 +262,10 @@ char* BatchAllocator::allocate_released_size(std::size_t obj_size, std::size_t a
     std::lock_guard<std::mutex> lock(*allocator_mutex);
     return allocate_raw(obj_size, alignment);
 }
+
+char* BatchAllocator::allocate_str(const char* data, std::size_t size) {
+    auto ptr = allocate_released_size(sizeof(char) * (size + 1), alignof(char));
+    std::memcpy(ptr, data, size);
+    *(ptr + size) = '\0';
+    return ptr;
+}

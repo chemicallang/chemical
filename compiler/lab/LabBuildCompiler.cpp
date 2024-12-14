@@ -159,7 +159,8 @@ void import_in_module(std::vector<ASTNode*>& nodes, SymbolResolver& resolver, co
     for(const auto node : nodes) {
         const auto requested_specifier = node->specifier();
         const auto specifier = requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier;
-        resolver.declare_node(node->ns_node_identifier(), node, specifier, true);
+        auto id = node->ns_node_identifier();
+        resolver.declare_node(id, node, specifier, true);
     }
     resolver.print_diagnostics(path, "SymRes");
     resolver.diagnostics.clear();

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "std/chem_string_view.h"
+// TODO remove string import
 #include <string>
 #include "cst/SourceLocation.h"
 
@@ -11,7 +13,7 @@ struct LocatedIdentifier {
     /**
      * the actual identifier
      */
-    std::string identifier;
+    chem::string_view identifier;
 
     /**
      * location of the identifier
@@ -22,18 +24,24 @@ struct LocatedIdentifier {
 
 };
 
-constexpr LocatedIdentifier ZERO_LOC_ID(std::string identifier) {
-#ifdef LSP_BUILD
-    return { std::move(identifier), ZERO_LOC };
+constexpr LocatedIdentifier ZERO_LOC_ID(const char* str) {
+    std::size_t size;
+    if(str) {
+#if defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE < 8
+        size =  __builtin_strlen(Str);
 #else
-    return { std::move(identifier) };
+        size = std::char_traits<char>::length(str);
+#endif
+    } else {
+        size = 0;
+    }
+#ifdef LSP_BUILD
+    return { chem::string_view(str, size), ZERO_LOC };
+#else
+    return { chem::string_view(str, size) };
 #endif
 }
 
-constexpr LocatedIdentifier LOC_ID(std::string identifier, SourceLocation location) {
-#ifdef LSP_BUILD
-    return { std::move(identifier), location };
-#else
-    return { std::move(identifier) };
-#endif
-}
+LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string identifier);
+
+//LocatedIdentifier LOC_ID(BatchAllocator& allocator, std::string identifier, SourceLocation location);

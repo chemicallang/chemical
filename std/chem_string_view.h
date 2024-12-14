@@ -106,6 +106,8 @@ namespace chem {
             return !(lhs < rhs);
         }
 
+        friend std::ostream& operator<<(std::ostream& os, const chem::string_view& str);
+
     private:
         const char* data_;
         size_type size_;
@@ -129,3 +131,5 @@ namespace std {
         }
     };
 }
+
+std::ostream& chem::operator<<(std::ostream& os, const chem::string_view& str);

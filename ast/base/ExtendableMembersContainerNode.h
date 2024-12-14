@@ -25,7 +25,14 @@ public:
     /**
      * get the name of the container
      */
-    inline const std::string& name() const {
+    inline const std::string name() const {
+        return identifier.identifier.str();
+    }
+
+    /**
+     * get the name of the container
+     */
+    inline const chem::string_view& name_view() const {
         return identifier.identifier;
     }
 

@@ -78,14 +78,21 @@ public:
     /**
      * get the name / identifier of the declaration
      */
-    inline const std::string& name() {
-        return located_id.identifier;
+    inline const std::string name() {
+        return located_id.identifier.str();
     }
 
     /**
      * get the name / identifier of the declaration
      */
-    inline const std::string& identifier() {
+    inline const std::string identifier() {
+        return located_id.identifier.str();
+    }
+
+    /**
+     * get the name / identifier of the declaration
+     */
+    inline const chem::string_view& id_view() {
         return located_id.identifier;
     }
 
@@ -175,7 +182,7 @@ public:
         return type;
     }
 
-    const std::string& ns_node_identifier() final {
+    const std::string ns_node_identifier() final {
         return identifier();
     }
 

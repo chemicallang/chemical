@@ -576,22 +576,26 @@ void to_string(chem::string& strOut, std::vector<Token>& tokens) {
     }
 }
 
-void Lexer::getUnit(LexUnit& unit) {
-    unit.tokens.reserve(250);
+void Lexer::getTokens(std::vector<Token>& tokens) {
+    tokens.reserve(250);
     while(true) {
         auto token = getNextToken();
         switch(token.type) {
             case TokenType::EndOfFile:
                 // a single end of file token must be present so parser can stop
-                unit.tokens.emplace_back(token);
-                goto exit_loop;
+                tokens.emplace_back(token);
+                return;
             case TokenType::Unexpected:
-                unit.tokens.emplace_back(token);
-                goto exit_loop;
+                tokens.emplace_back(token);
+                return;
             default:
-                unit.tokens.emplace_back(token);
+                tokens.emplace_back(token);
         }
     }
+}
+
+void Lexer::getUnit(LexUnit& unit) {
+    getTokens(unit.tokens);
 exit_loop:
     unit.allocator = std::move(str);
 }

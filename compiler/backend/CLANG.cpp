@@ -67,6 +67,16 @@ struct ErrorMsg {
     unsigned offset; // byte offset into source
 };
 
+LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, const llvm::StringRef& identifier) {
+    const auto size = identifier.size();
+    const auto ptr = allocator.allocate_str(identifier.data(), size);
+#ifdef LSP_BUILD
+    return { chem::string_view(ptr, size), ZERO_LOC };
+#else
+    return { chem::string_view(ptr, size) };
+#endif
+}
+
 BaseType* decl_type(CTranslator& translator, clang::Decl* decl, std::string name) {
     auto found = translator.declarations.find(decl);
     if(found != translator.declarations.end()) {
@@ -325,7 +335,7 @@ inline Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int 
 }
 
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
-    auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(ZERO_LOC_ID(decl->getNameAsString()), {}, parent_node, ZERO_LOC);
+    auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(ZERO_LOC_ID(allocator, decl->getName()), {}, parent_node, ZERO_LOC);
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
     unsigned index = 0;
     for(auto mem : decl->enumerators()) {
@@ -346,7 +356,7 @@ EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
 }
 
 StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
-    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(ZERO_LOC_ID(decl->getNameAsString()), parent_node, ZERO_LOC);
+    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(ZERO_LOC_ID(allocator, decl->getName()), parent_node, ZERO_LOC);
     for(auto str : decl->fields()) {
         auto field_type = str->getType();
         auto field_type_conv = make_type(&field_type);
@@ -383,7 +393,7 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
             if(linked_kind == ASTNodeKind::StructDecl) {
                 const auto node = linked->as_struct_def_unsafe();
                 if(node->name().empty()) {
-                    node->identifier.identifier = decl->getName();
+                    node->identifier = ZERO_LOC_ID(allocator, decl->getName());
                     return nullptr;
                 }
             }
@@ -391,7 +401,7 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
 
     }
 
-    return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(ZERO_LOC_ID(decl->getNameAsString()), type, parent_node, ZERO_LOC);
+    return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(ZERO_LOC_ID(allocator, decl->getName()), type, parent_node, ZERO_LOC);
 }
 
 std::optional<Operation> convert_to_op(clang::BinaryOperatorKind kind) {
@@ -547,7 +557,7 @@ VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     }
     const auto initializer = decl->getInit();
     auto initial_value = initializer ? (Value*) make_expr(initializer) : nullptr;
-    return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, ZERO_LOC_ID(decl->getNameAsString()), made_type, initial_value, parent_node, ZERO_LOC, specifier);
+    return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, ZERO_LOC_ID(allocator, decl->getName()), made_type, initial_value, parent_node, ZERO_LOC, specifier);
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
@@ -594,7 +604,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
         return nullptr;
     }
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(
-            ZERO_LOC_ID(func_decl->getNameAsString()),
+            ZERO_LOC_ID(allocator, func_decl->getName()),
             std::move(params),
             chem_type,
             func_decl->isVariadic(),
@@ -1271,10 +1281,10 @@ Value* convert_to_value(CTranslator& translator, clang::MacroInfo* info) {
     return nullptr;
 }
 
-ASTNode* comptime_constant(ASTAllocator& allocator, const std::string_view& name, Value* value_ptr) {
+ASTNode* comptime_constant(ASTAllocator& allocator, const llvm::StringRef& name, Value* value_ptr) {
     const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(
             true,
-            ZERO_LOC_ID(std::string(name)),
+            ZERO_LOC_ID(allocator, name),
             nullptr,
             value_ptr,
             nullptr,
@@ -1301,8 +1311,7 @@ void CTranslator::translate(
                 clang::MacroInfo* MI = PP.getMacroInfo(II);
                 const auto value = convert_to_value(*this, MI);
                 if (value) {
-                    const auto name_str = II->getName();
-                    const auto node =  comptime_constant(allocator, name_str, value);
+                    const auto node =  comptime_constant(allocator, II->getName(), value);
                     // this node can be injected on top in the nodes and if a duplicate is found, it will be automatically removed
                 }
             }

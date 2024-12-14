@@ -261,7 +261,7 @@ public:
      * to access this node, for example a function inside a namespace, returns it's name
      * so namespace::function_name can be used to access it
      */
-    virtual const std::string& ns_node_identifier() {
+    virtual const std::string ns_node_identifier() {
         return EmptyString;
     }
 

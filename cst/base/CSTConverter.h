@@ -176,7 +176,7 @@ public:
 #ifdef LSP_BUILD
         return { token->value(), loc(token) };
 #else
-        return { token->value() };
+        return { chem::string_view(token->value().data()) };
 #endif
     }
 

@@ -59,7 +59,7 @@ public:
         return specifier == AccessSpecifier::Public;
     }
 
-    const std::string& ns_node_identifier() final {
+    const std::string ns_node_identifier() final {
         return name();
     }
 

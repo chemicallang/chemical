@@ -78,7 +78,12 @@ struct ASTFileMetaData {
 };
 
 
-struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
+struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
+
+    /**
+     * this allocator was used to serially allocate strings in the lexer or parser
+     */
+    BatchAllocator serial_str_alloc;
 
     /**
      * the parsed unit
@@ -89,7 +94,7 @@ struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
      * the imported files by this file, these files don't contain duplicates
      * or already imported files
      */
-    std::vector<ASTFileResultNew*> imports;
+    std::vector<ASTFileResult*> imports;
 
     /**
      * if read error occurred this would contain it
@@ -118,7 +123,19 @@ struct ASTFileResultNew : ASTFileResultData, ASTFileMetaData {
      */
     std::unique_ptr<BenchmarkResults> parse_benchmark;
 
+    /**
+     * the constructor is used to allocate ast file result and pass it on
+     */
+    ASTFileResult() : serial_str_alloc(nullptr, 0, 0) {
+
+    }
+
 };
+
+/**
+ * @deprecated
+ */
+using ASTFileResultNew = ASTFileResult;
 
 /**
  * this will be called ASTProcessor

@@ -389,16 +389,19 @@ void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int f
     }
 
     Lexer lexer(std::string(abs_path), &inp_source, &binder);
-    LexUnit lexUnit;
+    std::vector<Token> tokens;
 
     if(options->benchmark) {
         result.lex_benchmark = std::make_unique<BenchmarkResults>();
         result.lex_benchmark->benchmark_begin();
-        lexer.getUnit(lexUnit);
+        lexer.getTokens(tokens);
         result.lex_benchmark->benchmark_end();
     } else {
-        lexer.getUnit(lexUnit);
+        lexer.getTokens(tokens);
     }
+
+    // move the serial string allocator
+    result.serial_str_alloc = std::move(lexer.str.allocator);
 
     // lexer doesn't have diagnostics
     // result.lex_diagnostics = {};
@@ -407,7 +410,7 @@ void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int f
     Parser parser(
             fileId,
             abs_path,
-            lexUnit.tokens.data(),
+            tokens.data(),
             resolver->comptime_scope.loc_man,
             job_allocator,
             mod_allocator,
@@ -417,8 +420,8 @@ void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int f
     );
 
     // put the lexing diagnostic into the parser diagnostic for now
-    if(!lexUnit.tokens.empty()) {
-        auto& last_token = lexUnit.tokens.back();
+    if(!tokens.empty()) {
+        auto& last_token = tokens.back();
         if (last_token.type == TokenType::Unexpected) {
             parser.diagnostics.emplace_back(
                     CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", abs_path,

@@ -20,6 +20,11 @@ class ASTUnit {
 public:
 
     /**
+     * this allocator was used to serially allocate strings in the lexer or parser
+     */
+    BatchAllocator serial_str_alloc;
+
+    /**
      * The top level scope, This contains nodes that have raw pointers
      * to values and types allocated in this ASTUnit
      */

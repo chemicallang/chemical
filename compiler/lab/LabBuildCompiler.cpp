@@ -890,7 +890,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     build_context = &context;
 
     const auto lab_stack_size = 100000; // 100kb for the whole lab operations
-    char lab_stack_memory[lab_stack_size];
+    auto lab_stack_memory = (char*) malloc(lab_stack_size);
 
     // the allocator is used in lab
     ASTAllocator lab_allocator(lab_stack_memory, lab_stack_size, lab_stack_size);
@@ -1099,9 +1099,9 @@ int LabBuildCompiler::do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*,
     const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
     const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
     const auto file_stack_size = 50000; // 50 kb will be allocated on the stack
-    char job_stack_memory[job_stack_size];
-    char mod_stack_memory[mod_stack_size];
-    char file_stack_memory[file_stack_size];
+    auto job_stack_memory = (char*) malloc(job_stack_size);
+    auto mod_stack_memory = (char*) malloc(mod_stack_size);
+    auto file_stack_memory = (char*) malloc(file_stack_size);
     ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
     ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
     ASTAllocator _file_allocator(file_stack_memory, file_stack_size, file_stack_size);
@@ -1161,9 +1161,9 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
     const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
     const auto file_stack_size = 50000; // 50 kb will be allocated on the stack
-    char job_stack_memory[job_stack_size];
-    char mod_stack_memory[mod_stack_size];
-    char file_stack_memory[file_stack_size];
+    auto job_stack_memory = (char*) malloc(job_stack_size);
+    auto mod_stack_memory = (char*) malloc(mod_stack_size);
+    auto file_stack_memory = (char*) malloc(file_stack_size);
     ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
     ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
     ASTAllocator _file_allocator(file_stack_memory, file_stack_size, file_stack_size);

@@ -24,7 +24,7 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
         return nullptr;
     }
 
-    auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(is_const, loc_id(id), nullptr, nullptr, parent_node, loc_single(start_tok), specifier);
+    auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(is_const, loc_id(allocator, id), nullptr, nullptr, parent_node, loc_single(start_tok), specifier);
 
     auto prev_parent_node = parent_node;
     parent_node = stmt;

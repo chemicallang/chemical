@@ -110,7 +110,7 @@ VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, 
             return nullptr;
         }
 
-        auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(id), parent_node, 0, specifier);
+        auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(allocator, id), parent_node, 0, specifier);
 
         annotate(decl);
 

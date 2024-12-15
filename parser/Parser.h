@@ -39,22 +39,6 @@ class GlobalInterpretScope;
 typedef void(*AnnotationModifierFunc)(Parser *parser, AnnotableNode* node);
 
 /**
- * A function that is called upon encountering an annotation
- * @deprecated
- */
-typedef void(*AnnotationModifierFn)(Parser *lexer, CSTToken* token);
-
-/**
- * a value creator function
- */
-typedef Value*(*ValueCreatorFn)(Parser *lexer, ASTAllocator& allocator, Token* token);
-
-/**
- * a function that parses something inside a macro
- */
-typedef void(*MacroLexerFn)(Parser *lexer);
-
-/**
  * the parser that is used to parse
  */
 class Parser : public CSTDiagnoser {
@@ -155,13 +139,13 @@ public:
     /**
      * get a located identifier
      */
-    LocatedIdentifier loc_id(const chem::string_view& value, const Position& pos);
+    LocatedIdentifier loc_id(BatchAllocator& allocator, const chem::string_view& value, const Position& pos);
 
     /**
      * get a located identifier
      */
-    inline LocatedIdentifier loc_id(Token* token) {
-        return loc_id(token->value, token->position);
+    inline LocatedIdentifier loc_id(BatchAllocator& allocator, Token* token) {
+        return loc_id(allocator, token->value, token->position);
     }
 
     /**

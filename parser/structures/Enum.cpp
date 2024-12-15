@@ -19,7 +19,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
             error("expected a identifier as enum name");
             return nullptr;
         }
-        auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(id), {}, parent_node, loc_single(start_tok), specifier);
+        auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(allocator, id), {}, parent_node, loc_single(start_tok), specifier);
 
         annotate(decl);
 

@@ -40,11 +40,13 @@ Position Parser::end_pos(Token* token) {
     return { token->position.line, (unsigned int) (token->position.character + token->value.size()) };
 }
 
-LocatedIdentifier Parser::loc_id(const chem::string_view& value, const Position& pos) {
+LocatedIdentifier Parser::loc_id(BatchAllocator& allocator, const chem::string_view& value, const Position& pos) {
+    const auto value_size = value.size();
+    auto allocated = allocator.allocate_str(value.data(), value_size);
 #ifdef LSP_BUILD
-    return { value, loc_single(pos, value.size()) };
+    return { chem::string_view(allocated, value_size), loc_single(pos, value_size) };
 #else
-    return { value };
+    return { chem::string_view(allocated, value_size) };
 #endif
 }
 

@@ -13,7 +13,7 @@ TypealiasStatement* Parser::parseTypealiasStatement(ASTAllocator& allocator, Acc
             error("expected a type for typealias statement");
             return nullptr;
         }
-        auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(id), nullptr, parent_node, loc_single(tok), specifier);
+        auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(allocator, id), nullptr, parent_node, loc_single(tok), specifier);
         annotate(alias);
         lexWhitespaceToken();
         if(!consumeToken(TokenType::EqualSym)) {

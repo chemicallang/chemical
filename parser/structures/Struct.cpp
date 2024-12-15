@@ -167,7 +167,7 @@ StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, Ac
             return nullptr;
         }
 
-        auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(loc_id(identifier), parent_node, 0, specifier);
+        auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(loc_id(allocator, identifier), parent_node, 0, specifier);
 
         annotate(decl);
 

@@ -19,7 +19,7 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
             error("expected interface name after the interface keyword");
             return nullptr;
         }
-        auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(id), parent_node, loc_single(tok), specifier);
+        auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(allocator, id), parent_node, loc_single(tok), specifier);
 
         annotate(decl);
 

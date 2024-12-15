@@ -252,7 +252,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
     FunctionDeclaration* decl;
 
     if(allow_extensions && consumeToken(TokenType::LParen)) {
-        auto ext_func = new (allocator.allocate<ExtensionFunction>()) ExtensionFunction(loc_id("", {0, 0}), { "", nullptr, nullptr, 0 }, {}, nullptr, false, parent_node, 0, std::nullopt, specifier);;
+        auto ext_func = new (allocator.allocate<ExtensionFunction>()) ExtensionFunction(loc_id(allocator, "", {0, 0}), { "", nullptr, nullptr, 0 }, {}, nullptr, false, parent_node, 0, std::nullopt, specifier);;
         decl = ext_func;
         lexWhitespaceToken();
         auto id = consumeIdentifierOrKeyword();
@@ -282,7 +282,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
         }
         lexWhitespaceToken();
     } else {
-        decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id("", {0, 0}), {}, nullptr, false, parent_node, 0, std::nullopt, specifier, false);
+        decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id(allocator, "", {0, 0}), {}, nullptr, false, parent_node, 0, std::nullopt, specifier, false);
     }
 
     for(auto param : gen_params) {
@@ -294,7 +294,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
 
     auto name = consumeIdentifierOrKeyword();
     if(name) {
-        decl->set_identifier(loc_id(name));
+        decl->set_identifier(loc_id(allocator, name));
     } else {
         error("function name is missing after the keyword 'func'");
         return decl;

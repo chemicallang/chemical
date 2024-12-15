@@ -66,7 +66,7 @@ UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpeci
             return nullptr;
         }
 
-        auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(identifier), parent_node, 0, specifier);
+        auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(allocator, identifier), parent_node, 0, specifier);
 
         lexWhitespaceToken();
         if(!consumeToken(TokenType::LBrace)) {

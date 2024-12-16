@@ -1,21 +1,26 @@
-import "../compiler/Lexer.ch"
-import "../compiler/CSTConverter.ch"
+import "@compiler/Token.ch"
+import "@compiler/Lexer.ch"
+import "@compiler/CBIInfo.ch"
 import "@cstd/ctype.ch"
 
 using namespace std;
 
 struct HtmlLexer {
 
-    var lexer : *Lexer
-
-    var provider : *SourceProvider
-
     var has_lt : bool
 
 }
 
-func (html : &HtmlLexer) put_token(value : &string, type : LexTokenType) : *CSTToken {
-    return html.lexer.put(value, type, html.provider.getLineNumber(), html.provider.getLineCharNumber());
+pubic func getCBIInfo() : CBIInfo {
+    return CBIInfo {
+        is_initialize_lexer : true,
+        is_parse_macro_value : true
+    }
+}
+
+public func initializeLexer(lexer : *Lexer) : *HtmlLexer {
+    var ptr = lexer.fileAllocator.allocate_size(#sizeof(HtmlLexer), #alignof(HtmlLexer));
+    return (ptr as *HtmlLexer)
 }
 
 func (provider : &SourceProvider) read_tag_name() : string {
@@ -31,7 +36,7 @@ func (provider : &SourceProvider) read_tag_name() : string {
     return str;
 }
 
-func (html : &mut HtmlLexer) put_next_token() {
+public func func getNextToken(state : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     var c = html.provider.peek();
     switch(c) {
         '<' => {
@@ -72,15 +77,4 @@ func (html : &mut HtmlLexer) put_next_token() {
             }
         }
     }
-}
-
-public func lexMacro(lexer : *Lexer) {
-    lexer.lexNumberToken();
-}
-
-public func parseMacro(converter : *CSTConverter, token : *CSTToken) {
-    const contained = token.tokens();
-    const interested = contained.get(1);
-    const value = converter.make_uint_value(33, token);
-    converter.put_value(value, interested);
 }

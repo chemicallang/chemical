@@ -269,6 +269,23 @@ void take_linked_libs(LabJob& job, CmdOptions& options) {
     }
 }
 
+void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
+    const auto& libs = options.data.find("cbi")->second.multi_value.values;
+    for(auto& lib : libs) {
+        auto found = lib.find(':');
+        if(found != std::string::npos) {
+            auto name = std::string_view(lib.data(), found);
+            auto path = std::string_view(lib.data() + (found + 1));
+            LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_folder), LabJobStatus::Pending, {}, {}, {}, {});
+            LabModule mod(LabModuleType::Directory, chem::string(name), chem::string(""), chem::string(""), chem::string(""), chem::string(""), chem::string(""), {}, {}, { chem::string(path) }, {});
+            job.dependencies.emplace_back(&mod);
+            compiler.do_job_allocating(&job);
+        } else {
+            std::cerr << rang::fg::red << "the argument to --cbi must be formatted as <name>:<directory_path>" << rang::fg::reset;
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
 
 #ifdef COMPILER_BUILD
@@ -307,6 +324,7 @@ int main(int argc, char *argv[]) {
         CmdOption("output", "o", CmdOptionType::SingleValue, output_desc),
         CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
         CmdOption("ignore-extension", CmdOptionType::NoValue, ignore_extension_desc),
+        CmdOption("cbi", "cbi", CmdOptionType::MultiValued, ignore_extension_desc),
         CmdOption("out-ll", CmdOptionType::SingleValue, ll_out_desc),
         CmdOption("out-bc", CmdOptionType::SingleValue, bc_out_desc),
         CmdOption("out-obj", CmdOptionType::SingleValue, obj_out_desc),
@@ -480,6 +498,9 @@ int main(int argc, char *argv[]) {
         // Prepare compiler options
         prepare_options(&compiler_opts);
 
+        // build cbi modules
+        build_cbi_modules(compiler, options);
+
         // translate the build.lab to a c file (for debugging)
         if(output.has_value() && output.value().ends_with(".c")) {
             LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_folder), { }, { });
@@ -509,6 +530,9 @@ int main(int argc, char *argv[]) {
     LabBuildCompiler compiler(binder, &compiler_opts);
     prepare_options(&compiler_opts);
     compiler_opts.def_mode = mode;
+
+    // build cbi modules
+    build_cbi_modules(compiler, options);
 
     auto& ll_out = options.option_new("out-ll");
     auto& bc_out = options.option_new("out-bc");

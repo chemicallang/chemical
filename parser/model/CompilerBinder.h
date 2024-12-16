@@ -40,28 +40,10 @@ struct BinderResult {
 };
 
 /**
- * this function is a lex function, it takes the lexer cbi
- * which allows user to lex tokens
- */
-typedef void(*cbi_lex_macro_func)(Parser* cbi);
-
-/**
- * this function is a lex function, it takes the lexer cbi
- * which allows user to lex tokens
- */
-typedef void(*cbi_parse_macro_func)(CSTConverter* cbi, CSTToken* token);
-
-/**
  * compiler binder based on tiny c compiler
  */
 class CompilerBinder {
 public:
-
-    /**
-     * cached pointers of functions
-     * @deprecated
-     */
-    std::unordered_map<std::string, void*> cached_func;
 
     /**
      * all the initializer functions are indexed in the single unordered map
@@ -78,11 +60,6 @@ public:
      * contains a map between cbi_name and module data
      */
     std::unordered_map<std::string, CBIData> data;
-
-    /**
-     * a map between absolute file paths, and public symbols inside them
-     */
-    std::unordered_map<std::string, std::unordered_map<std::string, void*>> symbol_maps;
 
     /**
      * a map between interface names like Lexer, SourceProvider and their actual symbols
@@ -116,8 +93,6 @@ public:
     BinderResult compile(
         CBIData& cbiData,
         const std::string& program,
-        std::vector<std::string_view>& imports,
-        std::vector<std::string_view>& current_files,
         const std::vector<std::string>& compiler_interfaces,
         ASTProcessor& processor
     );
@@ -126,30 +101,6 @@ public:
      * import compiler interface with the given name
      */
     bool import_compiler_interface(const std::string& name, TCCState* state);
-
-    /**
-     * provides a pointer to function contained inside cbi
-     * @deprecated please use provide_indexed_func
-     */
-    void* provide_func(const std::string& cbi_name, const std::string& funcName);
-
-    /**
-     * a lex function type is searched in the symbols, if not found nullptr is returned
-     * otherwise the pointer to the lex function that can compile the tokens is provided
-     * @param structName is the container struct for which it was generated
-     */
-    inline cbi_lex_macro_func provide_lex_macro_func(const std::string& cbiName) {
-        return (cbi_lex_macro_func) provide_func(cbiName, "lexMacro");
-    }
-
-    /**
-     * a lex function type is searched in the symbols, if not found nullptr is returned
-     * otherwise the pointer to the lex function that can compile the tokens is provided
-     * @param structName is the container struct for which it was generated
-     */
-    inline cbi_parse_macro_func provide_parse_macro_func(const std::string& cbiName) {
-        return (cbi_parse_macro_func) provide_func(cbiName, "parseMacro");
-    }
 
     /**
      * a destructor is used to destruct the TCC state

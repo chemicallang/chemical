@@ -235,6 +235,7 @@ const auto jit_desc = "just in time compile the given input";
 const auto output_desc = "the output at which file(s) will be generated";
 const auto resources_desc = "the path to resources directory required";
 const auto ignore_extension_desc = "compiler will ignore the extension of the file";
+const auto cbi_mv_desc = "compile a compiler binding interface that provides support for macro values";
 const auto ll_out_desc = "specify output path for .ll (llvm ir) file";
 const auto bc_out_desc = "specify output path for .bc (bitcode) file";
 const auto obj_out_desc = "specify output path for .o (object) file";
@@ -270,16 +271,35 @@ void take_linked_libs(LabJob& job, CmdOptions& options) {
 }
 
 void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
-    const auto& libs = options.data.find("cbi")->second.multi_value.values;
+    auto& libs = options.data.find("cbi-mv")->second.multi_value.values;
     for(auto& lib : libs) {
         auto found = lib.find(':');
         if(found != std::string::npos) {
-            auto name = std::string_view(lib.data(), found);
-            auto path = std::string_view(lib.data() + (found + 1));
+            auto name = chem::string_view(lib.data(), found);
+            auto path = chem::string_view(lib.data() + (found + 1));
             LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_folder), LabJobStatus::Pending, {}, {}, {}, {});
             LabModule mod(LabModuleType::Directory, chem::string(name), chem::string(""), chem::string(""), chem::string(""), chem::string(""), chem::string(""), {}, {}, { chem::string(path) }, {});
             job.dependencies.emplace_back(&mod);
             compiler.do_job_allocating(&job);
+            auto cbiDataItr = compiler.binder.data.find(name.str());
+            if(cbiDataItr != compiler.binder.data.end()) {
+                auto& cbiData = cbiDataItr->second;
+                cbiData.entry_module = cbiData.modules[0];
+                auto sym = tcc_get_symbol(cbiData.entry_module, "initializeLexer");
+                if(!sym) {
+                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'initializeLexer'" << rang::fg::reset << std::endl;
+                    continue;
+                }
+                auto sym2 = tcc_get_symbol(cbiData.entry_module, "parseMacroValue");
+                if(!sym2) {
+                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'parseMacroValue'" << rang::fg::reset << std::endl;
+                    continue;
+                }
+                auto& cbi_name_ref = cbiDataItr->first;
+                auto cbi_name = chem::string_view(cbi_name_ref.data(), cbi_name_ref.size());
+                compiler.binder.initializeLexerFunctions[cbi_name] = (UserLexerInitializeFn) sym;
+                compiler.binder.parseMacroValueFunctions[cbi_name] = (UserParserParseMacroValueFn) sym;
+            }
         } else {
             std::cerr << rang::fg::red << "the argument to --cbi must be formatted as <name>:<directory_path>" << rang::fg::reset;
         }
@@ -324,7 +344,7 @@ int main(int argc, char *argv[]) {
         CmdOption("output", "o", CmdOptionType::SingleValue, output_desc),
         CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
         CmdOption("ignore-extension", CmdOptionType::NoValue, ignore_extension_desc),
-        CmdOption("cbi", "cbi", CmdOptionType::MultiValued, ignore_extension_desc),
+        CmdOption("cbi-mv", "cbi-mv", CmdOptionType::MultiValued, cbi_mv_desc),
         CmdOption("out-ll", CmdOptionType::SingleValue, ll_out_desc),
         CmdOption("out-bc", CmdOptionType::SingleValue, bc_out_desc),
         CmdOption("out-obj", CmdOptionType::SingleValue, obj_out_desc),

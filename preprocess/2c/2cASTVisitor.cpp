@@ -2106,7 +2106,7 @@ void CTopLevelDeclarationVisitor::visit(VarInitStatement *init) {
     var_init(visitor, init, !init->is_exported(), !redefining);
 }
 
-void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
+void CTopLevelDeclarationVisitor::declare_func(FunctionDeclaration* decl) {
     // TODO we will fix capturing lambda types when introducing generics and unions
 //    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {
 //        visitor->error("Function name " + decl->name + " returns a capturing lambda, which is not supported");
@@ -2126,8 +2126,12 @@ void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
     }
 }
 
+void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
+    declare_func(decl);
+}
+
 void CTopLevelDeclarationVisitor::visit(ExtensionFunction *decl) {
-    declare_by_name(this, decl, decl->name());
+    declare_func(decl);
 }
 
 void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {

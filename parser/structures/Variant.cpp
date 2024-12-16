@@ -50,12 +50,14 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
 
                     readWhitespace();
 
+
+                    index++;
+
                     if(consumeToken(TokenType::CommaSym)) {
                         readWhitespace();
                         continue;
                     }
 
-                    index++;
                 } else {
                     break;
                 }

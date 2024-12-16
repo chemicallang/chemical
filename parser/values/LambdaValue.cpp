@@ -16,8 +16,6 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
 
     lexWhitespaceToken();
 
-    auto prev_func_type = current_func_type;
-    current_func_type = lambda;
     auto braceBlock = parseBraceBlock("lambda", parent_node, allocator);
     if(braceBlock.has_value()) {
         lambda->scope = std::move(braceBlock.value());
@@ -28,11 +26,9 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
             lambda->scope.nodes.emplace_back(returnStmt);
         } else {
             error("expected lambda body");
-            current_func_type = prev_func_type;
             return false;
         }
     }
-    current_func_type = prev_func_type;
 
     return true;
 }
@@ -41,6 +37,9 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
     if (consumeToken(TokenType::LBracket)) {
 
         auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
+
+        auto prev_func_type = current_func_type;
+        current_func_type = lambda;
 
         lambda->setIsCapturing(true);
 
@@ -87,6 +86,8 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
         if(!parseLambdaAfterParamsList(allocator, lambda)) {
             return lambda;
         }
+
+        current_func_type = prev_func_type;
 
         return lambda;
     } else {

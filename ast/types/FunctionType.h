@@ -333,6 +333,8 @@ public:
     /**
      * it will try to un move the given access chain or identifier value pointer
      * by checking if it's moved
+     * This is called by the assignment statement when lhs is a moved value and assignment is
+     * being done, when called the access chain or identifier is un moved. making it usable
      */
     bool mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_type);
 
@@ -378,7 +380,7 @@ public:
     /**
      * virtual destructor
      */
-    ~FunctionType() = default;
+    ~FunctionType() override = default;
 
 };
 

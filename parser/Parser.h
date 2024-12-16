@@ -534,6 +534,26 @@ public:
     );
 
     /**
+     * parse parameter list
+     * @return whether the function is variadic or not
+     */
+    inline bool parseParameterList(
+            ASTAllocator& allocator,
+            std::vector<FunctionParam*>& parameters,
+            FunctionType* func_type,
+            bool optionalTypes = false,
+            bool defValues = true,
+            bool lexImplicitParams = true,
+            bool variadicParam = true
+    ) {
+        auto prev_func_type = current_func_type;
+        current_func_type = func_type;
+        auto result = parseParameterList(allocator, parameters, optionalTypes, defValues, lexImplicitParams, variadicParam);
+        current_func_type = prev_func_type;
+        return result;
+    }
+
+    /**
      * this occurs right after the function name
      */
     bool parseGenericParametersList(ASTAllocator& allocator, std::vector<GenericTypeParameter*>& params);

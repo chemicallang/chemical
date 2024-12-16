@@ -114,7 +114,7 @@ bool Parser::parseParameterList(
         bool lexImplicitParams,
         bool variadicParam
 ) {
-    unsigned int index = 0;
+    unsigned int index = parameters.size();
     do {
         lexWhitespaceAndNewLines();
         if(lexImplicitParams) {

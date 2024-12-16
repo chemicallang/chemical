@@ -1,5 +1,6 @@
 import "./Operation.ch"
 import "@std/string.ch"
+import "./Position.ch"
 
 using namespace std;
 
@@ -131,4 +132,11 @@ struct SourceProvider {
      */
     func readWhitespacesAndNewLines (&self) : void;
 
+}
+
+func (provider : &SourceProvider) getPosition() : Position {
+    return Position {
+        line : provider.lineNumber,
+        character : provider.lineCharacterNumber
+    }
 }

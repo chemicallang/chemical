@@ -57,18 +57,8 @@ AtReplaceResult lib_path_resolver(
     }
 }
 
-AtReplaceResult std_path_resolver(ImportPathHandler& handler, const std::string& importPath, unsigned int slash) {
-    return lib_path_resolver("std", handler, importPath, slash);
-}
-
-AtReplaceResult cstd_path_resolver(ImportPathHandler& handler, const std::string& importPath, unsigned int slash) {
-    return lib_path_resolver("cstd", handler, importPath, slash);
-}
-
 ImportPathHandler::ImportPathHandler(std::string compiler_exe_path) : exe_path(std::move(compiler_exe_path)) {
     path_resolvers["system"] = system_path_resolver;
-    path_resolvers["std"] = std_path_resolver;
-    path_resolvers["cstd"] = cstd_path_resolver;
 }
 
 std::string ImportPathHandler::headers_dir(const std::string &header) {
@@ -97,6 +87,10 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string &filePat
     auto next = aliases.find(atDirective);
     if(next != aliases.end()) {
         return { next->second + filePath.substr(slash), "" };
+    }
+    auto resolver = lib_path_resolver(atDirective, *this, filePath, slash);
+    if(resolver.error.empty()) {
+        return resolver;
     }
     return {filePath, "unknown '@' directive " + atDirective + " in import statement"};
 }

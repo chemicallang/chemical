@@ -1,6 +1,7 @@
 import "@compiler/Token.ch"
 import "@compiler/Lexer.ch"
 import "@compiler/CBIInfo.ch"
+import "./TokenType.ch"
 import "@cstd/ctype.ch"
 
 using namespace std;
@@ -11,7 +12,7 @@ struct HtmlLexer {
 
 }
 
-pubic func getCBIInfo() : CBIInfo {
+public func getCBIInfo() : CBIInfo {
     return CBIInfo {
         is_initialize_lexer : true,
         is_parse_macro_value : true
@@ -23,8 +24,7 @@ public func initializeLexer(lexer : *Lexer) : *HtmlLexer {
     return (ptr as *HtmlLexer)
 }
 
-func (provider : &SourceProvider) read_tag_name() : string {
-    var str = string();
+func (provider : &SourceProvider) read_tag_name(str : &SerialStrAllocator) : std::string_view {
     while(true) {
         const c = provider.peek();
         if(isalnum(c as int) || c == '_' || c == '-' || c == ':') {
@@ -33,46 +33,95 @@ func (provider : &SourceProvider) read_tag_name() : string {
             break;
         }
     }
-    return str;
+    return str.finalize_view();
 }
 
-public func func getNextToken(state : &mut HtmlLexer, lexer : &mut Lexer) : Token {
-    var c = html.provider.peek();
+func (provider : &SourceProvider) read_text(str : &SerialStrAllocator) : std::string_view {
+    while(true) {
+        const c = provider.peek();
+        if(c != '<') {
+            str.append(c);
+        } else {
+            break;
+        }
+    }
+    return str.finalize_view();
+}
+
+func view(str : literal<string>) : std::string_view {
+    return std::string_view(str);
+}
+
+public func getNextToken(state : &mut HtmlLexer, lexer : &mut Lexer) : Token {
+    const provider = &html.provider;
+    // the position of the current symbol
+    const position = provider.getPosition();
     switch(c) {
         '<' => {
             html.has_lt = true;
-            html.provider.readCharacter();
-            html.lexer.lexOperatorToken('<');
+            provider.readCharacter();
+            return Token {
+                type : TokenType.LT,
+                value : view("<"),
+                position : position
+            }
         }
         '/' => {
             if(html.has_lt) {
-                html.provider.readCharacter();
-                html.lexer.lexOperatorToken('/');
+                provider.readCharacter();
+                return Token {
+                    type : TokenType.FwdSlash,
+                    value : view("/"),
+                    position : position
+                }
             } else {
-                // TODO diagnostic, lt is not open
+                return Token {
+                    type : TokenType.Unexpected,
+                    value : view("lt is not open"),
+                    position : position
+                }
             }
         }
         '>' => {
             if(html.has_lt) {
                 html.has_lt = false;
-                html.lexer.lexOperatorToken('>');
+                return Token {
+                    type : TokenType.GT,
+                    value : view(">"),
+                    position : position
+                }
             } else {
-                // TODO diagnostic, lt is not open, what is '>' doing here
+                return Token {
+                    type : TokenType.Unexpected,
+                    value : view("lt is not open"),
+                    position : position
+                }
             }
         }
         default => {
             if(html.has_lt) {
                 if(isalpha(c as int)) {
-                    const tag_name = html.provider.read_tag_name();
-                    html.put_token(tag_name, LexTokenType.Keyword);
+                    const tag_name = provider.read_tag_name(lexer.str);
+                    return Token {
+                        type : TokenType.Identifier,
+                        value : tag_name,
+                        position : position
+                    }
                 } else {
-                    // TODO diagnostic, tag names must start with letters
+                    return Token {
+                        type : TokenType.Unexpected,
+                        value : view("tag names must start with letters"),
+                        position : position
+                    }
                 }
             } else {
-                var text = string();
-                html.provider.readUntil(&text, '<');
+                var text = provider.read_text(lexer.str)
                 if(text.size() != 0) {
-                    html.put_token(text, LexTokenType.RawToken);
+                    return Token {
+                        type : TokenType.Text,
+                        value : text,
+                        position : position
+                    }
                 }
             }
         }

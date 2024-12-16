@@ -14,12 +14,14 @@ struct HtmlLexer {
 }
 
 public func initializeLexer(lexer : *Lexer) {
-    var ptr = lexer.fileAllocator.allocate_size(#sizeof(HtmlLexer), #alignof(HtmlLexer));
-    printf("hello from the html cbi");
+    const file_allocator = lexer.getFileAllocator();
+    const ptr = file_allocator.allocate_size(#sizeof(HtmlLexer), #alignof(HtmlLexer)) as *mut HtmlLexer;
+    ptr.has_lt = false;
 }
 
-public func parseMacroValue(parser : *mut Parser, allocator : *mut ASTBuilder) : *mut Value {
-    printf("hello2 from the html cbi");
+public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
+    const loc = compiler::get_raw_location();
+    return builder.make_int_value(10, loc);
 }
 
 func (provider : &SourceProvider) read_tag_name(str : &SerialStrAllocator) : std::string_view {

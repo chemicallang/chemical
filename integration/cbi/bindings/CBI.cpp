@@ -12,6 +12,7 @@
 #include "ASTCBI.h"
 #include "CSTDiagnoserCBI.h"
 #include "SerialStrAllocatorCBI.h"
+#include "LexerCBI.h"
 
 dispose_string::~dispose_string(){
     ptr->~string();
@@ -106,21 +107,8 @@ void cst_diagnoser_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
 }
 
 void lexer_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
-    // TODO remove this
     sym_map = {
-
-    };
-}
-
-void cst_token_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
-    sym_map = {
-            { "CSTTokenget_value", (void*) CSTTokenget_value },
-            { "CSTTokenposition", (void*) CSTTokenposition },
-            { "CSTTokentokens", (void*) CSTTokentokens },
-            { "CSTTokentype", (void*) CSTTokentype },
-            { "CSTTokenaccept", (void*) CSTTokenaccept },
-            { "CSTTokenstart_token", (void*) CSTTokenstart_token },
-            { "CSTTokenend_token", (void*) CSTTokenend_token },
+            {"LexergetFileAllocator",    (void*) LexergetFileAllocator }
     };
 }
 

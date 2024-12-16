@@ -339,201 +339,201 @@ struct VariantMemberParam : ASTNode {}
 @compiler.interface
 public struct ASTBuilder {
 
-    func make_any_type(&self, location : ubigint) : *AnyType
+    func make_any_type(&self, location : ubigint) : *mut AnyType
 
-    func make_array_type(&self, elem_type : *BaseType, array_size : int, location : ubigint) : *ArrayType
+    func make_array_type(&self, elem_type : *BaseType, array_size : int, location : ubigint) : *mut ArrayType
 
-    func make_bigint_type(&self, location : ubigint) : *BigIntType
+    func make_bigint_type(&self, location : ubigint) : *mut BigIntType
 
-    func make_bool_type(&self, location : ubigint) : *BoolType
+    func make_bool_type(&self, location : ubigint) : *mut BoolType
 
-    func make_char_type(&self, location : ubigint) : *BoolType
+    func make_char_type(&self, location : ubigint) : *mut BoolType
 
-    func make_double_type(&self, location : ubigint) : *DoubleType
+    func make_double_type(&self, location : ubigint) : *mut DoubleType
 
-    func make_dynamic_type(&self, child_type : *BaseType, location : ubigint) : *DynamicType
+    func make_dynamic_type(&self, child_type : *BaseType, location : ubigint) : *mut DynamicType
 
-    func make_float_type(&self, location : ubigint) : *FloatType
+    func make_float_type(&self, location : ubigint) : *mut FloatType
 
-    func make_func_type(&self, returnType : *BaseType, isVariadic : bool, isCapturing : bool, parent : *ASTNode, location : ubigint) : *FunctionType
+    func make_func_type(&self, returnType : *BaseType, isVariadic : bool, isCapturing : bool, parent : *ASTNode, location : ubigint) : *mut FunctionType
 
-    func make_generic_type(&self, linkedType : *LinkedType) : *GenericType
+    func make_generic_type(&self, linkedType : *LinkedType) : *mut GenericType
 
-    func make_int128_type(&self, location : ubigint) : *Int128Type
+    func make_int128_type(&self, location : ubigint) : *mut Int128Type
 
-    func make_int_type(&self, location : ubigint) : *IntType
+    func make_int_type(&self, location : ubigint) : *mut IntType
 
-    func make_linked_type(&self, type : &string_view, linked : *ASTNode, location : ubigint) : *LinkedType
+    func make_linked_type(&self, type : &string_view, linked : *ASTNode, location : ubigint) : *mut LinkedType
 
-    func make_linked_value_type(&self, value : *Value, location : ubigint) : *LinkedValueType
+    func make_linked_value_type(&self, value : *Value, location : ubigint) : *mut LinkedValueType
 
-    func make_literal_type(&self, child_type : *BaseType, location : ubigint) : *LiteralType
+    func make_literal_type(&self, child_type : *BaseType, location : ubigint) : *mut LiteralType
 
-    func make_long_type(&self, is64Bit : bool, location : ubigint) : *LongType
+    func make_long_type(&self, is64Bit : bool, location : ubigint) : *mut LongType
 
-    func make_ptr_type(&self, child_type : *BaseType, location : ubigint) : *PointerType
+    func make_ptr_type(&self, child_type : *BaseType, location : ubigint) : *mut PointerType
 
-    func make_reference_type(&self, child_type : *BaseType, location : ubigint) : *ReferenceType
+    func make_reference_type(&self, child_type : *BaseType, location : ubigint) : *mut ReferenceType
 
-    func make_short_type(&self, location : ubigint) : *ShortType
+    func make_short_type(&self, location : ubigint) : *mut ShortType
 
-    func make_string_type(&self, location : ubigint) : *StringType
+    func make_string_type(&self, location : ubigint) : *mut StringType
 
-    func make_ubigint_type(&self, location : ubigint) : *UBigIntType
+    func make_ubigint_type(&self, location : ubigint) : *mut UBigIntType
 
-    func make_uchar_type(&self, location : ubigint) : *UCharType
+    func make_uchar_type(&self, location : ubigint) : *mut UCharType
 
-    func make_uint128_type(&self, location : ubigint) : *UInt128Type
+    func make_uint128_type(&self, location : ubigint) : *mut UInt128Type
 
-    func make_uint_type(&self, location : ubigint) : *UIntType
+    func make_uint_type(&self, location : ubigint) : *mut UIntType
 
-    func make_ulong_type(&self, is64Bit : bool, location : ubigint) : *ULongType
+    func make_ulong_type(&self, is64Bit : bool, location : ubigint) : *mut ULongType
 
-    func make_ushort_type(&self, location : ubigint) : *UShortType
+    func make_ushort_type(&self, location : ubigint) : *mut UShortType
 
-    func make_void_type(&self, location : ubigint) : *VoidType
+    func make_void_type(&self, location : ubigint) : *mut VoidType
 
-    func make_access_chain(&self, parent_node : *ASTNode, is_node : bool, location : ubigint) : *AccessChain
+    func make_access_chain(&self, parent_node : *ASTNode, is_node : bool, location : ubigint) : *mut AccessChain
 
-    func make_addr_of_value(&self, value : *Value, location : ubigint) : *AddrOfValue
+    func make_addr_of_value(&self, value : *Value, location : ubigint) : *mut AddrOfValue
 
-    func make_array_value(&self, type : *BaseType, location : ubigint) : *ArrayValue
+    func make_array_value(&self, type : *BaseType, location : ubigint) : *mut ArrayValue
 
-    func make_bigint_value(&self, value : bigint, location : ubigint) : *BigIntValue
+    func make_bigint_value(&self, value : bigint, location : ubigint) : *mut BigIntValue
 
-    func make_bool_value(&self, value : bool, location : ubigint) : *BoolValue
+    func make_bool_value(&self, value : bool, location : ubigint) : *mut BoolValue
 
-    func make_casted_value(&self, value : *Value, type : *BaseType, location : ubigint) : *CastedValue
+    func make_casted_value(&self, value : *Value, type : *BaseType, location : ubigint) : *mut CastedValue
 
-    func make_char_value(&self, value : char, location : ubigint) : *CharValue
+    func make_char_value(&self, value : char, location : ubigint) : *mut CharValue
 
-    func make_dereference_value(&self, value : *Value, location : ubigint) : *DereferenceValue
+    func make_dereference_value(&self, value : *Value, location : ubigint) : *mut DereferenceValue
 
-    func make_double_value(&self, value : double, location : ubigint) : *DoubleValue
+    func make_double_value(&self, value : double, location : ubigint) : *mut DoubleValue
 
-    func make_expression_value(&self, first : *Value, second : *Value, op : Operation, is64Bit : bool, location : ubigint) : *Expression
+    func make_expression_value(&self, first : *Value, second : *Value, op : Operation, is64Bit : bool, location : ubigint) : *mut Expression
 
-    func make_float_value(&self, value : float, location : ubigint) : *FloatValue
+    func make_float_value(&self, value : float, location : ubigint) : *mut FloatValue
 
-    func make_function_call_value(&self, location : ubigint) : *FunctionCall
+    func make_function_call_value(&self, location : ubigint) : *mut FunctionCall
 
-    func make_index_op_value(&self, location : ubigint) : *IndexOperator
+    func make_index_op_value(&self, location : ubigint) : *mut IndexOperator
 
-    func make_int128_value(&self, mag : ubigint, is_neg : bool, location : ubigint) : *Int128Value
+    func make_int128_value(&self, mag : ubigint, is_neg : bool, location : ubigint) : *mut Int128Value
 
-    func make_int_value(&self, value : int, location : ubigint) : *IntValue
+    func make_int_value(&self, value : int, location : ubigint) : *mut IntValue
 
-    func make_is_value(&self, value : *Value, type : *BaseType, is_negating : bool, location : ubigint) : *IsValue
+    func make_is_value(&self, value : *Value, type : *BaseType, is_negating : bool, location : ubigint) : *mut IsValue
 
-    func make_lambda_function(&self, value : *Value, type : *BaseType, isVariadic : bool, parent_node : *ASTNode, location : ubigint) : *LambdaFunction
+    func make_lambda_function(&self, value : *Value, type : *BaseType, isVariadic : bool, parent_node : *ASTNode, location : ubigint) : *mut LambdaFunction
 
-    func make_captured_variable(&self, name : &string_view, index : uint, capture_by_ref : bool, value : long, location : ubigint) : *CapturedVariable
+    func make_captured_variable(&self, name : &string_view, index : uint, capture_by_ref : bool, value : long, location : ubigint) : *mut CapturedVariable
 
-    func make_long_value(&self, value : long, is64Bit : bool, location : ubigint) : *LongValue
+    func make_long_value(&self, value : long, is64Bit : bool, location : ubigint) : *mut LongValue
 
-    func make_negative_value(&self, value : *Value, location : ubigint) : *NegativeValue
+    func make_negative_value(&self, value : *Value, location : ubigint) : *mut NegativeValue
 
-    func make_not_value(&self, value : *Value, location : ubigint) : *NotValue
+    func make_not_value(&self, value : *Value, location : ubigint) : *mut NotValue
 
-    func make_null_value(&self, location : ubigint) : *NullValue
+    func make_null_value(&self, location : ubigint) : *mut NullValue
 
-    func make_number_value(&self, value : bigint, location : ubigint) : *NumberValue
+    func make_number_value(&self, value : bigint, location : ubigint) : *mut NumberValue
 
-    func make_short_value(&self, value : short, location : ubigint) : *ShortValue
+    func make_short_value(&self, value : short, location : ubigint) : *mut ShortValue
 
-    func make_sizeof_value(&self, type : *BaseType, location : ubigint) : *SizeOfValue
+    func make_sizeof_value(&self, type : *BaseType, location : ubigint) : *mut SizeOfValue
 
-    func make_string_value(&self, value : &string_view, location : ubigint) : *StringValue
+    func make_string_value(&self, value : &string_view, location : ubigint) : *mut StringValue
 
-    func make_struct_member_initializer(&self, name : &string_view, value : *Value, structValue : *StructValue) : *StructMemberInitializer
+    func make_struct_member_initializer(&self, name : &string_view, value : *Value, structValue : *StructValue) : *mut StructMemberInitializer
 
-    func make_struct_value(&self, ref : *BaseType, parent_node : *ASTNode, location : ubigint) : *StructValue
+    func make_struct_value(&self, ref : *BaseType, parent_node : *ASTNode, location : ubigint) : *mut StructValue
 
-    func make_ubigint_value(&self, value : ubigint, location : ubigint) : *UBigIntValue
+    func make_ubigint_value(&self, value : ubigint, location : ubigint) : *mut UBigIntValue
 
-    func make_uchar_value(&self, value : uchar, location : ubigint) : *UCharValue
+    func make_uchar_value(&self, value : uchar, location : ubigint) : *mut UCharValue
 
-    func make_uint128_value(&self, low : ubigint, high : ubigint, location : ubigint) : *UInt128Value
+    func make_uint128_value(&self, low : ubigint, high : ubigint, location : ubigint) : *mut UInt128Value
 
-    func make_uint_value(&self, value : uint, location : ubigint) : *UIntValue
+    func make_uint_value(&self, value : uint, location : ubigint) : *mut UIntValue
 
-    func make_ulong_value(&self, value : ulong, is64Bit : bool, location : ubigint) : *ULongValue
+    func make_ulong_value(&self, value : ulong, is64Bit : bool, location : ubigint) : *mut ULongValue
 
-    func make_ushort_value(&self, value : ushort, location : ubigint) : *UShortValue
+    func make_ushort_value(&self, value : ushort, location : ubigint) : *mut UShortValue
 
-    func make_value_node(&self, value : *Value, parent_node : *ASTNode, location : ubigint) : *ValueNode
+    func make_value_node(&self, value : *Value, parent_node : *ASTNode, location : ubigint) : *mut ValueNode
 
-    func make_identifier(&self, value : &string_view, is_ns : bool, location : ubigint) : *VariableIdentifier
+    func make_identifier(&self, value : &string_view, is_ns : bool, location : ubigint) : *mut VariableIdentifier
 
-    func make_variant_call(&self, chain : *AccessChain, location : ubigint) : *VariantCall
+    func make_variant_call(&self, chain : *AccessChain, location : ubigint) : *mut VariantCall
 
-    func make_variant_case(&self, chain : *AccessChain, stmt : *SwitchStatement, location : ubigint) : *VariantCase
+    func make_variant_case(&self, chain : *AccessChain, stmt : *SwitchStatement, location : ubigint) : *mut VariantCase
 
-    func make_variant_case_variable(&self, name : &string_view, variant_case : *VariantCase, location : ubigint) : *VariantCaseVariable
+    func make_variant_case_variable(&self, name : &string_view, variant_case : *VariantCase, location : ubigint) : *mut VariantCaseVariable
 
-    func make_assignment_stmt(&self, lhs : *Value, rhs : *Value, op : Operation, parent_node : *ASTNode, location : ubigint) : *AssignStatement
+    func make_assignment_stmt(&self, lhs : *Value, rhs : *Value, op : Operation, parent_node : *ASTNode, location : ubigint) : *mut AssignStatement
 
     func make_break_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *BreakStatement
 
-    func make_comment_stmt(&self, value : &string_view, multiline : bool, parent_node : *ASTNode, location : ubigint) : *Comment
+    func make_comment_stmt(&self, value : &string_view, multiline : bool, parent_node : *ASTNode, location : ubigint) : *mut Comment
 
-    func make_continue_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *ContinueStatement
+    func make_continue_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *mut ContinueStatement
 
-    func make_destruct_stmt(&self, array_value : *Value, ptr_value : *Value, is_array : bool, parent_node : *ASTNode, location : ubigint) : *DestructStmt
+    func make_destruct_stmt(&self, array_value : *Value, ptr_value : *Value, is_array : bool, parent_node : *ASTNode, location : ubigint) : *mut DestructStmt
 
-    func make_return_stmt(&self, value : *Value, decl : *FunctionType, parent_node : *ASTNode, location : ubigint) : *ReturnStatement
+    func make_return_stmt(&self, value : *Value, decl : *FunctionType, parent_node : *ASTNode, location : ubigint) : *mut ReturnStatement
 
     //SwitchStatement* ASTBuildermake_return_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, location : ubigint);
 
     //ThrowStatement* ASTBuildermake_throw_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, location : ubigint);
 
-    func make_typealias_stmt(&self, identifier : &string_view, id_loc : ubigint, actual_type : *BaseType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *TypealiasStatement
+    func make_typealias_stmt(&self, identifier : &string_view, id_loc : ubigint, actual_type : *BaseType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut TypealiasStatement
 
-    func make_using_stmt(&self, chain : *AccessChain, is_namespace : bool, location : ubigint) : *UsingStmt
+    func make_using_stmt(&self, chain : *AccessChain, is_namespace : bool, location : ubigint) : *mut UsingStmt
 
-    func make_varinit_stmt(&self, is_const : bool, identifier : &string_view, id_loc : ubigint, type : *BaseType, value : *Value, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *VarInitStatement
+    func make_varinit_stmt(&self, is_const : bool, identifier : &string_view, id_loc : ubigint, type : *BaseType, value : *Value, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut VarInitStatement
 
-    func make_scope(&self, parent_node : *ASTNode, location : ubigint) : *Scope
+    func make_scope(&self, parent_node : *ASTNode, location : ubigint) : *mut Scope
 
-    func make_do_while_loop(&self, condition : *Value, parent_node : *ASTNode, location : ubigint) : *DoWhileLoop
+    func make_do_while_loop(&self, condition : *Value, parent_node : *ASTNode, location : ubigint) : *mut DoWhileLoop
 
-    func make_enum_decl(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *EnumDeclaration
+    func make_enum_decl(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut EnumDeclaration
 
-    func make_enum_member(&self, name : &string_view, index : uint, init_value : *Value, parent_node : *EnumDeclaration, location : ubigint) : *EnumMember
+    func make_enum_member(&self, name : &string_view, index : uint, init_value : *Value, parent_node : *EnumDeclaration, location : ubigint) : *mut EnumMember
 
-    func make_for_loop(&self, initializer : *VarInitStatement, conditionExpr : *Value, incrementerExpr : *ASTNode, parent_node : *ASTNode, location : ubigint) : *ForLoop
+    func make_for_loop(&self, initializer : *VarInitStatement, conditionExpr : *Value, incrementerExpr : *ASTNode, parent_node : *ASTNode, location : ubigint) : *mut ForLoop
 
-    func make_function(&self, name : &string_view, name_location : ubigint, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *FunctionDeclaration
+    func make_function(&self, name : &string_view, name_location : ubigint, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *mut FunctionDeclaration
 
-    func make_function_param(&self, name : &string_view, type : *BaseType, index : uint, value : *Value, implicit : bool, decl : *FunctionType, location : ubigint) : *FunctionParam
+    func make_function_param(&self, name : &string_view, type : *BaseType, index : uint, value : *Value, implicit : bool, decl : *FunctionType, location : ubigint) : *mut FunctionParam
 
-    func make_generic_param(&self, name : &string_view, at_least_type : *BaseType, def_type : *BaseType, parent_node : *ASTNode, index : uint, location : ubigint) : *GenericTypeParameter
+    func make_generic_param(&self, name : &string_view, at_least_type : *BaseType, def_type : *BaseType, parent_node : *ASTNode, index : uint, location : ubigint) : *mut GenericTypeParameter
 
-    func make_if_stmt(&self, condition : *Value, is_value : bool, parent_node : *ASTNode, location : ubigint) : *IfStatement
+    func make_if_stmt(&self, condition : *Value, is_value : bool, parent_node : *ASTNode, location : ubigint) : *mut IfStatement
 
-    func make_impl_def(&self, interface_type : *BaseType, struct_type : *BaseType, parent_node : *ASTNode, location : ubigint) : *ImplDefinition
+    func make_impl_def(&self, interface_type : *BaseType, struct_type : *BaseType, parent_node : *ASTNode, location : ubigint) : *mut ImplDefinition
 
-    func make_init_block(&self, parent_node : *ASTNode, location : ubigint) : *InitBlock
+    func make_init_block(&self, parent_node : *ASTNode, location : ubigint) : *mut InitBlock
 
-    func make_interface_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *InterfaceDefinition
+    func make_interface_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut InterfaceDefinition
 
-    func make_namespace(&self, name : &string_view, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *Namespace
+    func make_namespace(&self, name : &string_view, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut Namespace
 
-    func make_struct_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *StructDefinition
+    func make_struct_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut StructDefinition
 
-    func make_struct_member(&self, name : &string_view, type : *BaseType, defValue : *Value, isConst : bool, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *StructMember
+    func make_struct_member(&self, name : &string_view, type : *BaseType, defValue : *Value, isConst : bool, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut StructMember
 
-    func make_union_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *UnionDef
+    func make_union_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut UnionDef
 
-    func make_unsafe_block(&self, node : *ASTNode, location : ubigint) : *UnsafeBlock
+    func make_unsafe_block(&self, node : *ASTNode, location : ubigint) : *mut UnsafeBlock
 
-    func make_while_loop(&self, condition : *Value, node : *ASTNode, location : ubigint) : *WhileLoop
+    func make_while_loop(&self, condition : *Value, node : *ASTNode, location : ubigint) : *mut WhileLoop
 
-    func make_variant_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, node : *ASTNode, location : ubigint) : *VariantDefinition
+    func make_variant_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, node : *ASTNode, location : ubigint) : *mut VariantDefinition
 
-    func make_variant_member(&self, name : &string_view, parent_node : *VariantDefinition, location : ubigint) : *VariantMember
+    func make_variant_member(&self, name : &string_view, parent_node : *VariantDefinition, location : ubigint) : *mut VariantMember
 
-    func make_variant_member_param(&self, name : &string_view, index : uint, is_const : bool, type : *BaseType, defValue : *Value, parent_node : *VariantMember, location : ubigint) : *VariantMemberParam
+    func make_variant_member_param(&self, name : &string_view, index : uint, is_const : bool, type : *BaseType, defValue : *Value, parent_node : *VariantMember, location : ubigint) : *mut VariantMemberParam
 
 
 }

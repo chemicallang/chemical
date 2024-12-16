@@ -38,11 +38,6 @@ void batch_allocator_symbol_map(std::unordered_map<std::string_view, void*>& sym
 void serial_str_allocator_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
 
 /**
- * the function to put all symbols inside for the CSTToken compiler interface
- */
-void cst_token_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
-
-/**
  * the function to put all symbols inside for the TokensVec compiler interface
  */
 void ptr_vec_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
@@ -51,8 +46,3 @@ void ptr_vec_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
  * the function to put all symbols inside for the ASTBuilder compiler interface
  */
 void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
-
-/**
- * the function to put all symbols inside for the CSTConverter compiler interface
- */
-void cst_converter_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);

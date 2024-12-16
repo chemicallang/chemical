@@ -32,6 +32,6 @@ struct Lexer : LexerState {
 
     var str : SerialStrAllocator
 
-    var fileAllocator : &BatchAllocator
+    func getFileAllocator() : *BatchAllocator
 
 }

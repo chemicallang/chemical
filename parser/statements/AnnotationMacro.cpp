@@ -98,10 +98,13 @@ Value* Parser::parseMacroValue(ASTAllocator& allocator) {
     auto& t = *token;
     if(t.type == TokenType::HashMacro) {
         auto& map = binder->parseMacroValueFunctions;
-        auto found = map.find(t.value);
+        const auto view = chem::string_view(t.value.data() + 1, t.value.size() - 1);
+        auto found = map.find(view);
         if(found != map.end()) {
             token++;
             return found->second(this, &allocator);
+        } else {
+            error("couldn't find macro parser for '" + t.value.str() + "'");
         }
     }
     return nullptr;

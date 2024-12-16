@@ -452,7 +452,8 @@ Token Lexer::getNextToken() {
             str.append('#');
             read_id(str, provider);
             auto& functions_map = binder->initializeLexerFunctions;
-            auto found = functions_map.find(str.current_view());
+            auto view = chem::string_view((str.data + 1), str.length - 1);
+            auto found = functions_map.find(view);
             if(found != functions_map.end()) {
                 found->second(this);
             }

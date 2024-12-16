@@ -513,6 +513,8 @@ set(COMMON_SOURCES
         integration/cbi/bindings/BatchAllocatorCBI.cpp
         integration/cbi/bindings/SerialStrAllocatorCBI.h
         integration/cbi/bindings/SerialStrAllocator.cpp
+        integration/cbi/bindings/LexerCBI.h
+        integration/cbi/bindings/LexerCBI.cpp
 )
 
 # Chemical LSP Executable Target

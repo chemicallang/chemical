@@ -508,6 +508,7 @@ set(COMMON_SOURCES
         std/chem_string_view.h
         std/alloc/SerialVecBuilder.h
         std/small_vector.h
+        ast/values/AlignOfValue.h
 )
 
 # Chemical LSP Executable Target

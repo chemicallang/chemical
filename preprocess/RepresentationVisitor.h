@@ -307,6 +307,8 @@ public:
 
     void visit(SizeOfValue *size_of) final;
 
+    void visit(AlignOfValue *alignOf) final;
+
     void visit(RetStructParamValue *paramVal) final;
 
     void visit(UsingStmt *usingStmt) final;

@@ -22,6 +22,7 @@ void handle_error(void *opaque, const char *msg){
 
 CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_path)) {
     parseMacroValueFunctions["#sizeof"] = parseSizeOfValue;
+    parseMacroValueFunctions["#alignof"] = parseAlignOfValue;
     parseMacroValueFunctions["#eval"] = parseEvalValue;
     source_provider_symbol_map(interface_maps["SourceProvider"]);
     lexer_symbol_map(interface_maps["Lexer"]);

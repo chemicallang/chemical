@@ -23,6 +23,10 @@ func test_sizeof() {
         var i = #sizeof { SizeOfStrT1 }
         return i == 12;
     })
+    test("test alignof struct", () => {
+        var i = #alignof { SizeOfStrT1 }
+        return i == 4;
+    })
 }
 
 func test_macros() {

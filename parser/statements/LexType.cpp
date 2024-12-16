@@ -233,9 +233,14 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
 
     auto ptrToken = consumeOfType(TokenType::MultiplySym);
     if(ptrToken) {
+        auto is_mutable = token->type == TokenType::MutKw;
+        if(is_mutable) {
+            token++;
+            readWhitespace();
+        }
         auto type = parseType(allocator);
         if(type) {
-            return new (allocator.allocate<PointerType>()) PointerType(type, loc_single(ptrToken));
+            return new (allocator.allocate<PointerType>()) PointerType(type, loc_single(ptrToken), is_mutable);
         } else {
             error("expected a type after the *");
             return nullptr;
@@ -243,9 +248,14 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
     } else {
         auto refToken = consumeOfType(TokenType::AmpersandSym);
         if(refToken) {
+            auto is_mutable = token->type == TokenType::MutKw;
+            if(is_mutable) {
+                token++;
+                readWhitespace();
+            }
             auto type = parseType(allocator);
             if(type) {
-                return new (allocator.allocate<ReferenceType>()) ReferenceType(type, loc_single(refToken));
+                return new (allocator.allocate<ReferenceType>()) ReferenceType(type, loc_single(refToken), is_mutable);
             } else {
                 error("expected a type after the &");
                 return nullptr;

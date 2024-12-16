@@ -3,8 +3,6 @@
 #include "CBI.h"
 #include "SourceProviderCBI.h"
 #include "BuildContextCBI.h"
-#include "CSTTokenCBI.h"
-#include "CSTconverterCBI.h"
 #include "BatchAllocatorCBI.h"
 #include "PtrVecCBI.h"
 #include "std/chem_string.h"
@@ -260,17 +258,5 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "InitBlockadd_initializer", (void*) InitBlockadd_initializer },
 
 
-    };
-}
-
-void cst_converter_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
-    sym_map = {
-            { "CSTConverterpop_last_node", (void*) CSTConverterpop_last_node },
-            { "CSTConverterpop_last_type", (void*) CSTConverterpop_last_type },
-            { "CSTConverterpop_last_value", (void*) CSTConverterpop_last_value },
-            { "CSTConverterput_node", (void*) CSTConverterput_node },
-            { "CSTConverterput_value", (void*) CSTConverterput_value },
-            { "CSTConverterput_type", (void*) CSTConverterput_type },
-            { "CSTConvertervisit", (void*) CSTConvertervisit }
     };
 }

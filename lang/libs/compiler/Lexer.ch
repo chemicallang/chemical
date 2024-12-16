@@ -1,6 +1,4 @@
 import "./SourceProvider.ch"
-import "./LexTokenType.ch"
-import "./CSTToken.ch"
 import "@compiler/BatchAllocator.ch"
 import "@compiler/SerialStrAllocator.ch"
 

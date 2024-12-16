@@ -5,6 +5,7 @@
 #include "BuildContextCBI.h"
 #include "CSTTokenCBI.h"
 #include "CSTconverterCBI.h"
+#include "BatchAllocatorCBI.h"
 #include "PtrVecCBI.h"
 #include "std/chem_string.h"
 #include "ASTBuilderCBI.h"
@@ -57,6 +58,11 @@ void build_context_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
     };
 }
 
+void batch_allocator_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
+    sym_map = {
+        { "BatchAllocatorallocate_size", (void*) BatchAllocatorallocate_size }
+    };
+}
 
 void source_provider_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
     sym_map = {

@@ -509,6 +509,8 @@ set(COMMON_SOURCES
         std/alloc/SerialVecBuilder.h
         std/small_vector.h
         ast/values/AlignOfValue.h
+        integration/cbi/bindings/BatchAllocatorCBI.h
+        integration/cbi/bindings/BatchAllocatorCBI.cpp
 )
 
 # Chemical LSP Executable Target

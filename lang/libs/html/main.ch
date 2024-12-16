@@ -28,7 +28,7 @@ func (provider : &SourceProvider) read_tag_name(str : &SerialStrAllocator) : std
     while(true) {
         const c = provider.peek();
         if(isalnum(c as int) || c == '_' || c == '-' || c == ':') {
-            str.append(c);
+            str.append(provider.readCharacter());
         } else {
             break;
         }
@@ -40,7 +40,7 @@ func (provider : &SourceProvider) read_text(str : &SerialStrAllocator) : std::st
     while(true) {
         const c = provider.peek();
         if(c != '<') {
-            str.append(c);
+            str.append(provider.readCharacter());
         } else {
             break;
         }
@@ -48,18 +48,20 @@ func (provider : &SourceProvider) read_text(str : &SerialStrAllocator) : std::st
     return str.finalize_view();
 }
 
+@comptime
 func view(str : literal<string>) : std::string_view {
     return std::string_view(str);
 }
 
-public func getNextToken(state : &mut HtmlLexer, lexer : &mut Lexer) : Token {
-    const provider = &html.provider;
+public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
+    const provider = &lexer.provider;
+    const str = &lexer.str;
     // the position of the current symbol
     const position = provider.getPosition();
+    const c = provider.readCharacter();
     switch(c) {
         '<' => {
             html.has_lt = true;
-            provider.readCharacter();
             return Token {
                 type : TokenType.LT,
                 value : view("<"),
@@ -68,7 +70,6 @@ public func getNextToken(state : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         }
         '/' => {
             if(html.has_lt) {
-                provider.readCharacter();
                 return Token {
                     type : TokenType.FwdSlash,
                     value : view("/"),
@@ -101,6 +102,7 @@ public func getNextToken(state : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         default => {
             if(html.has_lt) {
                 if(isalpha(c as int)) {
+                    str.append(c);
                     const tag_name = provider.read_tag_name(lexer.str);
                     return Token {
                         type : TokenType.Identifier,
@@ -115,6 +117,7 @@ public func getNextToken(state : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     }
                 }
             } else {
+                str.append(c);
                 var text = provider.read_text(lexer.str)
                 if(text.size() != 0) {
                     return Token {

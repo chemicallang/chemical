@@ -28,6 +28,11 @@ void lexer_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
 void source_provider_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
 
 /**
+ * the function to put all symbols inside for the BatchAllocator compiler interface
+ */
+void batch_allocator_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
+
+/**
  * the function to put all symbols inside for the CSTToken compiler interface
  */
 void cst_token_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);

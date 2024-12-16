@@ -449,13 +449,10 @@ Token Lexer::getNextToken() {
         case '#': {
             str.append('#');
             read_id(str, provider);
-            // TODO remove check for binder, as it will never be (should not be) nullptr
-            if(binder) {
-                auto& functions_map = binder->initializeLexerFunctions;
-                auto found = functions_map.find(str.current_view());
-                if(found != functions_map.end()) {
-                    found->second(this);
-                }
+            auto& functions_map = binder->initializeLexerFunctions;
+            auto found = functions_map.find(str.current_view());
+            if(found != functions_map.end()) {
+                found->second(this);
             }
             return Token(TokenType::HashMacro, str.finalize_view(), pos);
         }

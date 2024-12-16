@@ -36,23 +36,6 @@ CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_pa
     cst_converter_symbol_map(interface_maps["CSTConverter"]);
 }
 
-void declare_func(FunctionDeclaration* func, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {
-    const auto sym_name = func->runtime_name_str();
-    auto sym = tcc_get_symbol(state, sym_name.c_str());
-    if(sym) {
-        sym_map[sym_name] = sym;
-    } else {
-        // symbols like printf are defined in other modules or other files that we import
-        // we cannot define those, so we must not generate an error here
-    }
-}
-
-void declare_sym_map(std::unordered_map<std::string, void*>& from_sym_map, std::unordered_map<std::string, void*>& to_sym_map) {
-    for(auto& sym : from_sym_map) {
-        to_sym_map[sym.first] = sym.second;
-    }
-}
-
 bool CompilerBinder::import_compiler_interface(const std::string& name, TCCState* state) {
     auto map = interface_maps.find(name);
     if(map != interface_maps.end()) {
@@ -62,60 +45,6 @@ bool CompilerBinder::import_compiler_interface(const std::string& name, TCCState
         return true;
     } else {
         return false;
-    }
-}
-
-inline void declare_functions(const std::vector<FunctionDeclaration*>& functions, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {
-    for(auto& func : functions) declare_func(func, state, sym_map);
-}
-
-void declare_node(
-    CompilerBinder& binder,
-    ASTNode* node,
-    TCCState* state,
-    std::unordered_map<std::string, void*>& sym_map
-) {
-    auto node_kind = node->kind();
-    switch(node_kind) {
-        case ASTNodeKind::FunctionDecl:
-        case ASTNodeKind::ExtensionFunctionDecl:
-            declare_func((FunctionDeclaration*) node, state, sym_map);
-            return;
-        case ASTNodeKind::NamespaceDecl:
-            for(auto& child_node : ((Namespace*) node)->nodes) {
-                declare_node(binder, child_node, state, sym_map);
-            }
-            return;
-        case ASTNodeKind::MultiFunctionNode:
-            declare_functions(((MultiFunctionNode*) node)->functions, state, sym_map);
-            return;
-        case ASTNodeKind::StructDecl:
-        case ASTNodeKind::VariantDecl:
-        case ASTNodeKind::UnionDecl: {
-            const auto container = (MembersContainer*) node;
-// this is probably not required because nodes imported from other files are declared using C translation
-// in c translation we look for compiler interfaces, and then declare them before importing symbols from other files
-//            if(container->has_annotation(AnnotationKind::CompilerInterface)) {
-//                auto container_node = container->as_extendable_members_container_node();
-//                if(container_node) {
-//                    auto map = binder.interface_maps.find(container_node->name);
-//                    if(map != binder.interface_maps.end()) {
-//                        declare_sym_map(map->second, sym_map);
-//                    } else {
-//                        std::cerr << rang::fg::red << "[Binder] couldn't find compiler interface by name '" << container_node->name << "'" << rang::fg::reset << std::endl;
-//                    }
-//                } else {
-//                    std::cerr << "[Binder] couldn't find compiler interface by name '";
-//                    container->runtime_name(std::cerr);
-//                    std::cerr << '\'' << std::endl;
-//                }
-//                return;
-//            }
-            declare_functions(container->functions(), state, sym_map);
-            return;
-        }
-        default:
-            return;
     }
 }
 
@@ -132,8 +61,6 @@ CBIData* CompilerBinder::create_cbi(const std::string& name, unsigned int mod_co
 BinderResult CompilerBinder::compile(
     CBIData& cbiData,
     const std::string& program,
-    std::vector<std::string_view>& imports,
-    std::vector<std::string_view>& current_files,
     const std::vector<std::string>& compiler_interfaces,
     ASTProcessor& processor
 ) {
@@ -175,60 +102,15 @@ BinderResult CompilerBinder::compile(
     // add functions like malloc and free
     prepare_tcc_state_for_jit(state);
 
-    // adding symbols from other modules
-    for(auto& file : imports) {
-        const std::string& abs_path = file.data();
-        auto sym_map_itr = symbol_maps.find(abs_path);
-        if(sym_map_itr != symbol_maps.end()) {
-            for(auto& sym : sym_map_itr->second) {
-                tcc_add_symbol(state, sym.first.c_str(), sym.second);
-            }
-        } else {
-            return { "couldn't import symbol map when importing file '" + abs_path };
-        }
-    }
-
     // relocate the code
     result = tcc_relocate(state);
     if(result == -1) {
         return { "couldn't relocate c code in binder"};
     }
 
-    // create symbol from current module's files
-    for(auto& file : current_files) {
-        const std::string& abs_path = file.data();
-        auto& sym_map = symbol_maps[abs_path]; // <--- auto creation
-        auto unit = processor.shrinked_unit.find(abs_path);
-        if(unit != processor.shrinked_unit.end()) {
-            auto& nodes = unit->second.scope.nodes;
-            for(const auto node : nodes) {
-                declare_node(*this, node, state, sym_map);
-            }
-        }
-    }
-
     cbiData.modules.emplace_back(state);
 
     return { state };
-}
-
-void* CompilerBinder::provide_func(const std::string& cbi_name, const std::string& funcName) {
-    auto complete_cached_name = cbi_name + ':' + funcName;
-    auto found = cached_func.find(complete_cached_name);
-    if(found != cached_func.end()) {
-        return found->second;
-    } else {
-        auto cbi = data.find(cbi_name);
-        if(cbi != data.end() && cbi->second.entry_module) {
-            auto sym = tcc_get_symbol(cbi->second.entry_module, funcName.c_str());
-            if(sym) {
-                cached_func[complete_cached_name] = sym;
-            }
-            return sym;
-        } else {
-            return nullptr;
-        }
-    }
 }
 
 CompilerBinder::~CompilerBinder() {

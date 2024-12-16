@@ -32,6 +32,8 @@ public:
 
     void declare_variant(VariantDefinition* structDef);
 
+    void declare_func(FunctionDeclaration* decl);
+
     void visit(VarInitStatement *init) final;
 
     void visit(TypealiasStatement *statement) final;

@@ -1,7 +1,9 @@
 import "@compiler/Token.ch"
 import "@compiler/Lexer.ch"
-import "@compiler/CBIInfo.ch"
 import "./TokenType.ch"
+import "@compiler/ASTAllocator.ch"
+import "@compiler/Parser.ch"
+import "@compiler/ASTBuilder.ch"
 import "@cstd/ctype.ch"
 
 using namespace std;
@@ -12,16 +14,13 @@ struct HtmlLexer {
 
 }
 
-public func getCBIInfo() : CBIInfo {
-    return CBIInfo {
-        is_initialize_lexer : true,
-        is_parse_macro_value : true
-    }
+public func initializeLexer(lexer : *Lexer) {
+    var ptr = lexer.fileAllocator.allocate_size(#sizeof(HtmlLexer), #alignof(HtmlLexer));
+    printf("hello from the html cbi");
 }
 
-public func initializeLexer(lexer : *Lexer) : *HtmlLexer {
-    var ptr = lexer.fileAllocator.allocate_size(#sizeof(HtmlLexer), #alignof(HtmlLexer));
-    return (ptr as *HtmlLexer)
+public func parseMacroValue(parser : *mut Parser, allocator : *mut ASTAllocator) : *mut Value {
+    printf("hello2 from the html cbi");
 }
 
 func (provider : &SourceProvider) read_tag_name(str : &SerialStrAllocator) : std::string_view {

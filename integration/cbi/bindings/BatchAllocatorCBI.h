@@ -4,8 +4,12 @@
 
 class BatchAllocator;
 
+class ASTAllocator;
+
 extern "C" {
 
     char* BatchAllocatorallocate_size(BatchAllocator* allocator, size_t obj_size, size_t alignment);
+
+    char* ASTAllocatorallocate_node(ASTAllocator* allocator, size_t obj_size, size_t alignment);
 
 }

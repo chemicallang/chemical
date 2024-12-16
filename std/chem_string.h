@@ -114,6 +114,10 @@ namespace chem {
             }
         }
 
+        explicit string(const chem::string_view& view) : string(view.data(), view.size()) {
+
+        }
+
         explicit string(const std::string_view& view) : string(view.data(), view.size()) {
 
         }
@@ -411,6 +415,11 @@ namespace chem {
 
         [[nodiscard]]
         std::string_view to_view() const {
+            return { data(), size() };
+        }
+
+        [[nodiscard]]
+        chem::string_view to_chem_view() const {
             return { data(), size() };
         }
 

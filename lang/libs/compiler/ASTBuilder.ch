@@ -1,5 +1,6 @@
 import "AccessSpecifier.ch"
 import "./PtrVec.ch"
+import "@std/string_view.ch"
 
 using namespace std;
 
@@ -155,7 +156,7 @@ struct StringValue : Value {}
 
 struct StructValue : Value {
 
-    func add_value(&self, name : *string, initializer : *StructMemberInitializer)
+    func add_value(&self, name : &string_view, initializer : *StructMemberInitializer)
 
 }
 
@@ -271,7 +272,7 @@ struct ImplDefinition : ASTNode {
 
 struct InitBlock : ASTNode {
 
-    func add_initializer(&self, name : *string, is_inherited_type : bool, value : *Value);
+    func add_initializer(&self, name : &string_view, is_inherited_type : bool, value : *Value);
 
 }
 
@@ -289,7 +290,7 @@ struct Namespace : ASTNode {
 
 struct StructDefinition : ASTNode {
 
-    func add_member(name : *string, member : *StructMember)
+    func add_member(name : &string_view, member : *StructMember)
 
     func add_function(decl : *FunctionDeclaration)
 
@@ -301,7 +302,7 @@ struct StructMember : ASTNode {}
 
 struct UnionDef : ASTNode {
 
-    func add_member(name : *string, member : *StructMember)
+    func add_member(name : &string_view, member : *StructMember)
 
     func add_function(decl : *FunctionDeclaration)
 
@@ -323,7 +324,7 @@ struct WhileLoop : LoopASTNode {
 
 struct VariantDefinition : ASTNode {
 
-    func add_member(&self, name : *string, member : *StructMember)
+    func add_member(&self, name : &string_view, member : *StructMember)
 
 }
 
@@ -362,13 +363,13 @@ public struct ASTBuilder {
 
     func make_int_type(&self, location : ubigint) : *IntType
 
-    func make_linked_type(&self, type : *string, linked : *ASTNode, location : ubigint) : *LinkedType
+    func make_linked_type(&self, type : &string_view, linked : *ASTNode, location : ubigint) : *LinkedType
 
     func make_linked_value_type(&self, value : *Value, location : ubigint) : *LinkedValueType
 
     func make_literal_type(&self, child_type : *BaseType, location : ubigint) : *LiteralType
 
-    func make_long_type(&self, location : ubigint) : *LongType
+    func make_long_type(&self, is64Bit : bool, location : ubigint) : *LongType
 
     func make_ptr_type(&self, child_type : *BaseType, location : ubigint) : *PointerType
 
@@ -386,7 +387,7 @@ public struct ASTBuilder {
 
     func make_uint_type(&self, location : ubigint) : *UIntType
 
-    func make_ulong_type(&self, location : ubigint) : *ULongType
+    func make_ulong_type(&self, is64Bit : bool, location : ubigint) : *ULongType
 
     func make_ushort_type(&self, location : ubigint) : *UShortType
 
@@ -410,7 +411,7 @@ public struct ASTBuilder {
 
     func make_double_value(&self, value : double, location : ubigint) : *DoubleValue
 
-    func make_expression_value(&self, first : *Value, second : *Value, op : Operation, location : ubigint) : *Expression
+    func make_expression_value(&self, first : *Value, second : *Value, op : Operation, is64Bit : bool, location : ubigint) : *Expression
 
     func make_float_value(&self, value : float, location : ubigint) : *FloatValue
 
@@ -426,9 +427,9 @@ public struct ASTBuilder {
 
     func make_lambda_function(&self, value : *Value, type : *BaseType, isVariadic : bool, parent_node : *ASTNode, location : ubigint) : *LambdaFunction
 
-    func make_captured_variable(&self, name : *string, index : uint, capture_by_ref : bool, value : long, location : ubigint) : *CapturedVariable
+    func make_captured_variable(&self, name : &string_view, index : uint, capture_by_ref : bool, value : long, location : ubigint) : *CapturedVariable
 
-    func make_long_value(&self, value : long, location : ubigint) : *LongValue
+    func make_long_value(&self, value : long, is64Bit : bool, location : ubigint) : *LongValue
 
     func make_negative_value(&self, value : *Value, location : ubigint) : *NegativeValue
 
@@ -442,9 +443,9 @@ public struct ASTBuilder {
 
     func make_sizeof_value(&self, type : *BaseType, location : ubigint) : *SizeOfValue
 
-    func make_string_value(&self, value : *string, location : ubigint) : *StringValue
+    func make_string_value(&self, value : &string_view, location : ubigint) : *StringValue
 
-    func make_struct_member_initializer(&self, name : *string, value : *Value, structValue : *StructValue) : *StructMemberInitializer
+    func make_struct_member_initializer(&self, name : &string_view, value : *Value, structValue : *StructValue) : *StructMemberInitializer
 
     func make_struct_value(&self, ref : *BaseType, parent_node : *ASTNode, location : ubigint) : *StructValue
 
@@ -456,25 +457,25 @@ public struct ASTBuilder {
 
     func make_uint_value(&self, value : uint, location : ubigint) : *UIntValue
 
-    func make_ulong_value(&self, value : ulong, location : ubigint) : *ULongValue
+    func make_ulong_value(&self, value : ulong, is64Bit : bool, location : ubigint) : *ULongValue
 
     func make_ushort_value(&self, value : ushort, location : ubigint) : *UShortValue
 
     func make_value_node(&self, value : *Value, parent_node : *ASTNode, location : ubigint) : *ValueNode
 
-    func make_identifier(&self, value : *string, is_ns : bool, location : ubigint) : *VariableIdentifier
+    func make_identifier(&self, value : &string_view, is_ns : bool, location : ubigint) : *VariableIdentifier
 
     func make_variant_call(&self, chain : *AccessChain, location : ubigint) : *VariantCall
 
     func make_variant_case(&self, chain : *AccessChain, stmt : *SwitchStatement, location : ubigint) : *VariantCase
 
-    func make_variant_case_variable(&self, name : *string, variant_case : *VariantCase, location : ubigint) : *VariantCaseVariable
+    func make_variant_case_variable(&self, name : &string_view, variant_case : *VariantCase, location : ubigint) : *VariantCaseVariable
 
     func make_assignment_stmt(&self, lhs : *Value, rhs : *Value, op : Operation, parent_node : *ASTNode, location : ubigint) : *AssignStatement
 
     func make_break_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *BreakStatement
 
-    func make_comment_stmt(&self, value : *string, multiline : bool, parent_node : *ASTNode, location : ubigint) : *Comment
+    func make_comment_stmt(&self, value : &string_view, multiline : bool, parent_node : *ASTNode, location : ubigint) : *Comment
 
     func make_continue_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *ContinueStatement
 
@@ -486,27 +487,27 @@ public struct ASTBuilder {
 
     //ThrowStatement* ASTBuildermake_throw_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, location : ubigint);
 
-    func make_typealias_stmt(&self, identifier : *string, id_loc : ubigint, actual_type : *BaseType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *TypealiasStatement
+    func make_typealias_stmt(&self, identifier : &string_view, id_loc : ubigint, actual_type : *BaseType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *TypealiasStatement
 
     func make_using_stmt(&self, chain : *AccessChain, is_namespace : bool, location : ubigint) : *UsingStmt
 
-    func make_varinit_stmt(&self, is_const : bool, identifier : *string, id_loc : ubigint, type : *BaseType, value : *Value, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *VarInitStatement
+    func make_varinit_stmt(&self, is_const : bool, identifier : &string_view, id_loc : ubigint, type : *BaseType, value : *Value, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *VarInitStatement
 
     func make_scope(&self, parent_node : *ASTNode, location : ubigint) : *Scope
 
     func make_do_while_loop(&self, condition : *Value, parent_node : *ASTNode, location : ubigint) : *DoWhileLoop
 
-    func make_enum_decl(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *EnumDeclaration
+    func make_enum_decl(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *EnumDeclaration
 
-    func make_enum_member(&self, name : *string, index : uint, init_value : *Value, parent_node : *EnumDeclaration, location : ubigint) : *EnumMember
+    func make_enum_member(&self, name : &string_view, index : uint, init_value : *Value, parent_node : *EnumDeclaration, location : ubigint) : *EnumMember
 
     func make_for_loop(&self, initializer : *VarInitStatement, conditionExpr : *Value, incrementerExpr : *ASTNode, parent_node : *ASTNode, location : ubigint) : *ForLoop
 
-    func make_function(&self, name : *string, name_location : ubigint, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *FunctionDeclaration
+    func make_function(&self, name : &string_view, name_location : ubigint, returnType : *BaseType, isVariadic : bool, hasBody : bool, parent_node : *ASTNode, location : ubigint) : *FunctionDeclaration
 
-    func make_function_param(&self, name : *string, type : *BaseType, index : uint, value : *Value, implicit : bool, decl : *FunctionType, location : ubigint) : *FunctionParam
+    func make_function_param(&self, name : &string_view, type : *BaseType, index : uint, value : *Value, implicit : bool, decl : *FunctionType, location : ubigint) : *FunctionParam
 
-    func make_generic_param(&self, name : *string, at_least_type : *BaseType, def_type : *BaseType, parent_node : *ASTNode, index : uint, location : ubigint) : *GenericTypeParameter
+    func make_generic_param(&self, name : &string_view, at_least_type : *BaseType, def_type : *BaseType, parent_node : *ASTNode, index : uint, location : ubigint) : *GenericTypeParameter
 
     func make_if_stmt(&self, condition : *Value, is_value : bool, parent_node : *ASTNode, location : ubigint) : *IfStatement
 
@@ -514,25 +515,25 @@ public struct ASTBuilder {
 
     func make_init_block(&self, parent_node : *ASTNode, location : ubigint) : *InitBlock
 
-    func make_interface_def(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *InterfaceDefinition
+    func make_interface_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *InterfaceDefinition
 
-    func make_namespace(&self, name : *string, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *Namespace
+    func make_namespace(&self, name : &string_view, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *Namespace
 
-    func make_struct_def(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *StructDefinition
+    func make_struct_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *StructDefinition
 
-    func make_struct_member(&self, name : *string, type : *BaseType, defValue : *Value, isConst : bool, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *StructMember
+    func make_struct_member(&self, name : &string_view, type : *BaseType, defValue : *Value, isConst : bool, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *StructMember
 
-    func make_union_def(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *UnionDef
+    func make_union_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *UnionDef
 
     func make_unsafe_block(&self, node : *ASTNode, location : ubigint) : *UnsafeBlock
 
     func make_while_loop(&self, condition : *Value, node : *ASTNode, location : ubigint) : *WhileLoop
 
-    func make_variant_def(&self, name : *string, name_loc : ubigint, specifier : AccessSpecifier, node : *ASTNode, location : ubigint) : *VariantDefinition
+    func make_variant_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, node : *ASTNode, location : ubigint) : *VariantDefinition
 
-    func make_variant_member(&self, name : *string, parent_node : *VariantDefinition, location : ubigint) : *VariantMember
+    func make_variant_member(&self, name : &string_view, parent_node : *VariantDefinition, location : ubigint) : *VariantMember
 
-    func make_variant_member_param(&self, name : *string, index : uint, is_const : bool, type : *BaseType, defValue : *Value, parent_node : *VariantMember, location : ubigint) : *VariantMemberParam
+    func make_variant_member_param(&self, name : &string_view, index : uint, is_const : bool, type : *BaseType, defValue : *Value, parent_node : *VariantMember, location : ubigint) : *VariantMemberParam
 
 
 }

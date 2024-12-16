@@ -40,7 +40,7 @@ extern "C" {
 
     std::vector<ASTNode*>* LambdaFunctionget_body(LambdaFunction* lambdaFunc);
 
-    void StructValueadd_value(StructValue* structValue, chem::string* name, StructMemberInitializer* initializer);
+    void StructValueadd_value(StructValue* structValue, chem::string_view* name, StructMemberInitializer* initializer);
 
     void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable);
 
@@ -66,7 +66,7 @@ extern "C" {
 
     void ImplDefinitionadd_function(ImplDefinition* definition, FunctionDeclaration* decl);
 
-    void StructDefinitionadd_member(StructDefinition* definition, chem::string* name, BaseDefMember* member);
+    void StructDefinitionadd_member(StructDefinition* definition, chem::string_view* name, BaseDefMember* member);
 
     void StructDefinitionadd_function(StructDefinition* definition, FunctionDeclaration* decl);
 
@@ -78,16 +78,16 @@ extern "C" {
 
     std::vector<ASTNode*>* UnsafeBlockget_body(UnsafeBlock* ub);
 
-    void UnionDefinitionadd_member(UnionDef* definition, chem::string* name, BaseDefMember* member);
+    void UnionDefinitionadd_member(UnionDef* definition, chem::string_view* name, BaseDefMember* member);
 
     void UnionDefinitionadd_function(UnionDef* definition, FunctionDeclaration* decl);
 
     std::vector<GenericTypeParameter*>* UnionDefinitionget_generic_params(UnionDef* definition);
 
-    void VariantDefinitionadd_member(VariantDefinition* definition, chem::string* name, BaseDefMember* member);
+    void VariantDefinitionadd_member(VariantDefinition* definition, chem::string_view* name, BaseDefMember* member);
 
     void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param);
 
-    void InitBlockadd_initializer(InitBlock* block, chem::string* name, bool is_inherited_type, Value* value);
+    void InitBlockadd_initializer(InitBlock* block, chem::string_view* name, bool is_inherited_type, Value* value);
 
 }

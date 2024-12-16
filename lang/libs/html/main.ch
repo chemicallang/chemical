@@ -1,7 +1,6 @@
 import "@compiler/Token.ch"
 import "@compiler/Lexer.ch"
 import "./TokenType.ch"
-import "@compiler/ASTAllocator.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 import "@cstd/ctype.ch"
@@ -19,7 +18,7 @@ public func initializeLexer(lexer : *Lexer) {
     printf("hello from the html cbi");
 }
 
-public func parseMacroValue(parser : *mut Parser, allocator : *mut ASTAllocator) : *mut Value {
+public func parseMacroValue(parser : *mut Parser, allocator : *mut ASTBuilder) : *mut Value {
     printf("hello2 from the html cbi");
 }
 

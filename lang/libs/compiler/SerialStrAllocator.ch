@@ -6,22 +6,22 @@ struct SerialStrAllocator {
     /**
      * Dispose the current string you've built and start a new one
      */
-    func deallocate();
+    func deallocate(&self);
 
     /**
      * Get the view into current string without disposing
      */
-    func current_view() : std::string_view
+    func current_view(&self) : std::string_view
 
     /**
      * Get the finalized view of the string you've build
      * After this call append will put character into a new string
      */
-    func finalize_view() : std::string_view
+    func finalize_view(&self) : std::string_view
 
     /**
      * Append a character into the current string you are building
      */
-    func append(c : char);
+    func append(&self, c : char);
 
 }

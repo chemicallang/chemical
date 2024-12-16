@@ -511,6 +511,8 @@ set(COMMON_SOURCES
         ast/values/AlignOfValue.h
         integration/cbi/bindings/BatchAllocatorCBI.h
         integration/cbi/bindings/BatchAllocatorCBI.cpp
+        integration/cbi/bindings/SerialStrAllocatorCBI.h
+        integration/cbi/bindings/SerialStrAllocator.cpp
 )
 
 # Chemical LSP Executable Target

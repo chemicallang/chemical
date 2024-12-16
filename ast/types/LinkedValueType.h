@@ -14,9 +14,15 @@ public:
 
     }
 
+    LinkedValueType(Value* value, std::string type, ASTNode* linked, SourceLocation location) : value(value), LinkedType(std::move(type), linked, location) {
+
+    }
+
     LinkedType* copy(ASTAllocator &allocator) const final {
         return new (allocator.allocate<LinkedValueType>()) LinkedValueType(
             value->copy(allocator),
+            type,
+            linked,
             location
         );
     }

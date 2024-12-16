@@ -45,7 +45,16 @@ bool StringType::satisfies(BaseType *type) {
 }
 
 bool LiteralType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
-    return !value->reference() && underlying->satisfies(allocator, value, false);
+    auto result = !value->reference() && underlying->satisfies(allocator, value, false);
+    if(result) {
+        return true;
+    } else {
+        auto type = value->create_type(allocator);
+        if(type && type->kind() == BaseTypeKind::Literal) {
+            return underlying->satisfies(((LiteralType*) type)->underlying);
+        }
+    }
+    return false;
 }
 
 bool IntNType::satisfies(BaseType* type) {

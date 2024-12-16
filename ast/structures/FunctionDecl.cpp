@@ -45,7 +45,7 @@ llvm::FunctionType *BaseFunctionParam::llvm_func_type(Codegen &gen) {
 }
 
 void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
-    if(!(returnValue && returnValue->as_identifier() && returnValue->linked_node() == this)) {
+    if(!(returnValue && returnValue->linked_node() == this)) {
         type->linked_node()->llvm_destruct(gen, gen.current_function->getArg(calculate_c_or_llvm_index()));
     }
 }
@@ -162,7 +162,7 @@ llvm::Function* FunctionDeclaration::llvm_func() {
 }
 
 void FunctionType::queue_destruct_params(Codegen& gen) {
-    for(auto& param : params) {
+    for(const auto param : params) {
         if(param->get_has_moved()) continue;
         const auto k = param->type->kind();
         if(k == BaseTypeKind::Linked || k == BaseTypeKind::Generic) {
@@ -976,7 +976,8 @@ FunctionParam::FunctionParam(
 }
 
 unsigned FunctionParam::calculate_c_or_llvm_index() {
-    return func_type->c_or_llvm_arg_start_index() + index;
+    const auto start = func_type->c_or_llvm_arg_start_index();
+    return start + index;
 }
 
 void FunctionParam::accept(Visitor *visitor) {

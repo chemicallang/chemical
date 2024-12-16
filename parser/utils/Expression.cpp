@@ -133,37 +133,29 @@ Value* Parser::parseRemainingExpression(ASTAllocator& allocator, Value* first_va
 
 }
 
-
-// lexes lambda after comma which occurs after a parameter param : type,  <-----
-// this can be called after lparen to lex lambda, if it has no parameter
-LambdaFunction* condLexLambdaAfterComma(Parser *lexer, ASTAllocator& allocator, LambdaFunction* func) {
+bool parseLambdaAfterComma(Parser *lexer, ASTAllocator& allocator, LambdaFunction* func) {
     lexer->lexNewLineChars();
     if (!lexer->consumeToken(TokenType::RParen)) {
-        return nullptr;
-    }
-    if(!func) {
-        func = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, lexer->parent_node, 0);
-    }
-    lexer->parseLambdaAfterParamsList(allocator, func);
-    return func;
-}
-
-LambdaFunction* parseLambdaAfterComma(Parser *lexer, ASTAllocator& allocator, LambdaFunction* func) {
-    auto lambda = condLexLambdaAfterComma(lexer, allocator, func);
-    if (!lambda) {
         lexer->error("expected ')' after the lambda parameter list in parenthesized expression");
+        return false;
     }
-    return lambda;
+    return lexer->parseLambdaAfterParamsList(allocator, func);
 }
 
 Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
     lexWhitespaceToken();
 
-    // a lambda with no params
-    auto first_lamb = condLexLambdaAfterComma(this, allocator, nullptr);
-    if (first_lamb) {
-        return first_lamb;
+    lexNewLineChars();
+
+    // lambda with no params
+    if(consumeToken(TokenType::RParen)) {
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);;
+        auto prev_func_type = current_func_type;
+        current_func_type = lamb;
+        parseLambdaAfterParamsList(allocator, lamb);
+        current_func_type = prev_func_type;
+        return lamb;
     }
 
     auto identifier = consumeIdentifierOrKeyword();
@@ -177,7 +169,10 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(identifier->value.str(), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
+        auto prev_func_type = current_func_type;
+        current_func_type = lamb;
         parseLambdaAfterParamsList(allocator, lamb);
+        current_func_type = prev_func_type;
         return lamb;
     } else if (consumeToken(TokenType::ColonSym)) {
         lexWhitespaceToken();
@@ -190,17 +185,23 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(identifier->value.str(), type, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
+        auto prev_func_type = current_func_type;
+        current_func_type = lamb;
         if (consumeToken(TokenType::CommaSym)) {
-            parseParameterList(allocator, lamb->params, true, false);
+            lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));
         }
         parseLambdaAfterComma(this, allocator,  lamb);
+        current_func_type = prev_func_type;
         return lamb;
     } else if (consumeToken(TokenType::CommaSym)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(identifier->value.str(), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
-        parseParameterList(allocator, lamb->params, true, false);
+        auto prev_func_type = current_func_type;
+        current_func_type = lamb;
+        lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));
         parseLambdaAfterComma(this, allocator, lamb);
+        current_func_type = prev_func_type;
         return lamb;
     }
 

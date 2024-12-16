@@ -114,8 +114,8 @@ void VarInitStatement::code_gen(Codegen &gen) {
 void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
     if(get_has_moved()) return;
     if(returnValue) {
-        auto id = returnValue->as_identifier();
-        if(id && id->linked == this) {
+        auto linkedNode = returnValue->linked_node();
+        if(linkedNode == this) {
             return;
         }
     }

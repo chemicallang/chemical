@@ -18,8 +18,8 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/statements/VarInit.h"
 #include "ast/values/NullValue.h"
-#include "ast/values/VariableIdentifier.h"
 #include <cstdlib>
 #include <optional>
 #include <llvm/TargetParser/Host.h>
@@ -465,24 +465,20 @@ void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_
     }
     auto pre_move_func = container->pre_move_func();
     if(pre_move_func) {
-        auto id = value.as_identifier();
-        if (id) {
-            auto k = id->linked->kind();
-            if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
-                gen.memcpy_struct(container->llvm_type(gen), elem_ptr, movable_value);
-                return;
-            }
+        auto linked = value.linked_node();
+        auto k = linked->kind();
+        if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
+            gen.memcpy_struct(container->llvm_type(gen), elem_ptr, movable_value);
+            return;
         }
         gen.builder->CreateCall(pre_move_func->llvm_func(), { elem_ptr, movable_value });
         return;
     }
     gen.memcpy_struct(node->llvm_type(gen), elem_ptr, movable_value);
-    auto id = value.as_identifier();
-    if (id) {
-        auto k = id->linked->kind();
-        if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
-            return;
-        }
+    auto linked = value.linked_node();
+    auto k = linked->kind();
+    if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
+        return;
     }
     auto clear_func = container->clear_func();
     if (clear_func) {

@@ -450,6 +450,8 @@ public:
 
     void visit(SizeOfValue *size_of) final;
 
+    void visit(AlignOfValue *align_of) final;
+
     void visit(Expression* expr) final;
 
     void visit(CastedValue* casted) final;

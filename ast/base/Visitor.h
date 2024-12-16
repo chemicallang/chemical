@@ -158,6 +158,8 @@ class NumberValue;
 
 class SizeOfValue;
 
+class AlignOfValue;
+
 class LambdaFunction;
 
 class AnyType;
@@ -575,6 +577,10 @@ public:
 
     virtual void visit(SizeOfValue* size_of) {
         visitCommonValue((Value*) size_of);
+    }
+
+    virtual void visit(AlignOfValue* alignOf) {
+        visitCommonValue((Value*) alignOf);
     }
 
     virtual void visit(LambdaFunction* func) {

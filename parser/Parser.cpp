@@ -9,6 +9,7 @@
 #include "cst/LocationManager.h"
 #include "CBI.h"
 #include "ast/values/SizeOfValue.h"
+#include "ast/values/AlignOfValue.h"
 #include "ast/base/AnnotableNode.h"
 
 Parser::Parser(
@@ -134,6 +135,36 @@ Value* parseSizeOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
         return value;
     } else {
         parser->error("expected a type in #sizeof");
+        return nullptr;
+    }
+}
+
+Value* parseAlignOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
+    parser->readWhitespace();
+    auto tok = parser->token;
+    const auto first_type = tok->type;
+    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
+        parser->token++;
+    } else {
+        parser->error("expected '{' or '(' when parsing alignof");
+        return nullptr;
+    }
+    parser->readWhitespace();
+    auto& allocator = *allocator_ptr;
+    auto type = parser->parseType(allocator);
+    if(type) {
+        parser->readWhitespace();
+        auto last = parser->token;
+        auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, parser->loc(tok, last));
+        const auto last_type = last->type;
+        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
+            parser->token++;
+        } else {
+            parser->error("expected '}' or '}' after the type when parsing sizeof");
+        }
+        return value;
+    } else {
+        parser->error("expected a type in #alignof");
         return nullptr;
     }
 }

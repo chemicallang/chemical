@@ -38,6 +38,7 @@
 #include "ast/values/NotValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/SizeOfValue.h"
+#include "ast/values/AlignOfValue.h"
 #include "ast/structures/Namespace.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/AddrOfValue.h"
@@ -622,6 +623,16 @@ llvm::Type* SizeOfValue::llvm_type(Codegen &gen) {
 llvm::Value* SizeOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto type = for_type->llvm_type(gen);
     return gen.builder->getInt64(gen.module->getDataLayout().getTypeAllocSize(type));
+}
+
+llvm::Type* AlignOfValue::llvm_type(Codegen &gen) {
+    return gen.builder->getInt64Ty();
+}
+
+llvm::Value* AlignOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+    auto type = for_type->llvm_type(gen);
+    auto align = gen.module->getDataLayout().getABITypeAlign(type);
+    return gen.builder->getInt64(align.value());
 }
 
 llvm::Value* llvm_load_chain_until(

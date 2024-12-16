@@ -104,6 +104,7 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/SizeOfValue.h"
+#include "ast/values/AlignOfValue.h"
 #include "ast/values/UInt128Value.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/UIntValue.h"
@@ -4356,6 +4357,13 @@ void ToCAstVisitor::visit(SizeOfValue *size_of) {
 //        size_of->calculate_size(is64Bit);
 //        size_of->UBigIntValue::accept(this);
 //    }
+}
+
+void ToCAstVisitor::visit(AlignOfValue *align_of) {
+    write("_Alignof");
+    write('(');
+    align_of->for_type->accept(this);
+    write(')');
 }
 
 void ToCAstVisitor::visit(Expression *expr) {

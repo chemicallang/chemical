@@ -32,6 +32,7 @@
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/SizeOfValue.h"
+#include "ast/values/AlignOfValue.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/ForLoop.h"
@@ -974,6 +975,12 @@ void RepresentationVisitor::visit(DynamicType *type) {
 void RepresentationVisitor::visit(SizeOfValue *size_of) {
     write("#sizeof {");
     size_of->for_type->accept(this);
+    write('}');
+}
+
+void RepresentationVisitor::visit(AlignOfValue *align_of) {
+    write("#alignof {");
+    align_of->for_type->accept(this);
     write('}');
 }
 

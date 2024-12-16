@@ -26,6 +26,7 @@ CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_pa
     parseMacroValueFunctions["#eval"] = parseEvalValue;
     source_provider_symbol_map(interface_maps["SourceProvider"]);
     batch_allocator_symbol_map(interface_maps["BatchAllocator"]);
+    serial_str_allocator_symbol_map(interface_maps["SerialStrAllocator"]);
     lexer_symbol_map(interface_maps["Lexer"]);
     cst_diagnoser_symbol_map(interface_maps["CSTDiagnoser"]);
     build_context_symbol_map(interface_maps["BuildContext"]);

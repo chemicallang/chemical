@@ -11,6 +11,7 @@
 #include "ASTBuilderCBI.h"
 #include "ASTCBI.h"
 #include "CSTDiagnoserCBI.h"
+#include "SerialStrAllocatorCBI.h"
 
 dispose_string::~dispose_string(){
     ptr->~string();
@@ -61,6 +62,15 @@ void build_context_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
 void batch_allocator_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
     sym_map = {
         { "BatchAllocatorallocate_size", (void*) BatchAllocatorallocate_size }
+    };
+}
+
+void serial_str_allocator_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
+    sym_map = {
+        {"SerialStrAllocatordeallocate", (void*) SerialStrAllocatordeallocate },
+        {"SerialStrAllocatorcurrent_view", (void*) SerialStrAllocatorcurrent_view },
+        {"SerialStrAllocatorfinalize_view", (void*) SerialStrAllocatorfinalize_view },
+        {"SerialStrAllocatorappend", (void*) SerialStrAllocatorappend }
     };
 }
 

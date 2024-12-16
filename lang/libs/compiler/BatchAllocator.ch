@@ -10,8 +10,3 @@ struct BatchAllocator {
     func allocate_size(&self, obj_size : size_t, alignment : size_t) : *mut char;
 
 }
-
-/**
- * TODO allocate the given string on the allocator and get a c string
- */
-// func allocate_str(&self, data : *char, size : size_t) : *mut char

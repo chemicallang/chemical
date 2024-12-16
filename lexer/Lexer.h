@@ -10,6 +10,8 @@
 
 class CompilerBinder;
 
+class BatchAllocator;
+
 namespace chem {
     class string;
 }
@@ -72,12 +74,18 @@ public:
      * user lexer is the lexer we will activate upon encountering a
      * macro which starts with a hash symbol
      */
-    UserLexerGetNextTokenFn user_lexer;
+    UserLexerGetNextToken user_lexer;
 
     /**
      * the allocator used for strings found in the source code
      */
     SerialStrAllocator str;
+
+    /**
+     * a reference to batch allocator is stored which can be used
+     * by the user's lexer
+     */
+    BatchAllocator& file_allocator;
 
     /**
      * the path to the file we are lexing
@@ -96,7 +104,8 @@ public:
     Lexer(
             std::string file_path,
             InputSource* source,
-            CompilerBinder* binder = nullptr
+            CompilerBinder* binder,
+            BatchAllocator& file_allocator
     );
 
     /**

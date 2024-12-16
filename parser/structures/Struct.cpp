@@ -65,12 +65,13 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
         if(consumeToken(TokenType::ColonSym)) {
             do {
                 lexWhitespaceToken();
-                auto specifier = parseAccessSpecifier(AccessSpecifier::Public);
+                auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
+                readWhitespace();
                 auto type = parseLinkedOrGenericType(allocator);
                 if(!type) {
                     return decl;
                 }
-                decl->inherited.emplace_back(new InheritedType(type, specifier));
+                decl->inherited.emplace_back(new InheritedType(type, in_spec));
                 lexWhitespaceToken();
             } while(consumeToken(TokenType::CommaSym));
         }
@@ -180,12 +181,13 @@ StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, Ac
         if(consumeToken(TokenType::ColonSym)) {
             do {
                 lexWhitespaceToken();
-                auto specifier = parseAccessSpecifier(AccessSpecifier::Public);
+                auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
+                readWhitespace();
                 auto type = parseLinkedOrGenericType(allocator);
                 if(!type) {
                     return decl;
                 }
-                decl->inherited.emplace_back(new InheritedType(type, specifier));
+                decl->inherited.emplace_back(new InheritedType(type, in_spec));
                 lexWhitespaceToken();
             } while(consumeToken(TokenType::CommaSym));
         }

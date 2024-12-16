@@ -396,7 +396,7 @@ void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int f
         return;
     }
 
-    Lexer lexer(std::string(abs_path), &inp_source, &binder);
+    Lexer lexer(std::string(abs_path), &inp_source, &binder, file_allocator);
     std::vector<Token> tokens;
 
     if(options->benchmark) {

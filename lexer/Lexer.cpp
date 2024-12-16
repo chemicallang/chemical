@@ -150,8 +150,10 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
 Lexer::Lexer(
         std::string file_path,
         InputSource* input,
-        CompilerBinder* binder
-) : file_path(std::move(file_path)), provider(input), binder(binder), str(3000), user_lexer(nullptr) {
+        CompilerBinder* binder,
+        BatchAllocator& file_allocator
+) : file_path(std::move(file_path)), provider(input), binder(binder), str(3000),
+    user_lexer(nullptr), file_allocator(file_allocator) {
 
 }
 
@@ -382,7 +384,7 @@ Token Lexer::getNextToken() {
             return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
         } else if(user_mode) {
             Token t;
-            user_lexer(&t, this);
+            user_lexer.subroutine(&t, user_lexer.instance, this);
             return t;
         } else {
 #ifdef DEBUG

@@ -20,7 +20,24 @@ typedef void(*UserLexerInitializeFn)(Lexer* lexer);
 /**
  * the function that is called to provide the next token, if user lexer is active
  */
-typedef void(*UserLexerGetNextTokenFn)(Token* returning_token, Lexer* lexer);
+typedef void(*UserLexerGetNextTokenFn)(Token* returning_token, void* instance, Lexer* lexer);
+
+/**
+ * The fat pointer to get next token function and instance of user's lexer that is passed to it
+ */
+struct UserLexerGetNextToken {
+
+    /**
+     * the instance is passed to the subroutine to maintain state
+     */
+    void* instance;
+
+    /**
+     * the subroutine to get the next token
+     */
+    UserLexerGetNextTokenFn subroutine;
+
+};
 
 /**
  * this function is called when a macro is detected by the parser

@@ -3,11 +3,26 @@ import "@std/string.ch"
 
 using namespace std;
 
+@comptime
+const BufferCapacity = 1024
+
 /**
  * provides access to the source code provided by the user
  */
 @compiler.interface
 struct SourceProvider {
+
+    var lineNumber : uint
+
+    var lineCharacterNumber : uint
+
+    var buffer : char[BufferCapacity]
+
+    var bufferSize : size_t
+
+    var bufferPos : size_t
+
+    var stream_ptr : *void
 
     /**
      * reads a single character and returns it
@@ -32,14 +47,6 @@ struct SourceProvider {
      * @return everything read until stop character, it doesn't include the stopping character
      */
     func readUntil (&self, into : *string, stop : char);
-
-    /**
-     * if text is present at current pos in the stream, increments the stream with text.length()
-     * @param text to increment
-     * @param peek peeks only, doesn't increment
-     * @return true if incremented by text length otherwise false
-     */
-    func increment (&self, text : *string, peek : bool) : bool;
 
     /**
      * if char c is present at current pos, increments the stream with character

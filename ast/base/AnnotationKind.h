@@ -6,17 +6,6 @@
 
 enum class AnnotationKind {
 
-    // Inline related annotations
-    Inline,
-    AlwaysInline,
-    NoInline,
-    InlineHint,
-    // compiler inline is the strictest inline
-    CompilerInline,
-    // Size related annotations
-    OptSize,
-    MinSize,
-
     Extern, // it means declaration is available in other module
     CompilerInterface, // it means that struct is a compiler interface
     Cpp, // mangle the function name using C++ name mangling scheme
@@ -47,9 +36,6 @@ enum class AnnotationKind {
 
     // this allows us to propagate symbols in 'using namespace' statement
     Propagate,
-
-    IndexInlineStart=Inline,
-    IndexInlineEnd=MinSize
 
 };
 

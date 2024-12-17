@@ -26,7 +26,7 @@ class ExtendableMembersContainerNode;
  * Function declaration's extra data
  * this is stored here, to avoid making declarations memory size insane
  */
-struct FuncDeclExtData {
+struct FuncDeclAttributes {
     /**
      * the access specifier for the function declaration
      */
@@ -39,9 +39,36 @@ struct FuncDeclExtData {
      * when involved in multi function node (due to same name, different parameters)
      */
     uint8_t multi_func_index = 0;
+    /**
+     * is the function marked inline
+     */
+    bool is_inline;
+    /**
+     * is the function marked always_inline
+     */
+    bool always_inline;
+    /**
+     * is the function marked no_inline
+     */
+    bool no_inline;
+    /**
+     * is the function marked inline_hint
+     */
+    bool inline_hint;
+    /**
+     * is the function marked opt_size
+     */
+    bool opt_size;
+    /**
+     * is the function marked min_size
+     */
+    bool min_size;
+    /**
+     * the strongest inline, compiler inline is done by our compiler
+     * upon failure an error is generated
+     */
+    bool compiler_inline;
 };
-
-static_assert(sizeof(FuncDeclExtData) <= 8);
 
 class FunctionDeclaration : public AnnotableNode, public FunctionType {
 private:
@@ -97,7 +124,7 @@ public:
     /**
      * external data is stored in
      */
-    FuncDeclExtData data;
+    FuncDeclAttributes attrs;
 
     /**
      * constructor
@@ -115,19 +142,19 @@ public:
     );
 
     inline AccessSpecifier specifier() {
-        return data.specifier;
+        return attrs.specifier;
     }
 
     inline bool is_comptime() {
-        return data.is_comptime;
+        return attrs.is_comptime;
     }
 
     inline void set_comptime(bool value) {
-        data.is_comptime = value;
+        attrs.is_comptime = value;
     }
 
     inline void set_specifier_fast(AccessSpecifier specifier) {
-        data.specifier = specifier;
+        attrs.specifier = specifier;
     }
 
     inline void set_identifier(LocatedIdentifier id) {
@@ -143,11 +170,11 @@ public:
     }
 
     inline uint8_t multi_func_index() {
-        return data.multi_func_index;
+        return attrs.multi_func_index;
     }
 
     inline void set_multi_func_index(uint8_t i) {
-        data.multi_func_index = i;
+        attrs.multi_func_index = i;
     }
 
     SourceLocation encoded_location() override {
@@ -254,6 +281,8 @@ public:
     }
 
 #ifdef COMPILER_BUILD
+
+    void llvm_attributes(llvm::Function* func);
 
     std::pair<llvm::Value*, llvm::FunctionType*>& get_llvm_data();
 

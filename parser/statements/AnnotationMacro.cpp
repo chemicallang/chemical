@@ -10,14 +10,70 @@
 #include "ast/structures/StructDefinition.h"
 
 const std::unordered_map<chem::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
-        { "inline:", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::Inline); } },
-        { "inline:always", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::AlwaysInline); } },
-        { "noinline", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::NoInline); } },
-        { "inline:no", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::NoInline); } },
-        { "inline:hint", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::InlineHint); } },
-        { "compiler.inline", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::CompilerInline); } },
-        { "size:opt", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::OptSize); } },
-        { "size:min", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::MinSize); } },
+        { "inline", [](Parser* parser, AnnotableNode* node) -> void {
+            auto func = node->as_function();
+            if(func) {
+                func->attrs.is_inline = true;
+            } else {
+                parser->error("couldn't make the function inline");
+            }
+        } },
+        { "inline:always", [](Parser* parser, AnnotableNode* node) -> void {
+            auto func = node->as_function();
+            if(func) {
+                func->attrs.always_inline = true;
+            } else {
+                parser->error("couldn't make the function inline always");
+            }
+        } },
+        { "noinline", [](Parser* parser, AnnotableNode* node) -> void {
+            auto func = node->as_function();
+            if(func) {
+                func->attrs.no_inline = true;
+            } else {
+                parser->error("couldn't make the function noinline");
+            }
+        } },
+        { "inline:no", [](Parser* parser, AnnotableNode* node) -> void {
+            auto func = node->as_function();
+            if(func) {
+                func->attrs.no_inline = true;
+            } else {
+                parser->error("couldn't make the function noinline");
+            }
+        } },
+        { "inline:hint", [](Parser* parser, AnnotableNode* node) -> void {
+            auto func = node->as_function();
+            if(func) {
+                func->attrs.inline_hint = true;
+            } else {
+                parser->error("couldn't make the function inline hint");
+            }
+        } },
+        { "compiler.inline", [](Parser* parser, AnnotableNode* node) -> void {
+            auto func = node->as_function();
+            if(func) {
+                func->attrs.compiler_inline = true;
+            } else {
+                parser->error("couldn't make the function compiler inline");
+            }
+        } },
+        { "size:opt", [](Parser* parser, AnnotableNode* node) -> void {
+            auto func = node->as_function();
+            if(func) {
+                func->attrs.opt_size = true;
+            } else {
+                parser->error("couldn't make the function opt size");
+            }
+        } },
+        { "size:min", [](Parser* parser, AnnotableNode* node) -> void {
+            auto func = node->as_function();
+            if(func) {
+                func->attrs.min_size = true;
+            } else {
+                parser->error("couldn't make the function min size");
+            }
+        } },
         { "comptime", [](Parser* parser, AnnotableNode* node) -> void {
             if(!node->set_comptime(true)) {
                 parser->error("couldn't make the declaration comptime");

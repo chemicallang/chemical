@@ -441,10 +441,15 @@ public:
     void resolve_file(Scope& scope, const std::string& abs_path);
 
     /**
+     * do not symbol resolve the file, just import it, it will just declare the symbols inside
+     */
+    void import_file(std::vector<ASTNode*>& nodes, const std::string_view& path, bool restrict_public);
+
+    /**
      * should be called after symbol resolving a single file
      * the passed absolute path is used to provide diagnostics only
      */
-    void dispose_file_symbols_now(const std::string& abs_path);
+    void dispose_file_symbols_now(const std::string_view& abs_path);
 
     /**
      * should be called after symbol resolving a single module

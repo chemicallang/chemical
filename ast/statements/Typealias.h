@@ -8,10 +8,24 @@
 #include "ast/base/ExtendableAnnotableNode.h"
 #include "ast/base/LocatedIdentifier.h"
 
+struct TypealiasDeclAttributes {
+
+    /**
+     * the access specifier
+     */
+    AccessSpecifier specifier;
+
+    /**
+     * is comptime typealias
+     */
+    bool is_comptime;
+
+};
+
 class TypealiasStatement : public ExtendableAnnotableNode {
 public:
 
-    AccessSpecifier specifier;
+    TypealiasDeclAttributes attrs;
     // before equal
     LocatedIdentifier located_id;
     // after equal
@@ -29,6 +43,22 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
+
+    inline bool is_comptime() {
+        return attrs.is_comptime;
+    }
+
+    inline void set_comptime(bool value) {
+        attrs.is_comptime = value;
+    }
+
+    inline AccessSpecifier specifier() {
+        return attrs.specifier;
+    }
+
+    inline void set_specifier(AccessSpecifier specifier) {
+        attrs.specifier = specifier;
+    }
 
     inline const std::string name() const {
         return located_id.identifier.str();
@@ -55,7 +85,7 @@ public:
     }
 
     bool is_exported_fast() {
-        return specifier == AccessSpecifier::Public;
+        return specifier() == AccessSpecifier::Public;
     }
 
     ASTNode *parent() final {

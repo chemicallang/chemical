@@ -265,7 +265,7 @@ bool StructValue::primitive() {
 bool StructValue::allows_direct_init() {
     switch(linked_kind) {
         case ASTNodeKind::StructDecl:
-            return !definition->as_struct_def_unsafe()->has_constructor() || definition->as_struct_def_unsafe()->is_direct_init;
+            return !definition->as_struct_def_unsafe()->has_constructor() || definition->as_struct_def_unsafe()->is_direct_init();
         case ASTNodeKind::UnionDecl:
             return !definition->as_union_def_unsafe()->has_constructor();
         case ASTNodeKind::UnnamedStruct:

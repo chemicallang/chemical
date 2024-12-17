@@ -9,7 +9,8 @@ TypealiasStatement::TypealiasStatement(
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier
-) : located_id(std::move(identifier)), actual_type(actual_type), parent_node(parent_node), location(location), specifier(specifier) {
+) : located_id(std::move(identifier)), actual_type(actual_type), parent_node(parent_node), location(location),
+    attrs(specifier,false) {
 
 }
 
@@ -19,7 +20,7 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 
 void TypealiasStatement::declare_top_level(SymbolResolver &linker) {
     actual_type->link(linker);
-    linker.declare_node(name_view(), this, specifier, false);
+    linker.declare_node(name_view(), this, specifier(), false);
 }
 
 BaseType* TypealiasStatement::create_value_type(ASTAllocator& allocator) {

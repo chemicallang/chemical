@@ -237,7 +237,7 @@ void body_gen(Codegen &gen, FunctionDeclaration* decl, llvm::Function* funcCalle
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     if(generic_params.empty()) {
@@ -255,7 +255,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     if(parent_node) {
@@ -414,7 +414,7 @@ inline void create_or_declare_fn(Codegen& gen, FunctionDeclaration* decl) {
 }
 
 void FunctionDeclaration::code_gen_declare_normal(Codegen& gen) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     create_or_declare_fn(gen, this);
@@ -422,7 +422,7 @@ void FunctionDeclaration::code_gen_declare_normal(Codegen& gen) {
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     if(parent_node) {
@@ -487,14 +487,14 @@ void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     create_or_declare_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, VariantDefinition* def) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     create_or_declare_fn(gen, this);
@@ -509,14 +509,14 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, InterfaceDefinition* de
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, UnionDef* def) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     create_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     if(has_annotation(AnnotationKind::Copy)) {
@@ -547,7 +547,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, InterfaceDefinition* def) 
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     if(has_annotation(AnnotationKind::Copy)) {
@@ -571,7 +571,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, UnionDef* def) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     gen.current_function = nullptr;
@@ -1129,7 +1129,7 @@ FunctionDeclaration::FunctionDeclaration(
         bool signature_resolved
 ) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
     identifier(std::move(identifier)),
-    body(std::move(body)), location(location), data(specifier, 0) {
+    body(std::move(body)), location(location), data(specifier, false, 0) {
 }
 
 std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {

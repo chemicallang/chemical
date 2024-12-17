@@ -6,6 +6,20 @@
 #include "ordered_map.h"
 #include "ast/base/AccessSpecifier.h"
 
+struct NamespaceDeclAttributes {
+
+    /**
+     * the access specifier for the namespace decl
+     */
+    AccessSpecifier specifier;
+
+    /**
+     * is the whole namespace comptime
+     */
+    bool is_comptime;
+
+};
+
 class Namespace : public AnnotableNode {
 private:
 
@@ -21,7 +35,7 @@ public:
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
     ASTNode* parent_node;
     SourceLocation location;
-    AccessSpecifier specifier;
+    NamespaceDeclAttributes attrs;
 
     /**
      * constructor
@@ -32,6 +46,22 @@ public:
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
+
+    inline AccessSpecifier specifier() {
+        return attrs.specifier;
+    }
+
+    inline void set_specifier(AccessSpecifier specifier) {
+        attrs.specifier = specifier;
+    }
+
+    inline bool is_comptime() {
+        return attrs.is_comptime;
+    }
+
+    inline void set_comptime(bool value) {
+        attrs.is_comptime = value;
+    }
 
     SourceLocation encoded_location() final {
         return location;

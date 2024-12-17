@@ -294,37 +294,6 @@ void collect_annotation_func(CSTConverter* converter, CSTToken* container, Annot
     converter->annotations.back().values = std::move(collected);
 }
 
-const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandlers = {
-        { "cbi:create", AnnotationHandler { ignore_annotation_func } },
-        { "cbi:import", AnnotationHandler { ignore_annotation_func } },
-        { "inline:", { collect_annotation_func, AnnotationKind::Inline } },
-        { "inline:always", { collect_annotation_func, AnnotationKind::AlwaysInline } },
-        { "noinline", { collect_annotation_func, AnnotationKind::NoInline } },
-        { "inline:no", { collect_annotation_func, AnnotationKind::NoInline } },
-        { "inline:hint", { collect_annotation_func, AnnotationKind::InlineHint } },
-        { "compiler.inline", { collect_annotation_func, AnnotationKind::CompilerInline } },
-        { "size:opt", { collect_annotation_func, AnnotationKind::OptSize } },
-        { "size:min", { collect_annotation_func, AnnotationKind::MinSize } },
-        { "comptime", { collect_annotation_func, AnnotationKind::CompTime } },
-        { "compiler.interface", { collect_annotation_func, AnnotationKind::CompilerInterface } },
-        { "constructor", { collect_annotation_func, AnnotationKind::Constructor } },
-        { "make", { collect_annotation_func, AnnotationKind::Constructor } },
-        { "delete", { collect_annotation_func, AnnotationKind::Delete } },
-        { "override", { collect_annotation_func, AnnotationKind::Override } },
-        { "unsafe", { collect_annotation_func, AnnotationKind::Unsafe } },
-        { "no_init", { collect_annotation_func, AnnotationKind::NoInit }},
-        { "extern", { collect_annotation_func, AnnotationKind::Extern }},
-        { "implicit", { collect_annotation_func, AnnotationKind::Implicit }},
-        { "propagate", { collect_annotation_func, AnnotationKind::Propagate }},
-        { "direct_init", { collect_annotation_func, AnnotationKind::DirectInit }},
-        { "no_return", { collect_annotation_func, AnnotationKind::NoReturn }},
-        { "cpp", { collect_annotation_func, AnnotationKind::Cpp }},
-        { "clear", { collect_annotation_func, AnnotationKind::Clear }},
-        { "copy", { collect_annotation_func, AnnotationKind::Copy }},
-        { "deprecated", { collect_annotation_func, AnnotationKind::Deprecated }},
-        { "move", { collect_annotation_func, AnnotationKind::Move }},
-};
-
 inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node) {
     node->annotations = std::move(converter->annotations);
 }
@@ -1076,24 +1045,24 @@ void CSTConverter::visitMacro(CSTToken* macroCst) {
 }
 
 void CSTConverter::visitAnnotation(CSTToken* annotation) {
-    auto name = str_token(annotation->tokens[0]);
-    auto annon_name = name.substr(1);
-    auto macro = AnnotationHandlers.find(annon_name);
-    if (macro != AnnotationHandlers.end()) {
-        macro->second.func(this, annotation, macro->second.kind);
-    } else {
-        error("couldn't find annotation handler for " + annon_name, annotation);
-    }
+//    auto name = str_token(annotation->tokens[0]);
+//    auto annon_name = name.substr(1);
+//    auto macro = AnnotationHandlers.find(annon_name);
+//    if (macro != AnnotationHandlers.end()) {
+//        macro->second.func(this, annotation, macro->second.kind);
+//    } else {
+//        error("couldn't find annotation handler for " + annon_name, annotation);
+//    }
 }
 
 void CSTConverter::visitAnnotationToken(CSTToken* token) {
-    auto annon_name = token->value().substr(1);
-    auto macro = AnnotationHandlers.find(annon_name);
-    if (macro != AnnotationHandlers.end()) {
-        macro->second.func(this, token, macro->second.kind);
-    } else {
-        error("couldn't find annotation handler for " + annon_name, token);
-    }
+//    auto annon_name = token->value().substr(1);
+//    auto macro = AnnotationHandlers.find(annon_name);
+//    if (macro != AnnotationHandlers.end()) {
+//        macro->second.func(this, token, macro->second.kind);
+//    } else {
+//        error("couldn't find annotation handler for " + annon_name, token);
+//    }
 }
 
 void CSTConverter::visitValueNode(CSTToken *cst) {

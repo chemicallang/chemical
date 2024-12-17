@@ -16,11 +16,31 @@
 #include "ast/types/StructType.h"
 #include "ast/types/LinkedType.h"
 
-class StructDefinition : public ExtendableMembersContainerNode, public StructType {
-public:
+struct StructDeclAttributes {
 
+    /**
+     * the access specifier for the declaration
+     */
     AccessSpecifier specifier;
+
+    /**
+     * is the struct and it's functions comptime
+     */
+    bool is_comptime;
+
+    /**
+     * is direct initialization
+     * constructor or de constructor allow functions to be called automatically
+     */
     bool is_direct_init = false;
+
+};
+
+class StructDefinition : public ExtendableMembersContainerNode, public StructType {
+private:
+    StructDeclAttributes attrs;
+
+public:
     ASTNode* parent_node;
     SourceLocation location;
     LinkedType linked_type;
@@ -49,6 +69,30 @@ public:
 
     ASTNodeKind kind() final {
         return ASTNodeKind::StructDecl;
+    }
+
+    inline AccessSpecifier specifier() {
+        return attrs.specifier;
+    }
+
+    inline void set_specifier(AccessSpecifier specifier) {
+        attrs.specifier = specifier;
+    }
+
+    inline bool is_comptime() {
+        return attrs.is_comptime;
+    }
+
+    inline void set_comptime(bool value) {
+        attrs.is_comptime = value;
+    }
+
+    inline bool is_direct_init() {
+        return attrs.is_direct_init;
+    }
+
+    inline void set_direct_init(bool value) {
+        attrs.is_direct_init = value;
     }
 
     std::string get_runtime_name() final {
@@ -93,7 +137,7 @@ public:
     }
 
     bool is_exported_fast() {
-        return specifier == AccessSpecifier::Public;
+        return specifier() == AccessSpecifier::Public;
     }
 
     bool is_generic() {

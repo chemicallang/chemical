@@ -1240,7 +1240,7 @@ llvm::Type *EnumMember::llvm_type(Codegen &gen) {
 // ------------ Structures
 
 void Namespace::code_gen_declare(Codegen &gen) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     for(const auto node : nodes) {
@@ -1249,7 +1249,7 @@ void Namespace::code_gen_declare(Codegen &gen) {
 }
 
 void Namespace::code_gen(Codegen &gen) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     for(const auto node : nodes) {
@@ -1258,7 +1258,7 @@ void Namespace::code_gen(Codegen &gen) {
 }
 
 void Namespace::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     for(const auto node : nodes) {
@@ -1267,7 +1267,7 @@ void Namespace::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
 }
 
 void Namespace::code_gen_external_declare(Codegen &gen) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     for(const auto node : nodes) {

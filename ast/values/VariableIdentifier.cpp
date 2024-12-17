@@ -67,7 +67,7 @@ bool VariableIdentifier::compile_time_computable() {
         case ASTNodeKind::VariantDecl:
             return true;
         case ASTNodeKind::VarInitStmt:
-            return linked->as_var_init_unsafe()->has_annotation(AnnotationKind::CompTime);
+            return linked->as_var_init_unsafe()->is_comptime();
         default:
             return false;
     }

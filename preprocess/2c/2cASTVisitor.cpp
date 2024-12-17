@@ -728,7 +728,7 @@ void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier,
         auto func_call = chain->values.back()->as_func_call();
         if(func_call) {
             auto linked_func = func_call->safe_linked_func();
-            if(linked_func && linked_func->has_annotation(AnnotationKind::CompTime)) {
+            if(linked_func && linked_func->is_comptime()) {
 
                 Value* eval;
                 auto found_eval = visitor.evaluated_func_calls.find(func_call);
@@ -860,7 +860,7 @@ void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, B
 }
 
 void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bool initialize = true) {
-    if(init->has_annotation(AnnotationKind::CompTime)) {
+    if(init->is_comptime()) {
         return;
     }
     visitor.debug_comment("var_init defining the value");
@@ -1054,7 +1054,7 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
             prev_iteration = decl->active_iteration;
             decl->set_active_iteration(call->generic_iteration);
         }
-        if(decl->has_annotation(AnnotationKind::CompTime)) {
+        if(decl->is_comptime()) {
             auto eval = evaluated_func_val(visitor, decl, call);
             auto identifier = visitor.get_local_temp_var_name();
             if(eval->as_struct_value()) {
@@ -1168,7 +1168,7 @@ void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* a
     auto last = values[end - 1]->as_func_call();
     auto func_decl = last->safe_linked_func();
     auto parent = values[end - 2];
-    if (func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
+    if (func_decl && func_decl->is_comptime()) {
         return;
     }
     auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3] : nullptr;
@@ -1326,7 +1326,7 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const std::string& ide
             auto decl = call->safe_linked_func();
             auto func_type = call->function_type(visitor.allocator);
             auto linked = func_type->returnType->linked_node();
-            if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+            if(decl && decl->is_comptime()) {
                 process_comp_time_call(decl, call, identifier);
                 return;
             } else if(linked->as_struct_def()) {
@@ -1476,7 +1476,7 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
         const auto call = chain->values[index]->as_func_call();
         if(call) {
             const auto decl = call->safe_linked_func();
-            if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+            if(decl && decl->is_comptime()) {
                 auto eval = visitor.evaluated_func_calls.find(call);
                 if(eval != visitor.evaluated_func_calls.end()) {
                     const auto comp_chain = eval->second->as_access_chain();
@@ -1526,7 +1526,7 @@ void CAfterStmtVisitor::visit(AccessChain *chain) {
 
 void CAfterStmtVisitor::visit(FunctionCall *call) {
 //    auto decl = call->safe_linked_func();
-//    if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+//    if(decl && decl->is_comptime()) {
 //        auto eval = visitor->evaluated_func_calls.find(call);
 //        if(eval != visitor->evaluated_func_calls.end()) {
 //            eval->second->accept(this);
@@ -1786,7 +1786,7 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
             const auto func_call = chain->values.back()->as_func_call();
             if(func_call) {
                 auto decl = func_call->safe_linked_func();
-                if (decl && decl->has_annotation(AnnotationKind::CompTime)) {
+                if (decl && decl->is_comptime()) {
                     auto found = visitor.evaluated_func_calls.find(func_call);
                     if (found != visitor.evaluated_func_calls.end()) {
                         init_value = found->second;
@@ -2027,7 +2027,7 @@ void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* d
 }
 
 void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl, const std::string& name) {
-    if(decl->has_annotation(AnnotationKind::CompTime)) {
+    if(decl->is_comptime()) {
         return;
     }
     if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing()) {
@@ -2042,7 +2042,7 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl,
 }
 
 void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name) {
-    if(decl->has_annotation(AnnotationKind::CompTime)) {
+    if(decl->is_comptime()) {
         return;
     }
     declare_params(tld->value_visitor, decl->params);
@@ -2056,7 +2056,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
 
 // when a function is inside struct / interface
 void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name, bool overrides, StructDefinition* overridden = nullptr) {
-    if(decl->has_annotation(AnnotationKind::CompTime)) {
+    if(decl->is_comptime()) {
         return;
     }
     declare_params(tld->value_visitor, decl->params);
@@ -2135,13 +2135,13 @@ void CTopLevelDeclarationVisitor::visit(ExtensionFunction *decl) {
 }
 
 void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
-    if(decl->body.has_value() && !decl->has_annotation(AnnotationKind::CompTime)) {
+    if(decl->body.has_value() && !decl->is_comptime()) {
         decl->body.value().accept(this);
     }
 }
 
 void CValueDeclarationVisitor::visit(ExtensionFunction *decl) {
-    if(decl->body.has_value() && !decl->has_annotation(AnnotationKind::CompTime)) {
+    if(decl->body.has_value() && !decl->is_comptime()) {
         decl->body.value().accept(this);
     }
 }
@@ -2197,7 +2197,7 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
 }
 
 void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
-    if(ns->has_annotation(AnnotationKind::CompTime)) return;
+    if(ns->is_comptime()) return;
     for(const auto node : ns->nodes) {
         node->accept(this);
     }
@@ -2852,7 +2852,7 @@ void ToCAstVisitor::visit(FunctionParam *param) {
 }
 
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, const std::string& name) {
-    if(!decl->body.has_value() || decl->has_annotation(AnnotationKind::CompTime)) {
+    if(!decl->body.has_value() || decl->is_comptime()) {
         return;
     }
     auto prev_func_decl = visitor.current_func_type;
@@ -3167,7 +3167,7 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
 }
 
 void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* def) {
-    if(!decl->body.has_value() || decl->has_annotation(AnnotationKind::CompTime)) {
+    if(!decl->body.has_value() || decl->is_comptime()) {
         return;
     }
     auto prev_func_decl = visitor.current_func_type;
@@ -3656,7 +3656,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
     auto last = values[end - 1]->as_func_call();
     auto func_decl = last->safe_linked_func();
     auto parent = values[end - 2];
-    if(func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
+    if(func_decl && func_decl->is_comptime()) {
         evaluate_func(visitor, &visitor, func_decl, last);
         return;
     }
@@ -4293,7 +4293,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
     const auto linked_kind = linked->kind();
     if(linked_kind == ASTNodeKind::VarInitStmt) {
         const auto init = linked->as_var_init_unsafe();
-        if(init->has_annotation(AnnotationKind::CompTime)) {
+        if(init->is_comptime()) {
             init->value->accept(this);
             return;
         }

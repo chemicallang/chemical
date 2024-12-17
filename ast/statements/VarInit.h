@@ -24,6 +24,11 @@ struct VarInitExtData {
     AccessSpecifier specifier;
 
     /**
+     * is var init comptime
+     */
+    bool is_comptime;
+
+    /**
      * has moved is used to indicate that an object at this location has moved
      * destructor is not called on moved objects, once moved, any attempt to access
      * this variable causes an error
@@ -96,6 +101,14 @@ public:
         return located_id.identifier;
     }
 
+    inline bool is_comptime() {
+        return data.is_comptime;
+    }
+
+    inline void set_comptime(bool value) {
+        data.is_comptime = value;
+    }
+
     /**
      * get the access specifier
      */
@@ -106,7 +119,7 @@ public:
     /**
      * set's the specifier of this decl fast
      */
-    inline void set_specifier_fast(AccessSpecifier specifier) {
+    inline void set_specifier(AccessSpecifier specifier) {
         data.specifier = specifier;
     }
 

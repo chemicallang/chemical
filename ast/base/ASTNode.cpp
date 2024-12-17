@@ -102,21 +102,23 @@ AccessSpecifier ASTNode::specifier() {
     const auto k = kind();
     switch(k) {
         case ASTNodeKind::StructDecl:
-            return as_struct_def_unsafe()->specifier;
+            return as_struct_def_unsafe()->specifier();
         case ASTNodeKind::VariantDecl:
-            return as_variant_def_unsafe()->specifier;
+            return as_variant_def_unsafe()->specifier();
         case ASTNodeKind::NamespaceDecl:
-            return as_namespace_unsafe()->specifier;
+            return as_namespace_unsafe()->specifier();
         case ASTNodeKind::UnionDecl:
-            return as_union_def_unsafe()->specifier;
+            return as_union_def_unsafe()->specifier();
         case ASTNodeKind::EnumDecl:
-            return as_enum_decl_unsafe()->specifier;
+            return as_enum_decl_unsafe()->specifier();
         case ASTNodeKind::FunctionDecl:
             return as_function_unsafe()->specifier();
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->specifier();
         case ASTNodeKind::VarInitStmt:
             return as_var_init_unsafe()->specifier();
+        case ASTNodeKind::TypealiasStmt:
+            return as_typealias_unsafe()->specifier();
         default:
             return AccessSpecifier::Private;
     }
@@ -126,19 +128,19 @@ bool ASTNode::set_specifier(AccessSpecifier spec) {
     const auto k = kind();
     switch(k) {
         case ASTNodeKind::StructDecl:
-            as_struct_def_unsafe()->specifier = spec;
+            as_struct_def_unsafe()->set_specifier(spec);
             return true;
         case ASTNodeKind::VariantDecl:
-            as_variant_def_unsafe()->specifier = spec;
+            as_variant_def_unsafe()->set_specifier(spec);
             return true;
         case ASTNodeKind::NamespaceDecl:
-            as_namespace_unsafe()->specifier = spec;
+            as_namespace_unsafe()->set_specifier(spec);
             return true;
         case ASTNodeKind::UnionDecl:
-            as_union_def_unsafe()->specifier = spec;
+            as_union_def_unsafe()->set_specifier(spec);
             return true;
         case ASTNodeKind::EnumDecl:
-            as_enum_decl_unsafe()->specifier = spec;
+            as_enum_decl_unsafe()->set_specifier(spec);
             return true;
         case ASTNodeKind::FunctionDecl:
             as_function_unsafe()->set_specifier_fast(spec);
@@ -153,6 +155,29 @@ bool ASTNode::set_specifier(AccessSpecifier spec) {
 
 bool ASTNode::is_exported() {
     return specifier() == AccessSpecifier::Public;
+}
+
+bool ASTNode::set_comptime(bool value) {
+    switch(kind()) {
+        case ASTNodeKind::VarInitStmt:
+            as_var_init_unsafe()->set_comptime(value);
+            return true;
+        case ASTNodeKind::StructDecl:
+            as_struct_def_unsafe()->set_comptime(value);
+            return true;
+        case ASTNodeKind::NamespaceDecl:
+            as_namespace_unsafe()->set_comptime(value);
+            return true;
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::ExtensionFunctionDecl:
+            as_function_unsafe()->set_comptime(value);
+            return true;
+        case ASTNodeKind::TypealiasStmt:
+            as_typealias_unsafe()->set_comptime(value);
+            return true;
+        default:
+            return false;
+    }
 }
 
 BaseType* ASTNode::get_stored_value_type(ASTNodeKind k) {

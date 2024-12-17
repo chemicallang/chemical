@@ -321,7 +321,20 @@ void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {
     dispose_file_symbols_now(abs_path);
 }
 
-void SymbolResolver::dispose_file_symbols_now(const std::string& abs_path) {
+void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string_view& path, bool restrict_public) {
+    file_scope_start();
+    for(const auto node : nodes) {
+        const auto requested_specifier = node->specifier();
+        const auto specifier = restrict_public ? requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier :  requested_specifier;
+        auto id = node->ns_node_identifier();
+        declare_node(id, node, specifier, true);
+    }
+    dispose_file_symbols_now(path);
+    print_diagnostics(path, "SymRes");
+    diagnostics.clear();
+}
+
+void SymbolResolver::dispose_file_symbols_now(const std::string_view& abs_path) {
     if(dispose_file_symbols.empty()) return;
     // dispose symbols of previous file
     auto& last_scope = current.back();

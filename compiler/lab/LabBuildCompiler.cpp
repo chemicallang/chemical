@@ -154,18 +154,6 @@ int LabBuildCompiler::do_job(LabJob* job) {
     return return_int;
 }
 
-void import_in_module(std::vector<ASTNode*>& nodes, SymbolResolver& resolver, const std::string_view& path) {
-    resolver.file_scope_start();
-    for(const auto node : nodes) {
-        const auto requested_specifier = node->specifier();
-        const auto specifier = requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier;
-        auto id = node->ns_node_identifier();
-        resolver.declare_node(id, node, specifier, true);
-    }
-    resolver.print_diagnostics(path, "SymRes");
-    resolver.diagnostics.clear();
-}
-
 bool empty_diags(ASTFileResultNew& result) {
     return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
 }
@@ -463,8 +451,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 unsigned fileId = loc_man.encodeFile(abs_path);
                 ASTFileResultNew imported_file;
                 processor.import_chemical_file(imported_file, fileId, abs_path);
-                auto& nodes = imported_file.unit.scope.nodes;
-                import_in_module(nodes, resolver, abs_path);
+                auto& scope = imported_file.unit.scope;
+                auto& nodes = scope.nodes;
+                resolver.resolve_file(scope, abs_path);
 #ifdef COMPILER_BUILD
                 processor.compile_nodes(gen, nodes, abs_path);
 #else
@@ -499,7 +488,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             cTranslator.check_decls_across_invocations = prev_check;
             auto& nodes = cTranslator.nodes;
             // symbol resolving c nodes, really fast -- just declaring their id's as less than public specifier
-            import_in_module(nodes, resolver, mod->name.to_std_string() + ":headers");
+            resolver.import_file(nodes, mod->name.to_std_string() + ":headers", true);
             // declaring the nodes fast using code generator
             for(const auto node : nodes) {
                 node->code_gen_declare(gen);

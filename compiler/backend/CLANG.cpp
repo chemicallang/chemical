@@ -565,9 +565,6 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
     if(func_decl->getName().starts_with("__")) {
         return nullptr;
     }
-    if(func_decl->getName() == "_atoflt") {
-        int i = 0;
-    }
     // Check if the declaration is for the printf function
     // Extract function parameters
     std::vector<FunctionParam*> params;

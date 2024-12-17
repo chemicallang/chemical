@@ -364,9 +364,9 @@ public:
     BaseType* parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId);
 
     /**
-     * parse type id
+     * returns linked value type if found otherwise provided linked type
      */
-    BaseType* parseTypeId(ASTAllocator& allocator, Token* type);
+    LinkedValueType* parseLinkedValueType(ASTAllocator& allocator, Token* type, SourceLocation location);
 
     /**
      * parse a single type

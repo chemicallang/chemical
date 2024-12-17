@@ -32,6 +32,10 @@ struct FuncDeclExtData {
      */
     AccessSpecifier specifier = AccessSpecifier::Internal;
     /**
+     * is this function comptime
+     */
+    bool is_comptime;
+    /**
      * when involved in multi function node (due to same name, different parameters)
      */
     uint8_t multi_func_index = 0;
@@ -112,6 +116,14 @@ public:
 
     inline AccessSpecifier specifier() {
         return data.specifier;
+    }
+
+    inline bool is_comptime() {
+        return data.is_comptime;
+    }
+
+    inline void set_comptime(bool value) {
+        data.is_comptime = value;
     }
 
     inline void set_specifier_fast(AccessSpecifier specifier) {

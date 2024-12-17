@@ -91,7 +91,7 @@ void StructDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration*
 }
 
 void StructDefinition::code_gen(Codegen &gen, bool declare) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
@@ -357,7 +357,7 @@ StructDefinition::StructDefinition(
         SourceLocation location,
         AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node),
-    location(location), specifier(specifier), linked_type(name(), this, location) {
+    location(location), attrs(specifier, false, false), linked_type(name(), this, location) {
 
 }
 
@@ -379,8 +379,7 @@ void StructDefinition::accept(Visitor *visitor) {
 }
 
 void StructDefinition::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name_view(), this, specifier, true);
-    is_direct_init = has_annotation(AnnotationKind::DirectInit);
+    linker.declare_node(name_view(), this, specifier(), true);
 }
 
 void StructDefinition::redeclare_top_level(SymbolResolver &linker) {
@@ -388,7 +387,7 @@ void StructDefinition::redeclare_top_level(SymbolResolver &linker) {
 }
 
 void StructDefinition::declare_and_link(SymbolResolver &linker) {
-    auto& allocator = specifier == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_copy_fn = false;

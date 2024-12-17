@@ -27,7 +27,7 @@ ASTNode *EnumDeclaration::child(const std::string &name) {
 }
 
 void EnumDeclaration::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name_view(), (ASTNode*) this, specifier, false);
+    linker.declare_node(name_view(), (ASTNode*) this, specifier(), false);
 }
 
 BaseType* EnumDeclaration::create_value_type(ASTAllocator& allocator) {

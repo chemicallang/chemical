@@ -50,7 +50,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
 
 void VarInitStatement::code_gen(Codegen &gen) {
     if (gen.current_function == nullptr) {
-        if(is_const() && has_annotation(AnnotationKind::CompTime)) {
+        if(is_const() && is_comptime()) {
             llvm_ptr = value->llvm_value(gen, type ? type : nullptr);
             return;
         }
@@ -160,7 +160,7 @@ void VarInitStatement::code_gen_external_declare(Codegen &gen) {
 llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
     if(is_const()) {
         if(is_top_level()) {
-            if (has_annotation(AnnotationKind::CompTime)) {
+            if (is_comptime()) {
                 return llvm_pointer(gen);
             }
         } else if(value) {
@@ -233,7 +233,7 @@ VarInitStatement::VarInitStatement(
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier
-) : data(specifier, false, false, is_const), located_id(std::move(identifier)), type(type), value(value), parent_node(parent_node), location(location) {
+) : data(specifier, false, false, false, is_const), located_id(std::move(identifier)), type(type), value(value), parent_node(parent_node), location(location) {
 
 }
 

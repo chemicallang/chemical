@@ -15,14 +15,20 @@
 #include "ast/types/LinkedType.h"
 #include "ast/base/LocatedIdentifier.h"
 
+struct EnumDeclAttributes {
+
+    AccessSpecifier specifier;
+
+};
+
 class EnumDeclaration : public ExtendableAnnotableNode {
 public:
 
+    EnumDeclAttributes attrs;
     LocatedIdentifier located_id; ///< The name of the enum.
     std::unordered_map<std::string, EnumMember*> members; ///< The values of the enum.
     ASTNode* parent_node;
     SourceLocation location;
-    AccessSpecifier specifier;
     LinkedType linked_type;
     IntType underlying_type;
 
@@ -38,7 +44,8 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : located_id(std::move(name_id)), members(std::move(members)), parent_node(parent_node), location(location), linked_type(name(), this, location), underlying_type(location), specifier(specifier) {
+    ) : located_id(std::move(name_id)), members(std::move(members)), parent_node(parent_node), location(location),
+        linked_type(name(), this, location), underlying_type(location), attrs(specifier) {
 
     }
 
@@ -48,6 +55,14 @@ public:
 
     inline const chem::string_view& name_view() {
         return located_id.identifier;
+    }
+
+    AccessSpecifier specifier() {
+        return attrs.specifier;
+    }
+
+    void set_specifier(AccessSpecifier specifier) {
+        attrs.specifier = specifier;
     }
 
     SourceLocation encoded_location() final {

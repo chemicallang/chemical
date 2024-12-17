@@ -8,7 +8,7 @@ Namespace::Namespace(
     ASTNode* parent_node,
     SourceLocation location,
     AccessSpecifier specifier
-) : name(std::move(name)), parent_node(parent_node), location(location), specifier(specifier) {
+) : name(std::move(name)), parent_node(parent_node), location(location), attrs(specifier, false) {
 
 }
 
@@ -32,8 +32,8 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
     if(previous) {
         root = previous->as_namespace();
         if(root) {
-            if(specifier < root->specifier) {
-                linker.error("access specifier of this namespace must be at least '" + to_string(root->specifier) + "' to match previous", this);
+            if(specifier() < root->specifier()) {
+                linker.error("access specifier of this namespace must be at least '" + to_string(root->specifier()) + "' to match previous", this);
                 return;
             }
             linker.scope_start();
@@ -47,7 +47,7 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
             linker.dup_sym_error(name, previous, this);
         }
     } else {
-        linker.declare_node(name, this, specifier, false);
+        linker.declare_node(name, this, specifier(), false);
         // we do not check for duplicate symbols here, because nodes are being declared first time
         for(const auto node : nodes) {
             extended[node->ns_node_identifier()] = node;

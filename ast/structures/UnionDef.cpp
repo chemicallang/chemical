@@ -32,7 +32,7 @@ void UnionDef::func_gen(Codegen &gen, bool declare) {
 }
 
 void UnionDef::code_gen(Codegen &gen, bool declare) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(is_comptime()) {
         return;
     }
     auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
@@ -78,7 +78,7 @@ UnionDef::UnionDef(
     SourceLocation location,
     AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), location(location),
-    specifier(specifier), linked_type("", this, location) {
+    attrs(specifier, false, false), linked_type("", this, location) {
 
 }
 
@@ -111,7 +111,7 @@ BaseType* UnionDef::known_type() {
 }
 
 void UnionDef::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name_view(), this, specifier, true);
+    linker.declare_node(name_view(), this, specifier(), true);
 }
 
 void UnionDef::declare_and_link(SymbolResolver &linker) {

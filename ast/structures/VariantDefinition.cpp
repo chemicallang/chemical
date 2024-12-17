@@ -235,7 +235,8 @@ VariantDefinition::VariantDefinition(
     ASTNode* parent_node,
     SourceLocation location,
     AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), ref_type(name(), this, location), location(location), specifier(specifier) {
+) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), ref_type(name(), this, location),
+    location(location), attrs(specifier) {
 }
 
 ASTNode* VariantDefinition::child(const std::string &child_name) {
@@ -243,11 +244,11 @@ ASTNode* VariantDefinition::child(const std::string &child_name) {
 }
 
 void VariantDefinition::declare_top_level(SymbolResolver &linker) {
-    linker.declare_node(name_view(), this, specifier, true);
+    linker.declare_node(name_view(), this, specifier(), true);
 }
 
 void VariantDefinition::declare_and_link(SymbolResolver &linker) {
-    auto& allocator = specifier == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_move_fn = false;

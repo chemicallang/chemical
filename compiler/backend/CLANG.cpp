@@ -1287,7 +1287,7 @@ ASTNode* comptime_constant(ASTAllocator& allocator, const llvm::StringRef& name,
             nullptr,
             ZERO_LOC
     );
-    stmt->add_annotation(AnnotationKind::CompTime);
+    stmt->set_comptime(true);
     return stmt;
 }
 

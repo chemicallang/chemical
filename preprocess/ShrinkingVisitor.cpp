@@ -22,7 +22,7 @@ void shrink(std::optional<LoopScope>& scope) {
 }
 
 void shrink(FunctionDeclaration* decl) {
-    if(decl->has_annotation(AnnotationKind::CompTime) || (decl->is_generic() && decl->specifier() != AccessSpecifier::Private)) {
+    if(decl->is_comptime() || (decl->is_generic() && decl->specifier() != AccessSpecifier::Private)) {
         return;
     }
     shrink(decl->body);
@@ -37,7 +37,7 @@ void ShrinkingVisitor::visit(ExtensionFunction *exFunc) {
 }
 
 void ShrinkingVisitor::visit(StructDefinition *def) {
-    if(def->is_generic() && def->specifier != AccessSpecifier::Private) {
+    if(def->is_generic() && def->specifier() != AccessSpecifier::Private) {
         return;
     }
     for(auto& func : def->functions()) {

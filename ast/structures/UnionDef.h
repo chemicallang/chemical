@@ -6,13 +6,22 @@
 #include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/types/LinkedType.h"
 
+struct UnionDeclAttributes {
+
+    AccessSpecifier specifier;
+
+    bool is_comptime;
+
+    bool is_direct_init;
+
+};
+
 class UnionDef : public ExtendableMembersContainerNode, public UnionType {
 public:
 
+    UnionDeclAttributes attrs;
     ASTNode* parent_node;
     SourceLocation location;
-    bool is_direct_init = false;
-    AccessSpecifier specifier;
     LinkedType linked_type;
 
 #ifdef COMPILER_BUILD
@@ -38,12 +47,28 @@ public:
         return name();
     }
 
+    inline AccessSpecifier specifier() {
+        return attrs.specifier;
+    }
+
+    inline void set_specifier(AccessSpecifier specifier) {
+        attrs.specifier = specifier;
+    }
+
     bool is_exported_fast() {
-        return specifier == AccessSpecifier::Public;
+        return specifier() == AccessSpecifier::Public;
     }
 
     inline bool is_generic() {
         return !generic_params.empty();
+    }
+
+    inline bool is_comptime() {
+        return attrs.is_comptime;
+    }
+
+    inline void set_comptime(bool value) {
+        attrs.is_comptime = value;
     }
 
     uint64_t byte_size(bool is64Bit) final {

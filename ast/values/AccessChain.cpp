@@ -51,7 +51,7 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
         auto self_param = linker.current_func_type->get_self_param();
         if (!self_param) {
             auto decl = linker.current_func_type->as_function();
-            if(!decl || !decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
+            if(!decl || !decl->has_annotation(AnnotationKind::Constructor) && !decl->is_comptime()) {
                 linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument", values[0]);
                 return false;
             }

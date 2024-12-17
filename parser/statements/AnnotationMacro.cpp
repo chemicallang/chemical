@@ -7,6 +7,7 @@
 #include "ast/base/AnnotableNode.h"
 #include "parser/model/CompilerBinder.h"
 #include "parser/Parser.h"
+#include "ast/structures/StructDefinition.h"
 
 const std::unordered_map<chem::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
         { "inline:", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation(AnnotationKind::Inline); } },
@@ -17,7 +18,11 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
         { "compiler.inline", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::CompilerInline); } },
         { "size:opt", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::OptSize); } },
         { "size:min", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::MinSize); } },
-        { "comptime", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::CompTime); } },
+        { "comptime", [](Parser* parser, AnnotableNode* node) -> void {
+            if(!node->set_comptime(true)) {
+                parser->error("couldn't make the declaration comptime");
+            }
+        } },
         { "compiler.interface", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::CompilerInterface); } },
         { "constructor", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Constructor); } },
         { "make", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Constructor); } },
@@ -28,7 +33,14 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
         { "extern", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Extern); }},
         { "implicit", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Implicit); }},
         { "propagate", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Propagate); }},
-        { "direct_init", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::DirectInit); }},
+        { "direct_init", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto def = node->as_struct_def();
+            if(def) {
+                def->set_direct_init(true);
+            } else {
+                parser->error("couldn't make the struct direct init");
+            }
+        }},
         { "no_return", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::NoReturn); }},
         { "cpp", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Cpp); }},
         { "clear", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Clear); }},

@@ -293,7 +293,7 @@ llvm::Value* ChainValue::access_chain_pointer(
     const auto last_func_call = last->as_func_call();
     if(last_func_call) {
         const auto func_decl = last_func_call->safe_linked_func();
-        if(func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
+        if(func_decl && func_decl->is_comptime()) {
             auto& ret_value = gen.eval_comptime(last_func_call, func_decl);
             if(ret_value) {
                 return ret_value->llvm_pointer(gen);

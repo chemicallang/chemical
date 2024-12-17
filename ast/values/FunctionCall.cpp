@@ -428,7 +428,7 @@ llvm::Value *call_capturing_lambda(
 
 void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     const auto func = safe_linked_func();
-    if(func && func->has_annotation(AnnotationKind::CompTime)) {
+    if(func && func->is_comptime()) {
         auto eval = gen.evaluated_func_calls.find(this);
         if(eval != gen.evaluated_func_calls.end()) {
             eval->second->llvm_destruct(gen, allocaInst);
@@ -487,7 +487,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
     llvm::Value* returnedValue = returnedStruct;
     auto returnsStruct = func_type->returnType->value_type() == ValueType::Struct;
 
-    if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+    if(decl && decl->is_comptime()) {
         auto val = gen.eval_comptime(this, decl);
         if(!val) {
             return nullptr;
@@ -920,7 +920,7 @@ bool FunctionCall::primitive() {
 
 bool FunctionCall::compile_time_computable() {
     auto func = safe_linked_func();
-    return func && func->has_annotation(AnnotationKind::CompTime);
+    return func && func->is_comptime();
 }
 
 Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {

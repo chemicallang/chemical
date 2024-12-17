@@ -5,10 +5,16 @@
 #include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/types/LinkedType.h"
 
+struct VariantDeclAttributes {
+
+    AccessSpecifier specifier;
+
+};
+
 class VariantDefinition : public ExtendableMembersContainerNode {
 public:
 
-    AccessSpecifier specifier;
+    VariantDeclAttributes attrs;
     ASTNode* parent_node;
     SourceLocation location;
     LinkedType ref_type;
@@ -39,6 +45,14 @@ public:
         return ASTNodeKind::VariantDecl;
     }
 
+    AccessSpecifier specifier() {
+        return attrs.specifier;
+    }
+
+    void set_specifier(AccessSpecifier specifier) {
+        attrs.specifier = specifier;
+    }
+
     ASTNode *parent() final {
         return parent_node;
     }
@@ -56,7 +70,7 @@ public:
     }
 
     bool is_exported_fast() {
-        return specifier == AccessSpecifier::Public;
+        return specifier() == AccessSpecifier::Public;
     }
 
     const std::string ns_node_identifier() final {

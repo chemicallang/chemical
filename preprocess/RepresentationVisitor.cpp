@@ -428,7 +428,7 @@ void write_gen_params(RepresentationVisitor& visitor, StructDefinition* def) {
 }
 
 void RepresentationVisitor::visit(StructDefinition *def) {
-    write_ws(def->specifier);
+    write_ws(def->specifier());
     write("struct ");
     write(def->name());
     write_gen_params(*this, def);
@@ -493,7 +493,7 @@ void RepresentationVisitor::visit(StructMember *member) {
 }
 
 void RepresentationVisitor::visit(TypealiasStatement *stmt) {
-    write_ws(stmt->specifier);
+    write_ws(stmt->specifier());
     write("typealias ");
     write(stmt->name());
     write(" = ");
@@ -953,7 +953,7 @@ void RepresentationVisitor::visit(VariantCase *chain) {
 }
 
 void RepresentationVisitor::visit(VariantDefinition *variant_def) {
-    write_ws(variant_def->specifier);
+    write_ws(variant_def->specifier());
     write("variant ");
     write(variant_def->name());
     write('{');

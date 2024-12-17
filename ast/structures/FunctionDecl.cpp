@@ -301,27 +301,24 @@ void FunctionDeclaration::code_gen_generic(Codegen &gen) {
     code_gen_body(gen);
 }
 
-void llvm_func_attr(llvm::Function* func, AnnotationKind kind) {
-    switch(kind) {
-        case AnnotationKind::Inline:
-            return;
-        case AnnotationKind::AlwaysInline:
-            func->addFnAttr(llvm::Attribute::AlwaysInline);
-            break;
-        case AnnotationKind::NoInline:
-            func->addFnAttr(llvm::Attribute::NoInline);
-            break;
-        case AnnotationKind::InlineHint:
-            func->addFnAttr(llvm::Attribute::InlineHint);
-            break;
-        case AnnotationKind::OptSize:
-            func->addFnAttr(llvm::Attribute::OptimizeForSize);
-            break;
-        case AnnotationKind::MinSize:
-            func->addFnAttr(llvm::Attribute::MinSize);
-            break;
-        default:
-            return;
+void FunctionDeclaration::llvm_attributes(llvm::Function* func) {
+    if(attrs.is_inline) {
+        // do nothing at the moment
+    }
+    if(attrs.always_inline) {
+        func->addFnAttr(llvm::Attribute::AlwaysInline);
+    }
+    if(attrs.no_inline) {
+        func->addFnAttr(llvm::Attribute::NoInline);
+    }
+    if(attrs.inline_hint) {
+        func->addFnAttr(llvm::Attribute::InlineHint);
+    }
+    if(attrs.opt_size) {
+        func->addFnAttr(llvm::Attribute::OptimizeForSize);
+    }
+    if(attrs.min_size) {
+        func->addFnAttr(llvm::Attribute::MinSize);
     }
 }
 
@@ -362,9 +359,7 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     auto func_type = decl->create_llvm_func_type(gen);
     auto func = gen.create_function(name, func_type, decl->specifier());
     llvm_func_def_attr(func);
-    decl->traverse([func](Annotation* annotation){
-        llvm_func_attr(func, annotation->kind);
-    });
+    decl->llvm_attributes(func);
     decl->set_llvm_data(func, func->getFunctionType());
 }
 
@@ -1128,8 +1123,8 @@ FunctionDeclaration::FunctionDeclaration(
         AccessSpecifier specifier,
         bool signature_resolved
 ) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
-    identifier(std::move(identifier)),
-    body(std::move(body)), location(location), data(specifier, false, 0) {
+    identifier(std::move(identifier)), body(std::move(body)), location(location),
+    attrs(specifier, false, 0, false, false, false, false, false, false, false) {
 }
 
 std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {

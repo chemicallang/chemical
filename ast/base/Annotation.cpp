@@ -66,18 +66,18 @@ Annotation* AnnotationParent::get_annotation(AnnotationKind expected) {
 
 std::string to_string(AnnotationKind kind) {
     switch(kind) {
-        case AnnotationKind::Inline:
-            return "inline";
-        case AnnotationKind::AlwaysInline:
-            return "inline:always";
-        case AnnotationKind::NoInline:
-            return "inline:no";
-        case AnnotationKind::InlineHint:
-            return "inline:hint";
-        case AnnotationKind::OptSize:
-            return "size:opt";
-        case AnnotationKind::MinSize:
-            return "size:min";
+//        case AnnotationKind::Inline:
+//            return "inline";
+//        case AnnotationKind::AlwaysInline:
+//            return "inline:always";
+//        case AnnotationKind::NoInline:
+//            return "inline:no";
+//        case AnnotationKind::InlineHint:
+//            return "inline:hint";
+//        case AnnotationKind::OptSize:
+//            return "size:opt";
+//        case AnnotationKind::MinSize:
+//            return "size:min";
         case AnnotationKind::Delete:
             return "destructor";
         default:

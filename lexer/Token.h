@@ -34,4 +34,11 @@ struct Token {
         return type > TokenType::IndexKwStart && type < TokenType::IndexKwEnd;
     }
 
+    /**
+     * check if given token type is a keyword or identifier
+     */
+    static inline bool isKeywordOrId(enum TokenType type) {
+        return type == TokenType::Identifier || isKeyword(type);
+    }
+
 };

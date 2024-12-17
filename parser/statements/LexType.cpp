@@ -18,6 +18,26 @@
 #include "ast/types/FunctionType.h"
 #include "ast/types/LiteralType.h"
 #include "ast/types/StringType.h"
+#include "ast/types/AnyType.h"
+#include "ast/types/BoolType.h"
+#include "ast/types/CharType.h"
+#include "ast/types/UCharType.h"
+#include "ast/types/DoubleType.h"
+#include "ast/types/FloatType.h"
+#include "ast/types/Float128Type.h"
+#include "ast/types/IntType.h"
+#include "ast/types/UIntType.h"
+#include "ast/types/ShortType.h"
+#include "ast/types/UShortType.h"
+#include "ast/types/LongType.h"
+#include "ast/types/ULongType.h"
+#include "ast/types/BigIntType.h"
+#include "ast/types/UBigIntType.h"
+#include "ast/types/Int128Type.h"
+#include "ast/types/UInt128Type.h"
+#include "ast/types/LongDoubleType.h"
+#include "ast/types/StringType.h"
+#include "ast/types/VoidType.h"
 
 BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
     auto t1 = consumeOfType(TokenType::LParen);
@@ -77,7 +97,6 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
             return new (allocator.allocate<LiteralType>()) LiteralType(underlying, idType->encoded_location());
         }
 
-        // TODO Generic Type doesn't support linked value type
         return new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types));
     } else {
         return idType;
@@ -124,39 +143,22 @@ BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, 
     return typeId;
 }
 
-BaseType* Parser::parseTypeId(ASTAllocator& allocator, Token* type) {
-    Token* first_type = type;
-    AccessChain* chain = nullptr;
+LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* type, SourceLocation location) {
+    auto first_id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(type->value.str(), location, true);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain({ first_id }, parent_node, false, location);
     while(true) {
         if(token->type == TokenType::DoubleColonSym) {
             token++;
-            auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(type->value.str(), loc_single(type), true);
             auto new_type = consumeIdentifierOrKeyword();
-            if(!new_type) {
+            if(new_type) {
+                auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(new_type->value.str(), loc_single(new_type), true);
+                chain->values.emplace_back(id);
+            } else {
                 error("expected an identifier after '" + type->value.str() + "::' for a type");
                 return nullptr;
-            } else {
-                if(chain) {
-                    chain->values.emplace_back(id);
-                } else {
-                    chain = new (allocator.allocate<AccessChain>()) AccessChain({ id }, parent_node, false, loc_single(first_type));
-                }
-                type = new_type;
             }
         } else {
-            if(chain) {
-                auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(type->value.str(), loc_single(type));
-                chain->values.emplace_back(id);
-                chain->location = loc(first_type, type);
-                return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->location);
-            } else {
-                auto primitive = TypeMakers::PrimitiveMap.find(type->value);
-                if (primitive == TypeMakers::PrimitiveMap.end()) {
-                    return new (allocator.allocate<LinkedType>()) LinkedType(type->value.str(), loc_single(type));
-                } else {
-                    return primitive->second(allocator, is64Bit, loc_single(type));
-                }
-            }
+            return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->location);
         }
     }
 }
@@ -285,13 +287,82 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             }
         }
     }
-    auto typeToken = consumeIdentifierOrKeyword();
-    if(!typeToken) return nullptr;
-    auto type = parseTypeId(allocator, typeToken);
-    if(!type) {
+    auto typeToken = token;
+    const auto idType = typeToken->type;
+    if(Token::isKeywordOrId(idType)) {
+        token++;
+    } else {
         return nullptr;
     }
-    type = parseGenericTypeAfterId(allocator, type);
+    const auto location = loc_single(typeToken);
+    BaseType* type;
+    switch(idType) {
+        case TokenType::AnyKw:
+            type = new (allocator.allocate<AnyType>()) AnyType(location);
+            break;
+        case TokenType::BoolKw:
+            type = new (allocator.allocate<BoolType>()) BoolType(location);
+            break;
+        case TokenType::CharKw:
+            type = new (allocator.allocate<CharType>()) CharType(location);
+            break;
+        case TokenType::UCharKw:
+            type = new (allocator.allocate<UCharType>()) UCharType(location);
+            break;
+        case TokenType::DoubleKw:
+            type = new (allocator.allocate<DoubleType>()) DoubleType(location);
+            break;
+        case TokenType::FloatKw:
+            type = new (allocator.allocate<FloatType>()) FloatType(location);
+            break;
+        case TokenType::LongdoubleKw:
+            type = new (allocator.allocate<LongDoubleType>()) LongDoubleType(location);
+            break;
+        case TokenType::IntKw:
+            type = new (allocator.allocate<IntType>()) IntType(location);
+            break;
+        case TokenType::UIntKw:
+            type = new (allocator.allocate<UIntType>()) UIntType(location);
+            break;
+        case TokenType::ShortKw:
+            type = new (allocator.allocate<ShortType>()) ShortType(location);
+            break;
+        case TokenType::UShortKw:
+            type = new (allocator.allocate<UShortType>()) UShortType(location);
+            break;
+        case TokenType::LongKw:
+            type = new (allocator.allocate<LongType>()) LongType(is64Bit, location);
+            break;
+        case TokenType::ULongKw:
+            type = new (allocator.allocate<ULongType>()) ULongType(is64Bit, location);
+            break;
+        case TokenType::BigintKw:
+            type = new (allocator.allocate<BigIntType>()) BigIntType(location);
+            break;
+        case TokenType::UBigintKw:
+            type = new (allocator.allocate<UBigIntType>()) UBigIntType(location);
+            break;
+        case TokenType::Int128Kw:
+            type = new (allocator.allocate<Int128Type>()) Int128Type(location);
+            break;
+        case TokenType::Uint128Kw:
+            type = new (allocator.allocate<UInt128Type>()) UInt128Type(location);
+            break;
+        case TokenType::Float128Kw:
+            type = new (allocator.allocate<Float128Type>()) Float128Type(location);
+            break;
+        case TokenType::VoidKw:
+            type = new (allocator.allocate<VoidType>()) VoidType(location);
+            break;
+        default:
+            if(token->type == TokenType::DoubleColonSym) {
+                type = parseLinkedValueType(allocator, typeToken, location);
+            } else {
+                type = new (allocator.allocate<LinkedType>()) LinkedType(typeToken->value.str(), location);
+            }
+            type = parseGenericTypeAfterId(allocator, type);
+            break;
+    }
     type = parseArrayAndPointerTypesAfterTypeId(allocator, type);
     return type;
 }

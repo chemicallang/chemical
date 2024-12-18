@@ -6,8 +6,6 @@
 
 enum class AnnotationKind {
 
-    NoInit, // structs that should not be initialized
-
     Implicit, // implicit constructor annotation, allows for automatic type conversion
     NoReturn,
     Constructor,
@@ -18,16 +16,9 @@ enum class AnnotationKind {
     Move,
     Delete,
 
-    // when a struct is marked with this annotation, it means after calling
-    // the move function, it can still be used, compiler won't complain about it
-    UseAfterMove,
-
     // the function overrides another present above in a struct or interface
     Unsafe,
     Override,
-
-    // structs or unions can be declared anonymous
-    Anonymous,
 
     // this allows us to propagate symbols in 'using namespace' statement
     Propagate,

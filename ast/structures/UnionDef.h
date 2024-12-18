@@ -16,6 +16,8 @@ struct UnionDeclAttributes {
 
     bool deprecated;
 
+    bool anonymous;
+
 };
 
 class UnionDef : public ExtendableMembersContainerNode, public UnionType {
@@ -57,7 +59,7 @@ public:
         attrs.specifier = specifier;
     }
 
-    inline bool deprecated() {
+    inline bool is_deprecated() {
         return attrs.deprecated;
     }
 
@@ -79,6 +81,14 @@ public:
 
     inline void set_comptime(bool value) {
         attrs.is_comptime = value;
+    }
+
+    inline bool is_anonymous() final {
+        return attrs.anonymous;
+    }
+
+    inline void set_anonymous(bool value) {
+        attrs.anonymous = value;
     }
 
     uint64_t byte_size(bool is64Bit) final {
@@ -132,10 +142,6 @@ public:
 
     ASTNode *linked_node() final {
         return this;
-    }
-
-    bool is_anonymous() final {
-        return has_annotation(AnnotationKind::Anonymous);
     }
 
     [[nodiscard]]

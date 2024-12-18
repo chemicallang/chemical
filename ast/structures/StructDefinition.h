@@ -44,6 +44,21 @@ struct StructDeclAttributes {
      */
     bool deprecated;
 
+    /**
+     * if struct shouldn't be initialized (user asked)
+     */
+    bool no_init;
+
+    /**
+     * struct is marked to allow use after the move
+     */
+    bool use_after_move;
+
+    /**
+     * struct marked anonymous to keep it anonymous in generated code
+     */
+    bool anonymous;
+
 };
 
 class StructDefinition : public ExtendableMembersContainerNode, public StructType {
@@ -113,7 +128,7 @@ public:
         attrs.is_compiler_interface = value;
     }
 
-    inline bool deprecated() {
+    inline bool is_deprecated() {
         return attrs.deprecated;
     }
 
@@ -121,8 +136,32 @@ public:
         attrs.deprecated = value;
     }
 
+    inline bool is_no_init() {
+        return attrs.no_init;
+    };
+
+    inline void set_no_init(bool value) {
+        attrs.no_init = value;
+    }
+
+    inline bool is_use_after_move() {
+        return attrs.use_after_move;
+    };
+
+    inline void set_use_after_move(bool value) {
+        attrs.use_after_move = value;
+    }
+
+    inline bool is_anonymous() {
+        return attrs.anonymous;
+    };
+
+    inline void set_anonymous(bool value) {
+        attrs.anonymous = value;
+    }
+
     std::string get_runtime_name() final {
-        if(has_annotation(AnnotationKind::Anonymous)) {
+        if(is_anonymous()) {
             return "";
         }
         return runtime_name_str();

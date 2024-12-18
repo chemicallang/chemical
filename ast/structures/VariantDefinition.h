@@ -11,6 +11,8 @@ struct VariantDeclAttributes {
 
     bool deprecated;
 
+    bool anonymous;
+
 };
 
 class VariantDefinition : public ExtendableMembersContainerNode {
@@ -55,12 +57,20 @@ public:
         attrs.specifier = specifier;
     }
 
-    inline bool deprecated() {
+    inline bool is_deprecated() {
         return attrs.deprecated;
     }
 
     inline void set_deprecated(bool value) {
         attrs.deprecated = value;
+    }
+
+    inline bool is_anonymous() {
+        return attrs.anonymous;
+    }
+
+    inline void set_anonymous(bool value) {
+        attrs.anonymous = value;
     }
 
     ASTNode *parent() final {

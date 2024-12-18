@@ -483,7 +483,7 @@ bool is_node_mutable(ASTNode* node, FunctionType* func_type, SymbolResolver& res
             } else {
                 const auto func = func_type->as_function();
                 // constructor takes a mutable reference by default
-                return func->has_annotation(AnnotationKind::Constructor);
+                return func->is_constructor_fn();
             }
         }
         default:

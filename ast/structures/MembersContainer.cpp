@@ -456,18 +456,45 @@ void MembersContainer::set_active_iteration(int16_t iteration) {
     }
 }
 
-FunctionDeclaration* MembersContainer::get_first_fn_annotated(AnnotationKind annot) {
-    for(const auto & function : functions()) {
-        if(function->has_annotation(annot)) {
+FunctionDeclaration* MembersContainer::get_first_constructor() {
+    for(const auto function : functions()) {
+        if(function->is_constructor_fn()) {
             return function;
         }
     }
     return nullptr;
 }
 
-FunctionDeclaration* MembersContainer::get_last_fn_annotated(AnnotationKind annot) {
-    for (const auto & function : std::ranges::reverse_view(functions())) {
-        if(function->has_annotation(annot)) {
+FunctionDeclaration* MembersContainer::destructor_func() {
+    for (const auto function : std::ranges::reverse_view(functions())) {
+        if(function->is_delete_fn()) {
+            return function;
+        }
+    }
+    return nullptr;
+}
+
+FunctionDeclaration* MembersContainer::clear_func() {
+    for (const auto function : std::ranges::reverse_view(functions())) {
+        if(function->is_clear_fn()) {
+            return function;
+        }
+    }
+    return nullptr;
+}
+
+FunctionDeclaration* MembersContainer::move_func() {
+    for (const auto function : std::ranges::reverse_view(functions())) {
+        if(function->is_move_fn()) {
+            return function;
+        }
+    }
+    return nullptr;
+}
+
+FunctionDeclaration* MembersContainer::copy_func() {
+    for (const auto function : std::ranges::reverse_view(functions())) {
+        if(function->is_copy_fn()) {
             return function;
         }
     }
@@ -476,7 +503,7 @@ FunctionDeclaration* MembersContainer::get_last_fn_annotated(AnnotationKind anno
 
 FunctionDeclaration* MembersContainer::constructor_func(ASTAllocator& allocator, std::vector<Value*>& forArgs) {
     for (const auto & function : functions()) {
-        if(function->has_annotation(AnnotationKind::Constructor) && function->satisfy_args(allocator, forArgs)) {
+        if(function->is_constructor_fn() && function->satisfy_args(allocator, forArgs)) {
             return function;
         }
     }
@@ -485,7 +512,7 @@ FunctionDeclaration* MembersContainer::constructor_func(ASTAllocator& allocator,
 
 FunctionDeclaration* MembersContainer::implicit_constructor_func(ASTAllocator& allocator, Value* value) {
     for (const auto & function : functions()) {
-        if(function->has_annotation(AnnotationKind::Implicit) && function->params.size() == 1 && function->params[0]->type->satisfies(allocator, value, false)) {
+        if(function->is_implicit() && function->params.size() == 1 && function->params[0]->type->satisfies(allocator, value, false)) {
             return function;
         }
     }
@@ -556,7 +583,7 @@ FunctionDeclaration* MembersContainer::pre_move_func() {
     auto move_fn = move_func();
     if(move_fn) return move_fn;
     auto copy_fn = copy_func();
-    if(copy_fn && copy_fn->has_annotation(AnnotationKind::Implicit)) {
+    if(copy_fn && copy_fn->is_implicit()) {
         return copy_fn;
     }
     return nullptr;
@@ -571,7 +598,7 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
-    decl->add_annotation(AnnotationKind::Delete);
+    decl->set_delete_fn(true);
     insert_func(decl);
     return decl;
 }
@@ -580,7 +607,7 @@ FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) 
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("clear"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
-    decl->add_annotation(AnnotationKind::Clear);
+    decl->set_clear_fn(true);
     insert_func(decl);
     return decl;
 }
@@ -590,7 +617,7 @@ FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
-    decl->add_annotation(AnnotationKind::Copy);
+    decl->set_copy_fn(true);
     insert_func(decl);
     return decl;
 }
@@ -600,7 +627,7 @@ FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
-    decl->add_annotation(AnnotationKind::Copy);
+    decl->set_copy_fn(true);
     insert_func(decl);
     return decl;
 }

@@ -191,7 +191,7 @@ bool SymbolResolver::dup_check_in_scopes_above(const chem::string_view& name, AS
 }
 
 bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode*& previous, FunctionDeclaration* declaration) {
-    if(declaration->has_annotation(AnnotationKind::Override)) {
+    if(declaration->is_override()) {
         const auto func = previous->as_function();
         if (func->returnType->is_same(declaration->returnType) && func->do_param_types_match(declaration->params, false)) {
             previous = declaration;

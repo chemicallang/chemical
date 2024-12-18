@@ -136,18 +136,13 @@ public:
     /**
      * get first function with annotation
      */
-    FunctionDeclaration* get_first_fn_annotated(AnnotationKind);
-
-    /**
-     * get last function with annotation
-     */
-    FunctionDeclaration* get_last_fn_annotated(AnnotationKind);
+    FunctionDeclaration* get_first_constructor();
 
     /**
      * will check if any function with constructor annotation exists
      */
-    bool has_constructor() {
-        return get_first_fn_annotated(AnnotationKind::Constructor) != nullptr;
+    inline bool has_constructor() {
+        return get_first_constructor() != nullptr;
     }
 
     /**
@@ -227,30 +222,22 @@ public:
     /**
      * will provide a destructor function if there's one
      */
-    FunctionDeclaration* destructor_func() {
-        return get_last_fn_annotated(AnnotationKind::Delete);
-    }
+    FunctionDeclaration* destructor_func();
 
     /**
      * will provide the move function if there's one
      */
-    FunctionDeclaration* clear_func() {
-        return get_last_fn_annotated(AnnotationKind::Clear);
-    }
+    FunctionDeclaration* clear_func();
 
     /**
      * will provide the move function if there's one
      */
-    FunctionDeclaration* move_func() {
-        return get_last_fn_annotated(AnnotationKind::Move);
-    }
+    FunctionDeclaration* move_func();
 
     /**
      * will provide the move function if there's one
      */
-    FunctionDeclaration* copy_func() {
-        return get_last_fn_annotated(AnnotationKind::Copy);
-    }
+    FunctionDeclaration* copy_func();
 
     /**
      * insert the given function into this members container

@@ -219,7 +219,7 @@ void write_struct_return_param(ToCAstVisitor& visitor, FunctionType* decl) {
     decl->returnType->accept(&visitor);
     visitor.write("* ");
     const auto func = decl->as_function();
-    if(func && func->has_annotation(AnnotationKind::Constructor)) {
+    if(func && func->is_constructor_fn()) {
         visitor.write("this");
     } else {
         visitor.write(struct_passed_param_name);
@@ -245,7 +245,7 @@ void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0
     auto is_struct_return = visitor.pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct;
     auto func = decl->as_function();
     auto extension = decl->as_extension_func();
-    if(is_struct_return && !(func && (func->has_annotation(AnnotationKind::Copy) || func->has_annotation(AnnotationKind::Move)))) {
+    if(is_struct_return && !(func && (func->is_copy_fn() || func->is_move_fn()))) {
         if(has_params_before) {
             visitor.write(", ");
         }
@@ -1919,7 +1919,7 @@ void CValueDeclarationVisitor::visit(ReturnStatement *stmt) {
         const auto func_type = stmt->func_type;
         // replace value with call to implicit constructor if there is one
         const auto func = func_type->as_function();
-        if (!(func && func->has_annotation(AnnotationKind::Constructor))) {
+        if (!(func && func->is_constructor_fn())) {
             const auto implicit = func_type->returnType->implicit_constructor_for(visitor.allocator, val);
             if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
                 stmt->value = call_with_arg(implicit, val, visitor.allocator);
@@ -3139,7 +3139,7 @@ void process_struct_members_using(
 void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     auto parent = decl->parent_node;
     if(!parent) return;
-    if(!decl->has_annotation(AnnotationKind::Constructor)) {
+    if(!decl->is_constructor_fn()) {
         return;
     }
     const auto struct_def = parent->as_struct_def();
@@ -3217,10 +3217,10 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
 //        visitor->write(self_pointer_name);
 //        visitor->write(';');
 //    }
-    const auto is_destructor = decl->has_annotation(AnnotationKind::Delete);
-    const auto is_clear_fn = decl->has_annotation(AnnotationKind::Clear);
-    const auto is_copy_fn = decl->has_annotation(AnnotationKind::Copy);
-    const auto is_move_fn = decl->has_annotation(AnnotationKind::Move);
+    const auto is_destructor = decl->is_delete_fn();
+    const auto is_clear_fn = decl->is_clear_fn();
+    const auto is_copy_fn = decl->is_copy_fn();
+    const auto is_move_fn = decl->is_move_fn();
     const bool has_cleanup_block = is_destructor;
     std::string cleanup_block_name;
     if(has_cleanup_block) {
@@ -4300,7 +4300,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
     } else if(ASTNode::isAnyStructMember(linked_kind)) {
         if(identifier->parent_val == nullptr) {
             const auto func = current_func_type->as_function();
-            if (func && func->has_annotation(AnnotationKind::Constructor)) {
+            if (func && func->is_constructor_fn()) {
                 write("this->");
             }
             else if(func->parent_node) {

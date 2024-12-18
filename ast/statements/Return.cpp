@@ -31,7 +31,7 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker) {
         }
         if(func_type->data.signature_resolved && func_type->returnType) {
             const auto func = func_type->as_function();
-            if(func && func->has_annotation(AnnotationKind::Constructor)) {
+            if(func && func->is_constructor_fn()) {
                 return;
             }
             const auto implicit = func_type->returnType->implicit_constructor_for(linker.allocator, value);

@@ -149,7 +149,7 @@ namespace InterpretVector {
             AccessSpecifier::Public,
             true
     ) {
-        add_annotation(AnnotationKind::Constructor);
+        set_constructor_fn(true);
     }
 
     Value *InterpretVectorConstructor::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {

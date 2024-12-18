@@ -209,7 +209,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker) {
         linker.error("expected init block to be in a function", (ASTNode*) this);
         return;
     }
-    if(!func->has_annotation(AnnotationKind::Constructor)) {
+    if(!func->is_constructor_fn()) {
         linker.error("init block must appear in a function that's marked constructor", (ASTNode*) this);
         return;
     }

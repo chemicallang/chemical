@@ -835,6 +835,13 @@ public:
     }
 
     /**
+     * return if this is a using statement
+     */
+    UsingStmt* as_using_stmt() {
+        return isUsingStmt() ? (UsingStmt*) this : nullptr;
+    }
+
+    /**
      * as interface definition
      */
     InterfaceDefinition *as_interface_def() {

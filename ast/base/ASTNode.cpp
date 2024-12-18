@@ -168,6 +168,22 @@ bool ASTNode::set_deprecated(bool value) {
     }
 }
 
+bool ASTNode::set_anonymous(bool value) {
+    switch(kind()) {
+        case ASTNodeKind::StructDecl:
+            as_struct_def_unsafe()->set_anonymous(true);
+            return true;
+        case ASTNodeKind::UnionDecl:
+            as_union_def_unsafe()->set_anonymous(true);
+            return true;
+        case ASTNodeKind::VariantDecl:
+            as_variant_def_unsafe()->set_anonymous(true);
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool ASTNode::set_specifier(AccessSpecifier spec) {
     const auto k = kind();
     switch(k) {

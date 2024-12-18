@@ -92,7 +92,19 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
         { "delete", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Delete); } },
         { "override", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Override); } },
         { "unsafe", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Unsafe); } },
-        { "no_init", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::NoInit); }},
+        { "no_init", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto def = node->as_struct_def();
+            if(def) {
+                def->set_no_init(true);
+            } else {
+                parser->error("couldn't make the struct def no_init");
+            }
+        }},
+        { "anonymous", [](Parser* parser, AnnotableNode* node) -> void {
+            if(!node->set_anonymous(true)) {
+                parser->error("couldn't make the declaration anonymous");
+            }
+        }},
         { "extern", [](Parser* parser, AnnotableNode* node) -> void {
             const auto func = node->as_function();
             if(func) {

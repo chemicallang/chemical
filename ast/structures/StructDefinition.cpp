@@ -359,7 +359,7 @@ StructDefinition::StructDefinition(
         SourceLocation location,
         AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node),
-    location(location), attrs(specifier, false, false, false, false),
+    location(location), attrs(specifier, false, false, false, false, false, false, false),
     linked_type(name(), this, location) {
 
 }

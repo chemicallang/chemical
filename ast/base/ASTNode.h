@@ -146,6 +146,12 @@ public:
     bool set_deprecated(bool value);
 
     /**
+     * makes the struct | union | variant anonymous
+     * @return true if successful otherwise false
+     */
+    bool set_anonymous(bool value);
+
+    /**
      * type is only returned if the value is guaranteed to be stored in a storage location
      * function param is not a storage location, however var decl, struct member, variant member param qualify
      */

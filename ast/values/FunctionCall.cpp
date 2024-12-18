@@ -516,12 +516,6 @@ llvm::Value* FunctionCall::llvm_chain_value(
         args.emplace_back(returnedValue);
     }
 
-#ifdef DEBUG
-    if(!callee_value && grandparent) {
-        throw std::runtime_error("grandparent passed but no callee value");
-    }
-#endif
-
     if(!callee_value) {
         if(linked() && linked()->as_struct_member() != nullptr) {
             // creating access chain to the last member as an identifier instead of function call

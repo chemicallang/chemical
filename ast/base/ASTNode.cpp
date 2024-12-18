@@ -254,7 +254,7 @@ BaseType* ASTNode::get_stored_value_type(ASTNodeKind k) {
             if (init->type) {
                 return init->type;
             } else {
-                return init->value->get_stored_value_type();
+                return init->value->known_type();
             }
         }
         default:

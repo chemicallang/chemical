@@ -63,4 +63,8 @@ public:
 
     void visit(ArrayType *func) final;
 
+    void visit(NewValue *value) override;
+
+    void visit(PlacementNewValue *value) override;
+
 };

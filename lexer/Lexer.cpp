@@ -327,12 +327,12 @@ Token read_escape_seq_in_char(SerialStrAllocator& builder, SourceProvider& provi
 
 Token Lexer::getNextToken() {
     auto pos = provider.position();
-    auto current = provider.readCharacter();
-    if(current == -1) {
+    if(provider.peek() == -1) {
         return Token(TokenType::EndOfFile, { nullptr, 0 }, pos);
     }
     if(other_mode) {
         if(char_mode) {
+            auto current = provider.readCharacter();
             if(current == '\\') {
                 return read_escape_seq_in_char(str, provider, pos);
             } else if(current == '\'') {
@@ -344,6 +344,7 @@ Token Lexer::getNextToken() {
                 return Token(TokenType::Char, str.finalize_view(), pos);
             }
         } else if(string_mode) {
+            auto current = provider.readCharacter();
             switch(current) {
                 case '\\':
                     return read_escape_seq_in_str(str, provider, pos);
@@ -362,6 +363,7 @@ Token Lexer::getNextToken() {
                     return Token(TokenType::String, str.finalize_view(), pos);
             }
         } else if(comment_mode) {
+            auto current = provider.readCharacter();
             switch(current) {
                 case '*': {
                     if(provider.peek() == '/') {
@@ -393,6 +395,7 @@ Token Lexer::getNextToken() {
 #endif
         }
     }
+    auto current = provider.readCharacter();
     switch(current) {
         case '{':
             return Token(TokenType::LBrace, view_str(LBraceCStr), pos);

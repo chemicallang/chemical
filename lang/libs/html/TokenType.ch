@@ -7,9 +7,13 @@ enum TokenType {
     Identifier,
 
     Text,
+    Whitespace,
 
     LT,
     GT,
+
+    LB,
+    RB,
 
     FwdSlash,
 

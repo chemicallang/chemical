@@ -106,7 +106,8 @@ void cst_diagnoser_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
 
 void lexer_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
     sym_map = {
-            {"LexergetFileAllocator",    (void*) LexergetFileAllocator }
+            {"LexergetFileAllocator",    (void*) LexergetFileAllocator },
+            {"LexersetUserLexer",    (void*) LexersetUserLexer }
     };
 }
 

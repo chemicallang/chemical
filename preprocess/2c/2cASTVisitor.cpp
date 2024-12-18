@@ -2929,13 +2929,7 @@ void call_variant_member_clear_fn(ToCAstVisitor& visitor, VariantMember* member)
     });
 }
 
-void call_variant_member_move_fn(ToCAstVisitor& visitor, VariantMember* member) {
-    call_variant_member_fn(visitor, member, [](MembersContainer* container)-> FunctionDeclaration* {
-        return container->pre_move_func();
-    });
-}
-
-void variant_member_copy_fn_gen(
+void variant_member_pre_move_fn_gen(
     ToCAstVisitor& visitor,
     VariantMember* member,
     FunctionDeclaration* func,
@@ -2975,9 +2969,12 @@ typedef void(VariantMemberProcessFn)(
         VariantMemberParam* mem_param
 );
 
+typedef FunctionDeclaration*(VariantMemberFuncSelFn)(MembersContainer* container);
+
 void process_variant_member_using(
     ToCAstVisitor& visitor,
     VariantMember* member,
+    VariantMemberFuncSelFn* func_sel_fn,
     VariantMemberProcessFn* variant_member_process_fn
 ) {
     for(auto& mem_param_pair : member->values) {
@@ -2985,7 +2982,7 @@ void process_variant_member_using(
         auto mem_type = mem_param->type;
         const auto linked = mem_type->linked_node();
         auto mem_def = linked->as_members_container();
-        auto func = mem_def->copy_func();
+        auto func = func_sel_fn(mem_def);
         if (!func) {
             return;
         }
@@ -2993,11 +2990,19 @@ void process_variant_member_using(
     }
 }
 
+void call_variant_member_move_fn(ToCAstVisitor& visitor, VariantMember* member) {
+    process_variant_member_using(visitor, member, [](MembersContainer* container) -> FunctionDeclaration* {
+        return container->pre_move_func();
+    },variant_member_pre_move_fn_gen);
+}
+
 void call_variant_member_copy_fn(
     ToCAstVisitor& visitor,
     VariantMember* member
 ) {
-    process_variant_member_using(visitor, member, variant_member_copy_fn_gen);
+    process_variant_member_using(visitor, member, [](MembersContainer* container) -> FunctionDeclaration* {
+        return container->copy_func();
+    },variant_member_pre_move_fn_gen);
 }
 
 void process_variant_members_using(
@@ -3081,11 +3086,42 @@ void call_struct_member_clear_fn(ToCAstVisitor& visitor, BaseType* mem_type, con
     }
 }
 
-void call_struct_member_move_fn(ToCAstVisitor& visitor, BaseType* mem_type, const std::string& mem_name) {
+void call_struct_members_pre_move_fn(
+        ToCAstVisitor& visitor,
+        MembersContainer* mem_def,
+        FunctionDeclaration* func,
+        const std::string& member_name
+) {
+    visitor.new_line_and_indent();
+    func_container_name(visitor, mem_def, func);
+    visitor.write(func->name());
+    visitor.write('(');
+    // writing the self arg
+    visitor.write("&self->");
+    visitor.write(member_name);
+    visitor.write(", ");
+    // writing the other arg
+    visitor.write('&');
+    visitor.write(visitor.current_func_type->params[1]->name);
+    visitor.write("->");
+    visitor.write(member_name);
+    visitor.write(')');
+    visitor.write(';');
+}
+
+void call_struct_member_move_fn(
+        ToCAstVisitor& visitor,
+        BaseType* mem_type,
+        const std::string& member_name
+) {
     if (mem_type->value_type() == ValueType::Struct) {
-        call_struct_member_fn(visitor, mem_type, mem_name, [](MembersContainer* def) -> FunctionDeclaration* {
-            return def->pre_move_func();
-        });
+        const auto linked = mem_type->linked_node();
+        auto mem_def = linked->as_members_container();
+        auto func = mem_def->pre_move_func();
+        if (!func) {
+            return;
+        }
+        call_struct_members_pre_move_fn(visitor, mem_def, func, member_name);
     }
 }
 
@@ -3101,21 +3137,7 @@ void call_struct_members_copy_fn(
         if (!func) {
             return;
         }
-        visitor.new_line_and_indent();
-        func_container_name(visitor, mem_def, func);
-        visitor.write(func->name());
-        visitor.write('(');
-        // writing the self arg
-        visitor.write("&self->");
-        visitor.write(member_name);
-        visitor.write(", ");
-        // writing the other arg
-        visitor.write('&');
-        visitor.write(visitor.current_func_type->params[1]->name);
-        visitor.write("->");
-        visitor.write(member_name);
-        visitor.write(')');
-        visitor.write(';');
+        call_struct_members_pre_move_fn(visitor, mem_def, func, member_name);
     }
 }
 

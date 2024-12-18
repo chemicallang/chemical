@@ -627,7 +627,7 @@ FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 0, nullptr, true, decl, ZERO_LOC));
     decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
-    decl->set_copy_fn(true);
+    decl->set_move_fn(true);
     insert_func(decl);
     return decl;
 }

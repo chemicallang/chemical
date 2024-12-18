@@ -514,6 +514,7 @@ set(COMMON_SOURCES
         ast/values/NewTypedValue.h
         ast/values/NewValue.h
         ast/values/PlacementNewValue.h
+        ast/values/NewValue.cpp
 )
 
 # Chemical LSP Executable Target

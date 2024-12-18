@@ -4,6 +4,7 @@
 
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
+#include "ast/types/PointerType.h"
 
 /**
  * just responsible for allocating a type on the heap
@@ -13,8 +14,10 @@ public:
 
     BaseType* type;
     SourceLocation location;
+    // TODO remove this
+    PointerType ptr_type;
 
-    inline NewTypedValue(BaseType* type, SourceLocation location) : type(type), location(location) {
+    inline NewTypedValue(BaseType* type, SourceLocation location) : type(type), location(location), ptr_type(nullptr, 0 , false) {
 
     }
 
@@ -29,6 +32,12 @@ public:
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
+
+    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
+
+    BaseType* create_type(ASTAllocator &allocator) override;
+
+    BaseType* known_type() override;
 
 #ifdef COMPILER_BUILD
 

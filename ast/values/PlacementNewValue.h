@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/types/PointerType.h"
 
 class PlacementNewValue : public Value {
 public:
@@ -10,8 +11,10 @@ public:
     Value* pointer;
     Value* value;
     SourceLocation location;
+    // TODO remove this
+    PointerType ptr_type;
 
-    inline PlacementNewValue(Value* pointer, Value* value, SourceLocation location) : pointer(pointer), value(value), location(location) {
+    inline PlacementNewValue(Value* pointer, Value* value, SourceLocation location) : pointer(pointer), value(value), location(location), ptr_type(nullptr, 0, false) {
 
     }
 
@@ -26,6 +29,12 @@ public:
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
+
+    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
+
+    BaseType* create_type(ASTAllocator &allocator) override;
+
+    BaseType* known_type() override;
 
 #ifdef COMPILER_BUILD
 

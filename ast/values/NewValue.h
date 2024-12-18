@@ -3,14 +3,17 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/types/PointerType.h"
 
 class NewValue : public Value {
 public:
 
     Value* value;
     SourceLocation location;
+    // TODO remove this
+    PointerType ptr_type;
 
-    NewValue(Value* value, SourceLocation location) : value(value), location(location) {
+    NewValue(Value* value, SourceLocation location) : value(value), location(location), ptr_type(nullptr, 0, false) {
 
     }
 
@@ -25,6 +28,12 @@ public:
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
+
+    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
+
+    BaseType* create_type(ASTAllocator &allocator) override;
+
+    BaseType* known_type() override;
 
 #ifdef COMPILER_BUILD
 

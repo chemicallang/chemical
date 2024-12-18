@@ -105,6 +105,9 @@
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/NewTypedValue.h"
+#include "ast/values/NewValue.h"
+#include "ast/values/PlacementNewValue.h"
 #include "ast/values/UInt128Value.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/UIntValue.h"
@@ -3521,6 +3524,18 @@ void ToCAstVisitor::visit(IsValue *isValue) {
         result = comp_time.value();
     }
     write(result ? '1' : '0');
+}
+
+void ToCAstVisitor::visit(NewTypedValue *value) {
+    // TODO
+}
+
+void ToCAstVisitor::visit(NewValue *value) {
+    // TODO
+}
+
+void ToCAstVisitor::visit(PlacementNewValue *value) {
+    // TODO
 }
 
 void ToCAstVisitor::visit(WhileLoop *whileLoop) {

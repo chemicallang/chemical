@@ -511,6 +511,9 @@ set(COMMON_SOURCES
         integration/cbi/bindings/SerialStrAllocator.cpp
         integration/cbi/bindings/LexerCBI.h
         integration/cbi/bindings/LexerCBI.cpp
+        ast/values/NewTypedValue.h
+        ast/values/NewValue.h
+        ast/values/PlacementNewValue.h
 )
 
 # Chemical LSP Executable Target

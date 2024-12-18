@@ -148,6 +148,12 @@ class VariantCall;
 
 class IndexOperator;
 
+class NewTypedValue;
+
+class NewValue;
+
+class PlacementNewValue;
+
 class NegativeValue;
 
 class NotValue;
@@ -549,6 +555,18 @@ public:
 
     virtual void visit(VariantCall* call) {
         visitCommonValue((Value*) call);
+    }
+
+    virtual void visit(NewTypedValue* value) {
+        visitCommonValue((Value*) value);
+    }
+
+    virtual void visit(NewValue* value) {
+        visitCommonValue((Value*) value);
+    }
+
+    virtual void visit(PlacementNewValue* value) {
+        visitCommonValue((Value*) value);
     }
 
     virtual void visit(ValueNode* node) {

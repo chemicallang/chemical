@@ -67,6 +67,7 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 { "loop", TokenType::LoopKw },
                 { "return", TokenType::ReturnKw },
                 { "break", TokenType::BreakKw },
+                { "new", TokenType::NewKw },
                 { "continue", TokenType::ContinueKw },
                 { "destruct", TokenType::DestructKw },
                 { "provide", TokenType::ProvideKw },

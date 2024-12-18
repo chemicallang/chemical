@@ -705,6 +705,11 @@ public:
     Value* parseArrayInit(ASTAllocator& allocator);
 
     /**
+     * parses a single new value
+     */
+    Value* parseNewValue(ASTAllocator& allocator);
+
+    /**
      * values in provide are supported very less
      */
     Value* parseProvideValue(ASTAllocator& allocator);

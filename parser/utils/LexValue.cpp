@@ -18,6 +18,9 @@
 #include "ast/values/UIntValue.h"
 #include "ast/values/LongValue.h"
 #include "ast/values/ULongValue.h"
+#include "ast/values/NewTypedValue.h"
+#include "ast/values/NewValue.h"
+#include "ast/values/PlacementNewValue.h"
 #include "ast/values/BigIntValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/Int128Value.h"
@@ -233,6 +236,74 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
     }
 }
 
+/**
+ * There are 4 types of new values
+ * 1 : new int; (there's a type after the value) storage -> BaseType*
+ * 2 : new thing { }; (allocate the struct on heap) storage -> Value*
+ * 3 : new thing(); (allocate the struct on heap and call constructor on it) storage -> Value*
+ * 4 : new (pointer) thing(); (just call the constructor with the given allocated pointer) storage -> Value*, Value*
+ * 5 : new (pointer) thing { }; (just assign the values in the struct at the given pointer storage -> Value*, Value*
+ * But we store them as three
+ * a : NewTypedValue -> corresponds to case 1
+ * b : NewValue -> corresponds to case 2 and 3
+ * c : PlacementNewValue -> corresponds to case 4, 5
+ */
+Value* Parser::parseNewValue(ASTAllocator& allocator) {
+
+    const auto new_tok = token;
+    if(new_tok->type != TokenType::NewKw) {
+        return nullptr;
+    }
+    token++;
+    readWhitespace();
+
+    // placement new
+    const auto t_type = token->type;
+    if(t_type == TokenType::LParen) {
+        auto new_value = new (allocator.allocate<PlacementNewValue>()) PlacementNewValue(nullptr, nullptr, loc_single(new_tok));
+        token++;
+        readWhitespace();
+        auto pointer_val = parseExpression(allocator);
+        new_value->pointer = pointer_val;
+        readWhitespace();
+        if(token->type != TokenType::RParen) {
+            error("expected a ')' after the pointer value in new expression");
+        }
+        readWhitespace();
+        auto value = parseExpression(allocator);
+        if(!value) {
+            error("expected a value for placement new expression");
+        }
+        new_value->value = value;
+        return new_value;
+    }
+
+    // int, long <-- all primitive types are keywords
+    // *int, &int, dyn Thing, mut Thing
+    if(t_type == TokenType::MultiplySym || t_type == TokenType::AmpersandSym || t_type == TokenType::DynKw || t_type == TokenType::MutKw || Token::isKeyword(t_type)) {
+
+        auto type = parseType(allocator);
+        if(!type) {
+            error("expected type after new");
+            return nullptr;
+        }
+
+        return new (allocator.allocate<NewTypedValue>()) NewTypedValue(type, loc_single(new_tok));
+
+    } else {
+
+        auto value = parseExpression(allocator);
+        if(!value) {
+            error("expected value after new");
+            return nullptr;
+        }
+
+        return new (allocator.allocate<NewValue>()) NewValue(value, loc_single(new_tok));
+
+    }
+
+}
+
 Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token) {
 entry:
     switch(token->type) {
@@ -277,6 +348,10 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
     auto loopBlk = parseLoopBlockTokens(allocator, true);
     if(loopBlk) {
         return loopBlk;
+    }
+    auto newValue = parseNewValue(allocator);
+    if(newValue) {
+        return newValue;
     }
     auto acValue = parseAccessChainValueToken(allocator);
     if(acValue) {

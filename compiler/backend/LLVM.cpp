@@ -33,6 +33,9 @@
 #include "ast/values/DoubleValue.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/FloatValue.h"
+#include "ast/values/NewTypedValue.h"
+#include "ast/values/NewValue.h"
+#include "ast/values/PlacementNewValue.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
@@ -72,6 +75,7 @@
 #include "ast/types/FunctionType.h"
 #include "ast/utils/ASTUtils.h"
 #include "compiler/lab/TargetData.h"
+#include "ast/values/NewValue.h"
 
 // -------------------- Types
 
@@ -581,6 +585,87 @@ llvm::Value* IsValue::llvm_value(Codegen &gen, BaseType* expected_type) {
         result = comp_time.value();
     }
     return gen.builder->getInt1(result);
+}
+
+
+llvm::Type* NewTypedValue::llvm_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
+}
+
+llvm::Value* NewTypedValue::llvm_value(Codegen &gen, BaseType *exp_type) {
+    // TODO cache malloc function
+    auto& mod = *gen.module;
+    auto mallocFn = mod.getFunction("malloc");
+    if(mallocFn == nullptr) {
+        gen.error("malloc function hasn't been declared", this);
+        return nullptr;
+    }
+    auto size = mod.getDataLayout().getTypeAllocSize(type->llvm_type(gen));
+    auto size_val = gen.builder->getIntN(mallocFn->getArg(0)->getType()->getIntegerBitWidth(), size);
+    return gen.builder->CreateCall(mallocFn, { size_val });
+}
+
+llvm::Type* NewValue::llvm_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
+}
+
+llvm::Value* NewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
+
+    // TODO cache malloc function
+    auto& mod = *gen.module;
+    auto mallocFn = mod.getFunction("malloc");
+    if(mallocFn == nullptr) {
+        gen.error("malloc function hasn't been declared", this);
+        return nullptr;
+    }
+
+    // chain and struct value both return the exact type (including accounting for generics so we should use that)
+    auto size = mod.getDataLayout().getTypeAllocSize(value->llvm_type(gen));
+    auto size_val = gen.builder->getIntN(mallocFn->getArg(0)->getType()->getIntegerBitWidth(), size);
+    const auto pointer_val = gen.builder->CreateCall(mallocFn, { size_val });
+
+    const auto kind = value->val_kind();
+    if(kind == ValueKind::StructValue) {
+        auto struct_val = value->as_struct_value_unsafe();
+        struct_val->initialize_alloca(pointer_val, gen, nullptr);
+        return pointer_val;
+    } else if(kind == ValueKind::AccessChain) {
+        auto chain = value->as_access_chain();
+        auto last_call = chain->values.back()->as_func_call();
+        if(last_call) {
+            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+            last_call->chain_value_with_callee(gen, chain->values, chain->values.size() - 1, pointer_val, nullptr, destructibles);
+            Value::destruct(gen, destructibles);
+            return pointer_val;
+        }
+    }
+
+    gen.error("unknown value given to placement new", this);
+
+}
+
+llvm::Type* PlacementNewValue::llvm_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
+}
+
+llvm::Value* PlacementNewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
+    const auto pointer_val = pointer->llvm_value(gen);
+    const auto kind = value->val_kind();
+    if(kind == ValueKind::StructValue) {
+        auto struct_val = value->as_struct_value_unsafe();
+        struct_val->initialize_alloca(pointer_val, gen, nullptr);
+        return pointer_val;
+    } else if(kind == ValueKind::AccessChain) {
+        auto chain = value->as_access_chain();
+        auto last_call = chain->values.back()->as_func_call();
+        if(last_call) {
+            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+            last_call->chain_value_with_callee(gen, chain->values, chain->values.size() - 1, pointer_val, nullptr, destructibles);
+            Value::destruct(gen, destructibles);
+            return pointer_val;
+        }
+    }
+    gen.error("unknown value given to placement new", this);
 }
 
 bool CastedValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {

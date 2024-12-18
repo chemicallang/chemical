@@ -10,6 +10,7 @@ enum class TokenType {
     LoopKw,
     ReturnKw,
     BreakKw,
+    NewKw,
     ContinueKw,
     DestructKw,
     ProvideKw,

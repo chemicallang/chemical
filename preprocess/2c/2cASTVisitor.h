@@ -374,6 +374,12 @@ public:
 
     void visit(IsValue *casted) final;
 
+    void visit(NewTypedValue *value) override;
+
+    void visit(NewValue *value) override;
+
+    void visit(PlacementNewValue *value) override;
+
     void visit(UnnamedUnion *def) final;
 
     void visit(UnnamedStruct *def) final;

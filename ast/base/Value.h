@@ -729,6 +729,10 @@ public:
         return k == ValueKind::NumberValue;
     }
 
+    static constexpr inline bool isNewValue(ValueKind k) {
+        return k == ValueKind::NewValue;
+    }
+
     static constexpr inline bool isIsValue(ValueKind k) {
         return k == ValueKind::IsValue;
     }
@@ -879,6 +883,10 @@ public:
 
     inline IsValue* as_is_value() {
         return isIsValue(val_kind()) ? ((IsValue*) this) : nullptr;
+    }
+
+    inline NewTypedValue* as_new_value() {
+        return isNewValue(val_kind()) ? ((NewTypedValue*) this) : nullptr;
     }
 
     inline DereferenceValue* as_deref_value() {

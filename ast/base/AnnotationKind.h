@@ -6,11 +6,6 @@
 
 enum class AnnotationKind {
 
-    Extern, // it means declaration is available in other module
-    CompilerInterface, // it means that struct is a compiler interface
-    Cpp, // mangle the function name using C++ name mangling scheme
-    Deprecated, // deprecated annotation
-
     NoInit, // structs that should not be initialized
 
     Implicit, // implicit constructor annotation, allows for automatic type conversion

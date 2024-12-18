@@ -14,6 +14,8 @@ struct UnionDeclAttributes {
 
     bool is_direct_init;
 
+    bool deprecated;
+
 };
 
 class UnionDef : public ExtendableMembersContainerNode, public UnionType {
@@ -53,6 +55,14 @@ public:
 
     inline void set_specifier(AccessSpecifier specifier) {
         attrs.specifier = specifier;
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
     }
 
     bool is_exported_fast() {

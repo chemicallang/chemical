@@ -68,6 +68,22 @@ struct FuncDeclAttributes {
      * upon failure an error is generated
      */
     bool compiler_inline;
+    /**
+     * is function external (in another module), user marks a function
+     * external and we basically declare it like that
+     */
+    bool is_extern;
+
+    /**
+     * should mangle as a C++ function
+     */
+    bool is_cpp_mangle;
+
+    /**
+     * is this function deprecated
+     */
+    bool deprecated;
+
 };
 
 class FunctionDeclaration : public AnnotableNode, public FunctionType {
@@ -175,6 +191,30 @@ public:
 
     inline void set_multi_func_index(uint8_t i) {
         attrs.multi_func_index = i;
+    }
+
+    inline bool is_extern() {
+        return attrs.is_extern;
+    }
+
+    inline void set_extern(bool value) {
+        attrs.is_extern = value;
+    }
+
+    inline bool is_cpp_mangle() {
+        return attrs.is_cpp_mangle;
+    }
+
+    inline void set_cpp_mangle(bool value) {
+        attrs.is_cpp_mangle = value;
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
     }
 
     SourceLocation encoded_location() override {

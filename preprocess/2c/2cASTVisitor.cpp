@@ -300,7 +300,7 @@ void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionType* func_typ
 }
 
 void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, bool is_static) {
-    if(func_decl->has_annotation(AnnotationKind::Extern)) {
+    if(func_decl->is_extern()) {
         visitor.write("extern ");
     }
     if(is_static) {
@@ -2299,7 +2299,7 @@ void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::ve
 }
 
 void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
-    if(visitor.compiler_interfaces && def->has_annotation(AnnotationKind::CompilerInterface)) {
+    if(visitor.compiler_interfaces && def->is_compiler_interface()) {
         auto& interfaces = *visitor.compiler_interfaces;
         interfaces.emplace_back(def->name());
     }

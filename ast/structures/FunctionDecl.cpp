@@ -342,7 +342,7 @@ void FunctionDeclaration::set_llvm_data(llvm::Value* func_callee, llvm::Function
 }
 
 std::string FunctionDeclaration::runtime_name_fast(Codegen& gen) {
-    if(has_annotation(AnnotationKind::Cpp)) {
+    if(is_cpp_mangle()) {
         // TODO what about generic functions ?
         return gen.clang.mangled_name(this);
     }
@@ -1124,7 +1124,9 @@ FunctionDeclaration::FunctionDeclaration(
         bool signature_resolved
 ) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
     identifier(std::move(identifier)), body(std::move(body)), location(location),
-    attrs(specifier, false, 0, false, false, false, false, false, false, false) {
+    attrs(specifier, false, 0, false, false, false, false, false, false, false, false,
+          false, false
+          ) {
 }
 
 std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {

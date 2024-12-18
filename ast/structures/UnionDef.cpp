@@ -78,7 +78,7 @@ UnionDef::UnionDef(
     SourceLocation location,
     AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), location(location),
-    attrs(specifier, false, false), linked_type("", this, location) {
+    attrs(specifier, false, false, false), linked_type("", this, location) {
 
 }
 

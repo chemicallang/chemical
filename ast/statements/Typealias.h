@@ -20,6 +20,11 @@ struct TypealiasDeclAttributes {
      */
     bool is_comptime;
 
+    /**
+     * is typealias deprecated
+     */
+    bool deprecated;
+
 };
 
 class TypealiasStatement : public ExtendableAnnotableNode {
@@ -58,6 +63,14 @@ public:
 
     inline void set_specifier(AccessSpecifier specifier) {
         attrs.specifier = specifier;
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
     }
 
     inline const std::string name() const {

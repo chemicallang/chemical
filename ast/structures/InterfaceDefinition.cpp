@@ -133,7 +133,7 @@ InterfaceDefinition::InterfaceDefinition(
         SourceLocation location,
         AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), location(location),
-    data(specifier, false) {
+    data(specifier, false, false) {
 
 }
 

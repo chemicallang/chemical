@@ -19,6 +19,8 @@ struct EnumDeclAttributes {
 
     AccessSpecifier specifier;
 
+    bool deprecated;
+
 };
 
 class EnumDeclaration : public ExtendableAnnotableNode {
@@ -45,7 +47,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : located_id(std::move(name_id)), members(std::move(members)), parent_node(parent_node), location(location),
-        linked_type(name(), this, location), underlying_type(location), attrs(specifier) {
+        linked_type(name(), this, location), underlying_type(location), attrs(specifier, false) {
 
     }
 
@@ -55,6 +57,14 @@ public:
 
     inline const chem::string_view& name_view() {
         return located_id.identifier;
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
     }
 
     AccessSpecifier specifier() {

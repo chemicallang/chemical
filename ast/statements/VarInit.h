@@ -33,18 +33,23 @@ struct VarInitExtData {
      * destructor is not called on moved objects, once moved, any attempt to access
      * this variable causes an error
      */
-    bool has_moved = false;
+    bool has_moved;
     /**
      * has moved is used to track that var init statement has a assignment to it
      * if it has, during symbol resolution the assignment statement notifies this
      * var init statement
      */
-    bool has_assignment = false;
+    bool has_assignment;
 
     /**
      * this tells whether wrote const or var when creating the variable
      */
     bool is_const;
+
+    /**
+     * is var init deprecated
+     */
+    bool deprecated;
 
 };
 
@@ -99,6 +104,14 @@ public:
      */
     inline const chem::string_view& id_view() {
         return located_id.identifier;
+    }
+
+    inline bool deprecated() {
+        return data.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        data.deprecated = value;
     }
 
     inline bool is_comptime() {

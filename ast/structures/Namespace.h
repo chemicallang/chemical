@@ -18,6 +18,11 @@ struct NamespaceDeclAttributes {
      */
     bool is_comptime;
 
+    /**
+     * is namespace deprecated
+     */
+    bool deprecated;
+
 };
 
 class Namespace : public AnnotableNode {
@@ -61,6 +66,14 @@ public:
 
     inline void set_comptime(bool value) {
         attrs.is_comptime = value;
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
     }
 
     SourceLocation encoded_location() final {

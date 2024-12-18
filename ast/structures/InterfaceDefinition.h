@@ -26,6 +26,11 @@ struct InterfaceDefinitionExtData {
      */
     bool has_implementation = false;
 
+    /**
+     * is this interface deprecated
+     */
+    bool deprecated = false;
+
 };
 
 static_assert(sizeof(InterfaceDefinitionExtData) <= 8);
@@ -85,6 +90,14 @@ public:
 
     inline void set_specifier_fast(AccessSpecifier specifier) {
         data.specifier = specifier;
+    }
+
+    inline bool deprecated() {
+        return data.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        data.deprecated = value;
     }
 
     SourceLocation encoded_location() final {

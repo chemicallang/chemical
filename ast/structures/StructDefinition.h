@@ -32,7 +32,17 @@ struct StructDeclAttributes {
      * is direct initialization
      * constructor or de constructor allow functions to be called automatically
      */
-    bool is_direct_init = false;
+    bool is_direct_init;
+
+    /**
+     * is struct a compiler interface
+     */
+    bool is_compiler_interface;
+
+    /**
+     * is this struct deprecated
+     */
+    bool deprecated;
 
 };
 
@@ -93,6 +103,22 @@ public:
 
     inline void set_direct_init(bool value) {
         attrs.is_direct_init = value;
+    }
+
+    inline bool is_compiler_interface() {
+        return attrs.is_compiler_interface;
+    }
+
+    inline void set_compiler_interface(bool value) {
+        attrs.is_compiler_interface = value;
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
     }
 
     std::string get_runtime_name() final {

@@ -236,7 +236,7 @@ VariantDefinition::VariantDefinition(
     SourceLocation location,
     AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), ref_type(name(), this, location),
-    location(location), attrs(specifier) {
+    location(location), attrs(specifier, false) {
 }
 
 ASTNode* VariantDefinition::child(const std::string &child_name) {
@@ -367,7 +367,9 @@ VariantMember::VariantMember(
         const std::string& name,
         VariantDefinition* parent_node,
         SourceLocation location
-) : BaseDefMember(name), parent_node(parent_node), ref_type(name, this, location), location(location) {
+) : BaseDefMember(name), parent_node(parent_node), ref_type(name, this, location), location(location),
+    attrs(false)
+{
 
 }
 

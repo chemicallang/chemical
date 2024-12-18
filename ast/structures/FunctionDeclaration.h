@@ -84,6 +84,45 @@ struct FuncDeclAttributes {
      */
     bool deprecated;
 
+    /**
+     * implicit constructor annotation, allows for automatic type conversion
+     */
+    bool is_implicit;
+
+    /**
+     * is function no return (doesn't return, abort and other functions)
+     */
+    bool is_noReturn;
+    /**
+     * is constructor function
+     */
+    bool is_constructor_fn;
+    /**
+     * a move function is triggered on the object that has been moved (it's not like C++ move constructor which is called on the newly object being constructed)
+     * it means to say, function that defines what happens when the object is moved and NOT how to construct an object from another object without copying everything
+     */
+    bool is_copy_fn;
+    /**
+     * is this a clear function
+     */
+    bool is_clear_fn;
+    /**
+     * is this a move function
+     */
+    bool is_move_fn;
+    /**
+     * is this a delete function
+     */
+    bool is_delete_fn;
+    /**
+     * the function overrides another present above in a struct or interface
+     */
+    bool is_unsafe;
+    /**
+     * is this function overriding a function
+     */
+    bool is_override;
+
 };
 
 class FunctionDeclaration : public AnnotableNode, public FunctionType {
@@ -216,6 +255,79 @@ public:
     inline void set_deprecated(bool value) {
         attrs.deprecated = value;
     }
+
+    inline bool is_implicit() {
+        return attrs.is_implicit;
+    }
+
+    inline void set_implicit(bool value) {
+        attrs.is_implicit = value;
+    }
+
+    inline bool is_noReturn() {
+        return attrs.is_noReturn;
+    }
+
+    inline void set_noReturn(bool value) {
+        attrs.is_noReturn = value;
+    }
+
+    inline bool is_constructor_fn() {
+        return attrs.is_constructor_fn;
+    }
+
+    inline void set_constructor_fn(bool value) {
+        attrs.is_constructor_fn = value;
+    }
+
+    inline bool is_copy_fn() {
+        return attrs.is_copy_fn;
+    }
+
+    inline void set_copy_fn(bool value) {
+        attrs.is_copy_fn = value;
+    }
+
+    inline bool is_clear_fn() {
+        return attrs.is_clear_fn;
+    }
+
+    inline void set_clear_fn(bool value) {
+        attrs.is_clear_fn = value;
+    }
+
+    inline bool is_move_fn() {
+        return attrs.is_move_fn;
+    }
+
+    inline void set_move_fn(bool value) {
+        attrs.is_move_fn = value;
+    }
+
+    inline bool is_delete_fn() {
+        return attrs.is_delete_fn;
+    }
+
+    inline void set_delete_fn(bool value) {
+        attrs.is_delete_fn = value;
+    }
+
+    inline bool is_unsafe() {
+        return attrs.is_unsafe;
+    }
+
+    inline void set_unsafe(bool value) {
+        attrs.is_unsafe = value;
+    }
+
+    inline bool is_override() {
+        return attrs.is_override;
+    }
+
+    inline void set_override(bool value) {
+        attrs.is_override = value;
+    }
+
 
     SourceLocation encoded_location() override {
         return location;

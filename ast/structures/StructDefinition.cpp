@@ -28,7 +28,7 @@ void StructDefinition::struct_func_gen(
 ) {
     if(declare) {
         for (auto& function: funcs) {
-            if (function->has_annotation(AnnotationKind::Override)) {
+            if (function->is_override()) {
 
                 // Do not declare the function because it overrides another function
                 // when a function is being overridden which is already present in an interface
@@ -42,7 +42,7 @@ void StructDefinition::struct_func_gen(
         }
     } else {
         for (auto& function: funcs) {
-            if (function->has_annotation(AnnotationKind::Override)) {
+            if (function->is_override()) {
                 if (!llvm_override(gen, function)) {
                     gen.error("Failed to override the function", (AnnotableNode*) function);
                 }
@@ -74,14 +74,14 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
 }
 
 void StructDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl) {
-    if(decl->has_annotation(AnnotationKind::Override)) {
+    if(decl->is_override()) {
         return;
     }
     decl->code_gen_declare(gen, this);
 }
 
 void StructDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
-    if(decl->has_annotation(AnnotationKind::Override)) {
+    if(decl->is_override()) {
         if(!llvm_override(gen, decl)) {
             gen.error("Failed to override the function", (AnnotableNode*) decl);
         }
@@ -183,7 +183,7 @@ llvm::Value* child_of_self_ptr(Codegen& gen, BaseDefMember& member, llvm::Value*
 llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
     if(isAnyStructMember()) {
         const auto curr_func = gen.current_func_type->as_function();
-        if(curr_func && curr_func->has_annotation(AnnotationKind::Constructor)) {
+        if(curr_func && curr_func->is_constructor_fn()) {
             // TODO hard coded the index for the constructor self param
             auto self_ptr = gen.current_function->getArg(0);
             return child_of_self_ptr(gen, *this, self_ptr);
@@ -396,22 +396,22 @@ void StructDefinition::declare_and_link(SymbolResolver &linker) {
     bool has_copy_fn = false;
     bool has_move_fn = false;
     for(auto& func : functions()) {
-        if(func->has_annotation(AnnotationKind::Constructor)) {
+        if(func->is_constructor_fn()) {
             func->ensure_constructor(linker, this);
         }
-        if(func->has_annotation(AnnotationKind::Delete)) {
+        if(func->is_delete_fn()) {
             func->ensure_destructor(linker, this);
             has_destructor = true;
         }
-        if(func->has_annotation(AnnotationKind::Clear)) {
+        if(func->is_clear_fn()) {
             func->ensure_clear_fn(linker, this);
             has_clear_fn = true;
         }
-        if(func->has_annotation(AnnotationKind::Move)) {
+        if(func->is_move_fn()) {
             func->ensure_move_fn(linker, this);
             has_move_fn = true;
         }
-        if(func->has_annotation(AnnotationKind::Copy)) {
+        if(func->is_copy_fn()) {
             func->ensure_copy_fn(linker, this);
             has_copy_fn = true;
         }

@@ -106,8 +106,8 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker) {
         return;
     }
     for(auto& func : functions()) {
-        if(!func->has_annotation(AnnotationKind::Override)) {
-            func->add_annotation(AnnotationKind::Override);
+        if(!func->is_override()) {
+            func->set_override(true);
         }
     }
     linker.scope_start();

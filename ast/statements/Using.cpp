@@ -10,7 +10,9 @@ UsingStmt::UsingStmt(
     ASTNode* parent_node,
     bool is_namespace,
     SourceLocation location
-) : chain(std::move(values), parent_node, false, location), is_namespace(is_namespace), location(location) {
+) : chain(std::move(values), parent_node, false, location), location(location),
+    attrs(is_namespace, false)
+{
 
 }
 
@@ -18,7 +20,9 @@ UsingStmt::UsingStmt(
     AccessChain* chain,
     bool is_namespace,
     SourceLocation location
-) : chain(chain->values, chain->parent_node, chain->is_node, chain->location), is_namespace(is_namespace), location(location) {
+) : chain(chain->values, chain->parent_node, chain->is_node, chain->location), location(location),
+    attrs(is_namespace, false)
+{
 
 }
 
@@ -29,8 +33,8 @@ void UsingStmt::declare_top_level(SymbolResolver &linker) {
         linker.error("couldn't find linked node", this);
         return;
     }
-    const auto no_propagate = linker.is_current_file_scope() && !has_annotation(AnnotationKind::Propagate);
-    if(is_namespace) {
+    const auto no_propagate = linker.is_current_file_scope() && !is_propagate();
+    if(is_namespace()) {
         auto ns = linked->as_namespace();
         if(ns) {
 //            for(const auto node : ns->nodes) {

@@ -557,7 +557,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
     }
 
-    if(decl && decl->has_annotation(AnnotationKind::Copy)) {
+    if(decl && decl->is_copy_fn()) {
         auto node = decl->params.front()->type->linked_node();
         auto def = node ? node->as_members_container() : nullptr;
         if(!def) {
@@ -751,7 +751,7 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
     auto func_type = parent_val->create_type(allocator)->function_type();
     const auto func_decl = safe_linked_func();
-    if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor) && func_decl->parent_node) {
+    if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
             func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name(), struct_def, location), generic_iteration);
@@ -868,7 +868,7 @@ bool FunctionCall::find_link_in_parent(ChainValue* first_value, ChainValue* gran
     parent_val = parent;
     FunctionDeclaration* func_decl = safe_linked_func();
     if(func_decl) {
-        if(func_decl->has_annotation(AnnotationKind::Unsafe) && resolver.safe_context) {
+        if(func_decl->is_unsafe() && resolver.safe_context) {
             resolver.error("unsafe function with name should be called in an unsafe block", this);
         }
         const auto self_param = func_decl->get_self_param();
@@ -975,7 +975,7 @@ FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
 BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
     const auto func_decl = safe_linked_func();
-    if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor) && func_decl->parent_node) {
+    if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
             return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name(), struct_def, location), generic_iteration);

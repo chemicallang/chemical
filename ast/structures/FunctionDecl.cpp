@@ -119,7 +119,7 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
 }
 
 std::pair<llvm::Value*, llvm::FunctionType*>& FunctionDeclaration::get_llvm_data() {
-    if(active_iteration == llvm_data.size() && has_annotation(AnnotationKind::Override)) {
+    if(active_iteration == llvm_data.size() && is_override()) {
         const auto struct_def = parent_node->as_struct_def();
         if(struct_def) {
             const auto overriding = struct_def->get_overriding_info(this);
@@ -203,7 +203,7 @@ void initialize_def_struct_values(Codegen &gen, StructDefinition* struct_def, Fu
 void initialize_constructor_def_values(Codegen &gen, FunctionDeclaration* decl) {
     auto parent = decl->parent_node;
     if(parent) {
-        if(!decl->has_annotation(AnnotationKind::Constructor)) {
+        if(!decl->is_constructor_fn()) {
             return;
         }
         const auto struct_def = parent->as_struct_def();
@@ -514,19 +514,19 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
     if(is_comptime()) {
         return;
     }
-    if(has_annotation(AnnotationKind::Copy)) {
+    if(is_copy_fn()) {
         code_gen_copy_fn(gen, def);
         return;
     }
-    if(has_annotation(AnnotationKind::Move)) {
+    if(is_move_fn()) {
         code_gen_move_fn(gen, def);
         return;
     }
-    if(has_annotation(AnnotationKind::Clear)) {
+    if(is_clear_fn()) {
         code_gen_clear_fn(gen, def);
         return;
     }
-    if(has_annotation(AnnotationKind::Delete)) {
+    if(is_delete_fn()) {
         code_gen_destructor(gen, def);
         return;
     }
@@ -545,19 +545,19 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
     if(is_comptime()) {
         return;
     }
-    if(has_annotation(AnnotationKind::Copy)) {
+    if(is_copy_fn()) {
         code_gen_copy_fn(gen, def);
         return;
     }
-    if(has_annotation(AnnotationKind::Clear)) {
+    if(is_clear_fn()) {
         code_gen_clear_fn(gen, def);
         return;
     }
-    if(has_annotation(AnnotationKind::Move)) {
+    if(is_move_fn()) {
         code_gen_move_fn(gen, def);
         return;
     }
-    if(has_annotation(AnnotationKind::Delete)) {
+    if(is_delete_fn()) {
         code_gen_destructor(gen, def);
         return;
     }

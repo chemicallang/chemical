@@ -8,6 +8,7 @@
 #include "parser/model/CompilerBinder.h"
 #include "parser/Parser.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/statements/UsingStmt.h"
 
 const std::unordered_map<chem::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
         { "inline", [](Parser* parser, AnnotableNode* node) -> void {
@@ -87,11 +88,46 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make struct a compiler interface");
             }
         } },
-        { "constructor", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Constructor); } },
-        { "make", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Constructor); } },
-        { "delete", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Delete); } },
-        { "override", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Override); } },
-        { "unsafe", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Unsafe); } },
+        { "constructor", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_constructor_fn(true);
+            } else {
+                parser->error("couldn't make the function constructor");
+            }
+        } },
+        { "make", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_constructor_fn(true);
+            } else {
+                parser->error("couldn't make the function constructor");
+            }
+        } },
+        { "delete", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_delete_fn(true);
+            } else {
+                parser->error("couldn't make the function a delete function");
+            }
+        } },
+        { "override", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_override(true);
+            } else {
+                parser->error("couldn't make the function override");
+            }
+        } },
+        { "unsafe", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_unsafe(true);
+            } else {
+                parser->error("couldn't make the function unsafe");
+            }
+        } },
         { "no_init", [](Parser* parser, AnnotableNode* node) -> void {
             const auto def = node->as_struct_def();
             if(def) {
@@ -113,8 +149,22 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make the function extern");
             }
         }},
-        { "implicit", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Implicit); }},
-        { "propagate", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Propagate); }},
+        { "implicit", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_implicit(true);
+            } else {
+                parser->error("couldn't make the function implicit");
+            }
+        }},
+        { "propagate", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto stmt = node->as_using_stmt();
+            if(stmt) {
+                stmt->set_propagate(true);
+            } else {
+                parser->error("couldn't make the using statement propagate");
+            }
+        }},
         { "direct_init", [](Parser* parser, AnnotableNode* node) -> void {
             const auto def = node->as_struct_def();
             if(def) {
@@ -123,7 +173,14 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make the struct direct init");
             }
         }},
-        { "no_return", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::NoReturn); }},
+        { "no_return", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_noReturn(true);
+            } else {
+                parser->error("couldn't make the function no return");
+            }
+        }},
         { "cpp", [](Parser* parser, AnnotableNode* node) -> void {
             const auto func = node->as_function();
             if(func) {
@@ -132,14 +189,35 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make the function cpp");
             }
         }},
-        { "clear", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Clear); }},
-        { "copy", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Copy); }},
+        { "clear", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_clear_fn(true);
+            } else {
+                parser->error("couldn't make the function a clear function");
+            }
+        }},
+        { "copy", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_copy_fn(true);
+            } else {
+                parser->error("couldn't make the function a copy function");
+            }
+        }},
         { "deprecated", [](Parser* parser, AnnotableNode* node) -> void {
             if(!node->set_deprecated(true)) {
                 parser->error("couldn't make the declaration deprecated");
             }
         }},
-        { "move", [](Parser* parser, AnnotableNode* node) -> void { node->add_annotation( AnnotationKind::Move); }},
+        { "move", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_move_fn(true);
+            } else {
+                parser->error("couldn't make the function a move function");
+            }
+        }},
 };
 
 bool find_annot(Parser* parser, chem::string_view& view) {

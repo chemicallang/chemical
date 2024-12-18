@@ -276,7 +276,9 @@ StructMember::StructMember(
         SourceLocation location,
         bool is_const,
         AccessSpecifier specifier
-) : BaseDefMember(std::move(name)), type(type), defValue(defValue), parent_node(parent_node), location(location), is_const(is_const), specifier(specifier) {
+) : BaseDefMember(std::move(name)), type(type), defValue(defValue), parent_node(parent_node), location(location),
+    attrs(specifier, is_const, false)
+{
 
 }
 
@@ -357,7 +359,8 @@ StructDefinition::StructDefinition(
         SourceLocation location,
         AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node),
-    location(location), attrs(specifier, false, false), linked_type(name(), this, location) {
+    location(location), attrs(specifier, false, false, false, false),
+    linked_type(name(), this, location) {
 
 }
 

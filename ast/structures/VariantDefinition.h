@@ -9,6 +9,8 @@ struct VariantDeclAttributes {
 
     AccessSpecifier specifier;
 
+    bool deprecated;
+
 };
 
 class VariantDefinition : public ExtendableMembersContainerNode {
@@ -51,6 +53,14 @@ public:
 
     void set_specifier(AccessSpecifier specifier) {
         attrs.specifier = specifier;
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
     }
 
     ASTNode *parent() final {

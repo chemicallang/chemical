@@ -10,7 +10,7 @@ TypealiasStatement::TypealiasStatement(
         SourceLocation location,
         AccessSpecifier specifier
 ) : located_id(std::move(identifier)), actual_type(actual_type), parent_node(parent_node), location(location),
-    attrs(specifier,false) {
+    attrs(specifier, false, false) {
 
 }
 

@@ -9,6 +9,12 @@
 #include "ast/types/LinkedType.h"
 #include "VariantMemberParam.h"
 
+struct VariantMemberAttributes {
+
+    bool deprecated;
+
+};
+
 class VariantMember : public BaseDefMember {
 public:
 
@@ -16,6 +22,7 @@ public:
     VariantDefinition* parent_node;
     LinkedType ref_type;
     SourceLocation location;
+    VariantMemberAttributes attrs;
 
     VariantMember(
             const std::string& name,
@@ -29,6 +36,14 @@ public:
 
     ASTNodeKind kind() final {
         return ASTNodeKind::VariantMember;
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
     }
 
     uint64_t byte_size(bool is64Bit) final {

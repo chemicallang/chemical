@@ -7,6 +7,7 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/structures/VariantMemberParam.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/Namespace.h"
 #include "ast/values/AccessChain.h"
@@ -121,6 +122,49 @@ AccessSpecifier ASTNode::specifier() {
             return as_typealias_unsafe()->specifier();
         default:
             return AccessSpecifier::Private;
+    }
+}
+
+bool ASTNode::set_deprecated(bool value) {
+    switch(kind()) {
+        case ASTNodeKind::StructDecl:
+            as_struct_def_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::FunctionDecl:
+            as_function_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::VariantDecl:
+            as_variant_def_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::UnionDecl:
+            as_union_def_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::InterfaceDecl:
+            as_interface_def_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::TypealiasStmt:
+            as_typealias_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::EnumDecl:
+            as_enum_decl_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::VarInitStmt:
+            as_var_init_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::EnumMember:
+            as_enum_member_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::StructMember:
+            as_struct_member_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::NamespaceDecl:
+            as_namespace_unsafe()->set_deprecated(value);
+            return true;
+        case ASTNodeKind::VariantMember:
+            as_variant_member_unsafe()->set_deprecated(value);
+            return true;
+        default:
+            return false;
     }
 }
 

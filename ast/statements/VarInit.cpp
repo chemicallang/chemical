@@ -233,7 +233,7 @@ VarInitStatement::VarInitStatement(
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier
-) : data(specifier, false, false, false, is_const), located_id(std::move(identifier)), type(type), value(value), parent_node(parent_node), location(location) {
+) : data(specifier, false, false, false, is_const, false), located_id(std::move(identifier)), type(type), value(value), parent_node(parent_node), location(location) {
 
 }
 

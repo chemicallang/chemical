@@ -140,6 +140,12 @@ public:
     bool set_comptime(bool value);
 
     /**
+     * makes the node deprecated
+     * @return true if successful otherwise false
+     */
+    bool set_deprecated(bool value);
+
+    /**
      * type is only returned if the value is guaranteed to be stored in a storage location
      * function param is not a storage location, however var decl, struct member, variant member param qualify
      */

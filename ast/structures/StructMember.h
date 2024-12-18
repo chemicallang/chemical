@@ -6,15 +6,24 @@
 #include "ast/base/Value.h"
 #include "BaseDefMember.h"
 
+struct StructMemberAttributes {
+
+    AccessSpecifier specifier;
+
+    bool is_const;
+
+    bool deprecated;
+
+};
+
 class StructMember : public BaseDefMember {
 public:
 
-    bool is_const;
     BaseType* type;
     Value* defValue;
     ASTNode* parent_node;
     SourceLocation location;
-    AccessSpecifier specifier;
+    StructMemberAttributes attrs;
 
     StructMember(
             std::string name,
@@ -25,6 +34,30 @@ public:
             bool is_const = false,
             AccessSpecifier specifier = AccessSpecifier::Public
     );
+
+    inline AccessSpecifier specifier() {
+        return attrs.specifier;
+    }
+
+    inline void set_specifier(AccessSpecifier specifier) {
+        attrs.specifier = specifier;
+    }
+
+    inline bool is_const() {
+        return attrs.is_const;
+    }
+
+    inline void set_const(bool value) {
+        attrs.is_const = value;
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
+    }
 
     ASTNodeKind kind() final {
         return ASTNodeKind::StructMember;
@@ -50,7 +83,7 @@ public:
     BaseDefMember *copy_member(ASTAllocator& allocator) final;
 
     bool get_is_const() final {
-        return is_const;
+        return is_const();
     }
 
     void accept(Visitor *visitor) final;

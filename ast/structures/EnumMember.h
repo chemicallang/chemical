@@ -5,6 +5,10 @@
 #include "ast/base/ASTNode.h"
 #include "ast/types/IntType.h"
 
+struct EnumMemberAttributes {
+    bool deprecated;
+};
+
 class EnumMember : public ASTNode {
 public:
 
@@ -13,6 +17,7 @@ public:
     EnumDeclaration* parent_node;
     Value* init_value;
     SourceLocation location;
+    EnumMemberAttributes attrs;
 
     EnumMember(
         std::string  name,
@@ -20,8 +25,18 @@ public:
         Value* init_value,
         EnumDeclaration* parent_node,
         SourceLocation location
-    ) : name(std::move(name)), index(index), init_value(init_value), parent_node(parent_node), location(location) {
+    ) : name(std::move(name)), index(index), init_value(init_value), parent_node(parent_node), location(location),
+       attrs(false)
+    {
 
+    }
+
+    inline bool deprecated() {
+        return attrs.deprecated;
+    }
+
+    inline void set_deprecated(bool value) {
+        attrs.deprecated = value;
     }
 
     SourceLocation encoded_location() final {

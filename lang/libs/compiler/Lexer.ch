@@ -20,7 +20,7 @@ struct LexerState {
 
 struct UserLexerFn {
     var instance : *void
-    var subroutine : (instance : *void, lexer : *Lexer) => Token;
+    var subroutine : (instance : &void, lexer : &Lexer) => Token;
 }
 
 @compiler.interface
@@ -28,10 +28,12 @@ struct Lexer : LexerState {
 
     var provider : SourceProvider
 
-    var getNextToken : UserLexerFn;
+    var user_lexer : UserLexerFn;
 
     var str : SerialStrAllocator
 
-    func getFileAllocator() : *BatchAllocator
+    func getFileAllocator(&self) : *BatchAllocator
+
+    func setUserLexer(&self, instance : *void, subroutine : (instance : &void, lexer : &Lexer) => Token);
 
 }

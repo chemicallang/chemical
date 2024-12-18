@@ -232,7 +232,8 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
 
     unsigned i = 1;
 
-    if(parent->is_stored_ptr_or_ref() && i <= until) {
+    const auto is_stored = parent->is_stored_ptr_or_ref();
+    if(is_stored && i <= until) {
         pointer = gen.builder->CreateLoad(parent->llvm_type(gen), pointer);
     }
 

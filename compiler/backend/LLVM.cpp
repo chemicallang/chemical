@@ -634,7 +634,8 @@ llvm::Value* NewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
         auto last_call = chain->values.back()->as_func_call();
         if(last_call) {
             std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-            last_call->chain_value_with_callee(gen, chain->values, chain->values.size() - 1, pointer_val, nullptr, destructibles);
+            std::vector<llvm::Value*> args;
+            last_call->llvm_chain_value(gen, args, chain->values, chain->values.size() - 1, destructibles, pointer_val, nullptr, nullptr);
             Value::destruct(gen, destructibles);
             return pointer_val;
         }
@@ -660,7 +661,8 @@ llvm::Value* PlacementNewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
         auto last_call = chain->values.back()->as_func_call();
         if(last_call) {
             std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-            last_call->chain_value_with_callee(gen, chain->values, chain->values.size() - 1, pointer_val, nullptr, destructibles);
+            std::vector<llvm::Value*> args;
+            last_call->llvm_chain_value(gen, args, chain->values, chain->values.size() - 1, destructibles, pointer_val, nullptr, nullptr);
             Value::destruct(gen, destructibles);
             return pointer_val;
         }

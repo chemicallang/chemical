@@ -3527,15 +3527,56 @@ void ToCAstVisitor::visit(IsValue *isValue) {
 }
 
 void ToCAstVisitor::visit(NewTypedValue *value) {
-    // TODO
+    write("malloc(sizeof(");
+    value->type->accept(this);
+    write("))");
 }
 
 void ToCAstVisitor::visit(NewValue *value) {
-    // TODO
+    const auto value_kind = value->value->val_kind();
+    if(value_kind == ValueKind::StructValue || value_kind == ValueKind::AccessChain) {
+        auto value_type = value->value->create_type(allocator);
+        write("({ ");
+        value_type->accept(this);
+        write("* ");
+        auto temp_name = get_local_temp_var_name();
+        write(temp_name);
+        write(" = ");
+        write("malloc(sizeof(");
+        value_type->accept(this);
+        write(")); *");
+        write(temp_name);
+        write(" = ");
+        value->value->accept(this);
+        write("; ");
+        write(temp_name);
+        write("; })");
+    } else {
+        error("unknown value", value);
+    }
 }
 
 void ToCAstVisitor::visit(PlacementNewValue *value) {
-    // TODO
+    const auto value_kind = value->value->val_kind();
+    if(value_kind == ValueKind::StructValue || value_kind == ValueKind::AccessChain) {
+        auto value_type = value->value->create_type(allocator);
+        write("({ ");
+        value_type->accept(this);
+        write("* ");
+        auto temp_name = get_local_temp_var_name();
+        write(temp_name);
+        write(" = ");
+        value->pointer->accept(this);
+        write("; *");
+        write(temp_name);
+        write(" = ");
+        value->value->accept(this);
+        write("; ");
+        write(temp_name);
+        write("; })");
+    } else {
+        error("unknown value", value);
+    }
 }
 
 void ToCAstVisitor::visit(WhileLoop *whileLoop) {
@@ -4548,9 +4589,7 @@ void ToCAstVisitor::visit(LambdaFunction *func) {
 }
 
 void ToCAstVisitor::visit(AnyType *any_type) {
-    // TODO change this to void
-    // TODO because *any should mean void*, not void**
-    write("void*");
+    write("void");
 }
 
 void ToCAstVisitor::visit(LiteralType *literal) {

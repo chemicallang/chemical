@@ -269,6 +269,7 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
         if(token->type != TokenType::RParen) {
             error("expected a ')' after the pointer value in new expression");
         }
+        token++;
         readWhitespace();
         auto value = parseExpression(allocator);
         if(!value) {

@@ -85,6 +85,8 @@
 //#include "ast/values/UInt128Value.h"
 //#include "ast/values/UIntValue.h"
 //#include "ast/values/ULongValue.h"
+#include "ast/values/NewValue.h"
+#include "ast/values/PlacementNewValue.h"
 
 void CommonVisitor::visit(LambdaFunction *func) {
     func->scope.accept(this);
@@ -231,6 +233,15 @@ void CommonVisitor::visit(ArrayValue *arr) {
 
 void CommonVisitor::visit(ArrayType *type) {
     type->elem_type->accept(this);
+}
+
+void CommonVisitor::visit(NewValue *value) {
+    value->value->accept(this);
+}
+
+void CommonVisitor::visit(PlacementNewValue *value) {
+    value->pointer->accept(this);
+    value->value->accept(this);
 }
 
 void CommonVisitor::visit(CastedValue *casted) {

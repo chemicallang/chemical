@@ -35,6 +35,7 @@ import "basic/moves.ch"
 import "comptime/is_value.ch"
 import "comptime/satisfies.ch"
 import "cbi/html/basic.ch"
+import "basic/new.ch"
 
 public func main() : int {
     test_var_init();
@@ -74,6 +75,7 @@ public func main() : int {
     test_html();
     test_references();
     test_satisfies();
+    test_new();
     print_test_stats();
     return 0;
 }

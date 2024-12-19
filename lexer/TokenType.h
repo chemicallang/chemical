@@ -99,6 +99,8 @@ enum class TokenType {
     Char,
     // #macro_name
     HashMacro,
+    // @annotation
+    Annotation,
 
     // escape sequence inside quotes
     EscapeSeq,
@@ -128,9 +130,6 @@ enum class TokenType {
     DoublePlusSym,
     // --
     DoubleMinusSym,
-
-    // @
-    AtSym,
 
     // =
     EqualSym,

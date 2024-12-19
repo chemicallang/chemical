@@ -220,60 +220,19 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
         }},
 };
 
-bool find_annot(Parser* parser, chem::string_view& view) {
-    auto found = AnnotationModifierFunctions.find(view);
-    if(found != AnnotationModifierFunctions.end()) {
-        parser->annotations.emplace_back(found->second);
-        return true;
-    } else {
-        parser->error("unknown annotation found @'" + view.str() + "'");
-        return true;
-    }
-}
-
 bool Parser::parseAnnotation(ASTAllocator& allocator) {
-    if(token->type != TokenType::AtSym) {
+    if(token->type != TokenType::Annotation) {
         return false;
     }
+    const auto annot = token;
     token++;
-    auto tok = consumeIdentifierOrKeyword();
-    if(tok) {
-        auto next_token_type = token->type;
-        if(next_token_type == TokenType::DotSym || next_token_type == TokenType::ColonSym || next_token_type == TokenType::DoubleColonSym) {
-            std::string value;
-            value.append(tok->value.view());
-            while(true) {
-                auto& cur_tok = *token;
-                auto tok_type = cur_tok.type;
-                switch(tok_type) {
-                    case TokenType::DotSym:
-                        value.append(1, '.');
-                        break;
-                    case TokenType::DoubleColonSym:
-                        value.append(2, ':');
-                        break;
-                    case TokenType::ColonSym:
-                        value.append(1, ':');
-                        break;
-                    default:
-                        if(Token::isKeyword(tok_type) || tok_type == TokenType::Identifier) {
-                            value.append(cur_tok.value.view());
-                        } else {
-                            goto end_loop;
-                        }
-                }
-                token++;
-                continue;
-                end_loop:
-                    break;
-            }
-            auto view = chem::string_view(value.data(), value.size());
-            return find_annot(this, view);
-        } else {
-            return find_annot(this, tok->value);
-        }
+    auto name_view = chem::string_view(annot->value.data() + 1, annot->value.size() - 1);
+    auto found = AnnotationModifierFunctions.find(name_view);
+    if(found != AnnotationModifierFunctions.end()) {
+        annotations.emplace_back(found->second);
+        return true;
     } else {
-        error("expected an identifier or keyword after '@' for annotation");
+        error("unknown annotation found '" + annot->value.str() + "'");
         return true;
     }
 }

@@ -102,6 +102,36 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
 }
 
+AddrOfValue* Parser::parseAddrOfValue(ASTAllocator& allocator) {
+    auto token1 = consumeOfType(TokenType::AmpersandSym);
+    if (token1) {
+        auto chain = parseAccessChain(allocator, true);
+        if (chain) {
+            return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, loc_single(token1));
+        } else {
+            error("expected a value after '&' for address of");
+            return nullptr;
+        }
+    } else {
+        return nullptr;
+    }
+}
+
+DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
+    auto token2 = consumeOfType(TokenType::MultiplySym);
+    if (token2) {
+        auto chain = parseAccessChain(allocator, false);
+        if (chain) {
+            return new(allocator.allocate<DereferenceValue>()) DereferenceValue(chain, loc_single(token2));
+        } else {
+            error("expected a value after '*' for dereference");
+            return nullptr;
+        }
+    } else {
+        return nullptr;
+    }
+}
+
 Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruct) {
     auto token1 = consumeOfType(TokenType::AmpersandSym);
     if (token1) {

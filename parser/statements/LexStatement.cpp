@@ -185,27 +185,28 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
 }
 
 Value* Parser::parseProvideValue(ASTAllocator& allocator) {
-    auto acValue = parseAccessChainValueToken(allocator);
-    if(acValue) {
-        return acValue;
+    switch(token->type) {
+        case TokenType::SingleQuoteSym:
+            return parseCharValue(allocator);
+        case TokenType::DoubleQuoteSym:
+            return parseStringValue(allocator);
+        case TokenType::LBracket:
+            return (Value*) parseLambdaValue(allocator);
+        case TokenType::Number:
+            return parseNumberValue(allocator);
+        case TokenType::NotSym:
+            return (Value*) parseNotValue(allocator);
+        case TokenType::MinusSym:
+            return (Value*) parseNegativeValue(allocator);
+        case TokenType::HashMacro:
+            return (Value*) parseMacroValue(allocator);
+        case TokenType::AmpersandSym:
+            return (Value*) parseAddrOfValue(allocator);
+        case TokenType::MultiplySym:
+            return (Value*) parseDereferenceValue(allocator);
+        default:
+            return (Value*) parseAccessChain(allocator, false);
     }
-    auto notValue = parseNotValue(allocator);
-    if(notValue) {
-        return (Value*) notValue;
-    }
-    auto negValue = parseNegativeValue(allocator);
-    if(negValue) {
-        return (Value*) negValue;
-    }
-    auto ac = parseAccessChainOrAddrOf(allocator, false);
-    if(ac) {
-        return ac;
-    }
-    auto macroVal = parseMacroValue(allocator);
-    if(macroVal) {
-        return macroVal;
-    }
-    return nullptr;
 }
 
 ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {

@@ -20,116 +20,74 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator
     readWhitespace();
     auto spec = specifier.value();
     auto& allocator = spec == AccessSpecifier::Public ? global_allocator : local_allocator;
-    auto decl = parseFunctionStructureTokens(allocator, spec, true, true);
-    if(decl) {
-        return (ASTNode*) decl;
+    switch (token->type) {
+        case TokenType::FuncKw:
+            return (ASTNode*) parseFunctionStructureTokens(allocator, spec, true, true);
+        case TokenType::EnumKw:
+            return (ASTNode*) parseEnumStructureTokens(allocator, spec);
+        case TokenType::StructKw:
+            return (ASTNode*) parseStructStructureTokens(allocator, spec);
+        case TokenType::UnionKw:
+            return (ASTNode*) parseUnionStructureTokens(allocator, spec);
+        case TokenType::VariantKw:
+            return (ASTNode*) parseVariantStructureTokens(allocator, spec);
+        case TokenType::VarKw:
+        case TokenType::ConstKw:
+            return (ASTNode*) parseVarInitializationTokens(allocator, spec);
+        case TokenType::InterfaceKw:
+            return (ASTNode*) parseInterfaceStructureTokens(allocator, spec);
+        case TokenType::TypealiasKw:
+            return (ASTNode*) parseTypealiasStatement(allocator, spec);
+        case TokenType::NamespaceKw:
+            return (ASTNode*) parseNamespace(allocator, spec);
+        default:
+            error("unknown token, expected a top level declaration");
+            return nullptr;
     }
-    auto enumDecl = parseEnumStructureTokens(allocator, spec);
-    if(enumDecl) {
-        return (ASTNode*) enumDecl;
-    }
-    auto structDecl = parseStructStructureTokens(allocator, spec);
-    if(structDecl) {
-        return (ASTNode*) structDecl;
-    }
-    auto unionDecl = parseUnionStructureTokens(allocator, spec);
-    if(unionDecl) {
-        return (ASTNode*) unionDecl;
-    }
-    auto variantDecl = parseVariantStructureTokens(allocator, spec);
-    if(variantDecl) {
-        return (ASTNode*) variantDecl;
-    }
-    auto varInit = parseVarInitializationTokens(allocator, spec);
-    if(varInit) {
-        return (ASTNode*) varInit;
-    }
-    auto interface = parseInterfaceStructureTokens(allocator, spec);
-    if(interface) {
-        return (ASTNode*) interface;
-    }
-    auto alias = parseTypealiasStatement(allocator, spec);
-    if(alias) {
-        return (ASTNode*) alias;
-    }
-    auto ns = parseNamespace(allocator, spec);
-    if(ns) {
-        return (ASTNode*) ns;
-    }
-    error("expected a top level declaration after access specifier");
-    return nullptr;
 }
 
 ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
-    auto node = parseTopLevelAccessSpecifiedDecls(allocator);
-    if(node) {
-        return node;
+    switch(token->type) {
+        case TokenType::PublicKw:
+        case TokenType::PrivateKw:
+        case TokenType::InternalKw:
+            return parseTopLevelAccessSpecifiedDecls(allocator);
+        case TokenType::SingleLineComment:
+            return (ASTNode*) parseSingleLineComment(allocator);
+        case TokenType::MultiLineComment:
+            return (ASTNode*) parseMultiLineComment(allocator);
+        case TokenType::ConstKw:
+        case TokenType::VarKw:
+            return (ASTNode*) parseVarInitializationTokens(allocator, AccessSpecifier::Internal, true);
+        case TokenType::UsingKw:
+            return (ASTNode*) parseUsingStatement(allocator);
+        case TokenType::ProvideKw:
+            return (ASTNode*) parseProvideStatement(allocator);
+        case TokenType::ComptimeKw:
+            return (ASTNode*) parseComptimeBlock(allocator);
+        case TokenType::EnumKw:
+            return (ASTNode*) parseEnumStructureTokens(allocator, AccessSpecifier::Internal);
+        case TokenType::StructKw:
+            return (ASTNode*) parseStructStructureTokens(allocator, AccessSpecifier::Internal);
+        case TokenType::UnionKw:
+            return (ASTNode*) parseUnionStructureTokens(allocator, AccessSpecifier::Internal);
+        case TokenType::VariantKw:
+            return (ASTNode*) parseVariantStructureTokens(allocator, AccessSpecifier::Internal);
+        case TokenType::TypealiasKw:
+            return (ASTNode*) parseTypealiasStatement(allocator, AccessSpecifier::Internal);
+        case TokenType::InterfaceKw:
+            return (ASTNode*) parseInterfaceStructureTokens(allocator, AccessSpecifier::Internal);
+        case TokenType::ImplKw:
+            return (ASTNode*) parseImplTokens(allocator, AccessSpecifier::Internal);
+        case TokenType::IfKw:
+            return (ASTNode*) parseIfStatement(allocator, false, false, true);
+        case TokenType::FuncKw:
+            return (ASTNode*) parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, true, true);
+        case TokenType::NamespaceKw:
+            return (ASTNode*) parseNamespace(allocator, AccessSpecifier::Internal);
+        default:
+            return nullptr;
     }
-    auto comment = parseSingleLineComment(allocator);
-    if(comment) {
-        return (ASTNode*) comment;
-    }
-    auto multiline = parseMultiLineComment(allocator);
-    if(multiline) {
-        return (ASTNode*) multiline;
-    }
-    auto init = parseVarInitializationTokens(allocator, AccessSpecifier::Internal, true);
-    if(init) {
-        return (ASTNode*) init;
-    }
-    auto usingStmt = parseUsingStatement(allocator);
-    if(usingStmt) {
-        return (ASTNode*) usingStmt;
-    }
-    auto provideStmt = parseProvideStatement(allocator);
-    if(provideStmt) {
-        return (ASTNode*) provideStmt;
-    }
-    auto comptimeBlock = parseComptimeBlock(allocator);
-    if(comptimeBlock) {
-        return (ASTNode*) comptimeBlock;
-    }
-    auto enumDecl = parseEnumStructureTokens(allocator, AccessSpecifier::Internal);
-    if(enumDecl) {
-        return (ASTNode*) enumDecl;
-    }
-    auto structDecl = parseStructStructureTokens(allocator, AccessSpecifier::Internal);
-    if(structDecl) {
-        return (ASTNode*) structDecl;
-    }
-    auto unionDecl = parseUnionStructureTokens(allocator, AccessSpecifier::Internal);
-    if(unionDecl) {
-        return (ASTNode*) unionDecl;
-    }
-    auto variantDecl = parseVariantStructureTokens(allocator, AccessSpecifier::Internal);
-    if(variantDecl) {
-        return (ASTNode*) variantDecl;
-    }
-    auto alias = parseTypealiasStatement(allocator, AccessSpecifier::Internal);
-    if(alias) {
-        return (ASTNode*) alias;
-    }
-    auto interface = parseInterfaceStructureTokens(allocator, AccessSpecifier::Internal);
-    if(interface) {
-        return (ASTNode*) interface;
-    }
-    auto impl = parseImplTokens(allocator, AccessSpecifier::Internal);
-    if(impl) {
-        return (ASTNode*) impl;
-    }
-    auto ifStmt = parseIfStatement(allocator, false, false, true);
-    if(ifStmt) {
-        return (ASTNode*) ifStmt;
-    }
-    auto funcDecl = parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, true, true);
-    if(funcDecl) {
-        return (ASTNode*) funcDecl;
-    }
-    auto ns = parseNamespace(allocator, AccessSpecifier::Internal);
-    if(ns) {
-        return (ASTNode*) ns;
-    }
-    return nullptr;
 }
 
 ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool is_value, bool parse_value_node) {

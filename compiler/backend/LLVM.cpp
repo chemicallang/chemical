@@ -486,16 +486,23 @@ llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto secondType = secondValue->create_type(gen.allocator);
     auto first_pure = firstType->pure_type();
     auto second_pure = secondType->pure_type();
-    replace_number_values(first_pure, second_pure);
-    shrink_literal_values(first_pure, second_pure);
-    promote_literal_values(first_pure, second_pure);
+    // promote literal values is using gen allocator
+    // TODO there's probably a better way of doing this
+    auto prev_firstValue = firstValue;
+    auto prev_secondValue = secondValue;
+    replace_number_values(gen.allocator, first_pure, second_pure);
+    shrink_literal_values(gen.allocator, first_pure, second_pure);
+    promote_literal_values(gen.allocator, first_pure, second_pure);
     firstType = firstValue->create_type(gen.allocator);
     first_pure = firstType->pure_type();
     secondType = secondValue->create_type(gen.allocator);
     second_pure = secondType->pure_type();
     auto logical = llvm_logical_expr(gen, first_pure, second_pure);
     if(logical) return logical;
-    return gen.operate(operation, firstValue, secondValue, first_pure, second_pure);
+    auto value = gen.operate(operation, firstValue, secondValue, first_pure, second_pure);
+    firstValue = prev_firstValue;
+    secondValue = prev_secondValue;
+    return value;
 }
 
 // a || b

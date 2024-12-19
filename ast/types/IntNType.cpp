@@ -33,53 +33,53 @@ const LongType LongType::instance32Bit(false, ZERO_LOC);
 const ULongType ULongType::instance64Bit(true, ZERO_LOC);
 const ULongType ULongType::instance32Bit(false, ZERO_LOC);
 
-Value *IntType::create(int64_t value) {
-    return new IntValue(value, ZERO_LOC);
+Value *IntType::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<IntValue>()) IntValue(value, ZERO_LOC);
 }
 
-Value *CharType::create(int64_t value) {
-    return new CharValue(value, location);
+Value *CharType::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<CharValue>()) CharValue(value, location);
 }
 
-Value *UCharType::create(int64_t value) {
-    return new UCharValue(value, location);
+Value *UCharType::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<UCharValue>()) UCharValue(value, location);
 }
 
-Value *UIntType::create(int64_t value) {
-    return new UIntValue(value, location);
+Value *UIntType::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<UIntValue>()) UIntValue(value, location);
 }
 
-Value *ShortType::create(int64_t value) {
-    return new ShortValue(value, location);
+Value *ShortType::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<ShortValue>()) ShortValue(value, location);
 }
 
-Value *UShortType::create(int64_t value) {
-    return new UShortValue(value, location);
+Value *UShortType::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<UShortValue>()) UShortValue(value, location);
 }
 
-Value *LongType::create(int64_t value) {
-    return new LongValue(value, num_bits() == 64, location);
+Value *LongType::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<LongValue>()) LongValue(value, num_bits() == 64, location);
 }
 
-Value *ULongType::create(int64_t value) {
-    return new ULongValue(value, num_bits() == 64, location);
+Value *ULongType::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<ULongValue>()) ULongValue(value, num_bits() == 64, location);
 }
 
-Value *BigIntType::create(int64_t value) {
+Value *BigIntType::create(ASTAllocator& allocator, int64_t value) {
     return new BigIntValue(value, location);
 }
 
-Value *UBigIntType::create(int64_t value) {
-    return new UBigIntValue(value, location);
+Value *UBigIntType::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, location);
 }
 
-Value *Int128Type::create(int64_t value) {
+Value *Int128Type::create(ASTAllocator& allocator, int64_t value) {
     bool is_neg = value < 0;
-    return new Int128Value(is_neg ? -value : value, is_neg, location);
+    return new (allocator.allocate<Int128Value>()) Int128Value(is_neg ? -value : value, is_neg, location);
 }
 
-Value *UInt128Type::create(int64_t value) {
-    return new UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, location);
+Value *UInt128Type::create(ASTAllocator& allocator, int64_t value) {
+    return new (allocator.allocate<UInt128Value>()) UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, location);
 }
 
 constexpr inline bool isExe64Bit() {

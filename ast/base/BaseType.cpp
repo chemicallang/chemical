@@ -179,10 +179,6 @@ bool BaseType::requires_copy_fn() {
     }
 }
 
-std::unique_ptr<Value> BaseType::promote_unique(Value* value) {
-    return std::unique_ptr<Value>(promote(value));
-}
-
 ASTNode* BaseType::get_direct_linked_node(BaseTypeKind kind) {
     switch(kind) {
         case BaseTypeKind::Linked:

@@ -28,7 +28,7 @@ public:
         visitor->visit(this);
     }
 
-    Value *create(int64_t value) final;
+    Value *create(ASTAllocator& allocator, int64_t value) final;
 
     [[nodiscard]]
     BaseTypeKind kind() const final {

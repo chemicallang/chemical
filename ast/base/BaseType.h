@@ -163,14 +163,9 @@ public:
      * Refer to can_promote for documentation
      * \see can_promote
      */
-    virtual Value* promote(Value* value) {
+    virtual Value* promote(ASTAllocator& allocator, Value* value) {
         return nullptr;
     }
-
-    /**
-     * a helper function
-     */
-    std::unique_ptr<Value> promote_unique(Value* value);
 
     /**
      * check if given base type is of same type

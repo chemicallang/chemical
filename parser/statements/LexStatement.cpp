@@ -11,6 +11,8 @@
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/values/CastedValue.h"
 #include "ast/statements/ThrowStatement.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/NullValue.h"
 
 ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator) {
     auto specifier = parseAccessSpecifier();
@@ -204,6 +206,21 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
             return (Value*) parseAddrOfValue(allocator);
         case TokenType::MultiplySym:
             return (Value*) parseDereferenceValue(allocator);
+        case TokenType::NullKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<NullValue>()) NullValue(loc_single(t));
+        }
+        case TokenType::TrueKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<BoolValue>()) BoolValue(true, loc_single(t));
+        }
+        case TokenType::FalseKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<BoolValue>()) BoolValue(false, loc_single(t));
+        }
         default:
             return (Value*) parseAccessChain(allocator, false);
     }

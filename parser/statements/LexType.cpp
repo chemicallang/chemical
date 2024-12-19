@@ -212,44 +212,43 @@ BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, Source
  */
 BaseType* Parser::parseType(ASTAllocator& allocator) {
 
-    auto t1 = consumeOfType(TokenType::LBracket);
-    if(t1) {
-        if(!consumeToken(TokenType::RBracket)) {
-            error("expected ']' after '[' for lambda type");
-            return nullptr;
-        }
-        lexWhitespaceToken();
-        auto lambdaType = parseLambdaType(allocator, true);
-        if(lambdaType) {
-            return lambdaType;
-        } else {
-            error("expected a lambda type after '[]'");
-            return nullptr;
-        }
-    }
-
-    auto lambdaType = parseLambdaType(allocator, false);
-    if(lambdaType) {
-        return lambdaType;
-    }
-
-    auto ptrToken = consumeOfType(TokenType::MultiplySym);
-    if(ptrToken) {
-        auto is_mutable = token->type == TokenType::MutKw;
-        if(is_mutable) {
+    switch(token->type) {
+        case TokenType::LBracket:{
             token++;
-            readWhitespace();
+            if(!consumeToken(TokenType::RBracket)) {
+                error("expected ']' after '[' for lambda type");
+                return nullptr;
+            }
+            lexWhitespaceToken();
+            auto lambdaType = parseLambdaType(allocator, true);
+            if(lambdaType) {
+                return lambdaType;
+            } else {
+                error("expected a lambda type after '[]'");
+                return nullptr;
+            }
         }
-        auto type = parseType(allocator);
-        if(type) {
-            return new (allocator.allocate<PointerType>()) PointerType(type, loc_single(ptrToken), is_mutable);
-        } else {
-            error("expected a type after the *");
-            return nullptr;
+        case TokenType::LParen:
+            return parseLambdaType(allocator, false);
+        case TokenType::MultiplySym: {
+            const auto ptrToken = token;
+            token++;
+            auto is_mutable = token->type == TokenType::MutKw;
+            if (is_mutable) {
+                token++;
+                readWhitespace();
+            }
+            auto type = parseType(allocator);
+            if (type) {
+                return new(allocator.allocate<PointerType>()) PointerType(type, loc_single(ptrToken), is_mutable);
+            } else {
+                error("expected a type after the *");
+                return nullptr;
+            }
         }
-    } else {
-        auto refToken = consumeOfType(TokenType::AmpersandSym);
-        if(refToken) {
+        case TokenType::AmpersandSym: {
+            const auto refToken = token;
+            token++;
             auto is_mutable = token->type == TokenType::MutKw;
             if(is_mutable) {
                 token++;
@@ -263,20 +262,21 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
                 return nullptr;
             }
         }
-    }
-
-    auto dynToken = consumeWSOfType(TokenType::DynKw);
-    if(dynToken) {
-        auto type = parseType(allocator);
-        if(type) {
-            return make_dynamic_type(allocator, type, loc_single(dynToken));
-        } else {
-            error("expected a type after the qualifier");
-            return nullptr;
+        case TokenType::DynKw: {
+            const auto dynToken = token;
+            token++;
+            readWhitespace();
+            auto type = parseType(allocator);
+            if (type) {
+                return make_dynamic_type(allocator, type, loc_single(dynToken));
+            } else {
+                error("expected a type after the qualifier");
+                return nullptr;
+            }
         }
-    } else {
-        auto mutToken = consumeWSOfType(TokenType::MutKw);
-        if(mutToken) {
+        case TokenType::MutKw: {
+            token++;
+            readWhitespace();
             auto type = parseType(allocator);
             if(type) {
                 type->make_mutable(type->kind());
@@ -286,7 +286,10 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
                 return nullptr;
             }
         }
+        default:
+            break;
     }
+
     auto typeToken = token;
     const auto idType = typeToken->type;
     if(Token::isKeywordOrId(idType)) {

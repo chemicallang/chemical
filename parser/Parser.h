@@ -289,16 +289,14 @@ public:
     Value* parseAccessChainRecursive(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct = false);
 
     /**
-     * this method does not compound the access chain, so can be called recursively
-     * this method is called by lexAccessChain to not compound access chains nested in it
-     * @param assChain is the access chain in an assignment
-     */
-    bool lexAccessChainRecursive(bool lexStruct = false, unsigned int chain_length = 0);
-
-    /**
      * parse access chain
      */
     Value* parseAccessChain(ASTAllocator& allocator, bool parseStruct = false);
+
+    /**
+     * parse access chain or a value like null, false, true
+     */
+    Value* parseAccessChainOrKwValue(ASTAllocator& allocator, bool parseStruct = false);
 
     /**
      * parses a single addr of value

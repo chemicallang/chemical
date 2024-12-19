@@ -48,22 +48,33 @@ Token* Parser::consumeWSOfType(enum TokenType type) {
     }
 }
 
+Value* Parser::parseAccessChainOrKwValue(ASTAllocator& allocator, bool parseStruct) {
+    switch(token->type) {
+        case TokenType::NullKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<NullValue>()) NullValue(loc_single(t));
+        }
+        case TokenType::TrueKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<BoolValue>()) BoolValue(true, loc_single(t));
+        }
+        case TokenType::FalseKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<BoolValue>()) BoolValue(false, loc_single(t));
+        }
+        default:
+            return parseAccessChain(allocator, parseStruct);
+    }
+}
+
 Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
     auto id = consumeIdentifierOrKeyword();
     if(id == nullptr) {
         return nullptr;
-    }
-
-    switch(id->type) {
-        case TokenType::NullKw:
-            return new (allocator.allocate<NullValue>()) NullValue(loc_single(token));
-        case TokenType::TrueKw:
-            return new (allocator.allocate<BoolValue>()) BoolValue(true, loc_single(token));
-        case TokenType::FalseKw:
-            return new (allocator.allocate<BoolValue>()) BoolValue(false, loc_single(token));
-        default:
-            break;
     }
 
     auto tokenType = token->type;
@@ -105,7 +116,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 AddrOfValue* Parser::parseAddrOfValue(ASTAllocator& allocator) {
     auto token1 = consumeOfType(TokenType::AmpersandSym);
     if (token1) {
-        auto chain = parseAccessChain(allocator, true);
+        auto chain = parseAccessChainOrKwValue(allocator, true);
         if (chain) {
             return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, loc_single(token1));
         } else {
@@ -120,7 +131,7 @@ AddrOfValue* Parser::parseAddrOfValue(ASTAllocator& allocator) {
 DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
     auto token2 = consumeOfType(TokenType::MultiplySym);
     if (token2) {
-        auto chain = parseAccessChain(allocator, false);
+        auto chain = parseAccessChainOrKwValue(allocator, false);
         if (chain) {
             return new(allocator.allocate<DereferenceValue>()) DereferenceValue(chain, loc_single(token2));
         } else {
@@ -133,28 +144,29 @@ DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
 }
 
 Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruct) {
-    auto token1 = consumeOfType(TokenType::AmpersandSym);
-    if (token1) {
-        auto chain = parseAccessChain(allocator, true);
-        if (chain) {
-            return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, loc_single(token1));
-        } else {
-            error("expected a value after '&' for address of");
-            return nullptr;
+    switch (token->type) {
+        case TokenType::AmpersandSym:
+            return (Value*) parseAddrOfValue(allocator);
+        case TokenType::MultiplySym:
+            return (Value*) parseDereferenceValue(allocator);
+        case TokenType::NullKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<NullValue>()) NullValue(loc_single(t));
         }
-    } else {
-        auto token2 = consumeOfType(TokenType::MultiplySym);
-        if (token2) {
-            auto chain = parseAccessChain(allocator, false);
-            if (chain) {
-                return new(allocator.allocate<DereferenceValue>()) DereferenceValue(chain, loc_single(token2));
-            } else {
-                error("expected a value after '*' for dereference");
-                return nullptr;
-            }
+        case TokenType::TrueKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<BoolValue>()) BoolValue(true, loc_single(t));
         }
+        case TokenType::FalseKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<BoolValue>()) BoolValue(false, loc_single(t));
+        }
+        default:
+            return (Value*) parseAccessChain(allocator, parseStruct);
     }
-    return parseAccessChain(allocator, parseStruct);
 }
 
 Value* Parser::parseAccessChainRecursive(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct) {

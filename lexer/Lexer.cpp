@@ -253,6 +253,17 @@ void read_id(SerialStrAllocator& str, SourceProvider& provider) {
     }
 }
 
+void read_annotation_id(SerialStrAllocator& str, SourceProvider& provider) {
+    while(true) {
+        auto p = provider.peek();
+        if(p == '_' || p == '.' || p == ':' || std::isalnum(p)) {
+            str.append(provider.readCharacter());
+        } else {
+            return;
+        }
+    }
+}
+
 // text that occurs inside chemical string, inside double quotes
 // we stop at any backslash or double quote
 void read_str_text(SerialStrAllocator& str, SourceProvider& provider) {
@@ -450,8 +461,11 @@ Token Lexer::getNextToken() {
             return Token(TokenType::CommaSym, view_str(CommaOpCStr), pos);
         case ';':
             return Token(TokenType::SemiColonSym, view_str(SemiColOpCStr), pos);
-        case '@':
-            return Token(TokenType::AtSym, view_str(AnnotationAtCStr), pos);
+        case '@': {
+            str.append('@');
+            read_annotation_id(str, provider);
+            return Token(TokenType::Annotation, str.finalize_view(), pos);
+        }
         case '#': {
             str.append('#');
             read_id(str, provider);

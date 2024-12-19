@@ -683,16 +683,6 @@ public:
     Value* parseMacroValue(ASTAllocator& allocator);
 
     /**
-     * parses the null value, otherwise returns nullptr
-     */
-    Value* parseNull(ASTAllocator& allocator);
-
-    /**
-     * parses a bool value otherwise returns nullptr
-     */
-    Value* parseBoolValue(ASTAllocator& allocator);
-
-    /**
      * parses a number value
      */
     Value* parseNumberValue(ASTAllocator& allocator);
@@ -701,11 +691,6 @@ public:
      * parses struct value after the identifier
      */
     StructValue* parseStructValue(ASTAllocator& allocator, BaseType* refType, Position& start);
-
-    /**
-     * values like integer and string, but appearing in access chain
-     */
-    Value* parseAccessChainValueToken(ASTAllocator& allocator);
 
     /**
      * parses array initialization

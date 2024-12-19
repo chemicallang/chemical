@@ -124,29 +124,6 @@ Value* Parser::parseStringValue(ASTAllocator& allocator) {
     }
 }
 
-Value* Parser::parseBoolValue(ASTAllocator& allocator) {
-    auto first = consumeOfType(TokenType::TrueKw);
-    if(first) {
-        return new (allocator.allocate<BoolValue>()) BoolValue(true, loc_single(token));
-    } else {
-        auto second = consumeOfType(TokenType::FalseKw);
-        if(second) {
-            return new (allocator.allocate<BoolValue>()) BoolValue(false, loc_single(token));
-        } else {
-            return nullptr;
-        }
-    }
-}
-
-Value* Parser::parseNull(ASTAllocator& allocator) {
-    auto current = consumeOfType(TokenType::NullKw);
-    if(current) {
-        return new (allocator.allocate<NullValue>()) NullValue(loc_single(token));
-    } else {
-        return nullptr;
-    }
-}
-
 Value* Parser::parseNumberValue(ASTAllocator& allocator) {
     if(token->type == TokenType::Number) {
         // we take the mutable value of the token
@@ -171,18 +148,6 @@ VariableIdentifier* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
     } else {
         return nullptr;
     }
-}
-
-Value* Parser::parseAccessChainValueToken(ASTAllocator& allocator) {
-    auto charVal = parseCharValue(allocator);
-    if(charVal) return charVal;
-    auto strVal = parseStringValue(allocator);
-    if(strVal) return strVal;
-    auto lambVal = parseLambdaValue(allocator);
-    if(lambVal) return lambVal;
-    auto numbVal = parseNumberValue(allocator);
-    if(numbVal) return numbVal;
-    return nullptr;
 }
 
 Value* Parser::parseArrayInit(ASTAllocator& allocator) {
@@ -338,43 +303,35 @@ entry:
 
 Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct) {
     const auto start_token = token;
-    auto ifStmt = parseIfStatement(allocator, true, true, false);
-    if(ifStmt) {
-        return ifStmt;
+    switch(start_token->type) {
+        case TokenType::IfKw:
+            return parseIfStatement(allocator, true, true, false);
+        case TokenType::SwitchKw:
+            return parseSwitchStatementBlock(allocator, true, true);
+        case TokenType::LoopKw:
+            return parseLoopBlockTokens(allocator, true);
+        case TokenType::NewKw:
+            return parseNewValue(allocator);
+        case TokenType::SingleQuoteSym:
+            return parseAfterValue(allocator, (Value*) parseCharValue(allocator), start_token);
+        case TokenType::DoubleQuoteSym:
+            return parseAfterValue(allocator, (Value*) parseStringValue(allocator), start_token);
+        case TokenType::LBracket:
+            return parseLambdaValue(allocator);
+        case TokenType::Number:
+            return parseAfterValue(allocator, (Value*) parseNumberValue(allocator), start_token);
+        case TokenType::NotSym:
+            return parseAfterValue(allocator, (Value*) parseNotValue(allocator), start_token);
+        case TokenType::MinusSym:
+            return parseAfterValue(allocator, (Value*) parseNegativeValue(allocator), start_token);
+        case TokenType::HashMacro:
+            return parseAfterValue(allocator, parseMacroValue(allocator), start_token);
+        default:
+            auto ac = parseAccessChainOrAddrOf(allocator, parseStruct);
+            if(ac) {
+                return parseAfterValue(allocator, ac, start_token);
+            }
     }
-    auto switchStmt = parseSwitchStatementBlock(allocator, true, true);
-    if(switchStmt) {
-        return switchStmt;
-    }
-    auto loopBlk = parseLoopBlockTokens(allocator, true);
-    if(loopBlk) {
-        return loopBlk;
-    }
-    auto newValue = parseNewValue(allocator);
-    if(newValue) {
-        return newValue;
-    }
-    auto acValue = parseAccessChainValueToken(allocator);
-    if(acValue) {
-        return parseAfterValue(allocator, acValue, start_token);
-    }
-    auto notValue = parseNotValue(allocator);
-    if(notValue) {
-        return parseAfterValue(allocator, (Value*) notValue, start_token);
-    }
-    auto negValue = parseNegativeValue(allocator);
-    if(negValue) {
-        return parseAfterValue(allocator, (Value*) negValue, start_token);
-    }
-    auto ac = parseAccessChainOrAddrOf(allocator, parseStruct);
-    if(ac) {
-        return parseAfterValue(allocator, ac, start_token);
-    }
-    auto macroVal = parseMacroValue(allocator);
-    if(macroVal) {
-        return parseAfterValue(allocator, macroVal, start_token);
-    }
-    return nullptr;
 }
 
 ValueNode* Parser::parseValueNode(ASTAllocator& allocator) {

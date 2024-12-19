@@ -12,10 +12,9 @@ bool DoubleType::can_promote(Value *value) {
     return value->primitive() && value->value_type() == ValueType::Int;
 }
 
-Value *DoubleType::promote(Value *value) {
+Value *DoubleType::promote(ASTAllocator& allocator, Value *value) {
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        // TODO VERY IMPORTANT not allocating using an allocator
-        return new DoubleValue((double) value->get_the_int(), value->encoded_location());
+        return new (allocator.allocate<DoubleValue>()) DoubleValue((double) value->get_the_int(), value->encoded_location());
     } else {
         return nullptr;
     }
@@ -25,10 +24,9 @@ bool FloatType::can_promote(Value *value) {
     return value->primitive() && value->value_type() == ValueType::Int;
 }
 
-Value *FloatType::promote(Value *value) {
+Value *FloatType::promote(ASTAllocator& allocator, Value *value) {
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        // TODO VERY IMPORTANT not allocating using an allocator
-        return new FloatValue((float) value->get_the_int(), value->encoded_location());
+        return new (allocator.allocate<FloatValue>()) FloatValue((float) value->get_the_int(), value->encoded_location());
     } else {
         return nullptr;
     }
@@ -38,11 +36,10 @@ bool Float128Type::can_promote(Value *value) {
     return value->primitive() && value->value_type() == ValueType::Int;
 }
 
-Value *Float128Type::promote(Value *value) {
+Value *Float128Type::promote(ASTAllocator& allocator, Value *value) {
     // TODO promote it to a float 128 type instead
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        // TODO VERY IMPORTANT not allocating using an allocator
-        return new FloatValue((float) value->get_the_int(), value->encoded_location());
+        return new (allocator.allocate<FloatValue>()) FloatValue((float) value->get_the_int(), value->encoded_location());
     } else {
         return nullptr;
     }
@@ -52,11 +49,10 @@ bool LongDoubleType::can_promote(Value *value) {
     return value->primitive() && value->value_type() == ValueType::Int;
 }
 
-Value *LongDoubleType::promote(Value *value) {
+Value *LongDoubleType::promote(ASTAllocator& allocator, Value *value) {
     // TODO promote it to a float 128 type instead
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        // TODO VERY IMPORTANT not allocating using an allocator
-        return new FloatValue((float) value->get_the_int(), value->encoded_location());
+        return new (allocator.allocate<FloatValue>()) FloatValue((float) value->get_the_int(), value->encoded_location());
     } else {
         return nullptr;
     }
@@ -66,6 +62,6 @@ bool ComplexType::can_promote(Value *value) {
     return false;
 }
 
-Value *ComplexType::promote(Value *value) {
+Value *ComplexType::promote(ASTAllocator& allocator, Value *value) {
     return nullptr;
 }

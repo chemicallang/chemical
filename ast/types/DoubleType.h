@@ -39,7 +39,7 @@ public:
 
     bool can_promote(Value *value) final;
 
-    Value *promote(Value *value) final;
+    Value *promote(ASTAllocator& allocator, Value *value) final;
 
     bool is_same(BaseType *type) final {
         return type->kind() == BaseTypeKind::Double;

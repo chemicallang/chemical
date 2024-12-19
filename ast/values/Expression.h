@@ -65,7 +65,7 @@ public:
      * @param firstType type of the first value
      * @param secondType type of the second value
      */
-    void replace_number_values(BaseType* firstType, BaseType* secondType);
+    void replace_number_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType);
 
     /**
      *
@@ -79,7 +79,7 @@ public:
      * @param firstType type of the first value
      * @param secondType type of the second value
      */
-    void shrink_literal_values(BaseType* firstType, BaseType* secondType);
+    void shrink_literal_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType);
 
     /**
      * promote values when the types don't match
@@ -89,7 +89,7 @@ public:
      * this promotion is done before code_gen
      *
      */
-    void promote_literal_values(BaseType* firstType, BaseType* secondType);
+    void promote_literal_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType);
 
     uint64_t byte_size(bool is64Bit) final;
 

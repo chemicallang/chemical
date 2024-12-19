@@ -91,101 +91,57 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
 }
 
 ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool is_value, bool parse_value_node) {
-    auto comment = parseSingleLineComment(allocator);
-    if(comment) {
-        return (ASTNode*) comment;
-    }
-    auto multiline = parseMultiLineComment(allocator);
-    if(multiline) {
-        return (ASTNode*) multiline;
-    }
-    auto init = parseVarInitializationTokens(allocator, AccessSpecifier::Internal);
-    if(init) {
-        return (ASTNode*) init;
-    }
-    auto importStmt = parseImportStatement(allocator);
-    if(importStmt) {
-        return (ASTNode*) importStmt;
-    }
-    auto initBlock = parseConstructorInitBlock(allocator);
-    if(initBlock) {
-        return (ASTNode*) initBlock;
-    }
-    auto unsafeBlock = parseUnsafeBlock(allocator);
-    if(unsafeBlock) {
-        return (ASTNode*) unsafeBlock;
-    }
-    auto breakStmt = parseBreakStatement(allocator);
-    if(breakStmt) {
-        return (ASTNode*) breakStmt;
-    }
-    auto continueStmt = parseContinueStatement(allocator);
-    if(continueStmt) {
-        return (ASTNode*) continueStmt;
-    }
-    auto unrStmt = parseUnreachableStatement(allocator);
-    if(unrStmt) {
-        return (ASTNode*) unrStmt;
-    }
-    auto returnStmt = parseReturnStatement(allocator);
-    if(returnStmt) {
-        return (ASTNode*) returnStmt;
-    }
-    auto destructStmt = parseDestructStatement(allocator);
-    if(destructStmt) {
-        return (ASTNode*) destructStmt;
-    }
-    auto throwStmt = parseThrowStatement(allocator);
-    if(throwStmt) {
-        return (ASTNode*) throwStmt;
-    }
-    auto usingStmt = parseUsingStatement(allocator);
-    if(usingStmt) {
-        return (ASTNode*) usingStmt;
-    }
-    auto provideStmt = parseProvideStatement(allocator);
-    if(provideStmt) {
-        return (ASTNode*) provideStmt;
-    }
-    auto comptimeBlock = parseComptimeBlock(allocator);
-    if(comptimeBlock) {
-        return (ASTNode*) comptimeBlock;
-    }
-    auto ifStmt = parseIfStatement(allocator, is_value, parse_value_node, false);
-    if(ifStmt) {
-        return (ASTNode*) ifStmt;
-    }
-    auto tryCatch = parseTryCatch(allocator);
-    if(tryCatch) {
-        return (ASTNode*) tryCatch;
-    }
-    auto alias = parseTypealiasStatement(allocator, AccessSpecifier::Internal);
-    if(alias) {
-        return (ASTNode*) alias;
-    }
-    auto switchStmt = parseSwitchStatementBlock(allocator, is_value, parse_value_node);
-    if(switchStmt) {
-        return (ASTNode*) switchStmt;
-    }
-    auto loopBlock = parseLoopBlockTokens(allocator, is_value);
-    if(loopBlock) {
-        return (ASTNode*) loopBlock;
-    }
-    auto forLoop = parseForLoop(allocator);
-    if(forLoop) {
-        return (ASTNode*) forLoop;
-    }
-    auto doWhile = parseDoWhileLoop(allocator);
-    if(doWhile) {
-        return (ASTNode*) doWhile;
-    }
-    auto whileLoop = parseWhileLoop(allocator);
-    if(whileLoop) {
-        return (ASTNode*) whileLoop;
-    }
-    auto assignment = parseAssignmentStmt(allocator);
-    if(assignment) {
-        return assignment;
+    switch(token->type) {
+        case TokenType::SingleLineComment:
+            return (ASTNode*) parseSingleLineComment(allocator);
+        case TokenType::MultiLineComment:
+            return (ASTNode*) parseMultiLineComment(allocator);
+        case TokenType::VarKw:
+        case TokenType::ConstKw:
+            return (ASTNode*) parseVarInitializationTokens(allocator, AccessSpecifier::Internal);
+        case TokenType::ImportKw:
+            return (ASTNode*) parseImportStatement(allocator);
+        case TokenType::InitKw:
+            return (ASTNode*) parseConstructorInitBlock(allocator);
+        case TokenType::UnsafeKw:
+            return (ASTNode*) parseUnsafeBlock(allocator);
+        case TokenType::BreakKw:
+            return (ASTNode*) parseBreakStatement(allocator);
+        case TokenType::ContinueKw:
+            return (ASTNode*) parseContinueStatement(allocator);
+        case TokenType::UnreachableKw:
+            return (ASTNode*) parseUnreachableStatement(allocator);
+        case TokenType::ReturnKw:
+            return (ASTNode*) parseReturnStatement(allocator);
+        case TokenType::DestructKw:
+            return (ASTNode*) parseDestructStatement(allocator);
+        case TokenType::ThrowKw:
+            return (ASTNode*) parseThrowStatement(allocator);
+        case TokenType::UsingKw:
+            return (ASTNode*) parseUsingStatement(allocator);
+        case TokenType::ProvideKw:
+            return (ASTNode*) parseProvideStatement(allocator);
+        case TokenType::ComptimeKw:
+            return (ASTNode*) parseComptimeBlock(allocator);
+        case TokenType::IfKw:
+            return (ASTNode*) parseIfStatement(allocator, is_value, parse_value_node, false);
+        case TokenType::TryKw:
+            return (ASTNode*) parseTryCatch(allocator);
+        case TokenType::TypealiasKw:
+            return (ASTNode*) parseTypealiasStatement(allocator, AccessSpecifier::Internal);
+        case TokenType::SwitchKw:
+            return (ASTNode*) parseSwitchStatementBlock(allocator, is_value, parse_value_node);
+        case TokenType::LoopKw:
+            return (ASTNode*) parseLoopBlockTokens(allocator, is_value);
+        case TokenType::ForKw:
+            return (ASTNode*) parseForLoop(allocator);
+        case TokenType::DoKw:
+            return (ASTNode*) parseDoWhileLoop(allocator);
+        case TokenType::WhileKw:
+            return (ASTNode*) parseWhileLoop(allocator);
+        default:
+            return parseAssignmentStmt(allocator);
+
     }
 }
 

@@ -113,39 +113,56 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
 }
 
 bool Parser::parseVariableMemberInto(VariablesContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier) {
-    auto member = parseStructMember(allocator);
-    if(member) {
-        annotate(member);
-        decl->variables[member->name] = member;
-        return true;
+    switch(token->type) {
+        case TokenType::VarKw:
+        case TokenType::ConstKw: {
+            auto member = parseStructMember(allocator);
+            if (member) {
+                annotate(member);
+                decl->variables[member->name] = member;
+                return true;
+            }
+            return false;
+        }
+        case TokenType::SingleLineComment: {
+            auto comment = parseSingleLineComment(allocator);
+            if (comment) {
+                // TODO store comments somewhere
+                return true;
+            }
+            return false;
+        }
+        case TokenType::MultiLineComment: {
+            auto multilineComment = parseMultiLineComment(allocator);
+            if (multilineComment) {
+                // TODO store multiline comments somewhere
+                return true;
+            }
+            return false;
+        }
+        case TokenType::Annotation:
+            return parseAnnotation(allocator);
+        case TokenType::StructKw:{
+            auto unnamedStruct = parseUnnamedStruct(allocator, specifier);
+            if(unnamedStruct) {
+                annotate(unnamedStruct);
+                decl->variables[unnamedStruct->name] = unnamedStruct;
+                return true;
+            }
+            return false;
+        }
+        case TokenType::UnionKw:{
+            auto unionStructure = parseUnnamedUnion(allocator, specifier);
+            if(unionStructure) {
+                annotate(unionStructure);
+                decl->variables[unionStructure->name] = unionStructure;
+                return true;
+            }
+            return false;
+        }
+        default:
+            return false;
     }
-    auto comment = parseSingleLineComment(allocator);
-    if(comment) {
-        // TODO store comments somewhere
-        return true;
-    }
-    auto multilineComment = parseMultiLineComment(allocator);
-    if(multilineComment) {
-        // TODO store multiline comments somewhere
-        return true;
-    }
-    auto unionStructure = parseUnnamedUnion(allocator, specifier);
-    if(unionStructure) {
-        annotate(unionStructure);
-        decl->variables[unionStructure->name] = unionStructure;
-        return true;
-    }
-    auto unnamedStruct = parseUnnamedStruct(allocator, specifier);
-    if(unnamedStruct) {
-        annotate(unnamedStruct);
-        decl->variables[unnamedStruct->name] = unnamedStruct;
-        return true;
-    }
-    auto annotation = parseAnnotation(allocator);
-    if(annotation) {
-        return true;
-    }
-    return false;
 }
 
 bool Parser::parseVariableAndFunctionInto(MembersContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier) {

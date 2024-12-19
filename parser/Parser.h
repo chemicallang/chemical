@@ -301,6 +301,16 @@ public:
     Value* parseAccessChain(ASTAllocator& allocator, bool parseStruct = false);
 
     /**
+     * parses a single addr of value
+     */
+    AddrOfValue* parseAddrOfValue(ASTAllocator& allocator);
+
+    /**
+     * parses a single dereference value
+     */
+    DereferenceValue* parseDereferenceValue(ASTAllocator& allocator);
+
+    /**
      * it lexes a access chain, but allows a '&' operator before it to get the address of value
      * so this allows a.b.c or &a.b.c
      */

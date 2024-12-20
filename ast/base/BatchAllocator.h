@@ -19,19 +19,11 @@ class BatchAllocator {
 public:
 
     friend class SerialStrAllocator;
-    friend class SerialAllocStrBuilder;
-
-    template<typename T>
-    friend class SerialVecBuilder;
 
     /**
      * constructor
      */
-    BatchAllocator(
-            char* stackMemory,
-            std::size_t stackSize,
-            std::size_t heapBatchSize
-    );
+    BatchAllocator(std::size_t heapBatchSize);
 
     /**
      * move constructor
@@ -73,21 +65,6 @@ public:
 protected:
 
     /**
-     * the stack memory used to store objects on stack instead of heap
-     * given by the user
-     */
-    char* stack_memory;
-    /**
-     * the stack size is given by the user
-     */
-    std::size_t stack_memory_size;
-    /**
-     * how much of the stack memory has been consumed
-     * by default initialized to zero
-     */
-    std::size_t stack_offset;
-
-    /**
      * heap memory is a vector of bytes (multiple), with the vector we batch heap allocations
      * after initialize StackSize allocated on stack ends, we allocate another StackSize memory
      * but on heap, and we keep using it for objects until that ends, we allocate another StackSize
@@ -110,20 +87,6 @@ protected:
     std::mutex* allocator_mutex;
 
     /**
-     * get aligned stack offset
-     */
-    inline std::size_t get_aligned_stack_offset(std::size_t alignment) {
-        return (stack_offset + alignment - 1) & ~(alignment - 1);
-    }
-
-    /**
-     * get aligned heap offset
-     */
-    inline std::size_t get_aligned_heap_offset(std::size_t alignment) {
-        return (heap_offset + alignment - 1) & ~(alignment - 1);
-    }
-
-    /**
      * does what it says
      */
     void destroy_memory();
@@ -135,18 +98,8 @@ protected:
     char* reserve_heap_storage();
 
     /**
-     * helper function to get moved heap pointer
-     */
-    char* offset_heap(char* const heap_ptr, std::size_t obj_size, std::size_t alignment);
-
-    /**
      * provides a pointer for the given obj size, increments heap_current
      */
     char* object_heap_pointer(std::size_t obj_size, std::size_t alignment);
-
-    /**
-     * allocate will be called, without any mutex and pointer will not be stored
-     */
-    char* allocate_raw(std::size_t obj_size, std::size_t alignment);
 
 };

@@ -93,6 +93,74 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
     return new_modules;
 }
 
+namespace fs = std::filesystem;
+
+/**
+ * save mod timestamp data (modified date and file size) in a file that can be read later and compared
+ * to check if files have changed
+ */
+void save_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& output_file) {
+    std::ofstream ofs(output_file.data(), std::ios::binary);
+    size_t num_files = files.size();
+    ofs.write(reinterpret_cast<const char*>(&num_files), sizeof(num_files));
+    for (const auto file : files) {
+        auto& file_abs_path = file->abs_path;
+        fs::path file_path(file_abs_path);
+        if (fs::exists(file_path)) {
+            uintmax_t file_size = fs::file_size(file_path);
+            auto mod_time = fs::last_write_time(file_path);
+            size_t file_str_size = file_abs_path.size();
+            ofs.write(reinterpret_cast<const char*>(&file_str_size), sizeof(file_str_size));
+            ofs.write(file_abs_path.data(), (std::streamsize) file_str_size);
+            ofs.write(reinterpret_cast<const char*>(&file_size), sizeof(file_size));
+            ofs.write(reinterpret_cast<const char*>(&mod_time), sizeof(mod_time));
+        }
+    }
+}
+
+bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& prev_timestamp_file) {
+    std::ifstream ifs(prev_timestamp_file.data(), std::ios::binary);
+
+    if (!ifs.is_open()) {
+        return false;
+    }
+
+    size_t prev_num_files;
+    ifs.read(reinterpret_cast<char*>(&prev_num_files), sizeof(prev_num_files));
+
+    if (prev_num_files != files.size()) {
+        return false;
+    }
+
+    for (const auto& file : files) {
+        fs::path file_path(file);
+        if (fs::exists(file_path)) {
+            uintmax_t current_file_size = fs::file_size(file_path);
+            auto current_mod_time = fs::last_write_time(file_path);
+
+            size_t file_str_size;
+            ifs.read(reinterpret_cast<char*>(&file_str_size), sizeof(file_str_size));
+
+            std::string prev_file_str(file_str_size, '\0');
+            ifs.read(&prev_file_str[0], (std::streamsize) file_str_size);
+
+            uintmax_t prev_file_size;
+            ifs.read(reinterpret_cast<char*>(&prev_file_size), sizeof(prev_file_size));
+
+            fs::file_time_type prev_mod_time;
+            ifs.read(reinterpret_cast<char*>(&prev_mod_time), sizeof(prev_mod_time));
+
+            if (prev_file_str != file_path.string() || prev_file_size != current_file_size || prev_mod_time != current_mod_time) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 LabBuildCompiler::LabBuildCompiler(CompilerBinder& binder, LabBuildCompilerOptions *options) : binder(binder), options(options), pool((int) std::thread::hardware_concurrency()) {
 
 }
@@ -324,28 +392,34 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     for(auto mod : dependencies) {
         mod_index++;
 
-#ifdef COMPILER_BUILD
-        // let c translator know that a new module has begin
-        // so it can re-declare imported c headers
-        cTranslator.module_begin();
-#endif
-
         auto found = generated.find(mod);
         if(found != generated.end() && job_type != LabJobType::ToCTranslation) {
             exe->linkables.emplace_back(found->second);
             continue;
         }
 
+        auto module_dir_path = resolve_rel_child_path_str(exe_build_dir, mod->name.to_std_string());
+        auto mod_obj_path = resolve_rel_child_path_str(module_dir_path,  (is_use_obj_format ? "object.o" : "object.bc"));
+        auto mod_timestamp_file = resolve_rel_child_path_str(module_dir_path, "timestamp.dat");
+        const auto mod_dir_exists = fs::exists(module_dir_path);
+        if(!mod_dir_exists) {
+            fs::create_directory(module_dir_path);
+        }
+
+#ifdef COMPILER_BUILD
+        // let c translator know that a new module has begin
+        // so it can re-declare imported c headers
+        cTranslator.module_begin();
+#endif
+
         if(job_type == LabJobType::Executable || job_type == LabJobType::Library) {
-            auto obj_path = resolve_rel_child_path_str(exe_build_dir, mod->name.to_std_string() +
-                                                                      (is_use_obj_format ? ".o" : ".bc"));
             if (is_use_obj_format || mod->type == LabModuleType::CFile) {
                 if (mod->object_path.empty()) {
-                    mod->object_path.append(obj_path);
+                    mod->object_path.append(mod_obj_path);
                 }
             } else {
                 if (mod->bitcode_path.empty()) {
-                    mod->bitcode_path.append(obj_path);
+                    mod->bitcode_path.append(mod_obj_path);
                 }
             }
         }
@@ -654,6 +728,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 }
                 exe->linkables.emplace_back(obj_path);
                 generated[mod] = obj_path;
+                save_mod_timestamp(flattened_files, mod_timestamp_file);
             }
 
             // writing the translated c file (if user required)
@@ -741,6 +816,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
                 if(gen_path) {
                     exe->linkables.emplace_back(gen_path);
+                    save_mod_timestamp(flattened_files, mod_timestamp_file);
                     generated[mod] = gen_path;
                 }
             } else {

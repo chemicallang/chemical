@@ -26,7 +26,7 @@ struct GenDestruct<T> {
 
     var count : *int
 
-    var lamb : (count : *int) => void;
+    var lamb : (count : *mut int) => void;
 
     @delete
     func delete(&self) {
@@ -43,7 +43,7 @@ struct GenDestructOwner {
     var d : GenDestruct<long>
 }
 
-func create_long_gen_dest(data : long, count : *int, lamb : (count : *int) => void) : GenDestruct<long> {
+func create_long_gen_dest(data : long, count : *int, lamb : (count : *mut int) => void) : GenDestruct<long> {
     return GenDestruct<long> {
         data : data,
         count : count,
@@ -51,7 +51,7 @@ func create_long_gen_dest(data : long, count : *int, lamb : (count : *int) => vo
     }
 }
 
-func create_short_gen_dest(data : short, count : *int, lamb : (count : *int) => void) : GenDestruct<short> {
+func create_short_gen_dest(data : short, count : *int, lamb : (count : *mut int) => void) : GenDestruct<short> {
     return GenDestruct<short> {
         data : data,
         count : count,

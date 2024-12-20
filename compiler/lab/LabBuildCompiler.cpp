@@ -180,6 +180,18 @@ std::vector<ASTFileResultNew*> flatten(std::vector<ASTFileResultNew*>& files) {
     return flat_out;
 }
 
+namespace fs = std::filesystem;
+
+bool copyFile(const fs::path& sourcePath, const fs::path& destinationPath) {
+    try {
+        fs::copy_file(sourcePath, destinationPath, fs::copy_options::overwrite_existing);
+        return true;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+        return false;
+    }
+}
+
 int LabBuildCompiler::process_modules(LabJob* exe) {
 
     const auto job_type = exe->type;
@@ -385,7 +397,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             if (compile_result == 1) {
                 break;
             }
-        } else if (mod->type == LabModuleType::ObjFile || mod->type == LabModuleType::CFile) {
+        } else if (mod->type == LabModuleType::ObjFile
+#ifdef COMPILER_BUILD
+|| mod->type == LabModuleType::CFile
+#endif
+        ) {
             continue;
         }
 
@@ -651,7 +667,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     }
                 }
                 if(!out_path.empty()) {
-                    writeToFile(out_path, program);
+                    if(mod->type == LabModuleType::CFile) {
+                        copyFile(mod->paths[0].to_view(), out_path);
+                    } else {
+                        writeToFile(out_path, program);
+                    }
                 }
 #ifdef DEBUG
                 else {

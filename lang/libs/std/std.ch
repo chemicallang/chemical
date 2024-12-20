@@ -9,17 +9,17 @@ if(compiler::is_clang()) {
     public typealias size_t = ubigint
 }
 
-public func malloc(size : size_t) : *void
+public func malloc(size : size_t) : *mut void
 
-public func realloc(block : *any, size : size_t) : *void
+public func realloc(block : *mut any, size : size_t) : *mut void
 
-public func free(block : *any)
+public func free(block : *mut any)
 
 public func memcpy(
-    _Dst : *any,
+    _Dst : *mut any,
     _Src : *any,
     _Size : size_t
-) : *void;
+) : *mut void;
 
 public func strlen(
     _Str : *char

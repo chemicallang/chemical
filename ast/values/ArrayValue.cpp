@@ -209,7 +209,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
         }
     } else if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
         const auto arr_type = (ArrayType*) expected_type;
-        elemType = arr_type->elem_type;
+        elemType = arr_type->elem_type->copy(*linker.ast_allocator);
     }
     auto& current_func_type = *linker.current_func_type;
     auto& known_elem_type = elemType;

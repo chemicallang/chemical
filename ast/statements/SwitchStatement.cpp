@@ -52,7 +52,7 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
     bool auto_default_case = false;
 
     llvm::Value* expr_value = expression->llvm_value(gen);
-    const auto expr_type = expression->known_type();
+    const auto expr_type = expression->create_type(gen.allocator);
     if(expr_type) {
         const auto linked = expr_type->linked_node();
         if(linked) {

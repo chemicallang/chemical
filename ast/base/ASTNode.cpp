@@ -240,7 +240,7 @@ bool ASTNode::set_comptime(bool value) {
     }
 }
 
-BaseType* ASTNode::get_stored_value_type(ASTNodeKind k) {
+BaseType* ASTNode::get_stored_value_type(ASTAllocator& allocator, ASTNodeKind k) {
     switch(k) {
         case ASTNodeKind::StructMember:
             return as_struct_member_unsafe()->type;
@@ -254,7 +254,7 @@ BaseType* ASTNode::get_stored_value_type(ASTNodeKind k) {
             if (init->type) {
                 return init->type;
             } else {
-                return init->value->known_type();
+                return init->value->create_type(allocator);
             }
         }
         default:
@@ -262,18 +262,18 @@ BaseType* ASTNode::get_stored_value_type(ASTNodeKind k) {
     }
 }
 
-bool ASTNode::is_stored_ptr_or_ref(ASTNodeKind k) {
-    const auto type = get_stored_value_type(k);
+bool ASTNode::is_stored_ptr_or_ref(ASTAllocator& allocator, ASTNodeKind k) {
+    const auto type = get_stored_value_type(allocator, k);
     return type != nullptr && type->is_pointer_or_ref();
 }
 
-bool ASTNode::is_ptr_or_ref(ASTNodeKind k) {
+bool ASTNode::is_ptr_or_ref(ASTAllocator& allocator, ASTNodeKind k) {
     switch(k) {
         case ASTNodeKind::FunctionParam:
         case ASTNodeKind::ExtensionFuncReceiver:
             return as_base_func_param_unsafe()->type->is_pointer_or_ref();
         default:
-            return is_stored_ptr_or_ref(k);
+            return is_stored_ptr_or_ref(allocator, k);
     }
 }
 

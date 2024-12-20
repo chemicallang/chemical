@@ -436,6 +436,11 @@ public:
     }
 
     /**
+     * symbol resolve a file
+     */
+    void resolve_mod_file(Scope& scope, const std::string& abs_path);
+
+    /**
      * symbol resolves a file
      */
     void resolve_file(Scope& scope, const std::string& abs_path);

@@ -78,29 +78,11 @@ void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imp
 }
 
 /**
- * it creates a flat vector containing pointers to lab modules, sorted
- *
- * It de-dupes, meaning avoids duplicates, it won't add two pointers
- * that are same, so dependencies that occur again and again, would
- * only be compiled once
- *
- * why sort ? Modules that should be compiled first are present first
- * The first module that should be compiled is at zero index, The last
- * module would be the given module, compiled at last
+ * same as above, only it operates on multiple modules, it de-dupes the dependent modules
+ * of the given list of modules and also sorts them
  * TODO
  * 1 - avoid direct cyclic dependencies a depends on b and b depends on a
  * 2 - avoid indirect cyclic dependencies a depends on b and b depends on c and c depends on a
- */
-std::vector<LabModule*> flatten_dedupe_sorted(LabModule* mod) {
-    std::vector<LabModule*> modules;
-    std::unordered_map<LabModule*, bool> imported;
-    recursive_dedupe(mod, imported, modules);
-    return modules;
-}
-
-/**
- * same as above, only it operates on multiple modules, it de-dupes the dependent modules
- * of the given list of modules and also sorts them
  */
 std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules) {
     std::vector<LabModule*> new_modules;
@@ -172,6 +154,11 @@ void print_results(ASTFileResultNew& result, const std::string& abs_path, bool b
     std::cout << std::flush;
 }
 
+/**
+ * TODO
+ * 1 - avoid direct cyclic dependencies a depends on b and b depends on a
+ * 2 - avoid indirect cyclic dependencies a depends on b and b depends on c and c depends on a
+ */
 void flatten(std::vector<ASTFileResultNew*>& flat_out, std::unordered_map<std::string_view, bool>& done_files, ASTFileResultNew* single_file) {
     for(auto& file : single_file->imports) {
         flatten(flat_out, done_files, file);
@@ -411,22 +398,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             std::cout << "at path '" << mod_data_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
         }
 
-        // get flat file map of this module
-//        flat_imports = processor.determine_mod_imports(mod);
-
-        // send all files for concurrent processing (lex and parse)
-//        std::vector<std::future<ASTFileResultExt>> futures;
-//        futures.reserve(flat_imports.size());
-//        i = 0;
-//        for(const auto& file : flat_imports) {
-//            auto already_imported = processor.shrinked_unit.find(file.abs_path);
-//            if(already_imported == processor.shrinked_unit.end()) {
-//                const auto fileId = loc_man.encodeFile(file.abs_path);
-//                futures.emplace_back(pool.push(concurrent_processor, fileId, file, &processor));
-//                i++;
-//            }
-//        }
-
         std::vector<ASTFileResultNew*> module_files;
         processor.determine_mod_imports(pool, module_files, mod);
 
@@ -454,10 +425,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 auto& scope = imported_file.unit.scope;
                 auto& nodes = scope.nodes;
                 resolver.resolve_file(scope, abs_path);
+                std::vector<ASTNode*> imported_generics;
 #ifdef COMPILER_BUILD
-                processor.compile_nodes(gen, nodes, abs_path);
+                processor.compile_nodes(gen, imported_generics, nodes, abs_path);
 #else
-                processor.translate_to_c(c_visitor, nodes, abs_path);
+                processor.translate_to_c(c_visitor, imported_generics, nodes, abs_path);
 #endif
             }
         }
@@ -496,9 +468,45 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 #endif
 
+        // get the files flattened
+        auto flattened_files = flatten(module_files);
+
+        // clear imported generics, will be recreated by symbol resolution below
+        resolver.imported_generic.clear();
+
+        // sequentially symbol resolve all the files in the module
+        for(auto file_ptr : flattened_files) {
+
+            auto& file = *file_ptr;
+
+            auto imported = processor.shrinked_unit.find(file.abs_path);
+            bool already_imported = imported != processor.shrinked_unit.end();
+
+            // symbol resolution
+            if(!already_imported) {
+                processor.sym_res_file(file.unit.scope, file.is_c_file, file.abs_path);
+                if (resolver.has_errors && !options->ignore_errors) {
+                    compile_result = 1;
+                    break;
+                }
+                resolver.reset_errors();
+            }
+
+            // move imported generics in the file
+            file_ptr->imported_generics.reserve(resolver.imported_generic.size());
+            for(auto& node : resolver.imported_generic) {
+                file_ptr->imported_generics.emplace_back(node.first);
+            }
+            resolver.imported_generic.clear();
+
+            // clear everything allocated during symbol resolution of current file
+            file_allocator->clear();
+
+        }
+
+
         // sequentially compile each file
         i = 0;
-        auto flattened_files = flatten(module_files);
         for(auto file_ptr : flattened_files) {
 
             auto& file = *file_ptr;
@@ -544,16 +552,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 break;
             }
 
-            // symbol resolution
-            if(!already_imported) {
-                processor.sym_res(unit.scope, result.is_c_file, file.abs_path);
-                if (resolver.has_errors && !options->ignore_errors) {
-                    compile_result = 1;
-                    break;
-                }
-                resolver.reset_errors();
-            }
-
             if(use_tcc) {
                 // reset the c visitor to use with another file
                 c_visitor.reset();
@@ -566,7 +564,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     }
                 } else {
                     // translating to c
-                    processor.translate_to_c(c_visitor, unit.scope.nodes, file.abs_path);
+                    processor.translate_to_c(c_visitor, file.imported_generics, unit.scope.nodes, file.abs_path);
                 }
             }
 #ifdef COMPILER_BUILD
@@ -575,12 +573,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     auto declared_in = unit.declared_in.find(mod);
                     if(declared_in == unit.declared_in.end()) {
                         // this is probably a different module, so we'll declare the file (if not declared)
-                        processor.declare_nodes(gen, unit.scope, file.abs_path);
+                        processor.declare_nodes(gen, file.imported_generics, unit.scope, file.abs_path);
                         unit.declared_in[mod] = true;
                     }
                 } else {
                     // compiling the nodes
-                    processor.compile_nodes(gen, unit.scope.nodes, file.abs_path);
+                    processor.compile_nodes(gen, file.imported_generics, unit.scope.nodes, file.abs_path);
                 }
             }
 #endif
@@ -594,6 +592,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
             // clear everything we allocated using file allocator to make it re-usable
             file_allocator->clear();
+
+            // clear imported generics, as imported generics are being compiled by the first file in the module
+            // we may want to separate that, we don't want to recompile them
+            resolver.imported_generic.clear();
 
         }
 
@@ -1022,7 +1024,12 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             c_visitor.reset();
 
             // translate build.lab file to c
-            lab_processor.translate_to_c(c_visitor, result.unit.scope.nodes, file.abs_path);
+            std::vector<ASTNode*> imported_generics;
+            imported_generics.reserve(lab_resolver.imported_generic.size());
+            for(auto& node : lab_resolver.imported_generic) {
+                imported_generics.emplace_back(node.first);
+            }
+            lab_processor.translate_to_c(c_visitor, imported_generics, result.unit.scope.nodes, file.abs_path);
 
             // shrinking the nodes
             lab_processor.shrink_nodes(shrinker, std::move(result.unit), file.abs_path);

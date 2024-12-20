@@ -2446,6 +2446,23 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     }
 }
 
+void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def);
+
+// just generates the remaining functions of the generic variant
+void gen_variant_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
+    const auto total_itr = def->total_generic_iterations();
+    if(total_itr == 0) return; // generic type never used (yet)
+    int16_t itr = def->iterations_body_done;
+    auto prev = def->active_iteration;
+    while (itr < total_itr) {
+        def->set_active_iteration(itr);
+        generate_contained_functions(visitor, def);
+        itr++;
+    }
+    def->set_active_iteration(prev);
+    def->iterations_body_done = total_itr;
+}
+
 void CTopLevelDeclarationVisitor::visit(VariantDefinition *def) {
     if(def->generic_params.empty()) {
         if(redefining) {
@@ -2466,6 +2483,8 @@ void CTopLevelDeclarationVisitor::visit(VariantDefinition *def) {
             itr++;
         }
         def->iterations_declared = total;
+        // generating remaining functions of the variant (bodies)
+        gen_variant_functions(visitor, def);
     }
 }
 
@@ -3485,17 +3504,7 @@ void ToCAstVisitor::visit(VariantDefinition* def) {
             def->iterations_body_done = 1;
         }
     } else {
-        const auto total_itr = def->total_generic_iterations();
-        if(total_itr == 0) return; // generic type never used (yet)
-        int16_t itr = def->iterations_body_done;
-        auto prev = def->active_iteration;
-        while (itr < total_itr) {
-            def->set_active_iteration(itr);
-            generate_contained_functions(*this, def);
-            itr++;
-        }
-        def->set_active_iteration(prev);
-        def->iterations_body_done = total_itr;
+        gen_variant_functions(*this, def);
     }
 
 }

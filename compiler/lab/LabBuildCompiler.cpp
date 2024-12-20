@@ -861,11 +861,10 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     // set the build context
     build_context = &context;
 
-    const auto lab_stack_size = 100000; // 100kb for the whole lab operations
-    auto lab_stack_memory = (char*) malloc(lab_stack_size);
+    const auto lab_mem_size = 100000; // 100kb for the whole lab operations
 
     // the allocator is used in lab
-    ASTAllocator lab_allocator(lab_stack_memory, lab_stack_size, lab_stack_size);
+    ASTAllocator lab_allocator(lab_mem_size);
 
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
@@ -1068,15 +1067,12 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 int LabBuildCompiler::do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*, void*)) {
 
     // allocating ast allocators
-    const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
-    const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
-    const auto file_stack_size = 50000; // 50 kb will be allocated on the stack
-    auto job_stack_memory = (char*) malloc(job_stack_size);
-    auto mod_stack_memory = (char*) malloc(mod_stack_size);
-    auto file_stack_memory = (char*) malloc(file_stack_size);
-    ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
-    ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
-    ASTAllocator _file_allocator(file_stack_memory, file_stack_size, file_stack_size);
+    const auto job_mem_size = 100000; // 100 kb
+    const auto mod_mem_size = 100000; // 100 kb
+    const auto file_mem_size = 100000; // 100 kb
+    ASTAllocator _job_allocator(job_mem_size);
+    ASTAllocator _mod_allocator(mod_mem_size);
+    ASTAllocator _file_allocator(file_mem_size);
 
     // the allocators that will be used for all jobs
     prepare(
@@ -1130,15 +1126,12 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     int job_result = 0;
 
     // allocating ast allocators
-    const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
-    const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
-    const auto file_stack_size = 50000; // 50 kb will be allocated on the stack
-    auto job_stack_memory = (char*) malloc(job_stack_size);
-    auto mod_stack_memory = (char*) malloc(mod_stack_size);
-    auto file_stack_memory = (char*) malloc(file_stack_size);
-    ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
-    ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
-    ASTAllocator _file_allocator(file_stack_memory, file_stack_size, file_stack_size);
+    const auto job_mem_size = 100000; // 100 kb
+    const auto mod_mem_size = 100000; // 100 kb
+    const auto file_mem_size = 100000; // 100 kb
+    ASTAllocator _job_allocator(job_mem_size);
+    ASTAllocator _mod_allocator(mod_mem_size);
+    ASTAllocator _file_allocator(file_mem_size);
 
     // the allocators that will be used for all jobs
     job_allocator = &_job_allocator;

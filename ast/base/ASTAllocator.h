@@ -23,8 +23,6 @@ public:
      * constructor
      */
     ASTAllocator(
-        char* stackMemory,
-        std::size_t stackSize,
         std::size_t heapBatchSize
     );
 
@@ -53,21 +51,6 @@ public:
      * allocate a pointer with given object size and store the pointer
      */
     char* allocate_size(std::size_t obj_size, std::size_t alignment);
-
-    /**
-     * this is the index at which next allocation will be
-     * saved in this allocator, you can use this index to kill
-     * values
-     */
-    std::size_t next_allocation_index();
-
-    /**
-     * at the given index (inclusive) we start removing values
-     * until the end, after this, when you query next_allocation_index
-     * the given index should be returned, because all values before it
-     * have been deleted
-     */
-    void clear_values_from(std::size_t start);
 
     /**
      * when called, will free everything, and make this allocator available

@@ -211,7 +211,7 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const std::string& id)
 void param_type_with_id(ToCAstVisitor& visitor, BaseType* type, const std::string& id) {
     const auto node = type->get_direct_linked_node();
     if(node && (node->as_struct_def() || node->as_variant_def())) {
-        PointerType ptr_type(type, ZERO_LOC);
+        PointerType ptr_type(type, ZERO_LOC, true);
         type_with_id(visitor, &ptr_type, id);
     } else {
         type_with_id(visitor, type, id);
@@ -862,13 +862,15 @@ void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, B
     }
 }
 
-void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bool initialize = true) {
+void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bool initialize = true, bool is_extern = false) {
     if(init->is_comptime()) {
         return;
     }
     visitor.debug_comment("var_init defining the value");
     if(is_static) {
         visitor.write("static ");
+    } else if(is_extern) {
+        visitor.write("extern ");
     }
     auto init_type = init->type ? init->type : init->value->create_type(visitor.allocator);
     value_alloca_store(visitor, init->identifier(), init_type, initialize ? init->value : nullptr);
@@ -2106,7 +2108,8 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
 void CTopLevelDeclarationVisitor::visit(VarInitStatement *init) {
     if(!init->is_top_level()) return;
     visitor.new_line_and_indent();
-    var_init(visitor, init, !init->is_exported(), !redefining);
+    const auto is_exported = init->is_exported();
+    var_init(visitor, init, !is_exported, !redefining, is_exported && redefining);
 }
 
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, const std::string& name);
@@ -4703,7 +4706,11 @@ void ToCAstVisitor::visit(LongType *func) {
 
 void ToCAstVisitor::visit(PointerType *func) {
     func->type->accept(this);
-    write('*');
+    if(func->is_mutable) {
+        write('*');
+    } else {
+        write(" const*");
+    }
 }
 
 void ToCAstVisitor::visit(ReferenceType* func) {

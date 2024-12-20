@@ -43,12 +43,21 @@ enum class OutputMode {
      * This mode is same as release, except the code generated might be a little slow, This mode
      * keeps the executable size down, It may sacrifice performance to do that
      */
-    ReleaseSmall
+    ReleaseSmall,
+
+    /**
+     * safe code will be preferred over fast code
+     */
+    ReleaseSafe
 
 };
 
 inline bool is_debug(OutputMode mode) {
-    return mode == OutputMode::Debug || mode == OutputMode::DebugComplete;
+    return mode == OutputMode::Debug || mode == OutputMode::DebugQuick || mode == OutputMode::DebugComplete;
+}
+
+inline bool is_release(OutputMode mode) {
+    return !is_debug(mode);
 }
 
 class CodegenEmitterOptions;

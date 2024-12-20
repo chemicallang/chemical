@@ -1348,6 +1348,14 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) 
     // we change the global interpret scope for each job, so we must redeclare def value
     scope.values["def"] = &defThing.defValue;
     const auto boolType = new (allocator.allocate<BoolType>()) BoolType(ZERO_LOC);
+    const auto mode = scope.build_compiler->options->def_mode;
+    defThing.declare_value(allocator, "debug", boolType, boolValue(allocator, is_debug(mode)));
+    defThing.declare_value(allocator, "debug_quick", boolType, boolValue(allocator, mode == OutputMode::DebugQuick));
+    defThing.declare_value(allocator, "debug_complete", boolType, boolValue(allocator, mode == OutputMode::DebugComplete));
+    defThing.declare_value(allocator, "release", boolType, boolValue(allocator, is_release(mode)));
+    defThing.declare_value(allocator, "release_safe", boolType, boolValue(allocator, mode == OutputMode::ReleaseSafe));
+    defThing.declare_value(allocator, "release_small", boolType, boolValue(allocator, mode == OutputMode::ReleaseSmall));
+    defThing.declare_value(allocator, "release_fast", boolType, boolValue(allocator, mode == OutputMode::ReleaseFast));
     defThing.declare_value(allocator, "is64Bit", boolType, boolValue(allocator, targetData.is_64Bit));
     defThing.declare_value(allocator, "windows", boolType, boolValue(allocator, targetData.is_windows));
     defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, targetData.is_win32));

@@ -953,6 +953,28 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
         std::vector<ASTFileResultNew*> files_to_flatten = { &blResult };
         auto module_files = flatten(files_to_flatten);
 
+        // symbol resolve all the files first
+        for(const auto file_ptr : module_files) {
+
+            auto& file = *file_ptr;
+
+            // symbol resolution
+            lab_processor.sym_res_file(file.unit.scope, file.is_c_file, file.abs_path);
+            if (lab_resolver.has_errors && !options->ignore_errors) {
+                compile_result = false;
+                break;
+            }
+            lab_resolver.reset_errors();
+
+            // move the imported generics to the file
+            file_ptr->imported_generics.reserve(lab_resolver.imported_generic.size());
+            for(auto& node : lab_resolver.imported_generic) {
+                file_ptr->imported_generics.emplace_back(node.first);
+            }
+            lab_resolver.imported_generic.clear();
+
+        }
+
         // processing each build.lab file and creating C output
         int i = 0;
         for (const auto file_ptr : module_files) {
@@ -970,14 +992,6 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
                 std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
                 print_results(result, file.abs_path, options->benchmark);
             }
-
-            // symbol resolution
-            lab_processor.sym_res(result.unit.scope, result.is_c_file, file.abs_path);
-            if (lab_resolver.has_errors && !options->ignore_errors) {
-                compile_result = false;
-                break;
-            }
-            lab_resolver.reset_errors();
 
             // the last build.lab file is whose build method is to be called
             bool is_last = i == module_files.size() - 1;
@@ -1024,12 +1038,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             c_visitor.reset();
 
             // translate build.lab file to c
-            std::vector<ASTNode*> imported_generics;
-            imported_generics.reserve(lab_resolver.imported_generic.size());
-            for(auto& node : lab_resolver.imported_generic) {
-                imported_generics.emplace_back(node.first);
-            }
-            lab_processor.translate_to_c(c_visitor, imported_generics, result.unit.scope.nodes, file.abs_path);
+            lab_processor.translate_to_c(c_visitor, file.imported_generics, result.unit.scope.nodes, file.abs_path);
 
             // shrinking the nodes
             lab_processor.shrink_nodes(shrinker, std::move(result.unit), file.abs_path);

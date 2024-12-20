@@ -782,14 +782,7 @@ llvm::Value* llvm_next_value(
 
 void AccessChain::code_gen(Codegen &gen) {
     auto value = llvm_value(gen, nullptr);
-    const auto call = values.back()->as_func_call();
-    if(call) {
-        auto ret_type = call->create_type(gen.allocator);
-        auto linked_struct = ret_type->linked_struct_def();
-        if(linked_struct) {
-            linked_struct->llvm_destruct(gen, value);
-        }
-    }
+    llvm_destruct(gen, value);
 }
 
 llvm::Type *AccessChain::llvm_type(Codegen &gen) {

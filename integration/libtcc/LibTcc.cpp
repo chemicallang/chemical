@@ -58,7 +58,12 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
 
     if (debug) {
         // generates slower code in debug versions, but allows proper debugging
-        tcc_set_options(s, "-g -b -bt 4");
+        // it would be helpful to set -b but that's not working on my system
+        // -b
+        // Generate additional support code to check memory allocations and array/pointer bounds. -g is implied. Note that the generated code is slower and bigger in this case.
+        // Note: -b is only available on i386 when using libtcc for the moment.
+        // -bt N Display N callers in stack traces. This is useful with -g or -b.
+        tcc_set_options(s, "-g -bt 4");
         tcc_set_backtrace_func(s, nullptr, [](void *udata, void *pc, const char *file, int line, const char *func,
                                               const char *msg) {
             std::cerr << "[Tcc] error '" << msg << "' in runtime function " << func << " in file "

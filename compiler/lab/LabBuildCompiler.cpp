@@ -645,7 +645,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             // compiling the c program, if required
             if(do_compile) {
                 auto obj_path = mod->object_path.to_std_string();
-                compile_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, is_debug(options->def_mode));
+                compile_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, options->def_mode == OutputMode::DebugComplete);
                 if (compile_result == 1) {
                     const auto out_path = resolve_sibling(obj_path, mod->name.to_std_string() + ".debug.c");
                     writeToFile(out_path, program);
@@ -1052,7 +1052,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
     // compiling the c output from build.labs
     const auto& str = output_ptr.str();
-    auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", true, is_debug(options->def_mode));
+    auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", true, options->def_mode == OutputMode::DebugComplete);
 
     if(state == nullptr) {
         const auto out_path = resolve_rel_child_path_str(context.build_dir, "build.lab.c");

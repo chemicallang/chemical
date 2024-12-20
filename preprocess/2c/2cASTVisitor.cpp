@@ -459,7 +459,7 @@ bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value
 }
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
-    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_stored_ptr_or_ref()) {
+    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_stored_ptr_or_ref(allocator)) {
         write('&');
     }
     if(!implicit_mutate_value_default(*this, type, value)) {
@@ -497,7 +497,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             visitor.write(" = ");
             visitor.write('*');
         }
-        if((param->type->is_reference(param_type_kind) && !val->is_stored_ptr_or_ref()) || is_struct_param || is_variant_param) {
+        if((param->type->is_reference(param_type_kind) && !val->is_stored_ptr_or_ref(visitor.allocator)) || is_struct_param || is_variant_param) {
             auto allocated = visitor.local_allocated.find(val);
             visitor.write('&');
             if(allocated != visitor.local_allocated.end()) {
@@ -3766,7 +3766,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
         }, [&]() {
             auto prev = visitor.nested_value;
             visitor.nested_value = true;
-            if(!values[end - 2]->is_stored_ptr_or_ref()) {
+            if(!values[end - 2]->is_stored_ptr_or_ref(visitor.allocator)) {
                 visitor.write('&');
             }
             access_chain(visitor, values, start, end - 2);

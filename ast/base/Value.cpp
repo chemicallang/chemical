@@ -232,13 +232,13 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
 
     unsigned i = 1;
 
-    const auto is_stored = parent->is_stored_ptr_or_ref();
+    const auto is_stored = parent->is_stored_ptr_or_ref(gen.allocator);
     if(is_stored && i <= until) {
         pointer = gen.builder->CreateLoad(parent->llvm_type(gen), pointer);
     }
 
     while (i <= until) {
-        if(i + 1 <= until && values[i]->is_stored_ptr_or_ref()) {
+        if(i + 1 <= until && values[i]->is_stored_ptr_or_ref(gen.allocator)) {
             llvm::Value* gep;
             if(idxList.empty()) {
                 gep = pointer;
@@ -405,20 +405,20 @@ uint64_t Value::byte_size(bool is64Bit) {
 #endif
 }
 
-BaseType* Value::get_stored_value_type() {
+BaseType* Value::get_stored_value_type(ASTAllocator& allocator) {
     auto linked = linked_node();
-    return linked ? linked->get_stored_value_type(linked->kind()) : nullptr;
+    return linked ? linked->get_stored_value_type(allocator, linked->kind()) : nullptr;
 }
 
 // stored pointer into a variable, that must be loaded, before using
-bool Value::is_stored_ptr_or_ref() {
+bool Value::is_stored_ptr_or_ref(ASTAllocator& allocator) {
     auto linked = linked_node();
-    return linked != nullptr && linked->is_stored_ptr_or_ref();
+    return linked != nullptr && linked->is_stored_ptr_or_ref(allocator);
 }
 
-bool Value::is_ptr_or_ref() {
+bool Value::is_ptr_or_ref(ASTAllocator& allocator) {
     auto linked = linked_node();
-    return linked != nullptr && linked->is_ptr_or_ref(linked->kind());
+    return linked != nullptr && linked->is_ptr_or_ref(allocator, linked->kind());
 }
 
 bool Value::is_ref() {

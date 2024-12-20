@@ -92,6 +92,11 @@ struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
     std::vector<ASTFileResult*> imports;
 
     /**
+     * used when generating code
+     */
+    std::vector<ASTNode*> imported_generics;
+
+    /**
      * if read error occurred this would contain it
      */
     std::string read_error;
@@ -288,6 +293,11 @@ public:
     /**
      * function that performs symbol resolution
      */
+    void sym_res_file(Scope& scope, bool is_c_file, const std::string& abs_path);
+
+    /**
+     * function that performs symbol resolution
+     */
     void sym_res(Scope& scope, bool is_c_file, const std::string& abs_path);
 
     /**
@@ -301,21 +311,10 @@ public:
      */
     void translate_to_c(
         ToCAstVisitor& visitor,
+        std::vector<ASTNode*>& imported_generics,
         std::vector<ASTNode*>& import_res,
         const std::string& file
     );
-
-    /**
-     * translates given import result to c using visitor
-     * doesn't perform symbol resolution
-     */
-    inline void translate_to_c(
-            ToCAstVisitor& visitor,
-            Scope& import_res,
-            const FlatIGFile& file
-    ) {
-        translate_to_c(visitor, import_res.nodes, file.abs_path);
-    }
 
     /**
      * declare the nodes in C, this is called
@@ -344,6 +343,7 @@ public:
      */
     void compile_nodes(
             Codegen& gen,
+            std::vector<ASTNode*>& imported_generics,
             std::vector<ASTNode*>& nodes,
             const std::string_view& abs_path
     );
@@ -351,19 +351,9 @@ public:
     /**
      * compile nodes using code generator
      */
-    inline void compile_nodes(
-        Codegen& gen,
-        Scope& import_res,
-        const FlatIGFile &file
-    ) {
-        compile_nodes(gen, import_res.nodes, file.abs_path);
-    }
-
-    /**
-     * compile nodes using code generator
-     */
     void declare_nodes(
         Codegen& gen,
+        std::vector<ASTNode*>& imported_generics,
         Scope& import_res,
         const std::string& file
     );

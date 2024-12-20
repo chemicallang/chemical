@@ -218,6 +218,47 @@ std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
     }
 }
 
+void ASTProcessor::sym_res_file(Scope& scope, bool is_c_file, const std::string& abs_path) {
+    // doing stuff
+    auto prev_has_errors = resolver->has_errors;
+    if (is_c_file) {
+        previous = std::move(resolver->diagnostics);
+    }
+    std::unique_ptr<BenchmarkResults> bm_results;
+    if(options->benchmark) {
+        bm_results = std::make_unique<BenchmarkResults>();
+        bm_results->benchmark_begin();
+    }
+    if(is_c_file) {
+        resolver->override_symbols = true;
+        for(const auto node : scope.nodes) {
+            // TODO VERY IMPORTANT this id will die here, we are declaring it as a string view
+            auto id = node->ns_node_identifier();
+            if(id.empty()) {
+                // TODO handle empty declarations, for example C contains
+                // empty enum declarations, where members can be linked directly
+                // enum {  Mem1, Mem2 }
+            } else {
+                resolver->declare(id, node);
+            }
+        }
+        resolver->override_symbols = false;
+    } else {
+        resolver->resolve_mod_file(scope, abs_path);
+    }
+    if(options->benchmark) {
+        bm_results->benchmark_end();
+        print_benchmarks(std::cout, "SymRes", bm_results.get());
+    }
+    if(!resolver->diagnostics.empty()) {
+        resolver->print_diagnostics(abs_path, "SymRes");
+    }
+    if (is_c_file) {
+        resolver->diagnostics = std::move(previous);
+        resolver->has_errors = prev_has_errors;
+    }
+}
+
 void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_path) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
@@ -232,6 +273,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     if(is_c_file) {
         resolver->override_symbols = true;
         for(const auto node : scope.nodes) {
+            // TODO VERY IMPORTANT this id will die here, we are declaring it as a string view
             auto id = node->ns_node_identifier();
             if(id.empty()) {
                 // TODO handle empty declarations, for example C contains
@@ -507,6 +549,7 @@ void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, co
 
 void ASTProcessor::translate_to_c(
         ToCAstVisitor& visitor,
+        std::vector<ASTNode*>& imported_generics,
         std::vector<ASTNode*>& nodes,
         const std::string& abs_path
 ) {
@@ -515,11 +558,6 @@ void ASTProcessor::translate_to_c(
     if(options->benchmark) {
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
-    }
-    std::vector<ASTNode*> imported_generics;
-    imported_generics.reserve(resolver->imported_generic.size());
-    for(auto& node : resolver->imported_generic) {
-        imported_generics.emplace_back(node.first);
     }
     visitor.translate(imported_generics);
     visitor.translate(nodes);

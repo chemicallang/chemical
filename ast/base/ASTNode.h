@@ -155,25 +155,25 @@ public:
      * type is only returned if the value is guaranteed to be stored in a storage location
      * function param is not a storage location, however var decl, struct member, variant member param qualify
      */
-    BaseType* get_stored_value_type(ASTNodeKind k);
+    BaseType* get_stored_value_type(ASTAllocator& allocator, ASTNodeKind k);
 
     /**
      * is this node storing a pointer, stored pointer must be loaded
      * before use
      */
-    bool is_stored_ptr_or_ref(ASTNodeKind k);
+    bool is_stored_ptr_or_ref(ASTAllocator& allocator, ASTNodeKind k);
 
     /**
      * this checks if it's any pointer, like in function params
      * which doesn't have a backing storage location
      */
-    bool is_ptr_or_ref(ASTNodeKind k);
+    bool is_ptr_or_ref(ASTAllocator& allocator, ASTNodeKind k);
 
     /**
      * a helper function, check if this is a stored pointer
      */
-    bool is_stored_ptr_or_ref() {
-        return is_stored_ptr_or_ref(kind());
+    bool is_stored_ptr_or_ref(ASTAllocator& allocator) {
+        return is_stored_ptr_or_ref(allocator, kind());
     }
 
     /**

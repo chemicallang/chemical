@@ -145,7 +145,7 @@ llvm::Value* arg_value(
 
     const auto value = value_ptr;
     const auto value_kind = value->val_kind();
-    const auto is_val_stored_ptr = value->is_stored_ptr_or_ref();
+    const auto is_val_stored_ptr = value->is_stored_ptr_or_ref(gen.allocator);
 
     const auto linked = param_type->get_direct_linked_node();
 

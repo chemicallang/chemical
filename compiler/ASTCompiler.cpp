@@ -8,6 +8,7 @@
 
 void ASTProcessor::compile_nodes(
         Codegen& gen,
+        std::vector<ASTNode*>& imported_generics,
         std::vector<ASTNode*>& nodes_vec,
         const std::string_view& abs_path
 ) {
@@ -15,11 +16,6 @@ void ASTProcessor::compile_nodes(
     if(options->benchmark) {
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
-    }
-    std::vector<ASTNode*> imported_generics;
-    imported_generics.reserve(resolver->imported_generic.size());
-    for(auto& node : resolver->imported_generic) {
-        imported_generics.emplace_back(node.first);
     }
     gen.compile_nodes(imported_generics);
     gen.compile_nodes(nodes_vec);
@@ -35,6 +31,7 @@ void ASTProcessor::compile_nodes(
 
 void ASTProcessor::declare_nodes(
         Codegen& gen,
+        std::vector<ASTNode*>& imported_generics,
         Scope& import_res,
         const std::string& abs_path
 ) {
@@ -43,11 +40,6 @@ void ASTProcessor::declare_nodes(
     if(options->benchmark) {
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
-    }
-    std::vector<ASTNode*> imported_generics;
-    imported_generics.reserve(resolver->imported_generic.size());
-    for(auto& node : resolver->imported_generic) {
-        imported_generics.emplace_back(node.first);
     }
     gen.compile_nodes(imported_generics);
     gen.declare_nodes(nodes_vec);

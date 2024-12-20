@@ -8,6 +8,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/types/FunctionType.h"
 #include "ast/values/IntValue.h"
+#include "compiler/SymbolResolver.h"
 
 unsigned int NumberValue::get_num_bits() {
     if(linked_type == nullptr) {
@@ -60,7 +61,7 @@ bool NumberValue::link(SymbolResolver &linker, BaseType *type) {
         }
         auto pure = type->pure_type();
         if(pure && pure->kind() == BaseTypeKind::IntN) {
-            linked_type = (IntNType*) pure;
+            linked_type = (IntNType*) pure->copy(*linker.ast_allocator);
         }
     }
     return true;

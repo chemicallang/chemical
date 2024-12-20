@@ -308,28 +308,9 @@ void SymbolResolver::declare_function(const chem::string_view& name, FunctionDec
     }
 }
 
-void SymbolResolver::resolve_mod_file(Scope& scope, const std::string& abs_path) {
-    file_scope_start();
-    scope.link_asynchronously(*this);
-    for(const auto node : scope.nodes) {
-        auto found = imported_generic.find(node);
-        if(found != imported_generic.end()) {
-            imported_generic.erase(found);
-        }
-    }
-    dispose_file_symbols_now(abs_path);
-}
-
 void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {
-    imported_generic.clear();
     file_scope_start();
     scope.link_asynchronously(*this);
-    for(const auto node : scope.nodes) {
-        auto found = imported_generic.find(node);
-        if(found != imported_generic.end()) {
-            imported_generic.erase(found);
-        }
-    }
     dispose_file_symbols_now(abs_path);
 }
 

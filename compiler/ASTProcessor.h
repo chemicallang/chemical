@@ -92,11 +92,6 @@ struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
     std::vector<ASTFileResult*> imports;
 
     /**
-     * used when generating code
-     */
-    std::vector<ASTNode*> imported_generics;
-
-    /**
      * if read error occurred this would contain it
      */
     std::string read_error;
@@ -296,11 +291,6 @@ public:
     void sym_res_file(Scope& scope, bool is_c_file, const std::string& abs_path);
 
     /**
-     * function that performs symbol resolution
-     */
-    void sym_res(Scope& scope, bool is_c_file, const std::string& abs_path);
-
-    /**
      * print given benchmark results
      */
     static void print_benchmarks(std::ostream& stream, const std::string& TAG, BenchmarkResults* results);
@@ -311,7 +301,6 @@ public:
      */
     void translate_to_c(
         ToCAstVisitor& visitor,
-        std::vector<ASTNode*>& imported_generics,
         std::vector<ASTNode*>& import_res,
         const std::string& file
     );
@@ -343,7 +332,6 @@ public:
      */
     void compile_nodes(
             Codegen& gen,
-            std::vector<ASTNode*>& imported_generics,
             std::vector<ASTNode*>& nodes,
             const std::string_view& abs_path
     );
@@ -353,7 +341,6 @@ public:
      */
     void declare_nodes(
         Codegen& gen,
-        std::vector<ASTNode*>& imported_generics,
         Scope& import_res,
         const std::string& file
     );

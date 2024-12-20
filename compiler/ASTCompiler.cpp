@@ -8,7 +8,6 @@
 
 void ASTProcessor::compile_nodes(
         Codegen& gen,
-        std::vector<ASTNode*>& imported_generics,
         std::vector<ASTNode*>& nodes_vec,
         const std::string_view& abs_path
 ) {
@@ -17,7 +16,6 @@ void ASTProcessor::compile_nodes(
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    gen.compile_nodes(imported_generics);
     gen.compile_nodes(nodes_vec);
     if(options->benchmark) {
         bm_results->benchmark_end();
@@ -31,7 +29,6 @@ void ASTProcessor::compile_nodes(
 
 void ASTProcessor::declare_nodes(
         Codegen& gen,
-        std::vector<ASTNode*>& imported_generics,
         Scope& import_res,
         const std::string& abs_path
 ) {
@@ -41,7 +38,6 @@ void ASTProcessor::declare_nodes(
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    gen.compile_nodes(imported_generics);
     gen.declare_nodes(nodes_vec);
     if(options->benchmark) {
         bm_results->benchmark_end();

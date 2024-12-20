@@ -2109,6 +2109,22 @@ void CTopLevelDeclarationVisitor::visit(VarInitStatement *init) {
     var_init(visitor, init, !init->is_exported(), !redefining);
 }
 
+void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, const std::string& name);
+
+// just generates the remaining functions
+void gen_generic_functions(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
+    int16_t itr = decl->bodies_gen_index;
+    int16_t total = decl->total_generic_iterations();
+    while(itr < total) {
+        decl->set_active_iteration(itr);
+        func_decl_with_name(visitor, decl, decl->name());
+        itr++;
+    }
+    // set to -1, so whoever tries to access generic parameters types, they receive an error if active iteration is not set again
+    decl->set_active_iteration(-1);
+    decl->bodies_gen_index = total;
+}
+
 void CTopLevelDeclarationVisitor::declare_func(FunctionDeclaration* decl) {
     // TODO we will fix capturing lambda types when introducing generics and unions
 //    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {
@@ -2126,6 +2142,8 @@ void CTopLevelDeclarationVisitor::declare_func(FunctionDeclaration* decl) {
         }
         // set the active iteration to -1, so whoever accesses it without setting it to zero receives an error
         decl->set_active_iteration(-1);
+        // generate remaining functions
+        gen_generic_functions(visitor, decl);
     }
 }
 
@@ -2301,6 +2319,23 @@ void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::ve
     }
 }
 
+static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def);
+
+// just generates any remaining struct functions
+void gen_generic_struct_functions(ToCAstVisitor& visitor, StructDefinition* def) {
+    const auto total_itr = def->total_generic_iterations();
+    if(total_itr == 0) return; // generic type never used (yet)
+    int16_t itr = def->iterations_body_done;
+    auto prev = def->active_iteration;
+    while (itr < total_itr) {
+        def->set_active_iteration(itr);
+        contained_struct_functions(visitor, def);
+        itr++;
+    }
+    def->iterations_body_done = total_itr;
+    def->set_active_iteration(prev);
+}
+
 void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
     if(visitor.compiler_interfaces && def->is_compiler_interface()) {
         auto& interfaces = *visitor.compiler_interfaces;
@@ -2326,6 +2361,8 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
         }
         def->iterations_declared = total;
         def->set_active_iteration(-1);
+        // generate any remaining functions that haven't been generated
+        gen_generic_struct_functions(visitor, def);
     }
 }
 
@@ -2872,16 +2909,7 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
 
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     if(!decl->generic_params.empty()) {
-        int16_t itr = decl->bodies_gen_index;
-        int16_t total = decl->total_generic_iterations();
-        while(itr < total) {
-            decl->set_active_iteration(itr);
-            func_decl_with_name(visitor, decl, decl->name());
-            itr++;
-        }
-        // set to -1, so whoever tries to access generic parameters types, they receive an error if active iteration is not set again
-        decl->set_active_iteration(-1);
-        decl->bodies_gen_index = total;
+        gen_generic_functions(visitor, decl);
     } else {
         func_decl_with_name(visitor, decl, decl->name());
     }
@@ -3439,17 +3467,7 @@ void ToCAstVisitor::visit(StructDefinition *def) {
             def->iterations_body_done = 1;
         }
     } else {
-        const auto total_itr = def->total_generic_iterations();
-        if(total_itr == 0) return; // generic type never used (yet)
-        int16_t itr = def->iterations_body_done;
-        auto prev = def->active_iteration;
-        while (itr < total_itr) {
-            def->set_active_iteration(itr);
-            contained_struct_functions(*this, def);
-            itr++;
-        }
-        def->iterations_body_done = total_itr;
-        def->set_active_iteration(prev);
+        gen_generic_struct_functions(*this, def);
     }
     current_members_container = prev_members_container;
 }

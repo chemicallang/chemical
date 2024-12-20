@@ -489,6 +489,11 @@ int main(int argc, char *argv[]) {
             if(verbose) {
                 std::cout << "[Compiler] Debug Quick Enabled" << std::endl;
             }
+        } else if(mode_opt.value() == "debug_complete") {
+            mode = OutputMode::DebugComplete;
+            if(verbose) {
+                std::cout << "[Compiler] Debug Complete Enabled" << std::endl;
+            }
         } else if(mode_opt.value() == "release" || mode_opt.value() == "release_fast") {
             mode = OutputMode::ReleaseFast;
             if(verbose) {
@@ -499,6 +504,8 @@ int main(int argc, char *argv[]) {
                 std::cout << "[Compiler] Release Small Enabled" << std::endl;
             }
             mode = OutputMode::ReleaseSmall;
+        } else {
+            std::cout << "Unknown mode '" << mode_opt.value() << '\'' << std::endl;
         }
     }
 #ifdef DEBUG

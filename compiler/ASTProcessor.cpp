@@ -248,7 +248,7 @@ void ASTProcessor::sym_res_file(Scope& scope, bool is_c_file, const std::string&
     }
     if(options->benchmark) {
         bm_results->benchmark_end();
-        print_benchmarks(std::cout, "SymRes", bm_results.get());
+        print_benchmarks(std::cout, "SymRes:" + abs_path, bm_results.get());
     }
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(abs_path, "SymRes");

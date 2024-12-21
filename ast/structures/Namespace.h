@@ -5,6 +5,7 @@
 #include "ast/base/AnnotableNode.h"
 #include "ordered_map.h"
 #include "ast/base/AccessSpecifier.h"
+#include "ast/base/LocatedIdentifier.h"
 
 struct NamespaceDeclAttributes {
 
@@ -34,7 +35,7 @@ private:
 
 public:
 
-    std::string name;
+    LocatedIdentifier identifier;
     std::vector<ASTNode*> nodes;
     tsl::ordered_map<std::string, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
@@ -46,11 +47,25 @@ public:
      * constructor
      */
     Namespace(
-        std::string name,
+        LocatedIdentifier identifier,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
+
+    /**
+     * get the name of node
+     */
+    inline LocatedIdentifier* get_located_id() {
+        return &identifier;
+    }
+
+    /**
+     * get the name of the node
+     */
+    inline chem::string_view name() {
+        return identifier.identifier;
+    }
 
     inline AccessSpecifier specifier() {
         return attrs.specifier;
@@ -93,7 +108,7 @@ public:
     }
 
     const std::string ns_node_identifier() final {
-        return name;
+        return name().str();
     }
 
     void accept(Visitor *visitor) final {

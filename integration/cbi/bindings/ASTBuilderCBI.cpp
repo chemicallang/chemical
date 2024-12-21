@@ -461,8 +461,8 @@ InterfaceDefinition* ASTBuildermake_interface_def(ASTAllocator* allocator, chem:
     return new (allocator->allocate<InterfaceDefinition>()) InterfaceDefinition(LOC_ID(name->str(), name_location), parent_node, location, specifier);
 }
 
-Namespace* ASTBuildermake_namespace(ASTAllocator* allocator, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<Namespace>()) Namespace(name->str(), parent_node, location, specifier);
+Namespace* ASTBuildermake_namespace(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (allocator->allocate<Namespace>()) Namespace(LOC_ID(name->str(), name_location), parent_node, location, specifier);
 }
 
 StructDefinition* ASTBuildermake_struct_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {

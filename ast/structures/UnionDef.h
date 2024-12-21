@@ -39,6 +39,13 @@ public:
         AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
+    /**
+    * get the name of node
+    */
+    inline LocatedIdentifier* get_located_id() {
+        return &identifier;
+    }
+
     SourceLocation encoded_location() final {
         return location;
     }

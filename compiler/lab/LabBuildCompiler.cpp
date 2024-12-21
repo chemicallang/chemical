@@ -1099,7 +1099,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
                         break;
                     }
                     // put every imported file in it's own namespace so build methods don't clash
-                    auto ns = new (lab_allocator.allocate<Namespace>()) Namespace(file.as_identifier, nullptr, ZERO_LOC);
+                    auto ns = new (lab_allocator.allocate<Namespace>()) Namespace(ZERO_LOC_ID(lab_allocator, file.as_identifier), nullptr, ZERO_LOC);
                     for (auto &node: result.unit.scope.nodes) {
                         node->set_parent(ns);
                     }

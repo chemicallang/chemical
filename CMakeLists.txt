@@ -514,6 +514,7 @@ set(COMMON_SOURCES
         ast/values/NewValue.h
         ast/values/PlacementNewValue.h
         ast/values/NewValue.cpp
+        integration/cbi/bindings/ParserCBI.cpp
 )
 
 # Chemical LSP Executable Target

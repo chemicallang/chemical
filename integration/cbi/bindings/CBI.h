@@ -23,6 +23,11 @@ void cst_diagnoser_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
 void lexer_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
 
 /**
+ * the function to put all symbols inside for the Lexer compiler interface
+ */
+void parser_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
+
+/**
  * the function to put all symbols inside for the SourceProvider compiler interface
  */
 void source_provider_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);

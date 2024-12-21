@@ -11,6 +11,7 @@
 #include "CSTDiagnoserCBI.h"
 #include "SerialStrAllocatorCBI.h"
 #include "LexerCBI.h"
+#include "ParserCBI.h"
 
 dispose_string::~dispose_string(){
     ptr->~string();
@@ -108,6 +109,19 @@ void lexer_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
     sym_map = {
             {"LexergetFileAllocator",    (void*) LexergetFileAllocator },
             {"LexersetUserLexer",    (void*) LexersetUserLexer }
+    };
+}
+
+void parser_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
+    sym_map = {
+            {"ParsergetTokenPtr",    (void*) ParsergetTokenPtr },
+            {"ParsergetGlobalBuilder",    (void*) ParsergetGlobalBuilder },
+            {"ParsergetModuleBuilder",    (void*) ParsergetModuleBuilder },
+            {"ParsergetIs64Bit",    (void*) ParsergetIs64Bit },
+            {"ParsergetParentNodePtr",    (void*) ParsergetParentNodePtr },
+            {"ParsergetCurrentFuncTypePtr",    (void*) ParsergetCurrentFuncTypePtr },
+            {"ParsergetCurrentLoopNodePtr",    (void*) ParsergetCurrentLoopNodePtr },
+            {"ParsergetCurrentFilePath",    (void*) ParsergetCurrentFilePath },
     };
 }
 

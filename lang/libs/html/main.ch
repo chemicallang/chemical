@@ -19,7 +19,7 @@ struct HtmlLexer {
 
 public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro\n");
-    const loc = compiler::get_raw_location();
+    const loc = compiler::get_raw_localidation();
     return builder.make_int_value(10, loc);
 }
 
@@ -50,10 +50,13 @@ func (provider : &SourceProvider) read_text(str : &SerialStrAllocator) : std::st
 func (provider : &SourceProvider) skip_whitespaces() {
     while(true) {
         const c = provider.peek();
-        if(c == ' ' || c == '\t') {
-            provider.readCharacter();
-        } else {
-            break;
+        switch(c) {
+            ' ', '\t', '\n', '\r' => {
+                provider.readCharacter();
+            }
+            default => {
+                return;
+            }
         }
     }
 }
@@ -107,13 +110,9 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 position : position
             }
         }
-        ' ' => {
+        ' ', '\t', '\n', '\r' => {
             provider.skip_whitespaces();
-            return Token {
-                type : TokenType.Whitespace,
-                value : view(" "),
-                position : position
-            }
+            return getNextToken2(html, lexer);
         }
         '/' => {
             if(html.has_lt) {

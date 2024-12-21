@@ -401,9 +401,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         auto module_dir_path = resolve_rel_child_path_str(exe_build_dir, mod->name.to_std_string());
         auto mod_obj_path = resolve_rel_child_path_str(module_dir_path,  (is_use_obj_format ? "object.o" : "object.bc"));
         auto mod_timestamp_file = resolve_rel_child_path_str(module_dir_path, "timestamp.dat");
-        const auto mod_dir_exists = fs::exists(module_dir_path);
-        if(!mod_dir_exists) {
-            fs::create_directory(module_dir_path);
+        if(!module_dir_path.empty()) {
+            const auto mod_dir_exists = fs::exists(module_dir_path);
+            if (!mod_dir_exists) {
+                fs::create_directory(module_dir_path);
+            }
         }
 
 #ifdef COMPILER_BUILD

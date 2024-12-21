@@ -26,6 +26,17 @@ func test_pointer_math() {
         var k = &j
         return **k == 123;
     })
+    test("dereference of address works", () => {
+        var i = 234;
+        var k = *&i
+        return k == 234;
+    })
+    test("address of dereference works", () => {
+        var i = 345;
+        var j = &i;
+        var k = &*j;
+        return *k == 345;
+    })
     test("testing basic pointer arithmetic", () => {
         var arr = {10, 20, 30, 40, 50};
         var ptr = &arr[0];

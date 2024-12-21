@@ -319,8 +319,10 @@ void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string
     for(const auto node : nodes) {
         const auto requested_specifier = node->specifier();
         const auto specifier = restrict_public ? requested_specifier == AccessSpecifier::Public ? AccessSpecifier::Internal : requested_specifier :  requested_specifier;
-        auto id = node->ns_node_identifier();
-        declare_node(id, node, specifier, true);
+        auto id = node->get_located_id();
+        if(id) {
+            declare_node(id->identifier, node, specifier, true);
+        }
     }
     dispose_file_symbols_now(path);
     print_diagnostics(path, "SymRes");

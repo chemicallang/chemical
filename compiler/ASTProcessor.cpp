@@ -232,14 +232,15 @@ void ASTProcessor::sym_res_file(Scope& scope, bool is_c_file, const std::string&
     if(is_c_file) {
         resolver->override_symbols = true;
         for(const auto node : scope.nodes) {
-            // TODO VERY IMPORTANT this id will die here, we are declaring it as a string view
-            auto id = node->ns_node_identifier();
-            if(id.empty()) {
-                // TODO handle empty declarations, for example C contains
-                // empty enum declarations, where members can be linked directly
-                // enum {  Mem1, Mem2 }
-            } else {
-                resolver->declare(id, node);
+            auto id = node->get_located_id();
+            if(id) {
+                if (id->identifier.empty()) {
+                    // TODO handle empty declarations, for example C contains
+                    // empty enum declarations, where members can be linked directly
+                    // enum {  Mem1, Mem2 }
+                } else {
+                    resolver->declare(id->identifier, node);
+                }
             }
         }
         resolver->override_symbols = false;

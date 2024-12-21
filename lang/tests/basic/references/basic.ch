@@ -77,6 +77,19 @@ func test_references() {
         var rr = ReferencableStructRef { r : r }
         return rr.r.i == 97
     })
+    test("accessing members through deref works", () => {
+        var r = ReferencableStruct { i : 32 }
+        var j = &r;
+        var k = *j;
+        return k.i == 32;
+    })
+    test("accessing members through double deref works", () => {
+        var r = ReferencableStruct { i : 32 }
+        var j = &r;
+        var k = &j
+        var i = **k
+        return i.i == 32;
+    })
     test("references can be stored in variants", () => {
         var z = ReferencableStruct { i : 97 }
         var rr = ReferencableStructOpt.Some(z)

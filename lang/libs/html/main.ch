@@ -19,7 +19,7 @@ struct HtmlLexer {
 
 public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro\n");
-    const loc = compiler::get_raw_localidation();
+    const loc = compiler::get_raw_location();
     return builder.make_int_value(10, loc);
 }
 

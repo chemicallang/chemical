@@ -241,14 +241,19 @@ public:
     bool is_stored_ptr_or_ref(ASTAllocator& allocator);
 
     /**
+     * check if this value is a stored reference
+     */
+    bool is_stored_ref(ASTAllocator& allocator);
+
+    /**
      * check if this value is a pointer or reference
      */
     bool is_ptr_or_ref(ASTAllocator& allocator);
 
     /**
-     * check if this value is a reference
+     * check if this value is a reference (access chain or identifier)
      */
-    bool is_ref();
+    bool is_ref_value();
 
     /**
      * this checks if this value is mutable

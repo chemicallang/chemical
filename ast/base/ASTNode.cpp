@@ -303,6 +303,18 @@ bool ASTNode::is_ptr_or_ref(ASTAllocator& allocator, ASTNodeKind k) {
     }
 }
 
+bool ASTNode::is_stored_ref(ASTAllocator& allocator) {
+    const auto k = kind();
+    switch(k) {
+        case ASTNodeKind::FunctionParam:
+        case ASTNodeKind::ExtensionFuncReceiver:
+            return false;
+        default:
+            const auto type = get_stored_value_type(allocator, k);
+            return type != nullptr && type->is_reference();
+    }
+}
+
 bool ASTNode::requires_moving(ASTNodeKind k) {
     switch(k) {
         case ASTNodeKind::StructDecl:

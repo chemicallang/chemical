@@ -416,12 +416,17 @@ bool Value::is_stored_ptr_or_ref(ASTAllocator& allocator) {
     return linked != nullptr && linked->is_stored_ptr_or_ref(allocator);
 }
 
+bool Value::is_stored_ref(ASTAllocator& allocator) {
+    auto linked = linked_node();
+    return linked != nullptr && linked->is_stored_ref(allocator);
+}
+
 bool Value::is_ptr_or_ref(ASTAllocator& allocator) {
     auto linked = linked_node();
     return linked != nullptr && linked->is_ptr_or_ref(allocator, linked->kind());
 }
 
-bool Value::is_ref() {
+bool Value::is_ref_value() {
     auto chain = as_access_chain();
     if(chain) {
         return true;

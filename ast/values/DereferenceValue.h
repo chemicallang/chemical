@@ -42,6 +42,10 @@ public:
         visitor->visit(this);
     }
 
+    ASTNode* linked_node() override {
+        return value->linked_node();
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;

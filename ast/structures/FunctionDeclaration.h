@@ -196,6 +196,13 @@ public:
             bool signature_resolved = false
     );
 
+    /**
+     * get the name of node
+     */
+    inline LocatedIdentifier* get_located_id() {
+        return &identifier;
+    }
+
     inline AccessSpecifier specifier() {
         return attrs.specifier;
     }

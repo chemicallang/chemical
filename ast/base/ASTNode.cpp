@@ -27,7 +27,7 @@
 #include "compiler/Codegen.h"
 #endif
 
-LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string identifier) {
+LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier) {
     const auto size = identifier.size();
     const auto ptr = allocator.allocate_str(identifier.data(), size);
 #ifdef LSP_BUILD
@@ -77,6 +77,32 @@ std::string ASTNode::runtime_name_str() {
     std::stringstream stream;
     runtime_name(stream);
     return stream.str();
+}
+
+LocatedIdentifier* ASTNode::get_located_id() {
+    switch(kind()) {
+        case ASTNodeKind::VarInitStmt:
+            return as_var_init_unsafe()->get_located_id();
+        case ASTNodeKind::TypealiasStmt:
+            return as_typealias_unsafe()->get_located_id();
+        case ASTNodeKind::EnumDecl:
+            return as_enum_decl_unsafe()->get_located_id();
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::ExtensionFunctionDecl:
+            return as_function_unsafe()->get_located_id();
+        case ASTNodeKind::InterfaceDecl:
+            return as_interface_def_unsafe()->get_located_id();
+        case ASTNodeKind::StructDecl:
+            return as_struct_def_unsafe()->get_located_id();
+        case ASTNodeKind::UnionDecl:
+            return as_union_def_unsafe()->get_located_id();
+        case ASTNodeKind::VariantDecl:
+            return as_variant_def_unsafe()->get_located_id();
+        case ASTNodeKind::NamespaceDecl:
+            return as_namespace_unsafe()->get_located_id();
+        default:
+            return nullptr;
+    }
 }
 
 uint64_t ASTNode::byte_size(bool is64Bit) {

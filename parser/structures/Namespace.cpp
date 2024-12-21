@@ -14,7 +14,7 @@ Namespace* Parser::parseNamespace(ASTAllocator& allocator, AccessSpecifier speci
             error("expected identifier for namespace name");
             return nullptr;
         }
-        auto ns = new (allocator.allocate<Namespace>()) Namespace(id->value.str(), parent_node, loc_single(tok), specifier);
+        auto ns = new (allocator.allocate<Namespace>()) Namespace(loc_id(allocator, id), parent_node, loc_single(tok), specifier);
         annotate(ns);
         auto prev_parent_node = parent_node;
         parent_node = ns;

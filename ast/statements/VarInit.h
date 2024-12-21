@@ -86,6 +86,13 @@ public:
     );
 
     /**
+     * get the name of node
+     */
+    inline LocatedIdentifier* get_located_id() {
+        return &located_id;
+    }
+
+    /**
      * get the name / identifier of the declaration
      */
     inline const std::string name() {

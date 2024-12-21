@@ -517,7 +517,7 @@ public struct ASTBuilder {
 
     func make_interface_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut InterfaceDefinition
 
-    func make_namespace(&self, name : &string_view, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut Namespace
+    func make_namespace(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut Namespace
 
     func make_struct_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut StructDefinition
 

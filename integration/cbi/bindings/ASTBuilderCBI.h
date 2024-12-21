@@ -294,7 +294,7 @@ extern "C" {
 
     InterfaceDefinition* ASTBuildermake_interface_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
-    Namespace* ASTBuildermake_namespace(ASTAllocator* allocator, chem::string_view* name, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    Namespace* ASTBuildermake_namespace(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     StructDefinition* ASTBuildermake_struct_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 

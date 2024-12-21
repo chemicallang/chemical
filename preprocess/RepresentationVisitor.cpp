@@ -187,11 +187,15 @@ void RepresentationVisitor::indent() {
 }
 
 void RepresentationVisitor::write(std::string& value) {
-    output.write(value.c_str(), value.size());
+    output.write(value.c_str(), (std::streamsize) value.size());
 }
 
 void RepresentationVisitor::write(const std::string_view& view) {
-    output.write(view.data(), view.size());
+    output.write(view.data(), (std::streamsize) view.size());
+}
+
+void RepresentationVisitor::write_view(const chem::string_view& view) {
+    output.write(view.data(), (std::streamsize) view.size());
 }
 
 void RepresentationVisitor::visit(VarInitStatement *init) {
@@ -539,7 +543,7 @@ void RepresentationVisitor::visit(SwitchStatement *statement) {
 void RepresentationVisitor::visit(Namespace *ns) {
     if(ns->nodes.empty()) return;
     write("namespace ");
-    write(ns->name);
+    write_view(ns->name());
     space();
     write('{');
     indentation_level++;

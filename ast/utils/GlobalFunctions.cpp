@@ -998,7 +998,7 @@ public:
 
     CompilerNamespace(
 
-    ) : Namespace("compiler", nullptr, ZERO_LOC, AccessSpecifier::Public),
+    ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
         printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this),
         satisfiesFn(this), get_target_fn(this), get_current_file_path(this)
@@ -1022,7 +1022,7 @@ public:
 
     explicit MemNamespace(
         ASTNode* parent_node
-    ) : Namespace("mem", parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(this) {
+    ) : Namespace(ZERO_LOC_ID("mem"), parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(this) {
         set_comptime(true);
         nodes = { &memCopyFn };
     }
@@ -1037,7 +1037,7 @@ public:
 
     explicit PtrNamespace(
             ASTNode* parent_node
-    ) : Namespace("ptr", parent_node, ZERO_LOC, AccessSpecifier::Public),
+    ) : Namespace(ZERO_LOC_ID("ptr"), parent_node, ZERO_LOC, AccessSpecifier::Public),
         isNullFn(this), isNotNullFn(this)
     {
         set_comptime(true);
@@ -1055,7 +1055,7 @@ public:
 
     StdNamespace(
 
-    ) : Namespace("std", nullptr, ZERO_LOC, AccessSpecifier::Public),
+    ) : Namespace(ZERO_LOC_ID("std"), nullptr, ZERO_LOC, AccessSpecifier::Public),
         memNamespace(this), ptrNamespace(this)
     {
         set_comptime(true);

@@ -49,6 +49,13 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
+    /**
+     * get the name of node
+     */
+    inline LocatedIdentifier* get_located_id() {
+        return &located_id;
+    }
+
     inline bool is_comptime() {
         return attrs.is_comptime;
     }

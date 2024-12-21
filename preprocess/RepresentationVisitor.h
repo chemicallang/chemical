@@ -2,6 +2,7 @@
 
 #include "ast/base/Visitor.h"
 #include "ast/base/AccessSpecifier.h"
+#include "std/chem_string_view.h"
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -82,6 +83,11 @@ public:
      * write this string view to the stream
      */
     void write(const std::string_view& view);
+
+    /**
+     * write this string view to the stream
+     */
+    void write_view(const chem::string_view& view);
 
     /**
      * this should be called before calling translate

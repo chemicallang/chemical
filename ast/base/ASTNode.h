@@ -20,6 +20,8 @@
 
 class SymbolResolver;
 
+class LocatedIdentifier;
+
 class FunctionParam;
 
 class BaseType;
@@ -273,6 +275,12 @@ public:
      * get runtime_name as a string
      */
     std::string runtime_name_str();
+
+    /**
+     * get located id
+     * @return id if the node declares a identifier otherwise null pointer
+     */
+    LocatedIdentifier* get_located_id();
 
     /**
      * when this node is inside a namespace, what identifier can be used

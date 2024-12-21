@@ -42,6 +42,6 @@ constexpr LocatedIdentifier ZERO_LOC_ID(const char* str) {
 #endif
 }
 
-LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string identifier);
+LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier);
 
 //LocatedIdentifier LOC_ID(BatchAllocator& allocator, std::string identifier, SourceLocation location);

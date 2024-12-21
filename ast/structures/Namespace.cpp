@@ -4,11 +4,11 @@
 #include "compiler/SymbolResolver.h"
 
 Namespace::Namespace(
-    std::string name,
+    LocatedIdentifier identifier,
     ASTNode* parent_node,
     SourceLocation location,
     AccessSpecifier specifier
-) : name(std::move(name)), parent_node(parent_node), location(location), attrs(specifier, false) {
+) : identifier(identifier), parent_node(parent_node), location(location), attrs(specifier, false) {
 
 }
 
@@ -28,7 +28,7 @@ void Namespace::declare_extended_in_linker(SymbolResolver& linker) {
 }
 
 void Namespace::declare_top_level(SymbolResolver &linker) {
-    auto previous = linker.find(name);
+    auto previous = linker.find(name());
     if(previous) {
         root = previous->as_namespace();
         if(root) {
@@ -44,10 +44,10 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
             }
             linker.scope_end();
         } else {
-            linker.dup_sym_error(name, previous, this);
+            linker.dup_sym_error(name(), previous, this);
         }
     } else {
-        linker.declare_node(name, this, specifier(), false);
+        linker.declare_node(name(), this, specifier(), false);
         // we do not check for duplicate symbols here, because nodes are being declared first time
         for(const auto node : nodes) {
             extended[node->ns_node_identifier()] = node;

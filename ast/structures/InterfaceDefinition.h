@@ -83,6 +83,13 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
+    /**
+     * get the name of node
+     */
+    inline LocatedIdentifier* get_located_id() {
+        return &identifier;
+    }
+
     [[nodiscard]]
     inline AccessSpecifier specifier() const {
         return data.specifier;

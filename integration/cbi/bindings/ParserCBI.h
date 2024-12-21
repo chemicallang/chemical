@@ -36,6 +36,7 @@ extern "C" {
 
     void ParsergetCurrentFilePath(chem::string_view* view, Parser* parser);
 
+    void Parsererror_at(Parser* parser, chem::string_view* view, Token* token);
 
 
 }

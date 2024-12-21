@@ -168,7 +168,7 @@ llvm::Value* arg_value(
         // Ensure proper type promotion for float values passed to printf
         argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
     } else {
-        if(value->is_ref()) {
+        if(value->is_ref_value()) {
             if (value->is_ref_moved()) {
                 // move moved value using memcpy
                 argValue = gen.move_by_allocate(func_param->type, value, argValue);

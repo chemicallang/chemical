@@ -459,7 +459,7 @@ bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value
 }
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
-    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_stored_ptr_or_ref(allocator)) {
+    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_stored_ref(allocator)) {
         write('&');
     }
     if(!implicit_mutate_value_default(*this, type, value)) {

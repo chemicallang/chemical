@@ -54,6 +54,10 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
+        return value->add_child_index(gen, indexes, name);
+    }
+
 #endif
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;

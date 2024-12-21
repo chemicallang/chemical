@@ -116,7 +116,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 AddrOfValue* Parser::parseAddrOfValue(ASTAllocator& allocator) {
     auto token1 = consumeOfType(TokenType::AmpersandSym);
     if (token1) {
-        auto chain = parseAccessChainOrKwValue(allocator, true);
+        auto chain = parseAccessChainOrAddrOf(allocator, true);
         if (chain) {
             return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, loc_single(token1));
         } else {
@@ -131,7 +131,7 @@ AddrOfValue* Parser::parseAddrOfValue(ASTAllocator& allocator) {
 DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
     auto token2 = consumeOfType(TokenType::MultiplySym);
     if (token2) {
-        auto chain = parseAccessChainOrKwValue(allocator, false);
+        auto chain = parseAccessChainOrAddrOf(allocator, false);
         if (chain) {
             return new(allocator.allocate<DereferenceValue>()) DereferenceValue(chain, loc_single(token2));
         } else {

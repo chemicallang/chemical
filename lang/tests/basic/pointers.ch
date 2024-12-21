@@ -20,6 +20,12 @@ func test_pointer_math() {
         *j = *j + 1;
         return i == 3
     })
+    test("double dereference works", () => {
+        var i = 123;
+        var j = &i
+        var k = &j
+        return **k == 123;
+    })
     test("testing basic pointer arithmetic", () => {
         var arr = {10, 20, 30, 40, 50};
         var ptr = &arr[0];

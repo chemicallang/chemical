@@ -122,6 +122,7 @@ void parser_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
             {"ParsergetCurrentFuncTypePtr",    (void*) ParsergetCurrentFuncTypePtr },
             {"ParsergetCurrentLoopNodePtr",    (void*) ParsergetCurrentLoopNodePtr },
             {"ParsergetCurrentFilePath",    (void*) ParsergetCurrentFilePath },
+            {"Parsererror_at",    (void*) Parsererror_at },
     };
 }
 

@@ -34,3 +34,7 @@ LoopASTNode** ParsergetCurrentLoopNodePtr(Parser* parser) {
 void ParsergetCurrentFilePath(chem::string_view* view, Parser* parser) {
     *view = chem::string_view(parser->stored_file_path.data(), parser->stored_file_path.size());
 }
+
+void Parsererror_at(Parser* parser, chem::string_view* view, Token* token) {
+    parser->error(view->view(), token);
+}

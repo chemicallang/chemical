@@ -24,6 +24,8 @@ struct Parser {
 
     func getCurrentFilePath(&self) : std::string_view
 
+    func error_at(msg : std::string_view, token : *mut Token);
+
 }
 
 func (parser : &mut Parser) getToken() : *mut Token {
@@ -43,6 +45,17 @@ func (parser : &mut Parser) increment_if(type : int) : bool {
         return true;
     } else {
         return false;
+    }
+}
+
+func (parser : &mut Parser) get_incrementing_if(type : int) : *mut Token {
+    var ptr = parser.getTokenPtr();
+    var token = *ptr;
+    if(token.type == type) {
+        *ptr = (*ptr) + 1;
+        return token;
+    } else {
+        return null;
     }
 }
 
@@ -72,4 +85,8 @@ func (parser : &mut Parser) setCurrentFuncType(type : *mut FunctionType) {
 func (parser : &mut Parser) setCurrentLoopNode(node : *mut LoopASTNode) {
     var ptr = parser.getCurrentLoopNodePtr();
     *ptr = node;
+}
+
+func (parser : &mut Parser) error(msg : std::string_view) {
+    return parser.error_at(msg, parser.getToken())
 }

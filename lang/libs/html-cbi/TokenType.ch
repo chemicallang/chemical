@@ -12,6 +12,10 @@ enum TokenType {
     LBrace,
     RBrace,
 
+    Equal,
+    SingleQuotedValue,
+    DoubleQuotedValue,
+
     FwdSlash,
 
 }

@@ -108,7 +108,20 @@ func parseTextChain(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut 
     while(true) {
         const token = parser.getToken();
         switch(token.type) {
-            TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan, TokenType.FwdSlash => {
+            TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue, TokenType.Identifier => {
+                parser.increment();
+                var next = parser.getToken();
+                if(next.type == TokenType.RBrace) {
+                    // last brace, we need to rtrim it
+                    str.append_with_len(token.value.data(), rtrim_len(token.value.data(), token.value.size()));
+                } else if(next.type == TokenType.Identifier) {
+                    str.append_with_len(token.value.data(), token.value.size());
+                    str.append(' ')
+                } else {
+                    str.append_with_len(token.value.data(), token.value.size());
+                }
+            }
+            TokenType.Text, TokenType.LessThan, TokenType.GreaterThan, TokenType.FwdSlash, TokenType.Equal => {
                 parser.increment();
                 if(parser.getToken().type == TokenType.RBrace) {
                     // last brace, we need to rtrim it
@@ -127,7 +140,7 @@ func parseTextChain(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut 
 func parseTextChainOrChemExpr(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
     const token = parser.getToken();
     switch(token.type) {
-        TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan => {
+        TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan, TokenType.FwdSlash, TokenType.Equal, TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue => {
             return parseTextChain(parser, builder, str);
         }
         TokenType.LBrace => {
@@ -189,6 +202,36 @@ func (provider : &SourceProvider) read_text(str : &SerialStrAllocator) : std::st
     while(true) {
         const c = provider.peek();
         if(c != -1 && c != '<' && c != '{' && c != '}') {
+            str.append(provider.readCharacter());
+        } else {
+            break;
+        }
+    }
+    return str.finalize_view();
+}
+
+func (provider : &SourceProvider) read_single_quoted_value(str : &SerialStrAllocator) : std::string_view {
+    while(true) {
+        const c = provider.peek();
+        if (c == '\'') {
+            str.append(provider.readCharacter());
+            break;
+        } else if(c != -1) {
+            str.append(provider.readCharacter());
+        } else {
+            break;
+        }
+    }
+    return str.finalize_view();
+}
+
+func (provider : &SourceProvider) read_double_quoted_value(str : &SerialStrAllocator) : std::string_view {
+    while(true) {
+        const c = provider.peek();
+        if (c == '"') {
+            str.append(provider.readCharacter());
+            break;
+        } else if(c != -1) {
             str.append(provider.readCharacter());
         } else {
             break;
@@ -309,10 +352,37 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         position : position
                     }
                 } else {
-                    return Token {
-                        type : TokenType.Unexpected,
-                        value : view("tag names must start with letters"),
-                        position : position
+                    switch(c) {
+                        '=' => {
+                           return Token {
+                                type : TokenType.Equal,
+                                value : view("="),
+                                position : position
+                           }
+                        }
+                        '\'' => {
+                            str.append('\'');
+                            return Token {
+                                type : TokenType.SingleQuotedValue,
+                                value : provider.read_single_quoted_value(lexer.str),
+                                position : position
+                            }
+                        }
+                        '"' => {
+                            str.append('"')
+                            return Token {
+                                type : TokenType.DoubleQuotedValue,
+                                value : provider.read_double_quoted_value(lexer.str),
+                                position : position
+                            }
+                        }
+                        default => {
+                            return Token {
+                                type : TokenType.Unexpected,
+                                value : view("tag names must start with letters"),
+                                position : position
+                            }
+                        }
                     }
                 }
             } else {

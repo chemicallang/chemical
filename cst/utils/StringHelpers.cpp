@@ -26,6 +26,8 @@ char escaped_char(char current) {
             return '\\';
         case '"':
             return '"';
+        case '\'':
+            return '\'';
         case '?':
             return '\?';
         default:
@@ -52,7 +54,7 @@ std::pair<char, int> escapable_char(const chem::string_view &value, unsigned ind
     char current = value[index];
     if(current != 'x') {
         auto next = escaped_char(current);
-        if(next != current || next == '\\') {
+        if(next != current || next == '\\' || next == '\'') {
             return {next, index + 1 };
         } else {
             return {current, -1 };

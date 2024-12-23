@@ -7,6 +7,7 @@ public namespace std {
         var _data : *char
         var _size : size_t
 
+        @implicit
         @comptime
         @constructor
         func make(value : literal<string>) {

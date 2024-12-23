@@ -4,17 +4,31 @@ import "./TokenType.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 import "@cstd/ctype.ch"
+import "@compiler/ChemicalTokenType.ch"
 
 using namespace std;
 
 struct HtmlLexer {
 
-    var has_starting_lb : bool
-
+    // has a less than symbol '<'
     var has_lt : bool
 
-    var has_lb : bool
+    var other_mode : bool
 
+    /**
+     * is lexing chemical code inside html using get embedded token
+     */
+    var chemical_mode : bool
+
+    var lb_count : uint
+
+}
+
+func (lexer : &mut HtmlLexer) reset() {
+    lexer.has_lt = false;
+    lexer.other_mode = false;
+    lexer.chemical_mode = false;
+    lexer.lb_count = 0;
 }
 
 public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
@@ -33,7 +47,7 @@ public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *
 }
 
 public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
-    printf("wow create macro value\n");
+    printf("wow create macro node\n");
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LB)) {
         if(!parser.increment_if(TokenType.RB)) {
@@ -60,7 +74,7 @@ func (provider : &SourceProvider) read_tag_name(str : &SerialStrAllocator) : std
 func (provider : &SourceProvider) read_text(str : &SerialStrAllocator) : std::string_view {
     while(true) {
         const c = provider.peek();
-        if(c != -1 && c != '<' && c != '{') {
+        if(c != -1 && c != '<' && c != '{' && c != '}') {
             str.append(provider.readCharacter());
         } else {
             break;
@@ -105,13 +119,20 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             }
         }
         '}' => {
-            printf("found an rb\n");
-            if(html.has_lb) {
-                html.has_lb = false;
-            } else {
+            if(html.lb_count == 1) {
                 printf("exiting, didn't expect an rb\n");
+                html.reset();
                 lexer.user_mode = false;
                 lexer.other_mode = false;
+            } else if(html.lb_count == 2) {
+                printf("turning off chemical mode\n");
+                html.other_mode = false;
+                html.chemical_mode = false;
+                html.lb_count--;
+                printf("lb_count decreased to %d\n", html.lb_count);
+            } else {
+                html.lb_count--;
+                printf("lb_count decreased to %d\n", html.lb_count);
             }
             return Token {
                 type : TokenType.RB,
@@ -120,12 +141,14 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             }
         }
         '{' => {
-            if(html.has_starting_lb) {
-                printf("found the starting lb\n");
-                html.has_starting_lb = false;
-            } else {
-                html.has_lb = true;
+            // here always lb_count > 0
+            if(html.lb_count == 1) {
+                printf("turning on chemical mode\n");
+                html.other_mode = true;
+                html.chemical_mode = true;
             }
+            html.lb_count++;
+            printf("lb_count increased to %d\n", html.lb_count);
             return Token {
                 type : TokenType.LB,
                 value : view("{"),
@@ -201,6 +224,25 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
 }
 
 public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
+    if(html.other_mode) {
+        if(html.chemical_mode) {
+            var nested = lexer.getEmbeddedToken();
+            if(nested.type == ChemicalTokenType.LBrace) {
+                html.lb_count++;
+                printf("lb_count increases to %d\n", html.lb_count);
+            } else if(nested.type == ChemicalTokenType.RBrace) {
+                html.lb_count--;
+                printf("lb_count decreased to %d\n", html.lb_count);
+                if(html.lb_count == 1) {
+                    html.other_mode = false;
+                    html.chemical_mode = false;
+                    printf("since lb_count decreased to 1, we're switching to html mode\n");
+                }
+            }
+            printf("in chemical mode, created token '%s'\n", nested.value.data());
+            return nested;
+        }
+    }
     const t = getNextToken2(html, lexer);
     printf("I created token : '%s' with type %d\n", t.value.data(), t.type);
     return t;
@@ -210,9 +252,10 @@ public func initializeLexer(lexer : *mut Lexer) {
     const file_allocator = lexer.getFileAllocator();
     const ptr = file_allocator.allocate_size(#sizeof(HtmlLexer), #alignof(HtmlLexer)) as *mut HtmlLexer;
     const x = new (ptr) HtmlLexer {
-        has_starting_lb : true,
         has_lt : false,
-        has_lb : false
+        other_mode : false,
+        chemical_mode : false,
+        lb_count : 0
     }
     lexer.other_mode = true;
     lexer.user_mode = true;

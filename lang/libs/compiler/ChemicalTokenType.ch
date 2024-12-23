@@ -1,8 +1,4 @@
-// Copyright (c) Qinetik 2024.
-
-#pragma once
-
-enum class TokenType {
+enum ChemicalTokenType {
 
     // when reached the end of file
     EndOfFile,
@@ -199,11 +195,6 @@ enum class TokenType {
     // -------- END OPERATORS ------
 
     // a number, doesn't include the negative sign
-    Number,
+    Number
 
-    IndexKwStart = ForKw,
-    IndexKwEnd = ConstKw,
-
-
-
-};
+}

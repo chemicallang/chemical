@@ -2875,6 +2875,8 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
                 return_value(val, return_type);
             }
             write(';');
+        } else {
+            write("return;");
         }
     } else {
         if(return_redirect_block.empty()) {

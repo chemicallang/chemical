@@ -211,7 +211,11 @@ struct UsingStmt : ASTNode {}
 
 struct VarInitStatement : ASTNode {}
 
-struct Scope : ASTNode {}
+struct Scope : ASTNode {
+
+    func getNodes(&self) : *VecRef<ASTNode>;
+
+}
 
 struct LoopASTNode : ASTNode {
 

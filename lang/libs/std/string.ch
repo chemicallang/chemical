@@ -277,11 +277,25 @@ public struct string {
 
     @clear
     func clear(&mut self) {
-        unsafe {
-            storage.constant.data = null;
+        switch(state) {
+            '0' => {
+                unsafe {
+                    storage.constant.data = null
+                }
+                storage.constant.length = 0
+            }
+            '1' => {
+                storage.sso.buffer[0] = '\0'
+                storage.sso.length = 0
+            }
+            '2' => {
+                storage.heap.data[0] = '\0'
+                storage.heap.length = 0;
+            }
+            default => {
+
+            }
         }
-        storage.constant.length = 0;
-        state = '0'
     }
 
     @delete

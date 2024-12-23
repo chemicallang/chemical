@@ -44,6 +44,8 @@ extern "C" {
 
     void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable);
 
+    std::vector<ASTNode*>* ScopegetNodes(Scope* scope);
+
     std::vector<ASTNode*>* DoWhileLoopget_body(DoWhileLoop* loop);
 
     std::vector<ASTNode*>* WhileLoopget_body(WhileLoop* loop);

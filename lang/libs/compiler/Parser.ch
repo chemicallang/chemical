@@ -24,6 +24,8 @@ struct Parser {
 
     func getCurrentFilePath(&self) : std::string_view
 
+    func parseExpression(&self, builder : *mut ASTBuilder, parseStruct : bool = false, parseLambda : bool = false) : *mut Value
+
     func error_at(&self, msg : std::string_view, token : *mut Token);
 
 }

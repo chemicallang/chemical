@@ -1,18 +1,16 @@
 enum TokenType {
 
     EndOfFile,
-
     Unexpected,
 
     Identifier,
-
     Text,
 
-    LT,
-    GT,
+    LessThan,
+    GreaterThan,
 
-    LB,
-    RB,
+    LBrace,
+    RBrace,
 
     FwdSlash,
 

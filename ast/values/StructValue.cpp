@@ -377,7 +377,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             const auto value = val_ptr;
             auto child_node = definition->direct_child_member(val.first);
             if(!child_node) {
-                linker.error("couldn't find child " + val.first + " in struct declaration", this);
+                linker.error("couldn't find child '" + val.first + "' in struct declaration", this);
                 continue;
             }
             auto child_type = child_node->get_value_type(linker.allocator);
@@ -473,7 +473,7 @@ Value *StructValue::call_member(
 void StructValue::set_child_value(const std::string &name, Value *value, Operation op) {
     auto ptr = values.find(name);
     if (ptr == values.end()) {
-        std::cerr << "couldn't find child by name " + name + " in struct";
+        std::cerr << "couldn't find child by name '" + name + "' in struct";
         return;
     }
     ptr->second->value = value;

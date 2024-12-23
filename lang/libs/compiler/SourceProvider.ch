@@ -43,13 +43,6 @@ struct SourceProvider {
     func peek (&self) : char
 
     /**
-     * reads the stream until this (stop) character occurs
-     * @param stop the stopping character
-     * @return everything read until stop character, it doesn't include the stopping character
-     */
-    func readUntil (&self, into : *string, stop : char);
-
-    /**
      * if char c is present at current pos, increments the stream with character
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
@@ -65,52 +58,6 @@ struct SourceProvider {
      * get zero-based character number
      */
     func getLineCharNumber (&self) : uint
-
-    /**
-     * will read everything to the given string
-     *
-     * will not stop if the stream doesn't end or there's a backslash before stopAt character
-     * useful when reading a string token which must not stop at \"
-     *
-     * will also append the last stopAt character into value
-     */
-    func readEscaping (&self, value : *string, stopAt : char) : void;
-
-    /**
-     * reads all characters into a string until char occurs
-     * @return the string that was found
-     */
-    func readAnything (&self, into : *string, until : char) : void;
-
-    /**
-     * reads a alphabetical string
-     */
-    func readAlpha (&self, into : *string) : void;
-
-    /**
-     * reads an unsigned integer as string, returns "" if no integer found
-     */
-    func readUnsignedInt (&self, into : *string) : void;
-
-    /**
-     * reads a number from the stream
-     */
-    func readNumber (&self, into : *string) : void;
-
-    /**
-     * reads a alphanumeric string
-     */
-    func readAlphaNum (&self, into : *string) : void;
-
-    /**
-     * reads a single identifier
-     */
-    func readIdentifier (&self, into : *string) : void;
-
-    /**
-     * reads a single annotation, this doesn't read '@'
-     */
-    func readAnnotationIdentifier (&self, into : *string) : void;
 
     /**
      * reads whitespaces, returns how many whitespaces were read

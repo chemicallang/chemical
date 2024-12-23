@@ -4,6 +4,12 @@
 
 enum class TokenType {
 
+    // when reached the end of file
+    EndOfFile,
+
+    // usually means an error should occur
+    Unexpected,
+
     // ------- keywords
     ForKw,
     SwitchKw,
@@ -194,12 +200,6 @@ enum class TokenType {
 
     // a number, doesn't include the negative sign
     Number,
-
-    // when reached the end of file
-    EndOfFile,
-
-    // usually means an error should occur
-    Unexpected,
 
     IndexKwStart = ForKw,
     IndexKwEnd = ConstKw,

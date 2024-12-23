@@ -24,12 +24,8 @@ public:
         return BaseTypeKind::Void;
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final {
-        return false;
-    }
-
     bool satisfies(BaseType *type) final {
-        return false;
+        return type->kind() == BaseTypeKind::Void;
     }
 
     bool is_same(BaseType *type) final {

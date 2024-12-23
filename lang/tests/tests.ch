@@ -12,6 +12,7 @@ import "basic/arrays.ch"
 import "basic/pointers.ch"
 import "basic/casts.ch"
 import "basic/functions/functions.ch"
+import "basic/functions/extension_func.ch"
 import "basic/functions/implicit.ch"
 import "basic/references/basic.ch"
 import "basic/destructors.ch"
@@ -76,6 +77,7 @@ public func main() : int {
     test_references();
     test_satisfies();
     test_new();
+    test_extension_functions();
     print_test_stats();
     return 0;
 }

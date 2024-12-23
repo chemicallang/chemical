@@ -11,6 +11,7 @@
 #include <memory>
 #include <unordered_map>
 #include "CTopLevelDeclVisitor.h"
+#include "std/chem_string_view.h"
 
 class GlobalInterpretScope;
 class ASTAllocator;
@@ -255,6 +256,11 @@ public:
      * used to write a string to a stream
      */
     void write(std::string_view str);
+
+    /**
+     * write the string view to stream
+     */
+    void write(chem::string_view& str);
 
     /**
      * write a debug comment

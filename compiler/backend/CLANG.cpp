@@ -77,6 +77,11 @@ LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, const llvm::StringRef& 
 #endif
 }
 
+chem::string_view allocate_view(BatchAllocator& allocator, const llvm::StringRef& identifier) {
+    const auto size = identifier.size();
+    return { allocator.allocate_str(identifier.data(), size), size };
+}
+
 BaseType* decl_type(CTranslator& translator, clang::Decl* decl, std::string name) {
     auto found = translator.declarations.find(decl);
     if(found != translator.declarations.end()) {
@@ -503,10 +508,9 @@ Value* CTranslator::make_expr(clang::Expr* expr) {
         return new (allocator.allocate<BoolValue>()) BoolValue(value, ZERO_LOC);
     } else if (auto* declRef = llvm::dyn_cast<clang::DeclRefExpr>(expr)) {
         clang::ValueDecl* decl = declRef->getDecl();
-        std::string name = decl->getNameAsString();
         auto found = declarations.find(decl);
         if(found != declarations.end()) {
-            const auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(name, ZERO_LOC, false);
+            const auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, decl->getName()), ZERO_LOC, false);
             id->linked = found->second;
             return id;
         } else {

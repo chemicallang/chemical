@@ -416,7 +416,7 @@ llvm::Value *VariableIdentifier::llvm_value(Codegen &gen, BaseType* expected_typ
 
 bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
     if(parent) {
-        return parent->linked_node()->add_child_index(gen, indexes, value);
+        return parent->linked_node()->add_child_index(gen, indexes, value.str());
     }
     return true;
 }

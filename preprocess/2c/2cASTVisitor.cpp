@@ -2694,6 +2694,10 @@ void ToCAstVisitor::write(std::string_view str) {
     output->write(str.data(), str.size());
 }
 
+void ToCAstVisitor::write(chem::string_view& str) {
+    output->write(str.data(), str.size());
+}
+
 std::string ToCAstVisitor::string_accept(ASTAny* any) {
     std::ostringstream stream;
     auto curr_out = output;

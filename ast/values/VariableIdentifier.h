@@ -25,7 +25,7 @@ public:
     /**
      * string value of identifier
      */
-    std::string value;
+    chem::string_view value;
     ASTNode *linked = nullptr;
     ChainValue* parent_val = nullptr;
     SourceLocation location;
@@ -35,7 +35,7 @@ public:
     /**
      * constructor
      */
-    VariableIdentifier(std::string value, SourceLocation location, bool is_ns = false) : value(std::move(value)), location(location), is_ns(is_ns) {
+    VariableIdentifier(chem::string_view value, SourceLocation location, bool is_ns = false) : value(value), location(location), is_ns(is_ns) {
 
     }
 

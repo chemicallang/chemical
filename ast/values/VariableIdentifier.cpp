@@ -23,7 +23,7 @@ bool VariableIdentifier::link(SymbolResolver &linker, bool check_access) {
         }
         return true;
     } else {
-        linker.error("variable identifier '" + value + "' not found", this);
+        linker.error("variable identifier '" + value.str() + "' not found", this);
     }
     return false;
 }
@@ -36,14 +36,14 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
     parent_val = parent;
     auto linked_node = parent->linked_node();
     if(linked_node) {
-        linked = linked_node->child(value);
+        linked = linked_node->child(value.str());
         if(linked) {
             return true;
         } else if(diagnoser) {
-            diagnoser->error("couldn't find child '" + value + "' in parent '" + parent->representation() + "'", this);
+            diagnoser->error("couldn't find child '" + value.str() + "' in parent '" + parent->representation() + "'", this);
         }
     } else if (diagnoser){
-        diagnoser->error("couldn't find child '" + value + "' because parent '" + parent->representation() + "' couldn't be resolved.", this);
+        diagnoser->error("couldn't find child '" + value.str() + "' because parent '" + parent->representation() + "' couldn't be resolved.", this);
     }
     return false;
 }
@@ -88,7 +88,7 @@ BaseType* VariableIdentifier::known_type() {
 
 // will find value by this name in the parent
 Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
-    return parent->child(scope, value);
+    return parent->child(scope, value.str());
 }
 
 BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
@@ -113,7 +113,7 @@ void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Valu
         scope.error("set_value_in in variable identifier, received null pointer to parent", parent);
     }
 #endif
-    parent->set_child_value(value, next_value, op);
+    parent->set_child_value(value.str(), next_value, op);
 }
 
 Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl);
@@ -121,23 +121,23 @@ Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* 
 void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) {
 
     // iterator for previous value
-    auto itr = scope.find_value_iterator(value);
+    auto itr = scope.find_value_iterator(value.str());
     if(itr.first == itr.second.values.end()) {
-        scope.error("couldn't find identifier '" + value + "' in current scope", this);
+        scope.error("couldn't find identifier '" + value.str() + "' in current scope", this);
         return;
     }
 
     // using the scope of the found value, so that it's initialized in the same scope
     auto newValue = rawValue->scope_value(itr.second);
     if (newValue == nullptr) {
-        scope.error("trying to assign null ptr to identifier " + value, this);
+        scope.error("trying to assign null ptr to identifier " + value.str(), this);
         return;
     }
 
     // var init statement of current value, being assigned var x (<--- this one) = y
     auto var_init = declaration();
     if (var_init == nullptr) {
-        scope.error("couldn't find declaration for identifier " + value, this);
+        scope.error("couldn't find declaration for identifier " + value.str(), this);
         return;
     }
 
@@ -147,7 +147,7 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
         auto value_var_init = rawValue->declaration();
         if (value_var_init == nullptr) {
             scope.error("couldn't find declaration of the identifier " + rawValue->representation() +
-                        " to assign to " + value, this);
+                        " to assign to " + value.str(), this);
             return;
         }
     }
@@ -174,13 +174,14 @@ VarInitStatement *VariableIdentifier::declaration() {
 }
 
 VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
-    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(value, location);
+    const auto view = allocator.allocate_str(value.data(), value.size());
+    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(view, value.size()), location);
     id->linked = linked;
     return id;
 }
 
 Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
-    auto found = scope.find_value(value);
+    auto found = scope.find_value(value.str());
     if (found != nullptr) {
         return found;
     }
@@ -190,7 +191,7 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
         if(linked_kind == ASTNodeKind::StructMember) {
             const auto found_self = scope.find_value("self");
             if(found_self) {
-                return found_self->child(scope, value);
+                return found_self->child(scope, value.str());
             }
         } else if(linked_kind == ASTNodeKind::VarInitStmt) {
             const auto init = linked->as_var_init_unsafe();
@@ -214,12 +215,12 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
 //}
 
 Value* VariableIdentifier::evaluated_chain_value(InterpretScope &scope, Value* parent) {
-    return parent ? parent->child(scope, value) : nullptr;
+    return parent ? parent->child(scope, value.str()) : nullptr;
 }
 
 Value *VariableIdentifier::scope_value(InterpretScope &scope) {
     // evaluates the value, copies it
-    auto val = scope.find_value_iterator(value);
+    auto val = scope.find_value_iterator(value.str());
     if (val.first == val.second.values.end() || val.first->second == nullptr) {
         return nullptr;
     }

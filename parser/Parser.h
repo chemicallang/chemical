@@ -149,6 +149,13 @@ public:
     }
 
     /**
+     * allocate given view on allocator
+     */
+    inline chem::string_view allocate_view(BatchAllocator& allocator, const chem::string_view& view) {
+        return { allocator.allocate_str(view.data(), view.size()), view.size() };
+    }
+
+    /**
      * get the ending position of the token
      */
     Position end_pos(Token* token);

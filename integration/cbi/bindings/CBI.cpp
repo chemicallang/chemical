@@ -124,6 +124,7 @@ void parser_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
             {"ParsergetCurrentFuncTypePtr",    (void*) ParsergetCurrentFuncTypePtr },
             {"ParsergetCurrentLoopNodePtr",    (void*) ParsergetCurrentLoopNodePtr },
             {"ParsergetCurrentFilePath",    (void*) ParsergetCurrentFilePath },
+            {"ParserparseExpression",    (void*) ParserparseExpression },
             {"Parsererror_at",    (void*) Parsererror_at },
     };
 }
@@ -251,6 +252,7 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "LambdaFunctionget_body", (void*) LambdaFunctionget_body },
             { "StructValueadd_value", (void*) StructValueadd_value },
             { "VariantCaseadd_variable", (void*) VariantCaseadd_variable },
+            { "ScopegetNodes", (void*) ScopegetNodes },
             { "DoWhileLoopget_body", (void*) DoWhileLoopget_body },
             { "WhileLoopget_body", (void*) WhileLoopget_body },
             { "ForLoopget_body", (void*) ForLoopget_body },

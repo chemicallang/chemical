@@ -290,7 +290,7 @@ struct future_ptr_union {
 };
 
 #ifdef DEBUG
-#define DEBUG_FUTURE false
+#define DEBUG_FUTURE true
 #endif
 
 void ASTProcessor::import_chemical_files(

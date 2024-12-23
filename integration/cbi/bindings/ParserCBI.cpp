@@ -35,6 +35,10 @@ void ParsergetCurrentFilePath(chem::string_view* view, Parser* parser) {
     *view = chem::string_view(parser->stored_file_path.data(), parser->stored_file_path.size());
 }
 
+Value* ParserparseExpression(Parser* parser, ASTAllocator* allocator, bool parseStruct, bool parseLambda) {
+    return parser->parseExpression(*allocator, parseStruct, parseLambda);
+}
+
 void Parsererror_at(Parser* parser, chem::string_view* view, Token* token) {
     parser->error(view->view(), token);
 }

@@ -14,6 +14,8 @@ class FunctionType;
 
 class LoopASTNode;
 
+class Value;
+
 namespace chem {
     class string_view;
 }
@@ -35,6 +37,8 @@ extern "C" {
     LoopASTNode** ParsergetCurrentLoopNodePtr(Parser* parser);
 
     void ParsergetCurrentFilePath(chem::string_view* view, Parser* parser);
+
+    Value* ParserparseExpression(Parser* parser, ASTAllocator* allocator,  bool parseStruct, bool parseLambda);
 
     void Parsererror_at(Parser* parser, chem::string_view* view, Token* token);
 

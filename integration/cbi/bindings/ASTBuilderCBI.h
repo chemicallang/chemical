@@ -13,6 +13,7 @@ class BaseType;
 
 class ASTNode;
 
+class BatchAllocator;
 class ASTAllocator;
 
 class AnyType;

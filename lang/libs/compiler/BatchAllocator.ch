@@ -13,10 +13,10 @@ struct BatchAllocator {
     /**
      * allocate a string on this allocator
      */
-    func allocate_str(data : *mut char, size : size_t) : *mut char
+    func allocate_str(&self, data : *mut char, size : size_t) : *mut char
 
 }
 
-func (allocator : &mut BatchAllocator) allocate_view(view : &mut std::string_view) : std::string_view {
+func (allocator : &mut BatchAllocator) allocate_view(view : &std::string_view) : std::string_view {
     return std::string_view(allocator.allocate_str(view.data(), view.size()), view.size());
 }

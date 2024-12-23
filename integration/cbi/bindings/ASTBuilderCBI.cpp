@@ -553,6 +553,10 @@ void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* vari
     variantCase->identifier_list.emplace_back(std::move(variable->name), variable->variant_case, variable->location);
 }
 
+std::vector<ASTNode*>* ScopegetNodes(Scope* scope) {
+    return &scope->nodes;
+}
+
 std::vector<ASTNode*>* DoWhileLoopget_body(DoWhileLoop* loop) {
     return &loop->body.nodes;
 }

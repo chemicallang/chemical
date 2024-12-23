@@ -48,9 +48,9 @@ func (lexer : &mut HtmlLexer) reset() {
 public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro value\n");
     const loc = compiler::get_raw_location();
-    if(parser.increment_if(TokenType.LB)) {
+    if(parser.increment_if(TokenType.LBrace)) {
         const value = builder.make_int_value(10, loc);
-        if(!parser.increment_if(TokenType.RB)) {
+        if(!parser.increment_if(TokenType.RBrace)) {
             parser.error("expected a rbrace");
         }
         return value;
@@ -60,23 +60,101 @@ public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *
     return null;
 }
 
-func parseText(parser : *mut Parser, builder : *mut ASTBuilder) {
+func (str : &std::string) view() : std::string_view {
+    return std::string_view(str.data(), str.size());
+}
+
+func make_value_chain(parser : *mut Parser, builder : *mut ASTBuilder, value : *mut Value, len : size_t) : *mut AccessChain {
+    const location = compiler::get_raw_location();
+    const chain = builder.make_access_chain(parser.getParentNode(), true, location)
+    var chain_values = chain.get_values()
+    var base = builder.make_identifier(std::string_view("html"), false, location);
+    chain_values.push(base)
+    var name : std::string_view
+    if(len == 0) {
+        name = std::string_view("append_char_ptr")
+    } else {
+        name = std::string_view("append_with_len")
+    }
+    var id = builder.make_identifier(name, false, location);
+    chain_values.push(id);
+    var call = builder.make_function_call_value(location)
+    var args = call.get_args();
+    args.push(value)
+    if(len != 0) {
+        args.push(builder.make_number_value(len, location));
+    }
+    chain_values.push(call)
+    return chain;
+}
+
+func make_chain_of(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
+    const location = compiler::get_raw_location();
+    const value = builder.make_string_value(builder.allocate_view(str.view()), location)
+    const size = str.size()
+    str.clear();
+    return make_value_chain(parser, builder, value, size);
+}
+
+func parseTextChain(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
+    while(true) {
+        const token = parser.getToken();
+        switch(token.type) {
+            TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan => {
+                str.append_with_len(token.value.data(), token.value.size());
+                parser.increment();
+            }
+            default => {
+                return make_chain_of(parser, builder, str);
+            }
+        }
+    }
+}
+
+func parseTextChainOrChemExpr(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
     const token = parser.getToken();
-    //switch(token.type) {
-    //    TokenType.Identifier => {
-    //
-    //    }
-    //}
+    switch(token.type) {
+        TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan => {
+            return parseTextChain(parser, builder, str);
+        }
+        TokenType.LBrace => {
+            parser.increment();
+            const chain = make_value_chain(parser, builder, parser.parseExpression(builder), 0);
+            const next = parser.getToken();
+            if(next.type == ChemicalTokenType.RBrace) {
+                parser.increment()
+            } else {
+                parser.error("expected a rbrace after chemical expression");
+            }
+            return chain;
+        }
+        TokenType.RBrace, TokenType.EndOfFile, TokenType.Unexpected, default => {
+            unsafe {
+                return null;
+            }
+        }
+    }
 }
 
 public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
     printf("wow create macro node\n");
     const loc = compiler::get_raw_location();
-    if(parser.increment_if(TokenType.LB)) {
-        if(!parser.increment_if(TokenType.RB)) {
-            parser.error("expected a rbrace");
+    if(parser.increment_if(TokenType.LBrace)) {
+        var scope = builder.make_scope(parser.getParentNode(), loc);
+        var scope_nodes = scope.getNodes();
+        var str = std::string();
+        while(true) {
+            var chain = parseTextChainOrChemExpr(parser, builder, str);
+            if(chain != null) {
+                scope_nodes.push(chain);
+            } else {
+                break;
+            }
         }
-        return null;
+        if(!parser.increment_if(TokenType.RBrace)) {
+            parser.error("expected a rbrace for ending the html macro");
+        }
+        return scope;
     } else {
         parser.error("expected a lbrace");
     }
@@ -136,7 +214,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         '<' => {
             html.has_lt = true;
             return Token {
-                type : TokenType.LT,
+                type : TokenType.LessThan,
                 value : view("<"),
                 position : position
             }
@@ -147,18 +225,12 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 html.reset();
                 lexer.user_mode = false;
                 lexer.other_mode = false;
-            } else if(html.lb_count == 2) {
-                printf("turning off chemical mode\n");
-                html.other_mode = false;
-                html.chemical_mode = false;
-                html.lb_count--;
-                printf("lb_count decreased to %d\n", html.lb_count);
             } else {
                 html.lb_count--;
                 printf("lb_count decreased to %d\n", html.lb_count);
             }
             return Token {
-                type : TokenType.RB,
+                type : TokenType.RBrace,
                 value : view("}"),
                 position : position
             }
@@ -173,7 +245,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             html.lb_count++;
             printf("lb_count increased to %d\n", html.lb_count);
             return Token {
-                type : TokenType.LB,
+                type : TokenType.LBrace,
                 value : view("{"),
                 position : position
             }
@@ -201,7 +273,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             if(html.has_lt) {
                 html.has_lt = false;
                 return Token {
-                    type : TokenType.GT,
+                    type : TokenType.GreaterThan,
                     value : view(">"),
                     position : position
                 }
@@ -252,10 +324,10 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             var nested = lexer.getEmbeddedToken();
             if(nested.type == ChemicalTokenType.LBrace) {
                 html.lb_count++;
-                printf("lb_count increases to %d\n", html.lb_count);
+                printf("lb_count increases to %d in chemical mode\n", html.lb_count);
             } else if(nested.type == ChemicalTokenType.RBrace) {
                 html.lb_count--;
-                printf("lb_count decreased to %d\n", html.lb_count);
+                printf("lb_count decreased to %d in chemical mode\n", html.lb_count);
                 if(html.lb_count == 1) {
                     html.other_mode = false;
                     html.chemical_mode = false;

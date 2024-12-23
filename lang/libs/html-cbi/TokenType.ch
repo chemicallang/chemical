@@ -5,6 +5,7 @@ enum TokenType {
 
     Identifier,
     Text,
+    Number,
 
     LessThan,
     GreaterThan,

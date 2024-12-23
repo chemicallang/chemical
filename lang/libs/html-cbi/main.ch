@@ -108,7 +108,7 @@ func parseTextChain(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut 
     while(true) {
         const token = parser.getToken();
         switch(token.type) {
-            TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue, TokenType.Identifier => {
+            TokenType.Identifier, TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue, TokenType.Number => {
                 parser.increment();
                 var next = parser.getToken();
                 if(next.type == TokenType.RBrace) {
@@ -140,7 +140,7 @@ func parseTextChain(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut 
 func parseTextChainOrChemExpr(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
     const token = parser.getToken();
     switch(token.type) {
-        TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan, TokenType.FwdSlash, TokenType.Equal, TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue => {
+        TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan, TokenType.FwdSlash, TokenType.Equal, TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue, TokenType.Number => {
             return parseTextChain(parser, builder, str);
         }
         TokenType.LBrace => {
@@ -238,6 +238,31 @@ func (provider : &SourceProvider) read_double_quoted_value(str : &SerialStrAlloc
         }
     }
     return str.finalize_view();
+}
+
+// read digits into the string
+func (provider : &mut SourceProvider) read_digits(str : &mut SerialStrAllocator) {
+    while(true) {
+        const next = provider.peek();
+        if(isdigit(next)) {
+            str.append(provider.readCharacter());
+        } else {
+            break;
+        }
+    }
+}
+
+// assumes that a digit exists at current location
+func (provider : &mut SourceProvider) read_floating_digits(str : &mut SerialStrAllocator) : bool {
+    provider.read_digits(str);
+    const c = provider.peek();
+    if(c == '.') {
+        str.append(provider.readCharacter());
+        provider.read_digits(str);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 func (provider : &SourceProvider) skip_whitespaces() {
@@ -377,10 +402,20 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                             }
                         }
                         default => {
-                            return Token {
-                                type : TokenType.Unexpected,
-                                value : view("tag names must start with letters"),
-                                position : position
+                            if(isdigit(c)) {
+                                str.append(c);
+                                provider.read_floating_digits(lexer.str);
+                                return Token {
+                                    type : TokenType.Number,
+                                    value : str.finalize_view(),
+                                    position : position
+                                }
+                            } else {
+                                return Token {
+                                    type : TokenType.Unexpected,
+                                    value : view("tag names must start with letters"),
+                                    position : position
+                                }
                             }
                         }
                     }

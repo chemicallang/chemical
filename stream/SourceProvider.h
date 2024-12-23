@@ -113,51 +113,11 @@ public:
     }
 
     /**
-     * reads the stream until this (stop) character occurs
-     * @param stop the stopping character
-     * @return everything read until stop character, it doesn't include the stopping character
-     */
-    void readUntil(chem::string* into, char stop);
-
-    /**
-     * reads the stream until this (stop) character occurs
-     * @param stop the stopping character
-     * @return everything read until stop character, it doesn't include the stopping character
-     */
-    void readUntil(std::string& into, char stop);
-
-    /**
-     * helper
-     */
-    [[nodiscard]]
-    inline std::string readUntil(char stop) {
-        std::string str;
-        readUntil(str, stop);
-        return str;
-    }
-
-    /**
      * if char c is present at current pos, increments the stream with character
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
      */
     bool increment(char c);
-
-    /**
-     * increment by given amount
-     */
-    void increment_amount(unsigned amount);
-
-    /**
-     * this will read all the text from current position to end in a string and return it
-     */
-    [[nodiscard]]
-    std::string readAllFromHere();
-
-    /**
-     * This for debugging, when called, everything from the current position to the end will be printed to cout
-     */
-    void printAll();
 
     /**
      * get zero-based current line number
@@ -187,179 +147,6 @@ public:
      * reset the buffer and switch to the given source
      */
     void switch_source(InputSource* source);
-
-    /**
-     * will read everything to the given string
-     *
-     * will not stop if the stream doesn't end or there's a backslash before stopAt character
-     * useful when reading a string token which must not stop at \"
-     *
-     * will also append the last stopAt character into value
-     */
-    void readEscaping(chem::string* value, char stopAt);
-
-    /**
-     * will read everything to the given string
-     *
-     * will not stop if the stream doesn't end or there's a backslash before stopAt character
-     * useful when reading a string token which must not stop at \"
-     *
-     * will also append the last stopAt character into value
-     */
-    void readEscaping(std::string& value, char stopAt);
-
-    /**
-     * reads all characters into a string until char occurs
-     */
-    void readAnything(chem::string* str, char until = ' ');
-
-    /**
-     * reads all characters into a string until char occurs
-     */
-    void readAnything(std::string& str, char until = ' ');
-
-    /**
-     * reads all characters into a string until char occurs
-     * @return the string that was found
-     */
-    [[nodiscard]]
-    inline std::string readAnything(char until = ' ') {
-        std::string str;
-        readAnything(str, until);
-        return str;
-    }
-
-    /**
-    * reads a alphabetical string
-    */
-    void readAlpha(chem::string* str);
-
-    /**
-    * reads a alphabetical string
-     */
-    void readAlpha(std::string& str);
-
-    /**
-     * helper
-     */
-    [[nodiscard]]
-    inline std::string readAlpha() {
-        std::string str;
-        readAlpha(str);
-        return str;
-    }
-
-    /**
-     * reads an unsigned integer as string, returns "" if no integer found
-     */
-    void readUnsignedInt(chem::string* str);
-
-    /**
-     * reads an unsigned integer as string, returns "" if no integer found
-     */
-    void readUnsignedInt(std::string& str);
-
-    /**
-     * helper
-     */
-    [[nodiscard]]
-    inline std::string readUnsignedInt() {
-        std::string str;
-        readUnsignedInt(str);
-        return str;
-    }
-
-    /**
-     * a number will be read into a chemical string
-     */
-    void readNumber(chem::string* string);
-
-    /**
-     * a number will be read into a string
-     */
-    void readNumber(std::string& str);
-
-    /**
-     * reads a number from the stream
-     */
-    [[nodiscard]]
-    inline std::string readNumber() {
-        std::string content;
-        readNumber(content);
-        return content;
-    }
-
-    /**
-     * a number will be read into a chemical string
-     * this accepts any numbers, even hex numbers
-     */
-    void readAnyNumber(chem::string* string);
-
-    /**
-     * a number will be read into a string
-     * this accepts any numbers, even hex numbers
-     */
-    void readAnyNumber(std::string& str);
-
-    /**
-     * reads a alphanumeric string
-     */
-    void readAlphaNum(chem::string* str);
-
-    /**
-     * reads a alphanumeric string
-     */
-    void readAlphaNum(std::string& str);
-
-    /**
-     * helper
-     */
-    [[nodiscard]]
-    inline std::string readAlphaNum() {
-        std::string str;
-        readAlphaNum(str);
-        return str;
-    }
-
-    /**
-     * reads a single identifier
-     */
-    void readIdentifier(chem::string* str);
-
-    /**
-     * reads a single identifier
-     */
-    void readIdentifier(std::string& str);
-
-    /**
-     * reads a single identifier
-     */
-    [[nodiscard]]
-    inline std::string readIdentifier() {
-        std::string str;
-        readIdentifier(str);
-        return str;
-    }
-
-    /**
-     * reads a single annotation into given string, this doesn't read '@'
-     */
-    void readAnnotationIdentifier(chem::string* into);
-
-    /**
-     * reads a single annotation into given string, this doesn't read '@'
-     */
-    void readAnnotationIdentifier(std::string& into);
-
-    /**
-     * reads a single annotation, this doesn't read '@'
-     */
-    [[nodiscard]]
-    inline std::string readAnnotationIdentifier() {
-        std::string ret;
-        readAnnotationIdentifier(ret);
-        return ret;
-    }
 
     /**
      * reads whitespaces, returns how many whitespaces were read
@@ -393,20 +180,6 @@ public:
      */
     inline Position position() {
         return {getLineNumber(), getLineCharNumber()};
-    }
-
-    /**
-     * when you have read the character from the stream, you create a position, \n\n
-     * it corresponds to the position at the end of the character and not at the start \n\n
-     * instead of saving the position in a variable before you read and consume characters \n
-     * You should get position after reading the characters and basically subtract the length of the token \n\n
-     * You can provide the length of the token to this function \n\n
-     * Note that token must be on the same line
-     * @param back
-     * @return
-     */
-    inline Position backPosition(unsigned int back) {
-        return {getLineNumber(), getLineCharNumber() - back};
     }
 
 };

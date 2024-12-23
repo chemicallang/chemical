@@ -63,6 +63,8 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
             return (ASTNode*) parseVarInitializationTokens(allocator, AccessSpecifier::Internal, true);
         case TokenType::UsingKw:
             return (ASTNode*) parseUsingStatement(allocator);
+        case TokenType::HashMacro:
+            return parseMacroNode(allocator);
         case TokenType::ProvideKw:
             return (ASTNode*) parseProvideStatement(allocator);
         case TokenType::ComptimeKw:
@@ -113,6 +115,8 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             return (ASTNode*) parseContinueStatement(allocator);
         case TokenType::UnreachableKw:
             return (ASTNode*) parseUnreachableStatement(allocator);
+        case TokenType::HashMacro:
+            return parseMacroNode(allocator);
         case TokenType::ReturnKw:
             return (ASTNode*) parseReturnStatement(allocator);
         case TokenType::DestructKw:

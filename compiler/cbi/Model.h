@@ -10,6 +10,8 @@ class Parser;
 
 class Value;
 
+class ASTNode;
+
 class ASTAllocator;
 
 /**
@@ -40,7 +42,13 @@ struct UserLexerGetNextToken {
 };
 
 /**
- * this function is called when a macro is detected by the parser
+ * this function is called by parser on a macro as value ex: var x = #html {}
  * the macro is a value, so a value must be returned from this function
  */
 typedef Value*(*UserParserParseMacroValueFn)(Parser* parser, ASTAllocator* allocator);
+
+/**
+ * this function is called by parser on a macro as node ex: #html {}
+ * the macro is a node, so a node must be returned from this function
+ */
+typedef ASTNode*(*UserParserParseMacroNodeFn)(Parser* parser, ASTAllocator* allocator);

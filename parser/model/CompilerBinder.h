@@ -57,6 +57,12 @@ public:
     std::unordered_map<chem::string_view, UserParserParseMacroValueFn> parseMacroValueFunctions;
 
     /**
+     * parseMacroNode functions are called by the parser to provide a node for a given macro
+     * when parsing
+     */
+    std::unordered_map<chem::string_view, UserParserParseMacroNodeFn> parseMacroNodeFunctions;
+
+    /**
      * contains a map between cbi_name and module data
      */
     std::unordered_map<std::string, CBIData> data;

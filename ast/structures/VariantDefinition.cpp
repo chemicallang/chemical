@@ -516,7 +516,7 @@ VariantCase::VariantCase(AccessChain* _chain, ASTDiagnoser& diagnoser, SwitchSta
                 diagnoser.error("switch variant case with a function call doesn't contain identifiers '" + chain->chain_representation() + "', in question " + value->representation(), value);
                 return;
             }
-            identifier_list.emplace_back(id->value, this, value->encoded_location());
+            identifier_list.emplace_back(id->value.str(), this, value->encoded_location());
         }
         // remove the last function call, as we took it's identifiers
         chain->values.pop_back();

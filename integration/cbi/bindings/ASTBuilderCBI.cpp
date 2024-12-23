@@ -352,7 +352,7 @@ ValueNode* ASTBuildermake_value_node(ASTAllocator* allocator, Value* value, ASTN
 }
 
 VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::string_view* value, bool is_ns, uint64_t location) {
-    return new (allocator->allocate<VariableIdentifier>()) VariableIdentifier(value->str(), location, is_ns);
+    return new (allocator->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
 }
 
 VariantCall* ASTBuildermake_variant_call(ASTAllocator* allocator, AccessChain* chain, uint64_t location) {

@@ -144,14 +144,14 @@ BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, 
 }
 
 LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* type, SourceLocation location) {
-    auto first_id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(type->value.str(), location, true);
+    auto first_id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, type->value), location, true);
     auto chain = new (allocator.allocate<AccessChain>()) AccessChain({ first_id }, parent_node, false, location);
     while(true) {
         if(token->type == TokenType::DoubleColonSym) {
             token++;
             auto new_type = consumeIdentifierOrKeyword();
             if(new_type) {
-                auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(new_type->value.str(), loc_single(new_type), true);
+                auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, new_type->value), loc_single(new_type), true);
                 chain->values.emplace_back(id);
             } else {
                 error("expected an identifier after '" + type->value.str() + "::' for a type");

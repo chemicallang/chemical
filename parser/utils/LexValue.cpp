@@ -144,7 +144,7 @@ Value* Parser::parseNumberValue(ASTAllocator& allocator) {
 VariableIdentifier* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
     auto id = consumeIdentifierOrKeyword();
     if(id) {
-        return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(id->value.str(), loc_single(id));
+        return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));
     } else {
         return nullptr;
     }

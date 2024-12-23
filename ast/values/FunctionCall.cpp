@@ -920,7 +920,7 @@ bool FunctionCall::compile_time_computable() {
 Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
     auto id = parent->as_identifier();
     if(id != nullptr) {
-        return parent->call_member(scope, id->value, values);
+        return parent->call_member(scope, id->value.str(), values);
     } else {
         scope.error("No identifier for function call", this);
         return nullptr;

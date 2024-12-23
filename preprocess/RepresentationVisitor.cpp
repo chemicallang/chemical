@@ -668,7 +668,7 @@ void RepresentationVisitor::visit(StructValue *val) {
 }
 
 void RepresentationVisitor::visit(VariableIdentifier *identifier) {
-    write(identifier->value);
+    write_view(identifier->value);
 }
 
 void RepresentationVisitor::visit(Expression *expr) {

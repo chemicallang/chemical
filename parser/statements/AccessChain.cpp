@@ -85,7 +85,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
         case TokenType::RBrace:
         case TokenType::RBracket:
         case TokenType::CommaSym:
-            return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(id->value.str(), loc_single(id));;
+            return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));;
         case TokenType::LBrace: {
             auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(id->value.str(), loc_single(id));
             return parseStructValue(allocator, ref_type, id->position);
@@ -106,7 +106,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
     }
 
     auto chain = new (allocator.allocate<AccessChain>()) AccessChain({}, parent_node, false, loc_single(id));
-    auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(id->value.str(), loc_single(id));
+    auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));
     chain->values.emplace_back(identifier);
 
     return parseAccessChainAfterId(allocator, chain, id->position, parseStruct);
@@ -228,7 +228,7 @@ void Parser::parseGenericArgsList(std::vector<BaseType*>& outArgs, ASTAllocator&
 BaseType* Parser::ref_type_from(ASTAllocator& allocator, AccessChain* chain) {
     if(chain->values.size() == 1) {
         auto val = (VariableIdentifier*) chain->values.back();
-        return new (allocator.allocate<LinkedType>()) LinkedType(val->value, val->location);
+        return new (allocator.allocate<LinkedType>()) LinkedType(val->value.str(), val->location);
     } else {
         return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->location);
     }
@@ -255,7 +255,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
         } else if(parseStruct && token->type == TokenType::LBrace) {
             if(chain->values.size() == 1) {
                 auto id = (VariableIdentifier*) chain->values.back();
-                auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(std::string(id->value), id->location);
+                auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(id->value.str(), id->location);
                 auto gen_type = new (allocator.allocate<GenericType>()) GenericType(ref_type, std::move(genArgs));
                 return parseStructValue(allocator, gen_type, start);
             } else {

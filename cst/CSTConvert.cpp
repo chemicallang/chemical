@@ -846,9 +846,9 @@ void CSTConverter::visitUsing(CSTToken* usingStmt) {
     std::vector<ChainValue*> curr_values;
     unsigned i = 1;
     while(i < usingStmt->tokens.size()) {
-        auto& tok = usingStmt->tokens[i];
+        auto tok = usingStmt->tokens[i];
         if(tok->is_identifier()) {
-            curr_values.emplace_back(new (local<VariableIdentifier>()) VariableIdentifier(str_token(usingStmt->tokens[i]), loc(tok), true));
+            curr_values.emplace_back(new (local<VariableIdentifier>()) VariableIdentifier(chem::string_view(tok->value().data(), tok->value().size()), loc(tok), true));
         }
         i++;
     }
@@ -1789,7 +1789,7 @@ BaseType* convert_ref_value_to_type(CSTConverter* converter, Value* value, CSTTo
     const auto has_generic_list = generic_token->type() == LexTokenType::CompGenericList;
     const auto id = value->as_identifier();
     if(id) {
-        linked_type = new (allocator.allocate<LinkedType>()) LinkedType(id->value, id->location);
+        linked_type = new (allocator.allocate<LinkedType>()) LinkedType(id->value.str(), id->location);
     } else {
         const auto chain = value->as_access_chain();
         if(chain) {
@@ -2118,7 +2118,7 @@ void CSTConverter::visitDereference(CSTToken* deref) {
 }
 
 void CSTConverter::visitVariableToken(CSTToken* token) {
-    put_value(new (local<VariableIdentifier>()) VariableIdentifier(token->value(), loc(token)), token);
+    put_value(new (local<VariableIdentifier>()) VariableIdentifier(chem::string_view(token->value().data(), token->value().size()), loc(token)), token);
 }
 
 void CSTConverter::visitBoolToken(CSTToken* token) {

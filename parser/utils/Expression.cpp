@@ -206,7 +206,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
     }
 
     if(has_whitespace) {
-        auto first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(identifier->value.str(), loc_single(identifier), false);
+        auto first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
         auto value = parseAfterValue(allocator, first_value, identifier);
         auto expr = parseRemainingExpression(allocator, value, identifier);
         if(consumeToken(TokenType::RParen)) {

@@ -96,13 +96,26 @@ func make_chain_of(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut s
     return make_value_chain(parser, builder, value, size);
 }
 
+func rtrim_len(str : *mut char, len : size_t) : size_t {
+    // Start from the end of the string
+    while (len > 0 && isspace(str[len - 1])) {
+        len--;
+    }
+    return len;
+}
+
 func parseTextChain(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
     while(true) {
         const token = parser.getToken();
         switch(token.type) {
-            TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan => {
-                str.append_with_len(token.value.data(), token.value.size());
+            TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan, TokenType.FwdSlash => {
                 parser.increment();
+                if(parser.getToken().type == TokenType.RBrace) {
+                    // last brace, we need to rtrim it
+                    str.append_with_len(token.value.data(), rtrim_len(token.value.data(), token.value.size()));
+                } else {
+                    str.append_with_len(token.value.data(), token.value.size());
+                }
             }
             default => {
                 return make_chain_of(parser, builder, str);

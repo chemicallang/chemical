@@ -322,7 +322,6 @@ Token read_escape_seq_in_char(SerialStrAllocator& builder, SourceProvider& provi
         switch(provider.peek()) {
             case -1:
                 return Token(TokenType::EndOfFile, { nullptr, 0 }, pos);
-            case '\'':
             case ' ':
             case '\t':
             case '\n':
@@ -345,7 +344,7 @@ Token Lexer::getNextToken() {
         if(char_mode) {
             auto current = provider.readCharacter();
             if(current == '\\') {
-                return read_escape_seq_in_char(str, provider, pos);
+                return read_escape_seq_in_str(str, provider, pos);
             } else if(current == '\'') {
                 char_mode = false;
                 other_mode = false;

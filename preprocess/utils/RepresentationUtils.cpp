@@ -39,6 +39,9 @@ void write_escape_encoded(std::ostream& stream, char value) {
         case '\x1b':
             stream << "\\x1b";
             return;
+        case '\'':
+            stream << "\\'";
+            return;
         case '\\':
             stream << "\\\\";
             return;

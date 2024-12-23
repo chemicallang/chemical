@@ -1,6 +1,7 @@
 import "AccessSpecifier.ch"
 import "./PtrVec.ch"
 import "@std/string_view.ch"
+import "./BatchAllocator.ch"
 
 using namespace std;
 
@@ -337,7 +338,7 @@ struct VariantMember : ASTNode {
 struct VariantMemberParam : ASTNode {}
 
 @compiler.interface
-public struct ASTBuilder {
+public struct ASTBuilder : BatchAllocator {
 
     func make_any_type(&self, location : ubigint) : *mut AnyType
 

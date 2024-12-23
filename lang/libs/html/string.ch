@@ -1,6 +1,6 @@
 import "@std/string.ch"
 
-struct Html {
+struct HtmlString {
 
     var value : std::string
 

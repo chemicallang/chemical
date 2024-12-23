@@ -18,7 +18,7 @@ struct HtmlLexer {
 }
 
 public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
-    printf("wow create macro\n");
+    printf("wow create macro value\n");
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LB)) {
         const value = builder.make_int_value(10, loc);
@@ -30,6 +30,19 @@ public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *
         parser.error("expected a lbrace");
     }
     return null;
+}
+
+public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+    printf("wow create macro value\n");
+    const loc = compiler::get_raw_location();
+    if(parser.increment_if(TokenType.LB)) {
+        if(!parser.increment_if(TokenType.RB)) {
+            parser.error("expected a rbrace");
+        }
+        return null;
+    } else {
+        parser.error("expected a lbrace");
+    }
 }
 
 func (provider : &SourceProvider) read_tag_name(str : &SerialStrAllocator) : std::string_view {

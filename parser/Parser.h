@@ -683,6 +683,11 @@ public:
     Value* parseMacroValue(ASTAllocator& allocator);
 
     /**
+     * parses a macro value node
+     */
+    ASTNode* parseMacroNode(ASTAllocator& allocator);
+
+    /**
      * parses a number value
      */
     Value* parseNumberValue(ASTAllocator& allocator);

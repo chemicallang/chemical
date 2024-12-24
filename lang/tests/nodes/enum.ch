@@ -89,4 +89,11 @@ func test_enum() {
     test("test enums with underlying type work with number values", () => {
         return Thing33.Fruit == 0 && Thing33.Veg == 1 && Thing33.OtherStuff == 2 && Thing33.MoreOtherStuff == 3
     })
+    test("test enums automatically cast according to underlying type", () => {
+        const one = 0
+        const two = 1
+        const three = 2
+        const four = 3
+        return Thing33.Fruit == one && Thing33.Veg == two && Thing33.OtherStuff == three && Thing33.MoreOtherStuff == four
+    })
 }

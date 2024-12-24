@@ -10,6 +10,9 @@
 #ifdef COMPILER_BUILD
 
 #include "llvmimpl.h"
+#include "ast/base/ASTNode.h"
+#include "ast/types/LinkedType.h"
+#include "ast/structures/EnumDeclaration.h"
 
 llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs) {
     auto firstType = lhs->create_type(allocator);
@@ -19,6 +22,26 @@ llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs) {
 
 llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs, BaseType* lhsType, BaseType* rhsType) {
     return operate(op, lhs, rhs, lhsType, rhsType, lhs->llvm_value(*this), rhs->llvm_value(*this));
+}
+
+EnumDeclaration* getEnumDecl(BaseType* type, BaseTypeKind kind) {
+    return kind == BaseTypeKind::Linked ? ((LinkedType*) type)->linked->as_enum_decl() : nullptr;
+}
+
+void perform_implicit_cast_on_integers(IntNType* fIntN, IntNType* secIntN, llvm::Value*& lhs, llvm::Value*& rhs, Codegen& gen) {
+    if(fIntN->num_bits() < secIntN->num_bits()) {
+        if(fIntN->is_unsigned()) {
+            lhs = gen.builder->CreateZExt(lhs, secIntN->llvm_type(gen));
+        } else {
+            lhs = gen.builder->CreateSExt(lhs, secIntN->llvm_type(gen));
+        }
+    } else if(fIntN->num_bits() > secIntN->num_bits()) {
+        if(secIntN->is_unsigned()) {
+            rhs = gen.builder->CreateZExt(rhs, fIntN->llvm_type(gen));
+        } else {
+            rhs = gen.builder->CreateSExt(rhs, fIntN->llvm_type(gen));
+        }
+    }
 }
 
 llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType, llvm::Value* lhs, llvm::Value* rhs){
@@ -81,20 +104,20 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
     };
 
     // implicit cast int n types
-    if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
-        auto fIntN = (IntNType*) firstType;
-        auto secIntN = (IntNType*) secondType;
-        if(fIntN->num_bits() < secIntN->num_bits()) {
-            if(fIntN->is_unsigned()) {
-                lhs = builder->CreateZExt(lhs, secIntN->llvm_type(*this));
-            } else {
-                lhs = builder->CreateSExt(lhs, secIntN->llvm_type(*this));
+    const auto firstTypeKind = firstType->kind();
+    const auto secondTypeKind = secondType->kind();
+    if(firstTypeKind == BaseTypeKind::IntN && secondTypeKind == BaseTypeKind::IntN) {
+        perform_implicit_cast_on_integers((IntNType*) firstType, ((IntNType*) secondType), lhs, rhs, *this);
+    } else {
+        if(secondTypeKind == BaseTypeKind::IntN) {
+            const auto firstEnum = getEnumDecl(firstType, firstTypeKind);
+            if(firstEnum) {
+                perform_implicit_cast_on_integers(firstEnum->underlying_type, ((IntNType*) secondType), lhs, rhs, *this);
             }
-        } else if(fIntN->num_bits() > secIntN->num_bits()) {
-            if(secIntN->is_unsigned()) {
-                rhs = builder->CreateZExt(rhs, fIntN->llvm_type(*this));
-            } else {
-                rhs = builder->CreateSExt(rhs, fIntN->llvm_type(*this));
+        } else if(firstTypeKind == BaseTypeKind::IntN) {
+            const auto secondEnum = getEnumDecl(secondType, secondTypeKind);
+            if(secondEnum) {
+                perform_implicit_cast_on_integers(((IntNType*) firstType), secondEnum->underlying_type, lhs, rhs, *this);
             }
         }
     }

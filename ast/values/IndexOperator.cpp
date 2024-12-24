@@ -66,11 +66,11 @@ bool IndexOperator::add_child_index(Codegen &gen, std::vector<llvm::Value *> &in
 }
 
 llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
-    return parent_val->create_type(gen.allocator)->create_child_type(gen.allocator)->llvm_type(gen);
+    return create_type(gen.allocator)->llvm_type(gen);
 }
 
 llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) {
-    return parent_val->create_type(gen.allocator)->create_child_type(gen.allocator)->llvm_chain_type(gen, chain, index);
+    return create_type(gen.allocator)->llvm_chain_type(gen, chain, index);
 }
 
 llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
@@ -80,7 +80,19 @@ llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
 #endif
 
 BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
-    return parent_val->create_type(allocator)->create_child_type(allocator);
+    int i = (int) values.size();
+    auto current_type = parent_val->create_type(allocator);
+    while(i > 0) {
+        const auto childType = current_type->create_child_type(allocator);
+#ifdef DEBUG
+        if(!childType) {
+            throw std::runtime_error("couldn't create the child type in index operator");
+        }
+#endif
+        current_type = childType;
+        i--;
+    }
+    return current_type;
 }
 
 //hybrid_ptr<BaseType> IndexOperator::get_base_type() {

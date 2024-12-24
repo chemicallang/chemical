@@ -32,10 +32,6 @@ public:
         return type == ValueType::UChar;
     }
 
-    bool satisfies(BaseType *type) final {
-        return type->kind() == BaseTypeKind::UChar;
-    }
-
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::UChar;

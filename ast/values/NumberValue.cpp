@@ -60,8 +60,11 @@ bool NumberValue::link(SymbolResolver &linker, BaseType *type) {
             }
         }
         auto pure = type->pure_type();
-        if(pure && pure->kind() == BaseTypeKind::IntN) {
-            linked_type = (IntNType*) pure->copy(*linker.ast_allocator);
+        if(pure) {
+            const auto pure_kind = pure->kind();
+            if(pure_kind == BaseTypeKind::IntN || pure_kind == BaseTypeKind::Char || pure_kind == BaseTypeKind::UChar) {
+                linked_type = (IntNType*) pure->copy(*linker.ast_allocator);
+            }
         }
     }
     return true;

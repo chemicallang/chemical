@@ -11,9 +11,9 @@ bool NullValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expect
         return false;
     }
     if(expected_type) {
-        const auto type = expected_type->pointer_type();
-        if (type) {
-            expected = type->copy(*linker.ast_allocator);
+        const auto kind = expected_type->kind();
+        if(kind == BaseTypeKind::Function || kind == BaseTypeKind::Pointer) {
+            expected = expected_type->copy(*linker.ast_allocator);
         }
     }
     return true;

@@ -245,7 +245,7 @@ public struct string {
                 return storage.constant.length;
             }
             '1' => {
-                return STR_BUFF_SIZE;
+                return STR_BUFF_SIZE as size_t;
             }
             '2' => {
                 return storage.heap.capacity;

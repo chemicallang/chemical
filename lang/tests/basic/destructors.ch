@@ -24,7 +24,7 @@ struct GenDestruct<T> {
 
     var data : T
 
-    var count : *int
+    var count : *mut int
 
     var lamb : (count : *mut int) => void;
 

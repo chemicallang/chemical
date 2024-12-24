@@ -177,7 +177,7 @@ func (ctx : &BuildContext) include_headers(module : *mut Module, headers : Array
     var i = 0;
     const total = headers.size();
     while(i < total) {
-        var ele = headers.get(i);
+        var ele = headers.get(i as size_t);
         ctx.include_header(module, *ele);
         i++;
     }
@@ -188,7 +188,7 @@ func (ctx : &BuildContext) include_files(module : *mut Module, files : ArrayRef<
     var i = 0;
     const total = files.size();
     while(i < total) {
-        var ele = files.get(i);
+        var ele = files.get(i as size_t);
         ctx.include_file(module, *ele);
         i++;
     }

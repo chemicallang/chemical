@@ -21,6 +21,20 @@ func take_my_thing() : Thing {
     return Thing.Veg
 }
 
+enum Thing22 : uchar {
+    Fruit,
+    Veg,
+    OtherStuff,
+    MoreOtherStuff
+}
+
+enum Thing33 : ushort {
+    Fruit,
+    Veg,
+    OtherStuff,
+    MoreOtherStuff
+}
+
 func test_enum() {
     test("enum index works", () => {
         return Thing.Fruit == 0 && Thing.Veg == 1;
@@ -57,5 +71,22 @@ func test_enum() {
     })
     test("test enums can be returned from functions", () => {
         return take_my_thing() == Thing.Veg;
+    })
+    test("test enums with underlying type work with uchar", () => {
+        const one = 0 as uchar
+        const two = 1 as uchar
+        const three = 2 as uchar
+        const four = 3 as uchar
+        return Thing22.Fruit == one && Thing22.Veg == two && Thing22.OtherStuff == three && Thing22.MoreOtherStuff == four
+    })
+    test("test enums with underlying type work with ushort", () => {
+        const one = 0 as ushort
+        const two = 1 as ushort
+        const three = 2 as ushort
+        const four = 3 as ushort
+        return Thing33.Fruit == one && Thing33.Veg == two && Thing33.OtherStuff == three && Thing33.MoreOtherStuff == four
+    })
+    test("test enums with underlying type work with number values", () => {
+        return Thing33.Fruit == 0 && Thing33.Veg == 1 && Thing33.OtherStuff == 2 && Thing33.MoreOtherStuff == 3
     })
 }

@@ -33,7 +33,8 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
             lexWhitespaceToken();
             auto type = parseType(allocator);
             if(type) {
-                if(type->kind() == BaseTypeKind::IntN) {
+                const auto k = type->kind();
+                if(k == BaseTypeKind::IntN || k == BaseTypeKind::Char || k == BaseTypeKind::UChar) {
                     decl->underlying_type = (IntNType*) type;
                 } else {
                     error("expected a integer type after ':' in enum declaration");

@@ -3,11 +3,23 @@
 #include "Expression.h"
 #include "IntNumValue.h"
 #include "ast/types/IntNType.h"
+#include "ast/structures/EnumDeclaration.h"
+#include "ast/base/ASTNode.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/LongType.h"
 #include "ast/values/DoubleValue.h"
+#include "ast/values/NumberValue.h"
 #include "ast/values/FloatValue.h"
 #include "compiler/SymbolResolver.h"
+
+EnumDeclaration* getEnumDecl(BaseType* type) {
+    const auto linked = type->linked_node();
+    if(linked && linked->kind() == ASTNodeKind::EnumDecl) {
+        return linked->as_enum_decl_unsafe();
+    } else {
+        return nullptr;
+    }
+}
 
 void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
@@ -17,6 +29,21 @@ void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstT
         } else if(secondValue->as_number_val() != nullptr){
             auto value = ((IntNumValue*)secondValue)->get_num_value();
             secondValue = ((IntNType*) firstType)->create(allocator, value);
+        }
+    }
+    const auto first = getEnumDecl(firstType);
+    if(first) {
+        const auto second = secondValue->as_number_val();
+        if(second) {
+            secondValue = first->underlying_type->create(allocator, second->value);
+        }
+    } else {
+        const auto second = getEnumDecl(secondType);
+        if(second) {
+            const auto firstVal = firstValue->as_number_val();
+            if(firstVal) {
+                firstValue = second->underlying_type->create(allocator, firstVal->value);
+            }
         }
     }
 }

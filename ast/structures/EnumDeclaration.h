@@ -31,8 +31,10 @@ public:
     std::unordered_map<std::string, EnumMember*> members; ///< The values of the enum.
     ASTNode* parent_node;
     SourceLocation location;
+    IntNType* underlying_type;
+
+    // TODO remove this linked_type, we don't want to store stuff, that's not required
     LinkedType linked_type;
-    IntType underlying_type;
 
     /**
      * @brief Construct a new EnumDeclaration object.
@@ -43,11 +45,12 @@ public:
     EnumDeclaration(
             LocatedIdentifier name_id,
             std::unordered_map<std::string, EnumMember*> members,
+            IntNType* underlying_type,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : located_id(std::move(name_id)), members(std::move(members)), parent_node(parent_node), location(location),
-        linked_type(name(), this, location), underlying_type(location), attrs(specifier, false) {
+    ) : located_id(name_id), members(std::move(members)), parent_node(parent_node), location(location),
+        linked_type(name(), this, location), underlying_type(underlying_type), attrs(specifier, false) {
 
     }
 
@@ -113,7 +116,7 @@ public:
     BaseType* known_type() final;
 
     uint64_t byte_size(bool is64Bit) final {
-        return underlying_type.byte_size(is64Bit);
+        return underlying_type->byte_size(is64Bit);
     }
 
 #ifdef COMPILER_BUILD

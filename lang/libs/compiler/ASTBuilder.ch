@@ -12,6 +12,8 @@ struct ASTNode {}
 
 struct BaseType {}
 
+struct IntNType : BaseType {}
+
 struct Value {
 
     func getKind(&self) : ValueKind
@@ -507,7 +509,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_do_while_loop(&self, condition : *Value, parent_node : *ASTNode, location : ubigint) : *mut DoWhileLoop
 
-    func make_enum_decl(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut EnumDeclaration
+    func make_enum_decl(&self, name : &string_view, name_loc : ubigint, underlying_type : *mut IntNType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut EnumDeclaration
 
     func make_enum_member(&self, name : &string_view, index : uint, init_value : *Value, parent_node : *EnumDeclaration, location : ubigint) : *mut EnumMember
 

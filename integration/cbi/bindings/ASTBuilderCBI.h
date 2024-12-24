@@ -28,6 +28,7 @@ class FunctionType;
 class GenericType;
 class Int128Type;
 class IntType;
+class IntNType;
 class LinkedType;
 class LinkedValueType;
 class LiteralType;
@@ -275,7 +276,7 @@ extern "C" {
 
     DoWhileLoop* ASTBuildermake_do_while_loop(ASTAllocator* allocator, Value* condition, ASTNode* parent_node, uint64_t location);
 
-    EnumDeclaration* ASTBuildermake_enum_decl(ASTAllocator* allocator, chem::string_view* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
+    EnumDeclaration* ASTBuildermake_enum_decl(ASTAllocator* allocator, chem::string_view* name, uint64_t name_loc, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     EnumMember* ASTBuildermake_enum_member(ASTAllocator* allocator, chem::string_view* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, uint64_t location);
 

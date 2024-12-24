@@ -230,6 +230,7 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "ASTBuildermake_variant_member_param", (void*) ASTBuildermake_variant_member_param },
 
             // you only need t(void*) o mark ASTBuilder @compiler:interface to get all nodes' functions
+            { "ValuegetKind", (void*) ValuegetKind },
             { "FunctionTypeget_params", (void*) FunctionTypeget_params },
             { "GenericTypeget_types", (void*) GenericTypeget_types },
             { "AccessChainget_values", (void*) AccessChainget_values },

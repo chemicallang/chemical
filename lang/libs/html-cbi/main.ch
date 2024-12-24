@@ -88,6 +88,10 @@ func make_value_chain(parser : *mut Parser, builder : *mut ASTBuilder, value : *
     return chain;
 }
 
+func make_expr_chain_of(parser : *mut Parser, builder : *mut ASTBuilder, value : *mut Value) : *mut AccessChain {
+    return make_value_chain(parser, builder, value, 0);
+}
+
 func make_chain_of(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
     const location = compiler::get_raw_location();
     const value = builder.make_string_value(builder.allocate_view(str.view()), location)
@@ -145,7 +149,7 @@ func parseTextChainOrChemExpr(parser : *mut Parser, builder : *mut ASTBuilder, s
         }
         TokenType.LBrace => {
             parser.increment();
-            const chain = make_value_chain(parser, builder, parser.parseExpression(builder), 0);
+            const chain = make_expr_chain_of(parser, builder, parser.parseExpression(builder));
             const next = parser.getToken();
             if(next.type == ChemicalTokenType.RBrace) {
                 parser.increment()

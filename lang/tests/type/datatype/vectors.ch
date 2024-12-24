@@ -61,7 +61,7 @@ func test_vectors() {
         var act_sum = 0;
         i = 0;
         while(i < v.size()) {
-            act_sum += v.get(i)
+            act_sum += v.get(i as size_t)
             i++;
         }
         return sum == act_sum;

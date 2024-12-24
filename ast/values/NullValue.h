@@ -13,10 +13,14 @@
 class NullValue : public Value {
 public:
 
-    PointerType* expected = nullptr;
+    BaseType* expected = nullptr;
     SourceLocation location;
 
-    explicit NullValue(SourceLocation location) : location(location) {
+    inline explicit NullValue(SourceLocation location) : location(location) {
+
+    }
+
+    inline NullValue(BaseType* expected, SourceLocation location) : expected(expected), location(location) {
 
     }
 
@@ -42,7 +46,7 @@ public:
     }
 
     NullValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NullValue>()) NullValue(location);
+        return new (allocator.allocate<NullValue>()) NullValue(expected, location);
     }
 
 #ifdef COMPILER_BUILD

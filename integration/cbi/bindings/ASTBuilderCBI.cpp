@@ -499,6 +499,10 @@ VariantMemberParam* ASTBuildermake_variant_member_param(ASTAllocator* allocator,
 
 // ------------------------------AST Methods begin here-----------------------------------------------
 
+int ValuegetKind(Value* value) {
+    return static_cast<int>(value->val_kind());
+}
+
 std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type) {
     return &func_type->params;
 }

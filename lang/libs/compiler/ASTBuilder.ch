@@ -2,6 +2,7 @@ import "AccessSpecifier.ch"
 import "./PtrVec.ch"
 import "@std/string_view.ch"
 import "./BatchAllocator.ch"
+import "./ValueKind.ch"
 
 using namespace std;
 
@@ -11,7 +12,11 @@ struct ASTNode {}
 
 struct BaseType {}
 
-struct Value {}
+struct Value {
+
+    func getKind(&self) : ValueKind
+
+}
 
 // The Types
 

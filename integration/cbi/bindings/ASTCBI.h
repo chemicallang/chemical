@@ -18,6 +18,8 @@ class BaseDefMember;
 
 extern "C" {
 
+    int ValuegetKind(Value* value);
+
     std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type);
 
     std::vector<BaseType*>* GenericTypeget_types(GenericType* gen_type);

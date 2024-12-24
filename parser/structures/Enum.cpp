@@ -8,6 +8,8 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/values/IntValue.h"
+#include "ast/types/IntType.h"
+#include "parser/utils/parse_num.h"
 
 EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     auto& start_tok = *token;
@@ -19,9 +21,30 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
             error("expected a identifier as enum name");
             return nullptr;
         }
-        auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(allocator, id), {}, parent_node, loc_single(start_tok), specifier);
+
+        auto loc = loc_single(start_tok);
+        auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(allocator, id), {}, nullptr, parent_node, loc, specifier);
 
         annotate(decl);
+
+        lexWhitespaceToken();
+
+        if(consumeToken(TokenType::ColonSym)) {
+            lexWhitespaceToken();
+            auto type = parseType(allocator);
+            if(type) {
+                if(type->kind() == BaseTypeKind::IntN) {
+                    decl->underlying_type = (IntNType*) type;
+                } else {
+                    error("expected a integer type after ':' in enum declaration");
+                };
+            } else {
+                error("expected a type after ':' in enum declaration");
+                return decl;
+            }
+        } else {
+            decl->underlying_type = new (allocator.allocate<IntType>()) IntType(loc);
+        }
 
         lexWhitespaceToken();
         if(!consumeToken(TokenType::LBrace)) {
@@ -38,15 +61,19 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
                 lexWhitespaceToken();
                 if(consumeToken(TokenType::EqualSym)) {
                     lexWhitespaceToken();
-                    auto expr = parseExpression(allocator);
-                    if(expr) {
-                        member->init_value = expr;
+                    if(token->type == TokenType::Number) {
+                        auto& value = token->value;
+                        auto expr = parse_num(value.data(), value.size(), strtol);
+                        if(expr.error.empty()) {
+                            member->init_value = decl->underlying_type->create(allocator, expr.result);
+                        } else {
+                            error("error parsing the number in enum member '" + std::string(expr.error) + "'");
+                            return decl;
+                        }
                     } else {
-                        error("expected a value after '=' operator");
+                        error("expected a number value after '=' operator");
                         return decl;
                     }
-                } else {
-                    member->init_value = new (allocator.allocate<IntValue>()) IntValue((int) index, loc_single(memberId));;
                 }
                 index++;
                 if(consumeToken(TokenType::CommaSym)) {

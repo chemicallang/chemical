@@ -591,6 +591,7 @@ void CSTConverter::visitEnumDecl(CSTToken* decl) {
     auto enum_decl = new (alloc.allocate<EnumDeclaration>()) EnumDeclaration(
             loc_id(decl->tokens[i]),
             std::unordered_map<std::string, EnumMember*> {},
+            nullptr,
             parent_node,
             loc(decl),
             specifier

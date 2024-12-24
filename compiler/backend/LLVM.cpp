@@ -1303,7 +1303,7 @@ void ImportStatement::code_gen(Codegen &gen) {
 }
 
 llvm::Type *EnumDeclaration::llvm_type(Codegen &gen) {
-    return gen.builder->getInt32Ty();
+    return underlying_type->llvm_type(gen);
 }
 
 // ----------- Members
@@ -1312,7 +1312,7 @@ llvm::Value *EnumMember::llvm_load(Codegen &gen) {
     if(init_value) {
         return init_value->llvm_value(gen, nullptr);
     } else {
-        return gen.builder->getInt32(index);
+        return parent_node->underlying_type->create(gen.allocator, index)->llvm_value(gen);
     }
 }
 
@@ -1320,7 +1320,7 @@ llvm::Type *EnumMember::llvm_type(Codegen &gen) {
     if(init_value) {
         return init_value->llvm_type(gen);
     } else {
-        return gen.builder->getInt32Ty();
+        return parent_node->underlying_type->llvm_type(gen);
     }
 }
 

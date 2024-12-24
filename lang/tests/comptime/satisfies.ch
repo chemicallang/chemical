@@ -56,10 +56,10 @@ func test_satisfies() {
         typealias U = uint
         return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
     })
-    test("unsigned types (not) satisfy each other - 1", () => {
+    test("unsigned types satisfy each other - 1", () => {
         typealias T = uchar;
         typealias U = uint
-        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
     })
     test("unsigned types satisfy each other - 2", () => {
         typealias T = ushort;
@@ -86,10 +86,10 @@ func test_satisfies() {
         typealias U = int
         return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
     })
-    test("signed types (not) satisfy each other - 1", () => {
+    test("signed types satisfy each other - 1", () => {
         typealias T = char;
         typealias U = int
-        return !compiler::satisfies(T, U) && !compiler::satisfies(U, T)
+        return compiler::satisfies(T, U) && compiler::satisfies(U, T)
     })
     test("signed types satisfy each other - 2", () => {
         typealias T = short;

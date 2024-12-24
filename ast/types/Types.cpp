@@ -59,7 +59,7 @@ bool LiteralType::satisfies(ASTAllocator& allocator, Value* value, bool assignme
 
 bool IntNType::satisfies(BaseType* type) {
     const auto type_kind = type->kind();
-    if(type_kind == BaseTypeKind::IntN) {
+    if(type_kind == BaseTypeKind::IntN || type_kind == BaseTypeKind::Char || type_kind == BaseTypeKind::UChar) {
         const auto intN = (IntNType*) type;
         const auto this_unsigned = is_unsigned();
         const auto other_unsigned = intN->is_unsigned();

@@ -44,10 +44,6 @@ public:
         return type->kind() == kind();
     }
 
-    bool satisfies(BaseType *type) final {
-        return type->kind() == BaseTypeKind::Char;
-    }
-
     [[nodiscard]]
     CharType* copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<CharType>()) CharType(location);

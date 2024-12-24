@@ -861,7 +861,13 @@ void RepresentationVisitor::visit(ReferenceType *type) {
 }
 
 void RepresentationVisitor::visit(LinkedType *type) {
-    write(type->linked->ns_node_identifier());
+    const auto str = type->linked->ns_node_identifier();
+    if(str.empty()) {
+        write(type->type);
+    } else {
+        write(str);
+    }
+
 }
 
 void RepresentationVisitor::visit(ShortType *func) {

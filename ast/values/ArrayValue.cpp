@@ -45,7 +45,7 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
         const auto implicit = def ? def->implicit_constructor_func(gen.allocator, values[i]) : nullptr;
         if(implicit) {
             // replace values that are calls to implicit constructor
-            values[i] = call_with_arg(implicit, values[i], gen.allocator);
+            values[i] = call_with_arg(implicit, values[i], gen.allocator, gen.allocator, gen);
         } else {
             if(known_child_t && known_child_t->kind() == BaseTypeKind::Reference) {
                 // store pointer only, since user want's a reference

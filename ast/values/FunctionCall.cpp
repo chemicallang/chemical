@@ -139,7 +139,7 @@ llvm::Value* arg_value(
 
     auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
     if (implicit_constructor) {
-        value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator);
+        value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator, gen.allocator, gen);
     }
     llvm::Value* argValue = nullptr;
 
@@ -773,7 +773,15 @@ BaseType* FunctionCall::get_arg_type(unsigned int index) {
     return param->type;
 }
 
-int16_t FunctionCall::set_curr_itr_on_decl(FunctionDeclaration* decl) {
+int16_t FunctionCall::set_curr_itr_on_decl() {
+    const auto decl = safe_linked_func();
+    if(decl && decl->is_constructor_fn()) {
+        const auto def = decl->parent_node->as_struct_def();
+        if(def && def->is_generic()) {
+            def->set_generic_iteration(generic_iteration);
+            return -1;
+        }
+    }
     int16_t prev_itr = -2;
     if(decl && !decl->generic_params.empty()) {
         prev_itr = decl->active_iteration;
@@ -797,6 +805,7 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
         const auto arg_type = values[arg_offset]->known_type();
         if(!arg_type) {
 #ifdef DEBUG
+            diagnoser.error("couldn't get arg type " + values[arg_offset]->representation() + " in function call " + representation(), this);
             std::cout << "couldn't get arg type " << values[arg_offset]->representation() + " in function call " + representation();
 #endif
             arg_offset++;
@@ -809,13 +818,49 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
 
 void FunctionCall::infer_return_type(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred, BaseType* expected_type) {
     const auto func = safe_linked_func();
-    if(!func) return;
+    if(!func || expected_type->kind() == BaseTypeKind::Any) return;
     infer_types_by_args(diagnoser, func, generic_list.size(), func->returnType, expected_type, inferred, this);
 }
 
 ASTNode *FunctionCall::linked_node() {
     const auto known = known_type();
     return known ? known->linked_node() : nullptr;
+}
+
+void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type) {
+    const auto node = linked();
+    const auto k = node->kind();
+    switch(k) {
+        case ASTNodeKind::FunctionDecl:
+            if(node->as_function_unsafe()->is_constructor_fn()) {
+                const auto parent = node->as_function_unsafe()->parent_node;
+                const auto parent_kind = parent->kind();
+                switch(parent_kind) {
+                    case ASTNodeKind::StructDecl: {
+                        const auto def = parent->as_struct_def_unsafe();
+                        std::vector<BaseType*> gen_args(def->generic_params.size());
+                        ::infer_generic_args(gen_args, def->generic_params, this, diagnoser, expected_type);
+                        generic_iteration = def->register_with_existing(diagnoser, generic_list);
+                        return;
+                    }
+                    default:
+                        diagnoser.error("unknown parent of function in fix generic iteration", this);
+                        break;
+                }
+            } else {
+                generic_iteration = node->as_function_unsafe()->register_call_with_existing(diagnoser, this, expected_type);
+            }
+            return;
+        case ASTNodeKind::ExtensionFunctionDecl:
+            generic_iteration = node->as_function_unsafe()->register_call_with_existing(diagnoser, this, expected_type);
+            return;
+        case ASTNodeKind::StructDecl:
+            generic_iteration = node->as_struct_def_unsafe()->register_with_existing(diagnoser, generic_list);
+            return;
+        default:
+            diagnoser.error("unknown declaration in function call for which generic iteration is being fixed", this);
+            return;
+    }
 }
 
 void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser) {
@@ -835,21 +880,21 @@ void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diag
     }
 }
 
-void FunctionCall::link_constructor(SymbolResolver &resolver) {
+void FunctionCall::link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser) {
     // relinking parent with constructor of the struct
     // if it's linked with struct
     auto parent_id = parent_val->as_identifier();
     if(parent_id && parent_id->linked && parent_id->linked->as_struct_def()) {
         StructDefinition* parent_struct = parent_id->linked->as_struct_def();
-        auto constructorFunc = parent_struct->constructor_func(resolver.allocator, values);
+        auto constructorFunc = parent_struct->constructor_func(allocator, values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
             // calling a constructor of a generic struct where constructor is not generic
             if(constructorFunc->generic_params.empty() && parent_struct->is_generic()) {
-                generic_iteration = parent_struct->register_generic_args(resolver, generic_list);
+                generic_iteration = parent_struct->register_generic_args(astAllocator, diagnoser, generic_list);
             }
         } else {
-            resolver.error("struct with name " + parent_struct->name() + " doesn't have a constructor that satisfies given arguments " + representation(), parent_id);
+            diagnoser.error("struct with name " + parent_struct->name() + " doesn't have a constructor that satisfies given arguments " + representation(), parent_id);
         }
     }
 }
@@ -891,10 +936,10 @@ bool FunctionCall::find_link_in_parent(ChainValue* first_value, ChainValue* gran
     // link the values, based on which constructor is determined
     link_values(resolver, properly_linked_args);
     // find the constructor based on linked values
-    link_constructor(resolver);
+    link_constructor(resolver.allocator, *resolver.ast_allocator, resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
         prev_itr = func_decl->active_iteration;
-        generic_iteration = func_decl->register_call(resolver, this, expected_type);
+        generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
         func_decl->set_active_iteration(generic_iteration);
     }
     // relink values, because now we know the function type, so we know expected type

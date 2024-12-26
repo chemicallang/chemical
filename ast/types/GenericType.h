@@ -6,6 +6,8 @@
 #include "ast/base/BaseType.h"
 #include <unordered_map>
 
+class ASTDiagnoser;
+
 class GenericType : public BaseType {
 public:
 
@@ -61,19 +63,19 @@ public:
      * if this type is completely specialized, 'Dog<int, int>' we report this set
      * of generic arguments to the owner type 'Dog'
      */
-    void report_generic_usage(SymbolResolver &linker);
+    void report_generic_usage(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser);
 
     /**
      * the given generic arguments are registered
      */
-    int16_t report_generic_args(SymbolResolver &linker, std::vector<BaseType*>& gen_args);
+    int16_t report_generic_args(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, std::vector<BaseType*>& gen_args);
 
     /**
      * this is invoked by the parent generic, we subscribed to, in this function
      * we get the last usage of the linked generic type parameters of the parent generic node
      * and then report those usages to the referenced type
      */
-    void report_parent_usage(SymbolResolver &linker, int16_t parent_itr);
+    void report_parent_usage(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t parent_itr);
 
     /**
      * this is called by parent generic node, to which we subscribed

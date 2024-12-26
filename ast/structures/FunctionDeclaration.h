@@ -419,11 +419,16 @@ public:
     }
 
     /**
+     * we return generic iteration if it already exists
+     */
+    int16_t register_call_with_existing(ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type);
+
+    /**
      * a call notifies a function, during symbol resolution that it exists
      * when this happens, generics are checked, proper types are registered in generic
      * @return iteration that corresponds to this call
      */
-    int16_t register_call(SymbolResolver& resolver, FunctionCall* call, BaseType* expected_type);
+    int16_t register_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type);
 
     /**
      * called by generic types to subscribe to generic usages of this function

@@ -14,7 +14,15 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope);
  * call the given function declaration with given argument
  * doesn't link the value according to implicit constructor type
  */
-Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator);
+Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser);
+
+void infer_generic_args(
+    std::vector<BaseType*>& out_generic_args,
+    std::vector<GenericTypeParameter*>& generic_params,
+    FunctionCall* call,
+    ASTDiagnoser& diagnoser,
+    BaseType* expected_type
+);
 
 /**
  * when the given value for the given expected type, has a constructor

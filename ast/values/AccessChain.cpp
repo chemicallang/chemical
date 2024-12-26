@@ -2,6 +2,7 @@
 
 #include "AccessChain.h"
 #include "Variableidentifier.h"
+#include "FunctionCall.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/BaseType.h"
@@ -16,6 +17,18 @@ uint64_t AccessChain::byte_size(bool is64Bit) {
 
 bool AccessChain::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
     throw std::runtime_error("AccessChain doesn't support find_link_in_parent, because it can't be embedded in itself");
+}
+
+void AccessChain::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type) {
+    unsigned i = 0;
+    const auto size = values.size();
+    while(i < size) {
+        const auto func_call = values[i]->as_func_call();
+        if(func_call) {
+            func_call->fix_generic_iteration(diagnoser, i == size - 1 ? expected_type : nullptr);
+        }
+        i++;
+    }
 }
 
 void AccessChain::relink_parent() {

@@ -411,7 +411,7 @@ InterfaceDefinition* MembersContainer::get_overriding_interface(FunctionDeclarat
     return info.first ? info.first->as_interface_def() : nullptr;
 }
 
-int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::vector<BaseType*>& types) {
+int16_t MembersContainer::register_with_existing(ASTDiagnoser& diagnoser, std::vector<BaseType*>& types) {
     const auto types_size = types.size();
     std::vector<BaseType*> generic_args(types_size);
     unsigned i = 0;
@@ -419,10 +419,25 @@ int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::v
         generic_args[i] = type;
         i++;
     }
-    const auto itr = register_generic_usage(resolver, this, generic_params, generic_args);
+    const auto itr = get_iteration_for(generic_params, generic_args);
+    if(itr == -1) {
+        diagnoser.error("iteration for declaration doesn't exist", (ASTNode*) this);
+    }
+    return itr;
+}
+
+int16_t MembersContainer::register_generic_args(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, std::vector<BaseType*>& types) {
+    const auto types_size = types.size();
+    std::vector<BaseType*> generic_args(types_size);
+    unsigned i = 0;
+    for(auto& type : types) {
+        generic_args[i] = type;
+        i++;
+    }
+    const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
     if(itr.second) {
         for (auto sub: subscribers) {
-            sub->report_parent_usage(resolver, itr.first);
+            sub->report_parent_usage(astAllocator, diagnoser, itr.first);
         }
     }
     return itr.first;
@@ -430,7 +445,7 @@ int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::v
 
 int16_t MembersContainer::register_value(SymbolResolver& resolver, StructValue* value) {
     auto gen_list = value->create_generic_list();
-    return register_generic_args(resolver, gen_list);
+    return register_generic_args(*resolver.ast_allocator, resolver, gen_list);
 }
 
 int16_t MembersContainer::total_generic_iterations() {

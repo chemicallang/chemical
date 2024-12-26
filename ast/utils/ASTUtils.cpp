@@ -28,20 +28,55 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope) {
     }
 }
 
-Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator) {
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(nullptr, false, ZERO_LOC);
+Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser) {
+    const auto location = arg->encoded_location();
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(nullptr, false, location);
     auto& id_view = decl->identifier.identifier;
     auto str = allocator.allocate_str(id_view.data(), id_view.size());
-    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(str, id_view.size()), ZERO_LOC);
+    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(str, id_view.size()), location);
     id->linked = decl;
     chain->values.emplace_back(id);
-    auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(std::vector<Value*> {}, ZERO_LOC);
-    imp_call->parent_val = chain->values[0];
+    auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(std::vector<Value*> {}, location);
+    imp_call->parent_val = id;
     imp_call->values.emplace_back(arg);
-//    auto& value_ptr = imp_call->values[0];
-//    value_ptr->link(resolver, value_ptr, imp_call->get_arg_type(0));
     chain->values.emplace_back(imp_call);
+    // TODO get expected_type as parameter
+    imp_call->fix_generic_iteration(diagnoser, nullptr);
     return chain;
+}
+
+void infer_generic_args(
+    std::vector<BaseType*>& out_generic_args,
+    std::vector<GenericTypeParameter*>& generic_params,
+    FunctionCall* call,
+    ASTDiagnoser& diagnoser,
+    BaseType* expected_type
+) {
+
+    const auto total = generic_params.size();
+
+    // set all to default type (if default type is not present, it would automatically be nullptr)
+    unsigned i = 0;
+    while(i < total) {
+        out_generic_args[i] = generic_params[i]->def_type;
+        i++;
+    }
+
+    // set given generic args to generic parameters
+    i = 0;
+    for(const auto arg : call->generic_list) {
+        out_generic_args[i] = arg;
+        i++;
+    }
+
+    // infer args, if user gave less args than expected
+    if(call->generic_list.size() != total) {
+        call->infer_generic_args(diagnoser, out_generic_args);
+    }
+    if(expected_type) {
+        call->infer_return_type(diagnoser, out_generic_args, expected_type);
+    }
+
 }
 
 void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value) {
@@ -69,7 +104,7 @@ int16_t get_iteration_for(std::vector<GenericTypeParameter*>& generic_params, st
             bool all_params_found = true;
             for(auto& param : generic_params) {
                 const auto generic_arg = j < generic_list.size() ? generic_list[j] : nullptr;
-                const auto generic_arg_pure = generic_arg ? generic_arg : param->def_type;
+                const auto generic_arg_pure = generic_arg ? generic_arg->pure_type() : param->def_type;
                 if(!generic_arg_pure || !param->usage[i]->is_same(generic_arg_pure)) {
                     all_params_found = false;
                     break;
@@ -104,7 +139,7 @@ int16_t register_generic_usage_no_check(
     std::vector<BaseType*>& generic_list
 ) {
     int16_t i = 0;
-    for (auto &param: generic_params) {
+    for (const auto param: generic_params) {
         param->register_usage(allocator, i < generic_list.size() ? generic_list[i] : nullptr);
         i++;
     }
@@ -112,14 +147,13 @@ int16_t register_generic_usage_no_check(
 }
 
 std::pair<int16_t, bool> register_generic_usage(
-        SymbolResolver& resolver,
-        ASTNode* node,
+        ASTAllocator& astAllocator,
         std::vector<GenericTypeParameter*>& generic_params,
         std::vector<BaseType*>& generic_list
 ) {
     int16_t i = get_iteration_for(generic_params, generic_list);
     if(i != -1) return { i, false};
-    return {register_generic_usage_no_check(*resolver.ast_allocator, generic_params, generic_list), true };
+    return {register_generic_usage_no_check(astAllocator, generic_params, generic_list), true };
 }
 
 void infer_types_by_args(

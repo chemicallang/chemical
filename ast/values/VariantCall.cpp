@@ -38,7 +38,7 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
         auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
         if (implicit_constructor) {
             // replace calls to implicit constructor with actual calls
-            value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator);
+            value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator, gen.allocator, gen);
         } else {
             if(param_type->kind() == BaseTypeKind::Reference) {
                 // store reference when it's a implicit reference

@@ -103,9 +103,14 @@ public:
     int16_t total_generic_iterations();
 
     /**
+     * register generic args, but with already existing generic iteration (iteration is returned)
+     */
+    int16_t register_with_existing(ASTDiagnoser& diagnoser, std::vector<BaseType*>& types);
+
+    /**
      * register the generic args, so code is generated for these types, a generic iteration is returned
      */
-    int16_t register_generic_args(SymbolResolver& resolver, std::vector<BaseType*>& types);
+    int16_t register_generic_args(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, std::vector<BaseType*>& types);
 
     /**
      * register value for the struct

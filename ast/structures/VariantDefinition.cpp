@@ -353,10 +353,11 @@ int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* 
     }
 
     // register and report to subscribers
-    const auto itr = register_generic_usage(resolver, this, generic_params, generic_args);
+    auto& astAllocator = *resolver.ast_allocator;
+    const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
     if(itr.second) {
         for (auto sub: subscribers) {
-            sub->report_parent_usage(resolver, itr.first);
+            sub->report_parent_usage(astAllocator, resolver, itr.first);
         }
     }
 

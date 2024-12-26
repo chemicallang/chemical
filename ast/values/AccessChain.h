@@ -93,6 +93,8 @@ public:
         }
     }
 
+    void fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type);
+
     /**
      * will call relink_parent on values starting from second value
      */

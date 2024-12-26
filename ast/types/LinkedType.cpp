@@ -6,6 +6,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/statements/VarInit.h"
 #include "ast/structures/MembersContainer.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/structures/FunctionParam.h"
 
 uint64_t LinkedType::byte_size(bool is64Bit) {
@@ -44,8 +45,7 @@ bool LinkedType::satisfies(BaseType *other) {
     const auto linked_kind = linked->kind();
     switch(linked_kind) {
         case ASTNodeKind::StructDecl:
-        case ASTNodeKind::InterfaceDecl:
-        case ASTNodeKind::VariantDecl: {
+        case ASTNodeKind::InterfaceDecl: {
             const auto other_linked = other->get_direct_linked_node(other_kind);
             if(other_linked) {
                 if (linked == other_linked) {
@@ -53,6 +53,23 @@ bool LinkedType::satisfies(BaseType *other) {
                 } else {
                     const auto container = other_linked->get_members_container(other_linked->kind());
                     return container && container->extends_node(linked);
+                }
+            } else {
+                break;
+            }
+        }
+        case ASTNodeKind::VariantDecl: {
+            const auto other_linked = other->get_direct_linked_node(other_kind);
+            if(other_linked) {
+                if (linked == other_linked) {
+                    return true;
+                } else {
+                    const auto other_kind = other_linked->kind();
+                    if(other_kind == ASTNodeKind::VariantMember) {
+                        return other_linked->as_variant_member_unsafe()->parent_node == linked->as_variant_def_unsafe();
+                    } else {
+                        return false;
+                    }
                 }
             } else {
                 break;

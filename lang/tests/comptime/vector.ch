@@ -11,7 +11,7 @@ func compiler_vector_sum(a : int) : int {
     var sum = 0;
     var i = 0;
     while(i < vec.size()) {
-        sum += vec.get(i);
+        sum += vec.get(i as uint);
         i++;
     }
     return sum
@@ -28,7 +28,7 @@ func compiler_vector_sum_l(a : long) : long {
     var sum = 0;
     var i = 0;
     while(i < vec.size()) {
-        sum += vec.get(i);
+        sum += vec.get(i as uint);
         i++;
     }
     return sum

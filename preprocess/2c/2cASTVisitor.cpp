@@ -1055,12 +1055,13 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     auto decl = call->safe_linked_func();
     int16_t prev_iteration;
     if(decl) {
-        if(!decl->generic_params.empty()) {
-            prev_iteration = decl->active_iteration;
-            decl->set_active_iteration(call->generic_iteration);
-        }
+        prev_iteration = call->set_curr_itr_on_decl();
         if(decl->is_comptime()) {
             auto eval = evaluated_func_val(visitor, decl, call);
+            const auto chain = eval->as_access_chain();
+            if(chain) {
+                chain->fix_generic_iteration(visitor, visitor.current_func_type->returnType);
+            }
             auto identifier = visitor.get_local_temp_var_name();
             if(eval->as_struct_value()) {
                 allocate_struct_by_name(visitor, eval->as_struct_value()->linked_extendable(), identifier);
@@ -1927,7 +1928,7 @@ void CValueDeclarationVisitor::visit(ReturnStatement *stmt) {
         if (!(func && func->is_constructor_fn())) {
             const auto implicit = func_type->returnType->implicit_constructor_for(visitor.allocator, val);
             if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
-                stmt->value = call_with_arg(implicit, val, visitor.allocator);
+                stmt->value = call_with_arg(implicit, val, visitor.allocator, visitor.allocator, visitor);
             }
         }
     }
@@ -1947,7 +1948,7 @@ void CValueDeclarationVisitor::visit(FunctionCall *call) {
         auto func_param = func_type->func_param_for_arg_at(i);
         auto constructor = func_param->type->implicit_constructor_for(visitor.allocator, value);
         if (constructor) {
-            value = call_with_arg(constructor, value, visitor.allocator);
+            value = call_with_arg(constructor, value, visitor.allocator, visitor.allocator, visitor);
         }
         i++;
     }
@@ -1960,7 +1961,7 @@ void CValueDeclarationVisitor::visit(VariantCall *call) {
         // replace calls to implicit constructor with actual calls
         auto implicit_constructor = itr->second->type->implicit_constructor_for(visitor.allocator, value_ptr);
         if (implicit_constructor) {
-            value_ptr = call_with_arg(implicit_constructor, value_ptr, visitor.allocator);
+            value_ptr = call_with_arg(implicit_constructor, value_ptr, visitor.allocator, visitor.allocator, visitor);
         }
         itr++;
     }
@@ -1976,7 +1977,7 @@ void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
         for (auto& value : arrayVal->values) {
             const auto implicit = def->implicit_constructor_func(visitor.allocator, value);
             if (implicit) {
-                value = call_with_arg(implicit, value, visitor.allocator);
+                value = call_with_arg(implicit, value, visitor.allocator, visitor.allocator, visitor);
             }
         }
     }
@@ -1992,7 +1993,7 @@ void CValueDeclarationVisitor::visit(StructValue *structValue) {
         auto variable = structValue->linked_extendable()->variable_type_index(value.first);
         auto implicit = variable.second->implicit_constructor_for(visitor.allocator, value_ptr);
         if(implicit) {
-            value_ptr = call_with_arg(implicit, value_ptr, visitor.allocator);
+            value_ptr = call_with_arg(implicit, value_ptr, visitor.allocator, visitor.allocator, visitor);
         }
     }
 

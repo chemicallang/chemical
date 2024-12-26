@@ -31,6 +31,7 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "ast/values/LambdaFunction.h"
+#include "ast/utils/ASTUtils.h"
 
 llvm::Type *BaseFunctionParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
@@ -1268,41 +1269,29 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
     }
 }
 
-int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCall* call, BaseType* expected_type) {
-
+int16_t FunctionDeclaration::register_call_with_existing(ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type) {
     const auto total = generic_params.size();
     std::vector<BaseType*> generic_args(total);
-
-    // set all to default type (if default type is not present, it would automatically be nullptr)
-    unsigned i = 0;
-    while(i < total) {
-        generic_args[i] = generic_params[i]->def_type;
-        i++;
-    }
-
-    // set given generic args to generic parameters
-    i = 0;
-    for(auto& arg : call->generic_list) {
-        generic_args[i] = arg;
-        i++;
-    }
-
-    // infer args, if user gave less args than expected
-    if(call->generic_list.size() != total) {
-        call->infer_generic_args(resolver, generic_args);
-    }
-    if(expected_type) {
-        call->infer_return_type(resolver, generic_args, expected_type);
-    }
-
+    infer_generic_args(generic_args, generic_params, call, diagnoser, expected_type);
     // register and report to subscribers
-    const auto itr = register_generic_usage(resolver, this, generic_params, generic_args);
+    auto itr = get_iteration_for(generic_params, generic_args);
+    if(itr == -1) {
+        diagnoser.error("generic iteration doesn't exist for call", (ASTNode*) this);
+        return -1;
+    }
+    return -1;
+}
+
+int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type) {
+    const auto total = generic_params.size();
+    std::vector<BaseType*> generic_args(total);
+    infer_generic_args(generic_args, generic_params, call, diagnoser, expected_type);
+    const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
     if(itr.second) {
         for (auto sub: subscribers) {
-            sub->report_parent_usage(resolver, itr.first);
+            sub->report_parent_usage(astAllocator, diagnoser, itr.first);
         }
     }
-
     return itr.first;
 }
 

@@ -48,7 +48,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             auto implicit = variable.second->implicit_constructor_for(gen.allocator, value_ptr);
             if(implicit) {
                 // replace values that call implicit constructors
-                value_ptr = call_with_arg(implicit, value_ptr, gen.allocator);
+                value_ptr = call_with_arg(implicit, value_ptr, gen.allocator, gen.allocator, gen);
             } else {
                 const auto type_kind = variable.second->kind();
                 if(type_kind == BaseTypeKind::Reference) {

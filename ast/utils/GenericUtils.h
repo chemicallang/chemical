@@ -42,8 +42,7 @@ int16_t register_generic_usage_no_check(
  * couldn't find iteration and had to create one
  */
 std::pair<int16_t, bool> register_generic_usage(
-    SymbolResolver& resolver,
-    ASTNode* node,
+    ASTAllocator& astAllocator,
     std::vector<GenericTypeParameter*>& generic_params,
     std::vector<BaseType*>& generic_list
 );

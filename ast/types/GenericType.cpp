@@ -32,7 +32,7 @@ bool GenericType::link(SymbolResolver &linker) {
             return false;
         }
     }
-    report_generic_usage(linker);
+    report_generic_usage(*linker.ast_allocator, linker);
     return true;
 }
 
@@ -49,21 +49,21 @@ bool GenericType::subscribe_to_parent_generic() {
     return false;
 }
 
-int16_t GenericType::report_generic_args(SymbolResolver &linker, std::vector<BaseType*>& gen_args) {
+int16_t GenericType::report_generic_args(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, std::vector<BaseType*>& gen_args) {
     const auto members_container = referenced->linked_node()->as_members_container();
     if(members_container) {
-        return members_container->register_generic_args(linker, gen_args);
+        return members_container->register_generic_args(astAllocator, diagnoser, gen_args);
     }
     return -1;
 }
 
-void GenericType::report_generic_usage(SymbolResolver& linker) {
+void GenericType::report_generic_usage(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser) {
     if(!subscribe_to_parent_generic()) {
-        generic_iteration = report_generic_args(linker, types);
+        generic_iteration = report_generic_args(astAllocator, diagnoser, types);
     }
 }
 
-void GenericType::report_parent_usage(SymbolResolver &linker, int16_t parent_itr) {
+void GenericType::report_parent_usage(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t parent_itr) {
     std::vector<BaseType*> generic_args;
     for(auto& type : types) {
         if(type->kind() == BaseTypeKind::Linked) {
@@ -76,7 +76,7 @@ void GenericType::report_parent_usage(SymbolResolver &linker, int16_t parent_itr
         // completely specialized type
         generic_args.emplace_back(type);
     }
-    subscribed_map[parent_itr] = report_generic_args(linker, generic_args);
+    subscribed_map[parent_itr] = report_generic_args(astAllocator, diagnoser, generic_args);
 }
 
 void GenericType::set_parent_iteration(int16_t parent_itr) {
@@ -87,12 +87,6 @@ void GenericType::set_parent_iteration(int16_t parent_itr) {
     auto found = subscribed_map.find(parent_itr);
     if(found != subscribed_map.end()) {
         generic_iteration = found->second;
-    } else {
-#ifdef DEBUG
-        throw std::runtime_error("couldn't find a registered generic iteration for parent generic iteration");
-#else
-        std::cerr << "Generic type with " + representation() + " cannot set iteration using parent generic iteration " + std::to_string(parent_itr) << std::endl;
-#endif
     }
 }
 

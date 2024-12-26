@@ -19,7 +19,7 @@ public:
     ChainValue* parent_val = nullptr;
     std::vector<BaseType*> generic_list;
     std::vector<Value*> values;
-    int16_t generic_iteration = 0;
+    int16_t generic_iteration = -1;
     SourceLocation location;
 
     FunctionCall(
@@ -82,9 +82,11 @@ public:
 
     ASTNode *linked_node() final;
 
+    void fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type);
+
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
-    void link_constructor(SymbolResolver &resolver);
+    void link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser);
 
     bool find_link_in_parent(
             ChainValue* first_value,
@@ -154,14 +156,7 @@ public:
      * previous iteration is equal to -2, if couldn't set because it's
      * not a generic function
      */
-    int16_t set_curr_itr_on_decl(FunctionDeclaration* declaration);
-
-    /**
-     * this get's the declaration
-     */
-    int16_t set_curr_itr_on_decl() {
-        return set_curr_itr_on_decl(safe_linked_func());
-    }
+    int16_t set_curr_itr_on_decl();
 
     /**
      * if all generic arguments aren't given, for which default types also don't exist

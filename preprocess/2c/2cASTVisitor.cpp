@@ -686,14 +686,15 @@ void visit_evaluated_func_val(
     FunctionCall* remove_alloc = nullptr;
     bool write_semi = false;
     if(!assign_id.empty() && returns_struct) {
-        const auto eval_struct_val = eval->as_struct_value();
-        if(eval_struct_val) {
+        const auto eval_kind = eval->val_kind();
+        if(eval_kind == ValueKind::StructValue) {
+            const auto eval_struct_val = eval->as_struct_value_unsafe();
             visitor.write(assign_id);
             visitor.write(" = ");
             write_struct_def_value_call(visitor, eval_struct_val->linked_struct());
             write_semi = true;
-        } else if(eval->as_access_chain()) {
-            auto& chain = eval->as_access_chain()->values;
+        } else if(eval_kind == ValueKind::AccessChain) {
+            auto& chain = eval->as_access_chain_unsafe()->values;
             auto last = chain[chain.size() - 1];
             const auto last_func_call = last->as_func_call();
             if(last_func_call) {
@@ -727,8 +728,8 @@ Value* evaluate_func(
 }
 
 void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value, bool write_id = true) {
-    if(value->as_access_chain()) {
-        auto chain = value->as_access_chain();
+    if(value->val_kind() == ValueKind::AccessChain) {
+        auto chain = value->as_access_chain_unsafe();
         auto func_call = chain->values.back()->as_func_call();
         if(func_call) {
             auto linked_func = func_call->safe_linked_func();
@@ -852,8 +853,8 @@ void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, B
             value->accept(&visitor);
             return;
         }
-        auto value_chain = value->as_access_chain();
-        if(type->value_type() == ValueType::Struct && value_chain && value_chain->values.back()->as_func_call()) {
+        auto value_chain = value->as_access_chain_unsafe();
+        if(type->value_type() == ValueType::Struct && value_kind == ValueKind::AccessChain && value_chain->values.back()->as_func_call()) {
             value_assign_default(visitor, identifier, type, value);
         } else {
             value_init_default(visitor, identifier, type, value);
@@ -1018,14 +1019,15 @@ void move_chain(ToCAstVisitor& visitor, AccessChain* chain) {
 
 // will call clear function on given value
 void move_value(ToCAstVisitor& visitor, Value* value) {
-    const auto chain = value->as_access_chain();
-    if(chain) {
-        move_chain(visitor, chain);
-    } else {
-        const auto id = value->as_identifier();
-        if(id) {
-            move_identifier(visitor, id);
-        }
+    switch(value->val_kind()) {
+        case ValueKind::AccessChain:
+            move_chain(visitor, value->as_access_chain_unsafe());
+            return;
+        case ValueKind::Identifier:
+            move_identifier(visitor, value->as_identifier_unsafe());
+            return;
+        default:
+            return;
     }
 }
 
@@ -1059,13 +1061,14 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
         prev_iteration = call->set_curr_itr_on_decl();
         if(decl->is_comptime()) {
             auto eval = evaluated_func_val(visitor, decl, call);
-            const auto chain = eval->as_access_chain();
-            if(chain) {
+            const auto eval_kind = eval->val_kind();
+            if(eval_kind == ValueKind::AccessChain) {
+                const auto chain = eval->as_access_chain_unsafe();
                 chain->fix_generic_iteration(visitor, visitor.current_func_type->returnType);
             }
             auto identifier = visitor.get_local_temp_var_name();
-            if(eval->as_struct_value()) {
-                allocate_struct_by_name(visitor, eval->as_struct_value()->linked_extendable(), identifier);
+            if(eval_kind == ValueKind::StructValue) {
+                allocate_struct_by_name(visitor, eval->as_struct_value_unsafe()->linked_extendable(), identifier);
                 visitor.local_allocated[eval] = identifier;
             }
             process_init_value(eval, identifier);
@@ -1648,16 +1651,21 @@ void CDestructionVisitor::destruct_arr_ptr(const std::string &self_name, Value* 
 
 void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_return) {
     if(current_return) {
-        const auto chain = current_return->as_access_chain();
-        if(chain && chain->values.size() == 1) {
-            auto id = chain->values.back()->as_identifier();
-            if(id && id->linked == job.initializer) {
-                return;
+        const auto returnKind = current_return->val_kind();
+        if(returnKind == ValueKind::AccessChain) {
+            const auto chain = current_return->as_access_chain_unsafe();
+            if(chain->values.size() == 1) {
+                auto id = chain->values.back()->as_identifier();
+                if(id && id->linked == job.initializer) {
+                    return;
+                }
             }
         }
-        const auto id = current_return->as_identifier();
-        if (id && id->linked == job.initializer) {
-            return;
+        if(returnKind == ValueKind::Identifier) {
+            const auto id = current_return->as_identifier_unsafe();
+            if (id->linked == job.initializer) {
+                return;
+            }
         }
     }
     switch(job.type) {
@@ -1734,8 +1742,9 @@ bool CDestructionVisitor::queue_destruct_arr(const std::string& self_name, ASTNo
 }
 
 void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init_value) {
-    auto chain = init_value->as_access_chain();
-    if(chain) {
+    const auto init_val_kind = init_value->val_kind();
+    auto chain = init_value->as_access_chain_unsafe();
+    if(init_val_kind == ValueKind::AccessChain) {
         const auto last_func_call = chain->values.back()->as_func_call();
         if(last_func_call) {
             queue_destruct(init->identifier(), init, last_func_call);
@@ -1752,8 +1761,8 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             return;
         }
     }
-    auto id = init_value->as_identifier();
-    if(id && id->is_moved) {
+    auto id = init_value->as_identifier_unsafe();
+    if(init_val_kind == ValueKind::Identifier && id->is_moved) {
         auto init_type = init->create_value_type(visitor.allocator);
         auto linked = init_type->linked_node();
         if(!linked) {
@@ -1763,20 +1772,20 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
         queue_destruct(init->identifier(), init, init_type->get_generic_iteration(), linked->as_extendable_members_container_node());
         return;
     }
-    auto array_val = init_value->as_array_value();
-    if(array_val) {
+    auto array_val = init_value->as_array_value_unsafe();
+    if(init_val_kind == ValueKind::ArrayValue) {
         auto elem_type = array_val->element_type(visitor.allocator);
         queue_destruct_arr(init->identifier(), init, elem_type, array_val->array_size());
         return;
     }
-    auto variant_call = init_value->as_variant_call();
-    if(variant_call) {
+    auto variant_call = init_value->as_variant_call_unsafe();
+    if(init_val_kind == ValueKind::VariantCall) {
         const auto def = variant_call->get_definition();
         queue_destruct(init->identifier(), init, variant_call->generic_iteration, def);
         return;
     }
-    auto struct_val = init_value->as_struct_value();
-    if(struct_val) {
+    auto struct_val = init_value->as_struct_value_unsafe();
+    if(init_val_kind == ValueKind::StructValue) {
         queue_destruct(init->identifier(), init, struct_val->generic_iteration, struct_val->linked_struct());
     }
 }
@@ -4089,7 +4098,7 @@ void ToCAstVisitor::visit(InitBlock *initBlock) {
         auto value = init.second.value;
         auto variable = container->variable_type_index(init.first, init.second.is_inherited_type);
         if(init.second.is_inherited_type) {
-            auto chain = value->as_access_chain();
+            auto chain = value->as_access_chain_unsafe();
             auto val = chain->values.back();
             auto call = val->as_func_call();
             auto called_struct = call->parent_val->linked_node();

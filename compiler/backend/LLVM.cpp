@@ -637,7 +637,7 @@ llvm::Value* NewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
         struct_val->initialize_alloca(pointer_val, gen, nullptr);
         return pointer_val;
     } else if(kind == ValueKind::AccessChain) {
-        auto chain = value->as_access_chain();
+        auto chain = value->as_access_chain_unsafe();
         auto last_call = chain->values.back()->as_func_call();
         if(last_call) {
             std::vector<std::pair<Value*, llvm::Value*>> destructibles;
@@ -664,7 +664,7 @@ llvm::Value* PlacementNewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
         struct_val->initialize_alloca(pointer_val, gen, nullptr);
         return pointer_val;
     } else if(kind == ValueKind::AccessChain) {
-        auto chain = value->as_access_chain();
+        auto chain = value->as_access_chain_unsafe();
         auto last_call = chain->values.back()->as_func_call();
         if(last_call) {
             std::vector<std::pair<Value*, llvm::Value*>> destructibles;

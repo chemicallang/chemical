@@ -168,10 +168,6 @@ public:
 
 #endif
 
-    AccessChain *as_access_chain() final {
-        return this;
-    }
-
     void evaluate_children(InterpretScope &scope) final;
 
     Value *parent(InterpretScope &scope);

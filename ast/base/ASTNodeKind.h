@@ -36,7 +36,6 @@ enum class ASTNodeKind : uint8_t {
     TryStmt,
     ValueNode,
     ValueWrapper,
-    AccessChain,
 
     EnumDecl,
     EnumMember,

@@ -1,6 +1,6 @@
 public func printf(format : *char, _ : any...) : int
 
-public func sprintf(to : *char, format : *char, _ : any...) : int
+public func sprintf(to : *mut char, format : *char, _ : any...) : int
 
 if(compiler::is_clang()) {
     public typealias size_t = ubigint

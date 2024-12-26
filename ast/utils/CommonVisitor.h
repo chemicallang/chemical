@@ -23,6 +23,8 @@ public:
 
     void visit(UnsafeBlock *block) final;
 
+    void visit(ValueWrapperNode *node) override;
+
     void visit(VarInitStatement *init);
 
     void visit(ReturnStatement *stmt);

@@ -405,7 +405,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_void_type(&self, location : ubigint) : *mut VoidType
 
-    func make_access_chain(&self, parent_node : *ASTNode, is_node : bool, location : ubigint) : *mut AccessChain
+    func make_access_chain(&self, is_node : bool, location : ubigint) : *mut AccessChain
 
     func make_addr_of_value(&self, value : *Value, location : ubigint) : *mut AddrOfValue
 
@@ -501,7 +501,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_typealias_stmt(&self, identifier : &string_view, id_loc : ubigint, actual_type : *BaseType, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut TypealiasStatement
 
-    func make_using_stmt(&self, chain : *AccessChain, is_namespace : bool, location : ubigint) : *mut UsingStmt
+    func make_using_stmt(&self, chain : *AccessChain, parent_node : *ASTNode, is_namespace : bool, location : ubigint) : *mut UsingStmt
 
     func make_varinit_stmt(&self, is_const : bool, identifier : &string_view, id_loc : ubigint, type : *BaseType, value : *Value, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut VarInitStatement
 

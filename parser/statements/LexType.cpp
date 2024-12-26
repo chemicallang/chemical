@@ -145,7 +145,7 @@ BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, 
 
 LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* type, SourceLocation location) {
     auto first_id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, type->value), location, true);
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain({ first_id }, parent_node, false, location);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain({ first_id }, false, location);
     while(true) {
         if(token->type == TokenType::DoubleColonSym) {
             token++;

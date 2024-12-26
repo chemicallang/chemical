@@ -219,7 +219,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
             return second_expression;
         }
     } else {
-        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, false, loc_single(identifier));
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(identifier));
         auto value = parseAccessChainAfterId(allocator, chain, identifier->position);
         auto expr = parseRemainingExpression(allocator, value, identifier);
         if(!consumeToken(TokenType::RParen)) {
@@ -327,7 +327,7 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
     lexWhitespaceToken();
 
     if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
-        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, false, loc_single(start_tok));
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(start_tok));
         std::vector<BaseType*> genArgs;
         parseGenericArgsList(genArgs, allocator);
         if(token->type == TokenType::LParen) {

@@ -30,7 +30,7 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope) {
 
 Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser) {
     const auto location = arg->encoded_location();
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(nullptr, false, location);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, location);
     auto& id_view = decl->identifier.identifier;
     auto str = allocator.allocate_str(id_view.data(), id_view.size());
     auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(str, id_view.size()), location);

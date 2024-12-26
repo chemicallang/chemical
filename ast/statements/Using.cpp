@@ -6,29 +6,19 @@
 #include "UsingStmt.h"
 
 UsingStmt::UsingStmt(
-    std::vector<ChainValue*> values,
+    AccessChain* chain,
     ASTNode* parent_node,
     bool is_namespace,
     SourceLocation location
-) : chain(std::move(values), parent_node, false, location), location(location),
-    attrs(is_namespace, false)
-{
-
-}
-
-UsingStmt::UsingStmt(
-    AccessChain* chain,
-    bool is_namespace,
-    SourceLocation location
-) : chain(chain->values, chain->parent_node, chain->is_node, chain->location), location(location),
+) : chain(chain), parent_node(parent_node), location(location),
     attrs(is_namespace, false)
 {
 
 }
 
 void UsingStmt::declare_top_level(SymbolResolver &linker) {
-    chain.declare_and_link(linker);
-    auto linked = chain.linked_node();
+    chain->link(linker, nullptr, nullptr, 0, true, false);
+    auto linked = chain->linked_node();
     if(!linked) {
         linker.error("couldn't find linked node", this);
         return;

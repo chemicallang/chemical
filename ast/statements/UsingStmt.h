@@ -26,23 +26,18 @@ struct UsingStmtAttributes {
 class UsingStmt : public AnnotableNode {
 public:
 
-    AccessChain chain;
+    AccessChain* chain;
     SourceLocation location;
     UsingStmtAttributes attrs;
+    ASTNode* parent_node;
     /**
      * TODO remove this, this is for containing node identifier
      */
     std::string node_id;
 
     UsingStmt(
-        std::vector<ChainValue*> values,
-        ASTNode* parent_node,
-        bool is_namespace,
-        SourceLocation location
-    );
-
-    UsingStmt(
             AccessChain* chain,
+            ASTNode* parent_node,
             bool is_namespace,
             SourceLocation location
     );
@@ -76,11 +71,11 @@ public:
     }
 
     void set_parent(ASTNode* new_parent) final {
-        chain.set_parent(new_parent);
+        parent_node = new_parent;
     }
 
     ASTNode *parent() final {
-        return chain.parent_node;
+        return parent_node;
     }
 
     void declare_top_level(SymbolResolver &linker) final;

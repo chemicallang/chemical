@@ -176,11 +176,13 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
         token++;
         readWhitespace();
         auto has_namespace = consumeWSOfType(TokenType::NamespaceKw);
-        auto stmt = new (allocator.allocate<UsingStmt>()) UsingStmt({}, parent_node, has_namespace, loc_single(tok));
+        const auto location = loc_single(tok);
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain({}, false, location);
+        auto stmt = new (allocator.allocate<UsingStmt>()) UsingStmt(chain, parent_node, has_namespace, location);
         do {
             auto id = parseVariableIdentifier(allocator);
             if(id) {
-                stmt->chain.values.emplace_back((ChainValue*) id);
+                chain->values.emplace_back((ChainValue*) id);
             } else {
                 error("expected a identifier in using statement");
                 return stmt;

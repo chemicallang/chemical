@@ -11,43 +11,53 @@
 #include "ast/base/ChainValue.h"
 #include <unordered_map>
 
+struct AccessChainAttributes {
+
+    bool is_node;
+
+    bool is_moved;
+
+};
+
 /**
  * access chain represents a way to access things in programming language for example
  * x.y.z is an access chain, z member of the y of the x is being accessed
  * x.y.z() where z is a function call, z function is assumed to be present in y and y in z
  * z.y.z[0] similarly z is an index operator here
  */
-class AccessChain : public ASTNode, public ChainValue {
+class AccessChain : public ChainValue {
 public:
 
     std::vector<ChainValue*> values;
-    ASTNode* parent_node;
-    bool is_node;
-    bool is_moved = false;
     SourceLocation location;
+    AccessChainAttributes attrs;
 
-    AccessChain(ASTNode* parent_node, bool is_node, SourceLocation location);
+    AccessChain(bool is_node, SourceLocation location);
 
-    AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, bool is_node, SourceLocation location);
+    AccessChain(std::vector<ChainValue*> values, bool is_node, SourceLocation location);
+
+    inline bool is_node() {
+        return attrs.is_node;
+    }
+
+    inline bool is_moved() {
+        return attrs.is_moved;
+    }
+
+    inline void set_is_node(bool is_node) {
+        attrs.is_node = is_node;
+    }
+
+    inline void set_is_moved(bool is_moved) {
+        attrs.is_moved = is_moved;
+    }
 
     SourceLocation encoded_location() final {
         return location;
     }
 
-    ASTNodeKind kind() final {
-        return ASTNodeKind::AccessChain;
-    }
-
     ValueKind val_kind() final {
         return ValueKind::AccessChain;
-    }
-
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
     }
 
     /**
@@ -74,10 +84,6 @@ public:
 
     void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) final {
         link(linker, (BaseType*) nullptr, nullptr, 0, false, false);
-    }
-
-    void declare_and_link(SymbolResolver &linker) final {
-        link(linker, (BaseType*) nullptr, nullptr, 0, true, false);
     }
 
     bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type);
@@ -112,8 +118,6 @@ public:
 
     BaseType* create_type(ASTAllocator& allocator) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) final;
-
 //    hybrid_ptr<BaseType> get_base_type() final;
 
     BaseType* known_type() final;
@@ -123,8 +127,6 @@ public:
     uint64_t byte_size(bool is64Bit) final;
 
 #ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) final;
 
     llvm::Type *llvm_type(Codegen &gen) final;
 

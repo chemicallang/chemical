@@ -6,6 +6,7 @@
 #include "ast/structures/InitBlock.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/statements/ValueWrapperNode.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/AccessChain.h"
 #include "ast/structures/BaseDefMember.h"
@@ -227,9 +228,14 @@ void InitBlock::declare_and_link(SymbolResolver &linker) {
     container = mems_container;
     // now taking out initializers
     for(const auto node : scope.nodes) {
-        auto chain = node->as_access_chain();
+        const auto val_wrapper = node->as_value_wrapper();
+        if(!val_wrapper) {
+            linker.error("expected members of init block to be initializer call", (ASTNode*) node);
+            continue;
+        }
+        auto chain = val_wrapper->value->as_access_chain();
         if(!chain) {
-            linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
+            linker.error("expected members of init block to be initializer call", (ASTNode*) node);
             continue;
         }
         auto& call_ptr = chain->values.back();

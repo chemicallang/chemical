@@ -403,7 +403,7 @@ void FunctionType::mark_moved_no_check(AccessChain* chain) {
     } else {
         moved_chains.emplace_back(chain);
     }
-    chain->is_moved = true;
+    chain->set_is_moved(true);
 }
 
 void FunctionType::mark_moved_no_check(VariableIdentifier* id) {
@@ -499,7 +499,7 @@ bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
             if(id) {
                 auto did = mark_moved_id(id, diagnoser);
                 if(did) {
-                    chain->is_moved = true;
+                    chain->set_is_moved(true);
                 }
                 return did;
             }
@@ -631,11 +631,11 @@ bool FunctionType::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_typ
         // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true or false
         if(un_move_chain(chain)) {
             // setting true, to indicate that value was moved before, and this should not be destructed
-            chain->is_moved = true;
+            chain->set_is_moved(true);
             return true;
         } else {
             // setting false, to indicate that value is not moved, and this should be destructed
-            chain->is_moved = false;
+            chain->set_is_moved(false);
         }
     } else {
         auto id = value.as_identifier();

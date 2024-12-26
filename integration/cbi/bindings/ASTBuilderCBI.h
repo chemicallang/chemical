@@ -172,7 +172,7 @@ extern "C" {
 
     VoidType* ASTBuildermake_void_type(ASTAllocator* allocator, uint64_t location);
 
-    AccessChain* ASTBuildermake_access_chain(ASTAllocator* allocator, ASTNode* parent_node, bool is_node, uint64_t location);
+    AccessChain* ASTBuildermake_access_chain(ASTAllocator* allocator, bool is_node, uint64_t location);
 
     AddrOfValue* ASTBuildermake_addr_of_value(ASTAllocator* allocator, Value* value, uint64_t location);
 
@@ -268,7 +268,7 @@ extern "C" {
 
     TypealiasStatement* ASTBuildermake_typealias_stmt(ASTAllocator* allocator, chem::string_view* identifier, uint64_t name_loc, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
-    UsingStmt* ASTBuildermake_using_stmt(ASTAllocator* allocator, AccessChain* chain, bool is_namespace, uint64_t location);
+    UsingStmt* ASTBuildermake_using_stmt(ASTAllocator* allocator, AccessChain* chain, ASTNode* parent_node, bool is_namespace, uint64_t location);
 
     VarInitStatement* ASTBuildermake_varinit_stmt(ASTAllocator* allocator, bool is_const, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 

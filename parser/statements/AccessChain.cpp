@@ -105,7 +105,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
             break;
     }
 
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain({}, parent_node, false, loc_single(id));
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain({}, false, loc_single(id));
     auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));
     chain->values.emplace_back(identifier);
 

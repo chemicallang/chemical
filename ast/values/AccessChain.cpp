@@ -110,11 +110,13 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
     return true;
 }
 
-AccessChain::AccessChain(ASTNode* parent_node, bool is_node, SourceLocation location) : parent_node(parent_node), is_node(is_node), location(location) {
+AccessChain::AccessChain(bool is_node, SourceLocation location) : location(location), attrs(is_node, false) {
 
 }
 
-AccessChain::AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, bool is_node, SourceLocation location) : values(std::move(values)), parent_node(parent_node), is_node(is_node), location(location) {
+AccessChain::AccessChain(
+        std::vector<ChainValue*> values, bool is_node, SourceLocation location
+) : values(std::move(values)), location(location), attrs(is_node, false) {
 
 }
 
@@ -146,10 +148,6 @@ BaseType* AccessChain::create_type(ASTAllocator& allocator) {
 
 BaseType* AccessChain::known_type() {
     return values[values.size() - 1]->known_type();
-}
-
-BaseType* AccessChain::create_value_type(ASTAllocator& allocator) {
-    return create_type(allocator);
 }
 
 void AccessChain::accept(Visitor *visitor) {
@@ -186,7 +184,7 @@ bool AccessChain::compile_time_computable() {
 }
 
 AccessChain *AccessChain::copy(ASTAllocator& allocator) {
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(parent_node, is_node, location);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(is_node(), location);
     for(auto& value : values) {
         chain->values.emplace_back((ChainValue*) value->copy(allocator));
     }

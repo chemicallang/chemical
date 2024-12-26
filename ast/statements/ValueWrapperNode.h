@@ -35,10 +35,15 @@ public:
         value->link(linker, value);
     }
 
+    void interpret(InterpretScope &scope) override {
+        value->interpret(scope);
+    }
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override {
-        value->llvm_value(gen);
+        const auto inst = value->llvm_value(gen);
+        value->llvm_destruct(gen, inst);
     }
 
 #endif

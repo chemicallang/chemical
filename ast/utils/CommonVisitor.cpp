@@ -10,7 +10,7 @@
 #include "ast/statements/SwitchStatement.h"
 //#include "ast/statements/MacroValueStatement.h"
 //#include "ast/statements/Import.h"
-//#include "ast/structures/EnumMember.h"
+#include "ast/statements/ValueWrapperNode.h"
 //#include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
@@ -111,6 +111,10 @@ void CommonVisitor::visit(VariantCall *call) {
     for(auto& val : call->values) {
         val->accept(this);
     }
+}
+
+void CommonVisitor::visit(ValueWrapperNode *node) {
+    node->value->accept(this);
 }
 
 void CommonVisitor::visit(VarInitStatement *init) {

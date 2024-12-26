@@ -23,6 +23,7 @@
 #include "ast/statements/Return.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnionDef.h"
+#include "ast/statements/ValueWrapperNode.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
@@ -573,7 +574,7 @@ bool Value::is_chain_func_call() {
 bool Value::is_ref_moved() {
     auto chain = as_access_chain();
     if(chain) {
-        return chain->is_moved;
+        return chain->is_moved();
     } else {
         auto id = as_identifier();
         if(id) {
@@ -779,8 +780,8 @@ double Value::get_the_double() {
 Value* Value::get_first_value_from_value_node(ASTNode* node) {
     const auto k = node->kind();
     switch(k) {
-        case ASTNodeKind::AccessChain:
-            return node->as_access_chain_unsafe();
+        case ASTNodeKind::ValueWrapper:
+            return node->as_value_wrapper_unsafe()->value;
         case ASTNodeKind::ValueNode:
             return node->holding_value();
         case ASTNodeKind::IfStmt:

@@ -1004,14 +1004,14 @@ void move_chain(ToCAstVisitor& visitor, AccessChain* chain) {
     if(chain->values.size() == 1) {
         auto identifier = chain->values.back()->as_identifier();
         if(identifier) {
-            if (chain->is_moved) {
+            if (chain->is_moved()) {
                 identifier->is_moved = true;
             }
             move_identifier(visitor, identifier);
         }
         return;
     }
-    if(chain->is_moved) {
+    if(chain->is_moved()) {
         moved_value_call(visitor, chain);
     }
 }
@@ -1528,7 +1528,7 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
 
 void CAfterStmtVisitor::visit(AccessChain *chain) {
     CommonVisitor::visit(chain);
-    destruct_chain(chain, chain->is_node);
+    destruct_chain(chain, chain->is_node());
 }
 
 void CAfterStmtVisitor::visit(FunctionCall *call) {
@@ -1741,7 +1741,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             queue_destruct(init->identifier(), init, last_func_call);
             return;
         } else {
-            if(chain->is_moved) {
+            if(chain->is_moved()) {
                 auto init_type = init->create_value_type(visitor.allocator);
                 auto linked = init_type->linked_node();
                 if(!linked) {
@@ -4071,7 +4071,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
 }
 
 void ToCAstVisitor::visit(AccessChain *chain) {
-    if(chain->is_moved) {
+    if(chain->is_moved()) {
         auto found = local_allocated.find(chain);
         if(found != local_allocated.end()) {
             write(found->second);

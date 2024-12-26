@@ -780,11 +780,6 @@ llvm::Value* llvm_next_value(
     return value_ref;
 }
 
-void AccessChain::code_gen(Codegen &gen) {
-    auto value = llvm_value(gen, nullptr);
-    llvm_destruct(gen, value);
-}
-
 llvm::Type *AccessChain::llvm_type(Codegen &gen) {
     std::unordered_map<uint16_t, int16_t> active;
     set_generic_iterations(gen.allocator, active);

@@ -23,7 +23,7 @@
 #include "compiler/llvmimpl.h"
 
 AccessChain parent_chain(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain, int till) {
-    AccessChain member_access(std::vector<ChainValue*> {}, nullptr, false, ZERO_LOC);
+    AccessChain member_access(std::vector<ChainValue*> {}, false, ZERO_LOC);
     unsigned i = 0;
     while(i < till) {
         if(chain[i] == call) {
@@ -36,7 +36,7 @@ AccessChain parent_chain(ASTAllocator& allocator, FunctionCall* call, std::vecto
 }
 
 AccessChain chain_range(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain, int till) {
-    AccessChain member_access(std::vector<ChainValue*> {}, nullptr, false, ZERO_LOC);
+    AccessChain member_access(std::vector<ChainValue*> {}, false, ZERO_LOC);
     unsigned i = 0;
     while(i <= till) {
         member_access.values.emplace_back((ChainValue*) chain[i]->copy(allocator));

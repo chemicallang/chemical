@@ -853,9 +853,9 @@ void CSTConverter::visitUsing(CSTToken* usingStmt) {
         }
         i++;
     }
-    const auto stmt = new (local<UsingStmt>()) UsingStmt(std::move(curr_values), parent_node, is_keyword(usingStmt->tokens[1], "namespace"), loc(usingStmt));
-    collect_annotations_in(this, stmt);
-    put_node(stmt, usingStmt);
+//    const auto stmt = new (local<UsingStmt>()) UsingStmt(std::move(curr_values), parent_node, is_keyword(usingStmt->tokens[1], "namespace"), loc(usingStmt));
+//    collect_annotations_in(this, stmt);
+//    put_node(stmt, usingStmt);
 }
 
 void CSTConverter::visitProvide(CSTToken *provideStmt) {
@@ -1959,13 +1959,13 @@ void CSTConverter::visitAccessChain(CSTToken* chain) {
         i++;
     }
     const auto is_node = chain->type() == LexTokenType::CompAccessChainNode;
-    auto ret_chain = new (local<AccessChain>()) AccessChain(std::vector<ChainValue*> {}, parent_node, is_node, loc(chain));
+    auto ret_chain = new (local<AccessChain>()) AccessChain(std::vector<ChainValue*> {}, is_node, loc(chain));
     for(auto& value : values) {
         ret_chain->values.emplace_back((ChainValue*) value);
     }
     values = std::move(prev_values);
     if (is_node) {
-        put_node(ret_chain, chain);
+//        put_node(ret_chain, chain);
     } else {
         if(ret_chain->values.size() == 1) {
             put_value(ret_chain->values[0], chain);

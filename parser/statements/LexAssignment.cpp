@@ -5,6 +5,7 @@
 #include "ast/values/IntValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/statements/ValueWrapperNode.h"
 
 std::optional<Operation> Parser::parseOperation() {
     switch(token->type) {
@@ -148,8 +149,8 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
         }
         if (lhs->val_kind() == ValueKind::AccessChain) {
             auto chain = lhs->as_access_chain();
-            chain->is_node = true;
-            return chain;
+            chain->set_is_node(true);
+            return new(allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(chain, parent_node);
         }
     }
 

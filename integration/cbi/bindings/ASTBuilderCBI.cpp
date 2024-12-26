@@ -211,8 +211,8 @@ VoidType* ASTBuildermake_void_type(ASTAllocator* allocator, uint64_t location) {
     return new (allocator->allocate<VoidType>()) VoidType(location);
 }
 
-AccessChain* ASTBuildermake_access_chain(ASTAllocator* allocator, ASTNode* parent_node, bool is_node, uint64_t location) {
-    return new (allocator->allocate<AccessChain>()) AccessChain(parent_node, is_node, location);
+AccessChain* ASTBuildermake_access_chain(ASTAllocator* allocator, bool is_node, uint64_t location) {
+    return new (allocator->allocate<AccessChain>()) AccessChain(is_node, location);
 }
 
 AddrOfValue* ASTBuildermake_addr_of_value(ASTAllocator* allocator, Value* value, uint64_t location) {
@@ -404,8 +404,8 @@ TypealiasStatement* ASTBuildermake_typealias_stmt(ASTAllocator* allocator, chem:
     return new (allocator->allocate<TypealiasStatement>()) TypealiasStatement(LOC_ID(identifier->str(), id_loc), actual_type, parent_node, location, specifier);
 }
 
-UsingStmt* ASTBuildermake_using_stmt(ASTAllocator* allocator, AccessChain* chain, bool is_namespace, uint64_t location) {
-    return new (allocator->allocate<UsingStmt>()) UsingStmt(chain, is_namespace, location);
+UsingStmt* ASTBuildermake_using_stmt(ASTAllocator* allocator, AccessChain* chain, ASTNode* parent_node, bool is_namespace, uint64_t location) {
+    return new (allocator->allocate<UsingStmt>()) UsingStmt(chain, parent_node, is_namespace, location);
 }
 
 VarInitStatement* ASTBuildermake_varinit_stmt(ASTAllocator* allocator, bool is_const, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {

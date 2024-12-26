@@ -477,6 +477,10 @@ public:
         return kind() == ASTNodeKind::InitBlock;
     }
 
+    inline bool isValueWrapperNode() {
+        return kind() == ASTNodeKind::ValueWrapper;
+    }
+
     inline bool isAssignmentStmt() {
         return kind() == ASTNodeKind::AssignmentStmt;
     }
@@ -543,10 +547,6 @@ public:
 
     inline bool isTryStmt() {
         return kind() == ASTNodeKind::TryStmt;
-    }
-
-    inline bool isAccessChain() {
-        return kind() == ASTNodeKind::AccessChain;
     }
 
     inline bool isEnumDecl() {
@@ -696,14 +696,17 @@ public:
     //---------------------------------------------
 
     /**
-     * get this node as access chain safely
+     * return as init block safely
      */
-    AccessChain* as_access_chain() {
-        return isAccessChain() ? (AccessChain*) this : nullptr;
-    }
-
     InitBlock* as_init_block() {
         return isInitBlock() ? (InitBlock*) this : nullptr;
+    }
+
+    /**
+     * get as value wrapper node safely
+     */
+    ValueWrapperNode* as_value_wrapper() {
+        return isValueWrapperNode() ? (ValueWrapperNode*) this : nullptr;
     }
 
     /**
@@ -929,10 +932,10 @@ public:
     //---------------------------------------------
 
     /**
-     * return as access chain unsafe
+     * as value wrapper node unsafe
      */
-    inline AccessChain* as_access_chain_unsafe() {
-        return (AccessChain*) this;
+    inline ValueWrapperNode* as_value_wrapper_unsafe() {
+        return (ValueWrapperNode*) this;
     }
 
     /**

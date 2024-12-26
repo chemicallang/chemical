@@ -66,7 +66,7 @@ func (str : &std::string) view() : std::string_view {
 
 func make_value_chain(parser : *mut Parser, builder : *mut ASTBuilder, value : *mut Value, len : size_t) : *mut AccessChain {
     const location = compiler::get_raw_location();
-    const chain = builder.make_access_chain(parser.getParentNode(), true, location)
+    const chain = builder.make_access_chain(true, location)
     var chain_values = chain.get_values()
     var base = builder.make_identifier(std::string_view("html"), false, location);
     chain_values.push(base)

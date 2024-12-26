@@ -181,6 +181,8 @@ public:
 
     void visit(TryCatch* statement) final;
 
+    void visit(ValueWrapperNode *node) override;
+
     // Value Vis override;
 
     void visit(IntValue *intVal) final;

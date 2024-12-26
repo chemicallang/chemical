@@ -13,6 +13,7 @@
 #include "2cBackendContext.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
+#include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/MacroValueStatement.h"
 #include "ast/types/DynamicType.h"
@@ -4580,6 +4581,11 @@ void ToCAstVisitor::visit(ValueNode *node) {
     nested_value = true;
     node->value->accept(this);
     nested_value = prev;
+    write(';');
+}
+
+void ToCAstVisitor::visit(ValueWrapperNode *node) {
+    node->value->accept(this);
     write(';');
 }
 

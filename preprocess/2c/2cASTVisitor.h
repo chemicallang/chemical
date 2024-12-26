@@ -484,6 +484,8 @@ public:
 
     void visit(ValueNode *node) final;
 
+    void visit(ValueWrapperNode *node) override;
+
     void visit(NullValue* nullValue) final;
 
     void visit(LambdaFunction* func) final;

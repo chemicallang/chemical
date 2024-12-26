@@ -38,6 +38,7 @@
 #include "ast/statements/SwitchStatement.h"
 #include "ast/structures/LoopBlock.h"
 #include "parse_num.h"
+#include "ast/statements/ValueWrapperNode.h"
 
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
     if(token->type == TokenType::SingleQuoteSym) {
@@ -268,6 +269,15 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
 
     }
 
+}
+
+ASTNode* Parser::parseNewValueAsNode(ASTAllocator& allocator) {
+    auto newValue = parseNewValue(allocator);
+    if(newValue) {
+        return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(newValue, parent_node);
+    } else {
+        return nullptr;
+    }
 }
 
 Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token) {

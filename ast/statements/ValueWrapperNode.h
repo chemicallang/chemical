@@ -20,7 +20,7 @@ public:
     }
 
     void accept(Visitor *visitor) override {
-        value->accept(visitor);
+        visitor->visit(this);
     }
 
     SourceLocation encoded_location() override {

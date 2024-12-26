@@ -27,6 +27,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
+#include "ast/statements/ValueWrapperNode.h"
 #include "ast/types/DynamicType.h"
 #include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/If.h"
@@ -558,6 +559,10 @@ void RepresentationVisitor::visit(Namespace *ns) {
 
 void RepresentationVisitor::visit(TryCatch *statement) {
     write("[TryCatch_UNIMPLEMENTED]");
+}
+
+void RepresentationVisitor::visit(ValueWrapperNode *node) {
+    node->value->accept(this);
 }
 
 void RepresentationVisitor::visit(IntValue *val) {

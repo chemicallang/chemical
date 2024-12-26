@@ -148,7 +148,7 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
             error("expected an equal for assignment after the assignment operator");
         }
         if (lhs->val_kind() == ValueKind::AccessChain) {
-            auto chain = lhs->as_access_chain();
+            auto chain = lhs->as_access_chain_unsafe();
             chain->set_is_node(true);
             return new(allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(chain, parent_node);
         }

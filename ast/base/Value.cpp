@@ -428,16 +428,14 @@ bool Value::is_ptr_or_ref(ASTAllocator& allocator) {
 }
 
 bool Value::is_ref_value() {
-    auto chain = as_access_chain();
-    if(chain) {
-        return true;
-    } else {
-        auto id = as_identifier();
-        if(id) {
+    switch(val_kind()) {
+        case ValueKind::AccessChain:
             return true;
-        }
+        case ValueKind::Identifier:
+            return true;
+        default:
+            return false;
     }
-    return false;
 }
 
 bool is_node_assignable(ASTNode* node) {
@@ -524,7 +522,7 @@ bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, 
             }
         }
         case ValueKind::AccessChain: {
-            const auto chain = as_access_chain();
+            const auto chain = as_access_chain_unsafe();
             auto& chain_values = chain->values;
             unsigned i = 0;
             const auto chain_size = chain_values.size();
@@ -572,16 +570,14 @@ bool Value::is_chain_func_call() {
 }
 
 bool Value::is_ref_moved() {
-    auto chain = as_access_chain();
-    if(chain) {
-        return chain->is_moved();
-    } else {
-        auto id = as_identifier();
-        if(id) {
-            return id->is_moved;
-        }
+    switch(val_kind()) {
+        case ValueKind::AccessChain:
+            return as_access_chain_unsafe()->is_moved();
+        case ValueKind::Identifier:
+            return as_identifier_unsafe()->is_moved;
+        default:
+                return false;
     }
-    return false;
 }
 
 bool Value::reference() {
@@ -597,9 +593,10 @@ bool Value::reference() {
 
 bool Value::requires_memcpy_ref_struct(BaseType* known_type) {
     // is referencing another struct, that is non movable and must be mem copied into the pointer
-    const auto chain = as_access_chain();
-    const auto id = as_identifier();
-    if(id || (chain && chain->values.back()->as_func_call() == nullptr)) {
+    const auto kind = val_kind();
+    const auto chain = as_access_chain_unsafe();
+    const auto id = as_identifier_unsafe();
+    if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && chain->values.back()->as_func_call() == nullptr)) {
         auto linked = known_type->get_direct_linked_node();
         if (linked) {
             auto k = linked->kind();
@@ -882,8 +879,8 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
     if(kind == other_kind) {
         switch(kind) {
             case ValueKind::AccessChain: {
-                auto this_chain = as_access_chain();
-                auto other_chain = other->as_access_chain();
+                auto this_chain = as_access_chain_unsafe();
+                auto other_chain = other->as_access_chain_unsafe();
                 const auto siz = this_chain->values.size();
                 if(siz != other_chain->values.size()) {
                     return false;

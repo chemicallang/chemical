@@ -626,20 +626,22 @@ bool FunctionType::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_typ
         return false;
     }
     auto& value = *value_ptr;
-    auto chain = value.as_access_chain();
-    if(chain) {
-        // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true or false
-        if(un_move_chain(chain)) {
-            // setting true, to indicate that value was moved before, and this should not be destructed
-            chain->set_is_moved(true);
-            return true;
-        } else {
-            // setting false, to indicate that value is not moved, and this should be destructed
-            chain->set_is_moved(false);
+    switch(value.val_kind()) {
+        case ValueKind::AccessChain:{
+            const auto chain = value.as_access_chain_unsafe();
+            // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true or false
+            if(un_move_chain(chain)) {
+                // setting true, to indicate that value was moved before, and this should not be destructed
+                chain->set_is_moved(true);
+                return true;
+            } else {
+                // setting false, to indicate that value is not moved, and this should be destructed
+                chain->set_is_moved(false);
+            }
+            break;
         }
-    } else {
-        auto id = value.as_identifier();
-        if(id) {
+        case ValueKind::Identifier: {
+            const auto id = value.as_identifier_unsafe();
             if(un_move_id(id)) {
                 // setting true, to indicate that value was moved before, and this should not be destructed
                 id->is_moved = true;
@@ -660,7 +662,10 @@ bool FunctionType::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_typ
                 const auto param = linked->as_func_param_unsafe();
                 param->unmove();
             }
+            break;
         }
+        default:
+            return false;
     }
     return false;
 }

@@ -608,13 +608,6 @@ public:
     }
 
     /**
-     * return if value is a access chain
-     */
-    virtual AccessChain* as_access_chain() {
-        return nullptr;
-    }
-
-    /**
      * returns the type of value
      * @return
      */
@@ -720,6 +713,10 @@ public:
 
     static constexpr inline bool isIfValue(ValueKind k) {
         return k == ValueKind::IfValue;
+    }
+
+    static constexpr inline bool isAccessChain(ValueKind k) {
+        return k == ValueKind::AccessChain;
     }
 
     static constexpr inline bool isSwitchValue(ValueKind k) {
@@ -884,6 +881,10 @@ public:
 
     inline NumberValue* as_number_value() {
         return isNumberValue(val_kind()) ? ((NumberValue*) this) : nullptr;
+    }
+
+    inline AccessChain* as_access_chain() {
+        return isAccessChain(val_kind()) ? ((AccessChain*) this) : nullptr;
     }
 
     inline IsValue* as_is_value() {
@@ -1056,6 +1057,10 @@ public:
 
     inline VariableIdentifier* as_identifier_unsafe() {
         return ((VariableIdentifier*) this);
+    }
+
+    inline AccessChain* as_access_chain_unsafe() {
+        return ((AccessChain*) this);
     }
 
     inline IndexOperator* as_index_op_unsafe() {

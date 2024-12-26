@@ -574,6 +574,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             if(!already_imported) {
                 processor.sym_res_file(file.unit.scope, file.is_c_file, file.abs_path);
                 if (resolver.has_errors && !options->ignore_errors) {
+                    std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
                     compile_result = 1;
                     break;
                 }
@@ -629,6 +630,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
             // do not continue processing
             if(!result.continue_processing) {
+                std::cerr << rang::fg::red << "couldn't perform job due to errors during lexing or parsing file '" << file.abs_path << '\'' << rang::fg::reset << std::endl;
                 compile_result = 1;
                 break;
             }
@@ -703,10 +705,13 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
 #ifdef COMPILER_BUILD
         if(!use_tcc && gen.has_errors) {
+            std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;
             compile_result = 1;
+            break;
         }
 #endif
         if(compile_result == 1) {
+            std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;
             break;
         }
 

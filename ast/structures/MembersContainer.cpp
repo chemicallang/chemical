@@ -103,7 +103,7 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
 }
 
 std::pair<llvm::Value*, llvm::FunctionType*>& MembersContainer::llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr) {
-    return generic_llvm_data[decl][struct_itr][func_itr];
+    return generic_llvm_data.at(decl).at(struct_itr).at(func_itr);
 }
 
 void MembersContainer::acquire_function_iterations(int16_t iteration) {
@@ -421,7 +421,7 @@ int16_t MembersContainer::register_with_existing(ASTDiagnoser& diagnoser, std::v
     }
     const auto itr = get_iteration_for(generic_params, generic_args);
     if(itr == -1) {
-        diagnoser.error("iteration for declaration doesn't exist", (ASTNode*) this);
+        diagnoser.warn("iteration for declaration doesn't exist", (ASTNode*) this);
     }
     return itr;
 }

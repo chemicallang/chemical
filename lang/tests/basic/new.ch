@@ -99,4 +99,12 @@ func test_new() {
         return result;
     })
 
+    test("placement new works without a variable", () => {
+        var ptr = malloc(#sizeof(PointNew12)) as *mut PointNew12
+        new (ptr) PointNew12 { a : 12, b : 43 }
+        var result = ptr.a == 12 && ptr.b == 43
+        free(ptr)
+        return result;
+    })
+
 }

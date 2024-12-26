@@ -715,6 +715,11 @@ public:
     Value* parseNewValue(ASTAllocator& allocator);
 
     /**
+     * parses a new value as a node
+     */
+    ASTNode* parseNewValueAsNode(ASTAllocator& allocator);
+
+    /**
      * values in provide are supported very less
      */
     Value* parseProvideValue(ASTAllocator& allocator);

@@ -78,6 +78,8 @@ class ComptimeBlock;
 
 class TypealiasStatement;
 
+class ValueWrapperNode;
+
 class SwitchStatement;
 
 class VariantDefinition;
@@ -429,6 +431,10 @@ public:
 
     virtual void visit(TypealiasStatement* statement) {
         visitCommon((ASTNode*) statement);
+    }
+
+    virtual void visit(ValueWrapperNode* node) {
+        visitCommon((ASTNode*) node);
     }
 
     virtual void visit(SwitchStatement* statement) {

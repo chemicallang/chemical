@@ -24,6 +24,7 @@
 #include "ast/types/GenericType.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
+#include "ast/utils/ASTUtils.h"
 #include <sstream>
 
 #ifdef COMPILER_BUILD
@@ -1272,7 +1273,7 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
 int16_t FunctionDeclaration::register_call_with_existing(ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type) {
     const auto total = generic_params.size();
     std::vector<BaseType*> generic_args(total);
-    infer_generic_args(generic_args, generic_params, call, diagnoser, expected_type);
+    ::infer_generic_args(generic_args, generic_params, call, diagnoser, expected_type);
     // register and report to subscribers
     auto itr = get_iteration_for(generic_params, generic_args);
     if(itr == -1) {

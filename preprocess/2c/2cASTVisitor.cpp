@@ -1913,7 +1913,10 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     auto prev_destroy_scope = visitor.destructor->destroy_current_scope;
     visitor.destructor->destroy_current_scope = true;
     auto previous_destruct_jobs = std::move(visitor.destructor->destruct_jobs);
+    auto prev_func_type = visitor.current_func_type;
+    visitor.current_func_type = lamb;
     scope(visitor, lamb->scope, lamb);
+    visitor.current_func_type = prev_func_type;
     visitor.destructor->destruct_jobs = std::move(previous_destruct_jobs);
     visitor.destructor->destroy_current_scope = prev_destroy_scope;
 }

@@ -391,23 +391,21 @@ public:
 class InterpretWrap : public FunctionDeclaration {
 public:
 
-    GenericTypeParameter gen_param;
-    LinkedType gen_param_linked;
+    AnyType anyType;
     FunctionParam valueParam;
 
     explicit InterpretWrap(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("wrap"),
             std::vector<FunctionParam*> {},
-            &gen_param_linked,
+            &anyType,
             true,
             parent_node,
             ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public,
             true
-    ), gen_param("T", nullptr, nullptr, this, 0, ZERO_LOC),
-        gen_param_linked("T", &gen_param, ZERO_LOC),
-        valueParam("value", &gen_param_linked, 0, nullptr, false, this, ZERO_LOC)
+    ), anyType(ZERO_LOC),
+        valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC)
     {
         set_comptime(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
@@ -415,7 +413,6 @@ public:
 //        generic_params.emplace_back(new (call_scope->allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
         params.emplace_back(&valueParam);
-        generic_params.emplace_back(&gen_param);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto underlying = call->values[0]->copy(call_scope->allocator);

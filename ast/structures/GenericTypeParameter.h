@@ -47,6 +47,9 @@ public:
     void register_usage(ASTAllocator& allocator, BaseType* type);
 
     BaseType* create_value_type(ASTAllocator& allocator) final {
+        if(active_iteration == -1) {
+            return nullptr;
+        }
         return usage[active_iteration]->copy(allocator);
     }
 
@@ -82,7 +85,7 @@ public:
 
     ASTNode *child(const std::string &name) final {
         const auto linked = usage_linked();
-        return linked ? linked->child(name) : nullptr;
+        return linked ? linked->child(name) : (at_least_type ? at_least_type->linked_node()->child(name) : nullptr);
     }
 
     int child_index(const std::string &name) final {

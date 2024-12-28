@@ -132,6 +132,7 @@ void ptr_vec_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
 
 void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
     sym_map = {
+            { "ASTBuilderallocate_with_cleanup", (void*) ASTBuilderallocate_with_cleanup },
             { "ASTBuildermake_any_type", (void*) ASTBuildermake_any_type },
             { "ASTBuildermake_array_type", (void*) ASTBuildermake_array_type },
             { "ASTBuildermake_bigint_type", (void*) ASTBuildermake_bigint_type },

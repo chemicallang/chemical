@@ -1,5 +1,23 @@
 import "../test.ch"
 
+typealias ubigint_typealias = ubigint;
+
+func can_cast_to_intN_typealias(value : ushort) : ubigint_typealias {
+    return value as ubigint_typealias
+}
+
+func can_implicit_cast_to_intN_typealias(value : ushort) : ubigint_typealias {
+    return value;
+}
+
+func can_cast_from_intN_typealias(value : ubigint_typealias) : ushort {
+    return value as ushort
+}
+
+func can_implicit_cast_from_intN_typealias(value : ubigint_typealias) : ushort {
+    return value
+}
+
 func test_casts() {
     test("test long value can be truncated", () => {
         var num1 = 30;
@@ -64,5 +82,21 @@ func test_casts() {
     test("cast a double to a float", () => {
         var d = 1.0 as double
         return ((d as float) == 1.0f)
+    })
+    test("intN casts to intN typealias explicit", () => {
+        const casted = can_cast_to_intN_typealias(16);
+        return casted == 16;
+    })
+    test("intN casts to intN typealias implicit", () => {
+        const casted = can_implicit_cast_to_intN_typealias(13);
+        return casted == 13;
+    })
+    test("intN casts from intN typealias explicit", () => {
+        const casted = can_cast_from_intN_typealias(26);
+        return casted == 26;
+    })
+    test("intN casts from intN typealias implicit", () => {
+        const casted = can_implicit_cast_from_intN_typealias(18);
+        return casted == 18;
     })
 }

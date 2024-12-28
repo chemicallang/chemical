@@ -545,9 +545,10 @@ llvm::Type *CastedValue::llvm_type(Codegen &gen) {
 llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto llvm_val = value->llvm_value(gen);
     auto value_type = value->create_type(gen.allocator);
-    if(value_type->kind() == BaseTypeKind::IntN && type->kind() == BaseTypeKind::IntN) {
+    const auto pure_type = type->pure_type();
+    if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::IntN) {
         auto from_num_type = (IntNType*) value_type;
-        auto to_num_type = (IntNType*) type;
+        auto to_num_type = (IntNType*) pure_type;
         if(from_num_type->num_bits() < to_num_type->num_bits()) {
             if (from_num_type->is_unsigned()) {
                 return gen.builder->CreateZExt(llvm_val, to_num_type->llvm_type(gen));

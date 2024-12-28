@@ -10,6 +10,11 @@ namespace std {
     class mutex;
 }
 
+struct ASTCleanupFunction {
+    void* instance_ptr;
+    void(*cleanup_fn)(void*);
+};
+
 /**
  * ASTAllocator is supposed to be the simplest class that allows
  * to allocate different AST classes, It stores pointers to the allocated
@@ -49,8 +54,18 @@ public:
 
     /**
      * allocate a pointer with given object size and store the pointer
+     * the pointer is considered pointing to ASTAny object, which is virtually destructed
+     * at the destruction of this ASTAllocator
      */
     char* allocate_size(std::size_t obj_size, std::size_t alignment);
+
+    /**
+     * allocates a pointer with given object size and store the cleanup function
+     * the pointer is considered an instance for the given cleanup function, this cleanup
+     * function will be called at destruction of this Allocator with the allocated pointer as
+     * an argument
+     */
+    char* allocate_with_cleanup(std::size_t obj_size, std::size_t alignment, void* cleanup_fn);
 
     /**
      * when called, will free everything, and make this allocator available
@@ -69,7 +84,15 @@ protected:
      * pointers to objects user wanted are stored on this vector
      * so we can destruct them, when this allocator dies
      */
-    std::vector<std::vector<ASTAny*>> ptr_storage;
+    std::vector<ASTAny*> ptr_storage;
+
+    /**
+     * these functions are run at destruction, we can basically
+     * store any object and it's destructor in this struct, and call it
+     * this allows us to store chemical objects with destructors
+     * of classes created by user in chemical
+     */
+    std::vector<ASTCleanupFunction> cleanup_fns;
 
     /**
      * pointer vector size, default 1000 pointers are allocated
@@ -77,31 +100,27 @@ protected:
     static constexpr unsigned int PTR_VEC_SIZE = 1000;
 
     /**
-     * create another vector reserving PTR_VEC_SIZE (1000) pointers
-     */
-    std::vector<ASTAny*>& reserve_ptr_storage();
-
-    /**
-     * if there's size available in the last storage return it
-     * otherwise reserve another and return that
-     */
-    std::vector<ASTAny*>& get_ptr_storage();
-
-    /**
      * destructs the pointer storage
      */
     void destruct_ptr_storage();
 
     /**
-     * clear this pointer storage, only a single
+     * destructs clean up functions
      */
-    void clear_ptr_storage();
+    void destruct_cleanup_storage();
+
+    /**
+     * stores the cleanup function to be called at destruction
+     */
+    inline void store_cleanup_fn(void* instance, void* cleanup_fn) {
+        cleanup_fns.emplace_back(instance, (void(*)(void*)) cleanup_fn);
+    }
 
     /**
      * will store the given pointer to destruct later
      */
     inline void store_ptr(char* ptr) {
-        get_ptr_storage().emplace_back((ASTAny*) (void*) ptr);
+        ptr_storage.emplace_back((ASTAny*) (void*) ptr);
     }
 
 };

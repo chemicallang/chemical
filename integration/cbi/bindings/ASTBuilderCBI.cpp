@@ -81,6 +81,7 @@
 #include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/InitBlock.h"
 #include "ast/statements/ThrowStatement.h"
+#include "ast/statements/ValueWrapperNode.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/types/LinkedValueType.h"
 #include "ast/statements/UsingStmt.h"
@@ -213,6 +214,10 @@ VoidType* ASTBuildermake_void_type(ASTAllocator* allocator, uint64_t location) {
 
 AccessChain* ASTBuildermake_access_chain(ASTAllocator* allocator, bool is_node, uint64_t location) {
     return new (allocator->allocate<AccessChain>()) AccessChain(is_node, location);
+}
+
+ValueWrapperNode* ASTBuildermake_value_wrapper(ASTAllocator* allocator, Value* value, ASTNode* parent_node) {
+    return new (allocator->allocate<ValueWrapperNode>()) ValueWrapperNode(value, parent_node);
 }
 
 AddrOfValue* ASTBuildermake_addr_of_value(ASTAllocator* allocator, Value* value, uint64_t location) {

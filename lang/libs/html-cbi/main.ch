@@ -176,7 +176,8 @@ public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *m
         while(true) {
             var chain = parseTextChainOrChemExpr(parser, builder, str);
             if(chain != null) {
-                scope_nodes.push(chain);
+                const wrapped = builder.make_value_wrapper(chain, parser.getParentNode())
+                scope_nodes.push(wrapped);
             } else {
                 break;
             }

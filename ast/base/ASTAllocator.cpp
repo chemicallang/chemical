@@ -16,8 +16,8 @@ BatchAllocator::BatchAllocator(std::size_t heapBatchSize) : heap_offset(heapBatc
 ASTAllocator::ASTAllocator(
     std::size_t heapBatchSize
 ) : BatchAllocator(heapBatchSize) {
-    ptr_storage.reserve(10);
-    reserve_ptr_storage();
+    ptr_storage.reserve(PTR_VEC_SIZE);
+    cleanup_fns.reserve(PTR_VEC_SIZE);
 }
 
 BatchAllocator::BatchAllocator(
@@ -31,7 +31,8 @@ BatchAllocator::BatchAllocator(
 
 ASTAllocator::ASTAllocator(
     ASTAllocator&& other
-) noexcept : BatchAllocator(std::move(other)), ptr_storage(std::move(other.ptr_storage))
+) noexcept : BatchAllocator(std::move(other)), ptr_storage(std::move(other.ptr_storage)),
+    cleanup_fns(std::move(other.cleanup_fns))
 {
 }
 
@@ -53,20 +54,21 @@ BatchAllocator& BatchAllocator::operator =(BatchAllocator&& other) noexcept {
 ASTAllocator& ASTAllocator::operator =(ASTAllocator&& other) noexcept {
     BatchAllocator::operator=(std::move(other));
     ptr_storage = std::move(other.ptr_storage);
+    cleanup_fns = std::move(other.cleanup_fns);
     return *this;
 }
 
 void ASTAllocator::clear() {
     std::lock_guard<std::mutex> lock(*allocator_mutex);
     destruct_ptr_storage();
+    destruct_cleanup_storage();
     destroy_memory();
-    clear_ptr_storage();
     heap_memory.clear();
     heap_offset = heap_batch_size; // force heap allocation
 }
 
 void BatchAllocator::destroy_memory() {
-    for (auto& heap_ptr: heap_memory) {
+    for (const auto heap_ptr: heap_memory) {
         ::operator delete(heap_ptr);
     }
 }
@@ -77,42 +79,22 @@ BatchAllocator::~BatchAllocator() {
 }
 
 void ASTAllocator::destruct_ptr_storage() {
-    for (auto& vec: ptr_storage) {
-        for (auto& ptr: vec) {
-            ptr->~ASTAny();
-        }
+    for (const auto ptr: ptr_storage) {
+        ptr->~ASTAny();
     }
+    ptr_storage.clear();
+}
+
+void ASTAllocator::destruct_cleanup_storage() {
+    for(auto& ptr : cleanup_fns) {
+        ptr.cleanup_fn(ptr.instance_ptr);
+    }
+    cleanup_fns.clear();
 }
 
 ASTAllocator::~ASTAllocator() {
+    destruct_cleanup_storage();
     destruct_ptr_storage();
-}
-
-std::vector<ASTAny*>& ASTAllocator::reserve_ptr_storage() {
-    ptr_storage.emplace_back();
-    auto& last = ptr_storage.back();
-    last.reserve(PTR_VEC_SIZE);
-    return last;
-}
-
-std::vector<ASTAny*>& ASTAllocator::get_ptr_storage() {
-    auto& last = ptr_storage.back();
-    if (last.size() < PTR_VEC_SIZE) {
-        return last;
-    } else {
-        return reserve_ptr_storage();
-    }
-}
-
-void ASTAllocator::clear_ptr_storage() {
-    if (ptr_storage.empty()) {
-        reserve_ptr_storage();
-    } else {
-        while (ptr_storage.size() != 1) {
-            ptr_storage.pop_back();
-        }
-        ptr_storage.back().clear();
-    }
 }
 
 char* BatchAllocator::reserve_heap_storage() {
@@ -156,6 +138,13 @@ char* ASTAllocator::allocate_size(std::size_t obj_size, std::size_t alignment) {
     std::lock_guard<std::mutex> lock(*allocator_mutex);
     const auto ptr = object_heap_pointer(obj_size, alignment);
     store_ptr(ptr);
+    return ptr;
+}
+
+char* ASTAllocator::allocate_with_cleanup(std::size_t obj_size, std::size_t alignment, void* cleanup_fn) {
+    std::lock_guard<std::mutex> lock(*allocator_mutex);
+    const auto ptr = object_heap_pointer(obj_size, alignment);
+    store_cleanup_fn((void*) ptr, cleanup_fn);
     return ptr;
 }
 

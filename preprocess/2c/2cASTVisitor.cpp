@@ -3884,7 +3884,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
             }
             func_call_args(visitor, last, func_type);
             visitor.write(')');
-        } else if(grandpaType->linked_struct_def()) {
+        } else if(pure_grandpa->linked_struct_def()) {
             if(parent->linked_node()->as_struct_member()) {
                 goto normal_functions;
             }
@@ -3895,7 +3895,7 @@ void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigne
                 generic_struct->set_active_iteration(grandpaType->get_generic_iteration());
             }
             // functions on struct values
-            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
+            func_container_name(visitor, pure_grandpa->linked_node(), parent->linked_node());
             func_name(visitor, parent, func_decl);
             visitor.write('(');
             write_implicit_args(visitor, func_type, values, end, last);

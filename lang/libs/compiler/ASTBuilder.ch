@@ -351,6 +351,8 @@ struct VariantMemberParam : ASTNode {}
 @compiler.interface
 public struct ASTBuilder : BatchAllocator {
 
+    func allocate_with_cleanup(&self, obj_size : size_t, alignment : size_t, cleanup_fn : *mut void) : *mut void;
+
     func make_any_type(&self, location : ubigint) : *mut AnyType
 
     func make_array_type(&self, elem_type : *BaseType, array_size : int, location : ubigint) : *mut ArrayType
@@ -549,5 +551,9 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_variant_member_param(&self, name : &string_view, index : uint, is_const : bool, type : *BaseType, defValue : *Value, parent_node : *VariantMember, location : ubigint) : *mut VariantMemberParam
 
-
 }
+
+//@comptime
+//func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
+//    return compiler::wrap(builder.allocate_with_cleanup(#sizeof(T), #alignof(T), compiler::get_delete_fn(T)));
+//}

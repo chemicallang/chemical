@@ -954,6 +954,32 @@ public:
     }
 };
 
+//class InterpretGetDeleteFnPtr : public FunctionDeclaration {
+//public:
+//
+//    StringType stringType;
+//
+//    explicit InterpretGetCurrentFilePath(ASTNode* parent_node) : FunctionDeclaration(
+//            ZERO_LOC_ID("get_current_file_path"),
+//            std::vector<FunctionParam*> {},
+//            &stringType,
+//            false,
+//            parent_node,
+//            ZERO_LOC,
+//            std::nullopt,
+//            AccessSpecifier::Public,
+//            true
+//    ), stringType(ZERO_LOC) {
+//        set_comptime(true);
+//    }
+//    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+//        auto& loc_man = call_scope->global->loc_man;
+//        auto location = loc_man.getLocation(call->location);
+//        auto fileId = loc_man.getPathForFileId(location.fileId);
+//        return new (call_scope->allocate<StringValue>()) StringValue(std::string(fileId), call->location);
+//    }
+//};
+
 
 //class InterpretConstruct : public FunctionDeclaration {
 //public:

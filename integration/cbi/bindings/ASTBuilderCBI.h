@@ -119,6 +119,8 @@ class VariantMemberParam;
 
 extern "C" {
 
+    void* ASTBuilderallocate_with_cleanup(ASTAllocator* allocator, std::size_t obj_size, std::size_t alignment, void* cleanup_fn);
+
     AnyType* ASTBuildermake_any_type(ASTAllocator* allocator, uint64_t location);
 
     ArrayType* ASTBuildermake_array_type(ASTAllocator* allocator, BaseType* elem_type, int array_size, uint64_t location);

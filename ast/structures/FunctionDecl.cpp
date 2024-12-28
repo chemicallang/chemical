@@ -1096,6 +1096,9 @@ void GenericTypeParameter::declare_only(SymbolResolver& linker) {
 }
 
 void GenericTypeParameter::declare_and_link(SymbolResolver &linker) {
+    if(at_least_type) {
+        at_least_type->link(linker);
+    }
     declare_only(linker);
     if(def_type) {
         def_type->link(linker);

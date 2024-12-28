@@ -104,6 +104,10 @@ constexpr LocatedIdentifier LOC_ID(const std::string& identifier, SourceLocation
 #endif
 }
 
+void* ASTBuilderallocate_with_cleanup(ASTAllocator* allocator, std::size_t obj_size, std::size_t alignment, void* cleanup_fn) {
+    return (void*) allocator->allocate_with_cleanup(obj_size, alignment, cleanup_fn);
+}
+
 AnyType* ASTBuildermake_any_type(ASTAllocator* allocator, uint64_t location) {
     return new (allocator->allocate<AnyType>()) AnyType(location);
 }

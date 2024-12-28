@@ -8,7 +8,6 @@
 #include "std/chem_string.h"
 #include "ASTBuilderCBI.h"
 #include "ASTCBI.h"
-#include "CSTDiagnoserCBI.h"
 #include "SerialStrAllocatorCBI.h"
 #include "LexerCBI.h"
 #include "ParserCBI.h"
@@ -88,12 +87,6 @@ void source_provider_symbol_map(std::unordered_map<std::string_view, void*>& sym
         { "SourceProviderreadNewLineChars", (void*) SourceProviderreadNewLineChars },
         { "SourceProviderreadWhitespacesAndNewLines", (void*) SourceProviderreadWhitespacesAndNewLines },
 
-    };
-}
-
-void cst_diagnoser_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
-    sym_map = {
-            {"CSTDiagnoserput_diagnostic",    (void*) CSTDiagnoserput_diagnostic }
     };
 }
 

@@ -155,7 +155,6 @@ set(COMMON_SOURCES
         ast/statements/Break.h
         ast/statements/Continue.h
         parser/model/LexTokenType.h
-        utils/Utils.h
         utils/Utils.cpp
         ast/structures/Scope.h
         ast/values/AccessChain.h
@@ -258,11 +257,7 @@ set(COMMON_SOURCES
         ast/values/LambdaFunction.h
         ast/values/LambdaFunction.cpp
         parser/values/LambdaValue.cpp
-        cst/base/CSTToken.h
         utils/fwd/vector.h
-        cst/CSTConvert.cpp
-        cst/base/CSTConverter.h
-        cst/base/CSTVisitor.h
         integration/common/Position.h
         cst/base/CSTDiagnoser.h
         cst/CSTDiagnoser.cpp
@@ -308,23 +303,17 @@ set(COMMON_SOURCES
         ast/values/Int128Value.h
         cst/utils/StringHelpers.h
         cst/utils/StringHelpers.cpp
-        cst/base/CSTToken.cpp
         ast/statements/Break.cpp
         integration/common/DiagSeverity.h
-        preprocess/ImportGraphMaker.h
-        preprocess/ImportGraphMaker.cpp
         utils/Benchmark.h
         utils/Benchmark.cpp
         utils/fwd/functional.h
-        cst/utils/CSTUtils.h
         compiler/ASTDiagnoser.h
         compiler/ASTDiagnoser.cpp
-        cst/utils/CSTUtils.cpp
         integration/cbi/model/LexResult.h
         integration/cbi/model/LexImportUnit.h
         integration/cbi/model/FlatIGFile.h
         integration/cbi/model/ImportUnitCache.h
-        preprocess/ImportGraphVisitor.h
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp
         integration/common/Location.h
@@ -415,7 +404,6 @@ set(COMMON_SOURCES
         ast/structures/MultiFunctionNode.h
         ast/structures/MultiFunctionNode.cpp
         ast/structures/GenericTypeParameter.h
-        cst/CSTToken.cpp
         ast/utils/GenericUtils.h
         compiler/lab/LabBuildCompilerOptions.h
         compiler/lab/Utils.h
@@ -436,7 +424,6 @@ set(COMMON_SOURCES
         ast/values/VariantCall.cpp
         ast/values/VariantCaseVariable.h
         ast/values/IsValue.cpp
-        cst/base/CSTUnit.h
         ast/values/ValueNode.h
         ast/values/ValueNode.cpp
         ast/base/ValueKind.h
@@ -476,8 +463,6 @@ set(COMMON_SOURCES
         ast/base/MalformedInput.h
         ast/statements/ProvideStmt.h
         ast/statements/ProvideStmt.cpp
-        integration/cbi/bindings/CSTDiagnoserCBI.h
-        integration/cbi/bindings/CSTDiagnoserCBI.cpp
         ast/types/Float128Type.h
         ast/base/ASTBuilder.h
         compiler/lab/TargetData.h

@@ -6,22 +6,21 @@
 
 #include "ast/structures/Scope.h"
 #include "ASTProcessorOptions.h"
-#include "preprocess/ImportGraphMaker.h"
 #include "ASTDiag.h"
 #include "parser/model/CompilerBinder.h"
 #include "compiler/lab/LabModule.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/Benchmark.h"
+#include "preprocess/ImportPathHandler.h"
 #include "ast/base/ASTUnit.h"
-#include "cst/base/CSTUnit.h"
 #include "ast/base/ASTAllocator.h"
 #include "integration/cbi/bindings/CBI.h"
+#include "integration/common/Diagnostic.h"
+#include "cst/LocationManager.h"
 #include <span>
 #include <mutex>
 
 class Parser;
-
-class CSTConverter;
 
 class SymbolResolver;
 
@@ -228,24 +227,6 @@ public:
             ASTAllocator& mod_allocator,
             ASTAllocator& file_allocator
     );
-
-    /**
-     * this allows to convert more than one path and get flat imports
-     */
-    std::vector<FlatIGFile> flat_imports_mul(const std::vector<std::string>& paths);
-
-    /**
-     * get flat imports
-     */
-    std::vector<FlatIGFile> flat_imports(const std::string& path) {
-        return flat_imports_mul({ path });
-    }
-
-    /**
-     * will determine the source files required by this module, in order
-     * they should be compiled
-     */
-    std::vector<FlatIGFile> determine_mod_imports(LabModule* module);
 
     /**
      * this imports the given files in parallel using the given thread pool

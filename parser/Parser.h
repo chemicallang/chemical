@@ -9,7 +9,6 @@
 #include <utility>
 #include <vector>
 #include "stream/SourceProvider.h"
-#include "parser/model/tokens/NumberToken.h"
 #include "ast/utils/Operation.h"
 #include "integration/common/Diagnostic.h"
 #include <memory>
@@ -846,14 +845,6 @@ public:
      */
     void diagnostic(Position start, const std::string_view &message, DiagSeverity severity) {
         add_diag(CSTDiagnoser::make_diag(message, file_path(), start, token->position, severity));
-    }
-
-    /**
-     * This just calls the diagnostic method above giving it the position
-     */
-    inline void diagnostic(CSTToken* token, const std::string &message, DiagSeverity severity) {
-        auto &pos = token->position();
-        diagnostic({pos.line, pos.character + token->length()}, message, severity);
     }
 
     /**

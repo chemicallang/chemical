@@ -4,7 +4,6 @@
 // Created by Waqas Tahir on 28/02/2024.
 //
 
-#include "Utils.h"
 #include "integration/common/Diagnostic.h"
 #include "Environment.h"
 
@@ -13,24 +12,6 @@
 #include <fstream>
 #include <stdio.h>
 #include <stdlib.h>
-
-void printToken(CSTToken *token) {
-    if(token->compound()) {
-        std::cout << " - [" << token->type_string() << "]\n\n";
-        for(auto tok : token->tokens) {
-            printToken(tok);
-        }
-        std::cout << std::endl;
-    } else {
-        std::cout << " - [" << token->type_string() << "]" << "(" << token->representation() << ")" << std::endl;
-    }
-}
-
-void printTokens(const std::vector<CSTToken*> &lexed) {
-    for (const auto item: lexed) {
-        printToken(item);
-    }
-}
 
 std::string resolve_rel_child_path_str(const std::string& root_path, const std::string& file_path) {
     return (((std::filesystem::path) root_path) / ((std::filesystem::path) file_path)).string();

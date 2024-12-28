@@ -2,7 +2,6 @@
 
 #include "ASTBuilderCBI.h"
 #include "ASTCBI.h"
-#include "cst/base/CSTConverter.h"
 #include "ast/types/AnyType.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"

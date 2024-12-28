@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "cst/base/CSTToken.h"
 #include "integration/common/Diagnostic.h"
 #include "FlatIGFile.h"
 #include "cst/base/CSTUnit.h"

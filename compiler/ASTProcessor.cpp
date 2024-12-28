@@ -3,14 +3,12 @@
 #include "ASTProcessor.h"
 
 #include <memory>
-#include "cst/base/CSTConverter.h"
 #include "parser/model/CompilerBinder.h"
 #include "parser/Parser.h"
 #include "compiler/SymbolResolver.h"
 #include "preprocess/2c/2cASTVisitor.h"
 #include "utils/Benchmark.h"
 #include <sstream>
-#include "utils/Utils.h"
 #include "preprocess/ShrinkingVisitor.h"
 #include "utils/PathUtils.h"
 #include "compiler/lab/LabBuildCompiler.h"
@@ -57,72 +55,6 @@ ASTProcessor::ASTProcessor(
 
 {
 
-}
-
-void put_import_graph(ImportPathHandler& handler, Parser* parser, std::vector<IGFile>& files, const std::vector<std::string>& paths) {
-    for (const auto& path : paths) {
-        auto local = determine_import_graph(handler, parser, path);
-        files.emplace_back(local.root);
-    }
-}
-
-void put_import_graph(ImportPathHandler& handler, Parser* parser, IGResult& result, const std::vector<std::string>& paths) {
-    if(paths.size() == 1) {
-        result = determine_import_graph(handler, parser, paths[0]);
-    } else {
-        for (const auto& path : paths) {
-            auto local = determine_import_graph(handler, parser, path);
-            result.root.files.emplace_back(local.root);
-        }
-    }
-}
-
-std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<std::string>& c_paths) {
-
-    std::vector<IGFile> files;
-
-    Parser parser(
-            0,
-            "",
-            nullptr,
-            loc_man,
-            job_allocator,
-            mod_allocator,
-            resolver->comptime_scope,
-            resolver->is64Bit,
-            &binder
-    );
-
-    // preparing the import graph
-    if (options->benchmark) {
-        BenchmarkResults bm{};
-        bm.benchmark_begin();
-        put_import_graph(path_handler, &parser, files, c_paths);
-        bm.benchmark_end();
-        std::cout << "[IGGraph] " << bm.representation() << std::endl;
-    } else {
-        put_import_graph(path_handler, &parser, files, c_paths);
-    }
-
-    // print errors in ig
-    print_errors(files);
-
-    // print the ig
-    if (options->print_ig) {
-        representation(std::cout, files);
-        std::cout << std::endl;
-    }
-
-    auto flat_imports = flatten_by_dedupe(files);
-    if(options->print_ig) {
-        std::cout << "[IGGraph] Flattened" << std::endl;
-        for (const auto &file: flat_imports) {
-            std::cout << "-- " << file.abs_path << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
-    return flat_imports;
 }
 
 void getFilesInDirectory(std::vector<std::string>& filePaths, const std::string& dirPath) {
@@ -179,42 +111,6 @@ void ASTProcessor::determine_mod_imports(
             }
             import_chemical_files(pool, out_files, files);
             return;
-    }
-}
-
-std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
-    switch(module->type) {
-        case LabModuleType::Files:
-            if(module->paths.size() == 1) {
-                auto cano = canonical_path(module->paths[0].data());
-                if(cano.empty()) {
-                    std::cerr << "error: couldn't determine canonical path for the module '" << module->paths[0].data() << '\'' << std::endl;
-                } else {
-                    return flat_imports(cano);
-                };
-            } else {
-                std::vector<std::string> paths;
-                for(auto& str : module->paths) {
-                    paths.emplace_back(canonical_path(str.data()));
-                    if(paths.back().empty()) {
-                        std::cerr << "error: couldn't determine canonical path for file '" << str.data() << "' in module '" << module->name << '\'' << std::endl;
-                    }
-                }
-                return flat_imports_mul(paths);
-            }
-        case LabModuleType::ObjFile:
-        case LabModuleType::CFile:
-        case LabModuleType::CPPFile:
-            return {};
-        case LabModuleType::Directory:
-            const auto& dir_path = module->paths[0];
-            if (!std::filesystem::exists(dir_path.data()) || !std::filesystem::is_directory(dir_path.data())) {
-                std::cerr << "error: directory doesn't exist '" << dir_path << "' for module '" << module->name.data() << '\'' << std::endl;
-                return {};
-            }
-            std::vector<std::string> filePaths;
-            getFilesInDirectory(filePaths, dir_path.data());
-            return flat_imports_mul(filePaths);
     }
 }
 

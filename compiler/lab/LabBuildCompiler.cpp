@@ -2,7 +2,6 @@
 
 #include "rang.hpp"
 #include "LabBuildCompiler.h"
-#include "preprocess/ImportGraphMaker.h"
 #include "ast/types/LinkedType.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -14,7 +13,6 @@
 #include "compiler/Codegen.h"
 #endif
 #include "parser/Parser.h"
-#include "cst/base/CSTConverter.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/ASTProcessor.h"
 #include "ast/structures/Namespace.h"

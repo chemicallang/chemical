@@ -9,7 +9,6 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
 #include "ast/base/AnnotableNode.h"
-#include "parser/model/tokens/NumberToken.h"
 #include <optional>
 #include "ast/base/BaseType.h"
 #include "ast/base/AccessSpecifier.h"

@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include "cst/base/CSTDiagnoser.h"
-#include "cst/base/CSTToken.h"
 #include "rang.hpp"
 #include "cst/LocationManager.h"
 
@@ -29,15 +28,8 @@ void CSTDiagnoser::add_diag(Diag diag) {
     diagnostics.emplace_back(diag);
 }
 
-void CSTDiagnoser::token_diagnostic(const std::string_view& message, const std::string_view& file_path, CSTToken* start, CSTToken* end, DiagSeverity severity) {
-    const auto& startPos = start->start_token()->position();
-    const auto end_token = end->end_token();
-    diagnostic(message, file_path, startPos, { end_token->lineNumber(), end_token->lineCharNumber() + end_token->length() }, severity);
-}
-
 void CSTDiagnoser::diagnostic(const std::string_view &message, DiagSeverity severity) {
-    CSTToken dummy(LexTokenType::Bool, Position(0, 0), "");
-    diagnostic(message, "", &dummy, severity);
+    diagnostic(message, "", Position { 0, 0 }, Position { 0, 0 }, severity);
 }
 
 void CSTDiagnoser::print_diagnostics(std::vector<Diag>& diagnostics, const std::string_view& path, const std::string& tag) {

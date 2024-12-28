@@ -9,14 +9,11 @@
 #endif
 #include "parser/Parser.h"
 #include "utils/Environment.h"
-#include "utils/Utils.h"
 #include "compiler/InvokeUtils.h"
 #include "compiler/Codegen.h"
 #include "compiler/SymbolResolver.h"
 #include "utils/CmdUtils.h"
-#include "cst/base/CSTConverter.h"
 #include <filesystem>
-#include "preprocess/ImportGraphMaker.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "utils/PathUtils.h"
 #include <functional>

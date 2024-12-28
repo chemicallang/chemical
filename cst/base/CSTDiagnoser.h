@@ -3,7 +3,6 @@
 #pragma once
 
 #include "integration/common/Diagnostic.h"
-#include "CSTToken.h"
 #include "cst/SourceLocation.h"
 #include <string>
 #include <vector>
@@ -56,85 +55,10 @@ public:
     }
 
     /**
-     * give diagnostics related to tokens
-     */
-    void token_diagnostic(const std::string_view& message, const std::string_view& file_path, CSTToken* start, CSTToken* end, DiagSeverity severity);
-
-    /**
-     * a helper function
-     */
-    inline void diagnostic(const std::string_view& message, const std::string_view& filePath, CSTToken* start, CSTToken* end, DiagSeverity severity) {
-        token_diagnostic(message, filePath, start, end, severity);
-    }
-
-    /**
      * record a diagnostic
      */
     [[deprecated]]
     void diagnostic(const std::string_view& message, DiagSeverity severity);
-
-    /**
-     * record a diagnostic
-     */
-    inline void diagnostic(const std::string_view& message, const std::string_view& filePath, CSTToken *inside, DiagSeverity severity) {
-        diagnostic(message, filePath, inside->start_token(), inside->end_token(), severity);
-    }
-
-    /**
-     * a helper method
-     */
-    inline void error(const std::string_view& message, const std::string_view& filePath, CSTToken* start, CSTToken* end) {
-        diagnostic(message, filePath, start, end, DiagSeverity::Error);
-    }
-
-    /**
-     * a helper method
-     */
-    inline void error(const std::string_view& message, const std::string_view& filePath, CSTToken* inside) {
-        diagnostic(message, filePath, inside, DiagSeverity::Error);
-    }
-
-    /**
-     * a helper method
-     */
-    inline void info(const std::string_view& message, const std::string_view& filePath, CSTToken* start, CSTToken* end) {
-        diagnostic(message, filePath, start, end, DiagSeverity::Information);
-    }
-
-    /**
-     * a helper method
-     */
-    inline void info(const std::string_view& message, const std::string_view& filePath, CSTToken* inside) {
-        diagnostic(message, filePath, inside, DiagSeverity::Information);
-    }
-
-    /**
-     * a helper method
-     */
-    inline void warn(const std::string_view& message, const std::string_view& filePath, CSTToken* start, CSTToken* end) {
-        diagnostic(message, filePath, start, end, DiagSeverity::Warning);
-    }
-
-    /**
-     * a helper method
-     */
-    inline void warn(const std::string_view& message, const std::string_view& filePath, CSTToken* inside) {
-        diagnostic(message, filePath, inside, DiagSeverity::Warning);
-    }
-
-    /**
-     * a helper method
-     */
-    inline void hint(const std::string_view& message, const std::string_view& filePath, CSTToken* start, CSTToken* end) {
-        diagnostic(message, filePath, start, end, DiagSeverity::Hint);
-    }
-
-    /**
-     * a helper method
-     */
-    inline void hint(const std::string_view& message, const std::string_view& filePath, CSTToken* inside) {
-        diagnostic(message, filePath, inside, DiagSeverity::Hint);
-    }
 
     /**
      * resets the diagnostics

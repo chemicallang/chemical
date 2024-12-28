@@ -13,11 +13,6 @@
 void build_context_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
 
 /**
- * the function to put all symbols inside for the cst diagnoser compiler interface
- */
-void cst_diagnoser_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
-
-/**
  * the function to put all symbols inside for the Lexer compiler interface
  */
 void lexer_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);

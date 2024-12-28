@@ -29,7 +29,6 @@ CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_pa
     serial_str_allocator_symbol_map(interface_maps["SerialStrAllocator"]);
     lexer_symbol_map(interface_maps["Lexer"]);
     parser_symbol_map(interface_maps["Parser"]);
-    cst_diagnoser_symbol_map(interface_maps["CSTDiagnoser"]);
     build_context_symbol_map(interface_maps["BuildContext"]);
     ast_builder_symbol_map(interface_maps["ASTBuilder"]);
     ptr_vec_symbol_map(interface_maps["PtrVec"]);

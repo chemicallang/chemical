@@ -94,6 +94,7 @@ class TypealiasStatement;
 class UsingStmt;
 class VarInitStatement;
 class Scope;
+class ValueWrapperNode;
 class DoWhileLoop;
 class EnumDeclaration;
 class EnumMember;
@@ -173,6 +174,8 @@ extern "C" {
     VoidType* ASTBuildermake_void_type(ASTAllocator* allocator, uint64_t location);
 
     AccessChain* ASTBuildermake_access_chain(ASTAllocator* allocator, bool is_node, uint64_t location);
+
+    ValueWrapperNode* ASTBuildermake_value_wrapper(ASTAllocator* allocator, Value* value, ASTNode* parent_node);
 
     AddrOfValue* ASTBuildermake_addr_of_value(ASTAllocator* allocator, Value* value, uint64_t location);
 

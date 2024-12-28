@@ -160,6 +160,7 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "ASTBuildermake_ushort_type", (void*) ASTBuildermake_ushort_type },
             { "ASTBuildermake_void_type", (void*) ASTBuildermake_void_type },
             { "ASTBuildermake_access_chain", (void*) ASTBuildermake_access_chain },
+            { "ASTBuildermake_value_wrapper", (void*) ASTBuildermake_value_wrapper },
             { "ASTBuildermake_addr_of_value", (void*) ASTBuildermake_addr_of_value },
             { "ASTBuildermake_array_value", (void*) ASTBuildermake_array_value },
             { "ASTBuildermake_bigint_value", (void*) ASTBuildermake_bigint_value },

@@ -84,13 +84,13 @@ struct VoidType : BaseType {}
 
 // The Values
 
-struct AccessChain : ASTNode {
-
-    func as_value() : *Value
+struct AccessChain {
 
     func get_values(&self) : *VecRef<Value>;
 
 }
+
+struct ValueWrapperNode : ASTNode {}
 
 struct AddrOfValue : Value {}
 
@@ -406,6 +406,8 @@ public struct ASTBuilder : BatchAllocator {
     func make_void_type(&self, location : ubigint) : *mut VoidType
 
     func make_access_chain(&self, is_node : bool, location : ubigint) : *mut AccessChain
+
+    func make_value_wrapper(&self, value : *Value, parent_node : *ASTNode) : *ValueWrapperNode
 
     func make_addr_of_value(&self, value : *Value, location : ubigint) : *mut AddrOfValue
 

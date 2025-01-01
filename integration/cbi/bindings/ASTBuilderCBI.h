@@ -13,6 +13,8 @@ class BaseType;
 
 class ASTNode;
 
+class ChainValue;
+
 class BatchAllocator;
 class ASTAllocator;
 
@@ -199,9 +201,9 @@ extern "C" {
 
     FloatValue* ASTBuildermake_float_value(ASTAllocator* allocator, float value, uint64_t location);
 
-    FunctionCall* ASTBuildermake_function_call_value(ASTAllocator* allocator, uint64_t location);
+    FunctionCall* ASTBuildermake_function_call_value(ASTAllocator* allocator, ChainValue* parent_val, uint64_t location);
 
-    IndexOperator* ASTBuildermake_index_op_value(ASTAllocator* allocator, uint64_t location);
+    IndexOperator* ASTBuildermake_index_op_value(ASTAllocator* allocator, ChainValue* parent_val, uint64_t location);
 
     Int128Value* ASTBuildermake_int128_value(ASTAllocator* allocator, uint64_t mag, bool is_neg, uint64_t location);
 
@@ -251,9 +253,9 @@ extern "C" {
 
     VariantCall* ASTBuildermake_variant_call(ASTAllocator* allocator, AccessChain* chain, uint64_t location);
 
-    VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, AccessChain* chain, SwitchStatement* stmt, uint64_t location);
+    VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, Value* parent_value, SwitchStatement* stmt, uint64_t location);
 
-    VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTAllocator* allocator, chem::string_view* name, VariantCase* variant_case, uint64_t location);
+    VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTAllocator* allocator, chem::string_view* name, VariableIdentifier* parent_val, SwitchStatement* switch_stmt, uint64_t location);
 
     AssignStatement* ASTBuildermake_assignment_stmt(ASTAllocator* allocator, Value* lhs, Value* rhs, Operation op, ASTNode* parent_node, uint64_t location);
 

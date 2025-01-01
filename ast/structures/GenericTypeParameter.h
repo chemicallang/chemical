@@ -74,6 +74,8 @@ public:
     BaseType *known_type() final {
         if(active_iteration == -1) {
             return nullptr;
+        } else if(usage.empty() && !at_least_type) {
+            return nullptr;
         } else {
             return usage[active_iteration];
         }

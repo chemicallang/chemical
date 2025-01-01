@@ -177,10 +177,10 @@ bool VariantMemberParam::add_child_index(Codegen &gen, std::vector<llvm::Value *
 }
 
 llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
-    const auto linked_member = chain->linked_node()->as_variant_member();
+    const auto linked_member = parent_val->linked_node()->as_variant_member();
     auto index = linked_member->parent_node->direct_child_index(linked_member->name);
     if(index == -1) {
-        gen.error("couldn't find case index of variant member '" + chain->chain_representation() + "'", this);
+        gen.error("couldn't find case index of variant member '" + parent_val->representation() + "'", this);
         return nullptr;
     } else {
         return gen.builder->getInt32(index);
@@ -188,9 +188,9 @@ llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
 }
 
 llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
-    const auto holder_pointer = variant_case->switch_statement->expression->llvm_pointer(gen);
-    const auto linked_def = variant_case->switch_statement->expression->known_type()->linked_node()->as_variant_def();
-    const auto linked_member = variant_case->chain->linked_node()->as_variant_member();
+    const auto holder_pointer = switch_statement->expression->llvm_pointer(gen);
+    const auto linked_member = parent_val->linked_node()->as_variant_member();
+    const auto linked_def = linked_member->parent_node;
     const auto largest_member = linked_def->largest_member();
     llvm::Type* container_type;
     if(largest_member == linked_member) {
@@ -315,6 +315,54 @@ BaseType* VariantDefinition::create_value_type(ASTAllocator& allocator) {
 //hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
 //    return hybrid_ptr<BaseType> { create_value_type(), true };
 //}
+
+int16_t VariantDefinition::register_call(SymbolResolver& resolver, FunctionCall* call, BaseType* expected_type) {
+
+    const auto total = generic_params.size();
+    std::vector<BaseType*> generic_args(total);
+
+    // set all to default type (if default type is not present, it would automatically be nullptr)
+    unsigned i = 0;
+    while(i < total) {
+        generic_args[i] = generic_params[i]->def_type;
+        i++;
+    }
+
+    // set given generic args to generic parameters
+    i = 0;
+    for(auto& arg : call->generic_list) {
+        generic_args[i] = arg;
+        i++;
+    }
+
+    // infer args, if user gave less args than expected
+    if(call->generic_list.size() != total) {
+        call->infer_generic_args(resolver, generic_args);
+    }
+
+    // inferring type by expected type
+    if(expected_type && expected_type->kind() == BaseTypeKind::Generic) {
+        const auto type = ((GenericType*) expected_type);
+        if(type->linked_node() == this) {
+            i = 0;
+            for(auto& arg : type->types) {
+                generic_args[i] = arg;
+                i++;
+            }
+        }
+    }
+
+    // register and report to subscribers
+    auto& astAllocator = *resolver.ast_allocator;
+    const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
+    if(itr.second) {
+        for (auto sub: subscribers) {
+            sub->report_parent_usage(astAllocator, resolver, itr.first);
+        }
+    }
+
+    return itr.first;
+}
 
 int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* call, BaseType* expected_type) {
 
@@ -508,33 +556,35 @@ ASTNode* VariantMemberParam::child(const std::string &varName) {
     return linked_node->child(varName);
 }
 
-VariantCase::VariantCase(AccessChain* _chain, ASTDiagnoser& diagnoser, SwitchStatement* statement, SourceLocation location) : chain(_chain), switch_statement(statement), location(location) {
-    const auto func_call = chain->values.back()->as_func_call();
-    if(func_call) {
-        for(auto& value : func_call->values) {
-            const auto id = value->as_identifier();
-            if(!id) {
-                diagnoser.error("switch variant case with a function call doesn't contain identifiers '" + chain->chain_representation() + "', in question " + value->representation(), value);
-                return;
-            }
-            identifier_list.emplace_back(id->value.str(), this, value->encoded_location());
-        }
-        // remove the last function call, as we took it's identifiers
-        chain->values.pop_back();
-    }
+VariantCase::VariantCase(
+    Value* parent_val,
+    std::vector<Value*>& value_list,
+    ASTDiagnoser& diagnoser,
+    SwitchStatement* statement,
+    SourceLocation location
+) : parent_val(parent_val), switch_statement(statement), location(location) {
+//    for(const auto value : value_list) {
+//        const auto id = value->as_identifier();
+//        if(!id) {
+//            diagnoser.error("switch variant case with a function call, value is not a identifiers '" + value->representation() + "'", value);
+//            return;
+//        }
+//        identifier_list.emplace_back(id->value.str(), this, value->encoded_location());
+//    }
 }
 
 VariantCase::VariantCase(
-    AccessChain* chain,
+    Value* parent_val,
     SwitchStatement* statement,
     SourceLocation location
-) : chain(chain), switch_statement(statement), location(location) {
+) : parent_val(parent_val), switch_statement(statement), location(location) {
 
 }
 
 bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
-    chain->link(linker, (BaseType*) nullptr, nullptr, 0, false, false);
+    Value* empty_val = nullptr;
+    parent_val->link(linker, empty_val, nullptr);
     for(auto& variable : identifier_list) {
         variable.declare_and_link(linker);
     }
@@ -542,7 +592,7 @@ bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
 }
 
 void VariantCaseVariable::declare_and_link(SymbolResolver &linker) {
-    const auto member = variant_case->chain->linked_node()->as_variant_member();
+    const auto member = parent_val->linked_node()->as_variant_member();
     auto node = member->values.find(name);
     if(node == member->values.end()) {
         linker.error("variant case member variable not found in switch statement, name '" + name + "' not found", this);
@@ -554,18 +604,15 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker) {
 
 VariantCaseVariable::VariantCaseVariable(
         std::string name,
-        VariantCase* variant_case,
+        VariableIdentifier* parent_val,
+        SwitchStatement* switch_statement,
         SourceLocation location
-) : name(std::move(name)), variant_case(variant_case), location(location) {
+) : name(std::move(name)), parent_val(parent_val), switch_statement(switch_statement), location(location) {
 
 }
 
 void VariantCaseVariable::accept(Visitor *visitor) {
     throw std::runtime_error("VariantCaseVariable cannot be visited, As is it always contained within a VariantCase which is visited");
-}
-
-ASTNode* VariantCaseVariable::parent() {
-    return (ASTNode*) variant_case->switch_statement;
 }
 
 //hybrid_ptr<BaseType> VariantCaseVariable::get_value_type() {
@@ -581,14 +628,14 @@ BaseType* VariantCaseVariable::known_type() {
 }
 
 std::pair<BaseType*, int16_t> VariantCaseVariable::set_iteration() {
-    const auto known_type = variant_case->switch_statement->expression->known_type();
+    const auto known_type = switch_statement->expression->known_type();
     const auto prev_itr = known_type->set_generic_iteration(known_type->get_generic_iteration());
     return { known_type, prev_itr };
 }
 
 bool VariantCaseVariable::is_generic_param() {
     const auto linked = member_param->type->linked_node();
-    return linked ? linked->as_generic_type_param() != nullptr : false;
+    return linked != nullptr && linked->as_generic_type_param() != nullptr;
 }
 
 ASTNode* VariantCaseVariable::child(const std::string &child_name) {

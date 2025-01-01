@@ -4,6 +4,10 @@
 #include "ast/types/FunctionType.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/values/VariantCall.h"
+#include "ast/structures/VariantMember.h"
+#include "ast/structures/VariantDefinition.h"
+#include "ast/values/IndexOperator.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
@@ -58,27 +62,23 @@ void put_self_param(
         FunctionCall* call,
         FunctionType* func_type,
         std::vector<llvm::Value *>& args,
-        std::vector<ChainValue*>* chain,
-        unsigned int until,
-        llvm::Value* self_arg_val,
-        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+        llvm::Value* self_arg_val
 ) {
     // check function doesn't require a 'self' argument
     auto self_param = func_type->get_self_param();
-    if(chain && self_param) {
-        // a pointer to parent
-        if (chain_contains_func_call(*chain, 0, chain->size() - 3)) {
-            gen.error("cannot pass self when access chain has a function call", call);
-            return;
-        }
-        int parent_index = (int) until - 2;
-        if (parent_index >= 0 && parent_index < chain->size()) {
-#ifdef DEBUG
-            if(!self_arg_val) {
-                throw std::runtime_error("no self_arg_val passed to function call, however it takes a self arg");
+    if(self_param) {
+        if (get_parent_from(call->parent_val)) {
+            if(self_arg_val) {
+                args.emplace_back(self_arg_val);
+            } else {
+                // a pointer to parent
+                // TODO we are doing this because parent chain is being loaded here again
+                if (has_function_call_before(call->parent_val)) {
+                    gen.error("cannot pass self when access chain has a function call", call);
+//                    return;
+                }
+                args.emplace_back(build_parent_chain(call->parent_val, gen.allocator)->llvm_value(gen, nullptr));
             }
-#endif
-            args.emplace_back(self_arg_val);
         } else if(gen.current_func_type) {
             auto passing_self_arg = gen.current_func_type->get_self_param();
             if(passing_self_arg && passing_self_arg->type->is_same(self_param->type)) {
@@ -96,15 +96,13 @@ void put_implicit_params(
         FunctionCall* call,
         FunctionType* func_type,
         std::vector<llvm::Value *>& args,
-        std::vector<ChainValue*>* chain,
-        unsigned int until,
         llvm::Value* self_arg_val,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     for(auto& param : func_type->params) {
         if(param->is_implicit) {
             if(param->name == "self") {
-                put_self_param(gen, call, func_type, args, chain, until, self_arg_val, destructibles);
+                put_self_param(gen, call, func_type, args, self_arg_val);
             } else if(param->name == "other") {
                 gen.error("unknown other implicit parameter", call);
             } else {
@@ -135,11 +133,12 @@ llvm::Value* arg_value(
         int i
 ) {
     const auto param_type = func_param->type;
+    const auto pure_type = param_type->pure_type();
     const auto param_type_kind = param_type->kind();
 
     auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
     if (implicit_constructor) {
-        value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator, gen.allocator, gen);
+        value_ptr = (Value*) call_with_arg(implicit_constructor, value_ptr, param_type, gen.allocator, gen);
     }
     llvm::Value* argValue = nullptr;
 
@@ -154,7 +153,7 @@ llvm::Value* arg_value(
     if(
         (is_param_ref && !is_val_stored_ptr) || (
             linked && ASTNode::isStoredStructDecl(linked->kind()) &&
-            (value->reference() && value->value_type() == ValueType::Struct) && !(value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue || value_kind == ValueKind::VariantCall)
+            (Value::isReference(value_kind) && pure_type->is_linked_struct()) && !(value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue || value_kind == ValueKind::VariantCall)
     )) {
         argValue = value->llvm_pointer(gen);
     } else {
@@ -192,8 +191,6 @@ void to_llvm_args(
         FunctionType* func_type,
         std::vector<Value*>& values,
         std::vector<llvm::Value *>& args,
-        std::vector<ChainValue*>* chain,
-        unsigned int until,
         unsigned int start
 ) {
 
@@ -256,14 +253,12 @@ void to_llvm_args(
         FunctionType* func_type,
         std::vector<Value*>& values,
         std::vector<llvm::Value *>& args,
-        std::vector<ChainValue*>* chain,
-        unsigned int until,
         unsigned int start,
         llvm::Value* self_arg_val,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-    put_implicit_params(gen, call, func_type, args, chain, until, self_arg_val, destructibles);
-    to_llvm_args(gen, call, func_type, values, args, chain, until, start);
+    put_implicit_params(gen, call, func_type, args, self_arg_val, destructibles);
+    to_llvm_args(gen, call, func_type, values, args, start);
 }
 
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
@@ -282,8 +277,8 @@ llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
     return linked_func()->returnType->llvm_func_type(gen);
 }
 
-std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_data(ASTAllocator& allocator, std::vector<ChainValue*> &chain_values, unsigned int index) {
-    auto gen_str = get_grandpa_generic_struct(allocator, chain_values, index);
+std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_data(ASTAllocator& allocator) {
+    auto gen_str = get_grandpa_generic_struct(allocator, parent_val);
     if(gen_str.first) {
         const auto func = safe_linked_func();
         auto gen_itr = generic_iteration;
@@ -295,8 +290,8 @@ std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_da
     return nullptr;
 }
 
-llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen, std::vector<ChainValue*> &chain_values, unsigned int index) {
-    const auto generic_data = llvm_generic_func_data(gen.allocator, chain_values, index);
+llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen) {
+    const auto generic_data = llvm_generic_func_data(gen.allocator);
     if(generic_data) {
         return generic_data->second;
     }
@@ -308,11 +303,9 @@ llvm::Value* call_with_callee(
         FunctionCall* call,
         Codegen &gen,
         std::vector<llvm::Value*>& args,
-        std::vector<ChainValue*> &chain_values,
-        unsigned int index,
         llvm::Value* callee
 ) {
-    return gen.builder->CreateCall(call->llvm_linked_func_type(gen, chain_values, index), callee, args);
+    return gen.builder->CreateCall(call->llvm_linked_func_type(gen), callee, args);
 }
 
 llvm::Value* struct_return_in_args(
@@ -332,11 +325,9 @@ llvm::Value* struct_return_in_args(
 
 std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
         Codegen& gen,
-        std::vector<ChainValue*> &chain_values,
-        unsigned int index,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-    auto grandpa = get_grandpa_value(chain_values, index);
+    auto grandpa = get_parent_from(parent_val);
     if(!grandpa) return { false, nullptr };
     const auto known_t = grandpa->known_type();
     if(!known_t) return { false, nullptr };
@@ -345,7 +336,8 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
     const auto linked = safe_linked_func();
     const auto interface = ((DynamicType*) pure_type)->referenced->linked_node()->as_interface_def();
     // got a pointer to the object it is being called upon, this reference points to a dynamic object (two pointers)
-    auto granny = grandpa->access_chain_pointer(gen, chain_values, destructibles, index - 2);
+    auto granny = build_parent_chain(parent_val, gen.allocator)->llvm_pointer(gen);
+//    auto granny = grandpa->access_chain_pointer(gen, chain_values, destructibles, index - 2);
     const auto struct_ty = gen.fat_pointer_type();
 
     auto func_type = function_type(gen.allocator);
@@ -373,28 +365,21 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
     // we must use callee to call the function,
     std::vector<llvm::Value*> args;
     llvm::Value* returned_value = struct_return_in_args(gen, args, func_type, nullptr);
-    to_llvm_args(gen, this, func_type, values, args, &chain_values, index, 0, self_ptr, destructibles);
+    to_llvm_args(gen, this, func_type, values, args, 0, self_ptr, destructibles);
 
-    llvm::Value* call_value = call_with_callee(this, gen, args, chain_values, index, callee);
+    llvm::Value* call_value = call_with_callee(this, gen, args, callee);
     return { true, returned_value ? returned_value : call_value };
 
 }
 
-llvm::Value *FunctionCall::llvm_linked_func_callee(
-        Codegen& gen,
-        std::vector<ChainValue*> &chain_values,
-        unsigned int index
-) {
-    const auto generic_data = llvm_generic_func_data(gen.allocator, chain_values, index);
+llvm::Value *FunctionCall::llvm_linked_func_callee(Codegen& gen) {
+    const auto generic_data = llvm_generic_func_data(gen.allocator);
     if(generic_data) {
         return generic_data->first;
     }
-    if(linked() != nullptr) {
-        if(linked()->as_function() == nullptr) {
-            return linked()->llvm_load(gen);
-        } else {
-            return linked()->llvm_pointer(gen);
-        }
+    const auto linked = parent_val->linked_node();
+    if(linked != nullptr) {
+        return linked->llvm_load(gen);
     } else {
         return nullptr;
     }
@@ -404,27 +389,19 @@ llvm::Value *call_capturing_lambda(
         Codegen &gen,
         FunctionCall* call,
         FunctionType* func_type,
-        std::vector<ChainValue*>* chain,
-        unsigned int until,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     llvm::Value* grandpa = nullptr;
-    llvm::Value* value;
-    if(until > 1) {
-        auto parent_access = parent_chain(gen.allocator, call, *chain);
-        value = parent_access.llvm_value(gen, nullptr, &grandpa);
-    } else {
-        value = call->parent_val->llvm_value(gen);
-    };
+    llvm::Value* value = call->parent_val->llvm_value(gen);
     auto dataPtr = gen.builder->CreateStructGEP(gen.fat_pointer_type(), value, 1);
     auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
     std::vector<llvm::Value *> args;
     // TODO self param is being put first, the problem is that user probably expects that arguments are loaded first
     //   functions that take a implicit self param, this is ok, because their first argument will be self and should be loaded
     //   however functions that don't take a self reference, should load arguments first and then the func callee
-    put_self_param(gen, call, func_type, args, chain, until, grandpa, destructibles);
+    put_self_param(gen, call, func_type, args, grandpa);
     args.emplace_back(data);
-    to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0);
+    to_llvm_args(gen, call, func_type, call->values, args, 0);
     auto structType = gen.fat_pointer_type();
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
     auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
@@ -444,18 +421,19 @@ void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
         }
     }
     auto funcType = function_type(gen.allocator);
-    auto linked = funcType->returnType->linked_node();
-    if(linked) {
-        linked->llvm_destruct(gen, allocaInst);
+    if(funcType) {
+        auto linked = funcType->returnType->linked_node();
+        if(linked) {
+            linked->llvm_destruct(gen, allocaInst);
+        }
     }
 }
 
 /**
  * check if chain is loadable, before loading it
  */
-int is_chain_loadable(std::vector<ChainValue*>& chain) {
-    auto& value = chain[0];
-    const auto linked = value->linked_node();
+bool is_node_decl(ASTNode* linked) {
+    if(!linked) return false;
     switch(linked->kind()) {
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:
@@ -463,29 +441,109 @@ int is_chain_loadable(std::vector<ChainValue*>& chain) {
         case ASTNodeKind::InterfaceDecl:
         case ASTNodeKind::ImplDecl:
         case ASTNodeKind::NamespaceDecl:
-            return false;
-        default:
             return true;
+        default:
+            return false;
     }
+}
+
+bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member, FunctionCall* call) {
+    const auto member_index = member->parent_node->direct_child_index(member->name);
+    if(member_index == -1) {
+        gen.error("couldn't find member index for the variant member with name '" + member->name + "'", call);
+        return false;
+    }
+    // storing the type index in the enum inside variant
+    auto type_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
+    gen.builder->CreateStore(gen.builder->getInt32(member_index), type_ptr);
+    // storing the values of the variant inside it's struct
+    auto data_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
+    const auto struct_type = member->llvm_type(gen);
+    unsigned i = 0;
+    auto itr = member->values.begin();
+    for(auto& value_ptr : call->values) {
+
+        const auto param = itr->second;
+        const auto param_type = param->type;
+
+        auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
+        if (implicit_constructor) {
+            // replace calls to implicit constructor with actual calls
+            value_ptr = (Value*) call_with_arg(implicit_constructor, value_ptr, param_type, gen.allocator, gen);
+        } else {
+            if(param_type->kind() == BaseTypeKind::Reference) {
+                // store reference when it's a implicit reference
+                std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
+                auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
+                const auto val = value_ptr->llvm_pointer(gen);
+                gen.builder->CreateStore(val, elementPtr);
+                continue;
+            }
+        }
+
+        auto& value = *value_ptr;
+        bool moved = false;
+        if(value_ptr->is_ref_moved()) {
+            // since it will be moved, we will std memcpy it into current pointer
+            std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+            auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idx, i);
+            moved = gen.move_by_memcpy(param_type, value_ptr, elementPtr, value_ptr->llvm_value(gen));
+        }
+        if(!moved) {
+            if(gen.requires_memcpy_ref_struct(param_type, value_ptr)) {
+                std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
+                auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
+                gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr));
+            } else {
+                value.store_in_struct(gen, call, data_ptr, struct_type, {gen.builder->getInt32(0)}, i, param_type);
+            }
+        }
+        itr++;
+        i++;
+    }
+    return true;
+}
+
+llvm::Type* variant_llvm_type(Codegen &gen, VariantMember* member) {
+    const auto largest_member = member->parent_node->largest_member();
+    llvm::Type* def_type;
+    if(largest_member == member) {
+        def_type = member->parent_node->llvm_type(gen);
+    } else {
+        def_type = member->parent_node->llvm_type_with_member(gen, member);
+    }
+    return def_type;
 }
 
 llvm::Value* FunctionCall::llvm_chain_value(
         Codegen &gen,
         std::vector<llvm::Value*>& args,
-        std::vector<ChainValue*>& chain,
-        unsigned int until,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
         llvm::Value* returnedStruct,
         llvm::Value* callee_value,
         llvm::Value* grandparent
 ) {
 
-    auto func_type = function_type(gen.allocator);
-    if(func_type->isCapturing()) {
-        return call_capturing_lambda(gen, this, func_type, &chain, until, destructibles);
+    const auto parent_linked = parent_val->linked_node();
+    // enum member can't be called, using it as a no value
+    const auto linked_kind = parent_linked ? parent_linked->kind() : ASTNodeKind::EnumMember;
+
+    if(linked_kind == ASTNodeKind::VariantMember) {
+        const auto mem = parent_linked->as_variant_member_unsafe();
+        const auto mem_type = variant_llvm_type(gen, mem);
+        if(!returnedStruct) {
+            returnedStruct = gen.builder->CreateAlloca(mem_type, nullptr);
+        }
+        variant_call_initialize(gen, returnedStruct, mem_type, mem, this);
+        return returnedStruct;
     }
 
-    auto decl = safe_linked_func();
+    auto func_type = function_type(gen.allocator);
+    if(func_type->isCapturing()) {
+        return call_capturing_lambda(gen, this, func_type, destructibles);
+    }
+
+    auto decl = ASTNode::isFunctionDecl(linked_kind) ? parent_linked->as_function_unsafe() : nullptr;
     if(decl && !decl->generic_params.empty()) {
         decl->set_active_iteration(generic_iteration);
     }
@@ -509,7 +567,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
     }
 
-    auto dynamic_dispatch = llvm_dynamic_dispatch(gen, chain, until, destructibles);
+    auto dynamic_dispatch = llvm_dynamic_dispatch(gen, destructibles);
     if(dynamic_dispatch.first) {
         return dynamic_dispatch.second;
     }
@@ -522,36 +580,25 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     if(!callee_value) {
-        if(linked() && linked()->as_struct_member() != nullptr) {
+        if(parent_val->val_kind() == ValueKind::FunctionCall || (parent_linked && linked_kind == ASTNodeKind::StructMember)) {
             // creating access chain to the last member as an identifier instead of function call
-            auto parent_access = parent_chain(gen.allocator, this, chain);
-            callee_value = parent_access.llvm_value(gen, nullptr, &grandparent);
+            callee_value = parent_val->llvm_value(gen, nullptr);
         } else {
-            callee_value = llvm_linked_func_callee(gen, chain, until);
+            callee_value = llvm_linked_func_callee(gen);
             if(callee_value == nullptr) {
-                auto parent_access = parent_chain(gen.allocator, this, chain);
-                int parent_index = (int) until - 2;
-                if (parent_index >= 0 && parent_index < chain.size()) {
-                    callee_value = parent_access.llvm_value(gen, nullptr, &grandparent);
-                } else {
-                    callee_value = parent_access.llvm_value(gen, nullptr);
-                }
+                callee_value = parent_val->llvm_value(gen, nullptr);
                 if(callee_value == nullptr) {
                     gen.error("Couldn't get callee value for the function call to " + representation(), this);
                     return nullptr;
                 }
             } else {
-                if(is_chain_loadable(chain)) {
-                    int parent_index = (int) until - 2;
-                    if (parent_index >= 0 && parent_index < chain.size()) {
-                        grandparent = llvm_load_chain_until(gen, chain, parent_index, destructibles);
+                const auto g = get_parent_from(parent_val);
+                if(g) {
+                    if(!is_node_decl(g->linked_node())) {
+                        const auto grandpa = build_parent_chain(parent_val, gen.allocator);
+                        grandparent = grandpa->llvm_value(gen, nullptr);
                     }
                 }
-#ifdef DEBUG
-                else if(func_type->has_self_param()) {
-                    throw std::runtime_error("chain is not loadable however function requires a self argument");
-                }
-#endif
             }
         }
     }
@@ -574,31 +621,23 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
-    to_llvm_args(gen, this, func_type, values, args, &chain, until,0, grandparent, destructibles);
+    to_llvm_args(gen, this, func_type, values, args, 0, grandparent, destructibles);
 
-    const auto llvm_func_type = llvm_linked_func_type(gen, chain, until);
+    const auto llvm_func_type = llvm_linked_func_type(gen);
     auto call_value = gen.builder->CreateCall(llvm_func_type, callee_value, args);
 
     return returnedValue ? returnedValue : call_value;
 
 }
 
-llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<ChainValue*> &chain, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
-    std::vector<llvm::Value *> args;
-    auto value = llvm_chain_value(gen, args, chain, until, destructibles);
-    return value;
-}
-
 llvm::Value* FunctionCall::chain_value_with_callee(
         Codegen& gen,
-        std::vector<ChainValue*>& chain,
-        unsigned int index,
         llvm::Value* grandpa_value,
         llvm::Value* callee_value,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     std::vector<llvm::Value *> args;
-    auto value = llvm_chain_value(gen, args, chain, index, destructibles, nullptr, callee_value, grandpa_value);
+    auto value = llvm_chain_value(gen, args, destructibles, nullptr, callee_value, grandpa_value);
     return value;
 }
 
@@ -609,7 +648,7 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
         auto type = decl->create_value_type(gen.allocator);
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-        to_llvm_args(gen, this, type->function_type(), values, args, nullptr, 0, 0, nullptr, destructibles);
+        to_llvm_args(gen, this, type->function_type(), values, args, 0, nullptr, destructibles);
         auto invoked = gen.builder->CreateInvoke(fn, normal, unwind, args);
         Value::destruct(gen, destructibles);
         return invoked;
@@ -620,20 +659,39 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
 }
 
 llvm::Value *FunctionCall::llvm_pointer(Codegen &gen) {
-    throw std::runtime_error("llvm_pointer called on a function call");
+    return llvm_value(gen, nullptr);
+}
+
+llvm::Value *FunctionCall::llvm_value(Codegen &gen, BaseType *type) {
+    std::vector<llvm::Value*> args;
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    const auto value = llvm_chain_value(gen, args, destructibles);
+    Value::destruct(gen, destructibles);
+    return value;
 }
 
 bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
-    return create_type(gen.allocator)->linked_node()->add_child_index(gen, indexes, name);
+    const auto type = create_type(gen.allocator);
+    const auto linked_node = type->linked_node();
+    return linked_node->add_child_index(gen, indexes, name);
 }
 
 llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<ChainValue*> &chain_values, unsigned int until, BaseType* expected_type) {
+    const auto linked = parent_val->linked_node();
+    if(linked && linked->kind() == ASTNodeKind::VariantMember) {
+        const auto variant_mem = linked->as_variant_member_unsafe();
+        const auto variant = variant_mem->parent_node;
+        const auto variant_type = variant_llvm_type(gen, variant_mem);
+        const auto allocated = gen.builder->CreateAlloca(variant_type);
+        variant_call_initialize(gen, allocated, variant_type, variant_mem, this);
+        return allocated;
+    }
     auto func_type = function_type(gen.allocator);
     if(func_type->returnType->value_type() == ValueType::Struct) {
         // we allocate the returned struct, llvm_chain_value function
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-        auto alloc = (llvm::AllocaInst*) llvm_chain_value(gen, args, chain_values, until, destructibles);
+        auto alloc = (llvm::AllocaInst*) llvm_chain_value(gen, args, destructibles);
         // call destructors on destructible objects that were present in function call
         Value::destruct(gen, destructibles);
         return alloc;
@@ -657,7 +715,7 @@ llvm::Value* FunctionCall::access_chain_assign_value(
         std::vector<llvm::Value *> args;
         // TODO very dirty way of doing this, the function returns struct and that's why the pointer is being used to assign to it
         //    returns nullptr because AssignStatement will assign the value for you, if you send it back, (THIS IS VERY BAD)
-        llvm_chain_value(gen, args, chain, until, destructibles, lhsPtr);
+        llvm_chain_value(gen, args, destructibles, lhsPtr);
         return nullptr;
     } else {
         return access_chain_value(gen, chain, until, destructibles, expected_type);
@@ -665,13 +723,6 @@ llvm::Value* FunctionCall::access_chain_assign_value(
 }
 
 #endif
-
-FunctionCall::FunctionCall(
-        std::vector<Value*> values,
-        SourceLocation location
-) : values(std::move(values)), location(location) {
-
-}
 
 uint64_t FunctionCall::byte_size(bool is64Bit) {
     return known_type()->byte_size(is64Bit);
@@ -728,16 +779,25 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::v
 }
 
 void FunctionCall::link_gen_args(SymbolResolver &linker) {
-    for(auto& type : generic_list) {
+    for(const auto type : generic_list) {
         type->link(linker);
     }
 }
 
 bool FunctionCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType* expected_type) {
-    link_gen_args(linker);
-    std::vector<bool> properly_linked(values.size());
-    link_values(linker, properly_linked);
-    link_args_implicit_constructor(linker, properly_linked);
+    parent_val->link(linker, (Value*&) parent_val, nullptr);
+
+    // replace variant calls during symbol resolution
+//    const auto linked = parent_val->linked_node();
+//    if (linked && linked->as_variant_member()) {
+//        const auto call = new (linker.ast_allocator->allocate<VariantCall>()) VariantCall(parent_val, location);
+//        call->values = std::move(values);
+//        call->generic_list = std::move(generic_list);
+//        value_ptr = call;
+//        return call->link(linker, value_ptr, expected_type);
+//    }
+
+    find_link_in_parent(linker, expected_type, true);
     return true;
 }
 
@@ -748,7 +808,8 @@ bool FunctionCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType* exp
 
 FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
-    auto func_type = parent_val->create_type(allocator)->function_type();
+    const auto type = parent_val->create_type(allocator);
+    auto func_type = type->function_type();
     const auto func_decl = safe_linked_func();
     if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
@@ -778,21 +839,32 @@ BaseType* FunctionCall::get_arg_type(unsigned int index) {
     return param->type;
 }
 
-int16_t FunctionCall::set_curr_itr_on_decl() {
-    const auto decl = safe_linked_func();
-    if(decl && decl->is_constructor_fn()) {
-        const auto def = decl->parent_node->as_struct_def();
-        if(def && def->is_generic()) {
-            def->set_generic_iteration(generic_iteration);
-            return -1;
+int16_t FunctionCall::set_gen_itr_on_decl(int16_t itr) {
+    const auto parent = parent_val->linked_node();
+    // enum member being used as a no value
+    const auto parent_kind = parent ? parent->kind() : ASTNodeKind::EnumMember;
+    if(ASTNode::isFunctionDecl(parent_kind)) {
+        const auto decl = parent->as_function_unsafe();
+        if(decl->is_constructor_fn()) {
+            const auto def = decl->parent_node->as_struct_def();
+            if(def && def->is_generic()) {
+                const auto prev_itr = def->active_iteration;
+                def->set_generic_iteration(itr);
+                return prev_itr;
+            }
+        } else if(decl->is_generic()) {
+            const auto prev_itr = decl->active_iteration;
+            decl->set_active_iteration(itr);
+            return prev_itr;
+        }
+    } else if(parent_kind == ASTNodeKind::VariantMember) {
+        const auto member = parent->as_variant_member_unsafe();
+        const auto variant = member->parent_node;
+        if(variant->is_generic()) {
+            variant->active_iteration = itr;
         }
     }
-    int16_t prev_itr = -2;
-    if(decl && !decl->generic_params.empty()) {
-        prev_itr = decl->active_iteration;
-        decl->set_active_iteration(generic_iteration);
-    }
-    return prev_itr;
+    return -2;
 }
 
 
@@ -833,7 +905,7 @@ ASTNode *FunctionCall::linked_node() {
 }
 
 void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type) {
-    const auto node = linked();
+    const auto node = parent_val->linked_node();
     const auto k = node->kind();
     switch(k) {
         case ASTNodeKind::FunctionDecl:
@@ -845,7 +917,7 @@ void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expe
                         const auto def = parent->as_struct_def_unsafe();
                         std::vector<BaseType*> gen_args(def->generic_params.size());
                         ::infer_generic_args(gen_args, def->generic_params, this, diagnoser, expected_type);
-                        generic_iteration = def->register_with_existing(diagnoser, generic_list);
+                        generic_iteration = def->register_with_existing(diagnoser, gen_args);
                         return;
                     }
                     default:
@@ -868,72 +940,119 @@ void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expe
     }
 }
 
-void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser) {
-    auto parent = parent_val->as_identifier();
-    if(parent) {
-        if(parent->linked) {
-            auto multi = parent->linked->as_multi_func_node();
-            if(multi) {
-                auto func = multi->func_for_call(allocator, values);
-                if(func) {
-                    parent->linked = func;
-                } else {
-                    diagnoser->error("couldn't find function that satisfies given arguments", this);
-                }
+void relink_multi_id(
+    VariableIdentifier* parent,
+    std::vector<Value*>& values,
+    ASTAllocator& allocator,
+    ASTDiagnoser* diagnoser
+) {
+    if(parent->linked) {
+        auto multi = parent->linked->as_multi_func_node();
+        if(multi) {
+            auto func = multi->func_for_call(allocator, values);
+            if(func) {
+                parent->linked = func;
+            } else {
+                diagnoser->error("couldn't find function that satisfies given arguments", parent);
             }
         }
     }
 }
 
-void FunctionCall::link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser) {
-    // relinking parent with constructor of the struct
-    // if it's linked with struct
-    auto parent_id = parent_val->as_identifier();
-    if(parent_id && parent_id->linked && parent_id->linked->as_struct_def()) {
+void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser) {
+    const auto parent_kind = parent_val->val_kind();
+    if(parent_kind == ValueKind::Identifier) {
+        auto parent = parent_val->as_identifier_unsafe();
+        if(parent) {
+            relink_multi_id(parent, values, allocator, diagnoser);
+        }
+    } else if(parent_kind == ValueKind::AccessChain) {
+        auto parent = parent_val->as_access_chain_unsafe();
+        const auto last = parent->values.back();
+        if(last->val_kind() == ValueKind::Identifier) {
+            relink_multi_id(last->as_identifier_unsafe(), values, allocator, diagnoser);
+        }
+    }
+}
+
+int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionCall* call) {
+    if(parent_id->linked && parent_id->linked->as_struct_def()) {
         StructDefinition* parent_struct = parent_id->linked->as_struct_def();
-        auto constructorFunc = parent_struct->constructor_func(allocator, values);
+        auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
             // calling a constructor of a generic struct where constructor is not generic
             if(constructorFunc->generic_params.empty() && parent_struct->is_generic()) {
-                generic_iteration = parent_struct->register_generic_args(astAllocator, diagnoser, generic_list);
+                const auto prev_itr = parent_struct->active_iteration;
+                call->generic_iteration = parent_struct->register_generic_args(astAllocator, diagnoser, call->generic_list);
+                parent_struct->set_generic_iteration(call->generic_iteration);
+                return prev_itr;
             }
         } else {
-            diagnoser.error("struct with name " + parent_struct->name() + " doesn't have a constructor that satisfies given arguments " + representation(), parent_id);
+            diagnoser.error("struct with name " + parent_struct->name() + " doesn't have a constructor that satisfies given arguments " + call->representation(), parent_id);
         }
+    }
+    return -2;
+}
+
+// the returned generic iteration is the previous iteration of the struct of which constructor we linked with
+// when this method is called, it automatically register the generic arguments with the struct constructor getting the new iteration and setting it active
+int16_t FunctionCall::link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser) {
+    // relinking parent with constructor of the struct
+    // if it's linked with struct
+    const auto parent_kind = parent_val->val_kind();
+    switch(parent_kind) {
+        case ValueKind::Identifier:{
+            const auto parent_id = parent_val->as_identifier_unsafe();
+            return link_constructor_id(parent_id, allocator, astAllocator, diagnoser, this);
+        }
+        case ValueKind::AccessChain:{
+            const auto parent_chain = parent_val->as_access_chain_unsafe();
+            const auto last = parent_chain->values.back()->as_identifier();
+            if(last) {
+                return link_constructor_id(last, allocator, astAllocator, diagnoser, this);
+            } else {
+                return -2;
+            }
+        }
+        default:
+            return -2;
     }
 }
 
 void FunctionCall::relink_parent(ChainValue *parent) {
-    parent_val = parent;
+    // TODO remove this method, relinking parent is not required as we store the parent val nested in value
 }
 
-bool FunctionCall::find_link_in_parent(ChainValue* first_value, ChainValue* grandpa, ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
-    parent_val = parent;
-    FunctionDeclaration* func_decl = safe_linked_func();
-    if(func_decl) {
-        if(func_decl->is_unsafe() && resolver.safe_context) {
-            resolver.error("unsafe function with name should be called in an unsafe block", this);
-        }
-        const auto self_param = func_decl->get_self_param();
-        if(self_param) {
-            if(grandpa) {
-                if(self_param->type->is_mutable(BaseTypeKind::Reference)) {
-                    if(!first_value->check_is_mutable(resolver.current_func_type, resolver, false)) {
-                        resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
-                    }
-                }
-            } else {
-                const auto arg_self = resolver.current_func_type->get_self_param();
-                if(!arg_self) {
-                    resolver.error("cannot call function without an implicit self arg which is not present", this);
-                } else if(self_param->type->is_mutable(BaseTypeKind::Reference) && !arg_self->type->is_mutable(BaseTypeKind::Reference)) {
-                    resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
-                }
-            }
-        }
-    }
-    int16_t prev_itr;
+bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
+    const auto linked = parent_val->linked_node();
+    // enum member being used as a no value
+    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
+    const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
+    // TODO
+//    if(func_decl) {
+//        if(func_decl->is_unsafe() && resolver.safe_context) {
+//            resolver.error("unsafe function with name should be called in an unsafe block", this);
+//        }
+//        const auto self_param = func_decl->get_self_param();
+//        if(self_param) {
+//            if(grandpa) {
+//                if(self_param->type->is_mutable(BaseTypeKind::Reference)) {
+//                    if(!first_value->check_is_mutable(resolver.current_func_type, resolver, false)) {
+//                        resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
+//                    }
+//                }
+//            } else {
+//                const auto arg_self = resolver.current_func_type->get_self_param();
+//                if(!arg_self) {
+//                    resolver.error("cannot call function without an implicit self arg which is not present", this);
+//                } else if(self_param->type->is_mutable(BaseTypeKind::Reference) && !arg_self->type->is_mutable(BaseTypeKind::Reference)) {
+//                    resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
+//                }
+//            }
+//        }
+//    }
+    int16_t prev_itr = -2;
     relink_multi_func(resolver.allocator, &resolver);
     link_gen_args(resolver);
     // this contains which args linked successfully
@@ -941,8 +1060,19 @@ bool FunctionCall::find_link_in_parent(ChainValue* first_value, ChainValue* gran
     // link the values, based on which constructor is determined
     link_values(resolver, properly_linked_args);
     // find the constructor based on linked values
-    link_constructor(resolver.allocator, *resolver.ast_allocator, resolver);
-    if(func_decl && !func_decl->generic_params.empty()) {
+    if(linked_kind == ASTNodeKind::VariantMember) {
+        const auto member = linked->as_variant_member_unsafe();
+        const auto variant = member->parent_node;
+        if(variant->is_generic()) {
+            prev_itr = variant->active_iteration;
+            generic_iteration = variant->register_call(resolver, this, expected_type);
+            variant->set_active_iteration(generic_iteration);
+        }
+    }
+    int16_t struct_itr = link_constructor(resolver.allocator, *resolver.ast_allocator, resolver);
+    if(struct_itr > -2) {
+        prev_itr = struct_itr;
+    } else if(func_decl && !func_decl->generic_params.empty()) {
         prev_itr = func_decl->active_iteration;
         generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
         func_decl->set_active_iteration(generic_iteration);
@@ -952,11 +1082,12 @@ bool FunctionCall::find_link_in_parent(ChainValue* first_value, ChainValue* gran
     if(link_implicit_constructor) {
         link_args_implicit_constructor(resolver, properly_linked_args);
     }
-    if(func_decl && !func_decl->generic_params.empty()) {
-        func_decl->set_active_iteration(prev_itr);
+    if(prev_itr > -2) {
+        set_gen_itr_on_decl(prev_itr);
     }
     return true;
 }
+
 
 bool FunctionCall::primitive() {
     return false;
@@ -992,44 +1123,54 @@ Value *FunctionCall::scope_value(InterpretScope &scope) {
 }
 
 Value* FunctionCall::evaluated_value(InterpretScope &scope) {
-    return interpret_value(this, scope, nullptr);
+    const auto parent = get_parent_from(parent_val);
+    const auto evaluated_parent = parent ? parent->evaluated_value(scope) : parent;
+    return interpret_value(this, scope, evaluated_parent);
 }
 
 Value* FunctionCall::evaluated_chain_value(InterpretScope &scope, Value* parent) {
     return interpret_value(this, scope, parent);
 }
 
-void FunctionCall::evaluate_children(InterpretScope &scope) {
-    evaluate_values(values, scope);
-}
-
 FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
-    auto call = new (allocator.allocate<FunctionCall>()) FunctionCall({}, location);
-    for(auto& value : values) {
+    auto call = new (allocator.allocate<FunctionCall>()) FunctionCall((ChainValue*) parent_val->copy(allocator), {}, location);
+    for(const auto value : values) {
         call->values.emplace_back(value->copy(allocator));
     }
-    for(auto& gen_arg : generic_list) {
+    for(const auto gen_arg : generic_list) {
         call->generic_list.emplace_back(gen_arg->copy(allocator));
     }
-    call->parent_val = parent_val;
     call->generic_iteration = generic_iteration;
     return call;
 }
 
 BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
-    const auto func_decl = safe_linked_func();
-    if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
-        const auto struct_def = func_decl->parent_node->as_struct_def();
-        if(struct_def->is_generic()) {
-            return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name(), struct_def, location), generic_iteration);
+//    std::vector<int16_t> active;
+//    parent_val->set_generic_iteration(active, allocator);
+    if(!parent_val) return nullptr;
+    const auto linked = parent_val->linked_node();
+    int16_t prev_itr = -2;
+    if(linked) {
+        const auto linked_kind = linked->kind();
+        if(linked_kind == ASTNodeKind::VariantMember) {
+            return linked->as_variant_member_unsafe()->known_type();
+        } else if(ASTNode::isFunctionDecl(linked_kind)) {
+            const auto func_decl = linked->as_function_unsafe();
+            if(func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
+                const auto struct_def = func_decl->parent_node->as_struct_def();
+                if(struct_def->is_generic()) {
+                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name(), struct_def, location), generic_iteration);
+                }
+            }
+            prev_itr = set_curr_itr_on_decl();
         }
     }
-    auto prev_itr = set_curr_itr_on_decl();
     auto func_type = function_type(allocator);
     if(!func_type) return nullptr;
     auto pure_type = func_type->returnType->pure_type();
-    if(prev_itr >= -1) func_decl->set_active_iteration(prev_itr);
+    if(prev_itr >= -1) set_gen_itr_on_decl(prev_itr);
+//    parent_val->restore_generic_iteration(active, allocator);
     return pure_type;
 }
 
@@ -1080,9 +1221,28 @@ BaseType* FunctionCall::known_type() {
     if(parent_val) {
         const auto parent_type = parent_val->known_type();
         if(parent_type) {
-            const auto func_type = parent_type->function_type();
-            if(func_type) {
-                return func_type->returnType;
+            switch(parent_type->kind()) {
+                case BaseTypeKind::Function:
+                    return ((FunctionType*) parent_type)->returnType;
+                case BaseTypeKind::Linked:{
+                    const auto linked = (LinkedType*) parent_type;
+                    const auto k = linked->linked->kind();
+                    // decl call (constructors) variant member (variant call)
+                    if(k == ASTNodeKind::VariantMember || k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl) {
+                        return parent_type;
+                    }
+                    break;
+                }
+                case BaseTypeKind::Generic: {
+                    const auto gen_type = (GenericType*) parent_type;
+                    const auto k = gen_type->referenced->linked->kind();
+                    // decl call (constructors) variant member (variant call)
+                    if(k == ASTNodeKind::VariantMember || k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl) {
+                        return parent_type;
+                    }
+                }
+                default:
+                    return nullptr;
             }
         }
     }

@@ -8,7 +8,7 @@
 class VariantCase : public Value {
 public:
 
-    AccessChain* chain;
+    Value* parent_val;
     std::vector<VariantCaseVariable> identifier_list;
     SwitchStatement* switch_statement;
     SourceLocation location;
@@ -19,7 +19,8 @@ public:
      * this also takes a diagnoser reference, so it can report errors
      */
     VariantCase(
-            AccessChain* chain,
+            Value* parent_val,
+            std::vector<Value*>& identifier_list,
             ASTDiagnoser& resolver,
             SwitchStatement* statement,
             SourceLocation location
@@ -29,7 +30,7 @@ public:
      * constructor
      */
     VariantCase(
-            AccessChain* chain,
+            Value* parent_val,
             SwitchStatement* statement,
             SourceLocation location
     );

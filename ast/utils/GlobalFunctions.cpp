@@ -17,6 +17,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/FunctionCall.h"
 #include "compiler/SymbolResolver.h"
@@ -153,7 +154,13 @@ namespace InterpretVector {
     }
 
     Value *InterpretVectorConstructor::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        return new (call_scope->allocate<InterpretVectorVal>()) InterpretVectorVal((InterpretVectorNode*) parent_node);
+        if(call->generic_list.empty()) {
+            call_scope->error("expected a generic argument for compiler::vector", call);
+            return nullptr;
+        }
+        const auto node = (InterpretVectorNode*) parent_node;
+//        node->typeParam.usage.emplace_back(call->generic_list[0]);
+        return new (call_scope->allocate<InterpretVectorVal>()) InterpretVectorVal(node);
     }
 
     InterpretVectorSize::InterpretVectorSize(InterpretVectorNode* node) : FunctionDeclaration(
@@ -388,6 +395,54 @@ public:
     }
 };
 
+/**
+ * evaluates comptime identifiers and function calls in a wrap value
+ * suppose compiler::wrap(constructor(value, compiler::size(value)))
+ * in this value constructor is a function call that is not comptime
+ * so constructor won't be called, but compiler::size is a comptime
+ * function call, compiler::size will be called with value as argument
+ * so the ending call would become constructor(value, 12) or something
+ * since here value is a identifier, which could be pointing to value present
+ * inside the function declaration, we replace that with it's evaluated value as well
+ */
+Value* evaluated_comptime(Value* value, InterpretScope& scope) {
+    switch(value->val_kind()) {
+        case ValueKind::AccessChain: {
+            const auto chain = value->as_access_chain_unsafe();
+            unsigned size = chain->values.size();
+            const auto first = chain->values[0];
+            if(size == 1) {
+                return evaluated_comptime(first, scope);
+            } else {
+                // partially evaluating the access chain
+                const auto first_eval = evaluated_comptime(first, scope);
+                return evaluate_from(chain->values, scope, first_eval, 1);
+            }
+        }
+        case ValueKind::FunctionCall: {
+            const auto call = value->as_func_call_unsafe();
+            const auto decl = call->safe_linked_func();
+            if(decl && decl->is_comptime()) {
+                return call->evaluated_value(scope);
+            } else {
+                const auto copied = call->copy(scope.allocator);
+                copied->parent_val = (ChainValue*) evaluated_comptime(call->parent_val, scope);
+                auto i = 0;
+                const auto args_size = copied->values.size();
+                while(i < args_size) {
+                    auto& arg = copied->values[i];
+                    arg = evaluated_comptime(arg, scope);
+                    i++;
+                }
+                return copied;
+            }
+        }
+        default:
+            const auto eval = value->evaluated_value(scope);
+            return eval ? eval : value;
+    }
+}
+
 class InterpretWrap : public FunctionDeclaration {
 public:
 
@@ -415,9 +470,9 @@ public:
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        auto underlying = call->values[0]->copy(call_scope->allocator);
-        underlying->evaluate_children(*call_scope);
-        return new (call_scope->allocate<WrapValue>()) WrapValue(underlying);
+        auto underlying = call->values[0];
+        const auto evaluated = evaluated_comptime(underlying, *call_scope);
+        return new (call_scope->allocate<WrapValue>()) WrapValue(evaluated);
     }
 };
 

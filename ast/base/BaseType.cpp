@@ -271,11 +271,14 @@ FunctionDeclaration* BaseType::implicit_constructor_for(ASTAllocator& allocator,
 
 int16_t BaseType::set_generic_iteration(int16_t iteration) {
     if(iteration != -1) {
-        const auto members_container = linked_node()->as_members_container();
-        if (members_container) {
-            const auto prev_itr = members_container->active_iteration;
-            members_container->set_active_iteration(iteration);
-            return prev_itr;
+        const auto linked = linked_node();
+        if(linked) {
+            const auto members_container = linked->as_members_container();
+            if (members_container) {
+                const auto prev_itr = members_container->active_iteration;
+                members_container->set_active_iteration(iteration);
+                return prev_itr;
+            }
         }
     }
     return -2;

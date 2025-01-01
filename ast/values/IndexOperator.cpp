@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "IndexOperator.h"
+#include "ast/values/AccessChain.h"
 #include "ast/base/ASTNode.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
@@ -23,16 +24,13 @@ llvm::Value *IndexOperator::elem_pointer(Codegen &gen, llvm::Type *type, llvm::V
     return gen.builder->CreateGEP(type, ptr, idxList, "", gen.inbounds);
 }
 
-llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
-    return elem_pointer(gen, arr->llvm_type(gen), arr->llvm_pointer(gen));
-}
-
 llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
-    return elem_pointer(gen, parent_val->linked_node());
+    return elem_pointer(gen, parent_val->llvm_type(gen), parent_val->llvm_pointer(gen));
 }
 
 llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return gen.builder->CreateLoad(llvm_type(gen), elem_pointer(gen, parent_val->linked_node()),"idx_op");
+    return Value::load_value(gen, create_type(gen.allocator), llvm_type(gen), elem_pointer(gen, parent_val->llvm_type(gen), parent_val->llvm_pointer(gen)));
+//    return gen.builder->CreateLoad(llvm_type(gen), elem_pointer(gen, parent_val->llvm_type(gen), parent_val->llvm_pointer(gen)));
 }
 
 llvm::Value *IndexOperator::access_chain_pointer(
@@ -43,7 +41,7 @@ llvm::Value *IndexOperator::access_chain_pointer(
 ) {
     auto pure_type = parent_val->get_pure_type(gen.allocator);
     if(pure_type->is_pointer()) {
-        auto parent_value = parent_val->access_chain_value(gen, chain_values, until - 1, nullptr);
+        auto parent_value = parent_val->llvm_value(gen, nullptr);
         auto child_type = pure_type->create_child_type(gen.allocator);
         return elem_pointer(gen, child_type->llvm_type(gen), parent_value);
     } else {
@@ -80,6 +78,8 @@ llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
 #endif
 
 BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
+//    std::vector<int16_t> active;
+//    set_generic_iteration(active, allocator);
     int i = (int) values.size();
     auto current_type = parent_val->create_type(allocator);
     while(i > 0) {
@@ -92,6 +92,7 @@ BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
         current_type = childType;
         i--;
     }
+//    restore_generic_iteration(active, allocator);
     return current_type;
 }
 
@@ -100,6 +101,7 @@ BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
 //}
 
 bool IndexOperator::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    parent_val->link(linker, (Value*&) parent_val, nullptr);
     for(auto& value : values) {
         value->link(linker, value);
     }
@@ -129,7 +131,6 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
 }
 
 bool IndexOperator::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
-    parent_val = parent;
     for(auto& value : values) {
         value->link(resolver, value);
     }
@@ -137,15 +138,14 @@ bool IndexOperator::find_link_in_parent(ChainValue *parent, SymbolResolver &reso
 }
 
 void IndexOperator::relink_parent(ChainValue *parent) {
-    parent_val = parent;
+    // TODO remove this method, relinking parent is not required as we store the parent val nested in value
 }
 
 IndexOperator* IndexOperator::copy(ASTAllocator& allocator) {
-    auto op = new (allocator.allocate<IndexOperator>()) IndexOperator({}, location);
-    for(auto& value : values) {
+    auto op = new (allocator.allocate<IndexOperator>()) IndexOperator((ChainValue*) parent_val->copy(allocator), {}, location);
+    for(const auto value : values) {
         op->values.emplace_back(value->copy(allocator));
     }
-    op->parent_val = parent_val;
     return op;
 }
 

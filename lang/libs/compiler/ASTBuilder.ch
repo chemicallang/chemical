@@ -431,9 +431,9 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_float_value(&self, value : float, location : ubigint) : *mut FloatValue
 
-    func make_function_call_value(&self, location : ubigint) : *mut FunctionCall
+    func make_function_call_value(&self, parent_val : *Value, location : ubigint) : *mut FunctionCall
 
-    func make_index_op_value(&self, location : ubigint) : *mut IndexOperator
+    func make_index_op_value(&self, parent_val : *Value, location : ubigint) : *mut IndexOperator
 
     func make_int128_value(&self, mag : ubigint, is_neg : bool, location : ubigint) : *mut Int128Value
 
@@ -485,7 +485,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_variant_case(&self, chain : *AccessChain, stmt : *SwitchStatement, location : ubigint) : *mut VariantCase
 
-    func make_variant_case_variable(&self, name : &string_view, variant_case : *VariantCase, location : ubigint) : *mut VariantCaseVariable
+    func make_variant_case_variable(&self, name : &string_view, parent_val : *VariableIdentifier, stmt : *SwitchStatement, location : ubigint) : *mut VariantCaseVariable
 
     func make_assignment_stmt(&self, lhs : *Value, rhs : *Value, op : Operation, parent_node : *ASTNode, location : ubigint) : *mut AssignStatement
 

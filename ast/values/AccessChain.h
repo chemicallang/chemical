@@ -118,11 +118,7 @@ public:
 
     BaseType* create_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_base_type() final;
-
     BaseType* known_type() final;
-
-//    hybrid_ptr<BaseType> get_value_type() final;
 
     uint64_t byte_size(bool is64Bit) final;
 
@@ -168,8 +164,6 @@ public:
 
 #endif
 
-    void evaluate_children(InterpretScope &scope) final;
-
     Value *parent(InterpretScope &scope);
 
     inline Value* parent_value(InterpretScope &scope);
@@ -181,18 +175,6 @@ public:
     Value *scope_value(InterpretScope &scope) final;
 
     Value* evaluated_value(InterpretScope &scope);
-
-    /**
-     * for every chain value that is connected to a generic struct value, we get the iteration
-     * from the struct value and set it to corresponding struct definition
-     * @param active_iterations a map is given so that previous iterations can be saved to this map
-     */
-    void set_generic_iterations(ASTAllocator& allocator, std::unordered_map<uint16_t, int16_t>& active_iterations);
-
-    /**
-     * set the active iterations from a saved map
-     */
-    void restore_active_iterations(std::unordered_map<uint16_t, int16_t>& restore);
 
     inline std::string chain_representation() {
         return Value::representation();
@@ -208,9 +190,11 @@ public:
 
 };
 
-ChainValue* get_grandpa_value(std::vector<ChainValue*> &chain_values, unsigned int index);
+void copy_from(ASTAllocator& allocator, std::vector<ChainValue*>& destination, std::vector<ChainValue*>& source, unsigned from);
 
-std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& allocator, std::vector<ChainValue*>& chain_values, unsigned int index);
+std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& allocator, ChainValue* parent_val);
+
+Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Value* evaluated, unsigned i);
 
 #ifdef COMPILER_BUILD
 

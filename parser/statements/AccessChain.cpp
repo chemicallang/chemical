@@ -179,10 +179,21 @@ Value* Parser::parseAccessChainRecursive(ASTAllocator& allocator, AccessChain* c
     return parseAccessChainAfterId(allocator, chain, start, parseStruct);
 }
 
-FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator) {
+ChainValue* take_parent(ASTAllocator& allocator, AccessChain* chain, SourceLocation location) {
+    if(chain->values.size() == 1) {
+        const auto parent_val = chain->values.back();
+        chain->values.pop_back();
+        return parent_val;
+    } else {
+        return new (allocator.allocate<AccessChain>()) AccessChain(std::move(chain->values), false, location);
+    }
+}
+
+FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, AccessChain* chain) {
     auto& lParenTok = *token;
     if(lParenTok.type == TokenType::LParen) {
-        auto call = new (allocator.allocate<FunctionCall>()) FunctionCall({}, loc_single(lParenTok));
+        const auto location = loc_single(lParenTok);
+        auto call = new (allocator.allocate<FunctionCall>()) FunctionCall(take_parent(allocator, chain, location), {}, location);
         token++;
         do {
             consumeWhitespaceAndNewLines();
@@ -249,7 +260,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
         parseGenericArgsList(genArgs, allocator);
         readWhitespace();
         if(token->type == TokenType::LParen) {
-            auto call = parseFunctionCall(allocator);
+            auto call = parseFunctionCall(allocator, chain);
             call->generic_list = std::move(genArgs);
             chain->values.emplace_back(call);
         } else if(parseStruct && token->type == TokenType::LBrace) {
@@ -271,7 +282,8 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
     // index operator, function call with generic items
     while(token->type == TokenType::LParen || token->type == TokenType::LBracket) {
         if(token->type == TokenType::LBracket) {
-            auto indexOp = new(allocator.allocate<IndexOperator>()) IndexOperator({}, loc_single(token));
+            const auto location = loc_single(token);
+            auto indexOp = new (allocator.allocate<IndexOperator>()) IndexOperator(take_parent(allocator, chain, location), {}, location);
             chain->values.emplace_back(indexOp);
             while (token->type == TokenType::LBracket) {
                 token++;
@@ -292,13 +304,13 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
         }
         while(true) {
             if (token->type == TokenType::LParen) {
-                auto call = parseFunctionCall(allocator);
+                auto call = parseFunctionCall(allocator, chain);
                 chain->values.emplace_back(call);
             } else if(token->type == TokenType::LessThanSym) {
                 std::vector<BaseType*> genArgs;
                 parseGenericArgsList(genArgs, allocator);
                 if(token->type == TokenType::LParen){
-                    auto call = parseFunctionCall(allocator);
+                    auto call = parseFunctionCall(allocator, chain);
                     call->generic_list = std::move(genArgs);
                     chain->values.emplace_back(call);
                 } else {

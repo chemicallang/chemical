@@ -38,7 +38,7 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
         auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
         if (implicit_constructor) {
             // replace calls to implicit constructor with actual calls
-            value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator, gen.allocator, gen);
+            value_ptr = (Value*) call_with_arg(implicit_constructor, value_ptr, param_type, gen.allocator, gen);
         } else {
             if(param_type->kind() == BaseTypeKind::Reference) {
                 // store reference when it's a implicit reference
@@ -74,7 +74,7 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
 }
 
 llvm::Value* VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated) {
-    const auto member = chain->linked_node()->as_variant_member();
+    const auto member = parent_val->linked_node()->as_variant_member();
     auto def_type = llvm_type(gen);
     if(!allocated) {
         allocated = gen.builder->CreateAlloca(def_type);
@@ -90,7 +90,7 @@ llvm::Value* VariantCall::llvm_value(Codegen &gen, BaseType *type) {
 }
 
 llvm::AllocaInst* VariantCall::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
-    const auto member = chain->linked_node()->as_variant_member();
+    const auto member = parent_val->linked_node()->as_variant_member();
     auto def_type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
     auto allocated = gen.builder->CreateAlloca(def_type);
     if(initialize_allocated(gen, allocated, def_type, member)) {
@@ -100,7 +100,7 @@ llvm::AllocaInst* VariantCall::llvm_allocate(Codegen &gen, const std::string &id
 }
 
 llvm::Type* VariantCall::llvm_type(Codegen &gen) {
-    const auto member = chain->linked_node()->as_variant_member();
+    const auto member = parent_val->linked_node()->as_variant_member();
     const auto largest_member = member->parent_node->largest_member();
     llvm::Type* def_type;
     if(largest_member == member) {
@@ -138,21 +138,12 @@ void VariantCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
 
 #endif
 
-VariantCall::VariantCall(AccessChain* _chain, SourceLocation location) : chain(_chain), location(location) {
-    const auto func_call = chain->values.back()->as_func_call();
-    if(func_call) {
-        for(auto& value : func_call->values) {
-            values.emplace_back(value);
-        }
-        for(auto& type : func_call->generic_list) {
-            generic_list.emplace_back(type);
-        }
-        chain->values.pop_back();
-    }
+VariantCall::VariantCall(Value* parent_val, SourceLocation location) : parent_val(parent_val), location(location) {
+
 }
 
 VariantMember* VariantCall::get_member() {
-    return chain->linked_node()->as_variant_member();
+    return parent_val->linked_node()->as_variant_member();
 }
 
 VariantDefinition* VariantCall::get_definition() {
@@ -213,7 +204,7 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
 }
 
 bool VariantCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    const auto member = chain->linked_node()->as_variant_member();
+    const auto member = parent_val->linked_node()->as_variant_member();
     auto& current_func = *linker.current_func_type;
     // we've already linked chain, when variant call is created, access chain is checked, so no need to link
     for(auto& type : generic_list) {
@@ -245,7 +236,7 @@ bool VariantCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
 }
 
 void VariantCall::set_created_type(ASTAllocator& allocator) {
-    const auto member = chain->linked_node()->as_variant_member();
+    const auto member = parent_val->linked_node()->as_variant_member();
     const auto parent_node = member->parent_node;
     const auto largest_member = parent_node->largest_member();
     if(largest_member == member) {

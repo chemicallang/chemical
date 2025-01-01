@@ -921,7 +921,7 @@ void RepresentationVisitor::visit(ValueNode *node) {
 }
 
 void RepresentationVisitor::visit(VariantCall *call) {
-    call->chain->accept(this);
+    call->parent_val->accept(this);
     write('(');
     bool is_first = true;
     for(auto& value : call->values) {
@@ -954,7 +954,7 @@ void RepresentationVisitor::visit(DestructStmt *delStmt) {
 }
 
 void RepresentationVisitor::visit(VariantCase *chain) {
-    chain->chain->accept(this);
+    chain->parent_val->accept(this);
     write('(');
     bool is_first = true;
     for(auto& var : chain->identifier_list) {

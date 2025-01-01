@@ -81,6 +81,14 @@ bool LinkedType::satisfies(BaseType *other) {
         case ASTNodeKind::EnumDecl: {
             return linked == other->get_direct_linked_node();
         }
+        case ASTNodeKind::GenericTypeParam :{
+            const auto param = linked->as_generic_type_param_unsafe();
+            if(param->usage.empty() && !param->at_least_type) {
+                return true;
+            } else {
+                break;
+            }
+        }
         default:
             break;
     }

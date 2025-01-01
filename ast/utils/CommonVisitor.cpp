@@ -102,7 +102,8 @@ void CommonVisitor::visit(Scope *scope) {
 }
 
 void CommonVisitor::visit(FunctionCall *call) {
-    for(auto& val : call->values) {
+    call->parent_val->accept(this);
+    for(const auto val : call->values) {
         val->accept(this);
     }
 }

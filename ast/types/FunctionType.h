@@ -162,6 +162,10 @@ public:
 
     uint64_t byte_size(bool is64Bit) final;
 
+    ASTNode* linked_node() override {
+        return returnType->linked_node();
+    }
+
     void accept(Visitor *visitor) {
         visitor->visit(this);
     }

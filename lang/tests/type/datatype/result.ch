@@ -22,10 +22,10 @@ func get_result_int(some : bool, simple : bool) : Result<int, ErrType> {
 
 func get_result_value(o : Result<int, ErrType>) : int {
     switch(o) {
-        Result.Ok(value) => {
+        Ok(value) => {
             return value;
         }
-        Result.Err(error) => {
+        Err(error) => {
             if(error == ErrType.Simple) {
                 return -1;
             } else if(error == ErrType.Complex) {

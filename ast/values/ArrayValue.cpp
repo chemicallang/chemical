@@ -45,9 +45,9 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
         const auto implicit = def ? def->implicit_constructor_func(gen.allocator, values[i]) : nullptr;
         if(implicit) {
             // replace values that are calls to implicit constructor
-            values[i] = call_with_arg(implicit, values[i], gen.allocator, gen.allocator, gen);
+            values[i] = (Value*) call_with_arg(implicit, values[i], known_child_t, gen.allocator, gen);
         } else {
-            if(known_child_t && known_child_t->kind() == BaseTypeKind::Reference) {
+            if(known_child_t->kind() == BaseTypeKind::Reference) {
                 // store pointer only, since user want's a reference
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
@@ -227,6 +227,15 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
         i++;
     }
     return true;
+}
+
+void ArrayValue::relink_after_generic(SymbolResolver &linker, BaseType *expected_type) {
+    if(!created_type->elem_type && expected_type && expected_type->kind() == BaseTypeKind::Array) {
+        const auto known_elem_type = ((ArrayType*) expected_type)->elem_type->pure_type();
+        if(known_elem_type) {
+            created_type->elem_type = known_elem_type->copy(*linker.ast_allocator);
+        }
+    }
 }
 
 BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {

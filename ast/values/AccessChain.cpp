@@ -9,6 +9,7 @@
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/VariantCall.h"
+#include "ast/values/IndexOperator.h"
 #include "ast/base/ASTAllocator.h"
 
 uint64_t AccessChain::byte_size(bool is64Bit) {
@@ -32,6 +33,7 @@ void AccessChain::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expec
 }
 
 void AccessChain::relink_parent() {
+    // TODO remove this method, relinking parent is not required as we store the parent val nested in values
     if (values.size() > 1) {
         unsigned i = 1;
         while (i < values.size()) {
@@ -43,63 +45,53 @@ void AccessChain::relink_parent() {
 
 // for easier invocation
 // type is only passed to the last value in the chain
-inline bool link_at(std::vector<ChainValue*>& values, unsigned int index, SymbolResolver& linker, BaseType* expected_type) {
+bool link_at(std::vector<ChainValue*>& values, unsigned int index, SymbolResolver& linker, BaseType* expected_type) {
     return values[index]->link(linker, values, index, index == values.size() - 1 ? expected_type : nullptr);
 }
 
 bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, unsigned int end_offset, bool check_validity, bool assign) {
 
-    if(!link_at(values, 0, linker, expected_type)) {
+    if(!values[0]->link(linker, values, 0, values.size() == 1 ? expected_type : nullptr)) {
         return false;
     }
-    values[0]->set_generic_iteration(linker.allocator);
 
     // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
     auto linked = values[0]->linked_node();
-    if(linked && (linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct())) {
-        if (!linker.current_func_type) {
-            linker.error("couldn't link identifier with struct member / function, with name '" + values[0]->representation() + '\'', values[0]);
-            return false;
-        }
-        auto self_param = linker.current_func_type->get_self_param();
-        if (!self_param) {
-            auto decl = linker.current_func_type->as_function();
-            if(!decl || !decl->is_constructor_fn() && !decl->is_comptime()) {
-                linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument", values[0]);
+    if(linked) {
+        const auto linked_kind = linked->kind();
+        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
+            if (!linker.current_func_type) {
+                linker.error("couldn't link identifier with struct member / function, with name '" + values[0]->representation() + '\'', values[0]);
                 return false;
+            }
+            auto self_param = linker.current_func_type->get_self_param();
+            if (!self_param) {
+                auto decl = linker.current_func_type->as_function();
+                if (!decl || !decl->is_constructor_fn() && !decl->is_comptime()) {
+                    linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument", values[0]);
+                    return false;
+                }
             }
         }
     }
 
+    if(values.size() == 1) {
+        return true;
+    }
+
+    std::vector<int16_t> iterations;
+
+    values[0]->set_generic_iteration(iterations, linker.allocator);
+
     const auto values_size = values.size() - end_offset;
     if (values_size > 1) {
-
-        // manually linking the second value
-        if(!link_at(values, 1, linker, expected_type)) {
-            return false;
-        }
-
-        // if second value is linked with a variant member, we replace the access chain, with variant call
-        if(value_ptr && values[1]->as_identifier()) {
-            linked = values[1]->linked_node();
-            if (linked && linked->as_variant_member()) {
-                auto& chain = *value_ptr;
-                if(!chain) return false;
-                const auto ac_chain = (AccessChain*) chain;
-                chain = new (linker.ast_allocator->allocate<VariantCall>()) VariantCall(ac_chain, location);
-                ((std::unique_ptr<VariantCall>&) chain)->link(linker, chain, expected_type);
-                return true;
-            }
-        }
-
-        unsigned i = 2;
+        unsigned i = 1;
         while (i < values_size) {
             if(!link_at(values, i, linker, expected_type)) {
                 return false;
             }
             i++;
         }
-
     }
 
     if(check_validity && linker.current_func_type) {
@@ -125,16 +117,17 @@ BaseType* AccessChain::create_type(ASTAllocator& allocator) {
     if(values_size == 1) {
         return values[0]->create_type(allocator);
     }
-    std::unordered_map<uint16_t, int16_t> active;
-    set_generic_iterations(allocator, active);
-    auto type = values[values_size - 1]->create_type(allocator);
+    std::vector<int16_t> active;
+    set_generic_iteration(active, allocator);
+    const auto type = values[values.size() - 1]->create_type(allocator);
     if(type) {
         const auto pure = type->pure_type();
-        if (pure && type != pure) {
-            type = pure;
+        if(pure && type != pure) {
+            restore_generic_iteration(active, allocator);
+            return pure;
         }
-        restore_active_iterations(active);
     }
+    restore_generic_iteration(active, allocator);
     return type;
 }
 
@@ -210,12 +203,6 @@ Value *AccessChain::parent(InterpretScope &scope) {
     return current;
 }
 
-void AccessChain::evaluate_children(InterpretScope &scope) {
-    for(auto& value : values) {
-        value->evaluate_children(scope);
-    }
-}
-
 inline Value* AccessChain::parent_value(InterpretScope &scope) {
 #ifdef DEBUG
     auto p = parent(scope);
@@ -247,23 +234,43 @@ Value *AccessChain::pointer(InterpretScope &scope) {
     }
 }
 
-Value* AccessChain::evaluated_value(InterpretScope &scope) {
-    if(values.size() == 1) return values[0]->evaluated_value(scope);
-    Value* evaluated = values[0]->evaluated_value(scope);
-    unsigned i = 1;
+void copy_from(ASTAllocator& allocator, std::vector<ChainValue*>& destination, std::vector<ChainValue*>& source, unsigned from) {
+    const auto size = source.size();
+    while(from < size) {
+        const auto value = source[from];
+        destination.emplace_back((ChainValue*) value->copy(allocator));
+        from++;
+    }
+}
+
+// evaluate the chain partially if you have evaluated the chain till given index i
+// or receive a copy of the chain with values that could be evaluated
+Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Value* evaluated, unsigned i) {
     while(i < values.size()) {
         auto next = values[i]->evaluated_chain_value(scope, evaluated);
-        if(next == nullptr && evaluated && evaluated->as_chain_value() && i == 1) {
-            auto c = (AccessChain*) copy(scope.allocator);
-            c->values[0] = (ChainValue*) evaluated;
-            c->relink_parent();
-            return c;
+        // suppose we can't evaluate next value, in chain a.b.c we could evaluate a
+        // but b.c we couldn't evaluate, what we do is we create a new chain a.b.c (a is evaluated) (b.c are copies)
+        // we relink the parent of b.c so they know the parent has changed to a
+        if(next == nullptr && evaluated && evaluated->as_chain_value()) {
+
+            const auto duplicate = new (scope.allocate<AccessChain>()) AccessChain(false, evaluated->encoded_location());
+            duplicate->values.emplace_back((ChainValue*) evaluated);
+            copy_from(scope.allocator, duplicate->values, values, i);
+            duplicate->relink_parent();
+            return duplicate;
+
         } else {
             evaluated = next;
         }
         i++;
     }
     return evaluated;
+}
+
+Value* AccessChain::evaluated_value(InterpretScope &scope) {
+    if(values.size() == 1) return values[0]->evaluated_value(scope);
+    Value* evaluated = values[0]->evaluated_value(scope);
+    return evaluate_from(values, scope, evaluated, 1);
 }
 
 Value *AccessChain::scope_value(InterpretScope &scope) {
@@ -282,20 +289,14 @@ BaseTypeKind AccessChain::type_kind() const {
     return values[values.size() - 1]->type_kind();
 }
 
-ChainValue* get_grandpa_value(std::vector<ChainValue*> &chain_values, unsigned int index) {
-    if(index - 2 < chain_values.size()) {
-        return chain_values[index - 2];
-    } else {
-        return nullptr;
-    }
-}
-
-std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& allocator, std::vector<ChainValue*>& chain_values, unsigned int index) {
-    if(index - 2 < chain_values.size()) {
-        const auto linked = chain_values[index - 1]->linked_node();
-        const auto func_decl = linked ? linked->as_function() : nullptr;
-        if (func_decl && func_decl->as_extension_func() == nullptr) {
-            const auto gran = get_grandpa_value(chain_values, index);
+std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& allocator, ChainValue* parent_val) {
+    const auto linked = parent_val->linked_node();
+    if(!linked) return { nullptr, -1 };
+    const auto linked_kind = linked->kind();
+    if(linked_kind == ASTNodeKind::FunctionDecl) {
+        const auto func_decl = linked->as_function_unsafe();
+        const auto gran = get_parent_from(parent_val);
+        if(gran) {
             // grandpa value can refer to a namespace, which is unable to create_type
             const auto gran_type = gran->create_type(allocator);
             if (gran_type) {
@@ -307,25 +308,4 @@ std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& a
         }
     }
     return { nullptr, -1 };
-}
-
-void AccessChain::set_generic_iterations(ASTAllocator& allocator, std::unordered_map<uint16_t, int16_t>& active_iterations) {
-    uint16_t i = 0;
-    for(auto& value : values) {
-        // namespace cannot create type
-        const auto prev_itr = value->set_generic_iteration(allocator);
-        if(prev_itr > -2) {
-            active_iterations[i] = prev_itr;
-        }
-        i++;
-    }
-}
-
-void AccessChain::restore_active_iterations(std::unordered_map<uint16_t, int16_t>& restore) {
-    for(auto& pair : restore) {
-        const auto& value = values[pair.first];
-        const auto type = value->known_type();
-        const auto members_container = type->linked_node()->as_members_container();
-        members_container->set_active_iteration(pair.second);
-    }
 }

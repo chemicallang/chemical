@@ -56,10 +56,10 @@ func test_references() {
         var i = 32
         var o = OptRefInt.Some(i)
         switch(o) {
-            OptRefInt.Some(i) => {
+            Some(i) => {
                 return take_int_ref(i) == 32
             }
-            OptRefInt.None() => {
+            None() => {
                 return false;
             }
         }
@@ -94,10 +94,10 @@ func test_references() {
         var z = ReferencableStruct { i : 97 }
         var rr = ReferencableStructOpt.Some(z)
         switch(rr) {
-            ReferencableStructOpt.Some(r) => {
+            Some(r) => {
                 return r.i == 97;
             }
-            ReferencableStructOpt.None => {
+            None => {
                 return false;
             }
         }

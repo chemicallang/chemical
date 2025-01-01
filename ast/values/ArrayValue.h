@@ -18,7 +18,7 @@ public:
     std::vector<Value*> values;
     std::vector<unsigned int> sizes;
     SourceLocation location;
-    BaseType* created_type;
+    ArrayType* created_type;
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
@@ -105,6 +105,8 @@ public:
     ASTNode *linked_node() final;
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
+
+    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) override;
 
     [[nodiscard]]
     BaseType* element_type(ASTAllocator& allocator) const;

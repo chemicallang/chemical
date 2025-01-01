@@ -19,16 +19,16 @@ func get_other_var1(value : int, some : bool) : OtherVar1<int> {
     if(some) {
         return OtherVar1.Some(value)
     } else {
-        return OtherVar1.None;
+        return OtherVar1.None();
     }
 }
 
 func get_other_var1_value(other : OtherVar1<int>) : int {
     switch(other) {
-        OtherVar1.Some(value) => {
+        Some(value) => {
             return value;
         }
-        OtherVar1.None => {
+        None => {
             return -1;
         }
     }

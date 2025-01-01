@@ -80,21 +80,21 @@ func build(ctx : *mut BuildContext) {
         var str = string("")
         var ptr_str = &str;
         const empty_module = ctx.files_module(string("headers"), &ptr_str, 0, {  });
-        ctx.include_headers(empty_module, {
-            string("stdio.h"),
-            string("stdlib.h")
-        });
-        ctx.translate_to_chemical(empty_module, headers_path);
+        //ctx.include_headers(empty_module, {
+        //    string("stdio.h"),
+        //    string("stdlib.h")
+        //});
+        //ctx.translate_to_chemical(empty_module, headers_path);
     }
 
     const exe_name = string("chemical-tests");
     const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), { })
     const ext_cpp_module = ctx.cpp_file_module(string("ext_cpp"), relative_path(string("ext/file2.cpp")), { })
     const std_module = ctx.chemical_dir_module(string("std"), relative_path(string("../libs/std")), { })
-    ctx.include_headers(std_module, {
-        string("stdio.h"),
-        string("stdlib.h")
-    })
+    // ctx.include_headers(std_module, {
+    //    string("stdio.h"),
+    //    string("stdlib.h")
+    //})
     const submod = ctx.chemical_dir_module(string("submod"), relative_path(string("basic/submod")), { })
     // currently the last dependency becomes null if we don't take it out like this
     var dependencies = { ext_module, ext_cpp_module, submod, std_module }
@@ -105,7 +105,7 @@ func build(ctx : *mut BuildContext) {
     // const entry_mod = ctx.chemical_dir_module(string("html"), relative_path(string("../libs/html")), {});
     // ctx.build_cbi(&cbi_name, entry_mod, { entry_mod });
 
-    const do_llvm_ir = false;
+    const do_llvm_ir = true;
     const do_asm = false;
     const do_to_ch = !is_minimal && compiler::is_clang();
 

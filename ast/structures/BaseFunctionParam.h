@@ -42,8 +42,6 @@ public:
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) final;
 
-    llvm::Type *llvm_elem_type(Codegen &gen) final;
-
     llvm::Value *llvm_load(Codegen &gen) final;
 
     void code_gen_destruct(Codegen &gen, Value *returnValue) final;

@@ -94,7 +94,7 @@ public:
             BaseType* expected_type
     ) final;
 
-    llvm::Type *llvm_elem_type(Codegen &gen) final;
+    llvm::Type *llvm_elem_type(Codegen &gen);
 
     llvm::Type *llvm_type(Codegen &gen) final;
 

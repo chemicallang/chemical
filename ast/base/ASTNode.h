@@ -365,13 +365,6 @@ public:
     }
 
     /**
-     * provides llvm_elem_type, which is the child type for example elem type of an array value
-     * @param gen
-     * @return
-     */
-    virtual llvm::Type *llvm_elem_type(Codegen &gen);
-
-    /**
      * this can be overridden if node intends to declare itself before generating code for it
      * functions generate code for just prototype and an empty entry block
      * when code_gen is called, functions generate code for their bodies

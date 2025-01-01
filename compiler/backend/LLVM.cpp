@@ -798,23 +798,7 @@ bool access_chain_store_in_parent(
 ) {
     auto func_call = chain->values[chain->values.size() - 1]->as_func_call();
     if(func_call) {
-        if(func_call->parent_val->linked_node()->isVariantMember()) {
-            goto store_func_call;
-        }
-        {
-            auto func_type = func_call->function_type(gen.allocator);
-            if (func_type && func_type->returnType->value_type() == ValueType::Struct) {
-                goto store_func_call;
-            }
-        }
-        return false;
-        store_func_call:
-            auto elem_pointer = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
-            std::vector<llvm::Value *> args;
-            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-            func_call->llvm_chain_value(gen, args, destructibles,elem_pointer);
-            Value::destruct(gen, destructibles);
-            return true;
+        return func_call->store_in_parent(gen, allocated, allocated_type, idxList, index);
     }
     return false;
 }

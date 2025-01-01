@@ -642,15 +642,30 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
 }
 
-llvm::Value* FunctionCall::chain_value_with_callee(
-        Codegen& gen,
-        llvm::Value* grandpa_value,
-        llvm::Value* callee_value,
-        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+bool FunctionCall::store_in_parent(
+        Codegen &gen,
+        llvm::Value* allocated,
+        llvm::Type* allocated_type,
+        std::vector<llvm::Value*>& idxList,
+        unsigned int index
 ) {
-    std::vector<llvm::Value *> args;
-    auto value = llvm_chain_value(gen, args, destructibles, nullptr, callee_value, grandpa_value);
-    return value;
+    if(parent_val->linked_node()->isVariantMember()) {
+        goto store_func_call;
+    }
+    {
+        auto func_type = function_type(gen.allocator);
+        if (func_type && func_type->returnType->value_type() == ValueType::Struct) {
+            goto store_func_call;
+        }
+    }
+    return false;
+    store_func_call:
+        auto elem_pointer = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+        std::vector<llvm::Value *> args;
+        std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+        llvm_chain_value(gen, args, destructibles,elem_pointer);
+        Value::destruct(gen, destructibles);
+        return true;
 }
 
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {

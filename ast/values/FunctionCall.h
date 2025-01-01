@@ -205,19 +205,50 @@ public:
             llvm::Value* grandparent = nullptr
     );
 
+    bool store_in_parent(
+        Codegen &gen,
+        llvm::Value* allocated,
+        llvm::Type* allocated_type,
+        std::vector<llvm::Value*>& idxList,
+        unsigned int index
+    );
+
+    unsigned int store_in_struct(
+        Codegen &gen,
+        Value *parent,
+        llvm::Value *allocated,
+        llvm::Type *allocated_type,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index,
+        BaseType *expected_type
+    ) override {
+        if(store_in_parent(gen, allocated, allocated_type, idxList, index)) {
+            return index + 1;
+        }
+        return Value::store_in_array(gen, parent, allocated, allocated_type, idxList, index, expected_type);
+    }
+
+    unsigned int store_in_array(
+            Codegen &gen,
+            Value *parent,
+            llvm::Value *allocated,
+            llvm::Type *allocated_type,
+            std::vector<llvm::Value *> idxList,
+            unsigned int index,
+            BaseType *expected_type
+    ) override {
+        if(store_in_parent(gen, allocated, allocated_type, idxList, index)) {
+            return index + 1;
+        }
+        return Value::store_in_array(gen, parent, allocated, allocated_type, idxList, index, expected_type);
+    }
+
     /**
      * the first bool means is it dynamic, if true no further attempts at calling the function should be made
      * the second value is the result of the function call
      */
     std::pair<bool, llvm::Value*> llvm_dynamic_dispatch(
             Codegen& gen,
-            std::vector<std::pair<Value*, llvm::Value*>>& destructibles
-    );
-
-    llvm::Value* chain_value_with_callee(
-            Codegen& gen,
-            llvm::Value* grandpa_value,
-            llvm::Value* callee_value,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles
     );
 

@@ -172,10 +172,6 @@ llvm::Type* VariantMemberParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-llvm::FunctionType* VariantMemberParam::llvm_func_type(Codegen &gen) {
-    return type->llvm_func_type(gen);
-}
-
 bool VariantMemberParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
     return type->pure_type()->linked_node()->add_child_index(gen, indexes, name);
 }

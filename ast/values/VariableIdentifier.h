@@ -109,8 +109,6 @@ public:
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) final;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) final;
-
     llvm::Value *llvm_pointer(Codegen &gen) final;
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;

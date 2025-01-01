@@ -279,10 +279,6 @@ llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
     return create_type(gen.allocator)->llvm_chain_type(gen, values, index);
 }
 
-llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
-    return linked_func()->returnType->llvm_func_type(gen);
-}
-
 std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_data(ASTAllocator& allocator) {
     auto gen_str = get_grandpa_generic_struct(allocator, parent_val);
     if(gen_str.first) {

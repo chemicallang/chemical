@@ -182,8 +182,6 @@ public:
             unsigned int index
     ) final;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) final;
-
     llvm::FunctionType *llvm_linked_func_type(Codegen& gen);
 
     std::pair<llvm::Value*, llvm::FunctionType*>* llvm_generic_func_data(ASTAllocator& allocator);

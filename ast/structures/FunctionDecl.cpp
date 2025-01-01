@@ -42,10 +42,6 @@ llvm::Type *BaseFunctionParam::llvm_chain_type(Codegen &gen, std::vector<ChainVa
     return type->llvm_chain_type(gen, values, index);
 }
 
-llvm::FunctionType *BaseFunctionParam::llvm_func_type(Codegen &gen) {
-    return type->llvm_func_type(gen);
-}
-
 void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
     if(!(returnValue && returnValue->linked_node() == this)) {
         type->linked_node()->llvm_destruct(gen, gen.current_function->getArg(calculate_c_or_llvm_index()));

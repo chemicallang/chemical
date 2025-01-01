@@ -110,8 +110,6 @@ public:
 
     llvm::Type* llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
-    llvm::FunctionType* llvm_func_type(Codegen &gen) final;
-
 #endif
 
     BaseType* create_value_type(ASTAllocator& allocator) final;

@@ -227,6 +227,11 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
     Value* parent = values[0];
     llvm::Value* pointer = parent->llvm_pointer(gen);
 
+    // queue return of first function call return for destruction (at the end of this chain loading)
+    if(parent->val_kind() == ValueKind::FunctionCall) {
+        destructibles.emplace_back(parent, pointer);
+    }
+
     unsigned i = 1;
 
     const auto is_stored = parent->is_stored_ptr_or_ref(gen.allocator);

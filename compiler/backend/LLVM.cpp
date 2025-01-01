@@ -782,25 +782,16 @@ llvm::Type *AccessChain::llvm_type(Codegen &gen) {
     return type;
 }
 
-llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type, llvm::Value** parent_pointer) {
+llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     std::vector<int16_t> active;
     set_generic_iteration(active, gen.allocator);
     const auto last_ind = values.size() - 1;
     const auto last = values[last_ind];
-    llvm::Value* value;
-    if(parent_pointer) {
-        value = last->access_chain_value(gen, values, last_ind, destructibles, expected_type, *parent_pointer);
-    } else {
-        value = last->access_chain_value(gen, values, last_ind, destructibles, expected_type);
-    }
+    const auto value = last->access_chain_value(gen, values, last_ind, destructibles, expected_type);
     restore_generic_iteration(active, gen.allocator);
     Value::destruct(gen, destructibles);
     return value;
-}
-
-llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return llvm_value(gen, expected_type, nullptr);
 }
 
 llvm::Value* AccessChain::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {

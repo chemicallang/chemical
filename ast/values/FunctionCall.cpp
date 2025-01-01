@@ -594,7 +594,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
             } else {
                 const auto g = get_parent_from(parent_val);
                 if(g) {
-                    if(!is_node_decl(g->linked_node())) {
+                    if(g->val_kind() == ValueKind::FunctionCall || !is_node_decl(g->linked_node())) {
                         const auto grandpa = build_parent_chain(parent_val, gen.allocator);
                         grandparent = grandpa->llvm_value(gen, nullptr);
                     }

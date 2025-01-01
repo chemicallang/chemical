@@ -723,57 +723,6 @@ llvm::Value* AlignOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->getInt64(align.value());
 }
 
-llvm::Value* llvm_load_chain_until(
-        Codegen& gen,
-        std::vector<ChainValue*>& chain,
-        int until,
-        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
-) {
-    if(until >= 0 && until < chain.size()) {
-        auto& value = *chain[until];
-        if (value.value_type() == ValueType::Pointer) {
-            return value.access_chain_value(gen, chain, until, destructibles, nullptr);
-        } else {
-            return value.access_chain_pointer(gen, chain, destructibles, until);
-        }
-    } else {
-        return nullptr;
-    }
-}
-
-llvm::Value* llvm_next_value(
-        Codegen& gen,
-        std::vector<ChainValue*> chain,
-        unsigned int index,
-        llvm::Value* grandpa_value,
-        llvm::Value* parent_value,
-        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
-) {
-    // queue parent for destruction (sounds dark, villainous and evil)
-    const auto parent_index = index - 1;
-    const auto parent = chain[parent_index];
-    if(parent->as_func_call()) {
-        destructibles.emplace_back(parent, parent_value);
-    }
-    const auto current = chain[index];
-    const auto curr_func_call = current->as_func_call();
-    if(curr_func_call) {
-        return curr_func_call->chain_value_with_callee(gen, grandpa_value, parent_value, destructibles);
-    }
-    // taking an index into the parent value like usual
-    llvm::Value* value_ref = parent_value;
-    std::vector<llvm::Value*> idxList;
-    if(!current->add_member_index(gen, parent, idxList)) {
-        gen.error("couldn't add member index for next value in llvm_next_value for " + current->representation(), current);
-    }
-    value_ref = create_gep(gen, chain, parent_index, parent_value, idxList);
-    if(current->is_pointer()) {
-        // load the pointer and return
-        value_ref = gen.builder->CreateLoad(current->llvm_type(gen), value_ref);
-    }
-    return value_ref;
-}
-
 llvm::Type *AccessChain::llvm_type(Codegen &gen) {
     std::vector<int16_t> active;
     set_generic_iteration(active, gen.allocator);

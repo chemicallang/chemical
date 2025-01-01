@@ -207,10 +207,6 @@ llvm::Value *StructValue::llvm_ret_value(Codegen &gen, ReturnStatement *returnSt
     return nullptr;
 }
 
-llvm::Type *StructValue::llvm_elem_type(Codegen &gen) {
-    throw std::runtime_error("llvm_elem_type: called on a struct");
-}
-
 llvm::Type *StructValue::llvm_type(Codegen &gen) {
     if(definition->generic_params.empty()) {
         return definition->llvm_type(gen);

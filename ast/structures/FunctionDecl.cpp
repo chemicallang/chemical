@@ -52,27 +52,6 @@ void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
     }
 }
 
-llvm::Type *BaseFunctionParam::llvm_elem_type(Codegen &gen) {
-    auto lType = llvm_type(gen);
-    if (lType) {
-        if (lType->isArrayTy()) {
-            return lType->getArrayElementType();
-        } else if (lType->isPointerTy()) {
-            auto ptr_type = type->pointer_type();
-            if (ptr_type) {
-                return ptr_type->type->llvm_type(gen);
-            } else {
-                gen.error("type is not a pointer type for parameter " + name, this);
-            }
-        } else {
-            gen.error("type is not an array / pointer for parameter " + name, this);
-        }
-    } else {
-        gen.error("parameter type is invalid " + name, this);
-    }
-    return nullptr;
-}
-
 llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
     auto index = calculate_c_or_llvm_index();
     if(index > gen.current_function->arg_size()) {

@@ -205,10 +205,6 @@ llvm::Value *VarInitStatement::llvm_pointer(Codegen &gen) {
     return llvm_ptr;
 }
 
-llvm::Type *VarInitStatement::llvm_elem_type(Codegen &gen) {
-    return value ? value->llvm_elem_type(gen) : nullptr;
-}
-
 llvm::Type *VarInitStatement::llvm_type(Codegen &gen) {
     check_has_type(gen);
     return type ? type->llvm_type(gen) : value->llvm_type(gen);

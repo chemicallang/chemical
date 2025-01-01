@@ -367,15 +367,6 @@ llvm::Value *ASTNode::llvm_pointer(Codegen &gen) {
 #endif
 };
 
-llvm::Type *ASTNode::llvm_elem_type(Codegen &gen) {
-#ifdef DEBUG
-    throw std::runtime_error("llvm_elem_type called on bare ASTNode, with representation" + representation());
-#else
-    std::cerr << ("ASTNode::llvm_elem_type called, on node : " + representation());
-    return nullptr;
-#endif
-};
-
 void ASTNode::code_gen(Codegen &gen) {
 #ifdef DEBUG
     throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());

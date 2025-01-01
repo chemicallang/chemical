@@ -172,8 +172,6 @@ public:
 
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) final;
 
-    llvm::Type *llvm_elem_type(Codegen &gen) final;
-
     llvm::Type *llvm_type(Codegen &gen) final;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;

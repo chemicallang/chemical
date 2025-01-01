@@ -302,10 +302,6 @@ void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, 
     gen.CreateCondBr(llvm_value(gen), then_block, otherwise_block);
 }
 
-llvm::Type* Value::llvm_elem_type(Codegen& gen) {
-    throw std::runtime_error("llvm_elem_type called on bare Value of type " + std::to_string((int) value_type()));
-};
-
 llvm::Value* Value::llvm_pointer(Codegen& gen) {
     throw std::runtime_error("llvm_pointer called on bare Value of type " + std::to_string((int) value_type()));
 }

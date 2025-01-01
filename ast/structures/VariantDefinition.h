@@ -141,7 +141,7 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::StructType* llvm_type_with_member(Codegen& gen, BaseDefMember* member_type, bool anonymous = true);
+    static llvm::StructType* llvm_type_with_member(Codegen& gen, VariantMember* member, bool anonymous = true);
 
     llvm::Type* llvm_type(Codegen &gen) final;
 

@@ -24,7 +24,7 @@ inline void restore(std::pair<BaseType*, int16_t> pair) {
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, BaseDefMember* member, bool anonymous) {
+llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, VariantMember* member, bool anonymous) {
     std::vector<llvm::Type*> elements;
     elements.emplace_back(gen.builder->getInt32Ty()); // <--- int enum is stored at top, so we know the type
     if(member) {
@@ -34,7 +34,7 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, BaseDef
     if(anonymous) {
         return llvm::StructType::get(*gen.ctx, elements);
     } else {
-        return llvm::StructType::create(*gen.ctx, elements, runtime_name_str());
+        return llvm::StructType::create(*gen.ctx, elements, member->parent_node->runtime_name_str());
     }
 }
 
@@ -43,7 +43,7 @@ llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {
     if(found != llvm_struct_types.end()) {
         return found->second;
     }
-    const auto largest = largest_member();
+    const auto largest = largest_member()->as_variant_member_unsafe();
     const auto type = llvm_type_with_member(gen, largest, is_anonymous());
     llvm_struct_types[active_iteration] = type;
     return type;
@@ -191,7 +191,7 @@ llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
     const auto holder_pointer = switch_statement->expression->llvm_pointer(gen);
     const auto linked_member = parent_val->linked_node()->as_variant_member();
     const auto linked_def = linked_member->parent_node;
-    const auto largest_member = linked_def->largest_member();
+    const auto largest_member = linked_def->largest_member()->as_variant_member_unsafe();
     llvm::Type* container_type;
     if(largest_member == linked_member) {
         container_type = linked_def->llvm_type(gen);

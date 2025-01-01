@@ -262,10 +262,16 @@ void to_llvm_args(
 }
 
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
-    auto decl = safe_linked_func();
+    const auto linked = parent_val->linked_node();
+    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
     int16_t prev_itr = set_curr_itr_on_decl();
-    const auto type = create_type(gen.allocator)->llvm_type(gen);
-    decl->set_active_iteration_safely(prev_itr);
+    llvm::Type* type;
+    if(linked_kind == ASTNodeKind::VariantMember) {
+        type = VariantDefinition::llvm_type_with_member(gen, linked->as_variant_member_unsafe());
+    } else {
+        type = create_type(gen.allocator)->llvm_type(gen);
+    }
+    set_gen_itr_on_decl(prev_itr);
     return type;
 }
 
@@ -520,7 +526,7 @@ llvm::Type* variant_llvm_type(Codegen &gen, VariantMember* member) {
     if(largest_member == member) {
         def_type = member->parent_node->llvm_type(gen);
     } else {
-        def_type = member->parent_node->llvm_type_with_member(gen, member);
+        def_type = VariantDefinition::llvm_type_with_member(gen, member);
     }
     return def_type;
 }

@@ -39,23 +39,6 @@ llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
     return Value::load_value(gen, create_type(gen.allocator), llvm_type(gen), llvm_pointer(gen));
 }
 
-// TODO this method is useless
-llvm::Value *IndexOperator::access_chain_pointer(
-        Codegen &gen,
-        std::vector<ChainValue*> &chain_values,
-        std::vector<std::pair<Value *, llvm::Value *>> &destructibles,
-        unsigned int until
-) {
-    auto pure_type = parent_val->get_pure_type(gen.allocator);
-    if(pure_type->is_pointer()) {
-        auto parent_value = parent_val->llvm_value(gen, nullptr);
-        auto child_type = pure_type->create_child_type(gen.allocator);
-        return elem_pointer(gen, child_type->llvm_type(gen), parent_value);
-    } else {
-        return ChainValue::access_chain_pointer(gen, chain_values, destructibles, until);
-    }
-}
-
 bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
     if (parent->value_type() == ValueType::Array && indexes.empty() && (parent->linked_node() == nullptr || parent->linked_node()->as_func_param() == nullptr )) {
         indexes.push_back(gen.builder->getInt32(0));

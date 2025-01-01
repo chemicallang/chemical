@@ -264,16 +264,9 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
         }
         i++;
     }
-    return { parent_index, pointer };
-}
 
-llvm::Value* ChainValue::pointer_from_parent_to_next(
-        Codegen &gen,
-        std::vector<ChainValue*>& values,
-        std::vector<llvm::Value*>& idxList,
-        std::pair<unsigned int, llvm::Value*>& parent_pointer
-) {
-    return create_gep(gen, values, parent_pointer.first, parent_pointer.second, idxList);
+    return { parent_index, pointer };
+
 }
 
 llvm::Value* ChainValue::access_chain_pointer(

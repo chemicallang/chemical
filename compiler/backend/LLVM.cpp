@@ -952,7 +952,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             auto value_ptr = value->llvm_pointer(gen);
             if(!gen.assign_dyn_obj(value, func_type->returnType, dest, value_ptr)) {
                 llvm::MaybeAlign noAlign;
-                auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(value->llvm_type(gen));
+                auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(func_type->returnType->llvm_type(gen));
                 gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, alloc_size);
             }
         } else if(value->as_variant_call()) {

@@ -261,7 +261,7 @@ public:
     /**
      * parse a function call
      */
-    FunctionCall* parseFunctionCall(ASTAllocator& allocator);
+    FunctionCall* parseFunctionCall(ASTAllocator& allocator, AccessChain* chain);
 
     /**
      * lexes a keyword access specifier public, private, internal & (if protect is true, then protected)

@@ -13,11 +13,15 @@
 class IndexOperator : public ChainValue {
 public:
 
-    ChainValue *parent_val;
+    ChainValue* parent_val;
     std::vector<Value*> values;
     SourceLocation location;
 
-    IndexOperator(std::vector<Value*> indexes, SourceLocation location) : values(std::move(indexes)), location(location) {
+    IndexOperator(
+            ChainValue* parent,
+            std::vector<Value*> indexes,
+            SourceLocation location
+    ) : parent_val(parent), values(std::move(indexes)), location(location) {
 
     }
 
@@ -72,8 +76,6 @@ public:
 #ifdef COMPILER_BUILD
 
     llvm::Value *elem_pointer(Codegen &gen, llvm::Type *, llvm::Value *ptr);
-
-    llvm::Value *elem_pointer(Codegen &gen, ASTNode *arr);
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
 

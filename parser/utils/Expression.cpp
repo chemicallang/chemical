@@ -331,7 +331,7 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
         std::vector<BaseType*> genArgs;
         parseGenericArgsList(genArgs, allocator);
         if(token->type == TokenType::LParen) {
-            auto call = parseFunctionCall(allocator);
+            auto call = parseFunctionCall(allocator, chain);
             call->generic_list = std::move(genArgs);
         } else {
             error("expected a '(' after the generic list in function call");

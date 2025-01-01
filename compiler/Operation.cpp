@@ -29,17 +29,20 @@ EnumDeclaration* getEnumDecl(BaseType* type, BaseTypeKind kind) {
 }
 
 void perform_implicit_cast_on_integers(IntNType* fIntN, IntNType* secIntN, llvm::Value*& lhs, llvm::Value*& rhs, Codegen& gen) {
-    if(fIntN->num_bits() < secIntN->num_bits()) {
+    // implicit cast int n types
+    const auto lhsType = (llvm::IntegerType*) lhs->getType();
+    const auto rhsType = (llvm::IntegerType*) rhs->getType();
+    if(lhsType->getBitWidth() < rhsType->getBitWidth()) {
         if(fIntN->is_unsigned()) {
-            lhs = gen.builder->CreateZExt(lhs, secIntN->llvm_type(gen));
+            lhs = gen.builder->CreateZExt(lhs, rhsType);
         } else {
-            lhs = gen.builder->CreateSExt(lhs, secIntN->llvm_type(gen));
+            lhs = gen.builder->CreateSExt(lhs, rhsType);
         }
-    } else if(fIntN->num_bits() > secIntN->num_bits()) {
+    } else if(lhsType->getBitWidth() > rhsType->getBitWidth()) {
         if(secIntN->is_unsigned()) {
-            rhs = gen.builder->CreateZExt(rhs, fIntN->llvm_type(gen));
+            rhs = gen.builder->CreateZExt(rhs, lhsType);
         } else {
-            rhs = gen.builder->CreateSExt(rhs, fIntN->llvm_type(gen));
+            rhs = gen.builder->CreateSExt(rhs, lhsType);
         }
     }
 }
@@ -88,7 +91,6 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         return first_unsigned || second_unsigned;
     };
 
-    // implicit cast int n types
     const auto firstTypeKind = firstType->kind();
     const auto secondTypeKind = secondType->kind();
     if(firstTypeKind == BaseTypeKind::IntN && secondTypeKind == BaseTypeKind::IntN) {

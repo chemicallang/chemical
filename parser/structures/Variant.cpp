@@ -106,6 +106,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
 
 VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::VariantKw)) {
+
         auto id = consumeIdentifierOrKeyword();
         if (!id) {
             error("expected a identifier as struct name");
@@ -113,6 +114,9 @@ VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, 
         }
 
         auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(allocator, id), parent_node, 0, specifier);
+
+        auto prev_parent_type = parent_node;
+        parent_node = decl;
 
         annotate(decl);
 
@@ -125,8 +129,6 @@ VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, 
             return decl;
         }
 
-        auto prev_parent_type = parent_node;
-        parent_node = decl;
         do {
             lexWhitespaceAndNewLines();
             if(parseAnyVariantMember(allocator, decl, AccessSpecifier::Public)) {
@@ -137,6 +139,7 @@ VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, 
             }
         } while(token->type != TokenType::RBrace);
         lexWhitespaceToken();
+
         parent_node = prev_parent_type;
 
         if(!consumeToken(TokenType::RBrace)) {

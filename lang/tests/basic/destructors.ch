@@ -523,10 +523,10 @@ func test_destructors() {
                 }
             })
             switch(x) {
-                OptDestructible.Some(d) => {
+                Some(d) => {
                     data_usable = d.data == 892;
                 }
-                OptDestructible.None => {
+                None => {
 
                 }
             }

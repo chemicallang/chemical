@@ -193,10 +193,10 @@ func test_moves() {
         var a = NonMovableObj { a : 323, b : 124 }
         var n = NonMovableOpt.Some(a)
         switch(n) {
-            NonMovableOpt.Some(n) => {
+            Some(n) => {
                 return n.a == 323 && n.b == 124
             }
-            NonMovableOpt.None() => {
+            None() => {
                 return false;
             }
         }
@@ -252,10 +252,10 @@ func test_moves() {
         var obj = ClearObj { i : 645 }
         var opt : OptClear = OptClear.Some(obj);
         switch(opt) {
-            OptClear.Some(c) => {
+            Some(c) => {
                 return c.i == 645
             }
-            OptClear.None() => {
+            None() => {
                 return false;
             }
         }
@@ -305,10 +305,10 @@ func test_moves() {
         var obj = MoveObj { i : 645 }
         var opt : OptMove = OptMove.Some(obj);
         switch(opt) {
-            OptMove.Some(m) => {
+            Some(m) => {
                 return m.i == 645
             }
-            OptMove.None() => {
+            None() => {
                 return false;
             }
         }
@@ -358,10 +358,10 @@ func test_moves() {
         var obj = ImpCopyObj { i : 645 }
         var opt : OptCopy = OptCopy.Some(obj);
         switch(opt) {
-            OptCopy.Some(i) => {
+            Some(i) => {
                 return i.i == 645
             }
-            OptCopy.None() => {
+            None() => {
                 return false;
             }
         }

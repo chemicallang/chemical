@@ -244,17 +244,17 @@ void InitBlock::declare_and_link(SymbolResolver &linker) {
             linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
             continue;
         }
-        const auto chain_size = chain->values.size();
-        if(chain_size < 2) {
-            linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
-            continue;
-        }
+//        const auto chain_size = chain->values.size();
+//        if(chain_size < 2) {
+//            linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
+//            continue;
+//        }
         // linking chain till chain_size - 1, last function call is not included
         // last function call is not linked because it may not be valid and calling struct member
         if(!chain->link(linker, nullptr, nullptr, 1, false, false)) {
             continue;
         }
-        auto call_parent = chain->values[chain_size - 2]; // second last value
+        auto call_parent = call->parent_val; // second last value
         auto linked = call_parent->linked_node();
         if(!linked) {
             linker.error("unknown initializer call", (ASTNode*) chain);
@@ -273,7 +273,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker) {
             continue;
         } else if(linked_kind == ASTNodeKind::FunctionDecl) {
             // linking the last function call, since function call is valid
-            if(!call_ptr->link(linker, chain->values, chain_size - 1, nullptr)) {
+            if(!call_ptr->link(linker, chain->values, 0, nullptr)) {
                 continue;
             }
             auto linked_func = linked->as_function();

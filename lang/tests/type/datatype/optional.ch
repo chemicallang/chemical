@@ -7,16 +7,16 @@ func get_optional_int(some : bool) : Option<int> {
     if(some) {
         return Option.Some(32)
     } else {
-        return Option.None
+        return Option.None()
     }
 }
 
 func get_opt_value(o : Option<int>) : int {
     switch(o) {
-        Option.Some(value) => {
+        Some(value) => {
             return value;
         }
-        Option.None => {
+        None => {
             return -1
         }
     }

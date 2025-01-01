@@ -481,6 +481,13 @@ public:
     bool reference();
 
     /**
+     * return true if this value is a reference
+     */
+    static inline bool isReference(ValueKind kind) {
+        return kind == ValueKind::AccessChain || kind == ValueKind::Identifier;
+    }
+
+    /**
      * This method is overridden by primitive values like int, float... to return true
      * This method returns whether it's a literal
      * @return true when the value is primitive
@@ -530,14 +537,6 @@ public:
      */
     virtual Value* evaluated_value(InterpretScope& scope) {
         return this;
-    }
-
-    /**
-     * evaluate the children of this value, if this is called on a function call
-     * the arguments of the function call will be
-     */
-    virtual void evaluate_children(InterpretScope& scope) {
-
     }
 
     /**

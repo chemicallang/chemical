@@ -420,10 +420,6 @@ std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* ty
             const auto def = linked->linked_struct_def();
             if(def) {
                 return { interface, def };
-            } else {
-#ifdef DEBUG
-                throw std::runtime_error("linked node not StructDefinition");
-#endif
             }
         }
     }
@@ -556,11 +552,11 @@ void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node)
 
 void func_container_name(ToCAstVisitor& visitor, ASTNode* parent_node, ASTNode* linked_node);
 
-void func_name_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end);
+//void func_name_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end);
 
-void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
-    access_chain(visitor, values, start, end, values.size());
-}
+//void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
+//    access_chain(visitor, values, start, end, values.size());
+//}
 
 #define variant_type_variant_name "__chx__vt_621827"
 
@@ -643,6 +639,30 @@ void write_self_arg(ToCAstVisitor& visitor, FunctionType* func_type, std::vector
         }
     }
 }
+
+void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* call, bool force_no_pointer) {
+    if(!grandpa->is_pointer() && !force_no_pointer) {
+        visitor.write('&');
+    }
+    grandpa->accept(&visitor);
+}
+
+bool write_self_arg_bool(ToCAstVisitor& visitor, FunctionType* func_type, ChainValue* grandpa, FunctionCall* call, bool force_no_pointer) {
+    if(func_type->has_self_param()) {
+        write_self_arg(visitor, grandpa, call, force_no_pointer);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+//void write_self_arg(ToCAstVisitor& visitor, FunctionType* func_type, ChainValue* grandpa, FunctionCall* call) {
+//    if(write_self_arg_bool(visitor, func_type, grandpa, call, false)) {
+//        if (!call->values.empty()) {
+//            visitor.write(',');
+//        }
+//    }
+//}
 
 Value* evaluate_comptime_func(
         ToCAstVisitor& visitor,
@@ -757,8 +777,12 @@ void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier,
                 return;
             }
         }
-        if(func_call && func_call->create_type(visitor.allocator)->value_type() == ValueType::Struct) {
-            return;
+        if(func_call) {
+            const auto parent = func_call->parent_val->linked_node();
+            if((!parent || !parent->isVariantMember()) && func_call->create_type(visitor.allocator)->value_type() == ValueType::Struct) {
+                visitor.accept_mutating_value(type, value, true);
+                return;
+            }
 //            auto func_decl = func_call->safe_linked_func();
 //            auto parent_type = func_call->parent_val->create_type();
 //            auto func_type = parent_type->function_type();
@@ -854,11 +878,21 @@ void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, B
             return;
         }
         auto value_chain = value->as_access_chain_unsafe();
-        if(type->value_type() == ValueType::Struct && value_kind == ValueKind::AccessChain && value_chain->values.back()->as_func_call()) {
-            value_assign_default(visitor, identifier, type, value);
-        } else {
-            value_init_default(visitor, identifier, type, value);
+        if(value_kind == ValueKind::AccessChain && type->value_type() == ValueType::Struct) {
+            const auto call = value_chain->values.back()->as_func_call();
+            if(call) {
+                const auto node = call->parent_val->linked_node();
+                if(!node || !node->isVariantMember()) {
+                    value_assign_default(visitor, identifier, type, value);
+                    return;
+                }
+            }
         }
+//        if(type->value_type() == ValueType::Struct && value_kind == ValueKind::AccessChain && value_chain->values.back()->as_func_call()) {
+//            value_assign_default(visitor, identifier, type, value);
+//        } else {
+            value_init_default(visitor, identifier, type, value);
+//        }
     } else {
         value_alloca(visitor, identifier, type, value);
     }
@@ -1053,49 +1087,147 @@ void move_func_call(ToCAstVisitor& visitor, FunctionCall* call) {
 //    }
 //}
 
-void CBeforeStmtVisitor::visit(FunctionCall *call) {
-    auto func_type = call->function_type(visitor.allocator);
-    auto decl = call->safe_linked_func();
-    int16_t prev_iteration;
-    if(decl) {
-        prev_iteration = call->set_curr_itr_on_decl();
-        if(decl->is_comptime()) {
-            auto eval = evaluated_func_val(visitor, decl, call);
-            const auto eval_kind = eval->val_kind();
-            if(eval_kind == ValueKind::AccessChain) {
-                const auto chain = eval->as_access_chain_unsafe();
-                chain->fix_generic_iteration(visitor, visitor.current_func_type->returnType);
-            }
-            auto identifier = visitor.get_local_temp_var_name();
-            if(eval_kind == ValueKind::StructValue) {
-                allocate_struct_by_name(visitor, eval->as_struct_value_unsafe()->linked_extendable(), identifier);
-                visitor.local_allocated[eval] = identifier;
-            }
-            process_init_value(eval, identifier);
-            eval->accept(this);
+void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call);
+
+void func_call_that_returns_struct(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call) {
+    auto last = call;
+    auto func_decl = last->safe_linked_func();
+    auto parent = call->parent_val;
+    auto grandpa = get_grandpa_from(call->parent_val);
+    bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
+    if (visitor.pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
+        // functions that return struct
+        auto allocated = visitor.local_allocated.find(last);
+        if (allocated == visitor.local_allocated.end()) {
+            visitor.write("[NotFoundAllocated in func_call_that_returns_struct]");
             return;
         }
+        if(func_decl) {
+            if(func_decl->parent_node) {
+                const auto container = func_decl->parent_node->as_members_container();
+                if(!container->generic_params.empty()) {
+                    container->set_active_iteration(last->generic_iteration);
+                }
+            }
+            func_container_name(visitor, func_decl);
+        } else {
+            auto prev_nested = visitor.nested_value;
+            visitor.nested_value = true;
+//            const auto name_val = build_parent_chain(call->parent_val, visitor.allocator);
+            call->parent_val->accept(&visitor);
+            visitor.nested_value = prev_nested;
+        }
+        if (grandpa && !is_lambda) {
+            auto grandpaType = grandpa->create_type(visitor.allocator);
+//            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
+//            func_name(visitor, parent, func_decl);
+            visitor.write('(');
+        } else {
+//            if (func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
+//                // struct name for the constructor, getting through return type
+//                auto linked = func_decl->returnType->linked_node();
+//                if (linked && linked->as_struct_def()) {
+//                    visitor->write(linked->as_struct_def()->name);
+//                }
+//            }
+//            access_chain(visitor, values, start, end - 1);
+            visitor.write('(');
+        }
+        visitor.write('&');
+        visitor.write(allocated->second);
+        if (!last->values.empty() || func_type->has_self_param()) {
+            visitor.write(", ");
+        }
+        write_implicit_args(visitor, func_type, call);
+        func_call_args(visitor, last, func_type);
+        visitor.write(')');
+        if(!visitor.nested_value) {
+            visitor.write(';');
+        }
+        visitor.new_line_and_indent();
     }
+}
+
+void CBeforeStmtVisitor::visit(FunctionCall *call) {
+
+    const auto linked = call->parent_val->linked_node();
+    // enum member can't be called, we're using it as a no value
+    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
+    const auto decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
+
+    int16_t prev_iteration = -2;
+
+    // visit the values
     CommonVisitor::visit(call);
-    for(auto& value : call->values) {
-        const auto struct_val = value->as_struct_value();
-        if(struct_val) {
-            allocate_struct_for_struct_value(visitor, struct_val->linked_extendable(), struct_val, visitor.get_local_temp_var_name(), struct_val);
+
+    // handling non variant function
+    if(linked_kind != ASTNodeKind::VariantMember) {
+
+        auto func_type = call->function_type(visitor.allocator);
+        if (decl) {
+            if(call->generic_iteration == -1) {
+                call->fix_generic_iteration(visitor, nullptr);
+            }
+            prev_iteration = call->set_curr_itr_on_decl();
+            if (decl->is_comptime()) {
+                auto eval = evaluated_func_val(visitor, decl, call);
+                const auto eval_kind = eval->val_kind();
+                if (eval_kind == ValueKind::AccessChain) {
+                    const auto chain = eval->as_access_chain_unsafe();
+                    chain->fix_generic_iteration(visitor, visitor.current_func_type->returnType);
+                }
+                auto identifier = visitor.get_local_temp_var_name();
+                if (eval_kind == ValueKind::StructValue) {
+                    allocate_struct_by_name(visitor, eval->as_struct_value_unsafe()->linked_extendable(), identifier);
+                    visitor.local_allocated[eval] = identifier;
+                }
+                process_init_value(eval, identifier);
+                eval->accept(this);
+                goto finish_point;
+            }
         }
-    }
-    if(func_type->returnType->value_type() == ValueType::Struct) {
-        auto linked = func_type->returnType->linked_node();
-        if(linked->as_struct_def()) {
-            allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, func_type, visitor.get_local_temp_var_name());
-        } else if(linked->as_variant_def()) {
-            allocate_struct_for_func_call(visitor, linked->as_variant_def(), call, func_type, visitor.get_local_temp_var_name());
-        } else if(func_type->returnType->pure_type()->kind() == BaseTypeKind::Dynamic && linked->as_interface_def()) {
-            allocate_fat_pointer_for_value(visitor, call, visitor.get_local_temp_var_name(), nullptr);
+
+        // if function returns struct, we allocate that struct here
+        if(func_type->returnType->value_type() == ValueType::Struct) {
+            auto returnLinked = func_type->returnType->linked_node();
+            const auto returnLinkedType = returnLinked->kind();
+            if(returnLinkedType == ASTNodeKind::StructDecl) {
+                allocate_struct_for_func_call(visitor, returnLinked->as_struct_def_unsafe(), call, func_type, visitor.get_local_temp_var_name());
+            } else if(returnLinkedType == ASTNodeKind::VariantDecl) {
+                allocate_struct_for_func_call(visitor, returnLinked->as_variant_def_unsafe(), call, func_type, visitor.get_local_temp_var_name());
+            } else if(returnLinkedType == ASTNodeKind::InterfaceDecl && func_type->returnType->pure_type()->kind() == BaseTypeKind::Dynamic) {
+                allocate_fat_pointer_for_value(visitor, call, visitor.get_local_temp_var_name(), nullptr);
+            }
         }
+
+        // functions that are constructors / return struct
+        // we call these functions beforehand and prepare
+        if(!decl || !decl->is_comptime()) {
+            const auto returnType = func_type->returnType->pure_type();
+            const auto returnTypeKind = returnType->kind();;
+            if (returnTypeKind == BaseTypeKind::Dynamic) {
+                func_call_that_returns_struct(visitor, func_type, call);
+                goto finish_point;
+            } else {
+                const auto return_linked = returnType->get_direct_linked_node(returnTypeKind);
+                if(return_linked) {
+                    const auto returnKind = return_linked->kind();
+                    if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
+                        func_call_that_returns_struct(visitor, func_type, call);
+                        goto finish_point;
+                    }
+                }
+            }
+        }
+
     }
-    if(decl && !decl->generic_params.empty()) {
+
+    // common code for both variant calls and function calls
+finish_point:
+    if(decl && decl->is_generic()) {
         decl->set_active_iteration(prev_iteration);
     }
+
 }
 
 void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, const unsigned end, const unsigned total_size);
@@ -1113,16 +1245,79 @@ void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
     func_decl->runtime_name_no_parent_fast(*visitor.output);
 }
 
-void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<ChainValue*>& values, unsigned end, FunctionCall* call) {
+//void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<ChainValue*>& values, unsigned end, FunctionCall* call) {
+//    bool has_comma_before = true;
+//    for(auto& param : func_type->params) {
+//        if(param->is_implicit) {
+//            if(param->name == "self") {
+//                if(end >= 3) {
+//                    if(!has_comma_before) {
+//                        visitor.write(", ");
+//                    }
+//                    write_self_arg(visitor, values, (((int) end) - 3), call, false);
+//                    has_comma_before = false;
+//                } else if(visitor.current_func_type) {
+//                    auto self_param = visitor.current_func_type->get_self_param();
+//                    if(self_param) {
+//                        if(!has_comma_before) {
+//                            visitor.write(", ");
+//                        }
+//                        visitor.write(param->name);
+//                        has_comma_before = false;
+//                    } else {
+////                        visitor->error("No self param can be passed to a function, because current function doesn't take a self arg");
+//                    }
+//                }
+//            } else if(param->name == "other") {
+//                // skipping it
+//                // TODO check it
+//            } else {
+//                auto found = visitor.implicit_args.find(param->name);
+//                if(found != visitor.implicit_args.end()) {
+//                    if(!has_comma_before) {
+//                        visitor.write(", ");
+//                    }
+//                    auto type = found->second->create_type(visitor.allocator);
+//                    const auto node = type->get_direct_linked_node();
+//                    if(node && ASTNode::isStoredStructType(node->kind())) {
+//                        visitor.write('&');
+//                    }
+//                    found->second->accept(&visitor);
+//                    has_comma_before = false;
+//                } else {
+//                    const auto between = visitor.current_func_type->implicit_param_for(param->name);
+//                    if(between) {
+//                        if(!has_comma_before) {
+//                            visitor.write(", ");
+//                        }
+//                        visitor.write(between->name);
+//                        has_comma_before = false;
+//                    } else {
+//                        visitor.error("couldn't find implicit argument with name '" + param->name + "'", call);
+//                    }
+//                }
+//             }
+//        } else {
+//            break;
+//        }
+//    }
+//    if (!has_comma_before && !call->values.empty()) {
+//        visitor.write(", ");
+//    }
+//};
+
+void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call) {
     bool has_comma_before = true;
-    for(auto& param : func_type->params) {
+    for(const auto param : func_type->params) {
         if(param->is_implicit) {
             if(param->name == "self") {
-                if(end >= 3) {
+                const auto grandpa = get_parent_from(call->parent_val);
+                if(grandpa) {
                     if(!has_comma_before) {
                         visitor.write(", ");
                     }
-                    write_self_arg(visitor, values, (((int) end) - 3), call, false);
+                    const auto till_grandpa = build_parent_chain(call->parent_val, visitor.allocator);
+                    write_self_arg(visitor, till_grandpa, call, false);
                     has_comma_before = false;
                 } else if(visitor.current_func_type) {
                     auto self_param = visitor.current_func_type->get_self_param();
@@ -1164,7 +1359,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::v
                         visitor.error("couldn't find implicit argument with name '" + param->name + "'", call);
                     }
                 }
-             }
+            }
         } else {
             break;
         }
@@ -1173,69 +1368,6 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::v
         visitor.write(", ");
     }
 };
-
-void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* actual_visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
-    auto last = values[end - 1]->as_func_call();
-    auto func_decl = last->safe_linked_func();
-    auto parent = values[end - 2];
-    if (func_decl && func_decl->is_comptime()) {
-        return;
-    }
-    auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3] : nullptr;
-    auto func_type = last->function_type(visitor.allocator);
-    bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
-    if (visitor.pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
-        visitor.debug_comment("function call being taken out that returns struct");
-        // functions that return struct
-        auto allocated = visitor.local_allocated.find(last);
-        if (allocated == visitor.local_allocated.end()) {
-            visitor.write("[NotFoundAllocated in func_call_that_returns_struct]");
-            return;
-        }
-        if(func_decl) {
-            if(func_decl->parent_node) {
-                const auto container = func_decl->parent_node->as_members_container();
-                if(!container->generic_params.empty()) {
-                    container->set_active_iteration(last->generic_iteration);
-                }
-            }
-            func_container_name(visitor, func_decl);
-        } else {
-            auto prev_nested = visitor.nested_value;
-            visitor.nested_value = true;
-            func_name_chain(visitor, values, start, end - 1);
-            visitor.nested_value = prev_nested;
-        }
-        if (grandpa && !is_lambda) {
-            auto grandpaType = grandpa->create_type(visitor.allocator);
-//            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
-//            func_name(visitor, parent, func_decl);
-            visitor.write('(');
-        } else {
-//            if (func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
-//                // struct name for the constructor, getting through return type
-//                auto linked = func_decl->returnType->linked_node();
-//                if (linked && linked->as_struct_def()) {
-//                    visitor->write(linked->as_struct_def()->name);
-//                }
-//            }
-//            access_chain(visitor, values, start, end - 1);
-            visitor.write('(');
-        }
-        visitor.write('&');
-        visitor.write(allocated->second);
-        if (!last->values.empty() || func_type->has_self_param()) {
-            visitor.write(", ");
-        }
-        write_implicit_args(visitor, func_type, values, end, last);
-        func_call_args(visitor, last, func_type);
-        visitor.write(')');
-        if(!visitor.nested_value) {
-            visitor.write(';');
-        }
-        visitor.new_line_and_indent();
-    }
-}
 
 void CBeforeStmtVisitor::visit(VariableIdentifier *identifier) {
     if(identifier->is_moved) {
@@ -1249,29 +1381,70 @@ void CBeforeStmtVisitor::visit(AccessChain *chain) {
 
     move_chain(visitor, chain);
 
-    const auto start = 0;
-    const auto end = chain->values.size();
-    auto& values = chain->values;
-    unsigned i = start;
-    // function call would be processed recursively
-    {
-        int j = end - 1;
-        while(j >= 0) {
-            auto& current = values[j];
-            auto call = current->as_func_call();
-            if(call) {
-                func_call_that_returns_struct(visitor, this, values, start, j + 1);
-            }
-            j--;
-        }
+//    const auto start = 0;
+//    const auto end = chain->values.size();
+//    auto& values = chain->values;
+//    unsigned i = start;
+//    // function call would be processed recursively
+//    {
+//        int j = end - 1;
+//        while(j >= 0) {
+//            auto& current = values[j];
+//            auto call = current->as_func_call();
+//            if(call) {
+//                func_call_that_returns_struct(visitor, this, values, start, j + 1);
+//            }
+//            j--;
+//        }
+//    }
+
+}
+
+void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
+
+    const auto member = call->parent_val->linked_node()->as_variant_member();
+    const auto linked = member->parent_node;
+    const auto index = linked->direct_child_index(member->name);
+
+    int16_t prev_itr;
+    if(!linked->generic_params.empty()) {
+        prev_itr = linked->get_active_iteration();
+        linked->set_active_iteration(call->generic_iteration);
     }
 
+    visitor.write("(struct ");
+    node_parent_name(visitor, linked);
+    struct_name(visitor, linked);
+    visitor.write(") ");
+    visitor.write("{ ");
+    visitor.write(std::to_string(index));
+    visitor.write(", ");
+    unsigned i = 0;
+    auto prev_nested = visitor.nested_value;
+    visitor.nested_value = true;
+    for(auto& value : member->values) {
+        visitor.write('.');
+        visitor.write(member->name);
+        visitor.write('.');
+        visitor.write(value.second->name);
+        visitor.write(" = ");
+        const auto& val = call->values[i];
+        visitor.accept_mutating_value(value.second->type, val, false);
+        visitor.write(", ");
+        i++;
+    }
+    visitor.nested_value = prev_nested;
+    visitor.write('}');
+
+    if(!linked->generic_params.empty()) {
+        linked->set_active_iteration(prev_itr);
+    }
 }
 
 void CBeforeStmtVisitor::visit(VariantCall *call) {
 
     CommonVisitor::visit(call);
-    const auto member = call->chain->linked_node()->as_variant_member();
+    const auto member = call->parent_val->linked_node()->as_variant_member();
     const auto linked = member->parent_node;
     const auto index = linked->direct_child_index(member->name);
 
@@ -1322,6 +1495,8 @@ void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, Funct
     const auto eval_struct_val = eval->as_struct_value();
     if(eval_struct_val) {
         allocate_struct_by_name(visitor, eval_struct_val->linked_extendable(), identifier);
+        // TODO remove this statement once green (identifier is known)
+        // UNLESS comptime can't resolve identifier without it
         visitor.local_allocated[eval] = identifier;
     }
     process_init_value(eval, identifier);
@@ -1329,22 +1504,38 @@ void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, Funct
 
 void CBeforeStmtVisitor::process_init_value(Value* value, const std::string& identifier) {
     if(value && value->value_type() == ValueType::Struct) {
-        auto chain = value->as_access_chain();
-        if(!chain) return;
-        auto call = chain->values[chain->values.size() - 1]->as_func_call();
-        if(call) {
-            auto decl = call->safe_linked_func();
-            auto func_type = call->function_type(visitor.allocator);
-            auto linked = func_type->returnType->linked_node();
-            if(decl && decl->is_comptime()) {
-                process_comp_time_call(decl, call, identifier);
+        FunctionCall* call_ptr;
+        switch(value->val_kind()) {
+            case ValueKind::AccessChain:
+                call_ptr = value->as_access_chain_unsafe()->values.back()->as_func_call();
+                if(!call_ptr) return;
+                break;
+            case ValueKind::FunctionCall:
+                call_ptr = value->as_func_call_unsafe();
+                break;
+            default:
                 return;
-            } else if(linked->as_struct_def()) {
-                allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, func_type, identifier);
-            } else if(linked->as_variant_def()) {
-                allocate_struct_for_func_call(visitor, linked->as_variant_def(), call, func_type, identifier);
-            } else if(func_type->returnType->pure_type()->kind() == BaseTypeKind::Dynamic && linked->as_interface_def()) {
-                allocate_fat_pointer_for_value(visitor, call, identifier, nullptr);
+        }
+        auto& call = *call_ptr;
+        const auto parent = call.parent_val->linked_node();
+        const auto parent_kind = parent->kind();
+        if(ASTNode::isFunctionDecl(parent_kind) && parent->as_function_unsafe()->is_comptime()) {
+            process_comp_time_call(parent->as_function_unsafe(), &call, identifier);
+            return;
+        } else {
+            auto func_type = call.function_type(visitor.allocator);
+            if(func_type) {
+                auto linked = func_type->returnType->linked_node();
+                if(linked) {
+                    const auto linked_kind = linked->kind();
+                    if (linked_kind == ASTNodeKind::StructDecl) {
+                        allocate_struct_for_func_call(visitor, linked->as_struct_def_unsafe(), &call, func_type, identifier);
+                    } else if (linked_kind == ASTNodeKind::VariantDecl) {
+                        allocate_struct_for_func_call(visitor, linked->as_variant_def_unsafe(), &call, func_type, identifier);
+                    } else if (linked_kind == ASTNodeKind::InterfaceDecl && func_type->returnType->pure_type()->kind() == BaseTypeKind::Dynamic) {
+                        allocate_fat_pointer_for_value(visitor, &call, identifier, nullptr);
+                    }
+                }
             }
         }
     }
@@ -1625,7 +1816,7 @@ void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* 
 
 void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call) {
     auto return_type = call->create_type(visitor.allocator);
-    auto linked = return_type->linked_node();
+    const auto linked = return_type->get_direct_linked_node();
     if(linked) queue_destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_extendable_members_container_node());
 }
 
@@ -1760,6 +1951,9 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             }
             return;
         }
+    } else if(init_val_kind == ValueKind::FunctionCall) {
+        queue_destruct(init->identifier(), init, init_value->as_func_call_unsafe());
+        return;
     }
     auto id = init_value->as_identifier_unsafe();
     if(init_val_kind == ValueKind::Identifier && id->is_moved) {
@@ -1778,12 +1972,12 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
         queue_destruct_arr(init->identifier(), init, elem_type, array_val->array_size());
         return;
     }
-    auto variant_call = init_value->as_variant_call_unsafe();
-    if(init_val_kind == ValueKind::VariantCall) {
-        const auto def = variant_call->get_definition();
-        queue_destruct(init->identifier(), init, variant_call->generic_iteration, def);
-        return;
-    }
+//    auto variant_call = init_value->as_variant_call_unsafe();
+//    if(init_val_kind == ValueKind::VariantCall) {
+//        const auto def = variant_call->get_definition();
+//        queue_destruct(init->identifier(), init, variant_call->generic_iteration, def);
+//        return;
+//    }
     auto struct_val = init_value->as_struct_value_unsafe();
     if(init_val_kind == ValueKind::StructValue) {
         queue_destruct(init->identifier(), init, struct_val->generic_iteration, struct_val->linked_struct());
@@ -1941,7 +2135,7 @@ void CValueDeclarationVisitor::visit(ReturnStatement *stmt) {
         if (!(func && func->is_constructor_fn())) {
             const auto implicit = func_type->returnType->implicit_constructor_for(visitor.allocator, val);
             if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
-                stmt->value = call_with_arg(implicit, val, visitor.allocator, visitor.allocator, visitor);
+                stmt->value = call_with_arg(implicit, val, func_type->returnType, visitor.allocator, visitor);
             }
         }
     }
@@ -1955,15 +2149,17 @@ void CValueDeclarationVisitor::visit(FunctionCall *call) {
     // replace all values that call implicit constructor with actual calls
     const auto size = call->values.size();
     auto func_type = call->function_type(visitor.allocator);
-    unsigned i = 0;
-    while (i < size) {
-        auto& value = call->values[i];
-        auto func_param = func_type->func_param_for_arg_at(i);
-        auto constructor = func_param->type->implicit_constructor_for(visitor.allocator, value);
-        if (constructor) {
-            value = call_with_arg(constructor, value, visitor.allocator, visitor.allocator, visitor);
+    if(func_type) {
+        unsigned i = 0;
+        while (i < size) {
+            auto& value = call->values[i];
+            auto func_param = func_type->func_param_for_arg_at(i);
+            auto constructor = func_param->type->implicit_constructor_for(visitor.allocator, value);
+            if (constructor) {
+                value = call_with_arg(constructor, value, func_param->type, visitor.allocator, visitor);
+            }
+            i++;
         }
-        i++;
     }
     CommonVisitor::visit(call);
 }
@@ -1974,7 +2170,7 @@ void CValueDeclarationVisitor::visit(VariantCall *call) {
         // replace calls to implicit constructor with actual calls
         auto implicit_constructor = itr->second->type->implicit_constructor_for(visitor.allocator, value_ptr);
         if (implicit_constructor) {
-            value_ptr = call_with_arg(implicit_constructor, value_ptr, visitor.allocator, visitor.allocator, visitor);
+            value_ptr = call_with_arg(implicit_constructor, value_ptr, itr->second->type, visitor.allocator, visitor);
         }
         itr++;
     }
@@ -1990,7 +2186,7 @@ void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
         for (auto& value : arrayVal->values) {
             const auto implicit = def->implicit_constructor_func(visitor.allocator, value);
             if (implicit) {
-                value = call_with_arg(implicit, value, visitor.allocator, visitor.allocator, visitor);
+                value = call_with_arg(implicit, value, elem_type, visitor.allocator, visitor);
             }
         }
     }
@@ -2006,7 +2202,7 @@ void CValueDeclarationVisitor::visit(StructValue *structValue) {
         auto variable = structValue->linked_extendable()->variable_type_index(value.first);
         auto implicit = variable.second->implicit_constructor_for(visitor.allocator, value_ptr);
         if(implicit) {
-            value_ptr = call_with_arg(implicit, value_ptr, visitor.allocator, visitor.allocator, visitor);
+            value_ptr = call_with_arg(implicit, value_ptr, variable.second, visitor.allocator, visitor);
         }
     }
 
@@ -3642,7 +3838,7 @@ void ToCAstVisitor::visit(LoopBlock *loop) {
 }
 
 void ToCAstVisitor::visit(VariantCase *variant_case) {
-    const auto member = variant_case->chain->linked_node()->as_variant_member();
+    const auto member = variant_case->parent_val->linked_node()->as_variant_member();
     write(std::to_string(member->parent_node->direct_child_index(member->name)));
 }
 
@@ -3655,22 +3851,25 @@ void ToCAstVisitor::visit(VariantCall *call) {
     }
 }
 
-template<typename current_call, typename self_arg_fn>
-void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func_call, current_call call, self_arg_fn self_arg) {
+void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func_call) {
     visitor.write('(');
     visitor.write('(');
     visitor.write('(');
     func_type_with_id(visitor, type, "");
     visitor.write(") ");
-    call();
+    // TODO func_call parent value is being accepted twice - 1
+    func_call->parent_val->accept(&visitor);
     visitor.write("->first");
     visitor.write(')');
     visitor.write('(');
     if(type->has_self_param()) {
-        self_arg();
+        visitor.write('&');
+        auto parent_val = get_parent_from(func_call->parent_val);
+        parent_val->accept(&visitor);
         visitor.write(", ");
     }
-    call();
+    // TODO func_call parent value is being accepted twice - 2
+    func_call->parent_val->accept(&visitor);
     visitor.write("->second");
     if(!func_call->values.empty()) {
         visitor.write(',');
@@ -3680,20 +3879,20 @@ void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func
     visitor.write(')');
 }
 
-void func_call(ToCAstVisitor& visitor, FunctionType* type, std::unique_ptr<Value>& current, std::unique_ptr<Value>& next, unsigned int& i) {
-    if(type->isCapturing() && current->as_func_call() == nullptr) {
-        capture_call(visitor, type, next->as_func_call(), [&current, &visitor](){
-            current->accept(&visitor);
-        }, [&current, &visitor] {
-            visitor.write("NO_SELF_REF_FOR_CAP_LAMB");
-        });
-        i++;
-    } else {
-        current->accept(&visitor);
-        func_call(visitor, next->as_func_call(), type);
-        i++;
-    }
-}
+//void func_call(ToCAstVisitor& visitor, FunctionType* type, std::unique_ptr<Value>& current, std::unique_ptr<Value>& next, unsigned int& i) {
+//    if(type->isCapturing() && current->as_func_call() == nullptr) {
+//        capture_call(visitor, type, next->as_func_call(), [&current, &visitor](){
+//            current->accept(&visitor);
+//        }, [&current, &visitor] {
+//            visitor.write("NO_SELF_REF_FOR_CAP_LAMB");
+//        });
+//        i++;
+//    } else {
+//        current->accept(&visitor);
+//        func_call(visitor, next->as_func_call(), type);
+//        i++;
+//    }
+//}
 
 // this automatically determines which parent to pass through
 void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node) {
@@ -3769,170 +3968,170 @@ void func_container_name(ToCAstVisitor& visitor, ASTNode* parent_node, ASTNode* 
     }
 }
 
-class FuncGenericItrResetter {
-public:
-    FunctionDeclaration* decl;
-    int16_t iteration;
-    ~FuncGenericItrResetter() {
-        if(decl) {
-            decl->set_active_iteration(iteration);
-        }
-    }
-};
-
-void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
-    auto last = values[end - 1]->as_func_call();
-    auto func_decl = last->safe_linked_func();
-    auto parent = values[end - 2];
-    if(func_decl && func_decl->is_comptime()) {
-        evaluate_func(visitor, &visitor, func_decl, last);
-        return;
-    }
-    FuncGenericItrResetter resetter{};
-    if(func_decl && !func_decl->generic_params.empty()) {
-        resetter.decl = func_decl;
-        resetter.iteration = func_decl->active_iteration;
-        func_decl->set_active_iteration(last->generic_iteration);
-    }
-    auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3] : nullptr;
-    auto parent_type = parent->create_type(visitor.allocator);
-    auto func_type = parent_type->function_type();
-    bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
-    if(visitor.pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
-        // functions that return struct
-        auto allocated = visitor.local_allocated.find(last);
-        if(allocated == visitor.local_allocated.end()) {
-            visitor.write("[NotFoundAllocated in func_call]");
-            return;
-        }
-        visitor.write(allocated->second);
-    } else if(func_type->isCapturing()) {
-        // function calls to capturing lambdas
-        capture_call(visitor, func_type, last, [&](){
-            auto prev = visitor.nested_value;
-            visitor.nested_value = true;
-            access_chain(visitor, values, start, end - 1);
-            visitor.nested_value = prev;
-        }, [&]() {
-            auto prev = visitor.nested_value;
-            visitor.nested_value = true;
-            if(!values[end - 2]->is_stored_ptr_or_ref(visitor.allocator)) {
-                visitor.write('&');
-            }
-            access_chain(visitor, values, start, end - 2);
-            visitor.nested_value = prev;
-        });
-    } else if(grandpa && !grandpa->linked_node()->as_namespace()) {
-        auto grandpaType = grandpa->create_type(visitor.allocator);
-        auto pure_grandpa = grandpaType->pure_type();
-        if(pure_grandpa && pure_grandpa->kind() == BaseTypeKind::Dynamic) {
-            const auto interface = pure_grandpa->linked_node()->as_interface_def();
-            if(interface && !interface->users.empty()) {
-                // Dynamic dispatch
-                // ((typeof(PhoneSmartPhone)*) phone.second)->call(phone.first);
-                auto first = interface->users.begin();
-                auto first_def = first->first;
-                visitor.write('(');
-                visitor.write('(');
-                visitor.write("typeof");
-                visitor.write('(');
-                vtable_name(visitor, interface, first_def);
-                visitor.write(')');
-                visitor.write('*');
-                visitor.write(')');
-                visitor.space();
-                func_name_chain(visitor, values, start, end - 2);
-                if(end - 2 - start == 1) {
-                    visitor.write('.');
-                }
-                visitor.write("second");
-                visitor.write(')');
-                visitor.write("->");
-                func_name(visitor, parent, func_decl);
-                visitor.write('(');
-                if(write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last, true)) {
-                    visitor.write('.');
-                    visitor.write("first");
-                    if (!last->values.empty()) {
-                        visitor.write(", ");
-                    }
-                }
-                func_call_args(visitor, last, func_type);
-                visitor.write(')');
-            } else {
-                if(!interface) {
-                    visitor.write("[Dynamic Dispatch used with type other than interface]");
-                    visitor.error("Dynamic Dispatch used with a type other than interface", pure_grandpa->linked_node());
-                } else {
-                    visitor.write("[Dynamic Dispatch Interface has no known users]");
-                }
-            }
-        } else if(grandpa->linked_node() && (grandpa->linked_node()->as_interface_def() || grandpa->linked_node()->as_struct_def())) {
-            // direct functions on interfaces and structs
-            func_container_name(visitor, grandpa->linked_node(), parent->linked_node());
-            func_name(visitor, parent, func_decl);
-            visitor.write('(');
-            if(func_decl->has_self_param() && grandpa->as_func_call()) {
-                auto found = visitor.local_allocated.find(grandpa);
-                if(found != visitor.local_allocated.end()) {
-                    visitor.write('&');
-                    visitor.write(found->second);
-                    if(!last->values.empty()) {
-                        visitor.write(", ");
-                    }
-                }
-            }
-            func_call_args(visitor, last, func_type);
-            visitor.write(')');
-        } else if(pure_grandpa->linked_struct_def()) {
-            if(parent->linked_node()->as_struct_member()) {
-                goto normal_functions;
-            }
-            auto generic_struct = grandpaType->get_generic_struct();
-            int16_t prev_iteration;
-            if(generic_struct) {
-                prev_iteration = generic_struct->active_iteration;
-                generic_struct->set_active_iteration(grandpaType->get_generic_iteration());
-            }
-            // functions on struct values
-            func_container_name(visitor, pure_grandpa->linked_node(), parent->linked_node());
-            func_name(visitor, parent, func_decl);
-            visitor.write('(');
-            write_implicit_args(visitor, func_type, values, end, last);
-            func_call_args(visitor, last, func_type);
-            visitor.write(')');
-            if(generic_struct) {
-                generic_struct->set_active_iteration(prev_iteration);
-            }
-        } else {
-            goto normal_functions;
-        }
-    } else {
-        goto normal_functions;
-    }
-    return;
-    normal_functions: {
-        // normal functions
-        auto linked_node = parent->linked_node();
-        auto as_func_decl = linked_node ? linked_node->as_function() : nullptr;
-        if(func_decl) {
-            func_container_name(visitor, func_decl);
-        } else {
-            func_name_chain(visitor, values, start, end - 1);
-        }
-        visitor.write('(');
-        write_implicit_args(visitor, func_type, values, end, last);
-        func_call_args(visitor, last, func_type);
-        visitor.write(')');
-//        if(!visitor->nested_value) {
-//            visitor->write(';');
+//class FuncGenericItrResetter {
+//public:
+//    FunctionDeclaration* decl;
+//    int16_t iteration;
+//    ~FuncGenericItrResetter() {
+//        if(decl) {
+//            decl->set_active_iteration(iteration);
 //        }
-    };
-}
+//    }
+//};
 
-void func_name_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
-    access_chain(visitor, values, start, end, values.size());
-}
+//void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
+//    auto last = values[end - 1]->as_func_call();
+//    auto func_decl = last->safe_linked_func();
+//    auto parent = values[end - 2];
+//    if(func_decl && func_decl->is_comptime()) {
+//        evaluate_func(visitor, &visitor, func_decl, last);
+//        return;
+//    }
+//    FuncGenericItrResetter resetter{};
+//    if(func_decl && !func_decl->generic_params.empty()) {
+//        resetter.decl = func_decl;
+//        resetter.iteration = func_decl->active_iteration;
+//        func_decl->set_active_iteration(last->generic_iteration);
+//    }
+//    auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3] : nullptr;
+//    auto parent_type = parent->create_type(visitor.allocator);
+//    auto func_type = parent_type->function_type();
+//    bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
+//    if(visitor.pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
+//        // functions that return struct
+//        auto allocated = visitor.local_allocated.find(last);
+//        if(allocated == visitor.local_allocated.end()) {
+//            visitor.write("[NotFoundAllocated in func_call]");
+//            return;
+//        }
+//        visitor.write(allocated->second);
+//    } else if(func_type->isCapturing()) {
+//        // function calls to capturing lambdas
+//        capture_call(visitor, func_type, last, [&](){
+//            auto prev = visitor.nested_value;
+//            visitor.nested_value = true;
+//            access_chain(visitor, values, start, end - 1);
+//            visitor.nested_value = prev;
+//        }, [&]() {
+//            auto prev = visitor.nested_value;
+//            visitor.nested_value = true;
+//            if(!values[end - 2]->is_stored_ptr_or_ref(visitor.allocator)) {
+//                visitor.write('&');
+//            }
+//            access_chain(visitor, values, start, end - 2);
+//            visitor.nested_value = prev;
+//        });
+//    } else if(grandpa && !grandpa->linked_node()->as_namespace()) {
+//        auto grandpaType = grandpa->create_type(visitor.allocator);
+//        auto pure_grandpa = grandpaType->pure_type();
+//        if(pure_grandpa && pure_grandpa->kind() == BaseTypeKind::Dynamic) {
+//            const auto interface = pure_grandpa->linked_node()->as_interface_def();
+//            if(interface && !interface->users.empty()) {
+//                // Dynamic dispatch
+//                // ((typeof(PhoneSmartPhone)*) phone.second)->call(phone.first);
+//                auto first = interface->users.begin();
+//                auto first_def = first->first;
+//                visitor.write('(');
+//                visitor.write('(');
+//                visitor.write("typeof");
+//                visitor.write('(');
+//                vtable_name(visitor, interface, first_def);
+//                visitor.write(')');
+//                visitor.write('*');
+//                visitor.write(')');
+//                visitor.space();
+//                func_name_chain(visitor, values, start, end - 2);
+//                if(end - 2 - start == 1) {
+//                    visitor.write('.');
+//                }
+//                visitor.write("second");
+//                visitor.write(')');
+//                visitor.write("->");
+//                func_name(visitor, parent, func_decl);
+//                visitor.write('(');
+//                if(write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last, true)) {
+//                    visitor.write('.');
+//                    visitor.write("first");
+//                    if (!last->values.empty()) {
+//                        visitor.write(", ");
+//                    }
+//                }
+//                func_call_args(visitor, last, func_type);
+//                visitor.write(')');
+//            } else {
+//                if(!interface) {
+//                    visitor.write("[Dynamic Dispatch used with type other than interface]");
+//                    visitor.error("Dynamic Dispatch used with a type other than interface", pure_grandpa->linked_node());
+//                } else {
+//                    visitor.write("[Dynamic Dispatch Interface has no known users]");
+//                }
+//            }
+//        } else if(grandpa->linked_node() && (grandpa->linked_node()->as_interface_def() || grandpa->linked_node()->as_struct_def())) {
+//            // direct functions on interfaces and structs
+//            func_container_name(visitor, grandpa->linked_node(), parent->linked_node());
+//            func_name(visitor, parent, func_decl);
+//            visitor.write('(');
+//            if(func_decl->has_self_param() && grandpa->as_func_call()) {
+//                auto found = visitor.local_allocated.find(grandpa);
+//                if(found != visitor.local_allocated.end()) {
+//                    visitor.write('&');
+//                    visitor.write(found->second);
+//                    if(!last->values.empty()) {
+//                        visitor.write(", ");
+//                    }
+//                }
+//            }
+//            func_call_args(visitor, last, func_type);
+//            visitor.write(')');
+//        } else if(pure_grandpa->linked_struct_def()) {
+//            if(parent->linked_node()->as_struct_member()) {
+//                goto normal_functions;
+//            }
+//            auto generic_struct = grandpaType->get_generic_struct();
+//            int16_t prev_iteration;
+//            if(generic_struct) {
+//                prev_iteration = generic_struct->active_iteration;
+//                generic_struct->set_active_iteration(grandpaType->get_generic_iteration());
+//            }
+//            // functions on struct values
+//            func_container_name(visitor, pure_grandpa->linked_node(), parent->linked_node());
+//            func_name(visitor, parent, func_decl);
+//            visitor.write('(');
+//            write_implicit_args(visitor, func_type, values, end, last);
+//            func_call_args(visitor, last, func_type);
+//            visitor.write(')');
+//            if(generic_struct) {
+//                generic_struct->set_active_iteration(prev_iteration);
+//            }
+//        } else {
+//            goto normal_functions;
+//        }
+//    } else {
+//        goto normal_functions;
+//    }
+//    return;
+//    normal_functions: {
+//        // normal functions
+//        auto linked_node = parent->linked_node();
+//        auto as_func_decl = linked_node ? linked_node->as_function() : nullptr;
+//        if(func_decl) {
+//            func_container_name(visitor, func_decl);
+//        } else {
+//            func_name_chain(visitor, values, start, end - 1);
+//        }
+//        visitor.write('(');
+//        write_implicit_args(visitor, func_type, values, end, last);
+//        func_call_args(visitor, last, func_type);
+//        visitor.write(')');
+////        if(!visitor->nested_value) {
+////            visitor->write(';');
+////        }
+//    };
+//}
+
+//void func_name_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
+//    access_chain(visitor, values, start, end, values.size());
+//}
 
 void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, ExtendableMembersContainerNode* def) {
     int i = 0;
@@ -3960,22 +4159,22 @@ void write_path_to_member(ToCAstVisitor& visitor, ExtendableMembersContainerNode
     }
 }
 
-void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue* value) {
+void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue* value, ChainValue* next) {
     const auto linked = value->linked_node();
-        const auto id = value->as_identifier();
-        if (id) {
-            const auto member = id->linked_node()->as_base_def_member();
-            if (member) {
-                if(previous) {
-                    // user wrote 'self.' before the member access
-                    const auto prev_type = previous->get_pure_type(visitor.allocator);
-                    const auto previous_def = prev_type->linked_struct_def();
-                    if (previous_def) {
-                        write_path_to_member(visitor, previous_def, member);
-                    }
-                } else {
-                    // does not have 'self.', since 'a' is an identifier
-                    // when it is accepted it visits the identifier, which will determine the path to member and write it
+    const auto id = value->as_identifier();
+    if (id) {
+        const auto member = id->linked_node()->as_base_def_member();
+        if (member) {
+            if(previous) {
+                // user wrote 'self.' before the member access
+                const auto prev_type = previous->get_pure_type(visitor.allocator);
+                const auto previous_def = prev_type->linked_struct_def();
+                if (previous_def) {
+                    write_path_to_member(visitor, previous_def, member);
+                }
+            } else {
+                // does not have 'self.', since 'a' is an identifier
+                // when it is accepted it visits the identifier, which will determine the path to member and write it
 //                    auto self_param = visitor.current_func_type->get_self_param();
 //                    if(self_param) {
 //                        visitor.write(self_param->name);
@@ -3988,19 +4187,26 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
 //                            write_path_to_member(visitor, def, member);
 //                        }
 //                    }
-                }
             }
         }
+    }
     if(previous != nullptr && linked && linked->as_variant_case_var()) {
         const auto var = linked->as_variant_case_var();
-        Value* expr = var->variant_case->switch_statement->expression;
-        const auto var_mem = var->variant_case->chain->linked_node()->as_variant_member();
+        Value* expr = var->switch_statement->expression;
+        const auto var_mem = var->parent_val->linked_node()->as_variant_member();
         expr->accept(&visitor);
         write_accessor(visitor, expr, nullptr);
         visitor.write(var_mem->name);
         visitor.write('.');
     }
+    const auto prev_nested = visitor.nested_value;
+    if(next) {
+        visitor.nested_value = true;
+    }
     value->accept(&visitor);
+    if(next) {
+        visitor.nested_value = prev_nested;
+    }
 }
 
 void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, const unsigned end, const unsigned total_size) {
@@ -4014,7 +4220,7 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, 
             next = values[start + 1];
             const auto next_kind = next->val_kind();
             if(next_kind == ValueKind::FunctionCall || next_kind == ValueKind::IndexOperator) {
-                chain_value_accept(visitor, previous, current);
+                chain_value_accept(visitor, previous, current, next);
             } else {
                 if(current->linked_node()->as_enum_decl() != nullptr) {
                     if(visitor.inline_enum_member_access) {
@@ -4035,13 +4241,13 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, 
                         }
                     }
                 } else {
-                    chain_value_accept(visitor, previous, current);
+                    chain_value_accept(visitor, previous, current, next);
                     write_accessor(visitor, current, next);
                 }
             }
         } else {
-            chain_value_accept(visitor, previous, current);
             next = nullptr;
+            chain_value_accept(visitor, previous, current, nullptr);
         }
         start++;
     }
@@ -4052,30 +4258,39 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
     if(diff == 0) {
         return;
     } else if(diff == 1) {
-        chain_value_accept(visitor, nullptr, values[start]);
+        chain_value_accept(visitor, nullptr, values[start], nullptr);
         return;
     }
-    unsigned i = start;
-    // function call would be processed recursively
-    {
-        int j = end - 1;
-        while(j >= 0) {
-            auto& current = values[j];
-            if(current->as_func_call()) {
-                func_call(visitor, values, start, j + 1);
-                if(j + 1 < end) {
-                    write_accessor(visitor, values, j);
-                    i = j + 1;
-                } else {
-                    if(!visitor.nested_value) {
-                        visitor.write(';');
-                    }
-                    return;
-                }
-            }
-            j--;
+    const auto last = values[end - 1];
+    const auto linked = last->linked_node();
+    if(linked) {
+        const auto kind = linked->kind();
+        if(kind == ASTNodeKind::FunctionDecl || kind == ASTNodeKind::ExtensionFunctionDecl) {
+            linked->runtime_name(*visitor.output);
+            return;
         }
     }
+    unsigned i = start;
+//    // function call would be processed recursively
+//    {
+//        int j = end - 1;
+//        while(j >= 0) {
+//            auto& current = values[j];
+//            if(current->as_func_call()) {
+//                func_call(visitor, values, start, j + 1);
+//                if(j + 1 < end) {
+//                    write_accessor(visitor, values, j);
+//                    i = j + 1;
+//                } else {
+//                    if(!visitor.nested_value) {
+//                        visitor.write(';');
+//                    }
+//                    return;
+//                }
+//            }
+//            j--;
+//        }
+//    }
     chain_after_func(visitor, values, i, end, total_size);
 }
 
@@ -4087,7 +4302,128 @@ void ToCAstVisitor::visit(AccessChain *chain) {
             return;
         }
     }
-    access_chain(*this, chain->values, 0, chain->values.size());
+    const auto size = chain->values.size();
+    access_chain(*this, chain->values, 0, size, size);
+}
+
+void ToCAstVisitor::visit(FunctionCall *call) {
+
+    const auto linked = call->parent_val->linked_node();
+    // you can't call an enum member, so we're using it as a no value
+    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
+
+    // handle calls to variant
+    if(linked_kind == ASTNodeKind::VariantMember) {
+        write_variant_call(*this, call);
+        return;
+    }
+
+    const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
+    const auto func_type = call->function_type(allocator);
+
+    // handling comptime functions
+    if(func_decl && func_decl->is_comptime()) {
+        const auto value = evaluated_func_val(*this, func_decl, call);
+        value->accept(this);
+        return;
+    }
+
+    // handling capturing lambdas
+    if(func_type->isCapturing()) {
+        capture_call(*this, func_type, call);
+        return;
+    }
+
+    // handling dynamic dispatch
+    const auto grandpa = get_parent_from(call->parent_val);
+    if(grandpa) {
+        auto grandpaType = grandpa->create_type(allocator);
+        if(grandpaType) {
+            auto pure_grandpa = grandpaType->pure_type();
+            if (pure_grandpa && pure_grandpa->kind() == BaseTypeKind::Dynamic) {
+                const auto interface = pure_grandpa->linked_node()->as_interface_def();
+                if (interface && !interface->users.empty()) {
+                    // Dynamic dispatch
+                    // ((typeof(PhoneSmartPhone)*) phone.second)->call(phone.first);
+                    auto first = interface->users.begin();
+                    auto first_def = first->first;
+                    write('(');
+                    write('(');
+                    write("typeof");
+                    write('(');
+                    vtable_name(*this, interface, first_def);
+                    write(')');
+                    write('*');
+                    write(')');
+                    space();
+                    const auto grandpa_chain = build_parent_chain(call->parent_val, allocator);
+                    grandpa_chain->accept(this);
+                    write('.');
+                    write("second");
+                    write(')');
+                    write("->");
+                    func_name(*this, call->parent_val, func_decl);
+                    write('(');
+                    if (write_self_arg_bool(*this, func_type, grandpa_chain, call, true)) {
+                        write('.');
+                        write("first");
+                        if (!call->values.empty()) {
+                            write(", ");
+                        }
+                    }
+                    func_call_args(*this, call, func_type);
+                    write(')');
+                } else {
+                    if (!interface) {
+                        write("[Dynamic Dispatch used with type other than interface]");
+                        error("Dynamic Dispatch used with a type other than interface",
+                              pure_grandpa->linked_node());
+                    } else {
+                        write("[Dynamic Dispatch Interface has no known users]");
+                    }
+                }
+                return;
+            }
+        }
+    }
+
+    // functions that return struct are resolved in before stmt visitor
+    if(!func_decl || !func_decl->is_comptime()) {
+        const auto returnType = func_type->returnType->pure_type();
+        const auto returnTypeKind = returnType->kind();
+        if (returnTypeKind == BaseTypeKind::Dynamic) {
+            goto load_from_allocated;
+        } else {
+            const auto return_linked = returnType->get_direct_linked_node();
+            if (return_linked) {
+                const auto returnKind = return_linked->kind();
+                if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl ||
+                    returnKind == ASTNodeKind::UnionDecl) {
+                    goto load_from_allocated;
+                }
+            }
+        }
+    }
+
+    // normal functions
+    call->parent_val->accept(this);
+    write('(');
+    write_implicit_args(*this, func_type, call);
+    func_call_args(*this, call, func_type);
+    write(')');
+    return;
+
+load_from_allocated:
+    auto found = local_allocated.find(call);
+    if(found != local_allocated.end()) {
+        write(found->second);
+        if(!nested_value) {
+            write(';');
+        }
+    } else {
+        write("[FunctionAllocationFailure: function that returns struct, hasn't been allocated in the before stmt visitor]");
+    }
+
 }
 
 void ToCAstVisitor::visit(InitBlock *initBlock) {
@@ -4161,13 +4497,60 @@ void ToCAstVisitor::visit(TypealiasStatement *stmt) {
     // declared above
 }
 
+void write_variant_call_id_index(ToCAstVisitor& visitor, VariantDefinition* variant, VariableIdentifier* value) {
+    const auto member = value->linked->as_variant_member();
+    if(member) {
+        *visitor.output << variant->variable_index(member->name, false);
+    } else {
+        visitor.write("-1");
+    }
+}
+
+void write_variant_call_call_index(ToCAstVisitor& visitor, VariantDefinition* variant, FunctionCall* value) {
+    const auto member = value->parent_val->linked_node()->as_variant_member();
+    if(member) {
+        *visitor.output << variant->variable_index(member->name, false);
+    } else {
+        visitor.write("-1");
+    }
+}
+
+void write_variant_call_index(ToCAstVisitor& visitor, VariantDefinition* variant, Value* value) {
+    switch(value->val_kind()) {
+        case ValueKind::Identifier:
+            write_variant_call_id_index(visitor, variant, value->as_identifier_unsafe());
+            return;
+        case ValueKind::FunctionCall:
+            write_variant_call_call_index(visitor, variant, value->as_func_call_unsafe());
+            return;
+        case ValueKind::AccessChain: {
+            const auto chain = value->as_access_chain_unsafe();
+            if(chain) {
+                write_variant_call_index(visitor, variant, chain->values.back());
+            } else {
+                visitor.write("-1");
+            }
+            return;
+        }
+        default:
+            visitor.write("-1");
+            return;
+    }
+}
+
 void ToCAstVisitor::visit(SwitchStatement *statement) {
     write("switch(");
+    VariantDefinition* variant = nullptr;
     const auto known_t = statement->expression->known_type();
     if(known_t) {
         const auto linked = known_t->linked_node();
         if(linked) {
-            const auto variant = linked->as_variant_def();
+            const auto linked_kind = linked->kind();
+            if(linked_kind == ASTNodeKind::VariantDecl) {
+                variant = linked->as_variant_def_unsafe();
+            } else if(linked_kind == ASTNodeKind::VariantMember) {
+                variant = linked->as_variant_member_unsafe()->parent_node;
+            }
             if (variant) {
                 statement->expression->accept(this);
                 write_accessor(*this, statement->expression, nullptr);
@@ -4198,7 +4581,13 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
                     new_line_and_indent();
                 }
                 write("case ");
-                switch_case.first->accept(this);
+
+                if(variant) {
+                    write_variant_call_index(*this, variant, switch_case.first);
+                } else {
+                    switch_case.first->accept(this);
+                }
+
                 write(':');
                 has_line_before = false;
             }
@@ -4419,7 +4808,10 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
     }
     const auto linked = identifier->linked_node();
     const auto linked_kind = linked->kind();
-    if(linked_kind == ASTNodeKind::VarInitStmt) {
+    if(linked_kind == ASTNodeKind::FunctionDecl) {
+        linked->as_function_unsafe()->runtime_name(*output);
+        return;
+    } else if(linked_kind == ASTNodeKind::VarInitStmt) {
         const auto init = linked->as_var_init_unsafe();
         if(init->is_comptime()) {
             init->value->accept(this);
@@ -4454,8 +4846,8 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
         }
     } else if(linked_kind == ASTNodeKind::VariantCaseVariable) {
         const auto var = linked->as_variant_case_var_unsafe();
-        Value* expr = var->variant_case->switch_statement->expression;
-        const auto var_mem = var->variant_case->chain->linked_node()->as_variant_member();
+        Value* expr = var->switch_statement->expression;
+        const auto var_mem = var->parent_val->linked_node()->as_variant_member();
         expr->accept(this);
         write_accessor(*this, expr, identifier);
         write(var_mem->name);
@@ -4551,11 +4943,8 @@ void ToCAstVisitor::visit(DereferenceValue *casted) {
     casted->value->accept(this);
 }
 
-void ToCAstVisitor::visit(FunctionCall *call) {
-    write("[ERROR:FunctionCall is part of access chain and it must be generated there]");
-}
-
 void ToCAstVisitor::visit(IndexOperator *op) {
+    op->parent_val->accept(this);
     unsigned i = 0;
     while(i < op->values.size()) {
         write('[');
@@ -4752,6 +5141,10 @@ void ToCAstVisitor::visit(LinkedType *type) {
             return;
         case ASTNodeKind::EnumDecl:
             write("int");
+            return;
+        case ASTNodeKind::VariantMember:
+            write("struct ");
+            linked.as_variant_member_unsafe()->parent_node->runtime_name(*output);
             return;
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:

@@ -2,6 +2,7 @@
 
 #include "ASTUtils.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/IndexOperator.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/StructDefinition.h"
@@ -10,14 +11,102 @@
 #include "GenericUtils.h"
 #include "compiler/SymbolResolver.h"
 
-bool chain_contains_func_call(std::vector<ChainValue*>& values, int start, int end) {
-    while(start < end) {
-        if(values[start]->as_func_call()) {
+bool has_function_call_before(ChainValue* value) {
+    switch(value->val_kind()) {
+        case ValueKind::Identifier:
+            return false;
+        case ValueKind::FunctionCall:
             return true;
-        }
-        start++;
+        case ValueKind::IndexOperator:
+            return has_function_call_before(value->as_index_op_unsafe()->parent_val);
+        case ValueKind::AccessChain:
+            for(const auto child : value->as_access_chain_unsafe()->values) {
+                if(has_function_call_before(child)) {
+                    return true;
+                }
+            }
+            return false;
+        default:
+            return false;
     }
-    return false;
+}
+
+ChainValue* get_parent_from(ChainValue* value) {
+    switch(value->val_kind()) {
+        case ValueKind::Identifier:
+            return nullptr;
+        case ValueKind::AccessChain:{
+            const auto chain = value->as_access_chain_unsafe();
+            if(chain->values.size() > 1) {
+                return chain->values[chain->values.size() - 2];
+            } else {
+                return nullptr;
+            }
+        }
+        case ValueKind::FunctionCall:
+            return value->as_func_call_unsafe()->parent_val;
+        case ValueKind::IndexOperator:
+            return value->as_index_op_unsafe()->parent_val;
+        default:
+            return nullptr;
+    }
+}
+
+ChainValue* get_grandpa_from(ChainValue* value) {
+    switch(value->val_kind()) {
+        case ValueKind::Identifier:
+            return nullptr;
+        case ValueKind::AccessChain:{
+            const auto chain = value->as_access_chain_unsafe();
+            if(chain->values.size() > 2) {
+                return chain->values[chain->values.size() - 3];
+            } else {
+                return nullptr;
+            }
+        }
+        case ValueKind::FunctionCall:
+            return get_parent_from(value->as_func_call_unsafe()->parent_val);
+        case ValueKind::IndexOperator:
+            return get_parent_from(value->as_index_op_unsafe()->parent_val);
+        default:
+            return nullptr;
+    }
+}
+
+ChainValue* build_parent_chain(std::vector<ChainValue*>& values, ASTAllocator& allocator) {
+    if(values.size() > 1) {
+        if(values.size() == 2) {
+            return values.front();
+        } else {
+            const auto first = values.front();
+            const auto parent = new (allocator.allocate<AccessChain>()) AccessChain({}, false, first->encoded_location());
+            unsigned i = 0;
+            while(i < values.size() - 1) {
+                parent->values.emplace_back(values[i]);
+                i++;
+            }
+            return parent;
+        }
+    } else {
+        return nullptr;
+    }
+}
+
+ChainValue* build_parent_chain(ChainValue* value, ASTAllocator& allocator) {
+    switch(value->val_kind()) {
+        case ValueKind::Identifier:
+            return nullptr;
+        case ValueKind::FunctionCall:
+            return value->as_func_call_unsafe()->parent_val;
+        case ValueKind::IndexOperator:
+            return value->as_index_op_unsafe()->parent_val;
+        case ValueKind::AccessChain:{
+            const auto chain = value->as_access_chain_unsafe();
+            return build_parent_chain(chain->values, allocator);
+        }
+        default:
+            return nullptr;
+    }
 }
 
 void evaluate_values(std::vector<Value*>& values, InterpretScope& scope) {
@@ -28,21 +117,17 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope) {
     }
 }
 
-Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser) {
+FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* expected_type, ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     const auto location = arg->encoded_location();
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, location);
     auto& id_view = decl->identifier.identifier;
     auto str = allocator.allocate_str(id_view.data(), id_view.size());
     auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(str, id_view.size()), location);
     id->linked = decl;
-    chain->values.emplace_back(id);
-    auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(std::vector<Value*> {}, location);
+    auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(id, std::vector<Value*> {}, location);
     imp_call->parent_val = id;
     imp_call->values.emplace_back(arg);
-    chain->values.emplace_back(imp_call);
-    // TODO get expected_type as parameter
-    imp_call->fix_generic_iteration(diagnoser, nullptr);
-    return chain;
+    imp_call->fix_generic_iteration(diagnoser, expected_type);
+    return imp_call;
 }
 
 void infer_generic_args(
@@ -82,10 +167,9 @@ void infer_generic_args(
 void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value) {
     VariableIdentifier id(decl->name_view(), ZERO_LOC);
     id.linked = decl;
-    FunctionCall imp_call(std::vector<Value*>{}, ZERO_LOC);
-    imp_call.parent_val = &id;
+    FunctionCall imp_call(&id, std::vector<Value*>{}, ZERO_LOC);
     imp_call.values.emplace_back(value);
-    imp_call.find_link_in_parent(&id, nullptr, &id, resolver, nullptr, false);
+    imp_call.find_link_in_parent(resolver, nullptr, false);
     const auto replaced = imp_call.values[0];
 #ifdef DEBUG
     if(replaced != value) {
@@ -167,12 +251,35 @@ void infer_types_by_args(
 ) {
     const auto param_type_kind = param_type->kind();
     if(param_type_kind == BaseTypeKind::Linked) {
-        // directly linked generic param like func <T> add(param : T)
-        const auto linked = param_type->linked_node();
-        const auto gen_param = linked->as_generic_type_param();
-        if(gen_param && gen_param->parent_node == params_node && gen_param->param_index >= generic_list_size && !gen_param->def_type) {
-            // get the function argument for this arg_offset
-            inferred[gen_param->param_index] = arg_type;
+         const auto linked = param_type->linked_node();
+        const auto linked_kind = linked->kind();
+        if(linked_kind == ASTNodeKind::GenericTypeParam) {
+            // directly linked generic param like func <T> add(param : T) or func add() : T
+            // so we have param type T which is linked with a generic type parameter and arg type the inferred type
+            const auto gen_param = linked->as_generic_type_param_unsafe();
+            if(gen_param->parent_node == params_node && gen_param->param_index >= generic_list_size) {
+                // get the function argument for this arg_offset
+                inferred[gen_param->param_index] = arg_type;
+            }
+        } else if(linked_kind == ASTNodeKind::StructDecl) {
+            // the arg type is a generic type like in a function return func copy() : MyVector<int> { return { 2 } }
+            // however the param type is MyVector<T> and we must infer the types using the arg type
+            const auto container = linked->as_members_container_unsafe();
+            if(arg_type->kind() == BaseTypeKind::Generic) {
+                const auto gen_type = (GenericType*) arg_type;
+                unsigned i = 0;
+                const auto size = gen_type->types.size();
+                while(i < size) {
+                    const auto child_arg_type = gen_type->types[i];
+                    if(i < container->generic_params.size()) {
+                        const auto child_gen_param = container->generic_params[i];
+                        inferred[child_gen_param->param_index] = child_arg_type;
+                    } else {
+                        diagnoser.error("type has been given for a unknown generic type parameter", child_arg_type);
+                    }
+                    i++;
+                }
+            }
         }
     } else if(param_type_kind == BaseTypeKind::Generic) {
         // not directly linked generic param like func <T> add(param : Thing<T>)

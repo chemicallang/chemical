@@ -3,6 +3,10 @@
 #include "SwitchStatement.h"
 #include "ast/base/Value.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/VariantCaseVariable.h"
+#include "ast/structures/VariantMember.h"
+#include "ast/values/VariableIdentifier.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/values/VariantCase.h"
 #include "ast/structures/VariantDefinition.h"
@@ -39,12 +43,51 @@ llvm::Value * SwitchStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsP
     return nullptr;
 }
 
+llvm::ConstantInt* write_variant_call_id_index(Codegen& gen, VariantDefinition* variant, VariableIdentifier* value) {
+    const auto member = value->linked->as_variant_member();
+    if(member) {
+        return gen.builder->getInt32(variant->variable_index(member->name, false));
+    } else {
+        return gen.builder->getInt32(-1);
+    }
+}
+
+llvm::ConstantInt* write_variant_call_call_index(Codegen& gen, VariantDefinition* variant, FunctionCall* value) {
+    const auto member = value->parent_val->linked_node()->as_variant_member();
+    if(member) {
+        return gen.builder->getInt32(variant->variable_index(member->name, false));
+    } else {
+        return gen.builder->getInt32(-1);
+    }
+}
+
+llvm::ConstantInt* write_variant_call_index(Codegen& gen, VariantDefinition* variant, Value* value) {
+    switch(value->val_kind()) {
+        case ValueKind::Identifier:
+            return write_variant_call_id_index(gen, variant, value->as_identifier_unsafe());
+        case ValueKind::FunctionCall:
+            return write_variant_call_call_index(gen, variant, value->as_func_call_unsafe());
+        case ValueKind::AccessChain: {
+            const auto chain = value->as_access_chain_unsafe();
+            if(chain) {
+                return write_variant_call_index(gen, variant, chain->values.back());
+            } else {
+                return gen.builder->getInt32(-1);
+            }
+        }
+        default:
+            return gen.builder->getInt32(-1);
+    }
+}
+
 void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
 
     auto total_scopes = scopes.size();
 
     // the end block
     llvm::BasicBlock* end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
+
+    VariantDefinition* variant_def = nullptr;
 
     // this boolean can be set to true, to set to last case as default
     // this should be only set when it's guaranteed that default scope is not needed
@@ -56,7 +99,12 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
     if(expr_type) {
         const auto linked = expr_type->linked_node();
         if(linked) {
-            auto variant_def = linked->as_variant_def();
+            const auto linked_kind = linked->kind();
+            if(linked_kind == ASTNodeKind::VariantDecl) {
+                variant_def = linked->as_variant_def_unsafe();
+            } else if(linked_kind == ASTNodeKind::VariantMember) {
+                variant_def = linked->as_variant_member_unsafe()->parent_node;
+            }
             if (variant_def) {
                 if (scopes.size() == variant_def->variables.size() && !has_default_case()) {
                     // TODO only do this when switch is a value
@@ -66,7 +114,6 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
                 std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
                 const auto gep = gen.builder->CreateGEP(def_type, expr_value, idxList, "",gen.inbounds);
                 expr_value = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
-
             }
         }
     }
@@ -90,10 +137,14 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
         }
         gen.CreateBr(end);
 
-        // TODO check value is constant (check in analysis phase)
         for(auto& switch_case : cases) {
             if(switch_case.second == scope_ind) {
-                switchInst->addCase((llvm::ConstantInt*) switch_case.first->llvm_value(gen), caseBlock);
+                if(variant_def) {
+                    switchInst->addCase(write_variant_call_index(gen, variant_def, switch_case.first), caseBlock);
+                } else {
+                    // TODO check value is constant (check in resolution phase)
+                    switchInst->addCase((llvm::ConstantInt*) switch_case.first->llvm_value(gen), caseBlock);
+                }
             }
         }
 
@@ -163,16 +214,47 @@ ASTNode *SwitchStatement::linked_node() {
     return known ? known->linked_node() : nullptr;
 }
 
+void link_variant_mem(SymbolResolver& resolver, VariantDefinition* var_def, VariableIdentifier* id) {
+    id->linked = var_def->child(id->value.str());
+    if(!id->linked) {
+        resolver.error("couldn't find the variant member with name '" + id->value.str() + "'", id);
+    }
+}
+
+void link_variant_call(SymbolResolver& resolver, VariantDefinition* var_def, FunctionCall* call, SwitchStatement* stmt) {
+    auto& astAlloc = *resolver.ast_allocator;
+    const auto first_id = call->parent_val->as_identifier();
+    if(first_id) {
+        link_variant_mem(resolver, var_def, first_id);
+        for(const auto value : call->values) {
+            const auto id = value->as_identifier();
+            if(id) {
+                const auto variable = new (astAlloc.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value.str(), first_id, stmt, 0);
+                variable->declare_and_link(resolver);
+            } else {
+                resolver.error("expected value to be a identifier", value);
+            }
+        }
+    } else {
+        resolver.error("expected first value in the function call to be identifier", call->parent_val);
+    }
+}
+
 bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     VariantDefinition* variant_def = nullptr;
-    auto& astAlloc = *linker.ast_allocator;
     bool result = true;
     if(expression->link(linker, expression)) {
         const auto expr_type = expression->known_type();
         if(expr_type) {
-        const auto linked = expr_type->linked_node();
+            const auto linked = expr_type->linked_node();
             if(linked) {
-                variant_def = linked->as_variant_def();
+                const auto kind = linked->kind();
+                if(kind == ASTNodeKind::VariantMember) {
+                    const auto member = linked->as_variant_member_unsafe();
+                    variant_def = member->parent_node;
+                } else if(kind == ASTNodeKind::VariantDecl) {
+                    variant_def = linked->as_variant_def_unsafe();
+                }
                 if (value_ptr && variant_def && (scopes.size() < variant_def->variables.size() && !has_default_case())) {
                     linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
                     return false;
@@ -182,15 +264,6 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
     } else {
         result = false;
     }
-    if(variant_def) {
-        for (auto& switch_case: cases) {
-            // replace variant case access chains in switch cases
-            const auto chain = switch_case.first->as_access_chain();
-            if (chain) {
-                switch_case.first = new (astAlloc.allocate<VariantCase>()) VariantCase(chain, linker, this, chain->location);
-            }
-        }
-    }
     unsigned i = 0;
     const auto scopes_size = scopes.size();
     while(i < scopes_size) {
@@ -198,8 +271,40 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
         linker.scope_start();
         for(auto& switch_case : cases) {
             if(switch_case.second == i && switch_case.first) {
-                // link the switch case value
-                switch_case.first->link(linker, switch_case.first);
+                if(variant_def) {
+                    // it's a variant definition, declare the identifier list
+                    // link with the case
+                    const auto case_kind = switch_case.first->val_kind();
+                    switch(case_kind) {
+                        case ValueKind::Identifier:
+                            link_variant_mem(linker, variant_def, switch_case.first->as_identifier_unsafe());
+                            continue;
+                        case ValueKind::FunctionCall:
+                            link_variant_call(linker, variant_def, switch_case.first->as_func_call_unsafe(), this);
+                            continue;
+                        case ValueKind::AccessChain:{
+                            const auto chain = switch_case.first->as_access_chain_unsafe();
+                            if(chain && chain->values.size() == 1) {
+                                const auto kind = chain->values.back()->val_kind();
+                                if(kind == ValueKind::FunctionCall) {
+                                    link_variant_call(linker, variant_def, chain->values.back()->as_func_call_unsafe(), this);
+                                } else if(kind == ValueKind::Identifier) {
+                                    link_variant_mem(linker, variant_def, chain->values.back()->as_identifier_unsafe());
+                                } else {
+                                    linker.error("unknown value in switch when resolving variant cases", switch_case.first);
+                                }
+                            } else {
+                                linker.error("unknown value in switch when resolving variant cases", switch_case.first);
+                            }
+                            continue;
+                        }
+                        default:
+                            linker.error("unknown value in switch when resolving variant cases", switch_case.first);
+                    }
+                } else {
+                    // link the switch case value
+                    switch_case.first->link(linker, switch_case.first);
+                }
             }
         }
         scope.link_sequentially(linker);

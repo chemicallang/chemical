@@ -122,8 +122,18 @@ llvm::Value* Value::load_value(Codegen& gen, BaseType* known_t, llvm::Type* type
 }
 
 llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<ChainValue*>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
-    if(until == 0) return values[0]->llvm_value(gen, expected_type);
-    return Value::load_value(gen, values[until], access_chain_pointer(gen, values, destructibles, until));
+    if(until == 0) {
+        return values[0]->llvm_value(gen, expected_type);
+    };
+    const auto last = values[until];
+    const auto kind = last->val_kind();
+    if(kind == ValueKind::Identifier) {
+        const auto id = last->as_identifier_unsafe();
+        if(id->linked->kind() == ASTNodeKind::EnumMember) {
+            return id->linked->llvm_load(gen);
+        }
+    }
+    return Value::load_value(gen, last, access_chain_pointer(gen, values, destructibles, until));
 }
 
 /**
@@ -212,20 +222,6 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
         throw std::runtime_error("index can't be zero, because it takes a parent pointer, parent exists at location zero");
     }
 #endif
-
-    // evaluate the last function in the access chain
-    int j = (int) until;
-    while(j >= 0) {
-        const auto func_call = values[j]->as_func_call();
-        if(func_call) {
-            auto func_ret = func_call->access_chain_value(gen, values, j, destructibles, nullptr);
-            if(j + 1 <= until) {
-                destructibles.emplace_back(func_call, func_ret);
-            }
-            return { j, func_ret };
-        }
-        j--;
-    }
 
     unsigned parent_index = 0;
     Value* parent = values[0];
@@ -322,10 +318,14 @@ llvm::Value* ChainValue::access_chain_value(
         throw std::runtime_error("index can't be zero, because it takes a parent pointer, parent exists at location zero");
     }
 #endif
-    const auto func_call = values[until]->as_func_call();
-    if(func_call) {
+
+    const auto last = values[until];
+    const auto kind = last->val_kind();
+    if(kind == ValueKind::FunctionCall) {
+        const auto func_call = last->as_func_call_unsafe();
         return func_call->access_chain_value(gen, values, until, destructibles, expected_type);
     }
+
     std::vector<llvm::Value*> idxList;
     auto parent_pointer = ChainValue::access_chain_parent_pointer(gen, values, destructibles, until, idxList);
     parent_pointer_ref = parent_pointer.second;
@@ -851,28 +851,82 @@ void Value::set_identifier_value(InterpretScope& scope, Value* rawValue, Operati
     scope.error("set_identifier_value called on base value", rawValue);
 }
 
-int16_t ChainValue::set_generic_iteration(ASTAllocator& allocator) {
-//    const auto linked = linked_node();
-//    if(linked) {
-//        const auto case_var = linked->as_variant_case_var();
-//        if (case_var) {
-//            const auto known_t = case_var->variant_case->switch_statement->expression->known_type();
-//            if (known_t) {
-//                const auto prev_itr = known_t->set_generic_iteration(known_t->get_generic_iteration());
-//                if (prev_itr > -2) {
-//                    return prev_itr;
-//                }
-//            }
-//        }
-//    }
-    const auto type = create_type(allocator);
+void put_generic_iteration_of(ChainValue* value, std::vector<int16_t>& active_iterations, ASTAllocator& allocator) {
+    const auto type = value->create_type(allocator);
     if (type) {
         const auto prev_itr = type->set_generic_iteration(type->get_generic_iteration());
-        if(prev_itr > -2) {
-            return prev_itr;
+        active_iterations.emplace_back(prev_itr);
+    } else {
+        // indicating no iteration was set, so none should be restored
+        active_iterations.emplace_back(-2);
+    }
+}
+
+void ChainValue::set_generic_iteration(std::vector<int16_t>& active_iterations, ASTAllocator& allocator) {
+    switch(val_kind()) {
+        case ValueKind::Identifier:
+            put_generic_iteration_of(this, active_iterations, allocator);
+            break;
+        case ValueKind::FunctionCall:
+            as_func_call_unsafe()->parent_val->set_generic_iteration(active_iterations, allocator);
+            put_generic_iteration_of(this, active_iterations, allocator);
+            break;
+        case ValueKind::IndexOperator:
+            as_index_op_unsafe()->parent_val->set_generic_iteration(active_iterations, allocator);
+            put_generic_iteration_of(this, active_iterations, allocator);
+            break;
+        case ValueKind::AccessChain:
+            for(const auto child : as_access_chain_unsafe()->values) {
+                child->set_generic_iteration(active_iterations, allocator);
+            }
+            break;
+        default:
+#ifdef DEBUG
+            throw std::runtime_error("unknown value in set_generic_iteration");
+#else
+            break;
+#endif
+    }
+
+}
+
+void restore_generic_iteration_of(ChainValue* value, std::vector<int16_t>& active_iterations, ASTAllocator& allocator) {
+    const auto prev_itr = active_iterations.back();
+    if(prev_itr > -2) {
+        const auto type = value->create_type(allocator);
+        if(type) {
+            type->set_generic_iteration(prev_itr);
         }
     }
-    return -2;
+    active_iterations.pop_back();
+}
+
+void ChainValue::restore_generic_iteration(std::vector<int16_t>& active_iterations, ASTAllocator& allocator) {
+    switch(val_kind()) {
+        case ValueKind::Identifier:
+            restore_generic_iteration_of(this, active_iterations, allocator);
+            break;
+        case ValueKind::FunctionCall:
+            as_func_call_unsafe()->parent_val->restore_generic_iteration(active_iterations, allocator);
+            restore_generic_iteration_of(this, active_iterations, allocator);
+            break;
+        case ValueKind::IndexOperator:
+            as_index_op_unsafe()->parent_val->restore_generic_iteration(active_iterations, allocator);
+            restore_generic_iteration_of(this, active_iterations, allocator);
+            break;
+        case ValueKind::AccessChain:
+            for(const auto child : as_access_chain_unsafe()->values) {
+                child->restore_generic_iteration(active_iterations, allocator);
+            }
+            break;
+        default:
+#ifdef DEBUG
+            throw std::runtime_error("unknown value in set_generic_iteration");
+#else
+            break;
+#endif
+    }
+
 }
 
 bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kind) {

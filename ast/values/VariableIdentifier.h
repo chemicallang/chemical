@@ -85,10 +85,6 @@ public:
         return link(linker, false);
     }
 
-//    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) final {
-//        link(linker, false);
-//    }
-
     void relink_parent(ChainValue *parent) final;
 
     ASTNode *linked_node() final;
@@ -121,27 +117,19 @@ public:
 
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) final;
 
-    llvm::Value *access_chain_value(Codegen &gen, std::vector<ChainValue*> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) final;
-
 #endif
 
     VarInitStatement *declaration() final;
 
     Value* evaluated_value(InterpretScope &scope) final;
 
-//    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) final;
-
     Value *evaluated_chain_value(InterpretScope &scope, Value *parent) final;
-//    hybrid_ptr<Value> evaluated_chain_value(InterpretScope &scope, Value* parent) final;
 
     VariableIdentifier *copy(ASTAllocator& allocator) final;
 
     Value *scope_value(InterpretScope &scope) final;
 
     BaseType* create_type(ASTAllocator &allocator) final;
-//    std::unique_ptr<BaseType> create_type() final;
-
-//    hybrid_ptr<BaseType> get_base_type() final;
 
     [[nodiscard]]
     BaseTypeKind type_kind() const final;

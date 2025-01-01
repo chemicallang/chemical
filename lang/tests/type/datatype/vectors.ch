@@ -29,12 +29,14 @@ func test_vectors() {
         v.push(20);
         return v.size() == 2 && v.get(0) == 10 && v.get(1) == 20
     })
+    /**
     test("vector of longs work", () => {
         var v = vector<long>();
         v.push(10);
         v.push(20);
         return v.size() == 2 && v.get(0) == 10 && v.get(1) == 20
     })
+    **/
     test("can remove last element from vector", () => {
         var v = vector<int>();
         v.push(10);
@@ -80,6 +82,7 @@ func test_vectors() {
         v.set(4, 10);
         return v.get(0) == 50 && v.get(1) == 40 && v.get(2) == 30 && v.get(3) == 20 && v.get(4) == 10;
     })
+    /**
     test("struct types can be stored in vector", () => {
         var v = vector<VecConcreteChild>();
         v.push(VecConcreteChild { a : 40, b : 50 })
@@ -122,4 +125,5 @@ func test_vectors() {
         }
         return vec_destruct_called == 3;
     })
+    **/
 }

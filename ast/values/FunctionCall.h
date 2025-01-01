@@ -16,16 +16,19 @@ class ASTDiagnoser;
 class FunctionCall : public ChainValue {
 public:
 
-    ChainValue* parent_val = nullptr;
+    ChainValue* parent_val;
     std::vector<BaseType*> generic_list;
     std::vector<Value*> values;
     int16_t generic_iteration = -1;
     SourceLocation location;
 
     FunctionCall(
+            ChainValue* parent,
             std::vector<Value*> values,
             SourceLocation location
-    );
+    ) : parent_val(parent), values(std::move(values)), location(location) {
+
+    }
 
     FunctionCall(FunctionCall &&other) = delete;
 
@@ -86,31 +89,21 @@ public:
 
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
-    void link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser);
+    int16_t link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser);
 
     bool find_link_in_parent(
-            ChainValue* first_value,
-            ChainValue* grandpa,
-            ChainValue *parent,
             SymbolResolver &resolver,
             BaseType *expected_type,
             bool link_implicit_constructor
     );
 
-    bool find_link_in_parent(ChainValue* first_value, ChainValue* grandpa, ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
-        return find_link_in_parent(first_value, grandpa, parent, resolver, expected_type, true);
-    }
-
-    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) final {
-        const auto values_size = values.size();
-        const int parent_index = ((int) index) - 1;
-        const auto parent = parent_index >= 0 ? values[parent_index] : nullptr;
-        if(parent) {
-            const auto grandpa_index = parent_index -1;
-            return find_link_in_parent(values[0], grandpa_index >= 0 ? values[grandpa_index] : nullptr, parent, linker, expected_type);
-        } else {
-            return link(linker, (Value*&) values[index], expected_type);
-        }
+    bool link(
+        SymbolResolver &linker,
+        std::vector<ChainValue*> &values,
+        unsigned int index,
+        BaseType *expected_type
+    ) final {
+        return link(linker, (Value*&) values[index], expected_type);
     }
 
     void relink_parent(ChainValue *parent) final;
@@ -126,8 +119,6 @@ public:
     Value* evaluated_value(InterpretScope &scope) final;
 
     Value* evaluated_chain_value(InterpretScope &scope, Value *parent) final;
-
-    void evaluate_children(InterpretScope &scope) final;
 
     FunctionCall *copy(ASTAllocator& allocator) final;
 
@@ -151,12 +142,21 @@ public:
     ValueType value_type() const final;
 
     /**
+     * will set given generic iteration of function declaration
+     * if function is a constructor, will set the iteration on the struct instead
+     * previous iteration of declaration is returned
+     */
+    int16_t set_gen_itr_on_decl(int16_t itr);
+
+    /**
      * will set the current generic iteration on function declaration
      * returning the previous generic iteration, so you can restore it
      * previous iteration is equal to -2, if couldn't set because it's
      * not a generic function
      */
-    int16_t set_curr_itr_on_decl();
+    inline int16_t set_curr_itr_on_decl() {
+        return set_gen_itr_on_decl(generic_iteration);
+    }
 
     /**
      * if all generic arguments aren't given, for which default types also don't exist
@@ -184,23 +184,11 @@ public:
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) final;
 
-    llvm::FunctionType *llvm_linked_func_type(
-            Codegen& gen,
-            std::vector<ChainValue*> &chain_values,
-            unsigned int index
-    );
+    llvm::FunctionType *llvm_linked_func_type(Codegen& gen);
 
-    std::pair<llvm::Value*, llvm::FunctionType*>* llvm_generic_func_data(
-            ASTAllocator& allocator,
-            std::vector<ChainValue*> &chain_values,
-            unsigned int index
-    );
+    std::pair<llvm::Value*, llvm::FunctionType*>* llvm_generic_func_data(ASTAllocator& allocator);
 
-    llvm::Value *llvm_linked_func_callee(
-            Codegen& gen,
-            std::vector<ChainValue*> &chain_values,
-            unsigned int index
-    );
+    llvm::Value *llvm_linked_func_callee(Codegen& gen);
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
 
@@ -208,11 +196,11 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
 
+    llvm::Value *llvm_value(Codegen &gen, BaseType *type = nullptr) override;
+
     llvm::Value* llvm_chain_value(
             Codegen &gen,
             std::vector<llvm::Value*>& args,
-            std::vector<ChainValue*>& chain,
-            unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             llvm::Value* returnedStruct = nullptr,
             llvm::Value* callee_value = nullptr,
@@ -225,23 +213,11 @@ public:
      */
     std::pair<bool, llvm::Value*> llvm_dynamic_dispatch(
             Codegen& gen,
-            std::vector<ChainValue*> &chain_values,
-            unsigned int index,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles
     );
 
-    llvm::Value *access_chain_value(
-            Codegen &gen,
-            std::vector<ChainValue*> &values,
-            unsigned until,
-            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
-            BaseType* expected_type
-    ) final;
-
     llvm::Value* chain_value_with_callee(
             Codegen& gen,
-            std::vector<ChainValue*>& chain,
-            unsigned int index,
             llvm::Value* grandpa_value,
             llvm::Value* callee_value,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles
@@ -268,17 +244,13 @@ public:
 
 #endif
 
-    [[nodiscard]] inline ASTNode* linked() const {
-        return parent_val->linked_node();
-    }
-
     /**
      * get linked node as a function
      * you should call this when you are sure, that this call is to a function
      * which is a function declaration
      */
     [[nodiscard]] inline FunctionDeclaration* linked_func() const {
-        return linked()->as_function();
+        return parent_val->linked_node()->as_function();
     }
 
     /**
@@ -286,7 +258,8 @@ public:
      * so its safe
      */
     [[nodiscard]] inline FunctionDeclaration* safe_linked_func() const {
-        return linked() ? linked()->as_function() : nullptr;
+        const auto linked = parent_val->linked_node();
+        return linked ? linked->as_function() : nullptr;
     }
 
 };

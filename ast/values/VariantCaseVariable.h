@@ -10,14 +10,20 @@ class VariantCaseVariable : public ASTNode {
 public:
 
     std::string name;
-    VariantCase* variant_case;
+    VariableIdentifier* parent_val;
     VariantMemberParam* member_param;
+    SwitchStatement* switch_statement;
     SourceLocation location;
 
     /**
      * variant case
      */
-    VariantCaseVariable(std::string name, VariantCase* variant_case, SourceLocation token);
+    VariantCaseVariable(
+            std::string name,
+            VariableIdentifier* parent_val,
+            SwitchStatement* switch_statement,
+            SourceLocation token
+    );
 
     SourceLocation encoded_location() final {
         return location;
@@ -31,7 +37,9 @@ public:
         return ASTNodeKind::VariantCaseVariable;
     }
 
-    ASTNode* parent() final;
+    ASTNode* parent() final {
+        return (ASTNode*) switch_statement;
+    }
 
 //    hybrid_ptr<BaseType> get_value_type() final;
 

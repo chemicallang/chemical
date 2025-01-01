@@ -5,7 +5,7 @@
 class VariantCall : public Value {
 public:
 
-    AccessChain* chain;
+    Value* parent_val;
     std::vector<Value*> values;
     std::vector<BaseType*> generic_list;
     BaseType* cached_type = nullptr;
@@ -21,7 +21,7 @@ public:
     /**
      * this will take the access chain, if has function call at least, own it's values
      */
-    explicit VariantCall(AccessChain* chain, SourceLocation location);
+    explicit VariantCall(Value* parent_val, SourceLocation location);
 
     SourceLocation encoded_location() final {
         return location;

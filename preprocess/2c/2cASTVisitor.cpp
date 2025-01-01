@@ -552,12 +552,6 @@ void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node)
 
 void func_container_name(ToCAstVisitor& visitor, ASTNode* parent_node, ASTNode* linked_node);
 
-//void func_name_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end);
-
-//void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
-//    access_chain(visitor, values, start, end, values.size());
-//}
-
 #define variant_type_variant_name "__chx__vt_621827"
 
 void value_alloca(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value) {
@@ -611,10 +605,6 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
 //    }
 }
 
-void write_accessor(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned int index) {
-    write_accessor(visitor, values[index], index + 1 < values.size() ? values[index + 1] : nullptr);
-}
-
 void write_self_arg(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {
     auto grandpa = values[grandpa_index];
     if(!grandpa->is_pointer() && !force_no_pointer) {
@@ -629,14 +619,6 @@ bool write_self_arg_bool(ToCAstVisitor& visitor, FunctionType* func_type, std::v
         return true;
     } else {
         return false;
-    }
-}
-
-void write_self_arg(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<ChainValue*>& values, unsigned int grandpa_index, FunctionCall* call) {
-    if(write_self_arg_bool(visitor, func_type, values, grandpa_index, call, false)) {
-        if (!call->values.empty()) {
-            visitor.write(',');
-        }
     }
 }
 
@@ -655,14 +637,6 @@ bool write_self_arg_bool(ToCAstVisitor& visitor, FunctionType* func_type, ChainV
         return false;
     }
 }
-
-//void write_self_arg(ToCAstVisitor& visitor, FunctionType* func_type, ChainValue* grandpa, FunctionCall* call) {
-//    if(write_self_arg_bool(visitor, func_type, grandpa, call, false)) {
-//        if (!call->values.empty()) {
-//            visitor.write(',');
-//        }
-//    }
-//}
 
 Value* evaluate_comptime_func(
         ToCAstVisitor& visitor,
@@ -783,28 +757,6 @@ void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier,
                 visitor.accept_mutating_value(type, value, true);
                 return;
             }
-//            auto func_decl = func_call->safe_linked_func();
-//            auto parent_type = func_call->parent_val->create_type();
-//            auto func_type = parent_type->function_type();
-//            auto end = chain->values.size();
-//            auto grandpa = ((int) end - 3) >= 0 ? chain->values[end - 3].get() : nullptr;
-//            visitor->nested_value = true;
-//            if(func_decl) {
-//                func_container_name(visitor, func_decl);
-//            } else {
-//                func_name_chain(visitor, chain->values, 0, chain->values.size() - 1);
-//            }
-//            visitor->nested_value = false;
-//            visitor->write('(');
-//            visitor->write('&');
-//            visitor->write(identifier);
-//            if(!chain->values.back()->as_func_call()->values.empty() || func_type->has_self_param()){
-//                visitor->write(", ");
-//            }
-//            if(grandpa) write_self_arg(visitor, func_type, chain->values, ((int) ((int) end - 3)), func_call);
-//            func_call_args(visitor, chain->values.back()->as_func_call(), func_type);
-//            visitor->write(");");
-//            return;
         }
     }
     if(write_id) {
@@ -856,17 +808,6 @@ void value_init_default(ToCAstVisitor& visitor, const std::string& identifier, B
     value_assign_default(visitor, identifier, type, value, write_id);
     if(struct_value && is_generic) struct_value->set_active_iteration(prev_itr);
 }
-
-//void value_store_default(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
-//    visitor->new_line_and_indent();
-//    value_assign_default(visitor, identifier, type, value->get());
-//}
-//
-//void value_store(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
-//    if(value.has_value()) {
-//        value_store_default(visitor, identifier, type, value);
-//    }
-//}
 
 void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value) {
     if(value) {
@@ -954,16 +895,16 @@ void allocate_struct_for_value(ToCAstVisitor& visitor, ExtendableMembersContaine
     allocate_struct_by_name(visitor, def, name, initializer);
 }
 
-void allocate_struct_for_struct_value(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, StructValue* value, const std::string& name, Value* initializer = nullptr) {
-    if(def->generic_params.empty()) {
-        allocate_struct_for_value(visitor, def, value, name, initializer);
-    } else {
-        auto prev_itr = def->active_iteration;
-        def->set_active_iteration(value->generic_iteration);
-        allocate_struct_for_value(visitor, def, value, name, initializer);
-        def->set_active_iteration(prev_itr);
-    }
-}
+//void allocate_struct_for_struct_value(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, StructValue* value, const std::string& name, Value* initializer = nullptr) {
+//    if(def->generic_params.empty()) {
+//        allocate_struct_for_value(visitor, def, value, name, initializer);
+//    } else {
+//        auto prev_itr = def->active_iteration;
+//        def->set_active_iteration(value->generic_iteration);
+//        allocate_struct_for_value(visitor, def, value, name, initializer);
+//        def->set_active_iteration(prev_itr);
+//    }
+//}
 
 void allocate_struct_for_func_call(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, FunctionCall* call, FunctionType* func_type, const std::string& name, Value* initializer = nullptr) {
     if(func_type->returnType->kind() == BaseTypeKind::Generic) {
@@ -4279,28 +4220,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
             return;
         }
     }
-    unsigned i = start;
-//    // function call would be processed recursively
-//    {
-//        int j = end - 1;
-//        while(j >= 0) {
-//            auto& current = values[j];
-//            if(current->as_func_call()) {
-//                func_call(visitor, values, start, j + 1);
-//                if(j + 1 < end) {
-//                    write_accessor(visitor, values, j);
-//                    i = j + 1;
-//                } else {
-//                    if(!visitor.nested_value) {
-//                        visitor.write(';');
-//                    }
-//                    return;
-//                }
-//            }
-//            j--;
-//        }
-//    }
-    chain_after_func(visitor, values, i, end, total_size);
+    chain_after_func(visitor, values, start, end, total_size);
 }
 
 void ToCAstVisitor::visit(AccessChain *chain) {
@@ -4312,7 +4232,10 @@ void ToCAstVisitor::visit(AccessChain *chain) {
         }
     }
     const auto size = chain->values.size();
+    std::vector<int16_t> active;
+    chain->set_generic_iteration(active, allocator);
     access_chain(*this, chain->values, 0, size, size);
+    chain->restore_generic_iteration(active, allocator);
 }
 
 void ToCAstVisitor::visit(FunctionCall *call) {

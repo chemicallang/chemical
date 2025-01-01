@@ -1817,7 +1817,16 @@ void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* 
 void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call) {
     auto return_type = call->create_type(visitor.allocator);
     const auto linked = return_type->get_direct_linked_node();
-    if(linked) queue_destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_extendable_members_container_node());
+    if(linked) {
+        const auto linked_kind = linked->kind();
+        if(linked_kind == ASTNodeKind::VariantMember) {
+            const auto member = linked->as_variant_member_unsafe();
+            const auto variant = member->parent_node;
+            queue_destruct(self_name, initializer, return_type->get_generic_iteration(), variant);
+            return;
+        }
+        queue_destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_extendable_members_container_node());
+    }
 }
 
 void CDestructionVisitor::destruct_arr_ptr(const std::string &self_name, Value* array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {

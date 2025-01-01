@@ -585,6 +585,7 @@ bool Value::reference() {
     switch(kind) {
         case ValueKind::AccessChain:
         case ValueKind::Identifier:
+        case ValueKind::FunctionCall:
             return true;
         default:
             return false;

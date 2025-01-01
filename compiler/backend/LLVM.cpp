@@ -536,7 +536,8 @@ llvm::Type *CastedValue::llvm_type(Codegen &gen) {
 
 llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto llvm_val = value->llvm_value(gen);
-    auto value_type = value->create_type(gen.allocator);
+    const auto value_type_real = value->create_type(gen.allocator);
+    const auto value_type = value_type_real->pure_type();
     const auto pure_type = type->pure_type();
     if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::IntN) {
         auto from_num_type = (IntNType*) value_type;

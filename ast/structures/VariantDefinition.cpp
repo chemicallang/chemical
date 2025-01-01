@@ -28,7 +28,7 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, Variant
     std::vector<llvm::Type*> elements;
     elements.emplace_back(gen.builder->getInt32Ty()); // <--- int enum is stored at top, so we know the type
     if(member) {
-        std::vector<llvm::Type*> sub_elements { member->llvm_type(gen) };
+        std::vector<llvm::Type*> sub_elements { member->llvm_raw_struct_type(gen) };
         elements.emplace_back(llvm::StructType::get(*gen.ctx, sub_elements));
     }
     if(anonymous) {
@@ -156,12 +156,18 @@ bool VariantMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &in
     indexes.emplace_back(gen.builder->getInt32(index));
 }
 
-llvm::Type *VariantMember::llvm_type(Codegen &gen) {
+llvm::Type* VariantMember::llvm_raw_struct_type(Codegen &gen) {
     std::vector<llvm::Type*> elements;
     for(auto& value : values) {
         elements.emplace_back(value.second->llvm_type(gen));
     }
     return llvm::StructType::get(*gen.ctx, elements);
+}
+
+llvm::Type *VariantMember::llvm_type(Codegen &gen) {
+    return llvm_raw_struct_type(gen);
+    // TODO we'll do this, when no other error remains in chemical-tests.ll
+//    return VariantDefinition::llvm_type_with_member(gen, this);
 }
 
 llvm::Type* VariantMemberParam::llvm_type(Codegen &gen) {

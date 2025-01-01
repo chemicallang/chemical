@@ -79,8 +79,6 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
 
-    llvm::Value *access_chain_pointer(Codegen &gen, std::vector<ChainValue*> &values, std::vector<std::pair<Value *, llvm::Value *>> &destructibles, unsigned int until) final;
-
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
     llvm::Type *llvm_type(Codegen &gen) final;

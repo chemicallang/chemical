@@ -111,22 +111,6 @@ public:
     );
 
     /**
-     * get a pointer to access chain, if you previously used access_chain_parent_pointer
-     * this helps to get the pointer to the value that is supposed to be loaded, without loading
-     * the parent again, because parent had been loaded before using access_chain_parent_pointer
-     *
-     * this only returns a pointer to the final value, which can be loaded very easily using a single
-     * GEP instruction without any other fuss, the type for GEP can be retrieved from the value present
-     * at 'until' index you provided to access_chain_parent_pointer
-     */
-    static llvm::Value* pointer_from_parent_to_next(
-            Codegen &gen,
-            std::vector<ChainValue*>& values,
-            std::vector<llvm::Value*>& idxList,
-            std::pair<unsigned int, llvm::Value*>& parent_pointer
-    );
-
-    /**
      * when a identifier is last in the access chain, for example x.y.z here z is the last identifier
      * this function will be called on it, the values given are the values of access chain
      * by default this just calls default_chain_pointer
@@ -140,7 +124,7 @@ public:
      * after pointer received by this function call has been loaded, destructibles vector should be destructed in reverse order
      *
      */
-    virtual llvm::Value* access_chain_pointer(
+    llvm::Value* access_chain_pointer(
             Codegen &gen,
             std::vector<ChainValue*>& values,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
@@ -153,7 +137,7 @@ public:
      *
      * this takes a vector destructibles which allows you to append objects to the destructibles, that will be destructed
      */
-    virtual llvm::Value* access_chain_value(
+    llvm::Value* access_chain_value(
             Codegen &gen,
             std::vector<ChainValue*>& values,
             unsigned int until,

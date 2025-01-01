@@ -215,10 +215,6 @@ llvm::Type *VarInitStatement::llvm_chain_type(Codegen &gen, std::vector<ChainVal
     return type ? type->llvm_chain_type(gen, values, index) : value->llvm_chain_type(gen, values, index);
 }
 
-llvm::FunctionType *VarInitStatement::llvm_func_type(Codegen &gen) {
-    return type ? type->llvm_func_type(gen) : value->llvm_func_type(gen);
-}
-
 #endif
 
 VarInitStatement::VarInitStatement(

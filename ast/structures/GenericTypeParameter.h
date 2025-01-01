@@ -110,10 +110,6 @@ public:
         return usage[active_iteration]->llvm_type(gen);
     }
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) final {
-        return usage[active_iteration]->llvm_func_type(gen);
-    }
-
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final {
         return usage[active_iteration]->llvm_chain_type(gen, values, index);
     }

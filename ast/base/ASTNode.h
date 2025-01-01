@@ -351,13 +351,6 @@ public:
     }
 
     /**
-     * return a llvm func type, so that this ASTNode can be called
-     */
-    virtual llvm::FunctionType* llvm_func_type(Codegen &gen) {
-        return (llvm::FunctionType*) llvm_type(gen);
-    }
-
-    /**
      * will call destructor on allocated value, if required
      */
     virtual void llvm_destruct(Codegen& gen, llvm::Value* allocaInst) {

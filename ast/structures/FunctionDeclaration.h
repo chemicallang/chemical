@@ -480,7 +480,7 @@ public:
      * this will get the func type, no matter what, if it doesn't exist
      * it will create the function type and store it
      */
-    llvm::FunctionType *llvm_func_type(Codegen &gen) final;
+    llvm::FunctionType *llvm_func_type(Codegen &gen);
 
     /**
      * given llvm data will be set for active iteration

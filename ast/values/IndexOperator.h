@@ -85,8 +85,6 @@ public:
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) final;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) final;
-
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;

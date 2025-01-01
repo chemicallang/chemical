@@ -66,10 +66,6 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) final {
-        return linked->llvm_func_type(gen);
-    }
-
 #endif
 
     BaseType* create_value_type(ASTAllocator &allocator) final;

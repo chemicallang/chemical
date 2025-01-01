@@ -292,14 +292,6 @@ public:
     }
 
     /**
-     * provide a function type, if this value represents a function
-     * like a function pointer or a lambda
-     */
-    virtual llvm::FunctionType* llvm_func_type(Codegen& gen) {
-        return (llvm::FunctionType*) llvm_type(gen);
-    }
-
-    /**
      * allocates the given type and stores the given value in it
      * @return returns pointer to alloca instruction
      */

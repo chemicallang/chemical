@@ -399,10 +399,6 @@ llvm::Type *VariableIdentifier::llvm_chain_type(Codegen &gen, std::vector<ChainV
     return linked->llvm_chain_type(gen, chain, index);
 }
 
-llvm::FunctionType *VariableIdentifier::llvm_func_type(Codegen &gen) {
-    return linked->llvm_func_type(gen);
-}
-
 llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
     return linked->llvm_pointer(gen);
 }
@@ -780,14 +776,6 @@ void AccessChain::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     set_generic_iteration(active, gen.allocator);
     values[values.size() - 1]->llvm_destruct(gen, allocaInst);
     restore_generic_iteration(active, gen.allocator);
-}
-
-llvm::FunctionType *AccessChain::llvm_func_type(Codegen &gen) {
-    std::vector<int16_t> active;
-    set_generic_iteration(active, gen.allocator);
-    auto result =  values[values.size() - 1]->llvm_func_type(gen);
-    restore_generic_iteration(active, gen.allocator);
-    return result;
 }
 
 bool AccessChain::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {

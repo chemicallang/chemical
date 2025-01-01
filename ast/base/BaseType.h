@@ -463,13 +463,6 @@ public:
     virtual clang::QualType clang_type(clang::ASTContext &context);
 
     /**
-     * return a func type, if this type can represent one
-     */
-    virtual llvm::FunctionType* llvm_func_type(Codegen &gen) {
-        return (llvm::FunctionType*) llvm_type(gen);
-    }
-
-    /**
      * returns this type, but for a llvm parameter
      */
     virtual llvm::Type *llvm_param_type(Codegen &gen) {

@@ -61,10 +61,6 @@ llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
     return create_type(gen.allocator)->llvm_chain_type(gen, chain, index);
 }
 
-llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
-    return create_type(gen.allocator)->llvm_func_type(gen);
-}
-
 #endif
 
 BaseType* IndexOperator::create_type(ASTAllocator& allocator) {

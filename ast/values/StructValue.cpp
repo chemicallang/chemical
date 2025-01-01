@@ -77,6 +77,8 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             }
         }
     }
+
+    // storing default values
     for(auto& value : definition->variables) {
         auto found = values.find(value.first);
         if(found == values.end()) {

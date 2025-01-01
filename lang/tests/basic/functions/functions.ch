@@ -201,12 +201,10 @@ func test_functions() {
         total_func_ret_calls = 0;
         return check_multiple_calls().give_calls() == 2;
     })
-    /** TODO self ref cannot be passed when passing between function calls at the moment
     test("functions on returned structs do not result in multiple calls", () => {
         total_func_ret_calls = 0;
         return check_multiple_calls().self_ref_give_calls() == 2;
     })
-    **/
     test("default function arguments work", () => {
         return def_func_arg_works(22) == 66;
     })

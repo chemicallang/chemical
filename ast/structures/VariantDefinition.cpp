@@ -165,9 +165,7 @@ llvm::Type* VariantMember::llvm_raw_struct_type(Codegen &gen) {
 }
 
 llvm::Type *VariantMember::llvm_type(Codegen &gen) {
-    return llvm_raw_struct_type(gen);
-    // TODO we'll do this, when no other error remains in chemical-tests.ll
-//    return VariantDefinition::llvm_type_with_member(gen, this);
+    return VariantDefinition::llvm_type_with_member(gen, this);
 }
 
 llvm::Type* VariantMemberParam::llvm_type(Codegen &gen) {

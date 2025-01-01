@@ -474,7 +474,7 @@ bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* d
     gen.builder->CreateStore(gen.builder->getInt32(member_index), type_ptr);
     // storing the values of the variant inside it's struct
     auto data_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
-    const auto struct_type = member->llvm_type(gen);
+    const auto struct_type = member->llvm_raw_struct_type(gen);
     unsigned i = 0;
     auto itr = member->values.begin();
     for(auto& value_ptr : call->values) {

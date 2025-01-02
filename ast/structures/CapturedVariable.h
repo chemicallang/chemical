@@ -9,7 +9,7 @@ class CapturedVariable : public ASTNode {
 public:
 
     bool capture_by_ref;
-    std::string name;
+    chem::string_view name;
     unsigned int index;
     LambdaFunction *lambda;
     ASTNode *linked;
@@ -18,11 +18,14 @@ public:
 
 
     CapturedVariable(
-        std::string name,
+        chem::string_view name,
         unsigned int index,
         bool capture_by_ref,
         SourceLocation location
-    );
+    ) : name(name), index(index), capture_by_ref(capture_by_ref),
+        location(location), ptrType(nullptr, location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;

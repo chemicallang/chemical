@@ -91,19 +91,7 @@
 #include "ast/structures/UnsafeBlock.h"
 #include "std/chem_string.h"
 
-/**
- * this function doesn't work, we need to allocate the string on the allocator
- * @deprecated
- */
-constexpr LocatedIdentifier LOC_ID(const std::string& identifier, SourceLocation location) {
-#ifdef LSP_BUILD
-    return { identifier, location };
-#else
-    return { chem::string_view(identifier.data(), identifier.size()) };
-#endif
-}
-
-constexpr LocatedIdentifier LOC_ID(chem::string_view identifier, SourceLocation location) {
+constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLocation location) {
 #ifdef LSP_BUILD
     return { identifier, location };
 #else
@@ -296,7 +284,7 @@ LambdaFunction* ASTBuildermake_lambda_function(ASTAllocator* allocator, Value* v
 }
 
 CapturedVariable* ASTBuildermake_captured_variable(ASTAllocator* allocator, chem::string_view* name, unsigned int index, bool capture_by_ref, long value, uint64_t location) {
-    return new (allocator->allocate<CapturedVariable>()) CapturedVariable(name->str(), index, capture_by_ref, location);
+    return new (allocator->allocate<CapturedVariable>()) CapturedVariable(*name, index, capture_by_ref, location);
 }
 
 LongValue* ASTBuildermake_long_value(ASTAllocator* allocator, long value, bool is64Bit, uint64_t location) {
@@ -417,7 +405,7 @@ ReturnStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* valu
 //}
 
 TypealiasStatement* ASTBuildermake_typealias_stmt(ASTAllocator* allocator, chem::string_view* identifier, uint64_t id_loc, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<TypealiasStatement>()) TypealiasStatement(LOC_ID(identifier->str(), id_loc), actual_type, parent_node, location, specifier);
+    return new (allocator->allocate<TypealiasStatement>()) TypealiasStatement(LOC_ID(*identifier, id_loc), actual_type, parent_node, location, specifier);
 }
 
 UsingStmt* ASTBuildermake_using_stmt(ASTAllocator* allocator, AccessChain* chain, ASTNode* parent_node, bool is_namespace, uint64_t location) {
@@ -425,7 +413,7 @@ UsingStmt* ASTBuildermake_using_stmt(ASTAllocator* allocator, AccessChain* chain
 }
 
 VarInitStatement* ASTBuildermake_varinit_stmt(ASTAllocator* allocator, bool is_const, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<VarInitStatement>()) VarInitStatement(is_const, LOC_ID(identifier->str(), id_loc), type, value, parent_node, location, specifier);
+    return new (allocator->allocate<VarInitStatement>()) VarInitStatement(is_const, LOC_ID(*identifier, id_loc), type, value, parent_node, location, specifier);
 }
 
 // TODO scope needs a children method to get the nodes PtrVec
@@ -450,7 +438,7 @@ ForLoop* ASTBuildermake_for_loop(ASTAllocator* allocator, VarInitStatement* init
 }
 
 FunctionDeclaration* ASTBuildermake_function(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<FunctionDeclaration>()) FunctionDeclaration(LOC_ID(name->str(), name_location), {}, returnType, isVariadic, parent_node, location, std::nullopt);
+    return new (allocator->allocate<FunctionDeclaration>()) FunctionDeclaration(LOC_ID(*name, name_location), {}, returnType, isVariadic, parent_node, location, std::nullopt);
 }
 
 FunctionParam* ASTBuildermake_function_param(ASTAllocator* allocator, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {
@@ -474,15 +462,15 @@ InitBlock* ASTBuildermake_init_block(ASTAllocator* allocator, ASTNode* parent_no
 }
 
 InterfaceDefinition* ASTBuildermake_interface_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<InterfaceDefinition>()) InterfaceDefinition(LOC_ID(name->str(), name_location), parent_node, location, specifier);
+    return new (allocator->allocate<InterfaceDefinition>()) InterfaceDefinition(LOC_ID(*name, name_location), parent_node, location, specifier);
 }
 
 Namespace* ASTBuildermake_namespace(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<Namespace>()) Namespace(LOC_ID(name->str(), name_location), parent_node, location, specifier);
+    return new (allocator->allocate<Namespace>()) Namespace(LOC_ID(*name, name_location), parent_node, location, specifier);
 }
 
 StructDefinition* ASTBuildermake_struct_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<StructDefinition>()) StructDefinition(LOC_ID(name->str(), name_location), parent_node, location, specifier);
+    return new (allocator->allocate<StructDefinition>()) StructDefinition(LOC_ID(*name, name_location), parent_node, location, specifier);
 }
 
 StructMember* ASTBuildermake_struct_member(ASTAllocator* allocator, chem::string_view* name, BaseType* type, Value* defValue, bool isConst, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
@@ -490,7 +478,7 @@ StructMember* ASTBuildermake_struct_member(ASTAllocator* allocator, chem::string
 }
 
 UnionDef* ASTBuildermake_union_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<UnionDef>()) UnionDef(LOC_ID(name->str(), name_location), parent_node, location, specifier);
+    return new (allocator->allocate<UnionDef>()) UnionDef(LOC_ID(*name, name_location), parent_node, location, specifier);
 }
 
 UnsafeBlock* ASTBuildermake_unsafe_block(ASTAllocator* allocator, ASTNode* node, uint64_t location) {
@@ -502,7 +490,7 @@ WhileLoop* ASTBuildermake_while_loop(ASTAllocator* allocator, Value* condition, 
 }
 
 VariantDefinition* ASTBuildermake_variant_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* node, uint64_t location) {
-    return new (allocator->allocate<VariantDefinition>()) VariantDefinition(LOC_ID(name->str(), name_location), node, location, specifier);
+    return new (allocator->allocate<VariantDefinition>()) VariantDefinition(LOC_ID(*name, name_location), node, location, specifier);
 }
 
 VariantMember* ASTBuildermake_variant_member(ASTAllocator* allocator, chem::string_view* name, VariantDefinition* parent_node, uint64_t location) {

@@ -1386,16 +1386,6 @@ Value *FunctionDeclaration::call(
     return interpretReturn;
 }
 
-CapturedVariable::CapturedVariable(
-    std::string name,
-    unsigned int index,
-    bool capture_by_ref,
-    SourceLocation location
-) : name(std::move(name)), index(index), capture_by_ref(capture_by_ref),
-    location(location), ptrType(nullptr, location) {
-
-}
-
 BaseType* CapturedVariable::create_value_type(ASTAllocator& allocator) {
     if(capture_by_ref) {
         return new (allocator.allocate<PointerType>()) PointerType(linked->create_value_type(allocator), ZERO_LOC);

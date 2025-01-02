@@ -99,9 +99,12 @@ enum class TokenType {
     LBracket, // ]
     RBracket, // ]
 
-    // when the value is inside double quotes
+    // when the value is inside double quotes, this will be a multiline string
+    // escape sequences will be processed so string with double quotes will be present
+    // like "my string"
     String,
-    // when the value is inside single quotes
+    // when the value is inside single quotes, for example 'x' or even '\x1b'
+    // escape sequences will be processed
     Char,
     // #macro_name
     HashMacro,
@@ -190,11 +193,6 @@ enum class TokenType {
 
     // =>
     LambdaSym,
-
-    // '
-    SingleQuoteSym,
-    // "
-    DoubleQuoteSym,
 
     // -------- END OPERATORS ------
 

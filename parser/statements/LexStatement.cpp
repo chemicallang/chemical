@@ -196,9 +196,9 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
 
 Value* Parser::parseProvideValue(ASTAllocator& allocator) {
     switch(token->type) {
-        case TokenType::SingleQuoteSym:
+        case TokenType::Char:
             return parseCharValue(allocator);
-        case TokenType::DoubleQuoteSym:
+        case TokenType::String:
             return parseStringValue(allocator);
         case TokenType::LBracket:
             return (Value*) parseLambdaValue(allocator);

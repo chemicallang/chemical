@@ -214,10 +214,6 @@ public:
         return type;
     }
 
-    const std::string ns_node_identifier() final {
-        return id_view().str();
-    }
-
 #ifdef COMPILER_BUILD
 
     inline void check_has_type(Codegen &gen);

@@ -82,6 +82,10 @@ chem::string_view allocate_view(BatchAllocator& allocator, const llvm::StringRef
     return { allocator.allocate_str(identifier.data(), size), size };
 }
 
+chem::string_view to_view(const llvm::StringRef& id) {
+    return { id.data(), id.size() };
+}
+
 BaseType* decl_type(CTranslator& translator, clang::Decl* decl, const llvm::StringRef& name) {
     auto found = translator.declarations.find(decl);
     if(found != translator.declarations.end()) {
@@ -399,8 +403,8 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
     if(type_kind == BaseTypeKind::Linked) {
         const auto linked_type = (LinkedType*) type;
         const auto linked = linked_type->linked;
-        const auto node_id = linked->ns_node_identifier();
-        if(node_id == decl->getName()) {
+        const auto node_id = linked->get_located_id();
+        if(node_id && node_id->identifier == to_view(decl->getName())) {
             return nullptr;
         }
 

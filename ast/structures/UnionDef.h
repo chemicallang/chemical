@@ -131,10 +131,6 @@ public:
         return parent_node;
     }
 
-    const std::string ns_node_identifier() final {
-        return name_str();
-    }
-
     void accept(Visitor *visitor) final {
         visitor->visit(this);
     }

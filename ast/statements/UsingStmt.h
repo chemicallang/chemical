@@ -30,10 +30,6 @@ public:
     SourceLocation location;
     UsingStmtAttributes attrs;
     ASTNode* parent_node;
-    /**
-     * TODO remove this, this is for containing node identifier
-     */
-    std::string node_id;
 
     UsingStmt(
             AccessChain* chain,

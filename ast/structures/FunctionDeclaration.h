@@ -384,12 +384,8 @@ public:
         return parent_node;
     }
 
-    const std::string ns_node_identifier() final {
-        return name_str();
-    }
-
-    const std::string& func_opt_name() final {
-        return name_str();
+    LocatedIdentifier* get_func_name_id() final {
+        return &identifier;
     }
 
     void accept(Visitor *visitor);

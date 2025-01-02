@@ -21,7 +21,7 @@
 void top_level_dedupe(std::vector<ASTNode*>& nodes) {
 
     std::vector<ASTNode*> reverse_nodes;
-    std::unordered_map<std::string_view, unsigned int> dedupe;
+    std::unordered_map<chem::string_view, unsigned int> dedupe;
 
     reverse_nodes.reserve(nodes.size());
     dedupe.reserve(nodes.size());
@@ -30,10 +30,12 @@ void top_level_dedupe(std::vector<ASTNode*>& nodes) {
     int i = ((int) nodes_size) - 1;
     while(i >= 0) {
         auto node = nodes[i];
-        const auto& id = node->ns_node_identifier();
-        if(dedupe.find(id) == dedupe.end()) {
-            reverse_nodes.emplace_back(node);
-            dedupe[id] = i;
+        const auto node_id = node->get_located_id();
+        if(node_id) {
+            if(dedupe.find(node_id->identifier) == dedupe.end()) {
+                reverse_nodes.emplace_back(node);
+                dedupe[node_id->identifier] = i;
+            }
         }
         i--;
     }

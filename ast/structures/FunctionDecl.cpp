@@ -1046,7 +1046,7 @@ void GenericTypeParameter::register_usage(ASTAllocator& allocator, BaseType* typ
         if(def_type) {
             usage.emplace_back(def_type->copy(allocator));
         } else {
-            std::cerr << "expected a generic type argument for parameter " << identifier << " in node " << parent_node->ns_node_identifier() << std::endl;
+            std::cerr << "expected a generic type argument for parameter " << identifier << " in node " << parent_node->get_located_id()->identifier << std::endl;
         }
     }
 }

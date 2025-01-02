@@ -288,15 +288,6 @@ public:
     LocatedIdentifier* get_located_id();
 
     /**
-     * when this node is inside a namespace, what identifier can be used
-     * to access this node, for example a function inside a namespace, returns it's name
-     * so namespace::function_name can be used to access it
-     */
-    virtual const std::string ns_node_identifier() {
-        return EmptyString;
-    }
-
-    /**
      * get the extendable members container, if this node has one
      */
     virtual ExtendableBase* as_extendable_members_container() {

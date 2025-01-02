@@ -5,8 +5,6 @@
 #include "cst/utils/StringHelpers.h"
 #include "parser/model/CompilerBinder.h"
 
-const auto AnnotationAtCStr = "@";
-
 const auto LBraceCStr = "{";
 const auto RBraceCStr = "}";
 const auto LParenCStr = "(";
@@ -44,10 +42,6 @@ const auto RightShiftOpCStr = ">>";
 const auto ScopeResOpCStr = "::";
 const auto EqualOpCStr = "=";
 const auto LambOpCStr = "=>";
-
-const auto SingleQuotesOpCStr = "'";
-const auto DoubleQuotesOpCStr = "\"";
-const auto MultilineCommentEndCStr = "*/";
 
 const auto WSCStr = " ";
 const auto NewlineCStr = "\n";
@@ -233,12 +227,91 @@ void read_current_line(SerialStrAllocator& str, SourceProvider& provider) {
 
 void read_multi_line_comment_text(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
-        auto p = provider.peek();
-        if(p == '\n' || p == '\r' || p == '*') {
-            return;
-        } else {
+        const auto read = provider.readCharacter();
+        str.append(read);
+        if(read == '*' && provider.peek() == '/') {
             str.append(provider.readCharacter());
+            return;
         }
+    }
+}
+
+// returns whether the escape sequence is known or not
+// if unknown reads it into the string without escaping it
+bool read_escapable_char(SerialStrAllocator &str, SourceProvider& provider) {
+    char current = provider.readCharacter();
+    if(current != 'x') {
+        const auto next = escaped_char(current);
+        str.append(next);
+        return next != current || next == '\\' || next == '\'';
+    } else {
+        if(provider.increment('1') && provider.increment('b')) {
+            str.append('\x1b');
+            return true;
+        } else {
+            str.append(current);
+            return false;
+        }
+    }
+}
+
+Token read_double_quoted_string(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
+    str.append('"');
+    while(true) {
+        auto current = provider.readCharacter();
+        switch(current) {
+            case '\\':
+                if(!read_escapable_char(str, provider)) {
+                    lexer.diagnoser.diagnostic("unknown escape sequence", lexer.file_path, provider.position(), provider.position(), DiagSeverity::Error);
+                }
+                break;
+            case '"':
+            case -1:
+                // no need to report an error if -1, since next time unexpected token will be given
+                str.append('"');
+                return Token(TokenType::String, str.finalize_view(), pos);
+            case '\r':
+                if(provider.peek() == '\n') {
+                    // only append a \n for \n\r
+                    str.append(provider.readCharacter());
+                } else {
+                    str.append('\r');
+                }
+                break;
+            default:
+                str.append(current);
+                break;
+        }
+    }
+}
+
+Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
+    str.append('\'');
+    auto current = provider.readCharacter();
+    switch(current) {
+        case '\\':
+            if(!read_escapable_char(str, provider)) {
+                lexer.diagnoser.diagnostic("unknown escape sequence", lexer.file_path, provider.position(), provider.position(), DiagSeverity::Error);
+            }
+            break;
+        case '\'':
+            lexer.diagnoser.diagnostic("no value given inside single quotes", lexer.file_path, pos, provider.position(), DiagSeverity::Error);
+            str.append('\0');
+            return Token(TokenType::Char, str.finalize_view(), pos);
+        case -1:
+            str.append('\'');
+            return Token(TokenType::Char, str.finalize_view(), pos);
+        default:
+            str.append(current);
+            break;
+    }
+    if(provider.peek() == '\'') {
+        str.append(provider.readCharacter());
+        return Token(TokenType::Char, str.finalize_view(), pos);
+    } else {
+        lexer.diagnoser.diagnostic("expected a single quote after the value", lexer.file_path, provider.position(), provider.position(), DiagSeverity::Error);
+        read_current_line(str, provider);
+        return Token(TokenType::Char, str.finalize_view(), pos);
     }
 }
 
@@ -264,19 +337,6 @@ void read_annotation_id(SerialStrAllocator& str, SourceProvider& provider) {
     }
 }
 
-// text that occurs inside chemical string, inside double quotes
-// we stop at any backslash or double quote
-void read_str_text(SerialStrAllocator& str, SourceProvider& provider) {
-    while(true) {
-        auto p = provider.peek();
-        if(p != '\\' && p != '"' && p != '\n' && p != '\r') {
-            str.append(provider.readCharacter());
-        } else {
-            break;
-        }
-    }
-}
-
 Token win_new_line(SourceProvider& provider, const Position& pos) {
     if(provider.peek() == '\n') {
         provider.readCharacter();
@@ -286,116 +346,13 @@ Token win_new_line(SourceProvider& provider, const Position& pos) {
     }
 }
 
-// reads the character and escapes it, if 'n' is at current position, we can say backslash n escape seq
-// if character is not a valid escape sequence unexpected token is returned
-Token read_escape_seq_in_str(SerialStrAllocator& builder, SourceProvider& provider, const Position& pos) {
-    builder.append('\\');
-    while(true) {
-        switch(provider.peek()) {
-            case -1:
-                return Token(TokenType::EndOfFile, { nullptr, 0 }, pos);
-            case '"':
-            case ' ':
-            case '\t':
-            case '\n':
-            case '\r':
-                goto end_loop;
-            default:
-                auto c = provider.readCharacter();
-                builder.append(c);
-                if(c == 'x' && provider.increment('1')) {
-                    builder.append('1');
-                    if(provider.increment('b')) {
-                        builder.append('b');
-                    }
-                }
-                goto end_loop;
-        }
-    }
-    end_loop:
-    return Token(TokenType::EscapeSeq, builder.finalize_view(), pos);
-}
-
-Token read_escape_seq_in_char(SerialStrAllocator& builder, SourceProvider& provider, const Position& pos) {
-    builder.append('\\');
-    while(true) {
-        switch(provider.peek()) {
-            case -1:
-                return Token(TokenType::EndOfFile, { nullptr, 0 }, pos);
-            case ' ':
-            case '\t':
-            case '\n':
-            case '\r':
-                goto end_loop;
-            default:
-                builder.append(provider.readCharacter());
-        }
-    }
-    end_loop:
-    return Token(TokenType::EscapeSeq, builder.finalize_view(), pos);
-}
-
 Token Lexer::getNextToken() {
     auto pos = provider.position();
     if(provider.peek() == -1) {
         return Token(TokenType::EndOfFile, { nullptr, 0 }, pos);
     }
     if(other_mode) {
-        if(char_mode) {
-            auto current = provider.readCharacter();
-            if(current == '\\') {
-                return read_escape_seq_in_str(str, provider, pos);
-            } else if(current == '\'') {
-                char_mode = false;
-                other_mode = false;
-                return Token(TokenType::SingleQuoteSym, view_str(SingleQuotesOpCStr), pos);
-            } else {
-                str.append(current);
-                return Token(TokenType::Char, str.finalize_view(), pos);
-            }
-        } else if(string_mode) {
-            auto current = provider.readCharacter();
-            switch(current) {
-                case '\\':
-                    return read_escape_seq_in_str(str, provider, pos);
-                case '"': {
-                    string_mode = false;
-                    other_mode = false;
-                    return Token(TokenType::DoubleQuoteSym, view_str(DoubleQuotesOpCStr), pos);
-                }
-                case '\n':
-                    return Token(TokenType::NewLine, view_str(NewlineCStr), pos);
-                case '\r':
-                    return win_new_line(provider, pos);
-                default:
-                    str.append(current);
-                    read_str_text(str, provider);
-                    return Token(TokenType::String, str.finalize_view(), pos);
-            }
-        } else if(comment_mode) {
-            auto current = provider.readCharacter();
-            switch(current) {
-                case '*': {
-                    if(provider.peek() == '/') {
-                        comment_mode = false;
-                        other_mode = false;
-                        provider.readCharacter();
-                        return Token(TokenType::MultiLineComment, {MultilineCommentEndCStr, 2 }, pos);
-                    } else {
-                        break;
-                    }
-                }
-                case '\n':
-                    return Token(TokenType::NewLine, { NewlineCStr, 1 }, pos);
-                case '\r':
-                    return win_new_line(provider, pos);
-                default:
-                    break;
-            }
-            str.append(current);
-            read_multi_line_comment_text(str, provider);
-            return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
-        } else if(user_mode) {
+        if(user_mode) {
             Token t;
             user_lexer.subroutine(&t, user_lexer.instance, this);
             return t;
@@ -500,8 +457,6 @@ Token Lexer::getNextToken() {
                 read_current_line(str, provider);
                 return Token(TokenType::SingleLineComment, str.finalize_view(), pos);
             } else if(p == '*') {
-                other_mode = true;
-                comment_mode = true;
                 str.append(current);
                 str.append(provider.readCharacter());
                 read_multi_line_comment_text(str, provider);
@@ -537,13 +492,9 @@ Token Lexer::getNextToken() {
                 return Token(TokenType::EqualSym, view_str(EqualOpCStr), pos);
             }
         case '\'':
-            other_mode = true;
-            char_mode = true;
-            return Token(TokenType::SingleQuoteSym, view_str(SingleQuotesOpCStr), pos);
+            return read_character_token(*this, str, provider, pos);
         case '"':
-            other_mode = true;
-            string_mode = true;
-            return Token(TokenType::DoubleQuoteSym, view_str(DoubleQuotesOpCStr), pos);
+            return read_double_quoted_string(*this, str, provider, pos);
         case ' ':
             return Token(TokenType::Whitespace, { WSCStr, provider.readWhitespaces() + 1 }, pos);
         case '\t':

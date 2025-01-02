@@ -41,84 +41,26 @@
 #include "ast/statements/ValueWrapperNode.h"
 
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
-    if(token->type == TokenType::SingleQuoteSym) {
-        auto& start_pos = token->position;
+    auto& t = *token;
+    if(t.type == TokenType::Char) {
+        // consume it
         token++;
-        auto val = consumeOfType(TokenType::Char);
-        char char_value;
-        if(val) {
-            char_value = val->value[0];
-        } else {
-            auto seq = consumeOfType(TokenType::EscapeSeq);
-            if(seq) {
-                auto result = escapable_char(seq->value, 1);
-                if(result.second == -1) {
-                    error("unknown escape sequence", seq);
-                    char_value = result.first;
-                } else {
-                    char_value = result.first;
-                }
-            } else {
-                error("expected a character value or escape sequence after single quote");
-                return nullptr;
-            }
-        }
-        auto last = consumeOfType(TokenType::SingleQuoteSym);
-        if(!last) {
-            error("expected a ending quote when parsing a character value");
-            return nullptr;
-        }
-        auto& end_pos = token->position;
-        return new (allocator.allocate<CharValue>()) CharValue(char_value, loc(start_pos, end_pos));
+        // the value will contain single quotes around it
+        return new (allocator.allocate<CharValue>()) CharValue(*(t.value.data() + 1), loc_single(t));
     } else {
         return nullptr;
     }
 }
 
 Value* Parser::parseStringValue(ASTAllocator& allocator) {
-    auto t = consumeOfType(TokenType::DoubleQuoteSym);
-    if (t) {
-        auto& start_pos = t->position;
-        auto value = new (allocator.allocate<StringValue>()) StringValue("", loc_single(t));
-        while(true) {
-            const auto current = token;
-            switch(current->type) {
-                case TokenType::String:
-                    value->value.append(current->value.view());
-                    token++;
-                    break;
-                case TokenType::NewLine:
-                    value->value.append(1, '\n');
-                    token++;
-                    break;
-                case TokenType::Unexpected:
-                case TokenType::EndOfFile:
-                    goto loop_broken;
-                case TokenType::EscapeSeq:{
-                    auto result = escapable_char(current->value, 1);
-                    if(result.second == -1) {
-                        error("unknown escape sequence", current);
-                        value->value.append(1, result.first);
-                    } else {
-                        value->value.append(1, result.first);
-                    }
-                    token++;
-                    break;
-                }
-                case TokenType::DoubleQuoteSym:
-                    goto loop_broken;
-                default:
-                    error("unexpected token", current);
-                    goto loop_broken;
-            }
-        }
-        loop_broken:
-        auto end_quote = consumeOfType(TokenType::DoubleQuoteSym);
-        if(!end_quote) {
-            error("expected an ending quote for the string", token);
-        }
-        auto& last_pos = token->position;
-        value->location = loc(start_pos, last_pos);
+    auto& t = *token;
+    if(t.type == TokenType::String) {
+        // consume it
+        token++;
+        // got the string
+        const auto value = new (allocator.allocate<StringValue>()) StringValue("", loc_single(t));
+        // the value will contain double quotes around it
+        value->value.append(t.value.data() + 1, t.value.size() - 2);
         return value;
     } else {
         return nullptr;
@@ -322,9 +264,9 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
             return parseLoopBlockTokens(allocator, true);
         case TokenType::NewKw:
             return parseNewValue(allocator);
-        case TokenType::SingleQuoteSym:
+        case TokenType::Char:
             return parseAfterValue(allocator, (Value*) parseCharValue(allocator), start_token);
-        case TokenType::DoubleQuoteSym:
+        case TokenType::String:
             return parseAfterValue(allocator, (Value*) parseStringValue(allocator), start_token);
         case TokenType::LBracket:
             return parseLambdaValue(allocator);

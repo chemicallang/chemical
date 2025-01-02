@@ -8,12 +8,6 @@ struct LexerState {
 
     var other_mode : bool
 
-    var char_mode : bool
-
-    var string_mode : bool
-
-    var comment_mode : bool
-
     var user_mode : bool
 
 }

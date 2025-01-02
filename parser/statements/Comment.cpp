@@ -8,26 +8,20 @@
 #include "ast/statements/Comment.h"
 
 Comment* Parser::parseSingleLineComment(ASTAllocator& allocator) {
-    if(token->type == TokenType::SingleLineComment) {
+    auto& t = *token;
+    if(t.type == TokenType::SingleLineComment) {
         token++;
-        return new (allocator.allocate<Comment>()) Comment(token->value.str(), false, parent_node, loc_single(token));
+        return new (allocator.allocate<Comment>()) Comment(t.value.str(), false, parent_node, loc_single(t));
     } else {
         return nullptr;
     }
 }
 
 Comment* Parser::parseMultiLineComment(ASTAllocator& allocator) {
-    // TODO improve this function
-    if(token->type == TokenType::MultiLineComment) {
-        auto& pos = token->position;
-        Token* last_token = token;
-        std::string value;
-        while(token->type == TokenType::MultiLineComment) {
-            value.append(token->value.view());
-            last_token = token;
-            token++;
-        }
-        return new (allocator.allocate<Comment>()) Comment(value, false, parent_node, loc(pos, end_pos(last_token)));
+    auto& t = *token;
+    if(t.type == TokenType::MultiLineComment) {
+        token++;
+        return new (allocator.allocate<Comment>()) Comment(t.value.str(), true, parent_node, loc_single(t));
     } else {
         return nullptr;
     }

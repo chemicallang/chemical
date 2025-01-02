@@ -7,6 +7,7 @@
 #include "LexUnit.h"
 #include "std/alloc/SerialStrAllocator.h"
 #include "compiler/cbi/Model.h"
+#include "cst/base/CSTDiagnoser.h"
 
 class CompilerBinder;
 
@@ -31,23 +32,6 @@ struct LexerState {
      * as comments or strings, even symbols or operators
      */
     bool other_mode = false;
-
-    /**
-     * lexer will try to collect next character as a character token
-     * or an escape sequence
-     */
-    bool char_mode = false;
-
-    /**
-     * lexer will try to collect next string until quotes as a string
-     * if escape quotes then multiple strings are made
-     */
-    bool string_mode = false;
-
-    /**
-     * are we inside a multi line comment mode
-     */
-    bool comment_mode = false;
 
     /**
      * is user mode means a user lexer or a self provided user
@@ -97,6 +81,11 @@ public:
      * if not present, cbi is considered disabled
      */
     CompilerBinder* const binder;
+
+    /**
+     * this diagnoser is used to diagnose
+     */
+    CSTDiagnoser diagnoser;
 
     /**
      * the constructor

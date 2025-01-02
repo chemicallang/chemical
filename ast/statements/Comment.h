@@ -12,16 +12,16 @@ class Comment : public ASTNode {
 public:
 
     ASTNode* parent_node;
-    std::string comment;
+    chem::string_view comment;
     bool multiline;
     SourceLocation location;
 
     Comment(
-            std::string comment,
+            chem::string_view comment,
             bool multiline,
             ASTNode* parent,
             SourceLocation location
-    ) : comment(std::move(comment)), multiline(multiline), parent_node(parent), location(location) {}
+    ) : comment(comment), multiline(multiline), parent_node(parent), location(location) {}
 
     ASTNodeKind kind() final {
         return ASTNodeKind::CommentStmt;

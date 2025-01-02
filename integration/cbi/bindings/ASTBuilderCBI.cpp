@@ -384,7 +384,7 @@ BreakStatement* ASTBuildermake_break_stmt(ASTAllocator* allocator, LoopASTNode* 
 }
 
 Comment* ASTBuildermake_comment_stmt(ASTAllocator* allocator, chem::string_view* value, bool multiline, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<Comment>()) Comment(value->str(), multiline, parent_node, location);
+    return new (allocator->allocate<Comment>()) Comment(*value, multiline, parent_node, location);
 }
 
 ContinueStatement* ASTBuildermake_continue_stmt(ASTAllocator* allocator, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location) {

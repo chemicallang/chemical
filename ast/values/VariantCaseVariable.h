@@ -9,7 +9,7 @@ class VariantMemberParam;
 class VariantCaseVariable : public ASTNode {
 public:
 
-    std::string name;
+    chem::string_view name;
     VariableIdentifier* parent_val;
     VariantMemberParam* member_param;
     SwitchStatement* switch_statement;
@@ -19,11 +19,13 @@ public:
      * variant case
      */
     VariantCaseVariable(
-            std::string name,
+            chem::string_view name,
             VariableIdentifier* parent_val,
             SwitchStatement* switch_statement,
             SourceLocation token
-    );
+    ) : name(name), parent_val(parent_val), switch_statement(switch_statement), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -47,9 +49,9 @@ public:
 
     BaseType* known_type() final;
 
-    ASTNode* child(const std::string &name) final;
+    ASTNode* child(const chem::string_view &name) final;
 
-    int child_index(const std::string &name) final;
+    int child_index(const chem::string_view &name) final;
 
     ASTNode* child(int index) final;
 
@@ -65,7 +67,7 @@ public:
 
     llvm::Type* llvm_type(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
 #endif
 

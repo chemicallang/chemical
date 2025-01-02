@@ -7,7 +7,7 @@ class FunctionType;
 class BaseFunctionParam : public ASTNode {
 public:
 
-    std::string name;
+    chem::string_view name;
     BaseType* type;
     FunctionType* func_type;
 
@@ -15,10 +15,12 @@ public:
      * constructor
      */
     BaseFunctionParam(
-            std::string name,
+            chem::string_view name,
             BaseType* type,
             FunctionType* func_type = nullptr
-    );
+    ) : name(name), type(type), func_type(func_type) {
+
+    };
 
     ASTNodeKind kind() {
         return ASTNodeKind::FunctionParam;
@@ -44,13 +46,13 @@ public:
 
     void code_gen_destruct(Codegen &gen, Value *returnValue) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
 #endif
 
     FunctionParam *copy() const;
 
-    ASTNode *child(const std::string &name);
+    ASTNode *child(const chem::string_view &name);
 
     void declare_and_link(SymbolResolver &linker);
 

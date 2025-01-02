@@ -118,7 +118,7 @@ void VariantDefinition::code_gen(Codegen &gen, bool declare) {
     }
 }
 
-bool VariantDefinition::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool VariantDefinition::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     if(indexes.empty()) {
         indexes.emplace_back(gen.builder->getInt32(0));
     }
@@ -147,7 +147,7 @@ void VariantDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     }
 }
 
-bool VariantMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool VariantMember::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     const auto found = values.find(name);
     if(found == values.end()) {
         return false;
@@ -172,7 +172,7 @@ llvm::Type* VariantMemberParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-bool VariantMemberParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool VariantMemberParam::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return type->pure_type()->linked_node()->add_child_index(gen, indexes, name);
 }
 
@@ -217,7 +217,7 @@ llvm::Type* VariantCaseVariable::llvm_type(Codegen &gen) {
     }
 }
 
-bool VariantCaseVariable::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool VariantCaseVariable::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     if(is_generic_param()) {
         auto itr = set_iteration();
         const auto result = member_param->add_child_index(gen, indexes, name);
@@ -235,11 +235,11 @@ VariantDefinition::VariantDefinition(
     ASTNode* parent_node,
     SourceLocation location,
     AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), ref_type(name(), this, location),
+) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), ref_type(name_view(), this, location),
     location(location), attrs(specifier, false) {
 }
 
-ASTNode* VariantDefinition::child(const std::string &child_name) {
+ASTNode* VariantDefinition::child(const chem::string_view &child_name) {
     return ExtendableMembersContainerNode::child(child_name);
 }
 
@@ -309,7 +309,7 @@ uint64_t VariantDefinition::byte_size(bool is64Bit) {
 }
 
 BaseType* VariantDefinition::create_value_type(ASTAllocator& allocator) {
-    return create_linked_type(name(), allocator);
+    return create_linked_type(name_view(), allocator);
 }
 
 //hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
@@ -412,16 +412,6 @@ int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* 
     return itr.first;
 }
 
-VariantMember::VariantMember(
-        const std::string& name,
-        VariantDefinition* parent_node,
-        SourceLocation location
-) : BaseDefMember(name), parent_node(parent_node), ref_type(name, this, location), location(location),
-    attrs(false)
-{
-
-}
-
 BaseDefMember *VariantMember::copy_member(ASTAllocator& allocator) {
     const auto member = new (allocator.allocate<VariantMember>()) VariantMember(name, parent_node, location);
     for(auto& value : values) {
@@ -444,7 +434,7 @@ void VariantMember::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-ASTNode *VariantMember::child(const std::string &name) {
+ASTNode *VariantMember::child(const chem::string_view &name) {
     auto found = values.find(name);
     if(found == values.end()) {
         return (ASTNode*) &found->second;
@@ -518,18 +508,6 @@ BaseTypeKind VariantMember::type_kind() const {
     return BaseTypeKind::Struct;
 }
 
-VariantMemberParam::VariantMemberParam(
-    std::string name,
-    unsigned index,
-    bool is_const,
-    BaseType* type,
-    Value* def_value,
-    VariantMember* parent_node,
-    SourceLocation location
-) : name(std::move(name)), index(index), type(type), def_value(def_value), parent_node(parent_node), location(location), is_const(is_const) {
-
-}
-
 VariantMemberParam* VariantMemberParam::copy(ASTAllocator& allocator) {
     return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, is_const, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent_node, location);
 }
@@ -546,11 +524,11 @@ ASTNode* VariantMemberParam::child(int varIndex) {
     return linked->child(varIndex);
 }
 
-int VariantMemberParam::child_index(const std::string &varName) {
+int VariantMemberParam::child_index(const chem::string_view &varName) {
     return type->linked_node()->child_index(varName);
 }
 
-ASTNode* VariantMemberParam::child(const std::string &varName) {
+ASTNode* VariantMemberParam::child(const chem::string_view &varName) {
     const auto pure_type = type->pure_type();
     const auto linked_node = pure_type->linked_node();
     return linked_node->child(varName);
@@ -595,20 +573,11 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker) {
     const auto member = parent_val->linked_node()->as_variant_member();
     auto node = member->values.find(name);
     if(node == member->values.end()) {
-        linker.error("variant case member variable not found in switch statement, name '" + name + "' not found", this);
+        linker.error("variant case member variable not found in switch statement, name '" + name.str() + "' not found", this);
         return;
     }
     member_param = node->second;
     linker.declare(name, this);
-}
-
-VariantCaseVariable::VariantCaseVariable(
-        std::string name,
-        VariableIdentifier* parent_val,
-        SwitchStatement* switch_statement,
-        SourceLocation location
-) : name(std::move(name)), parent_val(parent_val), switch_statement(switch_statement), location(location) {
-
 }
 
 void VariantCaseVariable::accept(Visitor *visitor) {
@@ -638,7 +607,7 @@ bool VariantCaseVariable::is_generic_param() {
     return linked != nullptr && linked->as_generic_type_param() != nullptr;
 }
 
-ASTNode* VariantCaseVariable::child(const std::string &child_name) {
+ASTNode* VariantCaseVariable::child(const chem::string_view &child_name) {
     if(is_generic_param()) {
         auto itr = set_iteration();
         const auto result = member_param->child(child_name);
@@ -649,7 +618,7 @@ ASTNode* VariantCaseVariable::child(const std::string &child_name) {
     }
 }
 
-int VariantCaseVariable::child_index(const std::string &child_index) {
+int VariantCaseVariable::child_index(const chem::string_view &child_index) {
     if(is_generic_param()) {
         auto itr = set_iteration();
         const auto result = member_param->child_index(child_index);

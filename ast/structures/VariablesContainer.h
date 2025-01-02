@@ -12,22 +12,22 @@ class VariablesContainer {
 public:
 
     std::vector<std::unique_ptr<InheritedType>> inherited;
-    tsl::ordered_map<std::string, BaseDefMember*> variables;
+    tsl::ordered_map<chem::string_view, BaseDefMember*> variables;
 
     /**
      * get the variable type along with index
      */
-    std::pair<long, BaseType*> variable_type_index(const std::string &name, bool consider_inherited_structs = true);
+    std::pair<long, BaseType*> variable_type_index(const chem::string_view &name, bool consider_inherited_structs = true);
 
-    long variable_index(const std::string &name, bool consider_inherited_structs = true) {
+    long variable_index(const chem::string_view& name, bool consider_inherited_structs = true) {
         return variable_type_index(name, consider_inherited_structs).first;
     }
 
-    long direct_child_index(const std::string &varName);
+    long direct_child_index(const chem::string_view &varName);
 
     uint64_t total_byte_size(bool is64Bit);
 
-    BaseDefMember *child_def_member(const std::string &name);
+    BaseDefMember *child_def_member(const chem::string_view& name);
 
     BaseDefMember* largest_member();
 
@@ -40,7 +40,7 @@ public:
      * The path starts from this variables container, so only this container can resolve it
      * @return true if child is found, false if not
      */
-    bool build_path_to_child(std::vector<int>& path, const std::string& child_name);
+    bool build_path_to_child(std::vector<int>& path, const chem::string_view& child_name);
 
     /**
      * check if given interface is overridden by this
@@ -60,13 +60,13 @@ public:
     bool llvm_struct_child_index(
             Codegen &gen,
             std::vector<llvm::Value *> &indexes,
-            const std::string &name
+            const chem::string_view &name
     );
 
     bool llvm_union_child_index(
             Codegen &gen,
             std::vector<llvm::Value *> &indexes,
-            const std::string &name
+            const chem::string_view &name
     );
 
 #endif

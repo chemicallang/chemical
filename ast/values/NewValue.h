@@ -45,7 +45,7 @@ public:
 
     llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) override {
         return value->add_child_index(gen, indexes, name);
     }
 

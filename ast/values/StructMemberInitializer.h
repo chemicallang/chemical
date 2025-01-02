@@ -14,7 +14,7 @@ public:
     /**
      * the name of the struct member being initialized
      */
-    std::string name;
+    chem::string_view name;
 
     /**
      * the value used to initialize
@@ -35,11 +35,13 @@ public:
      * constructor
      */
     StructMemberInitializer(
-        std::string name,
+        chem::string_view name,
         Value* value,
         StructValue* struct_value,
         ASTNode* member = nullptr
-    );
+    ) : name(name), value(value), struct_value(struct_value), member(member) {
+
+    }
 
     ASTNodeKind kind() final {
         return ASTNodeKind::StructMemberInitializer;

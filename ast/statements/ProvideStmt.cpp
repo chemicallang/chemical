@@ -5,16 +5,6 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/base/Value.h"
 
-ProvideStmt::ProvideStmt(
-    Value* value,
-    std::string identifier,
-    Scope scope,
-    ASTNode* parent,
-    SourceLocation location
-) : value(value), identifier(std::move(identifier)), body(std::move(scope)), parent_node(parent), location(location) {
-
-}
-
 void ProvideStmt::declare_and_link(SymbolResolver &linker) {
     if(value->link(linker, value, nullptr)) {
         put_in(linker.implicit_args, value, &linker, [](ProvideStmt* stmt, void* data) {

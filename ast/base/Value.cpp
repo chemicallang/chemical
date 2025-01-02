@@ -323,7 +323,7 @@ bool Value::add_member_index(Codegen& gen, Value* parent, std::vector<llvm::Valu
 #endif
 }
 
-bool Value::add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const std::string& name) {
+bool Value::add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const chem::string_view& name) {
 #ifdef DEBUG
     throw std::runtime_error("Value::add_child_index called on a Value");
 #else
@@ -578,16 +578,16 @@ bool Value::requires_memcpy_ref_struct(BaseType* known_type) {
     return false;
 }
 
-Value* Value::child(InterpretScope& scope, const std::string& name) {
+Value* Value::child(InterpretScope& scope, const chem::string_view& name) {
 #ifdef DEBUG
     std::cerr << "Value::child called on base value " + representation();
 #endif
     return nullptr;
 }
 
-Value* Value::call_member(InterpretScope& scope, const std::string& name, std::vector<Value*>& values) {
+Value* Value::call_member(InterpretScope& scope, const chem::string_view& name, std::vector<Value*>& values) {
 #ifdef DEBUG
-    std::cerr << "Value::call_member called on base value " + representation() + " with name " + name;
+    std::cerr << "Value::call_member called on base value " + representation() + " with name " + name.str();
 #endif
     return nullptr;
 }
@@ -599,7 +599,7 @@ Value* Value::index(InterpretScope& scope, int i) {
     return nullptr;
 }
 
-void Value::set_child_value(const std::string& name, Value* value, Operation op) {
+void Value::set_child_value(const chem::string_view& name, Value* value, Operation op) {
 #ifdef DEBUG
     std::cerr << "Value::set_child_value called on base value " + representation();
 #endif
@@ -697,7 +697,7 @@ bool Value::get_the_bool() {
     return ((BoolValue*) this)->value;
 }
 
-std::string Value::get_the_string() {
+const chem::string_view& Value::get_the_string() {
     return ((StringValue*) this)->value;
 }
 

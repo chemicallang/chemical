@@ -25,15 +25,15 @@ public:
     /**
      * get the name of the container
      */
-    inline const std::string name() const {
-        return identifier.identifier.str();
+    inline const chem::string_view& name_view() const {
+        return identifier.identifier;
     }
 
     /**
-     * get the name of the container
+     * get name as a string
      */
-    inline const chem::string_view& name_view() const {
-        return identifier.identifier;
+    inline std::string name_str() const {
+        return name_view().str();
     }
 
     /**
@@ -59,7 +59,7 @@ public:
     /**
      * get the member container child or otherwise extendable member container child
      */
-    ASTNode *child(const std::string &child_name) {
+    ASTNode *child(const chem::string_view &child_name) {
         auto found = MembersContainer::child(child_name);
         if(found) return found;
         return ExtendableBase::extended_child(child_name);

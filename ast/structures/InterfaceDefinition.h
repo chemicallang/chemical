@@ -124,7 +124,7 @@ public:
     }
 
     const std::string ns_node_identifier() final {
-        return name();
+        return name_str();
     }
 
     /**

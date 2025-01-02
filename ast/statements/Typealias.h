@@ -80,16 +80,12 @@ public:
         attrs.deprecated = value;
     }
 
-    inline const std::string name() const {
-        return located_id.identifier.str();
-    }
-
     inline const chem::string_view& name_view() const {
         return located_id.identifier;
     }
 
-    inline const std::string identifier() const {
-        return located_id.identifier.str();
+    inline std::string name_str() const {
+        return name_view().str();
     }
 
     SourceLocation encoded_location() final {
@@ -113,7 +109,7 @@ public:
     }
 
     const std::string ns_node_identifier() final {
-        return name();
+        return name_str();
     }
 
     uint64_t byte_size(bool is64Bit) final;

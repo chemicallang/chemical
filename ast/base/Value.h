@@ -25,6 +25,7 @@ class Codegen;
 #include "Visitor.h"
 #include "BaseTypeKind.h"
 #include "ValueKind.h"
+#include "std/chem_string_view.h"
 
 class FunctionDeclaration;
 
@@ -131,12 +132,12 @@ public:
     /**
      * if this value has a child by this name, it should return a pointer to it
      */
-    virtual Value* child(InterpretScope& scope, const std::string& name);
+    virtual Value* child(InterpretScope& scope, const chem::string_view& name);
 
     /**
      * this function returns a function declaration for a member function
      */
-    virtual Value* call_member(InterpretScope& scope, const std::string& name, std::vector<Value*>& values);
+    virtual Value* call_member(InterpretScope& scope, const chem::string_view& name, std::vector<Value*>& values);
 
     /**
      * index operator [] calls this on a value
@@ -146,7 +147,7 @@ public:
     /**
      * set the child value, with given name, performing operation op
      */
-    virtual void set_child_value(const std::string& name, Value* value, Operation op);
+    virtual void set_child_value(const chem::string_view& name, Value* value, Operation op);
 
     /**
      * this function expects this identifier value to find itself in the parent value given to it
@@ -423,7 +424,7 @@ public:
     /**
      * add child index in llvm indexes vector
      */
-    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const std::string& name);
+    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const chem::string_view& name);
 
 #endif
 
@@ -555,9 +556,9 @@ public:
 
     /**
      * will get the string from the value
-     * this usually works on string values
+     * this only works on string values
      */
-    std::string get_the_string();
+    const chem::string_view& get_the_string();
 
     /**
      * get any number from the type

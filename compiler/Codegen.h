@@ -19,6 +19,7 @@
 #include "CodegenEmitterOptions.h"
 #include "ClangCodegen.h"
 #include "utils/fwd/functional.h"
+#include "std/chem_string_view.h"
 
 class ASTAllocator;
 
@@ -87,7 +88,7 @@ public:
     /**
      * implicit arguments are provided using provide as statement
      */
-    std::unordered_map<std::string, llvm::Value*> implicit_args;
+    std::unordered_map<chem::string_view, llvm::Value*> implicit_args;
 
     /**
      * All get element pointer instructions use this to state that the element pointer is inbounds

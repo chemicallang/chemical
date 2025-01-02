@@ -206,7 +206,7 @@ public:
      * return a child ASTNode* with name
      * called by access chain values like function call, on structs to get member function definitions
      */
-    virtual ASTNode *child(const std::string &name) {
+    virtual ASTNode *child(const chem::string_view &name) {
         return nullptr;
     }
 
@@ -214,7 +214,7 @@ public:
      * same as child, only it returns the index of the child
      * so it can be used to create get element pointer instructions using llvm
      */
-    virtual int child_index(const std::string &name) {
+    virtual int child_index(const chem::string_view &name) {
         return -1;
     }
 
@@ -417,7 +417,7 @@ public:
     /**
      * add child index in llvm indexes vector
      */
-    virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name);
+    virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name);
 
     /**
      * loads the value of the given ASTNode

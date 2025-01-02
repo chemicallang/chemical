@@ -12,7 +12,7 @@ Namespace::Namespace(
 
 }
 
-void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const std::string& node_id) {
+void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const chem::string_view& node_id) {
     auto found = extended.find(node_id);
     if(found == extended.end()) {
         extended[node_id] = node;
@@ -40,7 +40,7 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
             root->declare_extended_in_linker(linker);
             for(const auto node : nodes) {
                 node->declare_top_level(linker);
-                root->declare_node(linker, node, node->ns_node_identifier());
+                root->declare_node(linker, node, node->get_located_id()->identifier);
             }
             linker.scope_end();
         } else {
@@ -50,7 +50,7 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
         linker.declare_node(name(), this, specifier(), false);
         // we do not check for duplicate symbols here, because nodes are being declared first time
         for(const auto node : nodes) {
-            extended[node->ns_node_identifier()] = node;
+            extended[node->get_located_id()->identifier] = node;
         }
     }
 }
@@ -70,7 +70,7 @@ void Namespace::declare_and_link(SymbolResolver &linker) {
     linker.scope_end();
 }
 
-ASTNode *Namespace::child(const std::string &child_name) {
+ASTNode *Namespace::child(const chem::string_view &child_name) {
     auto node = extended.find(child_name);
     if(node != extended.end()) {
         return node->second;

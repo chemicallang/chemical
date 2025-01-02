@@ -126,7 +126,7 @@ FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
     }
 }
 
-FunctionParam* FunctionType::implicit_param_for(const std::string& name) {
+FunctionParam* FunctionType::implicit_param_for(const chem::string_view& name) {
     for(auto param : params) {
         if(param->is_implicit && param->name == name) {
             return param;
@@ -444,7 +444,7 @@ bool FunctionType::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
         const auto init = linked->as_var_init_unsafe();
 #ifdef DEBUG
         if(init->get_has_moved()) {
-            diagnoser.error("found var init that skipped move check, identifier '" + init->identifier() + "' has already been moved", id);
+            diagnoser.error("found var init that skipped move check, identifier '" + init->name_str() + "' has already been moved", id);
             return false;
         }
 #endif
@@ -452,7 +452,7 @@ bool FunctionType::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
         const auto param = linked->as_func_param_unsafe();
 #ifdef DEBUG
         if(param->get_has_moved()) {
-            diagnoser.error("found function param that skipped move check, identifier '" + param->name + "' has already been moved", id);
+            diagnoser.error("found function param that skipped move check, identifier '" + param->name.str() + "' has already been moved", id);
             return false;
         }
 #endif
@@ -472,7 +472,7 @@ bool FunctionType::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnoser
         const auto init = linked->as_var_init_unsafe();
 #ifdef DEBUG
         if(init->get_has_moved()) {
-            diagnoser.error("found var init that skipped move check, identifier '" + init->identifier() + "' has already been moved", id);
+            diagnoser.error("found var init that skipped move check, identifier '" + init->name_str() + "' has already been moved", id);
             return false;
         }
 #endif
@@ -481,7 +481,7 @@ bool FunctionType::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnoser
         const auto param = linked->as_func_param_unsafe();
 #ifdef DEBUG
         if(param->get_has_moved()) {
-            diagnoser.error("found function param that skipped move check, identifier '" + param->name + "' has already been moved", id);
+            diagnoser.error("found function param that skipped move check, identifier '" + param->name.str() + "' has already been moved", id);
             return false;
         }
 #endif

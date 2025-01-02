@@ -60,7 +60,7 @@ InterfaceDefinition* BaseType::linked_dyn_interface() {
     return nullptr;
 }
 
-std::string& BaseType::linked_name() {
+chem::string_view& BaseType::linked_name() {
     const auto k = kind();
     if(k == BaseTypeKind::Linked) {
         return ((LinkedType*) (this))->type;
@@ -71,8 +71,8 @@ std::string& BaseType::linked_name() {
         throw std::runtime_error("BaseType::linked_name called on unexpected type '" + representation() + "'");
 #else
         std::cerr << "BaseType::ref_name called on unexpected type '" + representation() << "'" << std::endl;
-        std::string x;
-        return x;
+        chem::string_view view("");
+        return view;
 #endif
     }
 }

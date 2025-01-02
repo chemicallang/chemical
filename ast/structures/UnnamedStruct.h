@@ -14,11 +14,13 @@ public:
     AccessSpecifier specifier;
 
     UnnamedStruct(
-        std::string name,
+        chem::string_view name,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : BaseDefMember(name), parent_node(parent_node), location(location), specifier(specifier) {
+
+    }
 
     ASTNodeKind kind() final {
         return ASTNodeKind::UnnamedStruct;
@@ -109,7 +111,7 @@ public:
         return false;
     }
 
-    ASTNode *child(const std::string &name) final {
+    ASTNode *child(const chem::string_view &name) final {
         return VariablesContainer::child_def_member(name);
     }
 
@@ -139,7 +141,7 @@ public:
     bool add_child_index(
             Codegen &gen,
             std::vector<llvm::Value *> &indexes,
-            const std::string &name
+            const chem::string_view &name
     ) final {
         return VariablesContainer::llvm_struct_child_index(gen, indexes, name);
     }

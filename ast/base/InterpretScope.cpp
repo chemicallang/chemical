@@ -27,8 +27,12 @@ ASTAny* InterpretScope::allocate_released(std::size_t obj_size, std::size_t alig
     return ptr;
 }
 
-void InterpretScope::declare(const std::string &name, Value *value) {
+void InterpretScope::declare(std::string &name, Value *value) {
     values[name] = value;
+}
+
+void InterpretScope::declare(const chem::string_view& name, Value* value) {
+    values[name.str()] = value;
 }
 
 Value *InterpretScope::find_value(const std::string &name) {

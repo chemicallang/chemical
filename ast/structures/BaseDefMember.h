@@ -8,11 +8,11 @@
 class BaseDefMember : public AnnotableNode {
 public:
 
-    std::string name;
+    chem::string_view name;
 
-    BaseDefMember(
-        std::string name
-    );
+    BaseDefMember(chem::string_view name) : name(name) {
+
+    }
 
     virtual bool get_is_const() = 0;
 

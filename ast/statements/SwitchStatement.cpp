@@ -215,7 +215,7 @@ ASTNode *SwitchStatement::linked_node() {
 }
 
 void link_variant_mem(SymbolResolver& resolver, VariantDefinition* var_def, VariableIdentifier* id) {
-    id->linked = var_def->child(id->value.str());
+    id->linked = var_def->child(id->value);
     if(!id->linked) {
         resolver.error("couldn't find the variant member with name '" + id->value.str() + "'", id);
     }
@@ -229,7 +229,7 @@ void link_variant_call(SymbolResolver& resolver, VariantDefinition* var_def, Fun
         for(const auto value : call->values) {
             const auto id = value->as_identifier();
             if(id) {
-                const auto variable = new (astAlloc.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value.str(), first_id, stmt, 0);
+                const auto variable = new (astAlloc.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, first_id, stmt, 0);
                 variable->declare_and_link(resolver);
             } else {
                 resolver.error("expected value to be a identifier", value);

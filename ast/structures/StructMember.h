@@ -26,14 +26,18 @@ public:
     StructMemberAttributes attrs;
 
     StructMember(
-            std::string name,
+            chem::string_view name,
             BaseType* type,
             Value* defValue,
             ASTNode* parent_node,
             SourceLocation location,
             bool is_const = false,
             AccessSpecifier specifier = AccessSpecifier::Public
-    );
+    ) : BaseDefMember(name), type(type), defValue(defValue), parent_node(parent_node), location(location),
+        attrs(specifier, is_const, false)
+    {
+
+    }
 
     inline AccessSpecifier specifier() {
         return attrs.specifier;
@@ -92,7 +96,7 @@ public:
 
     void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) final;
+    ASTNode *child(const chem::string_view &name) final;
 
     Value *holding_value() final {
         return defValue ? defValue : nullptr;
@@ -104,7 +108,7 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
     llvm::Type* llvm_type(Codegen &gen) final;
 

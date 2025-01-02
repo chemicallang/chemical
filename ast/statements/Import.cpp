@@ -8,15 +8,6 @@
 
 namespace fs = std::filesystem;
 
-ImportStatement::ImportStatement(
-        std::string filePath,
-        std::vector<std::string> identifiers,
-        ASTNode* parent_node,
-        SourceLocation location
-) : filePath(std::move(filePath)), identifiers(std::move(identifiers)), parent_node(parent_node), location(location) {
-
-}
-
 void ImportStatement::declare_top_level(SymbolResolver &linker) {
 
 }

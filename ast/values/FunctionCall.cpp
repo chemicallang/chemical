@@ -114,7 +114,7 @@ void put_implicit_params(
                     if(between_param) {
                         args.emplace_back(gen.current_function->getArg(between_param->calculate_c_or_llvm_index()));
                     } else {
-                        gen.error("couldn't provide implicit argument '" + param->name + "'", call);
+                        gen.error("couldn't provide implicit argument '" + param->name.str() + "'", call);
                     }
                 }
             }
@@ -235,7 +235,7 @@ void to_llvm_args(
             if(param->defValue) {
                 args.emplace_back(arg_value(gen, call, func_type, param, param->defValue, -1));
             } else if(!func_type->isInVarArgs(i)) {
-                gen.error("function param '" + param->name + "' doesn't have a default value, however no argument exists for it", call);
+                gen.error("function param '" + param->name.str() + "' doesn't have a default value, however no argument exists for it", call);
             }
         } else {
 #ifdef DEBUG
@@ -462,7 +462,7 @@ bool is_node_decl(ASTNode* linked) {
 bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member, FunctionCall* call) {
     const auto member_index = member->parent_node->direct_child_index(member->name);
     if(member_index == -1) {
-        gen.error("couldn't find member index for the variant member with name '" + member->name + "'", call);
+        gen.error("couldn't find member index for the variant member with name '" + member->name.str() + "'", call);
         return false;
     }
     // storing the type index in the enum inside variant
@@ -697,7 +697,7 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen, BaseType *type) {
     return value;
 }
 
-bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool FunctionCall::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     const auto type = create_type(gen.allocator);
     const auto linked_node = type->linked_node();
     return linked_node->add_child_index(gen, indexes, name);
@@ -841,7 +841,7 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name(), struct_def, location), generic_iteration);
+            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, location), generic_iteration);
         }
     }
     return func_type;
@@ -1016,7 +1016,7 @@ int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocat
                 return prev_itr;
             }
         } else {
-            diagnoser.error("struct with name " + parent_struct->name() + " doesn't have a constructor that satisfies given arguments " + call->representation(), parent_id);
+            diagnoser.error("struct with name " + parent_struct->name_str() + " doesn't have a constructor that satisfies given arguments " + call->representation(), parent_id);
         }
     }
     return -2;
@@ -1128,7 +1128,7 @@ bool FunctionCall::compile_time_computable() {
 Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
     auto id = parent->as_identifier();
     if(id != nullptr) {
-        return parent->call_member(scope, id->value.str(), values);
+        return parent->call_member(scope, id->value, values);
     } else {
         scope.error("No identifier for function call", this);
         return nullptr;
@@ -1187,7 +1187,7 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
             if(func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
                 const auto struct_def = func_decl->parent_node->as_struct_def();
                 if(struct_def->is_generic()) {
-                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name(), struct_def, location), generic_iteration);
+                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, location), generic_iteration);
                 }
             }
             prev_itr = set_curr_itr_on_decl();

@@ -28,7 +28,7 @@ public:
 
     EnumDeclAttributes attrs;
     LocatedIdentifier located_id; ///< The name of the enum.
-    std::unordered_map<std::string, EnumMember*> members; ///< The values of the enum.
+    std::unordered_map<chem::string_view, EnumMember*> members; ///< The values of the enum.
     ASTNode* parent_node;
     SourceLocation location;
     IntNType* underlying_type;
@@ -44,13 +44,12 @@ public:
      */
     EnumDeclaration(
             LocatedIdentifier name_id,
-            std::unordered_map<std::string, EnumMember*> members,
             IntNType* underlying_type,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : located_id(name_id), members(std::move(members)), parent_node(parent_node), location(location),
-        linked_type(name(), this, location), underlying_type(underlying_type), attrs(specifier, false) {
+    ) : located_id(name_id), parent_node(parent_node), location(location),
+        linked_type(name_id.identifier, this, location), underlying_type(underlying_type), attrs(specifier, false) {
 
     }
 
@@ -60,10 +59,6 @@ public:
     inline LocatedIdentifier* get_located_id() {
         return &located_id;
     }
-
-    inline const std::string name() {
-        return located_id.identifier.str();
-    };
 
     inline const chem::string_view& name_view() {
         return located_id.identifier;
@@ -108,7 +103,7 @@ public:
     void declare_top_level(SymbolResolver &linker) final;
 
     const std::string ns_node_identifier() final {
-        return name();
+        return name_view().str();
     }
 
     BaseType* create_value_type(ASTAllocator& allocator) final;
@@ -129,6 +124,6 @@ public:
 
 #endif
 
-    ASTNode *child(const std::string &name) final;
+    ASTNode *child(const chem::string_view &name) final;
 
 };

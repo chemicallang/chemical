@@ -8,6 +8,7 @@
 
 #include "ast/base/Value.h"
 #include "ast/utils/Operation.h"
+#include "std/chem_string_view.h"
 #include <memory>
 
 class Expression : public Value {
@@ -103,7 +104,7 @@ public:
 
     void llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block);
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
 #endif
 

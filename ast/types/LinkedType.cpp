@@ -102,7 +102,7 @@ bool LinkedType::satisfies(BaseType *other) {
 bool LinkedType::link(SymbolResolver &linker) {
     linked = linker.find(type);
     if(!linked) {
-        linker.error("unresolved symbol, couldn't find referenced type " + type, this);
+        linker.error("unresolved symbol, couldn't find referenced type " + type.str(), this);
         return false;
     }
     return true;

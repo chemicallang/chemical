@@ -12,7 +12,7 @@
 VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefinition* definition) {
     auto id = consumeIdentifierOrKeyword();
     if(id) {
-        auto member = new (allocator.allocate<VariantMember>()) VariantMember(id->value.str(), definition, loc_single(id));
+        auto member = new (allocator.allocate<VariantMember>()) VariantMember(allocate_view(allocator, id->value), definition, loc_single(id));
         annotate(member);
         readWhitespace();
         if(consumeToken(TokenType::LParen)) {
@@ -25,8 +25,9 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
 
                     readWhitespace();
 
-                    auto param = new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(paramId->value.str(), index, false, nullptr, nullptr, member, loc_single(paramId));
-                    member->values[paramId->value.str()] = param;
+                    auto name_view = allocate_view(allocator, paramId->value);
+                    auto param = new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name_view, index, false, nullptr, nullptr, member, loc_single(paramId));
+                    member->values[name_view] = param;
 
                     if(!consumeToken(TokenType::ColonSym)) {
                         error("expected ':' after the variant member parameter");

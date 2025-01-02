@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "std/chem_string_view.h"
+
 class ToCAstVisitor;
 
 class SubVisitor {
@@ -32,7 +34,7 @@ public:
     /**
      * write fn using visitor
      */
-    inline void write(const std::string& value) const;
+    inline void write(const chem::string_view& value) const;
 
     /**
      * new line and indent to current indentation level

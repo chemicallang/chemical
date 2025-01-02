@@ -68,22 +68,8 @@ void UnionDef::code_gen_external_declare(Codegen &gen) {
 
 #endif
 
-UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node, SourceLocation location, AccessSpecifier specifier) : BaseDefMember(std::move(name)), parent_node(parent_node), location(location), specifier(specifier) {
-
-}
-
-UnionDef::UnionDef(
-    LocatedIdentifier identifier,
-    ASTNode* parent_node,
-    SourceLocation location,
-    AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), location(location),
-    attrs(specifier, false, false, false, false), linked_type("", this, location) {
-
-}
-
 BaseType *UnionDef::copy(ASTAllocator& allocator) const {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name(), (ASTNode*) this, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode*) this, location);
 }
 
 VariablesContainer *UnionDef::copy_container(ASTAllocator& allocator) {
@@ -103,7 +89,7 @@ BaseType *UnnamedUnion::copy(ASTAllocator& allocator) const {
 }
 
 BaseType* UnionDef::create_value_type(ASTAllocator& allocator) {
-    return create_linked_type(name(), allocator);
+    return create_linked_type(name_view(), allocator);
 }
 
 BaseType* UnionDef::known_type() {

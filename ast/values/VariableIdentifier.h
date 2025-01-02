@@ -55,7 +55,7 @@ public:
 
     BaseType* known_type() final;
 
-    Value *child(InterpretScope &scope, const std::string &name) final;
+    Value *child(InterpretScope &scope, const chem::string_view &name) final;
 
     // will find value by this name in the parent
     Value *find_in(InterpretScope &scope, Value *parent) final;
@@ -103,7 +103,7 @@ public:
 
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
     llvm::Type *llvm_type(Codegen &gen) final;
 

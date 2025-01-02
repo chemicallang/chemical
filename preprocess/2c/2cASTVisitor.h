@@ -84,7 +84,7 @@ public:
     /**
      * implicit arguments are stored on this unordered map
      */
-    std::unordered_map<std::string, Value*> implicit_args;
+    std::unordered_map<chem::string_view, Value*> implicit_args;
 
     /**
      * this visitor takes out values like lambda from within functions
@@ -253,9 +253,14 @@ public:
     void write(std::string& str);
 
     /**
-     * used to write a string to a stream
+     * will write this string to stream
      */
-    void write(std::string_view str);
+    void write_str(const std::string& str);
+
+    /**
+     * write the string view to stream
+     */
+    void write(std::string_view& str);
 
     /**
      * write the string view to stream
@@ -263,9 +268,14 @@ public:
     void write(chem::string_view& str);
 
     /**
+     * write this string view to stream
+     */
+    void write(const chem::string_view& str);
+
+    /**
      * write a debug comment
      */
-    void debug_comment(const std::string& value, bool new_line = true) {
+    void debug_comment(const chem::string_view& value, bool new_line = true) {
         if(debug_comments) {
             write("/** ");
             write(value);
@@ -604,7 +614,7 @@ inline void SubVisitor::write(char value) const {
 /**
  * write fn using visitor
  */
-inline void SubVisitor::write(const std::string& value) const {
+inline void SubVisitor::write(const chem::string_view& value) const {
     visitor.write(value);
 }
 

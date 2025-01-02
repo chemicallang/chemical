@@ -14,11 +14,13 @@ public:
     AccessSpecifier specifier;
 
     UnnamedUnion(
-        std::string name,
+        chem::string_view name,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : BaseDefMember(name), parent_node(parent_node), location(location), specifier(specifier) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -61,7 +63,7 @@ public:
 
     void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) final {
+    ASTNode *child(const chem::string_view &name) final {
         return VariablesContainer::child_def_member(name);
     }
 
@@ -105,7 +107,7 @@ public:
     bool add_child_index(
         Codegen &gen,
         std::vector<llvm::Value *> &indexes,
-        const std::string &name
+        const chem::string_view &name
     ) final {
         return llvm_union_child_index(gen, indexes, name);
     }

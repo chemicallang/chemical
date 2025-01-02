@@ -161,7 +161,7 @@ void IfStatement::code_gen(Codegen &gen, Scope* scope, unsigned int index) {
     code_gen(gen, index != scope->nodes.size() - 1);
 }
 
-bool IfStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool IfStatement::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     const auto linked = linked_node();
     return linked != nullptr && linked->add_child_index(gen, indexes, name);
 }

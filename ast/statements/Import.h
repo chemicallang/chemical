@@ -18,23 +18,22 @@ class ASTDiagnoser;
 class ImportStatement : public ASTNode {
 public:
 
-    std::vector<std::string> identifiers;
-    std::string filePath; ///< The file path to import.
-    std::string as_identifier;
+    std::vector<chem::string_view> identifiers;
+    chem::string_view filePath; ///< The file path to import.
+    chem::string_view as_identifier;
     ASTNode* parent_node;
     SourceLocation location;
 
     /**
-     * @brief Construct a new ImportStatement object.
-     *
-     * @param filePath The file path to import.
+     * constructor
      */
     ImportStatement(
-        std::string filePath,
-        std::vector<std::string> identifiers,
+        chem::string_view filePath,
         ASTNode* parent_node,
         SourceLocation location
-    );
+    ) : filePath(filePath), parent_node(parent_node), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;

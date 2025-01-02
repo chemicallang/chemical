@@ -7,7 +7,7 @@
 class GenericTypeParameter : public ASTNode {
 public:
 
-    std::string identifier;
+    chem::string_view identifier;
     BaseType* at_least_type;
     BaseType* def_type;
     std::vector<BaseType*> usage;
@@ -20,13 +20,16 @@ public:
      * constructor
      */
     GenericTypeParameter(
-        std::string identifier,
+        chem::string_view identifier,
         BaseType* at_least_type,
         BaseType* def_type,
         ASTNode* parent_node,
         unsigned param_index,
         SourceLocation location
-    );
+    ) : identifier(identifier), at_least_type(at_least_type),
+    def_type(def_type), parent_node(parent_node), param_index(param_index), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -85,12 +88,12 @@ public:
         return active_iteration > -1 ? usage[active_iteration]->linked_node() : nullptr;
     }
 
-    ASTNode *child(const std::string &name) final {
+    ASTNode *child(const chem::string_view &name) final {
         const auto linked = usage_linked();
         return linked ? linked->child(name) : (at_least_type ? at_least_type->linked_node()->child(name) : nullptr);
     }
 
-    int child_index(const std::string &name) final {
+    int child_index(const chem::string_view &name) final {
         const auto linked = usage_linked();
         return linked ? linked->child_index(name) : -1;
     }
@@ -114,7 +117,7 @@ public:
         return usage[active_iteration]->llvm_chain_type(gen, values, index);
     }
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final {
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final {
         return usage[active_iteration]->linked_node()->add_child_index(gen, indexes, name);
     }
 

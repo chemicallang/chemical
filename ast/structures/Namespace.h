@@ -29,7 +29,7 @@ struct NamespaceDeclAttributes {
 class Namespace : public AnnotableNode {
 private:
 
-    void declare_node(SymbolResolver& linker, ASTNode* node, const std::string& node_id);
+    void declare_node(SymbolResolver& linker, ASTNode* node, const chem::string_view& node_id);
 
     void declare_extended_in_linker(SymbolResolver& linker);
 
@@ -37,7 +37,7 @@ public:
 
     LocatedIdentifier identifier;
     std::vector<ASTNode*> nodes;
-    tsl::ordered_map<std::string, ASTNode*> extended;
+    tsl::ordered_map<chem::string_view, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
     ASTNode* parent_node;
     SourceLocation location;
@@ -119,7 +119,7 @@ public:
 
     void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) final;
+    ASTNode *child(const chem::string_view &name) final;
 
 #ifdef COMPILER_BUILD
 

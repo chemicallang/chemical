@@ -12,7 +12,7 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
     if (kw_tok.type != TokenType::ImportKw) {
         return nullptr;
     }
-    auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement("", {}, parent_node, loc_single(kw_tok));
+    auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement("", parent_node, loc_single(kw_tok));
     token++;
     readWhitespace();
     auto str = parseStringValue(allocator);
@@ -21,7 +21,7 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
         if(lexWhitespaceToken() && consumeWSOfType(TokenType::AsKw)) {
             auto id = consumeIdentifierOrKeyword();
             if(id) {
-                stmt->as_identifier = id->value.str();
+                stmt->as_identifier = allocate_view(allocator, id->value);
             } else {
                 error("expected identifier after 'as' in import statement");
                 return stmt;

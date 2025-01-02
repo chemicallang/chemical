@@ -37,7 +37,10 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), location(location),
+        attrs(specifier, false, false, false, false), linked_type("", this, location) {
+
+    }
 
     /**
     * get the name of node
@@ -54,8 +57,8 @@ public:
         return ASTNodeKind::UnionDecl;
     }
 
-    const std::string& union_name() final {
-        return name();
+    std::string union_name_str() final {
+        return name_view().str();
     }
 
     inline AccessSpecifier specifier() {
@@ -129,7 +132,7 @@ public:
     }
 
     const std::string ns_node_identifier() final {
-        return name();
+        return name_str();
     }
 
     void accept(Visitor *visitor) final {
@@ -211,7 +214,7 @@ public:
     bool add_child_index(
         Codegen &gen,
         std::vector<llvm::Value *> &indexes,
-        const std::string &name
+        const chem::string_view &name
     ) final {
         return llvm_union_child_index(gen, indexes, name);
     }

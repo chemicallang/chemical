@@ -256,7 +256,7 @@ ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {
         readWhitespace();
         auto id = consumeIdentifierOrKeyword();
         if(id) {
-            stmt->identifier = id->value.str();
+            stmt->identifier = allocate_view(allocator, id->value);
         } else {
             error("expected identifier after 'as'");
             return stmt;

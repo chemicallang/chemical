@@ -12,11 +12,13 @@ public:
      * constructor
      */
     ExtensionFuncReceiver(
-        std::string name,
+        chem::string_view name,
         BaseType* type,
         ASTNode* parent_node,
         SourceLocation location
-    );
+    ) : BaseFunctionParam(name, type), parent_node(parent_node), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -30,7 +32,7 @@ public:
         return parent_node;
     }
 
-    ASTNode *child(const std::string &name) final;
+    ASTNode *child(const chem::string_view &name) final;
 
     unsigned int calculate_c_or_llvm_index() final;
 

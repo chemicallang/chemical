@@ -260,10 +260,10 @@ void ASTProcessor::import_chemical_file(
         auto kind = node->kind();
         if(kind == ASTNodeKind::ImportStmt) {
             auto stmt = node->as_import_stmt_unsafe();
-            auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, std::string(stmt->filePath));
+            auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, stmt->filePath.str());
             if(replaceResult.error.empty()) {
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
-                imports.emplace_back(fileId, stmt->filePath, std::move(replaceResult.replaced));
+                imports.emplace_back(fileId, stmt->filePath.str(), std::move(replaceResult.replaced));
             } else {
                 std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
             }

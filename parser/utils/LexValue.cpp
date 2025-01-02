@@ -57,10 +57,9 @@ Value* Parser::parseStringValue(ASTAllocator& allocator) {
     if(t.type == TokenType::String) {
         // consume it
         token++;
-        // got the string
-        const auto value = new (allocator.allocate<StringValue>()) StringValue("", loc_single(t));
         // the value will contain double quotes around it
-        value->value.append(t.value.data() + 1, t.value.size() - 2);
+        const auto actual_value = chem::string_view(t.value.data() + 1, t.value.size() - 2);
+        const auto value = new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, actual_value), loc_single(t));
         return value;
     } else {
         return nullptr;

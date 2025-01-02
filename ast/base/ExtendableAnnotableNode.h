@@ -11,7 +11,7 @@ public:
     /**
      * get the member container child or otherwise extendable member container child
      */
-    ASTNode *child(const std::string &name) {
+    ASTNode *child(const chem::string_view &name) {
         auto found = AnnotableNode::child(name);
         if(found) return found;
         return (ASTNode*) ExtendableBase::extended_child(name);

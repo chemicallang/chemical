@@ -109,7 +109,7 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
         error("missing struct / interface name in inheritance list of the struct");
         return nullptr;
     }
-    auto idType = new (allocator.allocate<LinkedType>()) LinkedType(id->value.str(), loc_single(id));
+    auto idType = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), loc_single(id));
     lexWhitespaceToken();
     return parseGenericTypeAfterId(allocator, idType);
 }
@@ -361,7 +361,7 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             if(token->type == TokenType::DoubleColonSym) {
                 type = parseLinkedValueType(allocator, typeToken, location);
             } else {
-                type = new (allocator.allocate<LinkedType>()) LinkedType(typeToken->value.str(), location);
+                type = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, typeToken->value), location);
             }
             type = parseGenericTypeAfterId(allocator, type);
             break;

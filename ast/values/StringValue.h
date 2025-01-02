@@ -10,6 +10,7 @@
 
 #include "ast/values/CharValue.h"
 #include "ast/types/StringType.h"
+#include "std/chem_string_view.h"
 
 /**
  * @brief Class representing a string value.
@@ -17,7 +18,7 @@
 class StringValue : public Value {
 public:
 
-    std::string value;
+    chem::string_view value;
     unsigned int length = 0;
     bool is_array = false;
     SourceLocation location;
@@ -27,7 +28,7 @@ public:
      *
      * @param value The string value.
      */
-    explicit StringValue(std::string value, SourceLocation location) : length(value.size()), value(std::move(value)), location(location) {
+    explicit StringValue(chem::string_view value, SourceLocation location) : length(value.size()), value(value), location(location) {
 
     }
 
@@ -60,8 +61,8 @@ public:
     Value *index(InterpretScope &scope, int i) final {
 #ifdef DEBUG
         if (i < 0 || i >= value.size()) {
-            std::cerr << "[InterpretError] access index " + std::to_string(i) + " out of bounds for string " + value +
-                         " of length " + std::to_string(value.size());
+            std::cerr << "[InterpretError] access index " << std::to_string(i) << " out of bounds for string " << value <<
+                         " of length " << std::to_string(value.size());
         }
 #endif
         return new CharValue(value[i], location);

@@ -4,7 +4,7 @@
 #include "ast/structures/MembersContainer.h"
 #include <sstream>
 
-FunctionDeclaration *ExtendableBase::extended_child(const std::string &name) {
+FunctionDeclaration *ExtendableBase::extended_child(const chem::string_view &name) {
     auto func = extension_functions.find(name);
     if(func != extension_functions.end()) {
         return func->second;
@@ -17,15 +17,15 @@ void ExtendableBase::adopt(MembersContainer* definition) {
         adopt((MembersContainer*) inherits->type->linked_node());
     }
     for(auto& func : definition->functions()) {
-        extension_functions[func->name()] = func;
+        extension_functions[func->name_view()] = func;
     }
 }
 
 void ExtendableMembersContainerNode::runtime_name_no_parent(std::ostream &stream) {
     if(generic_params.empty()) {
-        stream << name();
+        stream << name_view();
     } else {
-        stream << name();
+        stream << name_view();
         stream << "__cgs__";
         stream << active_iteration;
     }

@@ -243,7 +243,7 @@ llvm::Type *UnionType::llvm_type(Codegen &gen) {
     auto container = variables_container();
     auto largest = container->largest_member();
     if(!largest) {
-        gen.error("Couldn't determine the largest member of the union with name " + union_name(), this);
+        gen.error("Couldn't determine the largest member of the union with name " + union_name_str(), this);
         return nullptr;
     }
     auto stored = llvm_union_get_stored_type();
@@ -252,7 +252,7 @@ llvm::Type *UnionType::llvm_type(Codegen &gen) {
         if(is_anonymous()) {
             return llvm::StructType::get(*gen.ctx, members);
         }
-        stored = llvm::StructType::create(*gen.ctx, members, "union." + union_name());
+        stored = llvm::StructType::create(*gen.ctx, members, "union." + union_name_str());
         llvm_union_type_store(stored);
         return stored;
     }
@@ -375,7 +375,7 @@ llvm::Value *StringValue::llvm_value(Codegen &gen, BaseType* expected_type) {
             initializer
         );
     } else {
-        return gen.builder->CreateGlobalStringPtr(value);
+        return gen.builder->CreateGlobalStringPtr(llvm::StringRef(value.data(), value.size()));
     }
 }
 
@@ -412,12 +412,12 @@ llvm::Value *VariableIdentifier::llvm_value(Codegen &gen, BaseType* expected_typ
 
 bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
     if(parent) {
-        return parent->linked_node()->add_child_index(gen, indexes, value.str());
+        return parent->linked_node()->add_child_index(gen, indexes, value);
     }
     return true;
 }
 
-bool VariableIdentifier::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool VariableIdentifier::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return linked->add_child_index(gen, indexes, name);
 }
 
@@ -522,7 +522,7 @@ llvm::Type *Expression::llvm_type(Codegen &gen) {
     return known_type()->llvm_type(gen);
 }
 
-bool Expression::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return linked_node()->add_child_index(gen, indexes, name);
 }
 
@@ -667,7 +667,7 @@ llvm::Value* PlacementNewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     gen.error("unknown value given to placement new", this);
 }
 
-bool CastedValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool CastedValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return type->linked_node()->add_child_index(gen, indexes, name);
 }
 
@@ -687,7 +687,7 @@ bool AddrOfValue::add_member_index(Codegen &gen, Value *parent, std::vector<llvm
     return value->add_member_index(gen, parent, indexes);
 }
 
-bool AddrOfValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool AddrOfValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return value->add_child_index(gen, indexes, name);
 }
 
@@ -778,7 +778,7 @@ void AccessChain::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     restore_generic_iteration(active, gen.allocator);
 }
 
-bool AccessChain::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool AccessChain::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     std::vector<int16_t> active;
     set_generic_iteration(active, gen.allocator);
     auto result = values[values.size() - 1]->add_child_index(gen, indexes, name);

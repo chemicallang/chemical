@@ -29,14 +29,15 @@ public:
     const bool is_implicit;
 
     FunctionParam(
-            std::string name,
+            chem::string_view name,
             BaseType* type,
             unsigned int index,
             Value* defValue,
             bool is_implicit,
             FunctionType* func_type,
             SourceLocation location
-    );
+    ) : BaseFunctionParam(name, type, func_type), index(index),
+        defValue(defValue), is_implicit(is_implicit), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;

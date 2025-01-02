@@ -77,4 +77,9 @@ func test_strings() {
         var second = string("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         return first.equals(&second);
     })
+    test("check multiline strings work", () => {
+        var first = "abcdefghij
+klmnopqrstuvwxyz"
+        return strlen(first) == 27
+    })
 }

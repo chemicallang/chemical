@@ -84,11 +84,11 @@ void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_
             if(func_res != found->second.end()) {
                 llvm_pointers.emplace_back(func_res->second);
             } else {
-                gen.error("couldn't find function impl pointer, name '" + func->name() + "' for struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' for interface '" + name() + "'", (AnnotableNode*) func);
+                gen.error("couldn't find function impl pointer, name '" + func->name_str() + "' for struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' for interface '" + name_str() + "'", (AnnotableNode*) func);
             }
         }
     } else {
-        gen.error("couldn't find struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' implementation pointers for interface '" + name() + "'", (AnnotableNode*) for_struct);
+        gen.error("couldn't find struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' implementation pointers for interface '" + name_str() + "'", (AnnotableNode*) for_struct);
     }
 }
 
@@ -138,7 +138,7 @@ InterfaceDefinition::InterfaceDefinition(
 }
 
 BaseType* InterfaceDefinition::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name(), this, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), this, location);
 }
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {

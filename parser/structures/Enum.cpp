@@ -23,7 +23,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
         }
 
         auto loc = loc_single(start_tok);
-        auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(allocator, id), {}, nullptr, parent_node, loc, specifier);
+        auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(allocator, id), nullptr, parent_node, loc, specifier);
 
         annotate(decl);
 
@@ -57,8 +57,9 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
             lexWhitespaceAndNewLines();
             auto memberId = consumeIdentifierOrKeyword();
             if(memberId) {
-                auto member = new (allocator.allocate<EnumMember>()) EnumMember(memberId->value.str(), index, nullptr, decl, loc_single(memberId));
-                decl->members[memberId->value.str()] = member;
+                const auto member_name = allocate_view(allocator, memberId->value);
+                auto member = new (allocator.allocate<EnumMember>()) EnumMember(member_name, index, nullptr, decl, loc_single(memberId));
+                decl->members[member_name] = member;
                 lexWhitespaceToken();
                 if(consumeToken(TokenType::EqualSym)) {
                     lexWhitespaceToken();

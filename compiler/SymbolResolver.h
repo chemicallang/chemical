@@ -164,7 +164,7 @@ public:
      * implicit arguments are provided using provide statements
      * we track these using this unordered map
      */
-    std::unordered_map<std::string, Value*> implicit_args;
+    std::unordered_map<chem::string_view, Value*> implicit_args;
 
     /**
      * a file scope begins, a file scope should not be popped, this is because

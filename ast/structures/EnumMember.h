@@ -12,7 +12,7 @@ struct EnumMemberAttributes {
 class EnumMember : public ASTNode {
 public:
 
-    std::string name;
+    chem::string_view name;
     unsigned int index;
     EnumDeclaration* parent_node;
     Value* init_value;
@@ -20,12 +20,12 @@ public:
     EnumMemberAttributes attrs;
 
     EnumMember(
-        std::string  name,
+        chem::string_view name,
         unsigned int index,
         Value* init_value,
         EnumDeclaration* parent_node,
         SourceLocation location
-    ) : name(std::move(name)), index(index), init_value(init_value), parent_node(parent_node), location(location),
+    ) : name(name), index(index), init_value(init_value), parent_node(parent_node), location(location),
        attrs(false)
     {
 

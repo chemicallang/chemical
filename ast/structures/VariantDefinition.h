@@ -101,7 +101,7 @@ public:
     }
 
     const std::string ns_node_identifier() final {
-        return name();
+        return name_str();
     }
 
     void declare_top_level(SymbolResolver &linker) final;
@@ -113,7 +113,7 @@ public:
     [[nodiscard]]
     ValueType value_type() const final;
 
-    ASTNode* child(const std::string &child_name) final;
+    ASTNode* child(const chem::string_view &child_name) final;
 
     uint64_t byte_size(bool is64Bit) final;
 
@@ -181,7 +181,7 @@ public:
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
 #endif
 

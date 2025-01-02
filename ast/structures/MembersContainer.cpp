@@ -26,7 +26,7 @@
 bool VariablesContainer::llvm_struct_child_index(
         Codegen &gen,
         std::vector<llvm::Value *> &indexes,
-        const std::string &child_name
+        const chem::string_view &child_name
 ) {
     auto index = variable_index(child_name, false);
     if (indexes.empty()) {
@@ -56,7 +56,7 @@ bool VariablesContainer::llvm_struct_child_index(
 bool VariablesContainer::llvm_union_child_index(
         Codegen &gen,
         std::vector<llvm::Value *> &indexes,
-        const std::string &name
+        const chem::string_view &name
 ) {
     auto largest = largest_member();
     if(largest) {
@@ -165,7 +165,7 @@ void MembersContainer::llvm_build_inherited_vtable(Codegen& gen, StructDefinitio
 
 #endif
 
-BaseDefMember *VariablesContainer::child_def_member(const std::string &name) {
+BaseDefMember *VariablesContainer::child_def_member(const chem::string_view &name) {
     auto found = variables.find(name);
     if (found != variables.end()) {
         return found->second;
@@ -281,7 +281,7 @@ void MembersContainer::register_use_to_inherited_interfaces(StructDefinition* de
     }
 }
 
-FunctionDeclaration *MembersContainer::member(const std::string &name) {
+FunctionDeclaration *MembersContainer::member(const chem::string_view &name) {
     auto func = indexes.find(name);
     if(func != indexes.end()) {
         return func->second;
@@ -289,7 +289,7 @@ FunctionDeclaration *MembersContainer::member(const std::string &name) {
     return nullptr;
 }
 
-ASTNode *MembersContainer::child(const std::string &varName) {
+ASTNode *MembersContainer::child(const chem::string_view &varName) {
     auto found = variables.find(varName);
     if (found != variables.end()) {
         return found->second;
@@ -303,7 +303,7 @@ ASTNode *MembersContainer::child(const std::string &varName) {
     }
 }
 
-BaseDefMember *MembersContainer::direct_variable(const std::string& name) {
+BaseDefMember *MembersContainer::direct_variable(const chem::string_view& name) {
     auto found = variables.find(name);
     if (found != variables.end()) {
         return found->second;
@@ -312,19 +312,19 @@ BaseDefMember *MembersContainer::direct_variable(const std::string& name) {
     }
 }
 
-ASTNode *MembersContainer::direct_child_member(const std::string& name) {
+ASTNode *MembersContainer::direct_child_member(const chem::string_view& name) {
     auto direct_var = direct_variable(name);
     if(direct_var) return direct_var;
     for(auto& inherits : inherited) {
         const auto struct_def = inherits->type->linked_struct_def();
-        if(struct_def && struct_def->name() == name) {
+        if(struct_def && struct_def->name_view().data() == name) {
             return struct_def;
         }
     }
     return nullptr;
 }
 
-BaseDefMember *MembersContainer::inherited_member(const std::string& name) {
+BaseDefMember *MembersContainer::inherited_member(const chem::string_view& name) {
     for(auto& inherits : inherited) {
         const auto struct_def = inherits->type->linked_struct_def();
         if(struct_def) {
@@ -335,7 +335,7 @@ BaseDefMember *MembersContainer::inherited_member(const std::string& name) {
     return nullptr;
 }
 
-BaseDefMember *MembersContainer::child_member(const std::string& name) {
+BaseDefMember *MembersContainer::child_member(const chem::string_view& name) {
     const auto direct_mem = direct_variable(name);
     if(direct_mem) return direct_mem;
     const auto inherited_mem = inherited_member(name);
@@ -343,7 +343,7 @@ BaseDefMember *MembersContainer::child_member(const std::string& name) {
     return nullptr;
 }
 
-FunctionDeclaration *MembersContainer::direct_child_function(const std::string& name) {
+FunctionDeclaration *MembersContainer::direct_child_function(const chem::string_view& name) {
     auto found_func = indexes.find(name);
     if (found_func != indexes.end()) {
         return found_func->second;
@@ -362,7 +362,7 @@ std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(
             const auto linked_node_kind = linked_node->kind();
             if (linked_node_kind == ASTNodeKind::InterfaceDecl) {
                 const auto interface = linked_node->as_interface_def_unsafe();
-                const auto child_func = interface->direct_child_function(function->name());
+                const auto child_func = interface->direct_child_function(function->name_view());
                 if (child_func) {
                     return {interface, child_func};
                 } else {
@@ -370,7 +370,7 @@ std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(
                 }
             } else if (linked_node_kind == ASTNodeKind::StructDecl) {
                 const auto struct_def = linked_node->as_struct_def_unsafe();
-                const auto child_func = struct_def->direct_child_function(function->name());
+                const auto child_func = struct_def->direct_child_function(function->name_view());
                 if (child_func) {
                     return {struct_def, child_func};
                 } else {
@@ -386,7 +386,7 @@ std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(
 }
 
 std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_func_with_signature(FunctionDeclaration* function) {
-    auto direct = direct_child_function(function->name());
+    auto direct = direct_child_function(function->name_view());
     if(direct) return { this, direct };
     return get_overriding_info(function);
 }
@@ -605,13 +605,13 @@ FunctionDeclaration* MembersContainer::pre_move_func() {
 }
 
 void MembersContainer::insert_func(FunctionDeclaration* decl) {
-    indexes[decl->name()] = decl;
+    indexes[decl->name_view()] = decl;
     functions_container.emplace_back(decl);
 }
 
 FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
     decl->set_delete_fn(true);
     insert_func(decl);
@@ -620,7 +620,7 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
 
 FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) {
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("clear"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
     decl->set_clear_fn(true);
     insert_func(decl);
@@ -629,8 +629,8 @@ FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) 
 
 FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
-    decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC, true), 1, nullptr, true, decl, ZERO_LOC));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
+    decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
     decl->set_copy_fn(true);
     insert_func(decl);
@@ -639,8 +639,8 @@ FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
 
 FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("move"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
-    decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, ZERO_LOC), ZERO_LOC, true), 1, nullptr, true, decl, ZERO_LOC));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
+    decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(LoopScope{nullptr, ZERO_LOC});
     decl->set_move_fn(true);
     insert_func(decl);
@@ -684,7 +684,7 @@ FunctionDeclaration* MembersContainer::create_def_move_fn(ASTAllocator& allocato
 }
 
 bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
-    auto found = indexes.find(decl->name());
+    auto found = indexes.find(decl->name_view());
     if(found == indexes.end()) {
         insert_func(decl);
     } else {
@@ -695,18 +695,18 @@ bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
             multi_nodes.emplace_back(result.new_multi_func_node);
             // storing pointer to MultiFunctionNode as FunctionDeclaration
             // this can create errors, if not handled properly
-            indexes[decl->name()] = (FunctionDeclaration*) result.new_multi_func_node;
+            indexes[decl->name_view()] = (FunctionDeclaration*) result.new_multi_func_node;
         }
         functions_container.emplace_back(decl);
     }
     return true;
 }
 
-bool MembersContainer::contains_func(const std::string& name) {
+bool MembersContainer::contains_func(const chem::string_view& name) {
     return indexes.find(name) != indexes.end();
 }
 
-BaseType* MembersContainer::create_linked_type(const std::string& name, ASTAllocator& allocator) {
+BaseType* MembersContainer::create_linked_type(const chem::string_view& name, ASTAllocator& allocator) {
     const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(name, this, ZERO_LOC);
     if(generic_params.empty()) {
         return linked_type;
@@ -754,12 +754,12 @@ bool MembersContainer::extends_node(ASTNode* other) {
     }
 }
 
-std::pair<long, BaseType*> VariablesContainer::variable_type_index(const std::string &varName, bool consider_inherited_structs) {
+std::pair<long, BaseType*> VariablesContainer::variable_type_index(const chem::string_view& varName, bool consider_inherited_structs) {
     long parents_size = 0;
     for(auto& inherits : inherited) {
         const auto struct_def = inherits->type->linked_node()->as_struct_def();
         if(struct_def) {
-            if(consider_inherited_structs && struct_def->name() == varName) {
+            if(consider_inherited_structs && struct_def->name_view().data() == varName) {
                 // user wants the struct
                 return { parents_size, inherits->type };
             }
@@ -774,7 +774,7 @@ std::pair<long, BaseType*> VariablesContainer::variable_type_index(const std::st
     }
 }
 
-long VariablesContainer::direct_child_index(const std::string &varName) {
+long VariablesContainer::direct_child_index(const chem::string_view& varName) {
     auto found = variables.find(varName);
     if(found == variables.end()) {
         return -1;
@@ -793,7 +793,7 @@ bool VariablesContainer::does_override(InterfaceDefinition* interface) {
     return false;
 }
 
-bool VariablesContainer::build_path_to_child(std::vector<int>& path, const std::string& child_name) {
+bool VariablesContainer::build_path_to_child(std::vector<int>& path, const chem::string_view& child_name) {
     const auto child_ind = direct_child_index(child_name);
     if(child_ind != -1) {
         path.emplace_back(child_ind);
@@ -827,7 +827,7 @@ InheritedType::InheritedType(BaseType* type, AccessSpecifier specifier) : type(t
 
 }
 
-std::string& InheritedType::ref_type_name() {
+const chem::string_view& InheritedType::ref_type_name() {
     if(type->kind() == BaseTypeKind::Generic) {
         return ((GenericType*) type)->referenced->type;
     } else if(type->kind() == BaseTypeKind::Linked) {

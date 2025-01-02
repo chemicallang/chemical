@@ -49,7 +49,7 @@ bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<ll
     return true;
 }
 
-bool IndexOperator::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool IndexOperator::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return create_type(gen.allocator)->linked_node()->add_child_index(gen, indexes, name);
 }
 

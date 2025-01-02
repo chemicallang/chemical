@@ -39,7 +39,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
         auto& value_ptr = value.second->value;
         auto variable = definition->variable_type_index(value.first);
         if (variable.first == -1) {
-            gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name(), this);
+            gen.error("couldn't get struct child " + value.first.str() + " in definition with name " + definition->name_str(), this);
         } else {
 
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
@@ -88,7 +88,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 defValue->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
             } else if(linked_kind != ASTNodeKind::UnionDecl) {
-                gen.error("expected a default value for '" + value.first + "'", this);
+                gen.error("expected a default value for '" + value.first.str() + "'", this);
             }
         }
     }
@@ -135,7 +135,7 @@ unsigned int StructValue::store_in_struct(
     if (index == -1) {
         gen.error(
                 "can't store struct value '" + representation() + "' into parent struct value '" + parent->representation() + "' with an unknown index" +
-                " where current definition name '" + definition->name() + "'", this);
+                " where current definition name '" + definition->name_str() + "'", this);
         return index + values.size();
     }
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
@@ -155,7 +155,7 @@ unsigned int StructValue::store_in_array(
     if (index == -1) {
         gen.error(
                 "can't store struct value " + representation() + " array value " + ((Value*) parent)->representation() + " with an unknown index" +
-                " where current definition name " + definition->name(), this);
+                " where current definition name " + definition->name_str(), this);
         return index + 1;
     }
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
@@ -217,36 +217,11 @@ llvm::Type *StructValue::llvm_type(Codegen &gen) {
     }
 }
 
-bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool StructValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return definition->add_child_index(gen, indexes, name);
 }
 
 #endif
-
-//StructValue::StructValue(
-//        std::unique_ptr<Value> ref,
-//        std::unordered_map<std::string, std::unique_ptr<Value>> values,
-//        StructDefinition *definition
-//) : ref(std::move(ref)), values(std::move(values)), definition(definition) {}
-
-StructValue::StructValue(
-        BaseType* refType,
-        std::unordered_map<std::string, StructMemberInitializer*> values,
-        ExtendableMembersContainerNode *definition,
-        SourceLocation location,
-        ASTNode* parent_node
-) : refType(refType), values(std::move(values)), definition(definition), location(location), parent_node(parent_node) {}
-
-StructValue::StructValue(
-        BaseType* refType,
-        std::unordered_map<std::string, StructMemberInitializer*> values,
-        ExtendableMembersContainerNode *definition,
-        InterpretScope &scope,
-        SourceLocation location,
-        ASTNode* parent_node
-) : refType(refType), values(std::move(values)), definition(definition), location(location), parent_node(parent_node) {
-    declare_default_values(this->values, scope);
-}
 
 uint64_t StructValue::byte_size(bool is64Bit) {
     if(definition->generic_params.empty()) {
@@ -290,18 +265,18 @@ std::vector<BaseType*> StructValue::create_generic_list() {
 bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     if(linked_kind == ASTNodeKind::UnionDecl) {
         if(values.size() != 1) {
-            diagnoser.error("union '" + definition->name() + "' must be initialized with a single member value", this);
+            diagnoser.error("union '" + definition->name_str() + "' must be initialized with a single member value", this);
             return false;
         } else {
             return true;
         }
     }
     if(values.size() < definition->init_values_req_size()) {
-        std::vector<std::string> missing;
+        std::vector<chem::string_view> missing;
         for(auto& mem : definition->inherited) {
             auto& type = *mem->type;
             if(type.get_direct_linked_struct()) {
-                auto& ref_type_name = mem->ref_type_name();
+                const auto& ref_type_name = mem->ref_type_name();
                 auto val = values.find(ref_type_name);
                 if (val == values.end()) {
                     missing.emplace_back(ref_type_name);
@@ -319,7 +294,7 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
         if(!missing.empty()) {
             for (auto& miss: missing) {
                 diagnoser.error(
-                        "couldn't find value for member '" + miss + "' for initializing struct '" + definition->name() +
+                        "couldn't find value for member '" + miss.str() + "' for initializing struct '" + definition->name_str() +
                         "'", this);
             }
             return true;
@@ -353,7 +328,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         definition = (ExtendableMembersContainerNode*) found;
         diagnose_missing_members_for_init(linker);
         if(!allows_direct_init()) {
-            linker.error("struct value with a constructor cannot be initialized, name '" + definition->name() + "' has a constructor", this);
+            linker.error("struct value with a constructor cannot be initialized, name '" + definition->name_str() + "' has a constructor", this);
             return false;
         }
         auto refTypeKind = refType->kind();
@@ -375,7 +350,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             const auto value = val_ptr;
             auto child_node = definition->direct_child_member(val.first);
             if(!child_node) {
-                linker.error("couldn't find child '" + val.first + "' in struct declaration", this);
+                linker.error("couldn't find child '" + val.first.str() + "' in struct declaration", this);
                 continue;
             }
             auto child_type = child_node->get_value_type(linker.allocator);
@@ -448,17 +423,17 @@ void StructValue::runtime_name(std::ostream& output) {
 
 Value *StructValue::call_member(
         InterpretScope &scope,
-        const std::string &name,
+        const chem::string_view &name,
         std::vector<Value*> &params
 ) {
     auto fn = definition->member(name);
     if (fn == nullptr) {
-        scope.error("couldn't find member function by name " + name + " in a struct by name " + refType->representation(), this);
+        scope.error("couldn't find member function by name " + name.str() + " in a struct by name " + refType->representation(), this);
         return nullptr;
     }
 #ifdef DEBUG
     if (!fn->body.has_value()) {
-        scope.error("function doesn't have body in a struct " + name, this);
+        scope.error("function doesn't have body in a struct " + name.str(), this);
         return nullptr;
     }
 #endif
@@ -468,10 +443,10 @@ Value *StructValue::call_member(
     return value;
 }
 
-void StructValue::set_child_value(const std::string &name, Value *value, Operation op) {
+void StructValue::set_child_value(const chem::string_view &name, Value *value, Operation op) {
     auto ptr = values.find(name);
     if (ptr == values.end()) {
-        std::cerr << "couldn't find child by name '" + name + "' in struct";
+        std::cerr << "couldn't find child by name '" + name.str() + "' in struct";
         return;
     }
     ptr->second->value = value;
@@ -488,7 +463,6 @@ Value *StructValue::evaluated_value(InterpretScope &scope) {
 StructValue* StructValue::initialized_value(InterpretScope& scope) {
     auto struct_value = new (scope.allocate<StructValue>()) StructValue(
             refType->copy(scope.allocator),
-            std::unordered_map<std::string, StructMemberInitializer*>(),
             definition,
             location,
             parent_node
@@ -511,7 +485,7 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
 }
 
 void StructValue::declare_default_values(
-        std::unordered_map<std::string, StructMemberInitializer*> &into,
+        std::unordered_map<chem::string_view, StructMemberInitializer*> &into,
         InterpretScope &scope
 ) {
     Value* defValue;
@@ -526,7 +500,6 @@ void StructValue::declare_default_values(
 StructValue *StructValue::copy(ASTAllocator& allocator) {
     auto struct_value = new (allocator.allocate<StructValue>()) StructValue(
         refType->copy(allocator),
-        std::unordered_map<std::string, StructMemberInitializer*>(),
         definition,
         location,
         parent_node
@@ -550,7 +523,7 @@ BaseType* StructValue::known_type() {
     return refType;
 }
 
-Value *StructValue::child(InterpretScope &scope, const std::string &name) {
+Value *StructValue::child(InterpretScope &scope, const chem::string_view &name) {
     auto value = values.find(name);
     if (value == values.end()) {
         auto func = definition->member(name);
@@ -561,15 +534,6 @@ Value *StructValue::child(InterpretScope &scope, const std::string &name) {
         }
     }
     return value->second->value;
-}
-
-StructMemberInitializer::StructMemberInitializer(
-        std::string name,
-        Value* value,
-        StructValue* struct_value,
-        ASTNode* member
-) : name(std::move(name)), value(value), struct_value(struct_value), member(member) {
-
 }
 
 StructMemberInitializer* StructMemberInitializer::copy(ASTAllocator& allocator) {

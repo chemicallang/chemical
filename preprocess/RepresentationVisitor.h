@@ -75,19 +75,26 @@ public:
     }
 
     /**
+     * write the string value to stream
+     */
+    void write_str(const std::string& value);
+
+    /**
      * used to write a string to a stream
      */
-    void write(std::string& value);
+    inline void write(std::string& value) {
+        write_str(value);
+    }
 
     /**
      * write this string view to the stream
      */
-    void write(const std::string_view& view);
+    void write_view(std::string_view& view);
 
     /**
      * write this string view to the stream
      */
-    void write_view(const chem::string_view& view);
+    void write(const chem::string_view& view);
 
     /**
      * this should be called before calling translate

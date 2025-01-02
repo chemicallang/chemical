@@ -130,7 +130,6 @@ namespace InterpretVector {
         std::vector<Value*> values;
         explicit InterpretVectorVal(InterpretVectorNode* node) : StructValue(
             nullptr,
-            {},
             (StructDefinition*) node,
             ZERO_LOC,
             nullptr
@@ -363,7 +362,7 @@ public:
         }
         switch(val_type) {
             case ValueType::String:
-                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->get_the_string().length(), ZERO_LOC);
+                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->get_the_string().size(), ZERO_LOC);
             case ValueType::Array:
                 return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->as_array_value()->array_size(), ZERO_LOC);
             default:
@@ -549,13 +548,7 @@ public:
         set_comptime(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        std::string val;
-        val.append(std::to_string(PROJECT_VERSION_MAJOR));
-        val.append(1, '.');
-        val.append(std::to_string(PROJECT_VERSION_MINOR));
-        val.append(1, '.');
-        val.append(std::to_string(PROJECT_VERSION_PATCH));
-        return new (call_scope->allocate<StringValue>()) StringValue(std::move(val), ZERO_LOC);
+        return new (call_scope->allocate<StringValue>()) StringValue(VERSION_STRING, ZERO_LOC);
     }
 };
 
@@ -784,7 +777,7 @@ public:
         auto val = call->values[0]->evaluated_value(*call_scope);
         if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         auto& definitions = call_scope->global->build_compiler->current_job->definitions;
-        auto found = definitions.find(val->get_the_string());
+        auto found = definitions.find(val->get_the_string().str());
         return new (call_scope->allocate<BoolValue>()) BoolValue(found != definitions.end(), ZERO_LOC);
     }
 };
@@ -815,7 +808,7 @@ public:
         if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         auto val = call->values[0]->evaluated_value(*call_scope);
         if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
-        call_scope->error(val->get_the_string(), call);
+        call_scope->error(val->get_the_string().view(), call);
     }
 };
 
@@ -979,7 +972,9 @@ public:
         set_comptime(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (call_scope->allocate<StringValue>()) StringValue(call_scope->global->target_triple, call->location);
+        auto& triple = call_scope->global->target_triple;
+        const auto triple_ptr = allocator.allocate_str(triple.data(), triple.size());
+        return new (call_scope->allocate<StringValue>()) StringValue(chem::string_view(triple_ptr, triple.size()), call->location);
     }
 };
 
@@ -1005,7 +1000,7 @@ public:
         auto& loc_man = call_scope->global->loc_man;
         auto location = loc_man.getLocation(call->location);
         auto fileId = loc_man.getPathForFileId(location.fileId);
-        return new (call_scope->allocate<StringValue>()) StringValue(std::string(fileId), call->location);
+        return new (call_scope->allocate<StringValue>()) StringValue(chem::string_view(fileId.data(), fileId.size()), call->location);
     }
 };
 
@@ -1165,7 +1160,6 @@ public:
 
     DefValue(DefDecl *defDecl) : StructValue(
             &id,
-            {},
             defDecl,
             ZERO_LOC,
             nullptr
@@ -1183,7 +1177,7 @@ struct DefThing {
         defStmt.set_comptime(true);
     }
 
-    void declare_value(ASTAllocator& allocator, const std::string& name, BaseType* type, Value* value) {
+    void declare_value(ASTAllocator& allocator, const chem::string_view& name, BaseType* type, Value* value) {
         const auto member = new (allocator.allocate<StructMember>()) StructMember(name, type, nullptr, &decl, ZERO_LOC, true);
         decl.variables[name] = member;
         const auto init = new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(name, value, &defValue, member);
@@ -1193,10 +1187,6 @@ struct DefThing {
     void clear_values() {
         decl.variables.clear();
         defValue.values.clear();
-    }
-
-    inline void declare_value(ASTAllocator& allocator, const std::string& name, Value* value) {
-        declare_value(allocator, name, value->create_type(allocator), value);
     }
 
 };

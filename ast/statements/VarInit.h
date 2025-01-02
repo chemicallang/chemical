@@ -92,17 +92,10 @@ public:
     }
 
     /**
-     * get the name / identifier of the declaration
+     * get the name view
      */
-    inline const std::string name() {
-        return located_id.identifier.str();
-    }
-
-    /**
-     * get the name / identifier of the declaration
-     */
-    inline const std::string identifier() {
-        return located_id.identifier.str();
+    inline const chem::string_view& name_view() {
+        return located_id.identifier;
     }
 
     /**
@@ -110,6 +103,13 @@ public:
      */
     inline const chem::string_view& id_view() {
         return located_id.identifier;
+    }
+
+    /**
+     * get the name as a string
+     */
+    inline std::string name_str() {
+        return id_view().str();
     }
 
     inline bool deprecated() {
@@ -215,7 +215,7 @@ public:
     }
 
     const std::string ns_node_identifier() final {
-        return identifier();
+        return id_view().str();
     }
 
 #ifdef COMPILER_BUILD
@@ -230,7 +230,7 @@ public:
 
     llvm::Value *llvm_load(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
     void code_gen_global_var(Codegen &gen, bool initialize);
 
@@ -243,14 +243,14 @@ public:
 #endif
 
     void runtime_name_no_parent(std::ostream &stream) final {
-        stream << identifier();
+        stream << id_view();
     }
 
     inline std::string runtime_name_fast() {
-        return parent_node ? runtime_name_str() : identifier();
+        return parent_node ? runtime_name_str() : name_str();
     }
 
-    ASTNode *child(const std::string &name) final;
+    ASTNode *child(const chem::string_view &name) final;
 
     void declare_top_level(SymbolResolver &linker) final;
 

@@ -17,7 +17,7 @@ public:
     Scope scope;
     ASTNode* parent_node;
     SourceLocation location;
-    std::unordered_map<std::string, InitBlockInitializerValue> initializers;
+    std::unordered_map<chem::string_view, InitBlockInitializerValue> initializers;
     // the struct container for which init block is for
     ExtendableMembersContainerNode* container;
     // the function in which init block appears

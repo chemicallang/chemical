@@ -19,7 +19,7 @@
 bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member) {
     const auto member_index = member->parent_node->direct_child_index(member->name);
     if(member_index == -1) {
-        gen.error("couldn't find member index for the variant member with name '" + member->name + "'", this);
+        gen.error("couldn't find member index for the variant member with name '" + member->name.str() + "'", this);
         return false;
     }
     // storing the type index in the enum inside variant

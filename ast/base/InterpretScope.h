@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include "ast/base/ASTAllocator.h"
+#include "std/chem_string_view.h"
 
 class Value;
 
@@ -94,15 +95,22 @@ public:
     /**
      * declares a value with this name in current scope
      */
-    void declare(const std::string& name, Value* value);
+    void declare(std::string& name, Value* value);
+
+    /**
+     * declares a value with this name in current scope
+     */
+    void declare(const chem::string_view& name, Value* value);
 
     /**
      * erases a value by the key name from the value map safely
+     * TODO provide a method which takes a string view
      */
     void erase_value(const std::string &name);
 
     /**
      * @return return value with name, or nullptr
+     * TODO provide a method which takes a string view
      */
     Value* find_value(const std::string& name);
 

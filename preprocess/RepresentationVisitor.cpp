@@ -124,7 +124,7 @@ void scope(RepresentationVisitor* visitor, Scope& scope) {
     visitor->write('}');
 }
 
-void write_encoded(RepresentationVisitor* visitor, const std::string& value) {
+void write_encoded(RepresentationVisitor* visitor, const chem::string_view& value) {
     auto& out = visitor->output;
     for(char c : value) {
         write_escape_encoded(out, c);
@@ -187,15 +187,15 @@ void RepresentationVisitor::indent() {
     }
 }
 
-void RepresentationVisitor::write(std::string& value) {
+void RepresentationVisitor::write_str(const std::string& value) {
     output.write(value.c_str(), (std::streamsize) value.size());
 }
 
-void RepresentationVisitor::write(const std::string_view& view) {
+void RepresentationVisitor::write_view(std::string_view& view) {
     output.write(view.data(), (std::streamsize) view.size());
 }
 
-void RepresentationVisitor::write_view(const chem::string_view& view) {
+void RepresentationVisitor::write(const chem::string_view& view) {
     output.write(view.data(), (std::streamsize) view.size());
 }
 
@@ -205,7 +205,7 @@ void RepresentationVisitor::visit(VarInitStatement *init) {
     } else {
         write("var ");
     }
-    write(init->identifier());
+    write(init->id_view());
     if (init->type) {
         write(" : ");
         init->type->accept(this);
@@ -219,7 +219,9 @@ void RepresentationVisitor::visit(VarInitStatement *init) {
 void RepresentationVisitor::visit(AssignStatement *stmt) {
     stmt->lhs->accept(this);
     if (stmt->assOp != Operation::Assignment) {
-        write(" " + to_string(stmt->assOp) + "= ");
+        write(' ');
+        write_str(to_string(stmt->assOp));
+        write("= ");
     } else {
         write(" = ");
     }
@@ -232,7 +234,7 @@ void RepresentationVisitor::visit(BreakStatement *breakStatement) {
 
 void RepresentationVisitor::visit(Comment *comment) {
     write("//");
-    write_view(comment->comment);
+    write(comment->comment);
 }
 
 void RepresentationVisitor::visit(ContinueStatement *continueStatement) {
@@ -266,7 +268,7 @@ void RepresentationVisitor::visit(DoWhileLoop *doWhileLoop) {
 
 void RepresentationVisitor::visit(EnumDeclaration *enumDecl) {
     write("enum ");
-    write(enumDecl->name());
+    write(enumDecl->name_view());
     space();
     write("{");
     indentation_level+=1;
@@ -307,7 +309,7 @@ void RepresentationVisitor::visit(FunctionParam *param) {
 void RepresentationVisitor::visit(FunctionDeclaration *decl) {
     write_ws(decl->specifier());
     write("func ");
-    write(decl->name());
+    write(decl->name_view());
     write('(');
     int i = 0;
     while (i < decl->params.size()) {
@@ -388,7 +390,7 @@ void RepresentationVisitor::visit(ImplDefinition *def) {
 
 void RepresentationVisitor::visit(InterfaceDefinition *def) {
     write("interface ");
-    write(def->name());
+    write(def->name_view());
     space();
     write("{");
     indentation_level+=1;
@@ -435,7 +437,7 @@ void write_gen_params(RepresentationVisitor& visitor, StructDefinition* def) {
 void RepresentationVisitor::visit(StructDefinition *def) {
     write_ws(def->specifier());
     write("struct ");
-    write(def->name());
+    write(def->name_view());
     write_gen_params(*this, def);
     if(!def->inherited.empty()) {
         write(" : ");
@@ -500,7 +502,7 @@ void RepresentationVisitor::visit(StructMember *member) {
 void RepresentationVisitor::visit(TypealiasStatement *stmt) {
     write_ws(stmt->specifier());
     write("typealias ");
-    write(stmt->name());
+    write(stmt->name_view());
     write(" = ");
     stmt->actual_type->accept(this);
 }
@@ -544,7 +546,7 @@ void RepresentationVisitor::visit(SwitchStatement *statement) {
 void RepresentationVisitor::visit(Namespace *ns) {
     if(ns->nodes.empty()) return;
     write("namespace ");
-    write_view(ns->name());
+    write(ns->name());
     space();
     write('{');
     indentation_level++;
@@ -566,55 +568,55 @@ void RepresentationVisitor::visit(ValueWrapperNode *node) {
 }
 
 void RepresentationVisitor::visit(IntValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(BigIntValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(LongValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(ShortValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(UBigIntValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(UIntValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(ULongValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(UShortValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(Int128Value *val) {
-    write(std::to_string(val->get_num_value()));
+    write_str(std::to_string(val->get_num_value()));
 }
 
 void RepresentationVisitor::visit(UInt128Value *val) {
-    write(std::to_string(val->get_num_value()));
+    write_str(std::to_string(val->get_num_value()));
 }
 
 void RepresentationVisitor::visit(NumberValue *numValue) {
-    write(std::to_string(numValue->get_num_value()));
+    write_str(std::to_string(numValue->get_num_value()));
 }
 
 void RepresentationVisitor::visit(FloatValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(DoubleValue *val) {
-    write(std::to_string(val->value));
+    write_str(std::to_string(val->value));
 }
 
 void RepresentationVisitor::visit(CharValue *val) {
@@ -673,7 +675,7 @@ void RepresentationVisitor::visit(StructValue *val) {
 }
 
 void RepresentationVisitor::visit(VariableIdentifier *identifier) {
-    write_view(identifier->value);
+    write(identifier->value);
 }
 
 void RepresentationVisitor::visit(Expression *expr) {
@@ -681,7 +683,7 @@ void RepresentationVisitor::visit(Expression *expr) {
     nested_value = true;
     expr->firstValue->accept(this);
     space();
-    write(to_string(expr->operation));
+    write_str(to_string(expr->operation));
     space();
     expr->secondValue->accept(this);
     nested_value = false;
@@ -870,7 +872,7 @@ void RepresentationVisitor::visit(LinkedType *type) {
     if(str.empty()) {
         write(type->type);
     } else {
-        write(str);
+        write_str(str);
     }
 
 }
@@ -970,7 +972,7 @@ void RepresentationVisitor::visit(VariantCase *chain) {
 void RepresentationVisitor::visit(VariantDefinition *variant_def) {
     write_ws(variant_def->specifier());
     write("variant ");
-    write(variant_def->name());
+    write(variant_def->name_view());
     write('{');
     indentation_level+=1;
     for(auto& var : variant_def->variables) {

@@ -33,7 +33,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     if(value && initialize) {
         const auto string_val = value->as_string_value();
         if(string_val) {
-            const auto global = gen.builder->CreateGlobalString(string_val->value, runtime_name_fast(), 0, gen.module.get());
+            const auto global = gen.builder->CreateGlobalString(llvm::StringRef(string_val->value.data(), string_val->value.size()), runtime_name_fast(), 0, gen.module.get());
             global->setLinkage(linkage);
             global->setConstant(is_const());
             llvm_ptr = global;
@@ -67,7 +67,8 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 auto known_t = value->pure_type_ptr();
                 auto node = known_t->get_direct_linked_node();
                 if(node && node->isStoredStructType(node->kind())) {
-                    llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier());
+                    const auto& name_v = name_view();
+                    llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));
                     gen.move_by_memcpy(node, value, llvm_ptr, value->llvm_value(gen));
                     moved = true;
                 }
@@ -91,7 +92,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                     }
                 }
 
-                llvm_ptr = value->llvm_allocate(gen, identifier(),type_ptr_fast());
+                llvm_ptr = value->llvm_allocate(gen, name_str(),type_ptr_fast());
                 if(dyn_obj_impl) {
                     gen.assign_dyn_obj_impl(llvm_ptr, dyn_obj_impl);
                 }
@@ -100,7 +101,8 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
         } else {
             const auto t = llvm_type(gen);
-            llvm_ptr = gen.builder->CreateAlloca(t, nullptr, identifier());
+            const auto& v = name_view();
+            llvm_ptr = gen.builder->CreateAlloca(t, nullptr, llvm::StringRef(v.data(), v.size()));
             const auto var = type->get_direct_linked_variant();
             if(var) {
                 auto gep = gen.builder->CreateGEP(t, llvm_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
@@ -182,10 +184,11 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
 //        }
     }
     auto v = llvm_pointer(gen);
-    return gen.builder->CreateLoad(llvm_type(gen), v, identifier());
+    const auto& name = name_view();
+    return gen.builder->CreateLoad(llvm_type(gen), v, llvm::StringRef(name.data(), name.size()));
 }
 
-bool VarInitStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool VarInitStatement::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     if (value) {
         return value->add_child_index(gen, indexes, name);
     } else if (type) {
@@ -264,7 +267,7 @@ void VarInitStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-ASTNode *VarInitStatement::child(const std::string &name) {
+ASTNode *VarInitStatement::child(const chem::string_view &name) {
     if (type) {
         const auto linked = type->linked_node();
         return linked ? linked->child(name) : nullptr;
@@ -308,7 +311,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
 void VarInitStatement::interpret(InterpretScope &scope) {
     if (value) {
         auto initializer = value->scope_value(scope);
-        scope.declare(identifier(), initializer);
+        scope.declare(name_view(), initializer);
     }
     decl_scope = &scope;
 }
@@ -317,7 +320,7 @@ void VarInitStatement::interpret(InterpretScope &scope) {
  * called by assignment to assign a new value in the scope that this variable was declared
  */
 void VarInitStatement::declare(Value *new_value) {
-    decl_scope->declare(identifier(), new_value);
+    decl_scope->declare(name_view(), new_value);
 }
 
 ValueType VarInitStatement::value_type() const {

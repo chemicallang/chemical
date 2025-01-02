@@ -227,7 +227,11 @@ public:
         return identifier.identifier;
     }
 
-    inline const std::string name() const {
+    inline const chem::string_view name_view() const {
+        return identifier.identifier;
+    }
+
+    inline const std::string name_str() const {
         return identifier.identifier.str();
     }
 
@@ -381,11 +385,11 @@ public:
     }
 
     const std::string ns_node_identifier() final {
-        return name();
+        return name_str();
     }
 
     const std::string& func_opt_name() final {
-        return name();
+        return name_str();
     }
 
     void accept(Visitor *visitor);

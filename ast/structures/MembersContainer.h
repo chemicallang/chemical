@@ -15,7 +15,7 @@ class MembersContainer : public AnnotableNode, public VariablesContainer {
 private:
 
     std::vector<FunctionDeclaration*> functions_container;
-    std::unordered_map<std::string, FunctionDeclaration*> indexes;
+    std::unordered_map<chem::string_view, FunctionDeclaration*> indexes;
     std::vector<std::unique_ptr<MultiFunctionNode>> multi_nodes;
 
 public:
@@ -75,24 +75,24 @@ public:
      */
     void register_use_to_inherited_interfaces(StructDefinition* definition);
 
-    FunctionDeclaration *member(const std::string &name);
+    FunctionDeclaration *member(const chem::string_view &name);
 
-    ASTNode *child(const std::string &name);
+    ASTNode *child(const chem::string_view &name);
 
-    BaseDefMember *direct_variable(const std::string& name);
+    BaseDefMember *direct_variable(const chem::string_view& name);
 
-    ASTNode *direct_child_member(const std::string& name);
+    ASTNode *direct_child_member(const chem::string_view& name);
 
-    BaseDefMember *inherited_member(const std::string& name);
+    BaseDefMember *inherited_member(const chem::string_view& name);
 
-    BaseDefMember *child_member(const std::string& name);
+    BaseDefMember *child_member(const chem::string_view& name);
 
-    FunctionDeclaration *direct_child_function(const std::string& name);
+    FunctionDeclaration *direct_child_function(const chem::string_view& name);
 
     /**
      * get child variable index, including the inherited types
      */
-    int child_index(const std::string &var_name) final {
+    int child_index(const chem::string_view &var_name) final {
         return VariablesContainer::variable_index(var_name);
     }
 
@@ -298,13 +298,13 @@ public:
     /**
      * is there a function with this name
      */
-    bool contains_func(const std::string& name);
+    bool contains_func(const chem::string_view& name);
 
     /**
      * this creates a linked type to this members container, so that
      * generic parameters are accounted for
      */
-    BaseType* create_linked_type(const std::string& name, ASTAllocator& allocator);
+    BaseType* create_linked_type(const chem::string_view& name, ASTAllocator& allocator);
 
     /**
      * this generic type is registered as a subscriber of this generic node
@@ -386,7 +386,7 @@ public:
     bool add_child_index(
             Codegen &gen,
             std::vector<llvm::Value *> &indexes,
-            const std::string &name
+            const chem::string_view &name
     ) {
         return VariablesContainer::llvm_struct_child_index(gen, indexes, name);
     }

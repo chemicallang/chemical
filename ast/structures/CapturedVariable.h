@@ -42,7 +42,7 @@ public:
 
     void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) final {
+    ASTNode *child(const chem::string_view &name) final {
         return linked->child(name);
     }
 
@@ -50,13 +50,13 @@ public:
         return linked->child(index);
     }
 
-    int child_index(const std::string &name) final {
+    int child_index(const chem::string_view &name) final {
         return linked->child_index(name);
     }
 
 #ifdef COMPILER_BUILD
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final {
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final {
         return linked->add_child_index(gen, indexes, name);
     }
 

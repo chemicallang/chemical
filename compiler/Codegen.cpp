@@ -375,7 +375,7 @@ llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
             if(found != nullptr) {
                 return found;
             } else {
-                error("couldn't find the implementation of struct '" + def->name() + "' using value '" + value->representation() + "' for interface '" + interface->name() + "'", value);
+                error("couldn't find the implementation of struct '" + def->name_str() + "' using value '" + value->representation() + "' for interface '" + interface->name_str() + "'", value);
             }
         } else {
 #ifdef DEBUG

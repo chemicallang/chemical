@@ -17,9 +17,9 @@ public:
 
     void visit(VariantCall *call) final;
 
-    void process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier);
+    void process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const chem::string_view& identifier);
 
-    void process_init_value(Value* value, const std::string& identifier);
+    void process_init_value(Value* value, const chem::string_view& identifier);
 
     void visit(VariableIdentifier *identifier) final;
 

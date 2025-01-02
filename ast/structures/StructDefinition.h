@@ -201,7 +201,7 @@ public:
     }
 
     const std::string ns_node_identifier() final {
-        return name();
+        return name_str();
     }
 
     VariablesContainer *variables_container() final {
@@ -224,7 +224,7 @@ public:
 
     void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) final;
+    ASTNode *child(const chem::string_view &name) final;
 
     BaseType* create_value_type(ASTAllocator& allocator) final;
 

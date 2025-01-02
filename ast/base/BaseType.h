@@ -10,6 +10,7 @@
 #include "ASTAny.h"
 #include "ASTAllocator.h"
 #include "std/hybrid_ptr.h"
+#include "std/chem_string_view.h"
 #include <iostream>
 
 class Codegen;
@@ -229,7 +230,7 @@ public:
     /**
      * reference name
      */
-    std::string& linked_name();
+    chem::string_view& linked_name();
 
     /**
      * check if this kind is a pointer

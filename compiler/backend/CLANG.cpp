@@ -82,10 +82,10 @@ chem::string_view allocate_view(BatchAllocator& allocator, const llvm::StringRef
     return { allocator.allocate_str(identifier.data(), size), size };
 }
 
-BaseType* decl_type(CTranslator& translator, clang::Decl* decl, std::string name) {
+BaseType* decl_type(CTranslator& translator, clang::Decl* decl, const llvm::StringRef& name) {
     auto found = translator.declarations.find(decl);
     if(found != translator.declarations.end()) {
-        return new (translator.allocator.allocate<LinkedType>()) LinkedType(std::move(name), found->second, ZERO_LOC);
+        return new (translator.allocator.allocate<LinkedType>()) LinkedType(allocate_view(translator.allocator, name), found->second, ZERO_LOC);
     } else {
         return nullptr;
 //        const auto maker = translator.node_makers[decl->getKind()];
@@ -340,7 +340,7 @@ inline Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int 
 }
 
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
-    auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(ZERO_LOC_ID(allocator, decl->getName()), {}, nullptr, parent_node, ZERO_LOC);
+    auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(ZERO_LOC_ID(allocator, decl->getName()), nullptr, parent_node, ZERO_LOC);
     auto integer_type = decl->getIntegerType();
     if(integer_type.isNull()) {
         enum_decl->underlying_type = new (allocator.allocate<IntType>()) IntType(ZERO_LOC);
@@ -365,7 +365,8 @@ EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
             auto value = init_val.getLimitedValue();
             mem_value = convert_to_number(allocator, is64Bit, bitWidth, init_val.isSigned(), value, ZERO_LOC);
         }
-        enum_decl->members[mem->getNameAsString()] = new (allocator.allocate<EnumMember>()) EnumMember(mem->getNameAsString(), index, mem_value, enum_decl, ZERO_LOC);
+        const auto name = allocate_view(allocator, mem->getName());
+        enum_decl->members[name] = new (allocator.allocate<EnumMember>()) EnumMember(name, index, mem_value, enum_decl, ZERO_LOC);
         index++;
     }
     return enum_decl;
@@ -379,7 +380,8 @@ StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
         if(!field_type_conv) {
             return nullptr;
         }
-        def->variables[str->getNameAsString()] = new (allocator.allocate<StructMember>()) StructMember(str->getNameAsString(), field_type_conv, nullptr, def, ZERO_LOC);
+        const auto name = allocate_view(allocator, str->getName());
+        def->variables[name] = new (allocator.allocate<StructMember>()) StructMember(name, field_type_conv, nullptr, def, ZERO_LOC);
     }
     return def;
 }
@@ -408,7 +410,7 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
             const auto linked_kind = linked->kind();
             if(linked_kind == ASTNodeKind::StructDecl) {
                 const auto node = linked->as_struct_def_unsafe();
-                if(node->name().empty()) {
+                if(node->name_view().empty()) {
                     node->identifier = ZERO_LOC_ID(allocator, decl->getName());
                     return nullptr;
                 }
@@ -592,12 +594,12 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
             skip_fn = true;
             continue;
         }
-        auto param_name = param->getNameAsString();
+        auto param_name = param->getName();
         if(param_name.empty()) {
             param_name = "_";
         }
         params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam(
-                param_name,
+                allocate_view(allocator, param_name),
                 chem_type,
                 index,
                 nullptr,
@@ -1130,7 +1132,8 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
     }
 
     auto funcType = context.getFunctionType(returnType, args, protoInfo);
-    clang::DeclarationName declName = context.DeclarationNames.getIdentifier(&context.Idents.get(decl->name()));
+    const auto declNameV = decl->name_view();
+    clang::DeclarationName declName = context.DeclarationNames.getIdentifier(&context.Idents.get(llvm::StringRef(declNameV.data(), declNameV.size())));
 
     clang::FunctionDecl *funcDecl = clang::FunctionDecl::Create(
             context, unit, clang::SourceLocation(),
@@ -1142,7 +1145,8 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
     // setting parameters
     llvm::SmallVector<clang::ParmVarDecl*> params;
     for(auto& param : decl->params) {
-        clang::IdentifierInfo &paramId = context.Idents.get(param->name);
+        const auto& paramNameV = param->name;
+        clang::IdentifierInfo &paramId = context.Idents.get(llvm::StringRef(paramNameV.data(), paramNameV.size()));
         clang::ParmVarDecl *clangParam = clang::ParmVarDecl::Create(
                 context, unit, clang::SourceLocation(), clang::SourceLocation(),
                 &paramId, param->type->clang_type(context), nullptr, clang::SC_None, nullptr);

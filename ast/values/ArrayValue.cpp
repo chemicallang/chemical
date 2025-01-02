@@ -158,7 +158,7 @@ llvm::Type *ArrayValue::llvm_type(Codegen &gen) {
     return llvm::ArrayType::get(llvm_elem_type(gen), array_size());
 }
 
-bool ArrayValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool ArrayValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return linked_node()->add_child_index(gen, indexes, name);
 }
 

@@ -9,7 +9,7 @@ class VariantMember;
 class VariantMemberParam : public ASTNode {
 public:
 
-    std::string name;
+    chem::string_view name;
     BaseType* type;
     Value* def_value;
     VariantMember* parent_node;
@@ -18,14 +18,16 @@ public:
     bool is_const;
 
     VariantMemberParam(
-        std::string name,
+        chem::string_view name,
         unsigned index,
         bool is_const,
         BaseType* type,
         Value* def_value,
         VariantMember* parent_node,
         SourceLocation location
-    );
+    ) : name(std::move(name)), index(index), type(type), def_value(def_value), parent_node(parent_node), location(location), is_const(is_const) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -57,15 +59,15 @@ public:
 
     ASTNode* child(int index) final;
 
-    int child_index(const std::string &name) final;
+    int child_index(const chem::string_view &name) final;
 
-    ASTNode* child(const std::string &name) final;
+    ASTNode* child(const chem::string_view &name) final;
 
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
 #endif
 

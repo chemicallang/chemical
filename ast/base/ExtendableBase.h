@@ -19,13 +19,13 @@ public:
     /**
      * map suppose to contain references to extension functions
      */
-    std::unordered_map<std::string, FunctionDeclaration*> extension_functions;
+    std::unordered_map<chem::string_view, FunctionDeclaration*> extension_functions;
 
     /**
      * get the child member by name
      * this will also look for extension function by name, if there's no direct member
      */
-    FunctionDeclaration *extended_child(const std::string &name);
+    FunctionDeclaration *extended_child(const chem::string_view &name);
 
     /**
      * all the methods of this interface will be extended to this

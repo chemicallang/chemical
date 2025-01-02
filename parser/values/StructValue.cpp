@@ -4,15 +4,15 @@
 #include "ast/values/StructValue.h"
 #include "ast/base/MalformedInput.h"
 
-StructMemberInitializer* initializer(ASTAllocator& allocator, StructValue* struct_value, Token* id, Value* value) {
-    return new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(id->value.str(), value, struct_value);
+StructMemberInitializer* initializer(ASTAllocator& allocator, StructValue* struct_value, chem::string_view id, Value* value) {
+    return new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(id, value, struct_value);
 }
 
 StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType, Position& start) {
 
     if(consumeToken(TokenType::LBrace)) {
 
-        auto structValue = new (allocator.allocate<StructValue>()) StructValue(refType, { }, nullptr, 0, parent_node);
+        auto structValue = new (allocator.allocate<StructValue>()) StructValue(refType, nullptr, 0, parent_node);
 
         // lex struct member value tokens
         do {
@@ -27,11 +27,13 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
                 readWhitespace();
                 auto expression = parseExpression(allocator, true);
                 if(expression) {
-                    structValue->values[id->value.str()] = initializer(allocator, structValue, id, expression);
+                    const auto id_view = allocate_view(allocator, id->value);
+                    structValue->values[id_view] = initializer(allocator, structValue, id_view, expression);
                 } else {
                     auto arrayInit = parseArrayInit(allocator);
                     if(arrayInit) {
-                        structValue->values[id->value.str()] = initializer(allocator, structValue, id, arrayInit);
+                        const auto id_view = allocate_view(allocator, id->value);
+                        structValue->values[id_view] = initializer(allocator, structValue, id_view, arrayInit);
                     } else {
                         error("expected an expression after ':' for struct member " + id->value.str());
                         return structValue;

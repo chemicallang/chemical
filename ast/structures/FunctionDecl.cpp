@@ -51,14 +51,14 @@ void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
 llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
     auto index = calculate_c_or_llvm_index();
     if(index > gen.current_function->arg_size()) {
-        gen.error("couldn't get argument with name " + name + " since function has " + std::to_string(gen.current_function->arg_size()) + " arguments", this);
+        gen.error("couldn't get argument with name " + name.str() + " since function has " + std::to_string(gen.current_function->arg_size()) + " arguments", this);
         return nullptr;
     }
     auto arg = gen.current_function->getArg(index);
     if (arg) {
         return arg;
     } else {
-        gen.error("couldn't get argument with name " + name, this);
+        gen.error("couldn't get argument with name " + name.str(), this);
         return nullptr;
     }
 }
@@ -155,7 +155,7 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
 }
 
 void initialize_def_struct_values(Codegen &gen, StructDefinition* struct_def, FunctionDeclaration* decl) {
-    std::unordered_map<std::string, InitBlockInitializerValue>* initializers = nullptr;
+    std::unordered_map<chem::string_view, InitBlockInitializerValue>* initializers = nullptr;
     if(decl->body.has_value() && !decl->body->nodes.empty()) {
         auto block = decl->body->nodes.front()->as_init_block();
         if(block) {
@@ -912,40 +912,11 @@ llvm::Type *CapturedVariable::llvm_type(Codegen &gen) {
     }
 }
 
-bool BaseFunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool BaseFunctionParam::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return type->linked_node()->add_child_index(gen, indexes, name);
 }
 
 #endif
-
-BaseFunctionParam::BaseFunctionParam(
-        std::string name,
-        BaseType* type,
-        FunctionType* func_type
-) : name(std::move(name)), type(type), func_type(func_type) {
-
-};
-
-FunctionParam::FunctionParam(
-        std::string name,
-        BaseType* type,
-        unsigned int index,
-        Value* defValue,
-        bool is_implicit,
-        FunctionType* func_type,
-        SourceLocation location
-) : BaseFunctionParam(
-        std::move(name),
-        type,
-        func_type
-    ),
-    index(index),
-    defValue(defValue),
-    is_implicit(is_implicit),
-    location(location)
-{
-    name.shrink_to_fit();
-}
 
 unsigned FunctionParam::calculate_c_or_llvm_index() {
     const auto start = func_type->c_or_llvm_arg_start_index();
@@ -1049,21 +1020,9 @@ void BaseFunctionParam::redeclare_top_level(SymbolResolver &linker) {
     }
 }
 
-ASTNode *BaseFunctionParam::child(const std::string &name) {
+ASTNode *BaseFunctionParam::child(const chem::string_view &name) {
     const auto linked_node = type->linked_node();
     return linked_node ? linked_node->child(name) : nullptr;
-}
-
-GenericTypeParameter::GenericTypeParameter(
-        std::string identifier,
-        BaseType* at_least_type,
-        BaseType* def_type,
-        ASTNode* parent_node,
-        unsigned param_index,
-        SourceLocation location
-) : identifier(std::move(identifier)), at_least_type(at_least_type),
-    def_type(def_type), parent_node(parent_node), param_index(param_index), location(location) {
-
 }
 
 void GenericTypeParameter::declare_only(SymbolResolver& linker) {
@@ -1152,7 +1111,7 @@ void FunctionDeclaration::runtime_name(std::ostream &stream) {
 }
 
 void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
-    stream << name();
+    stream << name_view();
     if(multi_func_index() != 0) {
         stream << "__cmf_";
         stream << std::to_string(multi_func_index());
@@ -1170,14 +1129,14 @@ int16_t FunctionDeclaration::total_generic_iterations() {
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name(), def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
     }
     returnType = new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
 }
 
 void check_returns_void(SymbolResolver& resolver, FunctionDeclaration* decl) {
     if(decl->returnType->kind() != BaseTypeKind::Void) {
-        resolver.error(decl->name() + " function return type should be void", (ASTNode*) decl);
+        resolver.error(decl->name_str() + " function return type should be void", (ASTNode*) decl);
     }
 }
 
@@ -1188,7 +1147,7 @@ void check_self_param(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNo
             return;
         }
     }
-    resolver.error(decl->name() + " must have a single implicit self reference parameter", (ASTNode*) decl);
+    resolver.error(decl->name_str() + " must have a single implicit self reference parameter", (ASTNode*) decl);
 }
 
 void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNode* self) {
@@ -1202,11 +1161,11 @@ void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl
             return;
         }
     }
-    resolver.error(decl->name() + " function must have two implicit reference parameters", (ASTNode*) decl);
+    resolver.error(decl->name_str() + " function must have two implicit reference parameters", (ASTNode*) decl);
 }
 
 void FunctionDeclaration::ensure_constructor(SymbolResolver& resolver, StructDefinition* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name(), def, ZERO_LOC);
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
 }
 
 void FunctionDeclaration::ensure_destructor(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
@@ -1220,12 +1179,12 @@ void FunctionDeclaration::ensure_clear_fn(SymbolResolver& resolver, ExtendableMe
 }
 
 void FunctionDeclaration::ensure_copy_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name(), def, ZERO_LOC);
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
     check_self_other_params(resolver, this, def);
 }
 
 void FunctionDeclaration::ensure_move_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name(), def, ZERO_LOC);
+    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
     check_self_other_params(resolver, this, def);
 }
 
@@ -1401,7 +1360,7 @@ Value *FunctionDeclaration::call(
     auto self_param = get_self_param();
     auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
     if (params.size() != params_given) {
-        fn_scope->error("function " + name() + " requires " + std::to_string(params.size()) + ", but given args are " +
+        fn_scope->error("function " + name_str() + " requires " + std::to_string(params.size()) + ", but given args are " +
                         std::to_string(call_args.size()), debug_value);
         return nullptr;
     }

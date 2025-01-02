@@ -18,17 +18,21 @@ struct VariantMemberAttributes {
 class VariantMember : public BaseDefMember {
 public:
 
-    tsl::ordered_map<std::string, VariantMemberParam*> values;
+    tsl::ordered_map<chem::string_view, VariantMemberParam*> values;
     VariantDefinition* parent_node;
     LinkedType ref_type;
     SourceLocation location;
     VariantMemberAttributes attrs;
 
     VariantMember(
-            const std::string& name,
+            chem::string_view name,
             VariantDefinition* parent_node,
             SourceLocation location
-    );
+    ) : BaseDefMember(name), parent_node(parent_node), ref_type(name, this, location), location(location),
+        attrs(false)
+    {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -70,7 +74,7 @@ public:
 
     void declare_and_link(SymbolResolver &linker) final;
 
-    ASTNode *child(const std::string &name) final;
+    ASTNode *child(const chem::string_view &name) final;
 
     ASTNode *child(unsigned int index);
 
@@ -88,7 +92,7 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
     // not wrapped, basically doesn't contain the type integer
     // it's just a struct of all the variant parameters user defined

@@ -139,7 +139,7 @@ public:
     /**
      * get implicit parameter for given name
      */
-    FunctionParam* implicit_param_for(const std::string& name);
+    FunctionParam* implicit_param_for(const chem::string_view& name);
 
     /**
      * do parameter types match with the given function parameter types

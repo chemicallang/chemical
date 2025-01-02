@@ -36,7 +36,7 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
     parent_val = parent;
     auto linked_node = parent->linked_node();
     if(linked_node) {
-        linked = linked_node->child(value.str());
+        linked = linked_node->child(value);
         if(linked) {
             return true;
         } else if(diagnoser) {
@@ -73,7 +73,7 @@ bool VariableIdentifier::compile_time_computable() {
     }
 }
 
-Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {
+Value *VariableIdentifier::child(InterpretScope &scope, const chem::string_view &name) {
     const auto eval = evaluated_value(scope);
     if(eval) {
         return eval->child(scope, name);
@@ -88,7 +88,7 @@ BaseType* VariableIdentifier::known_type() {
 
 // will find value by this name in the parent
 Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
-    return parent->child(scope, value.str());
+    return parent->child(scope, value);
 }
 
 BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
@@ -113,7 +113,7 @@ void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Valu
         scope.error("set_value_in in variable identifier, received null pointer to parent", parent);
     }
 #endif
-    parent->set_child_value(value.str(), next_value, op);
+    parent->set_child_value(value, next_value, op);
 }
 
 Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl);
@@ -191,7 +191,7 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
         if(linked_kind == ASTNodeKind::StructMember) {
             const auto found_self = scope.find_value("self");
             if(found_self) {
-                return found_self->child(scope, value.str());
+                return found_self->child(scope, value);
             }
         } else if(linked_kind == ASTNodeKind::VarInitStmt) {
             const auto init = linked->as_var_init_unsafe();
@@ -215,7 +215,7 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
 //}
 
 Value* VariableIdentifier::evaluated_chain_value(InterpretScope &scope, Value* parent) {
-    return parent ? parent->child(scope, value.str()) : nullptr;
+    return parent ? parent->child(scope, value) : nullptr;
 }
 
 Value *VariableIdentifier::scope_value(InterpretScope &scope) {

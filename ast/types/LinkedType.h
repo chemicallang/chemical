@@ -5,23 +5,24 @@
 #include <utility>
 
 #include "ast/base/BaseType.h"
+#include "std/chem_string_view.h"
 
 class LinkedType : public TokenizedBaseType {
 public:
 
-    std::string type;
+    chem::string_view type;
     ASTNode *linked;
 
-    LinkedType(std::string type, SourceLocation location) : type(std::move(type)), TokenizedBaseType(location), linked(nullptr) {
+    LinkedType(chem::string_view type, SourceLocation location) : type(type), TokenizedBaseType(location), linked(nullptr) {
 
     }
 
     [[deprecated]]
-    LinkedType(std::string type, SourceLocation location, ASTNode* linked) : type(std::move(type)), TokenizedBaseType(location), linked(linked) {
+    LinkedType(chem::string_view type, SourceLocation location, ASTNode* linked) : type(type), TokenizedBaseType(location), linked(linked) {
 
     }
 
-    LinkedType(std::string type, ASTNode* linked, SourceLocation location) : type(std::move(type)), TokenizedBaseType(location), linked(linked) {
+    LinkedType(chem::string_view type, ASTNode* linked, SourceLocation location) : type(type), TokenizedBaseType(location), linked(linked) {
 
     }
 

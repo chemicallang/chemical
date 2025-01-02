@@ -198,7 +198,7 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode*& 
             return true;
         } else {
             dup_sym_error(declaration->name_view(), previous, declaration);
-            error("function " + declaration->name() + " cannot override because it's parameter types and return type don't match", (AnnotableNode*) declaration);
+            error("function " + declaration->name_str() + " cannot override because it's parameter types and return type don't match", (AnnotableNode*) declaration);
             return false;
         }
     }

@@ -375,7 +375,7 @@ void ASTNode::code_gen(Codegen &gen) {
 #endif
 }
 
-bool ASTNode::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool ASTNode::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
 #ifdef DEBUG
     throw std::runtime_error("add_child_index called on a ASTNode");
 #else

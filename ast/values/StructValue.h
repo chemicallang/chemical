@@ -16,7 +16,7 @@ private:
 public:
 
     BaseType* refType;
-    std::unordered_map<std::string, StructMemberInitializer*> values;
+    std::unordered_map<chem::string_view, StructMemberInitializer*> values;
     int16_t generic_iteration = 0;
     SourceLocation location;
     ASTNode* parent_node;
@@ -25,28 +25,22 @@ public:
     llvm::AllocaInst* allocaInst = nullptr;
 #endif
 
-//    StructValue(
-//            std::unique_ptr<Value> ref,
-//            std::unordered_map<std::string, std::unique_ptr<Value>> values,
-//            StructDefinition *definition = nullptr
-//    );
-
     StructValue(
             BaseType* refType,
-            std::unordered_map<std::string, StructMemberInitializer*> values,
             ExtendableMembersContainerNode *definition,
             SourceLocation location,
             ASTNode* parent
-    );
+    ) : refType(refType), definition(definition), location(location), parent_node(parent) {}
 
     StructValue(
             BaseType* refType,
-            std::unordered_map<std::string, StructMemberInitializer*> values,
             ExtendableMembersContainerNode *definition,
             InterpretScope &scope,
             SourceLocation location,
             ASTNode* parent
-    );
+    ) : refType(refType), definition(definition), location(location), parent_node(parent) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -68,11 +62,11 @@ public:
 
     Value *call_member(
             InterpretScope &scope,
-            const std::string &name,
+            const chem::string_view &name,
             std::vector<Value*> &params
     ) final;
 
-    void set_child_value(const std::string &name, Value *value, Operation op) final;
+    void set_child_value(const chem::string_view &name, Value *value, Operation op) final;
 
     StructValue* initialized_value(InterpretScope& scope);
 
@@ -80,15 +74,15 @@ public:
 
     Value *scope_value(InterpretScope &scope) final;
 
-    void declare_default_values(std::unordered_map<std::string, StructMemberInitializer*> &into, InterpretScope &scope);
+    void declare_default_values(std::unordered_map<chem::string_view, StructMemberInitializer*> &into, InterpretScope &scope);
 
     StructValue *copy(ASTAllocator& allocator) final;
 
-    ASTNode* child(const std::string& name) {
+    ASTNode* child(const chem::string_view& name) {
         return definition->child(name);
     }
 
-    Value *child(InterpretScope &scope, const std::string &name) final;
+    Value *child(InterpretScope &scope, const chem::string_view &name) final;
 
     ASTNode *linked_node() final;
 
@@ -104,7 +98,7 @@ public:
         definition->active_iteration = itr;
     }
 
-    BaseDefMember* child_member(const std::string& name){
+    BaseDefMember* child_member(const chem::string_view& name){
         return definition->child_member(name);
     }
 
@@ -120,8 +114,8 @@ public:
         return (UnionDef*) definition;
     }
 
-    const std::string& linked_name() {
-        return definition->name();
+    inline const chem::string_view& linked_name_view() {
+        return definition->name_view();
     }
 
     bool allows_direct_init();
@@ -174,7 +168,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) final;
+    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
 #endif
 

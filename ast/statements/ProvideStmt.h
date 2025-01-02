@@ -10,7 +10,7 @@ class ProvideStmt : public ASTNode {
 public:
 
     Value* value;
-    std::string identifier;
+    chem::string_view identifier;
     Scope body;
     ASTNode* parent_node;
     SourceLocation location;
@@ -20,18 +20,20 @@ public:
      */
     ProvideStmt(
         Value* value,
-        std::string identifier,
+        chem::string_view identifier,
         Scope body,
         ASTNode* parent,
         SourceLocation location
-    );
+    ) : value(value), identifier(identifier), body(std::move(body)), parent_node(parent), location(location) {
+
+    }
 
     /**
      * will allow the caller to put the value
      * in the unordered map, while working with the body
      */
     template<typename T>
-    void put_in(std::unordered_map<std::string, T*>& value_map, T* new_value, void* data, void(*do_body)(ProvideStmt*, void*));
+    void put_in(std::unordered_map<chem::string_view, T*>& value_map, T* new_value, void* data, void(*do_body)(ProvideStmt*, void*));
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
@@ -60,7 +62,7 @@ public:
 };
 
 template<typename T>
-void ProvideStmt::put_in(std::unordered_map<std::string, T*>& value_map, T* new_value, void* data, void(*do_body)(ProvideStmt*, void*)) {
+void ProvideStmt::put_in(std::unordered_map<chem::string_view, T*>& value_map, T* new_value, void* data, void(*do_body)(ProvideStmt*, void*)) {
     auto& implicit_args = value_map;
     auto found = implicit_args.find(identifier);
     if(found != implicit_args.end()) {

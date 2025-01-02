@@ -14,7 +14,7 @@ public:
 
     }
 
-    LinkedValueType(Value* value, std::string type, ASTNode* linked, SourceLocation location) : value(value), LinkedType(std::move(type), linked, location) {
+    LinkedValueType(Value* value, chem::string_view type, ASTNode* linked, SourceLocation location) : value(value), LinkedType(type, linked, location) {
 
     }
 

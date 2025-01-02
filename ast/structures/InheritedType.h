@@ -18,7 +18,7 @@ public:
     /**
      * the name of the referenced type
      */
-    std::string& ref_type_name();
+    const chem::string_view& ref_type_name();
 
     /**
      * make a copy of this type

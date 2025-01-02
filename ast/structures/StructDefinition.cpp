@@ -210,7 +210,7 @@ llvm::Type* StructMember::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
     return type->llvm_chain_type(gen, values, index);
 }
 
-bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &childName) {
+bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &childName) {
     auto linked = type->linked_node();
     if (!linked) return false;
     linked->add_child_index(gen, indexes, childName);
@@ -260,24 +260,6 @@ llvm::Type *StructDefinition::llvm_chain_type(Codegen &gen, std::vector<ChainVal
 
 #endif
 
-BaseDefMember::BaseDefMember(std::string name) : name(std::move(name)) {
-
-}
-
-StructMember::StructMember(
-        std::string name,
-        BaseType* type,
-        Value* defValue,
-        ASTNode* parent_node,
-        SourceLocation location,
-        bool is_const,
-        AccessSpecifier specifier
-) : BaseDefMember(std::move(name)), type(type), defValue(defValue), parent_node(parent_node), location(location),
-    attrs(specifier, is_const, false)
-{
-
-}
-
 void StructMember::accept(Visitor *visitor) {
     visitor->visit(this);
 }
@@ -326,7 +308,7 @@ VariablesContainer *UnnamedStruct::copy_container(ASTAllocator& allocator) {
     return (VariablesContainer*) copy_member(allocator);
 }
 
-ASTNode *StructMember::child(const std::string &childName) {
+ASTNode *StructMember::child(const chem::string_view &childName) {
     auto linked = type->linked_node();
     if (!linked) return nullptr;
     return linked->child(childName);
@@ -340,15 +322,6 @@ BaseTypeKind StructMember::type_kind() const {
     return type->kind();
 }
 
-UnnamedStruct::UnnamedStruct(
-        std::string name,
-        ASTNode* parent_node,
-        SourceLocation location,
-        AccessSpecifier specifier
-) : BaseDefMember(std::move(name)), parent_node(parent_node), location(location), specifier(specifier) {
-
-}
-
 StructDefinition::StructDefinition(
         LocatedIdentifier identifier,
         ASTNode* parent_node,
@@ -356,12 +329,12 @@ StructDefinition::StructDefinition(
         AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node),
     location(location), attrs(specifier, false, false, false, false, false, false, false),
-    linked_type(name(), this, location) {
+    linked_type(identifier.identifier, this, location) {
 
 }
 
 BaseType *StructDefinition::copy(ASTAllocator& allocator) const {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name(), (ASTNode *) this, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode *) this, location);
 }
 
 BaseType* UnnamedStruct::create_value_type(ASTAllocator &allocator) {
@@ -435,7 +408,7 @@ void StructDefinition::declare_and_link(SymbolResolver &linker) {
 //    }
 }
 
-ASTNode *StructDefinition::child(const std::string &name) {
+ASTNode *StructDefinition::child(const chem::string_view &name) {
     auto node = ExtendableMembersContainerNode::child(name);
     if (node) {
         return node;
@@ -462,7 +435,7 @@ VariablesContainer *StructDefinition::copy_container(ASTAllocator& allocator) {
 }
 
 BaseType* StructDefinition::create_value_type(ASTAllocator& allocator) {
-    return create_linked_type(name(), allocator);
+    return create_linked_type(name_view(), allocator);
 }
 
 BaseType* StructDefinition::known_type() {

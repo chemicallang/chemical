@@ -18,15 +18,6 @@ std::vector<llvm::Type *> ExtensionFunction::param_types(Codegen &gen) {
 
 #endif
 
-ExtensionFuncReceiver::ExtensionFuncReceiver(
-    std::string name,
-    BaseType* type,
-    ASTNode* parent_node,
-    SourceLocation location
-) : BaseFunctionParam(std::move(name), type), parent_node(parent_node), location(location) {
-
-}
-
 unsigned int ExtensionFuncReceiver::calculate_c_or_llvm_index() {
     return 0;
 }
@@ -35,7 +26,7 @@ void ExtensionFuncReceiver::declare_and_link(SymbolResolver &linker) {
     linker.declare(name, this);
 }
 
-ASTNode *ExtensionFuncReceiver::child(const std::string &name) {
+ASTNode *ExtensionFuncReceiver::child(const chem::string_view &name) {
     const auto linked = type->linked_node();
     return linked ? linked->child(name) : nullptr;
 }
@@ -104,7 +95,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
     if(resolved) {
         FunctionType::data.signature_resolved = true;
     }
-    container->extension_functions[name()] = this;
+    container->extension_functions[name_view()] = this;
 }
 
 void ExtensionFuncReceiver::accept(Visitor *visitor) {
@@ -138,9 +129,9 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
 
     auto linked = receiver.type->linked_node();
     if(linked) {
-        const auto field_func = linked->child(name());
+        const auto field_func = linked->child(name_view());
         if (field_func != this) {
-            linker.error("couldn't declare extension function with name '" + name() + "' because type '" +
+            linker.error("couldn't declare extension function with name '" + name_str() + "' because type '" +
                          receiver.type->representation() + "' already has a field / function with same name \n",
                          receiver.type);
             return;

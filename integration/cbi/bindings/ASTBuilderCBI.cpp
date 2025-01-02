@@ -103,6 +103,14 @@ constexpr LocatedIdentifier LOC_ID(const std::string& identifier, SourceLocation
 #endif
 }
 
+constexpr LocatedIdentifier LOC_ID(chem::string_view identifier, SourceLocation location) {
+#ifdef LSP_BUILD
+    return { identifier, location };
+#else
+    return { identifier };
+#endif
+}
+
 void* ASTBuilderallocate_with_cleanup(ASTAllocator* allocator, std::size_t obj_size, std::size_t alignment, void* cleanup_fn) {
     return (void*) allocator->allocate_with_cleanup(obj_size, alignment, cleanup_fn);
 }
@@ -156,7 +164,7 @@ IntType* ASTBuildermake_int_type(ASTAllocator* allocator, uint64_t location) {
 }
 
 LinkedType* ASTBuildermake_linked_type(ASTAllocator* allocator, chem::string_view* type, ASTNode* linked, uint64_t location) {
-    return new (allocator->allocate<LinkedType>()) LinkedType(type->str(), linked, location);
+    return new (allocator->allocate<LinkedType>()) LinkedType(*type, linked, location);
 }
 
 LinkedValueType* ASTBuildermake_linked_value_type(ASTAllocator* allocator, Value* value, uint64_t location) {
@@ -320,15 +328,15 @@ SizeOfValue* ASTBuildermake_sizeof_value(ASTAllocator* allocator, BaseType* type
 }
 
 StringValue* ASTBuildermake_string_value(ASTAllocator* allocator, chem::string_view* value, uint64_t location) {
-    return new (allocator->allocate<StringValue>()) StringValue(value->str(), location);
+    return new (allocator->allocate<StringValue>()) StringValue(*value, location);
 }
 
 StructMemberInitializer* ASTBuildermake_struct_member_initializer(ASTAllocator* allocator, chem::string_view* name, Value* value, StructValue* structValue) {
-    return new (allocator->allocate<StructMemberInitializer>()) StructMemberInitializer(name->str(), value, structValue, nullptr);
+    return new (allocator->allocate<StructMemberInitializer>()) StructMemberInitializer(*name, value, structValue, nullptr);
 }
 
 StructValue* ASTBuildermake_struct_value(ASTAllocator* allocator, BaseType* ref, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<StructValue>()) StructValue(ref, {}, nullptr, location, parent_node);
+    return new (allocator->allocate<StructValue>()) StructValue(ref, nullptr, location, parent_node);
 }
 
 UBigIntValue* ASTBuildermake_ubigint_value(ASTAllocator* allocator, unsigned long long value, uint64_t location) {
@@ -372,7 +380,7 @@ VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, Value* parent_
 }
 
 VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTAllocator* allocator, chem::string_view* name, VariableIdentifier* parent_val, SwitchStatement* switch_stmt, uint64_t location) {
-    return new (allocator->allocate<VariantCaseVariable>()) VariantCaseVariable(name->str(), parent_val, switch_stmt, location);
+    return new (allocator->allocate<VariantCaseVariable>()) VariantCaseVariable(*name, parent_val, switch_stmt, location);
 }
 
 AssignStatement* ASTBuildermake_assignment_stmt(ASTAllocator* allocator, Value* lhs, Value* rhs, Operation op, ASTNode* parent_node, uint64_t location) {
@@ -430,7 +438,7 @@ DoWhileLoop* ASTBuildermake_do_while_loop(ASTAllocator* allocator, Value* condit
 }
 
 EnumDeclaration* ASTBuildermake_enum_decl(ASTAllocator* allocator, chem::string_view* name, uint64_t name_loc, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<EnumDeclaration>()) EnumDeclaration(LOC_ID(name->str(), name_loc), {}, underlying_type, parent_node, location, specifier);
+    return new (allocator->allocate<EnumDeclaration>()) EnumDeclaration(LOC_ID(*name, name_loc), underlying_type, parent_node, location, specifier);
 }
 
 EnumMember* ASTBuildermake_enum_member(ASTAllocator* allocator, chem::string_view* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, uint64_t location) {
@@ -446,11 +454,11 @@ FunctionDeclaration* ASTBuildermake_function(ASTAllocator* allocator, chem::stri
 }
 
 FunctionParam* ASTBuildermake_function_param(ASTAllocator* allocator, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {
-    return new (allocator->allocate<FunctionParam>()) FunctionParam(name->str(), type, index, value, implicit, decl, location);
+    return new (allocator->allocate<FunctionParam>()) FunctionParam(*name, type, index, value, implicit, decl, location);
 }
 
 GenericTypeParameter* ASTBuildermake_generic_param(ASTAllocator* allocator, chem::string_view* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
-    return new (allocator->allocate<GenericTypeParameter>()) GenericTypeParameter(name->str(), at_least_type, def_type, parent_node, index, location);
+    return new (allocator->allocate<GenericTypeParameter>()) GenericTypeParameter(*name, at_least_type, def_type, parent_node, index, location);
 }
 
 IfStatement* ASTBuildermake_if_stmt(ASTAllocator* allocator, Value* condition, bool is_value, ASTNode* parent_node, uint64_t location) {
@@ -478,7 +486,7 @@ StructDefinition* ASTBuildermake_struct_def(ASTAllocator* allocator, chem::strin
 }
 
 StructMember* ASTBuildermake_struct_member(ASTAllocator* allocator, chem::string_view* name, BaseType* type, Value* defValue, bool isConst, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<StructMember>()) StructMember(name->str(), type, defValue, parent_node, location, isConst, specifier);
+    return new (allocator->allocate<StructMember>()) StructMember(*name, type, defValue, parent_node, location, isConst, specifier);
 }
 
 UnionDef* ASTBuildermake_union_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
@@ -498,11 +506,11 @@ VariantDefinition* ASTBuildermake_variant_def(ASTAllocator* allocator, chem::str
 }
 
 VariantMember* ASTBuildermake_variant_member(ASTAllocator* allocator, chem::string_view* name, VariantDefinition* parent_node, uint64_t location) {
-    return new (allocator->allocate<VariantMember>()) VariantMember(name->str(), parent_node, location);
+    return new (allocator->allocate<VariantMember>()) VariantMember(*name, parent_node, location);
 }
 
 VariantMemberParam* ASTBuildermake_variant_member_param(ASTAllocator* allocator, chem::string_view* name, unsigned int index, bool is_const, BaseType* type, Value* defValue, VariantMember* parent_node, uint64_t location) {
-    return new (allocator->allocate<VariantMemberParam>()) VariantMemberParam(name->str(), index, is_const, type, defValue, parent_node, location);
+    return new (allocator->allocate<VariantMemberParam>()) VariantMemberParam(*name, index, is_const, type, defValue, parent_node, location);
 }
 
 // ------------------------------AST Methods begin here-----------------------------------------------
@@ -558,7 +566,7 @@ std::vector<ASTNode*>* LambdaFunctionget_body(LambdaFunction* lambdaFunc) {
 }
 
 void StructValueadd_value(StructValue* structValue, chem::string_view* name, StructMemberInitializer* initializer) {
-    structValue->values[name->str()] = initializer;
+    structValue->values[*name] = initializer;
 }
 
 void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable) {
@@ -622,7 +630,7 @@ void ImplDefinitionadd_function(ImplDefinition* definition, FunctionDeclaration*
 }
 
 void StructDefinitionadd_member(StructDefinition* definition, chem::string_view* name, BaseDefMember* member) {
-    definition->variables[name->str()] = member;
+    definition->variables[*name] = member;
 }
 
 void StructDefinitionadd_function(StructDefinition* definition, FunctionDeclaration* decl) {
@@ -646,7 +654,7 @@ std::vector<ASTNode*>* UnsafeBlockget_body(UnsafeBlock* ub) {
 }
 
 void UnionDefinitionadd_member(UnionDef* definition, chem::string_view* name, BaseDefMember* member) {
-    definition->variables[name->str()] = member;
+    definition->variables[*name] = member;
 }
 
 void UnionDefinitionadd_function(UnionDef* definition, FunctionDeclaration* decl) {
@@ -658,7 +666,7 @@ std::vector<GenericTypeParameter*>* UnionDefinitionget_generic_params(UnionDef* 
 }
 
 void VariantDefinitionadd_member(VariantDefinition* definition, chem::string_view* name, BaseDefMember* member) {
-    definition->variables[name->str()] = member;
+    definition->variables[*name] = member;
 }
 
 void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param) {
@@ -666,5 +674,5 @@ void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param) {
 }
 
 void InitBlockadd_initializer(InitBlock* block, chem::string_view* name, bool is_inherited_type, Value* value) {
-    block->initializers[name->str()] = { is_inherited_type, value };
+    block->initializers[*name] = { is_inherited_type, value };
 }

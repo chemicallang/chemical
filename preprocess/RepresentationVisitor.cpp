@@ -232,7 +232,7 @@ void RepresentationVisitor::visit(BreakStatement *breakStatement) {
 
 void RepresentationVisitor::visit(Comment *comment) {
     write("//");
-    write(comment->comment);
+    write_view(comment->comment);
 }
 
 void RepresentationVisitor::visit(ContinueStatement *continueStatement) {

@@ -100,10 +100,6 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    const std::string ns_node_identifier() final {
-        return name_str();
-    }
-
     void declare_top_level(SymbolResolver &linker) final;
 
     void declare_and_link(SymbolResolver &linker) final;

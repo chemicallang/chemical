@@ -27,14 +27,6 @@ void UsingStmt::declare_top_level(SymbolResolver &linker) {
     if(is_namespace()) {
         auto ns = linked->as_namespace();
         if(ns) {
-//            for(const auto node : ns->nodes) {
-//                auto& id = node->ns_node_identifier();
-//                if(no_propagate) {
-//                    linker.declare_file_disposable(id, node);
-//                } else {
-//                    linker.declare(id, node);
-//                }
-//            }
             for(auto& node_pair : ns->extended) {
                 const auto node = node_pair.second;
                 if(no_propagate) {
@@ -47,11 +39,11 @@ void UsingStmt::declare_top_level(SymbolResolver &linker) {
             linker.error("expected value to be a namespace, however it isn't", this);
         }
     } else {
-        node_id = linked->ns_node_identifier();
+        const auto& name_view = linked->get_located_id()->identifier;
         if(no_propagate) {
-            linker.declare_file_disposable(node_id, linked);
+            linker.declare_file_disposable(name_view, linked);
         } else {
-            linker.declare(node_id, linked);
+            linker.declare(name_view, linked);
         }
     }
 }

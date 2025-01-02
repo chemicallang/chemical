@@ -123,10 +123,6 @@ public:
         return parent_node;
     }
 
-    const std::string ns_node_identifier() final {
-        return name_str();
-    }
-
     /**
      * direct usage of this struct is registered with this interface
      * the interfaces inherited by this interface aren't registered

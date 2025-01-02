@@ -102,10 +102,6 @@ public:
 
     void declare_top_level(SymbolResolver &linker) final;
 
-    const std::string ns_node_identifier() final {
-        return name_view().str();
-    }
-
     BaseType* create_value_type(ASTAllocator& allocator) final;
 
     BaseType* known_type() final;

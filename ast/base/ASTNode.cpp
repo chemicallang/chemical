@@ -66,11 +66,11 @@ MembersContainer* ASTNode::get_members_container(ASTNodeKind k) {
 void ASTNode::runtime_name(std::ostream& stream) {
     const auto p = parent();
     if(p) p->runtime_name(stream);
-    stream << ns_node_identifier();
+    stream << get_located_id()->identifier;
 }
 
 void ASTNode::runtime_name_no_parent(std::ostream& stream) {
-    stream << ns_node_identifier();
+    stream << get_located_id()->identifier;
 }
 
 std::string ASTNode::runtime_name_str() {

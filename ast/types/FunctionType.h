@@ -26,6 +26,8 @@ class ExtensionFunction;
 
 class FunctionDeclaration;
 
+class LocatedIdentifier;
+
 class Value;
 
 class ASTNode;
@@ -182,11 +184,8 @@ public:
         return nullptr;
     }
 
-    /**
-     * optional name for the function, used for errors and debugging mostly
-     */
-    virtual const std::string& func_opt_name() {
-       return EmptyString;
+    virtual LocatedIdentifier* get_func_name_id() {
+        return nullptr;
     }
 
     inline bool equal_type(FunctionType *other) const {

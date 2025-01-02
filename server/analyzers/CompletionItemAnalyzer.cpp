@@ -152,7 +152,7 @@ bool put_node(CompletionItemAnalyzer* analyzer, ASTNode* node) {
             put_namespace_decl(analyzer, node->as_namespace_unsafe());
             return true;
         case ASTNodeKind::TypealiasStmt:
-            put_with_doc(analyzer, node->ns_node_identifier(), lsCompletionItemKind::Interface, node);
+            put_with_doc(analyzer, node->as_typealias_unsafe()->name_view(), lsCompletionItemKind::Interface, node);
             return true;
         case ASTNodeKind::VariantDecl:
             put_variant_decl(analyzer, node->as_variant_def_unsafe());

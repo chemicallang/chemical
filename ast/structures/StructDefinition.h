@@ -200,10 +200,6 @@ public:
         return this;
     }
 
-    const std::string ns_node_identifier() final {
-        return name_str();
-    }
-
     VariablesContainer *variables_container() final {
         return this;
     }

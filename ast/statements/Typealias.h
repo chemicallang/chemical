@@ -108,10 +108,6 @@ public:
         return parent_node;
     }
 
-    const std::string ns_node_identifier() final {
-        return name_str();
-    }
-
     uint64_t byte_size(bool is64Bit) final;
 
     BaseType* create_value_type(ASTAllocator& allocator) final;

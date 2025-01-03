@@ -265,6 +265,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     // the flag that forces usage of tcc
     const bool use_tcc = options->use_tcc || job_type == LabJobType::ToCTranslation || job_type == LabJobType::CBI;
 
+    const auto caching = options->is_caching_enabled;
+
     std::cout << rang::bg::blue << rang::fg::black << "[BuildLab]" << ' ';
     switch(job_type) {
         case LabJobType::Executable:
@@ -733,7 +735,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 }
                 exe->linkables.emplace_back(obj_path);
                 generated[mod] = obj_path;
-                save_mod_timestamp(flattened_files, mod_timestamp_file);
+                if(caching) {
+                    save_mod_timestamp(flattened_files, mod_timestamp_file);
+                }
             }
 
             // writing the translated c file (if user required)
@@ -821,8 +825,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
                 if(gen_path) {
                     exe->linkables.emplace_back(gen_path);
-                    save_mod_timestamp(flattened_files, mod_timestamp_file);
                     generated[mod] = gen_path;
+                    if(caching) {
+                        save_mod_timestamp(flattened_files, mod_timestamp_file);
+                    }
                 }
             } else {
                 std::cerr << "[BuildLab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;

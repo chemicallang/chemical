@@ -74,6 +74,7 @@ void print_help() {
 //                 "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
                  "--no-cbi            -[empty]      this ignores cbi annotations when translating\n"
+                 "--no-caching        -[empty]      no caching will be done\n"
                  "--cpp-like          -[empty]      configure output of c translation to be like c++\n"
                  "--res <dir>         -res <dir>    change the location of resources directory\n"
                  "--benchmark         -bm           benchmark lexing / parsing / compilation process\n"
@@ -240,6 +241,7 @@ const auto asm_out_desc = "specify output path for .s (assembly) file";
 const auto bin_out_desc = "specify output path for binary file";
 const auto debug_ir_desc = "set debug mode for generated llvm ir";
 const auto dash_c_desc = "generate objects without linking them into final executable";
+const auto no_caching_desc = "no caching will be done for future invocations";
 
 inline std::vector<std::string_view>& get_includes(CmdOptions& options) {
     return options.data.find("include")->second.multi_value.values;
@@ -347,6 +349,7 @@ int main(int argc, char *argv[]) {
         CmdOption("output", "o", CmdOptionType::SingleValue, output_desc),
         CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
         CmdOption("ignore-extension", CmdOptionType::NoValue, ignore_extension_desc),
+        CmdOption("no-caching", CmdOptionType::NoValue, no_caching_desc),
         CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued, cbi_m_desc),
         CmdOption("out-ll", CmdOptionType::SingleValue, ll_out_desc),
         CmdOption("out-bc", CmdOptionType::SingleValue, bc_out_desc),
@@ -443,6 +446,9 @@ int main(int argc, char *argv[]) {
         opts->verbose = verbose;
         opts->resources_path = get_resources_path();
         opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
+        if(options.has_value("no-caching")) {
+            opts->is_caching_enabled = false;
+        }
 //        opts->isCBIEnabled = !options.option("no-cbi").has_value();
         if(options.has_value("lto")) {
             opts->def_lto_on = true;
@@ -558,8 +564,12 @@ int main(int argc, char *argv[]) {
     LabBuildCompilerOptions compiler_opts(argv[0], std::string(target.value()), is64Bit);
     CompilerBinder binder(argv[0]);
     LabBuildCompiler compiler(binder, &compiler_opts);
-    prepare_options(&compiler_opts);
+
+    // set default compiler options
+    compiler_opts.is_caching_enabled = false;
     compiler_opts.def_mode = mode;
+
+    prepare_options(&compiler_opts);
 
     // build cbi modules
     build_cbi_modules(compiler, options);

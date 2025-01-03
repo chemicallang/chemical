@@ -27,6 +27,8 @@ class Value;
 
 class MembersContainer;
 
+class IntNType;
+
 /**
  * BaseType is a base class for all the types there are
  */
@@ -473,6 +475,283 @@ public:
 #endif
 
     virtual ~BaseType();
+
+    //---------------------------------------------
+    // Helper is methods
+    //---------------------------------------------
+
+    static inline constexpr bool isAnyType(BaseTypeKind k) {
+        return k == BaseTypeKind::Any;
+    }
+
+    static inline constexpr bool isArrayType(BaseTypeKind k) {
+        return k == BaseTypeKind::Array;
+    }
+
+    static inline constexpr bool isStructType(BaseTypeKind k) {
+        return k == BaseTypeKind::Struct;
+    }
+
+    static inline constexpr bool isUnionType(BaseTypeKind k) {
+        return k == BaseTypeKind::Union;
+    }
+
+    static inline constexpr bool isBoolType(BaseTypeKind k) {
+        return k == BaseTypeKind::Bool;
+    }
+
+    static inline constexpr bool isCharType(BaseTypeKind k) {
+        return k == BaseTypeKind::Char;
+    }
+
+    static inline constexpr bool isUCharType(BaseTypeKind k) {
+        return k == BaseTypeKind::UChar;
+    }
+
+    static inline constexpr bool isDoubleType(BaseTypeKind k) {
+        return k == BaseTypeKind::Double;
+    }
+
+    static inline constexpr bool isFloatType(BaseTypeKind k) {
+        return k == BaseTypeKind::Float;
+    }
+
+    static inline constexpr bool isLongDoubleType(BaseTypeKind k) {
+        return k == BaseTypeKind::LongDouble;
+    }
+
+    static inline constexpr bool isComplexType(BaseTypeKind k) {
+        return k == BaseTypeKind::Complex;
+    }
+
+    static inline constexpr bool isFloat128Type(BaseTypeKind k) {
+        return k == BaseTypeKind::Float128;
+    }
+
+    static inline constexpr bool isFunctionType(BaseTypeKind k) {
+        return k == BaseTypeKind::Function;
+    }
+
+    static inline constexpr bool isGenericType(BaseTypeKind k) {
+        return k == BaseTypeKind::Generic;
+    }
+
+    static inline constexpr bool isIntNType(BaseTypeKind k) {
+        return k == BaseTypeKind::IntN;
+    }
+
+    static inline constexpr bool isPointerType(BaseTypeKind k) {
+        return k == BaseTypeKind::Pointer;
+    }
+
+    static inline constexpr bool isReferenceType(BaseTypeKind k) {
+        return k == BaseTypeKind::Reference;
+    }
+
+    static inline constexpr bool isLinkedType(BaseTypeKind k) {
+        return k == BaseTypeKind::Linked;
+    }
+
+    static inline constexpr bool isStringType(BaseTypeKind k) {
+        return k == BaseTypeKind::String;
+    }
+
+    static inline constexpr bool isLiteralType(BaseTypeKind k) {
+        return k == BaseTypeKind::Literal;
+    }
+
+    static inline constexpr bool isDynamicType(BaseTypeKind k) {
+        return k == BaseTypeKind::Dynamic;
+    }
+
+    static inline constexpr bool isVoidType(BaseTypeKind k) {
+        return k == BaseTypeKind::Void;
+    }
+
+    //---------------------------------------------
+    // Helper as methods
+    //---------------------------------------------
+
+    inline AnyType* as_any_type() {
+        return isAnyType(kind()) ? (AnyType*) this : nullptr;
+    }
+
+    inline ArrayType* as_array_type() {
+        return isArrayType(kind()) ? (ArrayType*) this : nullptr;
+    }
+
+    inline StructType* as_struct_type() {
+        return isStructType(kind()) ? (StructType*) this : nullptr;
+    }
+
+    inline UnionType* as_union_type() {
+        return isUnionType(kind()) ? (UnionType*) this : nullptr;
+    }
+
+    inline BoolType* as_bool_type() {
+        return isBoolType(kind()) ? (BoolType*) this : nullptr;
+    }
+
+    inline CharType* as_char_type() {
+        return isCharType(kind()) ? (CharType*) this : nullptr;
+    }
+
+    inline UCharType* as_uchar_type() {
+        return isUCharType(kind()) ? (UCharType*) this : nullptr;
+    }
+
+    inline DoubleType* as_double_type() {
+        return isDoubleType(kind()) ? (DoubleType*) this : nullptr;
+    }
+
+    inline FloatType* as_float_type() {
+        return isFloatType(kind()) ? (FloatType*) this : nullptr;
+    }
+
+    inline LongDoubleType* as_longdouble_type() {
+        return isLongDoubleType(kind()) ? (LongDoubleType*) this : nullptr;
+    }
+
+    inline ComplexType* as_complex_type() {
+        return isComplexType(kind()) ? (ComplexType*) this : nullptr;
+    }
+
+    inline Float128Type* as_float128_type() {
+        return isFloat128Type(kind()) ? (Float128Type*) this : nullptr;
+    }
+
+    inline FunctionType* as_function_type() {
+        return isFunctionType(kind()) ? (FunctionType*) this : nullptr;
+    }
+
+    inline GenericType* as_generic_type() {
+        return isGenericType(kind()) ? (GenericType*) this : nullptr;
+    }
+
+    inline IntNType* as_intn_type() {
+        return isIntNType(kind()) ? (IntNType*) this : nullptr;
+    }
+
+    inline PointerType* as_pointer_type() {
+        return isPointerType(kind()) ? (PointerType*) this : nullptr;
+    }
+
+    inline ReferenceType* as_reference_type() {
+        return isReferenceType(kind()) ? (ReferenceType*) this : nullptr;
+    }
+
+    inline LinkedType* as_linked_type() {
+        return isLinkedType(kind()) ? (LinkedType*) this : nullptr;
+    }
+
+    inline StringType* as_string_type() {
+        return isStringType(kind()) ? (StringType*) this : nullptr;
+    }
+
+    inline LiteralType* as_literal_type() {
+        return isLiteralType(kind()) ? (LiteralType*) this : nullptr;
+    }
+
+    inline DynamicType* as_dynamic_type() {
+        return isDynamicType(kind()) ? (DynamicType*) this : nullptr;
+    }
+
+    inline VoidType* as_void_type() {
+        return isVoidType(kind()) ? (VoidType*) this : nullptr;
+    }
+
+    //---------------------------------------------
+    // Helper as (unsafe) methods
+    //---------------------------------------------
+
+    inline AnyType* as_any_type_unsafe() {
+        return (AnyType*) this;
+    }
+
+    inline ArrayType* as_array_type_unsafe() {
+        return (ArrayType*) this;
+    }
+
+    inline StructType* as_struct_type_unsafe() {
+        return (StructType*) this;
+    }
+
+    inline UnionType* as_union_type_unsafe() {
+        return (UnionType*) this;
+    }
+
+    inline BoolType* as_bool_type_unsafe() {
+        return (BoolType*) this;
+    }
+
+    inline CharType* as_char_type_unsafe() {
+        return (CharType*) this;
+    }
+
+    inline UCharType* as_uchar_type_unsafe() {
+        return (UCharType*) this;
+    }
+
+    inline DoubleType* as_double_type_unsafe() {
+        return (DoubleType*) this;
+    }
+
+    inline FloatType* as_float_type_unsafe() {
+        return (FloatType*) this;
+    }
+
+    inline LongDoubleType* as_longdouble_type_unsafe() {
+        return (LongDoubleType*) this;
+    }
+
+    inline ComplexType* as_complex_type_unsafe() {
+        return (ComplexType*) this;
+    }
+
+    inline Float128Type* as_float128_type_unsafe() {
+        return (Float128Type*) this;
+    }
+
+    inline FunctionType* as_function_type_unsafe() {
+        return (FunctionType*) this;
+    }
+
+    inline GenericType* as_generic_type_unsafe() {
+        return (GenericType*) this;
+    }
+
+    inline IntNType* as_intn_type_unsafe() {
+        return (IntNType*) this;
+    }
+
+    inline PointerType* as_pointer_type_unsafe() {
+        return (PointerType*) this;
+    }
+
+    inline ReferenceType* as_reference_type_unsafe() {
+        return (ReferenceType*) this;
+    }
+
+    inline LinkedType* as_linked_type_unsafe() {
+        return (LinkedType*) this;
+    }
+
+    inline StringType* as_string_type_unsafe() {
+        return (StringType*) this;
+    }
+
+    inline LiteralType* as_literal_type_unsafe() {
+        return (LiteralType*) this;
+    }
+
+    inline DynamicType* as_dynamic_type_unsafe() {
+        return (DynamicType*) this;
+    }
+
+    inline VoidType* as_void_type_unsafe() {
+        return (VoidType*) this;
+    }
+
 
 };
 

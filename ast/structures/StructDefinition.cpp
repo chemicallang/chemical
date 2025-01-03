@@ -181,7 +181,7 @@ llvm::Value* child_of_self_ptr(Codegen& gen, BaseDefMember& member, llvm::Value*
 }
 
 llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
-    if(isAnyStructMember()) {
+    if(isAnyStructMember(kind())) {
         const auto curr_func = gen.current_func_type->as_function();
         if(curr_func && curr_func->is_constructor_fn()) {
             // TODO hard coded the index for the constructor self param

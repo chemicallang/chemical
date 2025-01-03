@@ -450,221 +450,199 @@ public:
     // Helper is methods
     //---------------------------------------------
 
-    inline bool isInitBlock() {
-        return kind() == ASTNodeKind::InitBlock;
+    static inline constexpr bool isInitBlock(ASTNodeKind k) {
+        return k == ASTNodeKind::InitBlock;
     }
 
-    inline bool isValueWrapperNode() {
-        return kind() == ASTNodeKind::ValueWrapper;
+    static inline constexpr bool isValueWrapperNode(ASTNodeKind k) {
+        return k == ASTNodeKind::ValueWrapper;
     }
 
-    inline bool isAssignmentStmt() {
-        return kind() == ASTNodeKind::AssignmentStmt;
+    static inline constexpr bool isAssignmentStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::AssignmentStmt;
     }
 
-    inline bool isBreakStmt() {
-        return kind() == ASTNodeKind::BreakStmt;
+    static inline constexpr bool isBreakStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::BreakStmt;
     }
 
-    inline bool isCommentStmt() {
-        return kind() == ASTNodeKind::CommentStmt;
+    static inline constexpr bool isCommentStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::CommentStmt;
     }
 
-    inline bool isContinueStmt() {
-        return kind() == ASTNodeKind::ContinueStmt;
+    static inline constexpr bool isContinueStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::ContinueStmt;
     }
 
-    inline bool isDeleteStmt() {
-        return kind() == ASTNodeKind::DeleteStmt;
+    static inline constexpr bool isDeleteStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::DeleteStmt;
     }
 
-    inline bool isImportStmt() {
-        return kind() == ASTNodeKind::ImportStmt;
+    static inline constexpr bool isImportStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::ImportStmt;
     }
 
-    inline bool isReturnStmt() {
-        return kind() == ASTNodeKind::ReturnStmt;
+    static inline constexpr bool isReturnStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::ReturnStmt;
     }
 
-    inline bool isSwitchStmt() {
-        return kind() == ASTNodeKind::SwitchStmt;
+    static inline constexpr bool isSwitchStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::SwitchStmt;
     }
 
-    inline bool isThrowStmt() {
-        return kind() == ASTNodeKind::ThrowStmt;
+    static inline constexpr bool isThrowStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::ThrowStmt;
     }
 
-    inline bool isTypealiasStmt() {
-        return kind() == ASTNodeKind::TypealiasStmt;
+    static inline constexpr bool isTypealiasStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::TypealiasStmt;
     }
 
-    inline bool isUsingStmt() {
-        return kind() == ASTNodeKind::UsingStmt;
+    static inline constexpr bool isUsingStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::UsingStmt;
     }
 
-    inline bool isVarInitStmt() {
-        return kind() == ASTNodeKind::VarInitStmt;
+    static inline constexpr bool isVarInitStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::VarInitStmt;
     }
 
-    inline bool isWhileLoopStmt() {
-        return kind() == ASTNodeKind::WhileLoopStmt;
+    static inline constexpr bool isWhileLoopStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::WhileLoopStmt;
     }
 
-    inline bool isDoWhileLoopStmt() {
-        return kind() == ASTNodeKind::DoWhileLoopStmt;
+    static inline constexpr bool isDoWhileLoopStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::DoWhileLoopStmt;
     }
 
-    inline bool isForLoopStmt() {
-        return kind() == ASTNodeKind::ForLoopStmt;
+    static inline constexpr bool isForLoopStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::ForLoopStmt;
     }
 
-    inline bool isIfStmt() {
-        return kind() == ASTNodeKind::IfStmt;
+    static inline constexpr bool isIfStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::IfStmt;
     }
 
-    inline bool isTryStmt() {
-        return kind() == ASTNodeKind::TryStmt;
+    static inline constexpr bool isTryStmt(ASTNodeKind k) {
+        return k == ASTNodeKind::TryStmt;
     }
 
-    inline bool isEnumDecl() {
-        return kind() == ASTNodeKind::EnumDecl;
+    static inline constexpr bool isEnumDecl(ASTNodeKind k) {
+        return k == ASTNodeKind::EnumDecl;
     }
 
-    inline bool isEnumMember() {
-        return kind() == ASTNodeKind::EnumMember;
+    static inline constexpr bool isEnumMember(ASTNodeKind k) {
+        return k == ASTNodeKind::EnumMember;
     }
 
-    static inline bool isFunctionDecl(ASTNodeKind k) {
+    static inline constexpr bool isFunctionDecl(ASTNodeKind k) {
         return k == ASTNodeKind::FunctionDecl || k == ASTNodeKind::ExtensionFunctionDecl;
     }
 
-    inline bool isFunctionDecl() {
-        return isFunctionDecl(kind());
+    static inline constexpr bool isExtensionFunctionDecl(ASTNodeKind k) {
+        return k == ASTNodeKind::ExtensionFunctionDecl;
     }
 
-    inline bool isExtensionFunctionDecl() {
-        return kind() == ASTNodeKind::ExtensionFunctionDecl;
+    static inline constexpr bool isMultiFunctionNode(ASTNodeKind k) {
+        return k == ASTNodeKind::MultiFunctionNode;
     }
 
-    inline bool isMultiFunctionNode() {
-        return kind() == ASTNodeKind::MultiFunctionNode;
+    static inline constexpr bool isImplDecl(ASTNodeKind k) {
+        return k == ASTNodeKind::ImplDecl;
     }
 
-    inline bool isImplDecl() {
-        return kind() == ASTNodeKind::ImplDecl;
+    static inline constexpr bool isInterfaceDecl(ASTNodeKind k) {
+        return k == ASTNodeKind::InterfaceDecl;
     }
 
-    inline bool isInterfaceDecl() {
-        return kind() == ASTNodeKind::InterfaceDecl;
+    static inline constexpr bool isStructDecl(ASTNodeKind k) {
+        return k == ASTNodeKind::StructDecl;
     }
 
-    inline bool isStructDecl() {
-        return kind() == ASTNodeKind::StructDecl;
+    static inline constexpr bool isStructMember(ASTNodeKind k) {
+        return k == ASTNodeKind::StructMember;
     }
 
-    inline bool isStructMember() {
-        return kind() == ASTNodeKind::StructMember;
+    static inline constexpr bool isNamespaceDecl(ASTNodeKind k) {
+        return k == ASTNodeKind::NamespaceDecl;
     }
 
-    inline bool isNamespaceDecl() {
-        return kind() == ASTNodeKind::NamespaceDecl;
+    static inline constexpr bool isUnionDecl(ASTNodeKind k) {
+        return k == ASTNodeKind::UnionDecl;
     }
 
-    inline bool isUnionDecl() {
-        return kind() == ASTNodeKind::UnionDecl;
+    static inline constexpr bool isVariantDecl(ASTNodeKind k) {
+        return k == ASTNodeKind::VariantDecl;
     }
 
-    inline bool isVariantDecl() {
-        return kind() == ASTNodeKind::VariantDecl;
+    static inline constexpr bool isVariantMember(ASTNodeKind k) {
+        return k == ASTNodeKind::VariantMember;
     }
 
-    inline bool isVariantMember() {
-        return kind() == ASTNodeKind::VariantMember;
+    static inline constexpr bool isUnnamedStruct(ASTNodeKind k) {
+        return k == ASTNodeKind::UnnamedStruct;
     }
 
-    inline bool isUnnamedStruct() {
-        return kind() == ASTNodeKind::UnnamedStruct;
+    static inline constexpr bool isUnnamedUnion(ASTNodeKind k) {
+        return k == ASTNodeKind::UnnamedUnion;
     }
 
-    inline bool isUnnamedUnion() {
-        return kind() == ASTNodeKind::UnnamedUnion;
+    static inline constexpr bool isScope(ASTNodeKind k) {
+        return k == ASTNodeKind::Scope;
     }
 
-    inline bool isScope() {
-        return kind() == ASTNodeKind::Scope;
+    static inline constexpr bool isFunctionParam(ASTNodeKind k) {
+        return k == ASTNodeKind::FunctionParam;
     }
 
-    inline bool isFunctionParam() {
-        return kind() == ASTNodeKind::FunctionParam;
+    static inline constexpr bool isExtensionFuncReceiver(ASTNodeKind k) {
+        return k == ASTNodeKind::ExtensionFuncReceiver;
     }
 
-    inline bool isExtensionFuncReceiver() {
-        return kind() == ASTNodeKind::ExtensionFuncReceiver;
+    static inline constexpr bool isGenericTypeParam(ASTNodeKind k) {
+        return k == ASTNodeKind::GenericTypeParam;
     }
 
-    inline bool isGenericTypeParam() {
-        return kind() == ASTNodeKind::GenericTypeParam;
+    static inline constexpr bool isVariantMemberParam(ASTNodeKind k) {
+        return k == ASTNodeKind::VariantMemberParam;
     }
 
-    inline bool isVariantMemberParam() {
-        return kind() == ASTNodeKind::VariantMemberParam;
+    static inline constexpr bool isCapturedVariable(ASTNodeKind k) {
+        return k == ASTNodeKind::CapturedVariable;
     }
 
-    inline bool isCapturedVariable() {
-        return kind() == ASTNodeKind::CapturedVariable;
+    static inline constexpr bool isVariantCaseVariable(ASTNodeKind k) {
+        return k == ASTNodeKind::VariantCaseVariable;
     }
 
-    inline bool isVariantCaseVariable() {
-        return kind() == ASTNodeKind::VariantCaseVariable;
-    }
-
-    inline bool isBaseFuncParam() {
-        const auto k = kind();
+    static inline constexpr bool isBaseFuncParam(ASTNodeKind k) {
         return k == ASTNodeKind::ExtensionFuncReceiver || k == ASTNodeKind::FunctionParam;
     }
 
-    static inline bool isLoopASTNode(ASTNodeKind k) {
+    static inline constexpr bool isLoopASTNode(ASTNodeKind k) {
         return k == ASTNodeKind::WhileLoopStmt || k == ASTNodeKind::DoWhileLoopStmt || k == ASTNodeKind::ForLoopStmt || k == ASTNodeKind::LoopBlock;
     }
 
-    inline bool isLoopASTNode() {
-        return isLoopASTNode(kind());
-    }
-
-    static inline bool isMembersContainer(ASTNodeKind k) {
+    static inline constexpr bool isMembersContainer(ASTNodeKind k) {
         return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::InterfaceDecl || k == ASTNodeKind::ImplDecl;
     }
 
-    static inline bool isAnyStructMember(ASTNodeKind k) {
+    static inline constexpr bool isAnyStructMember(ASTNodeKind k) {
         return k == ASTNodeKind::StructMember || k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion;
     }
 
-    static inline bool isBaseDefMember(ASTNodeKind k) {
+    static inline constexpr bool isBaseDefMember(ASTNodeKind k) {
         return isAnyStructMember(k) || k == ASTNodeKind::VariantMember;
     }
 
-    static inline bool isStoredStructType(ASTNodeKind k) {
+    static inline constexpr bool isStoredStructType(ASTNodeKind k) {
         return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::VariantMember || k == ASTNodeKind::InterfaceDecl || k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion;
     }
 
-    static inline bool isStoredStructDecl(ASTNodeKind k) {
+    static inline constexpr bool isStoredStructDecl(ASTNodeKind k) {
         return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::InterfaceDecl;
     }
 
-    inline bool isMembersContainer() {
-        return isMembersContainer(kind());
-    }
-
-    inline bool isAnyStructMember() {
-        return isAnyStructMember(kind());
-    }
-
-    inline bool isBaseDefMember() {
-        return isBaseDefMember(kind());
-    }
-
-    inline bool isAnnotableNode() {
-        const auto k = kind();
+    static inline constexpr bool isAnnotableNode(ASTNodeKind k) {
         return k == ASTNodeKind::UsingStmt || k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::NamespaceDecl || isBaseDefMember(k) || isFunctionDecl(k) || isMembersContainer(k);
     }
 
@@ -675,233 +653,226 @@ public:
     /**
      * return as init block safely
      */
-    InitBlock* as_init_block() {
-        return isInitBlock() ? (InitBlock*) this : nullptr;
+    inline InitBlock* as_init_block() {
+        return isInitBlock(kind()) ? (InitBlock*) this : nullptr;
     }
 
     /**
      * get as value wrapper node safely
      */
-    ValueWrapperNode* as_value_wrapper() {
-        return isValueWrapperNode() ? (ValueWrapperNode*) this : nullptr;
+    inline ValueWrapperNode* as_value_wrapper() {
+        return isValueWrapperNode(kind()) ? (ValueWrapperNode*) this : nullptr;
     }
 
     /**
       * return this as an annotable node
       */
-    AnnotableNode* as_annotable_node() {
-        return isAnnotableNode() ? (AnnotableNode*) this : nullptr;
+    inline AnnotableNode* as_annotable_node() {
+        return isAnnotableNode(kind()) ? (AnnotableNode*) this : nullptr;
     }
 
     /**
      * return if this is definition member
      */
-    BaseDefMember* as_base_def_member() {
-        return isBaseDefMember() ? (BaseDefMember*) this : nullptr;
+    inline BaseDefMember* as_base_def_member() {
+        return isBaseDefMember(kind()) ? (BaseDefMember*) this : nullptr;
     }
 
     /**
      * get a members container
      */
-    MembersContainer* as_members_container() {
-        return isMembersContainer() ? (MembersContainer*) this : nullptr;
-    }
-
-    /**
-     * get a members container
-     */
-    MembersContainer* as_members_container(ASTNodeKind k) {
-        return isMembersContainer(k) ? (MembersContainer*) this : nullptr;
+    inline MembersContainer* as_members_container() {
+        return isMembersContainer(kind()) ? (MembersContainer*) this : nullptr;
     }
 
     /**
      * return if this is a loop ast node
      */
-    LoopASTNode *as_loop_ast() {
-        return isLoopASTNode() ? (LoopASTNode*) this : nullptr;
+    inline LoopASTNode *as_loop_ast() {
+        return isLoopASTNode(kind()) ? (LoopASTNode*) this : nullptr;
     }
 
     /**
      * return if this is a base function paam
      */
-    BaseFunctionParam* as_base_func_param() {
-        return isBaseFuncParam() ? (BaseFunctionParam*) this : nullptr;
+    inline BaseFunctionParam* as_base_func_param() {
+        return isBaseFuncParam(kind()) ? (BaseFunctionParam*) this : nullptr;
     }
 
     /**
      * return if this is a scope
      */
-    Scope *as_scope() {
-        return isScope() ? (Scope*) this : nullptr;
+    inline Scope *as_scope() {
+        return isScope(kind()) ? (Scope*) this : nullptr;
     }
 
     /**
      * return this as a generic type parameter if its one
      */
-    GenericTypeParameter* as_generic_type_param() {
-        return isGenericTypeParam() ? (GenericTypeParameter*) this : nullptr;
+    inline GenericTypeParameter* as_generic_type_param() {
+        return isGenericTypeParam(kind()) ? (GenericTypeParameter*) this : nullptr;
     }
 
     /**
      * return this as a multi function node
      */
-    MultiFunctionNode* as_multi_func_node() {
-        return isMultiFunctionNode() ? (MultiFunctionNode*) this : nullptr;
+    inline MultiFunctionNode* as_multi_func_node() {
+        return isMultiFunctionNode(kind()) ? (MultiFunctionNode*) this : nullptr;
     }
 
     /**
      * as enum member
      */
-    EnumDeclaration* as_enum_decl() {
-        return isEnumDecl() ? (EnumDeclaration*) this : nullptr;
+    inline EnumDeclaration* as_enum_decl() {
+        return isEnumDecl(kind()) ? (EnumDeclaration*) this : nullptr;
     }
 
     /**
      * as enum member
      */
-    EnumMember* as_enum_member() {
-        return isEnumMember() ? (EnumMember*) this : nullptr;
+    inline EnumMember* as_enum_member() {
+        return isEnumMember(kind()) ? (EnumMember*) this : nullptr;
     }
 
     /**
      * get as extension function
      */
-    ExtensionFunction* as_extension_func() {
-        return isExtensionFunctionDecl() ? (ExtensionFunction*) this : nullptr;
+    inline ExtensionFunction* as_extension_func() {
+        return isExtensionFunctionDecl(kind()) ? (ExtensionFunction*) this : nullptr;
     }
 
     /**
      * return if this is a parameter
      */
-    FunctionParam *as_func_param() {
-        return isFunctionParam() ? (FunctionParam*) this : nullptr;
+    inline FunctionParam *as_func_param() {
+        return isFunctionParam(kind()) ? (FunctionParam*) this : nullptr;
     }
 
     /**
      * return if this is a function decl
      * @return
      */
-    FunctionDeclaration *as_function() {
-        return isFunctionDecl() ? (FunctionDeclaration*) this : nullptr;
+    inline FunctionDeclaration *as_function() {
+        return isFunctionDecl(kind()) ? (FunctionDeclaration*) this : nullptr;
     }
 
     /**
      * return if this is a struct member
      */
-    StructMember *as_struct_member() {
-        return isStructMember() ? (StructMember*) this : nullptr;
+    inline StructMember *as_struct_member() {
+        return isStructMember(kind()) ? (StructMember*) this : nullptr;
     }
 
     /**
      * return if this is an unnamed union
      */
-    UnnamedUnion *as_unnamed_union() {
-        return isUnnamedUnion() ? (UnnamedUnion*) this : nullptr;
+    inline UnnamedUnion *as_unnamed_union() {
+        return isUnnamedUnion(kind()) ? (UnnamedUnion*) this : nullptr;
     }
 
     /**
      * return if this is an unnamed struct
      */
-    UnnamedStruct *as_unnamed_struct() {
-        return isUnnamedStruct() ? (UnnamedStruct*) this : nullptr;
+    inline UnnamedStruct *as_unnamed_struct() {
+        return isUnnamedStruct(kind()) ? (UnnamedStruct*) this : nullptr;
     }
 
     /**
      * return if this is a typealias statement
      */
-    TypealiasStatement *as_typealias() {
-        return isTypealiasStmt() ? (TypealiasStatement*) this : nullptr;
+    inline TypealiasStatement *as_typealias() {
+        return isTypealiasStmt(kind()) ? (TypealiasStatement*) this : nullptr;
     }
 
     /**
      * return if this is a captured variable
      */
-    CapturedVariable *as_captured_var() {
-        return isCapturedVariable() ? (CapturedVariable*) this : nullptr;
+    inline CapturedVariable *as_captured_var() {
+        return isCapturedVariable(kind()) ? (CapturedVariable*) this : nullptr;
     }
 
     /**
      * return if this is a return statement
      */
-    ReturnStatement *as_return() {
-        return isReturnStmt() ? (ReturnStatement*) this : nullptr;
+    inline ReturnStatement *as_return() {
+        return isReturnStmt(kind()) ? (ReturnStatement*) this : nullptr;
     }
 
     /**
      * return if this is a using statement
      */
-    UsingStmt* as_using_stmt() {
-        return isUsingStmt() ? (UsingStmt*) this : nullptr;
+    inline UsingStmt* as_using_stmt() {
+        return isUsingStmt(kind()) ? (UsingStmt*) this : nullptr;
     }
 
     /**
      * as interface definition
      */
-    InterfaceDefinition *as_interface_def() {
-        return isInterfaceDecl() ? (InterfaceDefinition*) this : nullptr;
+    inline InterfaceDefinition *as_interface_def() {
+        return isInterfaceDecl(kind()) ? (InterfaceDefinition*) this : nullptr;
     }
 
     /**
      * as namespace
      */
-    Namespace* as_namespace() {
-        return isNamespaceDecl() ? (Namespace*) this : nullptr;
+    inline Namespace* as_namespace() {
+        return isNamespaceDecl(kind()) ? (Namespace*) this : nullptr;
     }
 
     /**
      * return if this is a struct definition
      */
-    StructDefinition *as_struct_def() {
-        return isStructDecl() ? (StructDefinition*) this : nullptr;
+    inline StructDefinition *as_struct_def() {
+        return isStructDecl(kind()) ? (StructDefinition*) this : nullptr;
     }
 
     /**
      * return if this is a implementation def
      */
-    ImplDefinition* as_impl_def() {
-        return isImplDecl() ? (ImplDefinition*) this : nullptr;
+    inline ImplDefinition* as_impl_def() {
+        return isImplDecl(kind()) ? (ImplDefinition*) this : nullptr;
     }
 
     /**
      * return if this is a struct definition
      */
-    UnionDef *as_union_def() {
-        return isUnionDecl() ? (UnionDef*) this : nullptr;
+    inline UnionDef *as_union_def() {
+        return isUnionDecl(kind()) ? (UnionDef*) this : nullptr;
     }
 
     /**
      * return if this is a var init statement
      */
-    VarInitStatement *as_var_init() {
-        return isVarInitStmt() ? (VarInitStatement*) this : nullptr;
+    inline VarInitStatement *as_var_init() {
+        return isVarInitStmt(kind()) ? (VarInitStatement*) this : nullptr;
     }
 
     /**
      * return if this is a variant member
      */
-    VariantMember* as_variant_member() {
-        return isVariantMember() ? (VariantMember*) this : nullptr;
+    inline VariantMember* as_variant_member() {
+        return isVariantMember(kind()) ? (VariantMember*) this : nullptr;
     }
 
     /**
      * return if this is a variant definition
      */
-    VariantDefinition* as_variant_def() {
-        return isVariantDecl() ? (VariantDefinition*) this : nullptr;
+    inline VariantDefinition* as_variant_def() {
+        return isVariantDecl(kind()) ? (VariantDefinition*) this : nullptr;
     }
 
     /**
      * return if this is a variant case variable
      */
-    VariantCaseVariable* as_variant_case_var() {
-        return isVariantCaseVariable() ? (VariantCaseVariable*) this : nullptr;
+    inline VariantCaseVariable* as_variant_case_var() {
+        return isVariantCaseVariable(kind()) ? (VariantCaseVariable*) this : nullptr;
     }
 
     /**
      * return assignment statement if it is one
      */
-    AssignStatement* as_assignment() {
-        return isAssignmentStmt() ? (AssignStatement*) this : nullptr;
+    inline AssignStatement* as_assignment() {
+        return isAssignmentStmt(kind()) ? (AssignStatement*) this : nullptr;
     }
 
     //---------------------------------------------

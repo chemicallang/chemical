@@ -501,6 +501,8 @@ set(COMMON_SOURCES
         ast/values/NewValue.cpp
         integration/cbi/bindings/ParserCBI.cpp
         ast/statements/ValueWrapperNode.h
+        compiler/backend/DebugInfoBuilder.h
+        compiler/backend/DebugInfoBuilder.cpp
 )
 
 # Chemical LSP Executable Target

@@ -118,10 +118,16 @@ class WhileLoop;
 class VariantDefinition;
 class VariantMember;
 class VariantMemberParam;
+class SymResNode;
+class SymResValue;
 
 extern "C" {
 
     void* ASTBuilderallocate_with_cleanup(ASTAllocator* allocator, std::size_t obj_size, std::size_t alignment, void* cleanup_fn);
+
+    SymResNode* ASTBuildermake_sym_res_node(ASTAllocator* allocator, void* decl_fn, void* repl_fn, void* data_ptr, ASTNode* parent_node, uint64_t location);
+
+    SymResValue* ASTBuildermake_sym_res_value(ASTAllocator* allocator, void* repl_fn, void* data_ptr, uint64_t location);
 
     AnyType* ASTBuildermake_any_type(ASTAllocator* allocator, uint64_t location);
 

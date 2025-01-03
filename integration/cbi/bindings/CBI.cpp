@@ -126,6 +126,8 @@ void ptr_vec_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
 void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
     sym_map = {
             { "ASTBuilderallocate_with_cleanup", (void*) ASTBuilderallocate_with_cleanup },
+            { "ASTBuildermake_sym_res_node", (void*) ASTBuildermake_sym_res_node },
+            { "ASTBuildermake_sym_res_value", (void*) ASTBuildermake_sym_res_value },
             { "ASTBuildermake_any_type", (void*) ASTBuildermake_any_type },
             { "ASTBuildermake_array_type", (void*) ASTBuildermake_array_type },
             { "ASTBuildermake_bigint_type", (void*) ASTBuildermake_bigint_type },
@@ -265,5 +267,11 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "InitBlockadd_initializer", (void*) InitBlockadd_initializer },
 
 
+    };
+}
+
+void symbol_resolver_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
+    sym_map = {
+            // TODO
     };
 }

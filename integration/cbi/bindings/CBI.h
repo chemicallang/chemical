@@ -46,3 +46,8 @@ void ptr_vec_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
  * the function to put all symbols inside for the ASTBuilder compiler interface
  */
 void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);
+
+/**
+ * the function to put all symbols inside for the ASTBuilder compiler interface
+ */
+void symbol_resolver_symbol_map(std::unordered_map<std::string_view, void*>& sym_map);

@@ -1452,8 +1452,8 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     container.compiler_namespace.extended.clear();
     container.std_namespace.extended.clear();
 
-    container.compiler_namespace.declare_top_level(resolver);
-    container.std_namespace.declare_top_level(resolver);
+    container.compiler_namespace.declare_top_level(resolver, (ASTNode*&) container.compiler_namespace);
+    container.std_namespace.declare_top_level(resolver, (ASTNode*&) container.std_namespace);
 
     resolver.declare(container.defined.name_view(), &container.defined);
     resolver.declare(container.defThing.decl.name_view(), &container.defThing.decl);
@@ -1471,13 +1471,13 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     const auto container_ptr = new GlobalContainer;
     auto& container = *container_ptr;
 
-    container.compiler_namespace.declare_top_level(resolver);
-    container.std_namespace.declare_top_level(resolver);
-    container.defined.declare_top_level(resolver);
+    container.compiler_namespace.declare_top_level(resolver, (ASTNode*&) container.compiler_namespace);
+    container.std_namespace.declare_top_level(resolver, (ASTNode*&) container.std_namespace);
+    container.defined.declare_top_level(resolver, (ASTNode*&) container.defined);
 
     // definitions using defThing
-    container.defThing.decl.declare_top_level(resolver);
-    container.defThing.defStmt.declare_top_level(resolver);
+    container.defThing.decl.declare_top_level(resolver, (ASTNode*&) container.defThing.decl);
+    container.defThing.defStmt.declare_top_level(resolver, (ASTNode*&) container.defThing.defStmt);
 
     create_target_data_in_def(*this, container.defThing);
 

@@ -118,7 +118,7 @@ public:
 
     void interpret(InterpretScope &scope) final;
 
-    void declare_top_level(SymbolResolver &linker) final;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void accept(Visitor *visitor) final;
 

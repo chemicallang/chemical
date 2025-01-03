@@ -16,7 +16,7 @@ UsingStmt::UsingStmt(
 
 }
 
-void UsingStmt::declare_top_level(SymbolResolver &linker) {
+void UsingStmt::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     chain->link(linker, nullptr, nullptr, 0, true, false);
     auto linked = chain->linked_node();
     if(!linked) {

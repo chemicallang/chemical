@@ -13,6 +13,6 @@ ComptimeBlock::ComptimeBlock(
 
 }
 
-void ComptimeBlock::declare_and_link(SymbolResolver &linker) {
+void ComptimeBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     body.link_sequentially(linker);
 }

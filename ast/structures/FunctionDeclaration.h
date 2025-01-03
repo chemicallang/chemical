@@ -634,11 +634,11 @@ public:
 
 #endif
 
-    void declare_top_level(SymbolResolver &linker);
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr);
 
     void redeclare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker);
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);
 
     /**
      * ensure that function body has an init block (required in constructors)

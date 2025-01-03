@@ -159,6 +159,6 @@ throw std::runtime_error("InterfaceDefinition::byte_size interface byte_size cal
     return 0;
 }
 
-void InterfaceDefinition::declare_top_level(SymbolResolver &linker) {
+void InterfaceDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_node(name_view(), this, specifier(), false);
 }

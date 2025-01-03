@@ -59,7 +59,7 @@ public:
 
 #endif
 
-    void declare_top_level(SymbolResolver &linker) final;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void interpret(InterpretScope &scope);
 

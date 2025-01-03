@@ -2,7 +2,6 @@
 
 #include "parser/Parser.h"
 #include "ast/values/StructValue.h"
-#include "ast/base/MalformedInput.h"
 
 StructMemberInitializer* initializer(ASTAllocator& allocator, StructValue* struct_value, chem::string_view id, Value* value) {
     return new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(id, value, struct_value);

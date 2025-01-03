@@ -124,13 +124,13 @@ BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes
 
 void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
     for(auto& cap : fn->captureList) {
-        cap->declare_and_link(linker);
+        cap->declare_and_link(linker, (ASTNode*&) cap);
     }
-    for (auto param : fn->params) {
+    for (auto& param : fn->params) {
         if(link_param_types) {
             param->link_param_type(linker);
         }
-        param->declare_and_link(linker);
+        param->declare_and_link(linker, (ASTNode*&) param);
     }
 }
 

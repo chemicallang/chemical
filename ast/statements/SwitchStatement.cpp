@@ -229,8 +229,8 @@ void link_variant_call(SymbolResolver& resolver, VariantDefinition* var_def, Fun
         for(const auto value : call->values) {
             const auto id = value->as_identifier();
             if(id) {
-                const auto variable = new (astAlloc.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, first_id, stmt, 0);
-                variable->declare_and_link(resolver);
+                auto variable = new (astAlloc.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, first_id, stmt, 0);
+                variable->declare_and_link(resolver, (ASTNode*&) (variable));
             } else {
                 resolver.error("expected value to be a identifier", value);
             }

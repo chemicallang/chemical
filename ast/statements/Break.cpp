@@ -14,7 +14,7 @@ BreakStatement::BreakStatement(
 
 }
 
-void BreakStatement::declare_and_link(SymbolResolver &linker) {
+void BreakStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(value) {
         value->link(linker, value);
     }

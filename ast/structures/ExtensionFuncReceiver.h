@@ -38,7 +38,7 @@ public:
 
     unsigned int calculate_c_or_llvm_index() final;
 
-    void declare_and_link(SymbolResolver &linker) final;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void accept(Visitor *visitor) final;
 

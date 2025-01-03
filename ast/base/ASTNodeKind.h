@@ -31,6 +31,7 @@ enum class ASTNodeKind : uint8_t {
     ComptimeBlock,
     WhileLoopStmt,
     DoWhileLoopStmt,
+    SymResNode,
     ForLoopStmt,
     IfStmt,
     TryStmt,

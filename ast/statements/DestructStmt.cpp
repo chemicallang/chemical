@@ -16,7 +16,7 @@ DestructStmt::DestructStmt(
 
 }
 
-void DestructStmt::declare_and_link(SymbolResolver &linker) {
+void DestructStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(array_value) {
         array_value->link(linker, array_value);
     }

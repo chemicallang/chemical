@@ -8,7 +8,7 @@
 
 namespace fs = std::filesystem;
 
-void ImportStatement::declare_top_level(SymbolResolver &linker) {
+void ImportStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
 
 }
 

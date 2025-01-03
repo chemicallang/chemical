@@ -996,7 +996,7 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
     }
 }
 
-void FunctionParam::declare_and_link(SymbolResolver &linker) {
+void FunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
     if(defValue) {
         defValue->link(linker, defValue, type);
@@ -1007,7 +1007,7 @@ BaseType* BaseFunctionParam::create_value_type(ASTAllocator& allocator) {
     return type->copy(allocator);
 }
 
-void BaseFunctionParam::declare_and_link(SymbolResolver &linker) {
+void BaseFunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(!name.empty()) {
         linker.declare(name, this);
     }
@@ -1029,7 +1029,7 @@ void GenericTypeParameter::declare_only(SymbolResolver& linker) {
     linker.declare(identifier, this);
 }
 
-void GenericTypeParameter::declare_and_link(SymbolResolver &linker) {
+void GenericTypeParameter::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(at_least_type) {
         at_least_type->link(linker);
     }
@@ -1253,7 +1253,7 @@ void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
     linker.declare_function(name_view(), this);
 }
 
-void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
+void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     /**
      * when a user has a call to function which is declared below current function, that function
      * has a parameter of type ref struct, the struct has implicit constructor for the value we are passing
@@ -1269,8 +1269,8 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
 
     bool resolved = true;
     linker.scope_start();
-    for(auto gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+    for(auto& gen_param : generic_params) {
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     for(auto param : params) {
         if(!param->link_param_type(linker)) {
@@ -1299,7 +1299,7 @@ void FunctionDeclaration::ensure_has_init_block(ASTDiagnoser& diagnoser) {
     }
 }
 
-void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
+void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     // if has body declare params
     linker.scope_start();
     auto prev_func_type = linker.current_func_type;
@@ -1307,8 +1307,8 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     for(auto gen_param : generic_params) {
         gen_param->declare_only(linker);
     }
-    for (auto param: params) {
-        param->declare_and_link(linker);
+    for (auto& param : params) {
+        param->declare_and_link(linker, (ASTNode*&) param);
     }
     if (body.has_value() && FunctionType::data.signature_resolved) {
         body->link_sequentially(linker);
@@ -1404,7 +1404,7 @@ BaseType* CapturedVariable::known_type() {
     }
 }
 
-void CapturedVariable::declare_and_link(SymbolResolver &linker) {
+void CapturedVariable::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linked = linker.find(name);
     linker.declare(name, this);
 }

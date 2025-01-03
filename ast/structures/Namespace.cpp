@@ -27,7 +27,7 @@ void Namespace::declare_extended_in_linker(SymbolResolver& linker) {
     }
 }
 
-void Namespace::declare_top_level(SymbolResolver &linker) {
+void Namespace::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     auto previous = linker.find(name());
     if(previous) {
         root = previous->as_namespace();
@@ -38,8 +38,8 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
             }
             linker.scope_start();
             root->declare_extended_in_linker(linker);
-            for(const auto node : nodes) {
-                node->declare_top_level(linker);
+            for(auto& node : nodes) {
+                node->declare_top_level(linker, node);
                 root->declare_node(linker, node, node->get_located_id()->identifier);
             }
             linker.scope_end();
@@ -55,17 +55,17 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
     }
 }
 
-void Namespace::declare_and_link(SymbolResolver &linker) {
+void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
     if(root) {
         root->declare_extended_in_linker(linker);
     } else {
-        for(const auto node : nodes) {
-            node->declare_top_level(linker);
+        for(auto& node : nodes) {
+            node->declare_top_level(linker, node);
         }
     }
-    for(const auto node : nodes) {
-        node->declare_and_link(linker);
+    for(auto& node : nodes) {
+        node->declare_and_link(linker, node);
     }
     linker.scope_end();
 }

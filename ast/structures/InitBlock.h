@@ -41,7 +41,7 @@ public:
         return location;
     }
 
-    void declare_and_link(SymbolResolver &linker) final;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 

@@ -51,7 +51,7 @@ void WhileLoop::code_gen(Codegen &gen) {
 WhileLoop::WhileLoop(Value* condition, LoopScope body, ASTNode* parent_node, SourceLocation location)
         : condition(condition), LoopASTNode(std::move(body)), parent_node(parent_node), location(location) {}
 
-void WhileLoop::declare_and_link(SymbolResolver &linker) {
+void WhileLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
     condition->link(linker, condition);
     body.link_sequentially(linker);

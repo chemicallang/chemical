@@ -24,7 +24,7 @@ void ReturnStatement::interpret(InterpretScope &scope) {
     }
 }
 
-void ReturnStatement::declare_and_link(SymbolResolver &linker) {
+void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if (value) {
         if(!value->link(linker, value, func_type->returnType ? func_type->returnType : nullptr)) {
             return;

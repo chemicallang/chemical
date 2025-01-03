@@ -96,21 +96,21 @@ BaseType* UnionDef::known_type() {
     return &linked_type;
 }
 
-void UnionDef::declare_top_level(SymbolResolver &linker) {
+void UnionDef::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_node(name_view(), this, specifier(), true);
 }
 
-void UnionDef::declare_and_link(SymbolResolver &linker) {
-    MembersContainer::declare_and_link(linker);
+void UnionDef::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    MembersContainer::declare_and_link(linker, node_ptr);
 }
 
 void UnnamedUnion::redeclare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
 }
 
-void UnnamedUnion::declare_and_link(SymbolResolver &linker) {
+void UnnamedUnion::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
-    VariablesContainer::declare_and_link(linker);
+    VariablesContainer::declare_and_link(linker, node_ptr);
     linker.scope_end();
     linker.declare(name, this);
 }

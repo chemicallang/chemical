@@ -20,7 +20,7 @@ void AssignStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void AssignStatement::declare_and_link(SymbolResolver &linker) {
+void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(lhs->link_assign(linker, lhs, nullptr)) {
         BaseType* value_type = lhs->create_type(linker.allocator);
         if(value->link(linker, value, value_type)) {

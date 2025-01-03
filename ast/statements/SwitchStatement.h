@@ -49,7 +49,7 @@ public:
 
     bool declare_and_link(SymbolResolver &linker, Value** value_ptr);
 
-    void declare_and_link(SymbolResolver &linker) final {
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
         declare_and_link(linker, nullptr);
     }
 

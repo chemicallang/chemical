@@ -31,7 +31,7 @@ public:
         return parent_node;
     }
 
-    void declare_and_link(SymbolResolver &linker) override {
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override {
         value->link(linker, value);
     }
 

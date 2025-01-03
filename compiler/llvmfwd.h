@@ -21,4 +21,11 @@ namespace llvm {
     template <typename FolderTy, typename InserterTy>
     class IRBuilder;
     class StructType;
+
+    // debug onces
+    class DICompileUnit;
+    class DIScope;
+    class DIFile;
+    class DIBuilder;
+
 }

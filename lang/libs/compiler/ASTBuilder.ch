@@ -4,6 +4,7 @@ import "@std/string_view.ch"
 import "./BatchAllocator.ch"
 import "./ValueKind.ch"
 import "./SymbolResolver.ch"
+import "./Operation.ch"
 
 using namespace std;
 
@@ -85,7 +86,7 @@ struct VoidType : BaseType {}
 
 // The Values
 
-struct AccessChain {
+struct AccessChain : Value {
 
     func get_values(&self) : *VecRef<Value>;
 
@@ -364,9 +365,9 @@ public struct ASTBuilder : BatchAllocator {
 
     func allocate_with_cleanup(&self, obj_size : size_t, alignment : size_t, cleanup_fn : *mut void) : *mut void;
 
-    func make_sym_res_node(&self, decl_fn : SymResNodeDeclarationFn, repl_fn : SymResNodeReplacementFn, data_ptr : void*, parent_node : ASTNode*, location : uint64_t) : *mut SymResNode
+    func make_sym_res_node(&self, decl_fn : SymResNodeDeclarationFn, repl_fn : SymResNodeReplacementFn, data_ptr : void*, parent_node : ASTNode*, location : ubigint) : *mut SymResNode
 
-    func make_sym_res_value(&self, repl_fn : SymResValueReplacementFn, data_ptr : void*, location : uint64_t) : *mut SymResValue;
+    func make_sym_res_value(&self, repl_fn : SymResValueReplacementFn, data_ptr : void*, location : ubigint) : *mut SymResValue;
 
     func make_any_type(&self, location : ubigint) : *mut AnyType
 

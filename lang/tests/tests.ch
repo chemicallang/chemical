@@ -4,6 +4,7 @@ import "basic/floating.ch"
 import "basic/nodes.ch"
 import "nodes/varinit.ch"
 import "nodes/struct.ch"
+import "nodes/typealias.ch"
 import "nodes/enum.ch"
 import "type/datatype/numbers.ch"
 import "type/datatype/strings.ch"
@@ -78,6 +79,7 @@ public func main() : int {
     test_satisfies();
     test_new();
     test_extension_functions();
+    test_typealias();
     print_test_stats();
     return 0;
 }

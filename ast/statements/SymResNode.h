@@ -62,6 +62,11 @@ public:
     void* data_ptr;
 
     /**
+     * parent node
+     */
+    ASTNode* parent_node;
+
+    /**
      * the location of the sym res value
      */
     SourceLocation location;
@@ -74,9 +79,14 @@ public:
             SymResNodeDeclarationFn decl_fn,
             SymResNodeReplacementFn repl_fn,
             void* data_ptr,
+            ASTNode* parent_node,
             SourceLocation location
-    ) : allocator(allocator), decl_fn(decl_fn), repl_fn(repl_fn), data_ptr(data_ptr), location(location) {
+    ) : allocator(allocator), decl_fn(decl_fn), repl_fn(repl_fn), data_ptr(data_ptr), parent_node(parent_node), location(location) {
 
+    }
+
+    ASTNode* parent() override {
+        return parent_node;
     }
 
     SourceLocation encoded_location() override {

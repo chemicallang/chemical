@@ -1,0 +1,6 @@
+@compiler.interface
+struct SymbolResolver {
+
+
+
+}

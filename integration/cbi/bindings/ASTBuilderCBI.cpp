@@ -89,6 +89,8 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/UnsafeBlock.h"
+#include "ast/statements/SymResNode.h"
+#include "ast/values/SymResValue.h"
 #include "std/chem_string.h"
 
 constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLocation location) {
@@ -101,6 +103,14 @@ constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLo
 
 void* ASTBuilderallocate_with_cleanup(ASTAllocator* allocator, std::size_t obj_size, std::size_t alignment, void* cleanup_fn) {
     return (void*) allocator->allocate_with_cleanup(obj_size, alignment, cleanup_fn);
+}
+
+SymResNode* ASTBuildermake_sym_res_node(ASTAllocator* allocator, void* decl_fn, void* repl_fn, void* data_ptr, ASTNode* parent_node, uint64_t location) {
+    return new (allocator->allocate<SymResNode>()) SymResNode(allocator, (SymResNodeDeclarationFn) decl_fn, (SymResNodeReplacementFn) repl_fn, data_ptr, parent_node, location);
+}
+
+SymResValue* ASTBuildermake_sym_res_value(ASTAllocator* allocator, void* repl_fn, void* data_ptr, uint64_t location) {
+    return new (allocator->allocate<SymResValue>()) SymResValue(allocator, (SymResValueReplacementFn) repl_fn, data_ptr, location);
 }
 
 AnyType* ASTBuildermake_any_type(ASTAllocator* allocator, uint64_t location) {

@@ -31,6 +31,7 @@ CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_pa
     parser_symbol_map(interface_maps["Parser"]);
     build_context_symbol_map(interface_maps["BuildContext"]);
     ast_builder_symbol_map(interface_maps["ASTBuilder"]);
+    symbol_resolver_symbol_map(interface_maps["SymbolResolver"]);
     ptr_vec_symbol_map(interface_maps["PtrVec"]);
 }
 

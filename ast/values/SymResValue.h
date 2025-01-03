@@ -72,7 +72,13 @@ public:
 
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
         // replacing
-        value_ptr = fn(allocator, &linker, data_ptr);
+        const auto replacement = fn(allocator, &linker, data_ptr);
+        if(replacement) {
+            value_ptr = replacement;
+            return true;
+        } else {
+            return false;
+        }
     }
 
 };

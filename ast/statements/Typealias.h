@@ -120,6 +120,8 @@ public:
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
+    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
+
     void accept(Visitor *visitor) final;
 
     [[nodiscard]]

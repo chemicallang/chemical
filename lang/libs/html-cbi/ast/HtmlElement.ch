@@ -16,7 +16,7 @@ struct AttributeValue {
 
 struct TextAttributeValue : AttributeValue {
 
-    var text : std::string
+    var text : std::string_view
 
 }
 

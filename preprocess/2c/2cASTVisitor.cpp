@@ -2355,10 +2355,16 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
 void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
     visitor.new_line_and_indent();
     write("typedef ");
-    stmt->actual_type->accept(&visitor);
-    write(' ');
-    node_parent_name(visitor, stmt);
-    write(stmt->name_view());
+    const auto kind = stmt->actual_type->kind();
+    if(kind == BaseTypeKind::Function) {
+        const auto func_type = stmt->actual_type->as_function_type_unsafe();
+        func_type_with_id(visitor, func_type, stmt->name_view());
+    } else {
+        stmt->actual_type->accept(&visitor);
+        write(' ');
+        node_parent_name(visitor, stmt);
+        write(stmt->name_view());
+    }
     write(';');
 }
 

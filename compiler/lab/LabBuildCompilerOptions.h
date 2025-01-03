@@ -28,6 +28,12 @@ public:
 #endif
 
     /**
+     * caching can be enabled or disabled, when enabled
+     * timestamp and other caching related data is generated to build directory
+     */
+    bool is_caching_enabled = true;
+
+    /**
      * will force use object file format
      * // TODO make this by default false, once our bitcode generation is valid
      * // Currently set to true, so object files are emitted

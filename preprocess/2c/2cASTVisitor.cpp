@@ -750,7 +750,7 @@ void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& ident
         }
         if(func_call) {
             const auto parent = func_call->parent_val->linked_node();
-            if((!parent || !parent->isVariantMember()) && func_call->create_type(visitor.allocator)->value_type() == ValueType::Struct) {
+            if((!parent || !ASTNode::isVariantMember(parent->kind())) && func_call->create_type(visitor.allocator)->value_type() == ValueType::Struct) {
                 visitor.accept_mutating_value(type, value, true);
                 return;
             }
@@ -820,7 +820,7 @@ void value_alloca_store(ToCAstVisitor& visitor, const chem::string_view& identif
             const auto call = value_chain->values.back()->as_func_call();
             if(call) {
                 const auto node = call->parent_val->linked_node();
-                if(!node || !node->isVariantMember()) {
+                if(!node || !ASTNode::isVariantMember(node->kind())) {
                     value_assign_default(visitor, identifier, type, value);
                     return;
                 }
@@ -4769,7 +4769,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
             }
             else if(func->parent_node) {
                 auto self_param = func->get_self_param();
-                if(self_param && func->parent_node->isMembersContainer()) {
+                if(self_param && ASTNode::isMembersContainer(func->parent_node->kind())) {
                     write(self_param->name);
                     write("->");
                 }

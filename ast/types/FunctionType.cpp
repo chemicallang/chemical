@@ -566,10 +566,10 @@ bool FunctionType::mark_moved_value(
         // then we'll indicate in their type to check for multiple moves, to provide diagnostics to function arguments
         return mark_moved_value(&value, diagnoser);
     }
-    const auto linked_def = linked_node->as_members_container(linked_node_kind);
-    if(!linked_def) {
+    if(!ASTNode::isMembersContainer(linked_node_kind)) {
         return false;
     }
+    const auto linked_def = linked_node->as_members_container_unsafe();
     const bool has_destr = linked_def->destructor_func();
     const bool has_clear_fn = linked_def->clear_func();
     const bool has_move_fn = linked_def->pre_move_func();

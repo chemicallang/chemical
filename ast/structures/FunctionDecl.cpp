@@ -1290,7 +1290,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
 bool FunctionDeclaration::ensure_has_init_block() {
     if(!body.has_value() || body->nodes.empty()) return false;
     auto& first = body->nodes.front();
-    return first->isInitBlock();
+    return ASTNode::isInitBlock(first->kind());
 }
 
 void FunctionDeclaration::ensure_has_init_block(ASTDiagnoser& diagnoser) {

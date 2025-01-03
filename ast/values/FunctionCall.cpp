@@ -649,7 +649,9 @@ bool FunctionCall::store_in_parent(
         std::vector<llvm::Value*>& idxList,
         unsigned int index
 ) {
-    if(parent_val->linked_node()->isVariantMember()) {
+    const auto parent_linked = parent_val->linked_node();
+    const auto parent_kind = parent_linked->kind();
+    if(ASTNode::isVariantMember(parent_kind)) {
         goto store_func_call;
     }
     {

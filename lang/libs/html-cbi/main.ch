@@ -66,7 +66,7 @@ func (str : &std::string) view() : std::string_view {
 
 func make_value_chain(parser : *mut Parser, builder : *mut ASTBuilder, value : *mut Value, len : size_t) : *mut AccessChain {
     const location = compiler::get_raw_location();
-    const chain = builder.make_access_chain(true, location)
+    const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
     var base = builder.make_identifier(std::string_view("html"), false, location);
     chain_values.push(base)
@@ -77,15 +77,17 @@ func make_value_chain(parser : *mut Parser, builder : *mut ASTBuilder, value : *
         name = std::string_view("append_with_len")
     }
     var id = builder.make_identifier(name, false, location);
-    chain_values.push(id);
-    var call = builder.make_function_call_value(location)
+    chain_values.push(id)
+    var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
     if(len != 0) {
         args.push(builder.make_number_value(len, location));
     }
-    chain_values.push(call)
-    return chain;
+    const new_chain = builder.make_access_chain(true, location)
+    var new_chain_values = new_chain.get_values();
+    new_chain_values.push(call);
+    return new_chain;
 }
 
 func make_expr_chain_of(parser : *mut Parser, builder : *mut ASTBuilder, value : *mut Value) : *mut AccessChain {

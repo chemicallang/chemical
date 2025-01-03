@@ -363,8 +363,12 @@ typealias SymResValueReplacementFn= (allocator : *mut ASTBuilder, resolver : *mu
 @compiler.interface
 public struct ASTBuilder : BatchAllocator {
 
-    func allocate_with_cleanup(&self, obj_size : size_t, alignment : size_t, cleanup_fn : *mut void) : *mut void;
+    func allocate_with_cleanup(&self, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void;
 
+    // the decl_fn is only called if the node is a top level node and not inside a function
+    // to track, allocate the root node and set the data_ptr to it, otherwise set it to null
+    // in the repl_fn check if it is not set, allocate it if not, also declare will only declare now as a nested level node
+    // since the top level nodes can be accessed via nodes above it, this is required
     func make_sym_res_node(&self, decl_fn : SymResNodeDeclarationFn, repl_fn : SymResNodeReplacementFn, data_ptr : void*, parent_node : ASTNode*, location : ubigint) : *mut SymResNode
 
     func make_sym_res_value(&self, repl_fn : SymResValueReplacementFn, data_ptr : void*, location : ubigint) : *mut SymResValue;

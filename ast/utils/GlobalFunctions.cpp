@@ -1414,7 +1414,7 @@ BoolValue* boolValue(ASTAllocator& allocator, bool value) {
 }
 
 void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) {
-    TargetData targetData;
+    auto& targetData = scope.target_data;
     scope.prepare_target_data(targetData);
     // declaring native definitions like windows and stuff
     auto& allocator = scope.allocator;

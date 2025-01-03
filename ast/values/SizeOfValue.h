@@ -33,6 +33,8 @@ public:
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
+    Value* evaluated_value(InterpretScope &scope) override;
+
     SizeOfValue* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<SizeOfValue>()) SizeOfValue(for_type->copy(allocator), location);
     }

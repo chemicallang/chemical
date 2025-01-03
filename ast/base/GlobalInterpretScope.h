@@ -34,6 +34,11 @@ public:
     const std::string target_triple;
 
     /**
+     * the target data for which we're generating code
+     */
+    TargetData target_data;
+
+    /**
      * the current function call is the last one
      */
     std::vector<FunctionCall*> call_stack;

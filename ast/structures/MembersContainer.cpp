@@ -245,7 +245,7 @@ unsigned int MembersContainer::init_values_req_size() {
 
 void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     for(auto& inherits : inherited) {
         inherits->type->link(linker);
@@ -255,17 +255,17 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
         }
     }
     for (auto &var: variables) {
-        var.second->declare_and_link(linker);
+        var.second->declare_and_link(linker, (ASTNode*&) var.second);
     }
     for(auto& func : functions()) {
-        func->declare_top_level(linker);
+        func->declare_top_level(linker, (ASTNode*&) func);
     }
-    for (auto &func: functions()) {
-        func->declare_and_link(linker);
+    for (auto& func: functions()) {
+        func->declare_and_link(linker, (ASTNode*&) func);
     }
 }
 
-void MembersContainer::declare_and_link(SymbolResolver &linker) {
+void MembersContainer::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
     declare_and_link_no_scope(linker);
     linker.scope_end();
@@ -817,9 +817,9 @@ bool VariablesContainer::build_path_to_child(std::vector<int>& path, const chem:
     return false;
 }
 
-void VariablesContainer::declare_and_link(SymbolResolver &linker) {
+void VariablesContainer::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     for (auto& variable : variables) {
-        variable.second->declare_and_link(linker);
+        variable.second->declare_and_link(linker, (ASTNode*&) variable.second);
     }
 }
 

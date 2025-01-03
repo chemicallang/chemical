@@ -18,7 +18,7 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 
 }
 
-void TypealiasStatement::declare_top_level(SymbolResolver &linker) {
+void TypealiasStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     actual_type->link(linker);
     linker.declare_node(name_view(), this, specifier(), false);
 }

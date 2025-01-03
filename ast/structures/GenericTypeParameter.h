@@ -45,7 +45,7 @@ public:
 
     void declare_only(SymbolResolver& linker);
 
-    void declare_and_link(SymbolResolver &linker) final;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void register_usage(ASTAllocator& allocator, BaseType* type);
 

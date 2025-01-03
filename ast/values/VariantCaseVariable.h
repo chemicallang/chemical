@@ -33,7 +33,7 @@ public:
 
     void accept(Visitor *visitor) final;
 
-    void declare_and_link(SymbolResolver &linker) final;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     ASTNodeKind kind() final {
         return ASTNodeKind::VariantCaseVariable;

@@ -57,12 +57,12 @@ public:
     /**
      * throws an error in debug mode, shouldn't be called
      */
-    void declare_top_level(SymbolResolver &linker) final;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     /**
      * throws an error in debug mode, shouldn't be called
      */
-    void declare_and_link(SymbolResolver &linker) final;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     /**
      * when nodes are to be declared and used sequentially, so node can be referenced

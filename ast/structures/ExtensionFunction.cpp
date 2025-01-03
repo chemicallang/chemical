@@ -22,7 +22,7 @@ unsigned int ExtensionFuncReceiver::calculate_c_or_llvm_index() {
     return 0;
 }
 
-void ExtensionFuncReceiver::declare_and_link(SymbolResolver &linker) {
+void ExtensionFuncReceiver::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
 }
 
@@ -44,7 +44,7 @@ ASTNode *ExtensionFuncReceiver::child(const chem::string_view &name) {
 //    }
 //}
 
-void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
+void ExtensionFunction::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
 
     /**
      * when a user has a call to function which is declared below current function, that function
@@ -61,7 +61,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
     bool resolved = true;
     linker.scope_start();
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     if(!receiver.type->link(linker)) {
         resolved = false;
@@ -125,7 +125,7 @@ ExtensionFunction::ExtensionFunction(
 
 }
 
-void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
+void ExtensionFunction::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
 
     auto linked = receiver.type->linked_node();
     if(linked) {
@@ -143,11 +143,11 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
-    receiver.declare_and_link(linker);
+    receiver.declare_and_link(linker, (ASTNode*&) receiver);
     for (auto &param: params) {
-        param->declare_and_link(linker);
+        param->declare_and_link(linker, (ASTNode*&) param);
     }
     if (body.has_value()) {
         body->link_sequentially(linker);

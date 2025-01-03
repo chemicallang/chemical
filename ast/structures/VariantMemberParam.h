@@ -39,7 +39,7 @@ public:
 
     VariantMemberParam* copy(ASTAllocator& allocator);
 
-    void declare_and_link(SymbolResolver &linker) final;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     uint64_t byte_size(bool is64Bit) final {
         return type->byte_size(is64Bit);

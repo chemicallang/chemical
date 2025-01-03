@@ -100,9 +100,9 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    void declare_top_level(SymbolResolver &linker) final;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
-    void declare_and_link(SymbolResolver &linker) final;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     BaseType* known_type() final;
 

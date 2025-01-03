@@ -78,7 +78,7 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
     return 0;
 }
 
-void ImplDefinition::declare_top_level(SymbolResolver &linker) {
+void ImplDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     interface_type->link(linker);
     if(struct_type) {
         struct_type->link(linker);
@@ -94,7 +94,7 @@ void ImplDefinition::declare_top_level(SymbolResolver &linker) {
     }
 }
 
-void ImplDefinition::declare_and_link(SymbolResolver &linker) {
+void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     const auto& interface_name = interface_type->linked_name();
     const auto linked_node = interface_type->linked_node();
     if(!linked_node) {

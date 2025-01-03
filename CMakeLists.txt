@@ -460,7 +460,6 @@ set(COMMON_SOURCES
         integration/cbi/bindings/ASTBuilderCBI.cpp
         integration/cbi/bindings/ASTCBI.h
         integration/cbi/model/ASTImportUnit.h
-        ast/base/MalformedInput.h
         ast/statements/ProvideStmt.h
         ast/statements/ProvideStmt.cpp
         ast/types/Float128Type.h
@@ -501,8 +500,8 @@ set(COMMON_SOURCES
         ast/values/NewValue.cpp
         integration/cbi/bindings/ParserCBI.cpp
         ast/statements/ValueWrapperNode.h
-        compiler/backend/DebugInfoBuilder.h
-        compiler/backend/DebugInfoBuilder.cpp
+        ast/values/SymResValue.h
+        ast/statements/SymResNode.h
 )
 
 # Chemical LSP Executable Target
@@ -555,6 +554,8 @@ set(COMPILER_SOURCES
         compiler/chem_clang.cpp
         compiler/backend/LLVM.cpp
         compiler/ASTCompiler.cpp
+        compiler/backend/DebugInfoBuilder.h
+        compiler/backend/DebugInfoBuilder.cpp
         compiler/llvm-ar.cpp
         utils/ProcessUtils.h
         compiler/ClangCodegen.h

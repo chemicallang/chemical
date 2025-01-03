@@ -74,7 +74,7 @@ public:
         return parent_node;
     }
 
-    void declare_top_level(SymbolResolver &linker) final;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
 #ifdef COMPILER_BUILD
 

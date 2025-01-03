@@ -103,6 +103,6 @@ public:
 
     bool link_param_type(SymbolResolver &linker);
 
-    void declare_and_link(SymbolResolver &linker) final;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
 };

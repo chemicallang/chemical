@@ -61,7 +61,7 @@ public:
 
     void redeclare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker) final;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     ASTNode *child(const chem::string_view &name) final {
         return VariablesContainer::child_def_member(name);

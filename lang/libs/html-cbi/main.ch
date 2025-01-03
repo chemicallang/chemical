@@ -5,6 +5,7 @@ import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 import "@cstd/ctype.ch"
 import "@compiler/ChemicalTokenType.ch"
+import "./ast/HtmlElement.ch"
 
 using namespace std;
 
@@ -144,6 +145,35 @@ func parseTextChain(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut 
 }
 
 func parseTextChainOrChemExpr(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
+    const token = parser.getToken();
+    switch(token.type) {
+        TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan, TokenType.FwdSlash, TokenType.Equal, TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue, TokenType.Number => {
+            return parseTextChain(parser, builder, str);
+        }
+        TokenType.LBrace => {
+            parser.increment();
+            const chain = make_expr_chain_of(parser, builder, parser.parseExpression(builder));
+            const next = parser.getToken();
+            if(next.type == ChemicalTokenType.RBrace) {
+                parser.increment()
+            } else {
+                parser.error("expected a rbrace after chemical expression");
+            }
+            return chain;
+        }
+        TokenType.RBrace, TokenType.EndOfFile, TokenType.Unexpected, default => {
+            unsafe {
+                return null;
+            }
+        }
+    }
+}
+
+func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlElement {
+
+}
+
+func parseRootElement(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
     const token = parser.getToken();
     switch(token.type) {
         TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan, TokenType.FwdSlash, TokenType.Equal, TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue, TokenType.Number => {

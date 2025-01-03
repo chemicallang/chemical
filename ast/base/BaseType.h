@@ -76,6 +76,11 @@ public:
         return nullptr;
     }
 
+    /**
+     * get the type alignment
+     */
+    unsigned type_alignment(bool is64Bit);
+
 //    /**
 //     * get a pointer to it's child type
 //     */

@@ -185,13 +185,23 @@ BaseDefMember* VariablesContainer::largest_member() {
 }
 
 uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
-    uint64_t size = 0;
-    for (const auto &item: variables) {
-        size += item.second->byte_size(is64Bit);
-//        auto mem_type = item.second->create_value_type();
-//        size += mem_type->byte_size(is64Bit);
+    size_t offset = 0;
+    size_t maxAlignment = 1;
+    for (const auto& member : variables) {
+        // Update max alignment
+        const auto member_alignment = (size_t) member.second->known_type()->type_alignment(is64Bit);
+        maxAlignment = std::max(maxAlignment, member_alignment);
+        // Align the current offset
+        size_t padding = (member_alignment - (offset % member_alignment)) % member_alignment;
+        offset += padding;
+
+        // Add the size of the member
+        offset += member.second->byte_size(is64Bit);
     }
-    return size;
+    // Align the total size to the largest alignment
+    size_t totalPadding = (maxAlignment - (offset % maxAlignment)) % maxAlignment;
+    offset += totalPadding;
+    return offset;
 }
 
 void declare_inherited_members(MembersContainer* container, SymbolResolver& linker) {

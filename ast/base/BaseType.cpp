@@ -12,6 +12,8 @@
 #include "ast/types/LinkedType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/IntNType.h"
+#include "ast/types/LiteralType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/PointerType.h"
 #include <sstream>
@@ -373,6 +375,57 @@ FunctionType *BaseType::function_type(BaseTypeKind k) {
 bool BaseType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
     const auto val_type = value->create_type(allocator);
     return val_type != nullptr && satisfies(val_type->pure_type());
+}
+
+unsigned BaseType::type_alignment(bool is64Bit) {
+    switch(kind()) {
+        case BaseTypeKind::Any:
+        case BaseTypeKind::Array:
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Union:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Complex:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::Function:
+        case BaseTypeKind::Generic:
+        case BaseTypeKind::Pointer:
+        case BaseTypeKind::Reference:
+        case BaseTypeKind::String:
+        case BaseTypeKind::Void:
+        case BaseTypeKind::Unknown:
+        case BaseTypeKind::Dynamic:
+            return 8;
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::Char:
+        case BaseTypeKind::UChar:
+            return 1;
+        case BaseTypeKind::Double:
+            break;
+        case BaseTypeKind::Float:
+            return 4;
+        case BaseTypeKind::IntN:
+            switch(as_intn_type_unsafe()->num_bits()) {
+                case 8:
+                    return 1;
+                case 16:
+                    return 2;
+                case 32:
+                    return 4;
+                case 64:
+                default:
+                    return 8;
+            }
+        case BaseTypeKind::Literal:
+            return as_literal_type_unsafe()->underlying->type_alignment(is64Bit);
+        case BaseTypeKind::Linked: {
+            const auto pure = as_linked_type_unsafe()->pure_type();
+            if(pure == this) {
+                return 8;
+            } else {
+                return pure->type_alignment(is64Bit);
+            }
+        }
+    }
 }
 
 BaseType::~BaseType() = default;

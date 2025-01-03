@@ -156,7 +156,7 @@ Lexer::Lexer(
 void read_digits(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto next = provider.peek();
-        if(std::isdigit(next)) {
+        if(next != -1 && std::isdigit(next)) {
             str.append(provider.readCharacter());
         } else {
             break;
@@ -217,7 +217,7 @@ void read_number(SerialStrAllocator& str, SourceProvider& provider) {
 void read_current_line(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
-        if(p != '\n' && p != '\r') {
+        if(p != -1 && p != '\n' && p != '\r') {
             str.append(provider.readCharacter());
         } else {
             return;
@@ -228,6 +228,9 @@ void read_current_line(SerialStrAllocator& str, SourceProvider& provider) {
 void read_multi_line_comment_text(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         const auto read = provider.readCharacter();
+        if(read == -1) {
+            return;
+        }
         str.append(read);
         if(read == '*' && provider.peek() == '/') {
             str.append(provider.readCharacter());
@@ -318,7 +321,7 @@ Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider
 void read_id(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
-        if(p == '_' || std::isalnum(p)) {
+        if(p != -1 && (p == '_' || std::isalnum(p))) {
             str.append(provider.readCharacter());
         } else {
             return;
@@ -329,7 +332,7 @@ void read_id(SerialStrAllocator& str, SourceProvider& provider) {
 void read_annotation_id(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
-        if(p == '_' || p == '.' || p == ':' || std::isalnum(p)) {
+        if(p != -1 && (p == '_' || p == '.' || p == ':' || std::isalnum(p))) {
             str.append(provider.readCharacter());
         } else {
             return;

@@ -45,6 +45,20 @@ struct SOT5 {
     var c : double;
 };
 
+struct SOT6 {};
+
+struct SOT7 {
+    var a : *int;
+    var b : char;
+    var c : *double;
+};
+
+struct SOT8 {
+    var a : short;
+    var b : long;
+    var c : char;
+};
+
 func test_sizeof() {
     test("test sizeof int", () => {
         var i = #sizeof(int)
@@ -123,6 +137,36 @@ func test_sizeof() {
         var ca = comptime_align_of<SOT5>();
         if(s != cs || a != ca) {
             printf("difference in runtime and comptime SOT5 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+        }
+        return s == cs && a == ca
+    })
+    test("test sizeof and align of struct SOT6", () => {
+        var s = #sizeof(SOT6)
+        var a = #alignof(SOT6)
+        var cs = comptime_size_of<SOT6>();
+        var ca = comptime_align_of<SOT6>();
+        if(s != cs || a != ca) {
+            printf("difference in runtime and comptime SOT6 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+        }
+        return s == cs && a == ca
+    })
+    test("test sizeof and align of struct SOT7", () => {
+        var s = #sizeof(SOT7)
+        var a = #alignof(SOT7)
+        var cs = comptime_size_of<SOT7>();
+        var ca = comptime_align_of<SOT7>();
+        if(s != cs || a != ca) {
+            printf("difference in runtime and comptime SOT7 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
+        }
+        return s == cs && a == ca
+    })
+    test("test sizeof and align of struct SOT8", () => {
+        var s = #sizeof(SOT8)
+        var a = #alignof(SOT8)
+        var cs = comptime_size_of<SOT8>();
+        var ca = comptime_align_of<SOT8>();
+        if(s != cs || a != ca) {
+            printf("difference in runtime and comptime SOT8 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
         }
         return s == cs && a == ca
     })

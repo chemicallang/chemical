@@ -34,6 +34,11 @@ func (parser : &mut Parser) getToken() : *mut Token {
     return *parser.getTokenPtr();
 }
 
+func (parser : &mut Parser) setToken(token : *mut Token) {
+    var ptr = parser.getTokenPtr()
+    *ptr = token;
+}
+
 func (parser : &mut Parser) increment() {
     var ptr = parser.getTokenPtr();
     *ptr = (*ptr) + 1

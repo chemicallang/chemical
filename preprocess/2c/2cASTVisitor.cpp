@@ -4568,7 +4568,7 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
         }
 
         indentation_level += 1;
-        scope.accept(this);
+        ::scope(*this, scope);
         new_line_and_indent();
         write("break;");
         indentation_level -= 1;

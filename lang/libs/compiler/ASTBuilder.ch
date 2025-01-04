@@ -573,7 +573,13 @@ public struct ASTBuilder : BatchAllocator {
 
 }
 
-//@comptime
-//func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
-//    return compiler::wrap(builder.allocate_with_cleanup(#sizeof(T), #alignof(T), compiler::get_delete_fn(T)));
-//}
+@comptime
+func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
+    // TODO get destructor function
+    var delete_fn = compiler::get_child_fn(T, "delete");
+    if(delete_fn != null) {
+        return compiler::wrap(builder.allocate_with_cleanup(#sizeof(T), #alignof(T), delete_fn))
+    } else {
+        return compiler::wrap(builder.allocate_size(#sizeof(T), #alignof(T)))
+    }
+}

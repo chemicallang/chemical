@@ -159,7 +159,7 @@ namespace InterpretVector {
         }
         const auto node = (InterpretVectorNode*) parent_node;
 //        node->typeParam.usage.emplace_back(call->generic_list[0]);
-        return new (call_scope->allocate<InterpretVectorVal>()) InterpretVectorVal(node);
+        return new (allocator.allocate<InterpretVectorVal>()) InterpretVectorVal(node);
     }
 
     InterpretVectorSize::InterpretVectorSize(InterpretVectorNode* node) : FunctionDeclaration(
@@ -177,7 +177,7 @@ namespace InterpretVector {
     }
 
     Value *InterpretVectorSize::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        return new (call_scope->allocate<IntValue>()) IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), ZERO_LOC);
+        return new (allocator.allocate<IntValue>()) IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), ZERO_LOC);
     }
 
 
@@ -362,11 +362,11 @@ public:
         }
         switch(val_type) {
             case ValueType::String:
-                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->get_the_string().size(), ZERO_LOC);
+                return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value->get_the_string().size(), ZERO_LOC);
             case ValueType::Array:
-                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->as_array_value()->array_size(), ZERO_LOC);
+                return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value->as_array_value()->array_size(), ZERO_LOC);
             default:
-                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
+                return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
         }
     }
 };
@@ -436,6 +436,10 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
                 return copied;
             }
         }
+        // explicitly should be evaluated when present in a wrap
+        case ValueKind::SizeOfValue:
+        case ValueKind::AlignOfValue:
+            return value;
         default:
             const auto eval = value->evaluated_value(scope);
             return eval ? eval : value;
@@ -464,14 +468,14 @@ public:
         set_comptime(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
-//        generic_params.emplace_back(new (call_scope->allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
+//        generic_params.emplace_back(new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto underlying = call->values[0];
         const auto evaluated = evaluated_comptime(underlying, *call_scope);
-        return new (call_scope->allocate<WrapValue>()) WrapValue(evaluated);
+        return new (allocator.allocate<WrapValue>()) WrapValue(evaluated);
     }
 };
 
@@ -495,7 +499,7 @@ public:
         set_comptime(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
-//        generic_params.emplace_back(new (call_scope->allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
+//        generic_params.emplace_back(new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
         params.emplace_back(&valueParam);
     }
@@ -525,7 +529,7 @@ public:
         set_comptime(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (call_scope->allocate<RetStructParamValue>()) RetStructParamValue(ZERO_LOC);
+        return new (allocator.allocate<RetStructParamValue>()) RetStructParamValue(ZERO_LOC);
     }
 };
 
@@ -548,7 +552,7 @@ public:
         set_comptime(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (call_scope->allocate<StringValue>()) StringValue(VERSION_STRING, ZERO_LOC);
+        return new (allocator.allocate<StringValue>()) StringValue(VERSION_STRING, ZERO_LOC);
     }
 };
 
@@ -572,9 +576,9 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 #ifdef TCC_BUILD
-        return new (call_scope->allocate<BoolValue>()) BoolValue(true, ZERO_LOC);
+        return new (allocator.allocate<BoolValue>()) BoolValue(true, ZERO_LOC);
 #else
-        return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
 #endif
     }
 };
@@ -599,9 +603,9 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 #ifdef COMPILER_BUILD
-        return new (call_scope->allocate<BoolValue>()) BoolValue(true, ZERO_LOC);
+        return new (allocator.allocate<BoolValue>()) BoolValue(true, ZERO_LOC);
 #else
-        return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
 #endif
     }
 };
@@ -625,7 +629,7 @@ public:
         set_comptime(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(call->location.encoded, call->location);
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(call->location.encoded, call->location);
     }
 
 };
@@ -650,7 +654,7 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto loc = call_scope->global->loc_man.getLocation(call->location);
-        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, call->location);
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, call->location);
     }
 
 };
@@ -675,7 +679,7 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto loc = call_scope->global->loc_man.getLocation(call->location);
-        return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, call->location);
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, call->location);
     }
 
 };
@@ -712,9 +716,9 @@ public:
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
             const auto loc = global->loc_man.getLocation(runtime_call->location);
-            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, ZERO_LOC);
+            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, ZERO_LOC);
         } else {
-            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
+            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
         }
     }
 
@@ -743,9 +747,9 @@ public:
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
             const auto loc = global->loc_man.getLocation(runtime_call->location);
-            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, ZERO_LOC);
+            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, ZERO_LOC);
         } else {
-            return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
+            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
         }
     }
 
@@ -773,12 +777,12 @@ public:
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        if(call->values.empty()) return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         auto val = call->values[0]->evaluated_value(*call_scope);
-        if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        if(val->val_kind() != ValueKind::String) return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         auto& definitions = call_scope->global->build_compiler->current_job->definitions;
         auto found = definitions.find(val->get_the_string().str());
-        return new (call_scope->allocate<BoolValue>()) BoolValue(found != definitions.end(), ZERO_LOC);
+        return new (allocator.allocate<BoolValue>()) BoolValue(found != definitions.end(), ZERO_LOC);
     }
 };
 
@@ -805,9 +809,9 @@ public:
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        if(call->values.empty()) return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         auto val = call->values[0]->evaluated_value(*call_scope);
-        if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        if(val->val_kind() != ValueKind::String) return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         call_scope->error(val->get_the_string().view(), call);
     }
 };
@@ -837,8 +841,8 @@ public:
         params.emplace_back(&valueParam);
         params.emplace_back(&valueParam2);
     }
-    inline Value* get_bool(InterpretScope *call_scope, bool value) {
-        return new (call_scope->allocate<BoolValue>()) BoolValue(value, ZERO_LOC);
+    inline Value* get_bool(ASTAllocator& allocator, bool value) {
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, ZERO_LOC);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.size() != 2) {
@@ -849,9 +853,9 @@ public:
         const auto val_two = call->values[1];
         const auto first_type = val_one->known_type();
         if(first_type) {
-            return get_bool(call_scope, first_type->satisfies(call_scope->allocator, val_two, false));
+            return get_bool(allocator, first_type->satisfies(call_scope->allocator, val_two, false));
         } else {
-            return get_bool(call_scope, false);
+            return get_bool(allocator, false);
         }
     }
 };
@@ -884,7 +888,7 @@ public:
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, ZERO_LOC));
+        return new (allocator.allocate<WrapValue>()) WrapValue(new (allocator.allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, ZERO_LOC));
     }
 };
 
@@ -915,7 +919,7 @@ public:
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, false, ZERO_LOC));
+        return new (allocator.allocate<WrapValue>()) WrapValue(new (allocator.allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, false, ZERO_LOC));
     }
 };
 
@@ -974,7 +978,7 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto& triple = call_scope->global->target_triple;
         const auto triple_ptr = allocator.allocate_str(triple.data(), triple.size());
-        return new (call_scope->allocate<StringValue>()) StringValue(chem::string_view(triple_ptr, triple.size()), call->location);
+        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(triple_ptr, triple.size()), call->location);
     }
 };
 
@@ -1000,7 +1004,7 @@ public:
         auto& loc_man = call_scope->global->loc_man;
         auto location = loc_man.getLocation(call->location);
         auto fileId = loc_man.getPathForFileId(location.fileId);
-        return new (call_scope->allocate<StringValue>()) StringValue(chem::string_view(fileId.data(), fileId.size()), call->location);
+        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(fileId.data(), fileId.size()), call->location);
     }
 };
 
@@ -1031,23 +1035,25 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.size() != 2) {
             call_scope->error("error, get_child_fn expects two arguments", call);
-            return new (call_scope->allocate<NullValue>()) NullValue(&anyType, 0);
+            return new (allocator.allocate<NullValue>()) NullValue(&anyType, 0);
         }
         const auto nameVal = call->values[1]->evaluated_value(*call_scope);
         if(nameVal->val_kind() != ValueKind::String) {
             call_scope->error("expected second argument to get_child_fn to be a string", call);
-            return new(call_scope->allocate<NullValue>()) NullValue(&anyType, 0);
+            return new(allocator.allocate<NullValue>()) NullValue(&anyType, 0);
         }
-        const auto linked = call->values.front()->linked_node();
+        const auto type = call->values.front()->create_type(allocator);
+        const auto linked = type->linked_node();
         if(linked && ASTNode::isMembersContainer(linked->kind())) {
             const auto container = linked->as_members_container_unsafe();
             const auto value = container->direct_child_function(nameVal->get_the_string());
-            const auto id = new (call_scope->allocate<VariableIdentifier>()) VariableIdentifier(value->name_view(), 0, true);
-            id->linked = value;
-            return new (call_scope->allocate<AccessChain>()) AccessChain({ id }, false, 0);
-        } else {
-            return new (call_scope->allocate<NullValue>()) NullValue(&anyType, 0);
+            if(value) {
+                const auto id = new(allocator.allocate<VariableIdentifier>()) VariableIdentifier(value->name_view(), 0, true);
+                id->linked = value;
+                return new(allocator.allocate<AccessChain>()) AccessChain({id}, false, 0);
+            }
         }
+        return new (allocator.allocate<NullValue>()) NullValue(&anyType, 0);
     }
 
 };
@@ -1074,7 +1080,7 @@ public:
 //        auto& loc_man = call_scope->global->loc_man;
 //        auto location = loc_man.getLocation(call->location);
 //        auto fileId = loc_man.getPathForFileId(location.fileId);
-//        return new (call_scope->allocate<StringValue>()) StringValue(std::string(fileId), call->location);
+//        return new (allocator.allocate<StringValue>()) StringValue(std::string(fileId), call->location);
 //    }
 //};
 

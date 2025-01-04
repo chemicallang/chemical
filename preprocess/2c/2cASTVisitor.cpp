@@ -745,6 +745,7 @@ void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& ident
             auto linked_func = func_call->safe_linked_func();
             if(linked_func && linked_func->is_comptime()) {
                 Value* eval;
+                func_call->set_curr_itr_on_decl();
                 auto found_eval = visitor.evaluated_func_calls.find(func_call);
                 bool not_found = found_eval == visitor.evaluated_func_calls.end();
                 if(not_found) {
@@ -1115,8 +1116,6 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
     const auto decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
 
-    int16_t prev_iteration = -2;
-
     // visit the values
     CommonVisitor::visit(call);
 
@@ -1128,8 +1127,8 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
             if(call->generic_iteration == -1) {
                 call->fix_generic_iteration(visitor, nullptr);
             }
-            prev_iteration = call->set_curr_itr_on_decl();
             if (decl->is_comptime()) {
+                const auto prev_iteration = call->set_curr_itr_on_decl();
                 auto eval = evaluated_func_val(visitor, decl, call);
                 const auto eval_kind = eval->val_kind();
                 if (eval_kind == ValueKind::AccessChain) {
@@ -1143,7 +1142,10 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
                 }
                 process_init_value(eval, chem::string_view(identifier.data(), identifier.size()));
                 eval->accept(this);
-                goto finish_point;
+                if(decl && decl->is_generic()) {
+                    decl->set_active_iteration(prev_iteration);
+                }
+                return;
             }
         }
 
@@ -1170,25 +1172,19 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
             const auto returnTypeKind = returnType->kind();;
             if (returnTypeKind == BaseTypeKind::Dynamic) {
                 func_call_that_returns_struct(visitor, func_type, call);
-                goto finish_point;
+                return;
             } else {
                 const auto return_linked = returnType->get_direct_linked_node(returnTypeKind);
                 if(return_linked) {
                     const auto returnKind = return_linked->kind();
                     if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
                         func_call_that_returns_struct(visitor, func_type, call);
-                        goto finish_point;
+                        return;
                     }
                 }
             }
         }
 
-    }
-
-    // common code for both variant calls and function calls
-finish_point:
-    if(decl && decl->is_generic()) {
-        decl->set_active_iteration(prev_iteration);
     }
 
 }
@@ -1454,6 +1450,7 @@ void CBeforeStmtVisitor::visit(VariantCall *call) {
 }
 
 void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const chem::string_view& identifier) {
+    call->set_curr_itr_on_decl();
     auto eval = evaluated_func_val(visitor, decl, call);
     const auto eval_struct_val = eval->as_struct_value();
     if(eval_struct_val) {
@@ -4292,6 +4289,7 @@ void ToCAstVisitor::visit(FunctionCall *call) {
 
     // handling comptime functions
     if(func_decl && func_decl->is_comptime()) {
+        call->set_curr_itr_on_decl();
         const auto value = evaluated_func_val(*this, func_decl, call);
         value->accept(this);
         return;

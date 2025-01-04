@@ -66,6 +66,11 @@ struct HtmlElement : HtmlChild {
 
     var children : std::vector<*HtmlChild>
 
+    @delete
+    func delete(&self) {
+        // do nothing
+    }
+
 }
 
 struct HtmlRoot {

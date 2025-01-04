@@ -57,6 +57,19 @@ struct Pair66 {
 
 }
 
+struct CTStructGetChild {
+
+    func fake_sum(a : int, b : int) : int {
+        return a + b + 60;
+    }
+
+}
+
+@comptime
+func give_me_some_sum() : (a : int, b : int) => int {
+    return compiler::get_child_fn(CTStructGetChild, "fake_sum");
+}
+
 @comptime
 func comptime_primitive() : int {
     return 10;
@@ -241,5 +254,12 @@ func test_comptime() {
     test("comptime functions can return function pointers", () => {
         var sum_fn = return_runtime_sum();
         return sum_fn(66, 2) == 68;
+    })
+    test("comptime functions can return child of a struct", () => {
+        var sum_fn = give_me_some_sum();
+        return sum_fn(9, 4) == 73;
+    })
+    test("comptime functions can return child of a struct", () => {
+        return give_me_some_sum()(9, 3) == 72;
     })
 }

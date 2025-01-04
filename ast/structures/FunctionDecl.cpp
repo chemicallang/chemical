@@ -338,6 +338,7 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     llvm_func_def_attr(func);
     decl->llvm_attributes(func);
     decl->set_llvm_data(func, func->getFunctionType());
+    gen.di.add(decl, func);
 }
 
 void create_fn(Codegen& gen, FunctionDeclaration *decl) {
@@ -359,6 +360,7 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl) {
 void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
     auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen));
     decl->set_llvm_data(callee.getCallee(), callee.getFunctionType());
+    gen.di.add(decl, (llvm::Function*) callee.getCallee());
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
@@ -377,7 +379,7 @@ void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
     }
 }
 
-inline void create_or_declare_fn(Codegen& gen, FunctionDeclaration* decl) {
+void create_or_declare_fn(Codegen& gen, FunctionDeclaration* decl) {
     if (decl->body.has_value()) {
         create_fn(gen, decl);
     } else {

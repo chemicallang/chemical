@@ -82,7 +82,8 @@ Codegen::Codegen(
         ASTAllocator& allocator,
         const std::string& module_name
 ) : ASTDiagnoser(comptime_scope.loc_man), comptime_scope(comptime_scope), allocator(allocator),
-    target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple) {
+    target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple),
+    di(comptime_scope.loc_man, nullptr, *this) {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();
     // creating a new ir builder
@@ -100,6 +101,8 @@ bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
 
 void Codegen::module_init(const std::string& module_name) {
     module = std::make_unique<llvm::Module>(module_name, *ctx);
+    diBuilder = std::make_unique<llvm::DIBuilder>(*module.get(), true);
+    di.update_builder(diBuilder.get());
 }
 
 void Codegen::createFunctionBlock(llvm::Function *fn) {

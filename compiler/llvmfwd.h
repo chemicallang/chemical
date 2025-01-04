@@ -27,5 +27,6 @@ namespace llvm {
     class DIScope;
     class DIFile;
     class DIBuilder;
+    class DILocation;
 
 }

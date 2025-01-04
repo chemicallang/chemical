@@ -20,6 +20,7 @@
 #include "ClangCodegen.h"
 #include "utils/fwd/functional.h"
 #include "std/chem_string_view.h"
+#include "backend/DebugInfoBuilder.h"
 
 class ASTAllocator;
 
@@ -40,13 +41,6 @@ class MembersContainer;
 class FunctionCall;
 
 class FunctionDeclaration;
-
-/**
- * A caster fn takes a pointer to a value, and a pointer to a type
- * the function then returns a new value by casting the given value to the given type
- * the value is created a new on the heap
- */
-//typedef Value*(*CasterFn)(Codegen* gen, Value* val, BaseType* type);
 
 class Codegen : public ASTDiagnoser {
 public:
@@ -69,11 +63,10 @@ public:
     ASTAllocator& allocator;
 
     /**
-     * casters that take a value and cast them to a different value
-     * it should be known that value created by caster is on the heap
-     * the caller has the ownership and must manage memory
+     * Debug info builder basically just generates the debug information
+     * it's conveniently named di so it's easier to access
      */
-//    std::unordered_map<int, CasterFn> casters;
+    DebugInfoBuilder di;
 
     /**
      * contains references to nodes that must be destructed at return
@@ -89,6 +82,78 @@ public:
      * implicit arguments are provided using provide as statement
      */
     std::unordered_map<chem::string_view, llvm::Value*> implicit_args;
+
+    /**
+     * TargetTriple , which we are generating code for !
+     */
+    std::string target_triple;
+
+    /**
+     * The function being compiled currently
+     */
+    llvm::Function *current_function = nullptr;
+
+    /**
+     * This is set by every loop so break statement can exit to this block
+     */
+    llvm::BasicBlock *current_loop_exit = nullptr;
+
+    /**
+     * This is set by every loop so continue statement can continue to this block
+     */
+    llvm::BasicBlock *current_loop_continue = nullptr;
+
+    /**
+     * the statements being generated are from this function type
+     */
+    FunctionType* current_func_type = nullptr;
+
+    /**
+     * when user say's var x = if(condition) value else other_value
+     * the if statement here set's x to this variable as "assignable)
+     * so when if statement or switch or any value that would like to assign
+     * it's implicitly returned value assigns it to this current_assignable
+     */
+    std::pair<Value*, llvm::Value*> current_assignable = {nullptr, nullptr};
+
+    /**
+     * When given, return's are shifted to this block
+     * So when a return statement is detected a branch instruction is made to this block
+     * The return must be void for this to work
+     */
+    llvm::BasicBlock *redirect_return = nullptr;
+
+    /**
+     * LLVM context that holds modules
+     */
+    std::unique_ptr<llvm::LLVMContext> ctx;
+
+    /**
+     * module holds functions, global vars and stuff
+     */
+    std::unique_ptr<llvm::Module> module;
+
+    /**
+     * updated everytime module changes
+     */
+    std::unique_ptr<llvm::DIBuilder> diBuilder;
+
+    /**
+     * the builder that builds ir
+     */
+    llvm::IRBuilder<llvm::ConstantFolder, llvm::IRBuilderDefaultInserter> *builder;
+
+    /**
+     * this is set to true when the branch instruction is executed
+     * and set back to false, when a new block begins using SetInsertPoint
+     */
+    bool has_current_block_ended = false;
+
+    /**
+     * by default every scope is destroyed, however a return statement in current scope
+     * sets this to true, because return destroys everything in a function
+     */
+    bool destroy_current_scope = true;
 
     /**
      * All get element pointer instructions use this to state that the element pointer is inbounds
@@ -541,73 +606,6 @@ public:
      * destructor takes care of deallocating members
      */
     ~Codegen();
-
-    /**
-     * TargetTriple , which we are generating code for !
-     */
-    std::string target_triple;
-
-    /**
-     * The function being compiled currently
-     */
-    llvm::Function *current_function = nullptr;
-
-    /**
-     * This is set by every loop so break statement can exit to this block
-     */
-    llvm::BasicBlock *current_loop_exit = nullptr;
-
-    /**
-     * This is set by every loop so continue statement can continue to this block
-     */
-    llvm::BasicBlock *current_loop_continue = nullptr;
-
-    /**
-     * the statements being generated are from this function type
-     */
-    FunctionType* current_func_type = nullptr;
-
-    /**
-     * when user say's var x = if(condition) value else other_value
-     * the if statement here set's x to this variable as "assignable)
-     * so when if statement or switch or any value that would like to assign
-     * it's implicitly returned value assigns it to this current_assignable
-     */
-    std::pair<Value*, llvm::Value*> current_assignable = {nullptr, nullptr};
-
-    /**
-     * When given, return's are shifted to this block
-     * So when a return statement is detected a branch instruction is made to this block
-     * The return must be void for this to work
-     */
-    llvm::BasicBlock *redirect_return = nullptr;
-
-    /**
-     * LLVM context that holds modules
-     */
-    std::unique_ptr<llvm::LLVMContext> ctx;
-
-    /**
-     * module holds functions, global vars and stuff
-     */
-    std::unique_ptr<llvm::Module> module;
-
-    /**
-     * the builder that builds ir
-     */
-    llvm::IRBuilder<llvm::ConstantFolder, llvm::IRBuilderDefaultInserter> *builder;
-
-    /**
-     * this is set to true when the branch instruction is executed
-     * and set back to false, when a new block begins using SetInsertPoint
-     */
-    bool has_current_block_ended = false;
-
-    /**
-     * by default every scope is destroyed, however a return statement in current scope
-     * sets this to true, because return destroys everything in a function
-     */
-    bool destroy_current_scope = true;
 
 };
 

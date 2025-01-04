@@ -169,32 +169,191 @@ func parseTextChainOrChemExpr(parser : *mut Parser, builder : *mut ASTBuilder, s
     }
 }
 
-func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlElement {
+func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlAttribute {
+
+    const id = parser.getToken();
+    if(id.type != TokenType.Identifier) {
+        return null;
+    }
+
+    parser.increment();
+    const equal = parser.getToken();
+    if(equal.type != TokenType.Equal) {
+        parser.error("expected equal after the attribute name")
+        return null;
+    }
+    parser.increment();
+
+    const next = parser.getToken();
+
+    var attr = builder.allocate<HtmlAttribute>();
+    new (attr) HtmlAttribute {
+        name : builder.allocate_view(id.value),
+        value : null
+    }
+
+    switch(next.type) {
+        TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue, TokenType.Number => {
+            parser.increment();
+            var value = builder.allocate<TextAttributeValue>()
+            new (value) TextAttributeValue {
+                AttributeValue : AttributeValue {
+                    kind : AttributeValueKind.Text
+                },
+                text : builder.allocate_view(next.value)
+            }
+            attr.value = value;
+        }
+        TokenType.LBrace => {
+
+            parser.increment();
+
+            var expr = parser.parseExpression(builder);
+            if(expr == null) {
+                parser.error("expected a expression value after '{'");
+            }
+
+            var value = builder.allocate<ChemicalAttributeValue>()
+            new (value) ChemicalAttributeValue {
+                AttributeValue : AttributeValue {
+                    kind : AttributeValueKind.Chemical
+                },
+                value : expr
+            }
+
+            const rb = parser.getToken();
+            if(rb.type == TokenType.RBrace) {
+                parser.increment();
+            } else {
+                parser.error("expected a '}' after the chemical expression");
+            }
+
+            attr.value = value;
+
+        }
+        default => {
+            parser.error("expected a value after '=' for attribute");
+            return null
+        }
+    }
+
+    return attr;
 
 }
 
-func parseRootElement(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
-    const token = parser.getToken();
-    switch(token.type) {
-        TokenType.Identifier, TokenType.Text, TokenType.LessThan, TokenType.GreaterThan, TokenType.FwdSlash, TokenType.Equal, TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue, TokenType.Number => {
-            return parseTextChain(parser, builder, str);
+func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
+
+    const current = parser.getToken();
+    if(current.type == TokenType.LessThan) {
+        parser.increment();
+        const next = parser.getToken();
+        if(next.type == TokenType.Identifier) {
+            parser.setToken(current);
+            const element = parseElement(parser, builder);
+            return element;
+        } else if(next.type == TokenType.FwdSlash) {
+            parser.setToken(current);
+            return null;
+        } else {
+            parser.error("unknown symbol, expected text or element");
+            return null;
         }
-        TokenType.LBrace => {
-            parser.increment();
-            const chain = make_expr_chain_of(parser, builder, parser.parseExpression(builder));
-            const next = parser.getToken();
-            if(next.type == ChemicalTokenType.RBrace) {
-                parser.increment()
+    } else if(current.type == TokenType.Text) {
+        var text = builder.allocate<HtmlText>();
+        new (text) HtmlText {
+            HtmlChild : HtmlChild {
+                kind : HtmlChildKind.Text
+            },
+            value : builder.allocate_view(current.value)
+        }
+        return text;
+    } else {
+        parser.error("unknown symbol, expected text or element");
+        return null;
+    }
+
+}
+
+func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlElement {
+
+    const lt = parser.getToken();
+    if(lt.type == TokenType.LessThan) {
+
+        parser.increment();
+        const id = parser.getToken();
+        if(id.type != TokenType.Identifier) {
+            parser.error("expected an identifier after '<'");
+            return null
+        }
+        parser.increment();
+
+        var element : *mut HtmlElement = builder.allocate<HtmlElement>();
+        new (element) HtmlElement {
+            HtmlChild : HtmlChild {
+                kind : HtmlChildKind.Element
+            },
+            name : builder.allocate_view(id.value),
+            attributes : std::vector<*HtmlAttribute>(),
+            children : std::vector<*HtmlChild>()
+        }
+
+        while(true) {
+            var attr = parseAttribute(parser, builder);
+            if(attr != null) {
+                element.attributes.push(attr)
             } else {
-                parser.error("expected a rbrace after chemical expression");
-            }
-            return chain;
-        }
-        TokenType.RBrace, TokenType.EndOfFile, TokenType.Unexpected, default => {
-            unsafe {
-                return null;
+                break;
             }
         }
+
+        const gt = parser.getToken();
+        if(gt.type != TokenType.GreaterThan) {
+            parser.error("expected a greater than sign '>' after the identifier");
+        } else {
+            parser.increment();
+        }
+
+        while(true) {
+            var child = parseElementChild(parser, builder);
+            if(child != null) {
+                element.children.push(child)
+            } else {
+                break;
+            }
+        }
+
+        const last_lt = parser.getToken();
+        if(last_lt.type == TokenType.LessThan) {
+            parser.increment();
+            const fwd = parser.getToken();
+            if(fwd.type == TokenType.FwdSlash) {
+                parser.increment();
+                const last_id = parser.getToken();
+                if(last_id.type == TokenType.Identifier) {
+                    parser.increment();
+                    if(strncmp(last_id.value.data(), id.value.data(), id.value.size()) != 0) {
+                        parser.error("expected correct identifier for ending tag");
+                    }
+                    const last_gt = parser.getToken();
+                    if(last_gt.type == TokenType.GreaterThan) {
+                        parser.increment();
+                    } else {
+                        parser.error("expected '>' after the ending tag");
+                    }
+                } else {
+                    parser.error("expected identifier after the '</'");
+                }
+            } else {
+                parser.error("expected a '</' for ending the element");
+            }
+        } else {
+            parser.error("expected a '</' for ending the element");
+        }
+
+        return element;
+
+    } else {
+        return null;
     }
 }
 

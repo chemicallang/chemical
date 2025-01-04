@@ -16,6 +16,8 @@ void ASTProcessor::compile_nodes(
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
+    // create a di compile unit
+    gen.di.createDiCompileUnit(chem::string_view(abs_path.data(), abs_path.size()));
     gen.compile_nodes(nodes_vec);
     if(options->benchmark) {
         bm_results->benchmark_end();
@@ -38,6 +40,7 @@ void ASTProcessor::declare_nodes(
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
+    gen.di.createDiCompileUnit(chem::string_view(abs_path.data(), abs_path.size()));
     gen.declare_nodes(nodes_vec);
     if(options->benchmark) {
         bm_results->benchmark_end();

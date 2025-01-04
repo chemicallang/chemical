@@ -9,7 +9,7 @@
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 #include "cst/LocationManager.h"
-
+#include "compiler/Codegen.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/ExtensionFuncReceiver.h"
@@ -34,10 +34,12 @@
 #include "ast/structures/If.h"
 #include "ast/structures/InitBlock.h"
 #include "ast/structures/Namespace.h"
+#include "ast/types/IntNType.h"
+#include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 
-LocationManager::LocationData loc_node(DebugInfoBuilder* visitor, void* any) {
-    const auto loc = ((ASTNode*) any)->encoded_location();
-    return visitor->loc_man.getLocation(loc);
+inline LocationManager::LocationPosData loc_node(DebugInfoBuilder* visitor, SourceLocation loc) {
+    return visitor->loc_man.getLocationPos(loc);
 }
 
 std::pair<std::string, std::string> splitPath(const chem::string_view &absolutePath) {
@@ -51,6 +53,10 @@ inline llvm::StringRef to_ref(const chem::string_view& view) {
     return llvm::StringRef(view.data(), view.size());
 }
 
+void DebugInfoBuilder::update_builder(llvm::DIBuilder* new_builder) {
+    builder = new_builder;
+}
+
 void DebugInfoBuilder::createDiCompileUnit(const chem::string_view& abs_path) {
     unsigned MyCustomLangCode = 0x8001; // Vendor-specific code
     auto [fileName, dirPath] = splitPath(abs_path);
@@ -59,36 +65,78 @@ void DebugInfoBuilder::createDiCompileUnit(const chem::string_view& abs_path) {
             MyCustomLangCode,
             diFile,
             "Chemical",
-            context.isOptimized,
+            isOptimized,
             "",
             0 // <--- runtime version
     );
     diScope = diCompileUnit;
 }
 
+void DebugInfoBuilder::finalize() {
+    builder->finalize();
+}
+
+llvm::DILocation* DebugInfoBuilder::di_loc(const Position& position) {
+    return llvm::DILocation::get(*gen.ctx, position.line, position.character, diScope);
+}
+
+llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::IntN: {
+            const auto intNType = type->as_intn_type_unsafe();
+            const auto numBits = intNType->num_bits();
+            const auto isUnsigned = intNType->is_unsigned();
+            switch (numBits) {
+                case 8:
+                    return di.builder->createBasicType(isUnsigned ? "uchar" : "char", 1, isUnsigned ? llvm::dwarf::DW_ATE_unsigned_char : llvm::dwarf::DW_ATE_signed_char);
+                case 16:
+                    return di.builder->createBasicType(isUnsigned ? "ushort" : "short", 2, isUnsigned ? llvm::dwarf::DW_ATE_unsigned : llvm::dwarf::DW_ATE_signed);
+                case 32:
+                    return di.builder->createBasicType(isUnsigned ? "uint" : "int", 4, isUnsigned ? llvm::dwarf::DW_ATE_unsigned : llvm::dwarf::DW_ATE_signed);
+                case 64:
+                    return di.builder->createBasicType(isUnsigned ? "ubigint" : "bigint", 8, isUnsigned ? llvm::dwarf::DW_ATE_unsigned : llvm::dwarf::DW_ATE_signed);
+                default:
+                    return di.builder->createBasicType("integer", type->as_intn_type_unsafe()->num_bits(), isUnsigned ? llvm::dwarf::DW_ATE_unsigned : llvm::dwarf::DW_ATE_signed);
+            }
+        }
+        case BaseTypeKind::Float:
+            return di.builder->createBasicType("float", 32, llvm::dwarf::DW_ATE_float);
+        case BaseTypeKind::Double:
+            return di.builder->createBasicType("double", 32, llvm::dwarf::DW_ATE_decimal_float);
+        case BaseTypeKind::Pointer: {
+            const auto ptrType = type->as_pointer_type_unsafe();
+            const auto pointee = to_di_type(di, ptrType->type);
+            return di.builder->createPointerType(pointee, 64);
+        }
+        case BaseTypeKind::Reference: {
+            const auto ptrType = type->as_reference_type_unsafe();
+            const auto pointee = to_di_type(di, ptrType->type);
+            return di.builder->createReferenceType(0, pointee, 64);
+        }
+        default:
+            return nullptr;
+    }
+}
+
 void DebugInfoBuilder::info(Value *value) {
 
 }
 
-void DebugInfoBuilder::info(FunctionDeclaration *decl) {
-    const auto location = loc_node(this, decl);
-    llvm::DISubprogram *SP = builder->createFunction(
-            diScope,
-            to_ref(decl->name_view()),
-            decl->runtime_name_str(),  // Linkage name
-            diFile,
-            location.lineStart,    // Line number of the function
-            builder->createSubroutineType(builder->getOrCreateTypeArray({})),
-            location.lineStart,
-            llvm::DINode::FlagPrototyped,
-            llvm::DISubprogram::SPFlagDefinition
-    );
-    const auto func = decl->llvm_func();
-    func->setSubprogram(SP);
-}
-
-void DebugInfoBuilder::info(ExtensionFunction *extensionFunc) {
-
+void DebugInfoBuilder::info(FunctionDeclaration *decl, llvm::Function* func) {
+    // TODO must debug info for every function call, before we do function declaration
+//    const auto location = loc_node(this, decl->location);
+//    llvm::DISubprogram *SP = builder->createFunction(
+//            diScope,
+//            to_ref(decl->name_view()),
+//            decl->runtime_name_str(),  // Linkage name
+//            diFile,
+//            location.start.line,    // Line number of the function
+//            builder->createSubroutineType(builder->getOrCreateTypeArray({})),
+//            location.start.character,
+//            llvm::DINode::FlagPrototyped,
+//            llvm::DISubprogram::SPFlagDefinition
+//    );
+//    func->setSubprogram(SP);
 }
 
 void DebugInfoBuilder::info(StructDefinition *structDefinition) {
@@ -99,7 +147,25 @@ void DebugInfoBuilder::info(InterfaceDefinition *interfaceDefinition) {
 
 }
 
-void DebugInfoBuilder::info(VarInitStatement *init) {
+void DebugInfoBuilder::info(VarInitStatement *init, llvm::AllocaInst* inst) {
+    const auto location = loc_node(this, init->location);
+    llvm::DILocalVariable *Var = builder->createAutoVariable(
+            diScope,
+            to_ref(init->name_view()),
+            diFile,
+            location.start.line,
+            to_di_type(*this, init->create_value_type(gen.allocator))
+    );
+    builder->insertDeclare(
+            init->llvm_ptr,                                         // Variable allocation
+            Var,
+            builder->createExpression(),
+            di_loc(location.start),
+            inst
+    );
+}
+
+void DebugInfoBuilder::info(VarInitStatement* init, llvm::GlobalVariable* variable) {
 
 }
 

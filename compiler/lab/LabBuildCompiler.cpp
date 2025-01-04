@@ -715,6 +715,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             break;
         }
 
+#ifdef COMPILER_BUILD
+        // finalizing the di builder
+        gen.di.finalize();
+#endif
         // disposing data
         mod_allocator->clear();
 

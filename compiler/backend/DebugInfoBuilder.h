@@ -5,26 +5,15 @@
 #include "ast/base/Visitor.h"
 #include "compiler/llvmfwd.h"
 #include "std/chem_string_view.h"
+#include "integration/common/Position.h"
 
 class LocationManager;
 
-/**
- * Debug info context is a class that is retained during emittance of debug information for
- * multiple modules, allowing us to store any information that is required for multiple modules
- */
-class DebugInfoContext {
-public:
-
-    /**
-     * is the code being generated optimized
-     * (are optimizations enabled)
-     */
-    bool isOptimized;
-
-};
+class Codegen;
 
 /**
- * the debug information visitor is created for emitting debug information of a single module
+ * the debug information visitor is created for emitting debug information
+ * the object of debug info builder is created once for each task (executable)
  */
 class DebugInfoBuilder {
 public:
@@ -35,10 +24,10 @@ public:
     bool isEnabled;
 
     /**
-     * the debug info context that is retained during emittance of debug information for a single
-     * executable (multiple modules)
+     * is the code being generated optimized
+     * (are optimizations enabled)
      */
-    DebugInfoContext& context;
+    bool isOptimized;
 
     /**
      * the location manager provides the locations for every
@@ -51,29 +40,34 @@ public:
     llvm::DIBuilder* builder;
 
     /**
+     * a reference to code generator
+     */
+    Codegen& gen;
+
+    /**
      * the compile unit is the unit associated with current file
      * created via call to createDiCompileUnit
      */
-    llvm::DICompileUnit* diCompileUnit;
+    llvm::DICompileUnit* diCompileUnit = nullptr;
 
     /**
      * the di scope
      */
-    llvm::DIScope* diScope;
+    llvm::DIScope* diScope = nullptr;
 
     /**
      * the di file
      */
-    llvm::DIFile* diFile;
+    llvm::DIFile* diFile = nullptr;
 
     /**
      * create a info visitor for a single module
      */
     DebugInfoBuilder(
-            DebugInfoContext& context,
             LocationManager& loc_man,
-            llvm::DIBuilder* builder
-    ) : context(context), loc_man(loc_man), builder(builder) {
+            llvm::DIBuilder* builder,
+            Codegen& gen
+    ) : loc_man(loc_man), builder(builder), gen(gen) {
 
     }
 
@@ -81,6 +75,25 @@ public:
      * a compile unit is created for every file
      */
     void createDiCompileUnit(const chem::string_view& file_abs_path);
+
+    /**
+     * this function should be called every time module changes
+     */
+    void update_builder(llvm::DIBuilder* builder);
+
+    /**
+     * finalizes the debug information builder
+     */
+    void finalize();
+
+    //-------------------------------------------
+    //       these are useful methods
+    //-------------------------------------------
+
+    /**
+     * get a pointer to di location
+     */
+    llvm::DILocation* di_loc(const Position& position);
 
 protected:
 
@@ -92,15 +105,15 @@ protected:
 
     void info(Value *value);
 
-    void info(FunctionDeclaration *functionDeclaration);
-
-    void info(ExtensionFunction *extensionFunc);
+    void info(FunctionDeclaration *decl, llvm::Function* func);
 
     void info(StructDefinition *structDefinition);
 
     void info(InterfaceDefinition *interfaceDefinition);
 
-    void info(VarInitStatement *init);
+    void info(VarInitStatement *init, llvm::AllocaInst* allocaInst);
+
+    void info(VarInitStatement* init, llvm::GlobalVariable* variable);
 
     void info(ImplDefinition *implDefinition);
 
@@ -162,15 +175,9 @@ public:
         }
     }
 
-    inline void add(FunctionDeclaration *functionDeclaration) {
+    inline void add(FunctionDeclaration *functionDeclaration, llvm::Function* func) {
         if(isEnabled) {
-            info(functionDeclaration);
-        }
-    }
-
-    inline void add(ExtensionFunction *extensionFunc) {
-        if(isEnabled) {
-            info(extensionFunc);
+            info(functionDeclaration, func);
         }
     }
 
@@ -186,9 +193,15 @@ public:
         }
     }
 
-    inline void add(VarInitStatement *init) {
+    inline void add(VarInitStatement *init, llvm::AllocaInst* inst) {
         if(isEnabled) {
-            info(init);
+            info(init, inst);
+        }
+    }
+
+    inline void add(VarInitStatement* init, llvm::GlobalVariable* variable) {
+        if(isEnabled) {
+            info(init, variable);
         }
     }
 

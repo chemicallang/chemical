@@ -345,6 +345,20 @@ BaseDefMember *MembersContainer::inherited_member(const chem::string_view& name)
     return nullptr;
 }
 
+FunctionDeclaration* MembersContainer::inherited_function(const chem::string_view& name) {
+    for(auto& inherits : inherited) {
+        const auto linked = inherits->type->get_direct_linked_node();
+        const auto container = linked ? linked->as_members_container() : nullptr;
+        if(container) {
+            const auto func = container->direct_child_function(name);
+            if(func) return func;
+            const auto func2 = container->inherited_function(name);
+            return func2;
+        }
+    }
+    return nullptr;
+}
+
 BaseDefMember *MembersContainer::child_member(const chem::string_view& name) {
     const auto direct_mem = direct_variable(name);
     if(direct_mem) return direct_mem;

@@ -60,9 +60,9 @@ public:
     // will find value by this name in the parent
     Value *find_in(InterpretScope &scope, Value *parent) final;
 
-    void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) final;
+    void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op, SourceLocation location);
 
-    void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) final;
+    void set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation location);
 
     bool link(SymbolResolver &linker, bool check_access);
 

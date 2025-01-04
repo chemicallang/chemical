@@ -598,12 +598,6 @@ Value* Value::index(InterpretScope& scope, int i) {
     return nullptr;
 }
 
-void Value::set_child_value(const chem::string_view& name, Value* value, Operation op) {
-#ifdef DEBUG
-    std::cerr << "Value::set_child_value called on base value " + representation();
-#endif
-}
-
 Value* Value::find_in(InterpretScope& scope, Value* parent) {
 #ifdef DEBUG
     std::cerr << "Value::find_in called on base value " + representation();
@@ -649,10 +643,6 @@ IntNumValue* IntNumValue::create_number(ASTAllocator& alloc, unsigned int bitWid
 #endif
             return nullptr;
     }
-}
-
-void Value::set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op) {
-    scope.error("Value::set_value_in called on base value " + representation(), value);
 }
 
 StructDefinition* Value::get_param_linked_struct() {
@@ -813,10 +803,6 @@ bool Value::should_build_chain_type(std::vector<Value*>& chain, unsigned index) 
     return false;
 }
 
-void Value::set_identifier_value(InterpretScope& scope, Value* rawValue, Operation op) {
-    scope.error("set_identifier_value called on base value", rawValue);
-}
-
 void put_generic_iteration_of(ChainValue* value, std::vector<int16_t>& active_iterations, ASTAllocator& allocator) {
     const auto type = value->create_type(allocator);
     if (type) {
@@ -950,6 +936,56 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
 
 void ChainValue::relink_parent(ChainValue* parent) {
     throw std::runtime_error("relink_parent called on base chain value");
+}
+
+void Value::set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) {
+    switch(val_kind()) {
+        case ValueKind::StructValue:
+            as_struct_value_unsafe()->set_child_value(scope, name, value, op);
+            return;
+        default:
+            scope.error("can't set child value with name " + name.str(), this);
+            return;
+    }
+}
+
+void Value::set_value(InterpretScope& scope, Value* value, Operation op, SourceLocation location) {
+    switch(val_kind()) {
+        case ValueKind::AccessChain: {
+            const auto chain = as_access_chain_unsafe();
+            return chain->set_value(scope, value, op, location);
+        }
+        case ValueKind::Identifier:
+            as_identifier_unsafe()->set_value(scope, value, op, location);
+            // TODO
+//        case ValueKind::FunctionCall:
+            // TODO
+//        case ValueKind::DereferenceValue:
+        default:
+            scope.error("couldn't set the value of", this);
+    }
+}
+
+void Value::set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op, SourceLocation location) {
+    switch(val_kind()) {
+        case ValueKind::AccessChain: {
+            const auto chain = as_access_chain_unsafe();
+            if(chain->values.size() == 1) {
+                chain->values.back()->set_value_in(scope, parent, value, op, location);
+            } else {
+                scope.error("couldn't set the value in parent of", this);
+            }
+            return;
+        }
+        case ValueKind::Identifier:
+            as_identifier_unsafe()->set_value_in(scope, parent, value, op, location);
+            // TODO
+//        case ValueKind::FunctionCall:
+            // TODO
+//        case ValueKind::DereferenceValue:
+        default:
+            scope.error("couldn't set the value in parent of", this);
+    }
 }
 
 BaseType* implicit_constructor_type(ASTAllocator& allocator, BaseType* return_type, Value* value) {

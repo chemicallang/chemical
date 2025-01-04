@@ -1004,6 +1004,54 @@ public:
     }
 };
 
+// only direct child functions are supported at the moment
+class InterpretGetChildFunction : public FunctionDeclaration {
+public:
+
+    AnyType anyType;
+    FunctionParam param;
+    StringType strType;
+    FunctionParam methodParam;
+
+    explicit InterpretGetChildFunction(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("get_child_fn"),
+            std::vector<FunctionParam*> { &param, &methodParam },
+            &anyType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            std::nullopt,
+            AccessSpecifier::Public,
+            true
+    ), param("value", &anyType, 0, nullptr, false, this, 0),
+        methodParam("method", &strType, 1, nullptr, false, this, 0), anyType(0), strType(0) {
+        set_comptime(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.size() != 2) {
+            call_scope->error("error, get_child_fn expects two arguments", call);
+            return new (call_scope->allocate<NullValue>()) NullValue(&anyType, 0);
+        }
+        const auto nameVal = call->values[1]->evaluated_value(*call_scope);
+        if(nameVal->val_kind() != ValueKind::String) {
+            call_scope->error("expected second argument to get_child_fn to be a string", call);
+            return new(call_scope->allocate<NullValue>()) NullValue(&anyType, 0);
+        }
+        const auto linked = call->values.front()->linked_node();
+        if(linked && ASTNode::isMembersContainer(linked->kind())) {
+            const auto container = linked->as_members_container_unsafe();
+            const auto value = container->direct_child_function(nameVal->get_the_string());
+            const auto id = new (call_scope->allocate<VariableIdentifier>()) VariableIdentifier(value->name_view(), 0, true);
+            id->linked = value;
+            return new (call_scope->allocate<AccessChain>()) AccessChain({ id }, false, 0);
+        } else {
+            return new (call_scope->allocate<NullValue>()) NullValue(&anyType, 0);
+        }
+    }
+
+};
+
 //class InterpretGetDeleteFnPtr : public FunctionDeclaration {
 //public:
 //
@@ -1072,21 +1120,22 @@ public:
     InterpretGetCallerCharacterNo get_caller_char_no;
     InterpretGetTarget get_target_fn;
     InterpretGetCurrentFilePath get_current_file_path;
+    InterpretGetChildFunction get_child_fn;
     InterpretError error_fn;
 
     CompilerNamespace(
 
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
         printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
-        isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this),
-        satisfiesFn(this), get_target_fn(this), get_current_file_path(this)
+        isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this), satisfiesFn(this),
+        get_target_fn(this), get_current_file_path(this), get_child_fn(this)
     {
 
         set_comptime(true);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
             &satisfiesFn, &get_raw_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
-            &error_fn, &get_target_fn, &get_current_file_path
+            &error_fn, &get_target_fn, &get_current_file_path, &get_child_fn
         };
 
     }

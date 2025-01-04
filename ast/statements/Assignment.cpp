@@ -64,5 +64,5 @@ void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
 }
 
 void AssignStatement::interpret(InterpretScope &scope) {
-    lhs->set_identifier_value(scope, value, assOp);
+    lhs->set_value(scope, value, assOp, location);
 }

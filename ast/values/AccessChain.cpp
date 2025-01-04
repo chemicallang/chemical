@@ -216,12 +216,12 @@ inline Value* AccessChain::parent_value(InterpretScope &scope) {
     return parent(scope)->evaluated_value(scope);
 }
 
-void AccessChain::set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) {
+void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation passed_loc) {
     if (values.size() <= 1) {
-        values[0]->set_identifier_value(scope, rawValue, op);
+        values[0]->set_value(scope, rawValue, op, passed_loc);
     } else {
         auto parent = parent_value(scope);
-        values[values.size() - 1]->set_value_in(scope, parent, rawValue->scope_value(scope), op);
+        values[values.size() - 1]->set_value_in(scope, parent, rawValue->scope_value(scope), op, passed_loc);
     }
 }
 

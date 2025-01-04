@@ -184,19 +184,22 @@ func parseTextChainOrChemExpr(parser : *mut Parser, builder : *mut ASTBuilder, s
 }
 
 func convertHtmlAttribute(builder : *mut ASTBuilder, attr : *mut HtmlAttribute, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+    str.append(' ')
     str.append_with_len(attr.name.data(), attr.name.size())
-    str.append('=')
-    switch(attr.value.kind) {
-        AttributeValueKind.Text, AttributeValueKind.Number => {
-            const value = attr.value as *mut TextAttributeValue
-            str.append_with_len(value.text.data(), value.text.size())
-        }
-        AttributeValueKind.Chemical => {
-            if(!str.empty()) {
-                put_chain_in(builder, vec, parent, str);
+    if(attr.value != null) {
+        str.append('=')
+        switch(attr.value.kind) {
+            AttributeValueKind.Text, AttributeValueKind.Number => {
+                const value = attr.value as *mut TextAttributeValue
+                str.append_with_len(value.text.data(), value.text.size())
             }
-            const value = attr.value as *mut ChemicalAttributeValue
-            put_value_chain_in(builder, vec, parent, value)
+            AttributeValueKind.Chemical => {
+                if(!str.empty()) {
+                    put_chain_in(builder, vec, parent, str);
+                }
+                const value = attr.value as *mut ChemicalAttributeValue
+                put_value_chain_in(builder, vec, parent, value)
+            }
         }
     }
 }
@@ -208,9 +211,6 @@ func convertHtmlChild(builder : *mut ASTBuilder, child : *mut HtmlChild, vec : *
             str.append_with_len(text.value.data(), text.value.size());
         }
         HtmlChildKind.Element => {
-            if(!str.empty()) {
-                put_chain_in(builder, vec, parent, str);
-            }
             var element = child as *mut HtmlElement
             str.append('<')
             str.append_with_len(element.name.data(), element.name.size())
@@ -252,6 +252,9 @@ func convertHtmlChild(builder : *mut ASTBuilder, child : *mut HtmlChild, vec : *
 
 func convertHtmlRoot(builder : *mut ASTBuilder, root : *mut HtmlRoot, vec : *mut VecRef<ASTNode>, str : &mut std::string) {
     convertHtmlChild(builder, root.element, vec, root.parent, str);
+    if(!str.empty()) {
+        put_chain_in(builder, vec, root.parent, str);
+    }
 }
 
 func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlAttribute {
@@ -262,20 +265,21 @@ func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Html
     }
 
     parser.increment();
-    const equal = parser.getToken();
-    if(equal.type != TokenType.Equal) {
-        parser.error("expected equal after the attribute name")
-        return null;
-    }
-    parser.increment();
-
-    const next = parser.getToken();
 
     var attr = builder.allocate<HtmlAttribute>();
     new (attr) HtmlAttribute {
         name : builder.allocate_view(id.value),
         value : null
     }
+
+    const equal = parser.getToken();
+    if(equal.type != TokenType.Equal) {
+        return attr;
+    }
+
+    parser.increment();
+
+    const next = parser.getToken();
 
     switch(next.type) {
         TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue, TokenType.Number => {
@@ -371,9 +375,11 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         }
 
         const next = parser.getToken();
-        if(next.type == TokenType.RBrace) {
+        if(next.type == ChemicalTokenType.RBrace) {
             parser.increment();
         } else {
+            printf("boo has error %s\n", parser.getToken().value.data())
+            fflush(null)
             parser.error("expected a rbrace after the chemical value")
         }
 
@@ -382,6 +388,8 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
 
         printf("parsing text with value %s\n", current.value.data())
         fflush(null)
+
+        parser.increment();
 
         var text = builder.allocate<HtmlText>();
         new (text) HtmlText {
@@ -415,6 +423,9 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
         }
         parser.increment();
 
+        printf("size of HtmlElement is %d\n", #sizeof(HtmlElement))
+        fflush(null)
+
         var element : *mut HtmlElement = builder.allocate<HtmlElement>();
         new (element) HtmlElement {
             HtmlChild : HtmlChild {
@@ -424,6 +435,8 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
             attributes : std::vector<*HtmlAttribute>(),
             children : std::vector<*HtmlChild>()
         }
+
+        printf("let's checkout size of the children : %d\n", element.children.size())
 
         printf("parsing attributes for %s\n", id.value.data());
         fflush(null)
@@ -444,14 +457,25 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
             parser.increment();
         }
 
+        printf("let's checkout size of the children : %d\n", element.children.size())
         printf("parsing children for %s\n", id.value.data());
         fflush(null)
 
+        printf("let's checkout size of the children : %d\n", element.children.size())
         while(true) {
             var child = parseElementChild(parser, builder);
+            printf("checking received element child\n");
+            fflush(null)
             if(child != null) {
+                printf("adding received element child\n");
+                fflush(null)
+                printf("let's checkout size of the children : %d\n", element.children.size())
                 element.children.push(child)
+                printf("added received element child\n");
+                fflush(null)
             } else {
+                printf("received element child is null\n");
+                fflush(null)
                 break;
             }
         }

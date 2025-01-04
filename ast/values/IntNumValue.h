@@ -6,9 +6,9 @@
 
 double get_double_value(Value* value, ValueKind k);
 
-Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value);
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value, SourceLocation location);
 
-Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value);
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, SourceLocation location);
 
 /**
  * This class is the base class for integer type value

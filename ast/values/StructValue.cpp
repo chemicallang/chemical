@@ -443,7 +443,7 @@ Value *StructValue::call_member(
     return value;
 }
 
-void StructValue::set_child_value(const chem::string_view &name, Value *value, Operation op) {
+void StructValue::set_child_value(InterpretScope& scope, const chem::string_view &name, Value *value, Operation op) {
     auto ptr = values.find(name);
     if (ptr == values.end()) {
         std::cerr << "couldn't find child by name '" + name.str() + "' in struct";

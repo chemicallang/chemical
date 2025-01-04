@@ -98,50 +98,50 @@ double get_double_value(Value* value, ValueKind k) {
     }
 }
 
-Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value) {
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value, SourceLocation location) {
     switch(kind) {
         case ValueKind::Double:
-            return new (scope.allocate<DoubleValue>()) DoubleValue((double) value, ZERO_LOC);
+            return new (scope.allocate<DoubleValue>()) DoubleValue((double) value, location);
         case ValueKind::Float:
-            return new (scope.allocate<FloatValue>()) FloatValue((float) value, ZERO_LOC);
+            return new (scope.allocate<FloatValue>()) FloatValue((float) value, location);
         case ValueKind::Bool:
-            return new (scope.allocate<BoolValue>()) BoolValue((int) value, ZERO_LOC);
+            return new (scope.allocate<BoolValue>()) BoolValue((int) value, location);
         default:
             return nullptr;
     }
 }
 
-Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value) {
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, SourceLocation location) {
     switch(kind) {
         case ValueKind::Char:
-            return new (scope.allocate<CharValue>()) CharValue((char) value, ZERO_LOC);
+            return new (scope.allocate<CharValue>()) CharValue((char) value, location);
         case ValueKind::Short:
-            return new (scope.allocate<ShortValue>()) ShortValue((short) value, ZERO_LOC);
+            return new (scope.allocate<ShortValue>()) ShortValue((short) value, location);
         case ValueKind::Int:
-            return new (scope.allocate<IntValue>()) IntValue((int) value, ZERO_LOC);
+            return new (scope.allocate<IntValue>()) IntValue((int) value, location);
         case ValueKind::Long:
-            return new (scope.allocate<LongValue>()) LongValue((long) value, isExe64Bit(), ZERO_LOC);
+            return new (scope.allocate<LongValue>()) LongValue((long) value, isExe64Bit(), location);
         case ValueKind::BigInt:
-            return new (scope.allocate<BigIntValue>()) BigIntValue((long long) value, ZERO_LOC);
+            return new (scope.allocate<BigIntValue>()) BigIntValue((long long) value, location);
         case ValueKind::Int128:
             // TODO int128 is_negative is always false
-            return new (scope.allocate<Int128Value>()) Int128Value((uint64_t) value, false, ZERO_LOC);
+            return new (scope.allocate<Int128Value>()) Int128Value((uint64_t) value, false, location);
         case ValueKind::UChar:
-            return new (scope.allocate<UCharValue>()) UCharValue((char) value, ZERO_LOC);
+            return new (scope.allocate<UCharValue>()) UCharValue((char) value, location);
         case ValueKind::UShort:
-            return new (scope.allocate<UShortValue>()) UShortValue((short) value, ZERO_LOC);
+            return new (scope.allocate<UShortValue>()) UShortValue((short) value, location);
         case ValueKind::UInt:
-            return new (scope.allocate<UIntValue>()) UIntValue((int) value, ZERO_LOC);
+            return new (scope.allocate<UIntValue>()) UIntValue((int) value, location);
         case ValueKind::ULong:
-            return new (scope.allocate<ULongValue>()) ULongValue((long) value, isExe64Bit(), ZERO_LOC);
+            return new (scope.allocate<ULongValue>()) ULongValue((long) value, isExe64Bit(), location);
         case ValueKind::UBigInt:
-            return new (scope.allocate<UBigIntValue>()) UBigIntValue((long long) value, ZERO_LOC);
+            return new (scope.allocate<UBigIntValue>()) UBigIntValue((long long) value, location);
         case ValueKind::UInt128:
-            return new (scope.allocate<UInt128Value>()) UInt128Value((uint64_t) value, false, ZERO_LOC);
+            return new (scope.allocate<UInt128Value>()) UInt128Value((uint64_t) value, false, location);
         case ValueKind::Bool:
-            return new (scope.allocate<BoolValue>()) BoolValue(value, ZERO_LOC);
+            return new (scope.allocate<BoolValue>()) BoolValue(value, location);
         case ValueKind::NumberValue:
-            return new (scope.allocate<NumberValue>()) NumberValue(value, ZERO_LOC);
+            return new (scope.allocate<NumberValue>()) NumberValue(value, location);
         default:
             return nullptr;
     }

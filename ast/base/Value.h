@@ -147,7 +147,7 @@ public:
     /**
      * set the child value, with given name, performing operation op
      */
-    virtual void set_child_value(const chem::string_view& name, Value* value, Operation op);
+    void set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op);
 
     /**
      * this function expects this identifier value to find itself in the parent value given to it
@@ -158,9 +158,14 @@ public:
     virtual Value* find_in(InterpretScope& scope, Value* parent);
 
     /**
+     * set the value of this value, this is lhs in assignment
+     */
+    void set_value(InterpretScope& scope, Value* value, Operation op, SourceLocation location);
+
+    /**
      * called on a identifier to set it's value in the given parent
      */
-    virtual void set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op);
+    void set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op, SourceLocation location);
 
     /**
      * give representation of the value as it appears in source
@@ -427,17 +432,6 @@ public:
     virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const chem::string_view& name);
 
 #endif
-
-    /**
-     * Called by assignment statement, to set the value of this value
-     * since InterpretValue can also represent an identifier or access chain
-     * This method is overridden by for ex : an identifier, which can find itself in the scope above and set this value
-     * The given op must be performed on the already stored value
-     * @param vars
-     * @param value
-     * @param op
-     */
-    virtual void set_identifier_value(InterpretScope& scope, Value* rawValue, Operation op);
 
     /**
      * check if this value is an int n

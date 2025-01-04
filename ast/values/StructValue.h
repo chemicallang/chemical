@@ -66,7 +66,7 @@ public:
             std::vector<Value*> &params
     ) final;
 
-    void set_child_value(const chem::string_view &name, Value *value, Operation op) final;
+    void set_child_value(InterpretScope& scope, const chem::string_view &name, Value *value, Operation op);
 
     StructValue* initialized_value(InterpretScope& scope);
 

@@ -164,7 +164,8 @@ public:
 
     inline Value* parent_value(InterpretScope &scope);
 
-    void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) final;
+    // set value of this access chain
+    void set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation location);
 
     Value *pointer(InterpretScope &scope);
 

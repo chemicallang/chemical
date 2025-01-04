@@ -97,6 +97,11 @@ func runtime_sum(a : int, b : int) : int {
 }
 
 @comptime
+func return_runtime_sum() : (a : int, b : int) => int {
+    return runtime_sum;
+}
+
+@comptime
 func sum_multiple(x : int) : int {
     return compiler::wrap(runtime_sum(x * 2, x * 2));
 }
@@ -229,5 +234,12 @@ func test_comptime() {
         var current = compiler::get_line_no();
         var lo = give_caller_line_no();
         return lo == current + 1;
+    })
+    test("comptime functions can return function pointers", () => {
+        return return_runtime_sum()(10, 33) == 43;
+    })
+    test("comptime functions can return function pointers", () => {
+        var sum_fn = return_runtime_sum();
+        return sum_fn(66, 2) == 68;
     })
 }

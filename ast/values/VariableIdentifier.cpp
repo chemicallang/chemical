@@ -5,6 +5,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/NullValue.h"
 
 uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
@@ -75,7 +76,7 @@ bool VariableIdentifier::compile_time_computable() {
 
 Value *VariableIdentifier::child(InterpretScope &scope, const chem::string_view &name) {
     const auto eval = evaluated_value(scope);
-    if(eval) {
+    if(eval && eval != this) {
         return eval->child(scope, name);
     } else {
         return nullptr;
@@ -107,18 +108,19 @@ BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
 //    }
 //}
 
-void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) {
+void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op, SourceLocation location) {
 #ifdef DEBUG
     if (parent == nullptr) {
         scope.error("set_value_in in variable identifier, received null pointer to parent", parent);
+        return;
     }
 #endif
-    parent->set_child_value(value, next_value, op);
+    parent->set_child_value(scope, value, next_value, op);
 }
 
-Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl);
+Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl, SourceLocation location);
 
-void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) {
+void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation passed_loc) {
 
     // iterator for previous value
     auto itr = scope.find_value_iterator(value.str());
@@ -160,7 +162,7 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
 
         // get the previous value, perform operation on it
         auto prevValue = itr.first->second;
-        nextValue = evaluate(itr.second, op, prevValue, newValue);
+        nextValue = evaluate(itr.second, op, prevValue, newValue, passed_loc);
 
     }
 
@@ -200,7 +202,7 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
             }
         }
     }
-    return nullptr;
+    return this;
 }
 
 //std::unique_ptr<Value> VariableIdentifier::create_evaluated_value(InterpretScope &scope) {

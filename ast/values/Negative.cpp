@@ -21,9 +21,9 @@ Value* NegativeValue::evaluated_value(InterpretScope &scope) {
     const auto eval = value->evaluated_value(scope);
     const auto eval_kind = eval->val_kind();
     if(eval_kind >= ValueKind::IntNStart && eval_kind <= ValueKind::IntNEnd) {
-        return pack_by_kind(scope, eval_kind, -((IntNumValue*) eval)->get_num_value());
+        return pack_by_kind(scope, eval_kind, -((IntNumValue*) eval)->get_num_value(), location);
     } else if(eval_kind == ValueKind::Double || eval_kind == ValueKind::Float) {
-        return pack_by_kind(scope, eval_kind, -get_double_value(eval, eval_kind));
+        return pack_by_kind(scope, eval_kind, -get_double_value(eval, eval_kind), location);
     } else {
         return nullptr;
     }

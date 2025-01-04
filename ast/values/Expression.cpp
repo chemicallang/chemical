@@ -10,6 +10,8 @@
 #include "ast/values/DoubleValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/FloatValue.h"
+#include "ast/values/BoolValue.h"
+#include "ast/base/InterpretScope.h"
 #include "compiler/SymbolResolver.h"
 
 EnumDeclaration* getEnumDecl(BaseType* type) {
@@ -246,7 +248,7 @@ ValueKind determine_output(Operation op, ValueKind first, ValueKind second) {
     }
 }
 
-Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl) {
+Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl, SourceLocation location) {
     const auto fKind = fEvl->val_kind();
     const auto sKind = sEvl->val_kind();
     if(fKind >= ValueKind::IntNStart && fKind <= ValueKind::IntNEnd && sKind >= ValueKind::IntNStart && sKind <= ValueKind::IntNEnd) {
@@ -254,12 +256,27 @@ Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* 
         const auto first = (IntNumValue*) fEvl;
         const auto second = (IntNumValue*) sEvl;
         const auto answer = operate(operation, first->get_num_value(), second->get_num_value());
-        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer);
+        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer, location);
     } else if(fKind == ValueKind::Double || fKind == ValueKind::Float || sKind == ValueKind::Double || sKind == ValueKind::Float) {
         const auto first = get_double_value(fEvl, fKind);
         const auto second = get_double_value(sEvl, sKind);
         const auto answer = operate(operation, first, second);
-        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer);
+        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer, location);
+    } else if(fKind == ValueKind::NullValue || sKind == ValueKind::NullValue) {
+        // comparison with null, a == null or null == a
+        bool result;
+        switch (operation) {
+            case Operation::IsEqual:
+                result = fKind == ValueKind::NullValue && sKind == ValueKind::NullValue;
+                break;
+            case Operation::IsNotEqual:
+                result = fKind != sKind;
+                break;
+            default:
+                result = false;
+                break;
+        }
+        return new (scope.allocate<BoolValue>()) BoolValue(result, location);
     } else {
 #ifdef DEBUG
         throw std::runtime_error("OPERATION BETWEEN VALUES OF UNKNOWN KIND");
@@ -275,7 +292,7 @@ Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* 
 Value *Expression::evaluate(InterpretScope &scope) {
     auto fEvl = firstValue->evaluated_value(scope);
     auto sEvl = secondValue->evaluated_value(scope);
-    return ::evaluate(scope, operation, fEvl, sEvl);
+    return ::evaluate(scope, operation, fEvl, sEvl, location);
 }
 
 Expression *Expression::copy(ASTAllocator& allocator) {

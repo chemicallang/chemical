@@ -706,16 +706,35 @@ void visit_evaluated_func_val(
     }
 }
 
-Value* evaluate_func(
-        ToCAstVisitor& visitor,
-        Visitor* actual_visitor,
-        FunctionDeclaration* func_decl,
-        FunctionCall* call,
-        const chem::string_view& assign_id = ""
-) {
-    Value* eval = evaluated_func_val(visitor, func_decl, call);
-    visit_evaluated_func_val(visitor, actual_visitor, func_decl, call, eval, assign_id);
-    return eval;
+// when values are declared with initializer that contain equal symbol in C
+// for example int x = 5; <----
+// now if the value is a struct value, that is not possible
+bool is_declared_with_initializer(Value* value) {
+    switch(value->val_kind()) {
+        case ValueKind::Int:
+        case ValueKind::UInt:
+        case ValueKind::Short:
+        case ValueKind::UShort:
+        case ValueKind::BigInt:
+        case ValueKind::UBigInt:
+        case ValueKind::Char:
+        case ValueKind::UChar:
+        case ValueKind::Long:
+        case ValueKind::ULong:
+        case ValueKind::String:
+        case ValueKind::Expression:
+        case ValueKind::NegativeValue:
+        case ValueKind::NotValue:
+        case ValueKind::NumberValue:
+            return true;
+        case ValueKind::Identifier:
+        case ValueKind::AccessChain:
+        case ValueKind::FunctionCall:
+        case ValueKind::IndexOperator:
+            return value->value_type() != ValueType::Struct;
+        default:
+            return false;
+    }
 }
 
 void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& identifier, BaseType* type, Value* value, bool write_id = true) {
@@ -725,7 +744,6 @@ void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& ident
         if(func_call) {
             auto linked_func = func_call->safe_linked_func();
             if(linked_func && linked_func->is_comptime()) {
-
                 Value* eval;
                 auto found_eval = visitor.evaluated_func_calls.find(func_call);
                 bool not_found = found_eval == visitor.evaluated_func_calls.end();
@@ -734,15 +752,19 @@ void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& ident
                 } else {
                     eval = found_eval->second;
                 }
-                if(eval->primitive()) {
-                    visitor.write(identifier);
-                    visitor.write(" = ");
+                bool declared = is_declared_with_initializer(eval);
+                if(declared) {
+                    if(type->kind() != BaseTypeKind::Function) {
+                        visitor.write(identifier);
+                        visitor.write(' ');
+                    }
+                    visitor.write("= ");
                 }
                 if(not_found) {
                     eval->accept((Visitor*) visitor.before_stmt.get());
                 }
                 visit_evaluated_func_val(visitor, &visitor, linked_func, func_call, eval, identifier);
-                if(!eval->reference()) {
+                if(declared) {
                     visitor.write(';');
                 }
                 return;

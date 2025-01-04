@@ -78,6 +78,10 @@ public struct string {
         }
     }
 
+    func empty(&self) : bool {
+        return size() == 0
+    }
+
     func equals(&self, other : *string) : bool {
         const self_size = size();
         return self_size == other.size() && memcmp(self.data(), other.data(), self_size) == 0;

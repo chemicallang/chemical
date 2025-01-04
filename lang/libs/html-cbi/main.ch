@@ -65,7 +65,7 @@ func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());
 }
 
-func make_value_chain(parser : *mut Parser, builder : *mut ASTBuilder, value : *mut Value, len : size_t) : *mut AccessChain {
+func make_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_t) : *mut AccessChain {
     const location = compiler::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
@@ -91,16 +91,28 @@ func make_value_chain(parser : *mut Parser, builder : *mut ASTBuilder, value : *
     return new_chain;
 }
 
-func make_expr_chain_of(parser : *mut Parser, builder : *mut ASTBuilder, value : *mut Value) : *mut AccessChain {
-    return make_value_chain(parser, builder, value, 0);
+func make_expr_chain_of(builder : *mut ASTBuilder, value : *mut Value) : *mut AccessChain {
+    return make_value_chain(builder, value, 0);
 }
 
-func make_chain_of(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
+func make_chain_of(builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
     const location = compiler::get_raw_location();
     const value = builder.make_string_value(builder.allocate_view(str.view()), location)
     const size = str.size()
     str.clear();
-    return make_value_chain(parser, builder, value, size);
+    return make_value_chain(builder, value, size);
+}
+
+func put_chain_in(builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+    const chain = make_chain_of(builder, str);
+    const wrapped = builder.make_value_wrapper(chain, parent)
+    vec.push(wrapped);
+}
+
+func put_value_chain_in(builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, value : *mut Value) {
+    const chain = make_expr_chain_of(builder, value);
+    const wrapped = builder.make_value_wrapper(chain, parent)
+    vec.push(wrapped);
 }
 
 func rtrim_len(str : *mut char, len : size_t) : size_t {
@@ -138,7 +150,7 @@ func parseTextChain(parser : *mut Parser, builder : *mut ASTBuilder, str : &mut 
                 }
             }
             default => {
-                return make_chain_of(parser, builder, str);
+                return make_chain_of(builder, str);
             }
         }
     }
@@ -152,7 +164,7 @@ func parseTextChainOrChemExpr(parser : *mut Parser, builder : *mut ASTBuilder, s
         }
         TokenType.LBrace => {
             parser.increment();
-            const chain = make_expr_chain_of(parser, builder, parser.parseExpression(builder));
+            const chain = make_expr_chain_of(builder, parser.parseExpression(builder));
             const next = parser.getToken();
             if(next.type == ChemicalTokenType.RBrace) {
                 parser.increment()
@@ -165,6 +177,66 @@ func parseTextChainOrChemExpr(parser : *mut Parser, builder : *mut ASTBuilder, s
             unsafe {
                 return null;
             }
+        }
+    }
+}
+
+func convertHtmlAttribute(builder : *mut ASTBuilder, attr : *mut HtmlAttribute, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+    str.append_with_len(attr.name.data(), attr.name.size())
+    str.append('=')
+    switch(attr.value.kind) {
+        AttributeValueKind.Text, AttributeValueKind.Number => {
+            const value = attr.value as *mut TextAttributeValue
+            str.append_with_len(value.text.data(), value.text.size())
+        }
+        AttributeValueKind.Chemical => {
+            if(!str.empty()) {
+                put_chain_in(builder, vec, parent, str);
+            }
+            const value = attr.value as *mut ChemicalAttributeValue
+            put_value_chain_in(builder, vec, parent, value)
+        }
+    }
+}
+
+func convertHtmlChild(builder : *mut ASTBuilder, child : *mut HtmlChild, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+    switch(child.kind) {
+        HtmlChildKind.Text => {
+            var text = child as *mut HtmlText
+            str.append_with_len(text.value.data(), text.value.size());
+        }
+        HtmlChildKind.Element, HtmlChildKind.RootElement => {
+            if(!str.empty()) {
+                put_chain_in(builder, vec, parent, str);
+            }
+            var element = child as *mut HtmlElement
+            str.append('<')
+            str.append_with_len(element.name.data(), element.name.size())
+
+            // putting attributes
+            var a = 0;
+            var attrs = element.attributes.size()
+            while(a < attrs) {
+                var attr = element.attributes.get(a)
+                convertHtmlAttribute(builder, attr, vec, parent, str);
+                a++
+            }
+
+            str.append('>')
+
+            // doing children
+            var i = 0;
+            var s = element.children.size();
+            while(i < s) {
+                var nested_child = element.children.get(i)
+                convertHtmlChild(builder, nested_child, vec, parent, str)
+                i++;
+            }
+
+            str.append('<')
+            str.append('/')
+            str.append_with_len(element.name.data(), element.name.size())
+            str.append('>')
         }
     }
 }

@@ -61,6 +61,8 @@ public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *
     return null;
 }
 
+public func fflush(stream : *mut any) : int
+
 func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());
 }
@@ -205,7 +207,7 @@ func convertHtmlChild(builder : *mut ASTBuilder, child : *mut HtmlChild, vec : *
             var text = child as *mut HtmlText
             str.append_with_len(text.value.data(), text.value.size());
         }
-        HtmlChildKind.Element, HtmlChildKind.RootElement => {
+        HtmlChildKind.Element => {
             if(!str.empty()) {
                 put_chain_in(builder, vec, parent, str);
             }
@@ -238,7 +240,18 @@ func convertHtmlChild(builder : *mut ASTBuilder, child : *mut HtmlChild, vec : *
             str.append_with_len(element.name.data(), element.name.size())
             str.append('>')
         }
+        HtmlChildKind.ChemicalValue => {
+            if(!str.empty()) {
+                put_chain_in(builder, vec, parent, str);
+            }
+            const chem_child = child as *mut HtmlChemValueChild
+            put_value_chain_in(builder, vec, parent, chem_child.value)
+        }
     }
+}
+
+func convertHtmlRoot(builder : *mut ASTBuilder, root : *mut HtmlRoot, vec : *mut VecRef<ASTNode>, str : &mut std::string) {
+    convertHtmlChild(builder, root.element, vec, root.parent, str);
 }
 
 func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlAttribute {
@@ -316,13 +329,17 @@ func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Html
 func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
 
     const current = parser.getToken();
+
+    printf("parsing element child at %d, %d\n", current.position.line, current.position.character)
+    fflush(null)
+
     if(current.type == TokenType.LessThan) {
+
         parser.increment();
         const next = parser.getToken();
         if(next.type == TokenType.Identifier) {
             parser.setToken(current);
-            const element = parseElement(parser, builder);
-            return element;
+            return parseElement(parser, builder);
         } else if(next.type == TokenType.FwdSlash) {
             parser.setToken(current);
             return null;
@@ -330,7 +347,42 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
             parser.error("unknown symbol, expected text or element");
             return null;
         }
+
+    } else if(current.type == TokenType.LBrace) {
+
+        printf("parsing chemical value in text\n", current.value.data())
+        fflush(null)
+
+        parser.increment();
+
+        var value_child = builder.allocate<HtmlChemValueChild>();
+        new (value_child) HtmlChemValueChild {
+            HtmlChild : HtmlChild {
+                kind : HtmlChildKind.ChemicalValue
+            },
+            value : null
+        }
+
+        const expr = parser.parseExpression(builder)
+        if(expr != null) {
+            value_child.value = expr;
+        } else {
+            parser.error("expected a value for html child");
+        }
+
+        const next = parser.getToken();
+        if(next.type == TokenType.RBrace) {
+            parser.increment();
+        } else {
+            parser.error("expected a rbrace after the chemical value")
+        }
+
+        return value_child;
     } else if(current.type == TokenType.Text) {
+
+        printf("parsing text with value %s\n", current.value.data())
+        fflush(null)
+
         var text = builder.allocate<HtmlText>();
         new (text) HtmlText {
             HtmlChild : HtmlChild {
@@ -349,6 +401,10 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
 func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlElement {
 
     const lt = parser.getToken();
+
+    printf("parsing element at %d, %d\n", lt.position.line, lt.position.character)
+    fflush(null)
+
     if(lt.type == TokenType.LessThan) {
 
         parser.increment();
@@ -369,6 +425,9 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
             children : std::vector<*HtmlChild>()
         }
 
+        printf("parsing attributes for %s\n", id.value.data());
+        fflush(null)
+
         while(true) {
             var attr = parseAttribute(parser, builder);
             if(attr != null) {
@@ -385,6 +444,9 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
             parser.increment();
         }
 
+        printf("parsing children for %s\n", id.value.data());
+        fflush(null)
+
         while(true) {
             var child = parseElementChild(parser, builder);
             if(child != null) {
@@ -393,6 +455,9 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
                 break;
             }
         }
+
+        printf("parsing end of element %s\n", id.value.data())
+        fflush(null)
 
         const last_lt = parser.getToken();
         if(last_lt.type == TokenType.LessThan) {
@@ -429,6 +494,21 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
     }
 }
 
+func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot {
+    var rootElement = parseElement(parser, builder);
+    if(rootElement == null) {
+        parser.error("expected a root element for #html");
+        return null;
+    } else {
+        var root = builder.allocate<HtmlRoot>()
+        new (root) HtmlRoot {
+            element : rootElement,
+            parent : parser.getParentNode()
+        }
+        return root;
+    }
+}
+
 public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
     printf("wow create macro node\n");
     const loc = compiler::get_raw_location();
@@ -436,15 +516,10 @@ public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *m
         var scope = builder.make_scope(parser.getParentNode(), loc);
         var scope_nodes = scope.getNodes();
         var str = std::string();
-        while(true) {
-            var chain = parseTextChainOrChemExpr(parser, builder, str);
-            if(chain != null) {
-                const wrapped = builder.make_value_wrapper(chain, parser.getParentNode())
-                scope_nodes.push(wrapped);
-            } else {
-                break;
-            }
-        }
+        var root = parseHtmlRoot(parser, builder);
+        printf("parsed to html root\n")
+        fflush(null)
+        convertHtmlRoot(builder, root, scope_nodes, str);
         if(!parser.increment_if(TokenType.RBrace)) {
             parser.error("expected a rbrace for ending the html macro");
         }

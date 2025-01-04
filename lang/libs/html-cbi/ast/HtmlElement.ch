@@ -37,12 +37,18 @@ struct HtmlAttribute {
 enum HtmlChildKind {
     Text,
     Element,
-    RootElement,
+    ChemicalValue
 }
 
 struct HtmlChild {
 
     var kind : HtmlChildKind
+
+}
+
+struct HtmlChemValueChild : HtmlChild {
+
+    var value : *Value
 
 }
 
@@ -62,7 +68,9 @@ struct HtmlElement : HtmlChild {
 
 }
 
-struct HtmlRootElement : HtmlElement {
+struct HtmlRoot {
+
+    var element : *HtmlElement
 
     var parent : *mut ASTNode
 

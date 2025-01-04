@@ -36,7 +36,8 @@ struct HtmlAttribute {
 
 enum HtmlChildKind {
     Text,
-    Element
+    Element,
+    RootElement,
 }
 
 struct HtmlChild {
@@ -58,5 +59,11 @@ struct HtmlElement : HtmlChild {
     var attributes : std::vector<*HtmlAttribute>
 
     var children : std::vector<*HtmlChild>
+
+}
+
+struct HtmlRootElement : HtmlElement {
+
+    var parent : *mut ASTNode
 
 }

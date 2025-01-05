@@ -1,4 +1,5 @@
 import "./BaseTypeKind.ch"
+import "../../SymbolResolver.ch"
 
 struct BaseType {
 

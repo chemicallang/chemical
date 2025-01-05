@@ -1,6 +1,7 @@
 import "./SourceProvider.ch"
 import "@compiler/BatchAllocator.ch"
 import "@compiler/SerialStrAllocator.ch"
+import "@compiler/Token.ch"
 
 using namespace std;
 

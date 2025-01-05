@@ -283,6 +283,10 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
             auto cbiDataItr = compiler.binder.data.find(name.str());
             if(cbiDataItr != compiler.binder.data.end()) {
                 auto& cbiData = cbiDataItr->second;
+                if(cbiData.modules.empty()) {
+                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't have any data present" << rang::fg::reset << std::endl;
+                    continue;
+                }
                 cbiData.entry_module = cbiData.modules[0];
                 auto sym = tcc_get_symbol(cbiData.entry_module, "initializeLexer");
                 if(!sym) {

@@ -1,11 +1,7 @@
 import "@compiler/Lexer.ch"
 import "./TokenType.ch"
 import "./readutils.ch"
-
-@comptime
-func view(str : literal<string>) : std::string_view {
-    return std::string_view(str);
-}
+import "../utils/comptime_utils.ch"
 
 func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     const provider = &lexer.provider;

@@ -237,6 +237,8 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "ValuegetLinkedNode", (void*) ValuegetLinkedNode },
 
             { "ASTNodegetKind", (void*) ASTNodegetKind },
+            { "ASTNodedeclare_top_level", (void*) ASTNodedeclare_top_level },
+            { "ASTNodedeclare_and_link", (void*) ASTNodedeclare_and_link },
 
             { "BaseTypegetKind", (void*) BaseTypegetKind },
             { "BaseTypelink", (void*) BaseTypelink },
@@ -256,6 +258,8 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "StructValueadd_value", (void*) StructValueadd_value },
             { "VariantCaseadd_variable", (void*) VariantCaseadd_variable },
             { "ScopegetNodes", (void*) ScopegetNodes },
+            { "Scopelink_sequentially", (void*) Scopelink_sequentially },
+            { "Scopelink_asynchronously", (void*) Scopelink_asynchronously },
             { "DoWhileLoopget_body", (void*) DoWhileLoopget_body },
             { "WhileLoopget_body", (void*) WhileLoopget_body },
             { "ForLoopget_body", (void*) ForLoopget_body },

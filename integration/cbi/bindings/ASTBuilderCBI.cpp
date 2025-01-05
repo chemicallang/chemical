@@ -541,6 +541,14 @@ int ASTNodegetKind(ASTNode* node) {
     return static_cast<int>(node->kind());
 }
 
+void ASTNodedeclare_top_level(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver) {
+    node->declare_top_level(*resolver, *ptr_ref);
+}
+
+void ASTNodedeclare_and_link(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver) {
+    node->declare_and_link(*resolver, *ptr_ref);
+}
+
 // BaseType methods
 
 int BaseTypegetKind(BaseType* type) {
@@ -614,6 +622,14 @@ void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* vari
 
 std::vector<ASTNode*>* ScopegetNodes(Scope* scope) {
     return &scope->nodes;
+}
+
+void Scopelink_sequentially(Scope* scope, SymbolResolver* resolver) {
+    scope->link_sequentially(*resolver);
+}
+
+void Scopelink_asynchronously(Scope* scope, SymbolResolver* resolver) {
+    scope->link_asynchronously(*resolver);
 }
 
 std::vector<ASTNode*>* DoWhileLoopget_body(DoWhileLoop* loop) {

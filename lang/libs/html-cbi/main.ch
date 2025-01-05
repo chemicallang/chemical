@@ -23,21 +23,33 @@ public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *
     return null;
 }
 
+func symResNodeDeclaration(allocator : *mut ASTBuilder, resolver : *mut SymbolResolver, data : **mut void) {
+
+}
+
+func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut ASTNode {
+    const loc = compiler::get_raw_location();
+    const root = data as *mut HtmlRoot;
+    var scope = builder.make_scope(root.parent, loc);
+    var scope_nodes = scope.getNodes();
+    var str = std::string();
+    convertHtmlRoot(builder, root, scope_nodes, str);
+    scope.link_sequentially(resolver);
+    return scope;
+}
+
 public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
     printf("wow create macro node\n");
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LBrace)) {
-        var scope = builder.make_scope(parser.getParentNode(), loc);
-        var scope_nodes = scope.getNodes();
-        var str = std::string();
         var root = parseHtmlRoot(parser, builder);
         printf("parsed to html root\n")
         fflush(null)
-        convertHtmlRoot(builder, root, scope_nodes, str);
+        const node = builder.make_sym_res_node(symResNodeDeclaration, symResNodeReplacement, root, root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace)) {
             parser.error("expected a rbrace for ending the html macro");
         }
-        return scope;
+        return node;
     } else {
         parser.error("expected a lbrace");
     }

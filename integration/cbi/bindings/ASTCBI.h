@@ -28,6 +28,10 @@ extern "C" {
 
     int ASTNodegetKind(ASTNode* node);
 
+    void ASTNodedeclare_top_level(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver);
+
+    void ASTNodedeclare_and_link(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver);
+
     int BaseTypegetKind(BaseType* type);
 
     bool BaseTypelink(BaseType* value, BaseType** ptr_ref, SymbolResolver* resolver);
@@ -61,6 +65,10 @@ extern "C" {
     void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable);
 
     std::vector<ASTNode*>* ScopegetNodes(Scope* scope);
+
+    void Scopelink_sequentially(Scope* scope, SymbolResolver* resolver);
+
+    void Scopelink_asynchronously(Scope* scope, SymbolResolver* resolver);
 
     std::vector<ASTNode*>* DoWhileLoopget_body(DoWhileLoop* loop);
 

@@ -33,8 +33,7 @@ func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolReso
     var scope = builder.make_scope(root.parent, loc);
     var scope_nodes = scope.getNodes();
     var str = std::string();
-    convertHtmlRoot(builder, root, scope_nodes, str);
-    scope.link_sequentially(resolver);
+    convertHtmlRoot(resolver, builder, root, scope_nodes, str);
     return scope;
 }
 

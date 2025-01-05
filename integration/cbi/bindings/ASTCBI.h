@@ -16,9 +16,23 @@ class CapturedVariable;
 
 class BaseDefMember;
 
+class SymbolResolver;
+
 extern "C" {
 
     int ValuegetKind(Value* value);
+
+    bool Valuelink(Value* value, Value** ptr_ref, BaseType* expected_type, SymbolResolver* resolver);
+
+    ASTNode* ValuegetLinkedNode(Value* value);
+
+    int ASTNodegetKind(ASTNode* node);
+
+    int BaseTypegetKind(BaseType* type);
+
+    bool BaseTypelink(BaseType* value, BaseType** ptr_ref, SymbolResolver* resolver);
+
+    ASTNode* BaseTypegetLinkedNode(BaseType* type);
 
     std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type);
 

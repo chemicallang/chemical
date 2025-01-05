@@ -502,6 +502,8 @@ set(COMMON_SOURCES
         ast/statements/ValueWrapperNode.h
         ast/values/SymResValue.h
         ast/statements/SymResNode.h
+        integration/cbi/bindings/SymbolResolverCBI.h
+        integration/cbi/bindings/SymbolResolverCBI.cpp
 )
 
 # Chemical LSP Executable Target

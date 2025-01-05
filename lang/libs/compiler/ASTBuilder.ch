@@ -2,7 +2,9 @@ import "AccessSpecifier.ch"
 import "./PtrVec.ch"
 import "@std/string_view.ch"
 import "./BatchAllocator.ch"
-import "./ValueKind.ch"
+import "./ast/base/ASTNode.ch"
+import "./ast/base/Value.ch"
+import "./ast/base/BaseType.ch"
 import "./SymbolResolver.ch"
 import "./Operation.ch"
 
@@ -10,17 +12,7 @@ using namespace std;
 
 // The Base Structs
 
-struct ASTNode {}
-
-struct BaseType {}
-
 struct IntNType : BaseType {}
-
-struct Value {
-
-    func getKind(&self) : ValueKind
-
-}
 
 // The Types
 
@@ -364,6 +356,10 @@ typealias SymResValueReplacementFn= (allocator : *mut ASTBuilder, resolver : *mu
 public struct ASTBuilder : BatchAllocator {
 
     func allocate_with_cleanup(&self, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void;
+
+    func createValueType(&self, node : *mut ASTNode) : *mut BaseType
+
+    func createType(&self, value : *mut Value) : *mut BaseType
 
     // the decl_fn is only called if the node is a top level node and not inside a function
     // to track, allocate the root node and set the data_ptr to it, otherwise set it to null

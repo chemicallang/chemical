@@ -105,6 +105,14 @@ void* ASTBuilderallocate_with_cleanup(ASTAllocator* allocator, std::size_t obj_s
     return (void*) allocator->allocate_with_cleanup(obj_size, alignment, cleanup_fn);
 }
 
+BaseType* ASTBuildercreateValueType(ASTAllocator* allocator, ASTNode* node) {
+    return node->create_value_type(*allocator);
+}
+
+BaseType* ASTBuildercreateType(ASTAllocator* allocator, Value* value) {
+    return value->create_type(*allocator);
+}
+
 SymResNode* ASTBuildermake_sym_res_node(ASTAllocator* allocator, void* decl_fn, void* repl_fn, void* data_ptr, ASTNode* parent_node, uint64_t location) {
     return new (allocator->allocate<SymResNode>()) SymResNode(allocator, (SymResNodeDeclarationFn) decl_fn, (SymResNodeReplacementFn) repl_fn, data_ptr, parent_node, location);
 }
@@ -513,9 +521,41 @@ VariantMemberParam* ASTBuildermake_variant_member_param(ASTAllocator* allocator,
 
 // ------------------------------AST Methods begin here-----------------------------------------------
 
+// Value mtehods
+
 int ValuegetKind(Value* value) {
     return static_cast<int>(value->val_kind());
 }
+
+bool Valuelink(Value* value, Value** ptr_ref, BaseType* expected_type, SymbolResolver* resolver) {
+    return value->link(*resolver, *ptr_ref, expected_type);
+}
+
+ASTNode* ValuegetLinkedNode(Value* value) {
+    return value->linked_node();
+}
+
+// ASTNode methods
+
+int ASTNodegetKind(ASTNode* node) {
+    return static_cast<int>(node->kind());
+}
+
+// BaseType methods
+
+int BaseTypegetKind(BaseType* type) {
+    return static_cast<int>(type->kind());
+}
+
+bool BaseTypelink(BaseType* type, BaseType** ptr_ref, SymbolResolver* resolver) {
+    return type->link(*resolver);
+}
+
+ASTNode* BaseTypegetLinkedNode(BaseType* type) {
+    return type->linked_node();
+}
+
+// Other methods
 
 std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type) {
     return &func_type->params;

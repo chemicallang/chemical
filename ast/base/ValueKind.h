@@ -60,7 +60,6 @@ enum class ValueKind : uint8_t {
     VariantCase,
     AddrOfValue,
     WrapValue,
-    Malformed,
 
     SignedIntNStart = Char,
     SignedIntNEnd = Int128,

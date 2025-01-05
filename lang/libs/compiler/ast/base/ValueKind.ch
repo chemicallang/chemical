@@ -45,11 +45,11 @@ enum ValueKind {
     NotValue,
     NullValue,
     SizeOfValue,
+    SymResValue,
     AlignOfValue,
     VariantCall,
     VariantCase,
     AddrOfValue,
-    WrapValue,
-    Malformed
+    WrapValue
 
 }

@@ -1199,7 +1199,6 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     if(!func_type) return nullptr;
     auto pure_type = func_type->returnType->pure_type();
     if(prev_itr >= -1) set_gen_itr_on_decl(prev_itr);
-//    parent_val->restore_generic_iteration(active, allocator);
     return pure_type;
 }
 

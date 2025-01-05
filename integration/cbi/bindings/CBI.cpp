@@ -125,7 +125,12 @@ void ptr_vec_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
 
 void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
     sym_map = {
+
             { "ASTBuilderallocate_with_cleanup", (void*) ASTBuilderallocate_with_cleanup },
+
+            { "ASTBuildercreateType", (void*) ASTBuildercreateType },
+            { "ASTBuildercreateValueType", (void*) ASTBuildercreateValueType },
+
             { "ASTBuildermake_sym_res_node", (void*) ASTBuildermake_sym_res_node },
             { "ASTBuildermake_sym_res_value", (void*) ASTBuildermake_sym_res_value },
             { "ASTBuildermake_any_type", (void*) ASTBuildermake_any_type },
@@ -228,6 +233,15 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
 
             // you only need t(void*) o mark ASTBuilder @compiler:interface to get all nodes' functions
             { "ValuegetKind", (void*) ValuegetKind },
+            { "Valuelink", (void*) Valuelink },
+            { "ValuegetLinkedNode", (void*) ValuegetLinkedNode },
+
+            { "ASTNodegetKind", (void*) ASTNodegetKind },
+
+            { "BaseTypegetKind", (void*) BaseTypegetKind },
+            { "BaseTypelink", (void*) BaseTypelink },
+            { "BaseTypegetLinkedNode", (void*) BaseTypegetLinkedNode },
+
             { "FunctionTypeget_params", (void*) FunctionTypeget_params },
             { "GenericTypeget_types", (void*) GenericTypeget_types },
             { "AccessChainget_values", (void*) AccessChainget_values },

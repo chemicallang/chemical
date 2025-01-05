@@ -65,7 +65,6 @@ enum class ASTNodeKind : uint8_t {
     VariantMemberParam,
     CapturedVariable,
     VariantCaseVariable,
-    Malformed
 
 
 };

@@ -216,6 +216,10 @@ struct Scope : ASTNode {
 
     func getNodes(&self) : *VecRef<ASTNode>;
 
+    func link_sequentially(&self, resolver : *mut SymbolResolver)
+
+    func link_asynchronously(&self, resolver : *mut SymbolResolver)
+
 }
 
 struct LoopASTNode : ASTNode {
@@ -346,11 +350,11 @@ struct SymResNode : ASTNode {}
 
 struct SymResValue : Value {}
 
-typealias SymResNodeDeclarationFn = (allocator : *mut ASTBuilder, resolver : *mut SymbolResolver, data_ptr : **mut void) => void;
+typealias SymResNodeDeclarationFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data_ptr : **mut void) => void;
 
-typealias SymResNodeReplacementFn = (allocator : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut ASTNode
+typealias SymResNodeReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut ASTNode
 
-typealias SymResValueReplacementFn= (allocator : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut Value
+typealias SymResValueReplacementFn= (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut Value
 
 @compiler.interface
 public struct ASTBuilder : BatchAllocator {

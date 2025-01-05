@@ -1,5 +1,6 @@
 import "./ValueKind.ch"
 import "./ASTNode.ch"
+import "../../SymbolResolver.ch"
 
 struct Value {
 

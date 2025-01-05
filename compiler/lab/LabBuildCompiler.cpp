@@ -220,11 +220,73 @@ void print_results(ASTFileResultNew& result, const std::string& abs_path, bool b
     std::cout << std::flush;
 }
 
-/**
- * TODO
- * 1 - avoid direct cyclic dependencies a depends on b and b depends on a
- * 2 - avoid indirect cyclic dependencies a depends on b and b depends on c and c depends on a
- */
+typedef void(*ImportCycleHandler)(void* data_ptr, std::vector<unsigned int>& parents, ASTFileResult* imported_file, ASTFileResult* parent, bool direct);
+
+void check_imports_for_cycles(void* data_ptr, ASTFileResult* parent_file, std::vector<unsigned int>& parents, ImportCycleHandler handler) {
+    auto end_size = parents.size();
+    for(const auto imported : parent_file->imports) {
+        // checking for direct cyclic dependency a imports a
+        if(imported->file_id == parent_file->file_id) {
+            // found direct cyclic dependency
+            handler(data_ptr, parents, imported, parent_file, true);
+        } else {
+            // clear the parents after end_itr so sibling import trees don't conflict
+            parents.erase(parents.begin() + end_size, parents.end());
+            // check file against all parents to find indirect cycling dependencies
+            bool has_indirect_dep = false;
+            for(const auto id : parents) {
+                if(imported->file_id == id) {
+                    // found cycling dependency
+                    handler(data_ptr, parents, imported, parent_file, false);
+                    has_indirect_dep = true;
+                }
+            }
+            // add parent file so it get's checked in nested tree
+            parents.emplace_back(parent_file->file_id);
+            // cycle may exist in imports of this file
+            if(!has_indirect_dep) {
+                // only check in this file's imports if there's no cycle otherwise stackoverflow in this function
+                check_imports_for_cycles(data_ptr, imported, parents, handler);
+            }
+        }
+    }
+}
+
+void check_imports_for_cycles(void* data_ptr, std::vector<ASTFileResultNew*>& files, ImportCycleHandler handler) {
+    std::vector<unsigned int> parents;
+    parents.reserve(16);
+    for(const auto file : files) {
+        parents.clear();
+        check_imports_for_cycles(data_ptr, file, parents, handler);
+    }
+}
+
+struct ImportCycleCheckResult {
+
+    bool has_cyclic_dependencies;
+
+    LocationManager& loc_man;
+
+};
+
+void check_imports_for_cycles(ImportCycleCheckResult& out, std::vector<ASTFileResultNew*>& module_files) {
+    check_imports_for_cycles(&out, module_files, [](void* data_ptr, std::vector<unsigned int>& parents, ASTFileResult* imported_file, ASTFileResult* parent_file, bool direct){
+        const auto holder = (ImportCycleCheckResult*) data_ptr;
+        auto& locMan = holder->loc_man;
+        holder->has_cyclic_dependencies = true;
+        const auto file_path = parent_file->abs_path;
+        std::cerr << rang::fg::red << "Cyclic dependency detected, file '" << file_path << "' imported by '" << imported_file->abs_path << "'" << rang::fg::reset << std::endl;
+        if(!direct) {
+            int i = parents.size() - 1;
+            while(i >= 0) {
+                const auto next = locMan.getPathForFileId(parents[i]);
+                std::cerr << rang::fg::red << "which is imported by '" << next << "'" << rang::fg::reset << std::endl;
+                i--;
+            }
+        }
+    });
+}
+
 void flatten(std::vector<ASTFileResultNew*>& flat_out, std::unordered_map<std::string_view, bool>& done_files, ASTFileResultNew* single_file) {
     for(auto& file : single_file->imports) {
         flatten(flat_out, done_files, file);
@@ -558,6 +620,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             }
         }
 #endif
+
+        // check module files for import cycles (direct or indirect)
+        ImportCycleCheckResult importCycle { false, loc_man };
+        check_imports_for_cycles(importCycle, module_files);
+        if(importCycle.has_cyclic_dependencies) {
+            compile_result = 1;
+            break;
+        }
 
         // get the files flattened
         auto flattened_files = flatten(module_files);
@@ -1047,6 +1117,14 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     {
 
         std::vector<ASTFileResultNew*> files_to_flatten = { &blResult };
+
+        // check module files for import cycles (direct or indirect)
+        ImportCycleCheckResult importCycle { false, loc_man };
+        check_imports_for_cycles(importCycle, files_to_flatten);
+        if(importCycle.has_cyclic_dependencies) {
+            return nullptr;
+        }
+
         auto module_files = flatten(files_to_flatten);
 
         // symbol resolve all the files first

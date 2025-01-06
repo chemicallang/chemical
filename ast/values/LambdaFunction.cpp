@@ -194,10 +194,12 @@ void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std:
             to_params.emplace_back(nullptr);
         }
         const auto to_param = to_params[start];
-        if(!to_param->type || to_param->is_implicit || from_param->is_implicit) {
+        if(!to_param || !to_param->type || to_param->is_implicit || from_param->is_implicit) {
             const auto copied = from_param->copy(*resolver.ast_allocator);
             // change the name to what user wants
-            copied->name = to_param->name;
+            if(to_param) {
+                copied->name = to_param->name;
+            }
             to_params[start] = copied;
         } else {
             // link the given parameter

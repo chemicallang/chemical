@@ -88,6 +88,10 @@ struct LambFactory {
 
 }
 
+func take_lambda_with_param(lambda : (param : int) => int) : int {
+    return lambda(4)
+}
+
 func test_lambda() {
     test("testing non capturing lambda works", () => {
         return true;
@@ -266,6 +270,12 @@ func test_lambda() {
             }
         }
         return c.lamb() == 114;
+    })
+    test("the parameters of lambda are determined from the lambda type and need not be mentioned", () => {
+        var x = take_lambda_with_param(() => {
+            return 33;
+        })
+        return x == 33;
     })
 }
 

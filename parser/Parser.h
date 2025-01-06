@@ -383,6 +383,16 @@ public:
     LinkedValueType* parseLinkedValueType(ASTAllocator& allocator, Token* type, SourceLocation location);
 
     /**
+     * parses a single struct type
+     */
+    StructType* parseStructType(ASTAllocator& allocator);
+
+    /**
+     * parses a single union type
+     */
+    UnionType* parseUnionType(ASTAllocator& allocator);
+
+    /**
      * parse a single type
      */
     BaseType* parseType(ASTAllocator& allocator);

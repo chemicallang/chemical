@@ -126,6 +126,8 @@ class ArrayValue;
 
 class StructValue;
 
+class UnnamedStructValue;
+
 class VariableIdentifier;
 
 class NamespaceIdentifier;
@@ -425,10 +427,6 @@ public:
         visitCommon((ASTNode*) member);
     }
 
-    virtual void visit(StructMemberInitializer* init) {
-        visitCommon((ASTNode*) init);
-    }
-
     virtual void visit(TypealiasStatement* statement) {
         visitCommon((ASTNode*) statement);
     }
@@ -525,6 +523,10 @@ public:
 
     virtual void visit(StructValue* structValue) {
         visitCommonValue((Value*) structValue);
+    }
+
+    virtual void visit(UnnamedStructValue* value) {
+        visitCommonValue((Value*) value);
     }
 
     virtual void visit(VariableIdentifier* identifier) {

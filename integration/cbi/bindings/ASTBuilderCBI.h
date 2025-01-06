@@ -241,8 +241,6 @@ extern "C" {
 
     StringValue* ASTBuildermake_string_value(ASTAllocator* allocator, chem::string_view* value, uint64_t location);
 
-    StructMemberInitializer* ASTBuildermake_struct_member_initializer(ASTAllocator* allocator, chem::string_view* name, Value* value, StructValue* structValue);
-
     StructValue* ASTBuildermake_struct_value(ASTAllocator* allocator, BaseType* ref, ASTNode* parent_node, uint64_t location);
 
     UBigIntValue* ASTBuildermake_ubigint_value(ASTAllocator* allocator, unsigned long long value, uint64_t location);

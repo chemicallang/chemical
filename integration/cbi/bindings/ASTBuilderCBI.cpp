@@ -337,10 +337,6 @@ StringValue* ASTBuildermake_string_value(ASTAllocator* allocator, chem::string_v
     return new (allocator->allocate<StringValue>()) StringValue(*value, location);
 }
 
-StructMemberInitializer* ASTBuildermake_struct_member_initializer(ASTAllocator* allocator, chem::string_view* name, Value* value, StructValue* structValue) {
-    return new (allocator->allocate<StructMemberInitializer>()) StructMemberInitializer(*name, value, structValue, nullptr);
-}
-
 StructValue* ASTBuildermake_struct_value(ASTAllocator* allocator, BaseType* ref, ASTNode* parent_node, uint64_t location) {
     return new (allocator->allocate<StructValue>()) StructValue(ref, nullptr, location, parent_node);
 }
@@ -611,8 +607,8 @@ std::vector<ASTNode*>* LambdaFunctionget_body(LambdaFunction* lambdaFunc) {
     return &lambdaFunc->scope.nodes;
 }
 
-void StructValueadd_value(StructValue* structValue, chem::string_view* name, StructMemberInitializer* initializer) {
-    structValue->values[*name] = initializer;
+void StructValueadd_value(StructValue* structValue, chem::string_view* name, Value* initializer) {
+    structValue->values.emplace(*name, StructMemberInitializer { *name, initializer });
 }
 
 void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable) {

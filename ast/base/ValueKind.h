@@ -35,6 +35,7 @@ enum class ValueKind : uint8_t {
     Expression,
     ArrayValue,
     StructValue,
+    UnnamedStructValue,
     LambdaFunc,
     IfValue,
     SwitchValue,

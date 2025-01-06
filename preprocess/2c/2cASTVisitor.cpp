@@ -2168,7 +2168,7 @@ void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
 void CValueDeclarationVisitor::visit(StructValue *structValue) {
 
     for(auto& value : structValue->values) {
-        auto& value_ptr = value.second->value;
+        auto& value_ptr = value.second.value;
         auto variable = structValue->linked_extendable()->variable_type_index(value.first);
         auto implicit = variable.second->implicit_constructor_for(visitor.allocator, value_ptr);
         if(implicit) {
@@ -3004,7 +3004,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
                 write("->");
                 write(mem.first);
                 write(" = ");
-                mem.second->value->accept(this);
+                mem.second.value->accept(this);
                 if(i != size - 1){
                     write(';');
                     new_line_and_indent();
@@ -3598,10 +3598,6 @@ void ToCAstVisitor::visit(ImplDefinition *def) {
     for(auto& func : def->functions()) {
         contained_func_decl(*this, func, overrides,linked_struct);
     }
-}
-
-void ToCAstVisitor::visit(StructMemberInitializer *init) {
-    init->value->accept(this);
 }
 
 void ToCAstVisitor::visit(InterfaceDefinition *def) {
@@ -4719,7 +4715,7 @@ void ToCAstVisitor::visit(StructValue *val) {
         write('.');
         write(value.first);
         write(" = ");
-        accept_mutating_value(member ? member->known_type() : nullptr, value.second->value, false);
+        accept_mutating_value(member ? member->known_type() : nullptr, value.second.value, false);
     }
     for(auto& var : val->linked_extendable()->variables) {
         auto found = val->values.find(var.first);

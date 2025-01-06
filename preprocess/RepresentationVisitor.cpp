@@ -665,7 +665,7 @@ void RepresentationVisitor::visit(StructValue *val) {
         new_line_and_indent();
         write(value.first);
         write(" : ");
-        value.second->accept(this);
+        value.second.value->accept(this);
         if (i < val->values.size() - 1) write(",");
         i++;
     }

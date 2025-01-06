@@ -246,16 +246,41 @@ void StructDefinition::llvm_store_type(llvm::StructType* type) {
     llvm_struct_types[active_iteration] = type;
 }
 
+llvm::Type* StructDefinition::with_elements_type(
+        Codegen &gen,
+        const std::vector<llvm::Type *>& elements,
+        const std::string& runtime_name
+) {
+    if(runtime_name.empty()) {
+        return llvm::StructType::get(*gen.ctx, elements);
+    }
+    auto stored = llvm_stored_type();
+    if(!stored) {
+        auto new_stored = llvm::StructType::create(*gen.ctx, elements, runtime_name);
+        llvm_store_type(new_stored);
+        return new_stored;
+    }
+    return stored;
+}
+
 llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
-    return StructType::llvm_type(gen);
+    return with_elements_type(gen, elements_type(gen), get_runtime_name());
 }
 
 llvm::Type *StructDefinition::llvm_param_type(Codegen &gen) {
-    return StructType::llvm_param_type(gen);
+    return gen.builder->getPtrTy();
 }
 
 llvm::Type *StructDefinition::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
-    return StructType::llvm_chain_type(gen, values, index);
+    return with_elements_type(gen, elements_type(gen, values, index), "");
+}
+
+llvm::Type* UnnamedStruct::llvm_type(Codegen &gen) {
+    return llvm::StructType::get(*gen.ctx, elements_type(gen));
+}
+
+llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+    return llvm::StructType::get(*gen.ctx, elements_type(gen, values, index));
 }
 
 #endif
@@ -333,18 +358,18 @@ StructDefinition::StructDefinition(
 
 }
 
-BaseType *StructDefinition::copy(ASTAllocator& allocator) const {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode *) this, location);
-}
+//BaseType *StructDefinition::copy(ASTAllocator& allocator) const {
+//    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode *) this, location);
+//}
 
 BaseType* UnnamedStruct::create_value_type(ASTAllocator &allocator) {
     return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, location);
 }
 
-BaseType *UnnamedStruct::copy(ASTAllocator& allocator) const {
-    // this is UnionType's copy method
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, location);
-}
+//BaseType *UnnamedStruct::copy(ASTAllocator& allocator) const {
+//    // this is UnionType's copy method
+//    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, location);
+//}
 
 void StructDefinition::accept(Visitor *visitor) {
     visitor->visit(this);

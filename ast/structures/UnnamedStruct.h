@@ -6,7 +6,7 @@
 #include "BaseDefMember.h"
 #include "ast/types/StructType.h"
 
-class UnnamedStruct : public BaseDefMember, public VariablesContainer, public StructType {
+class UnnamedStruct : public BaseDefMember, public VariablesContainer {
 public:
 
     ASTNode* parent_node;
@@ -30,25 +30,25 @@ public:
         return location;
     }
 
-    BaseType* known_type() final {
-        return this;
-    }
+//    BaseType* known_type() final {
+//        return this;
+//    }
 
-    std::string get_runtime_name() final {
-        return "";
-    }
+//    std::string get_runtime_name() final {
+//        return "";
+//    }
 
-    VariablesContainer *variables_container() final {
-        return this;
-    }
+//    VariablesContainer *variables_container() final {
+//        return this;
+//    }
 
     VariablesContainer *as_variables_container() final {
         return this;
     }
 
-    int16_t get_generic_iteration() final {
-        return 0;
-    }
+//    int16_t get_generic_iteration() final {
+//        return 0;
+//    }
 
     bool get_is_const() final {
         // TODO allow user to mark unnamed structs const
@@ -119,24 +119,20 @@ public:
         return total_byte_size(is64Bit);
     }
 
-    ASTNode *linked_node() final {
-        return this;
-    }
+//    ASTNode *linked_node() final {
+//        return this;
+//    }
 
     BaseType* create_value_type(ASTAllocator &allocator) final;
 
-    [[nodiscard]]
-    BaseType* copy(ASTAllocator& allocator) const final;
+//    [[nodiscard]]
+//    BaseType* copy(ASTAllocator& allocator) const final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type  *llvm_type(Codegen &gen) final {
-        return StructType::llvm_type(gen);
-    }
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final {
-        return StructType::llvm_chain_type(gen, values, index);
-    }
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
     bool add_child_index(
             Codegen &gen,

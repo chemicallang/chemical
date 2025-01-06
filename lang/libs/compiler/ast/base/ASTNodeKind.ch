@@ -48,7 +48,6 @@ enum ASTNodeKind {
     FunctionParam,
     ExtensionFuncReceiver,
     GenericTypeParam,
-    StructMemberInitializer,
     VariantMemberParam,
     CapturedVariable,
     VariantCaseVariable,

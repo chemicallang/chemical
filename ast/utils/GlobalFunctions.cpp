@@ -1235,8 +1235,7 @@ struct DefThing {
     void declare_value(ASTAllocator& allocator, const chem::string_view& name, BaseType* type, Value* value) {
         const auto member = new (allocator.allocate<StructMember>()) StructMember(name, type, nullptr, &decl, ZERO_LOC, true);
         decl.variables[name] = member;
-        const auto init = new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(name, value, &defValue, member);
-        defValue.values[name] = init;
+        defValue.values.emplace(name, StructMemberInitializer{ name, value });
     }
 
     void clear_values() {

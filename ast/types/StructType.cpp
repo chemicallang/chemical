@@ -2,6 +2,7 @@
 
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/StructDefinition.h"
+#include "compiler/SymbolResolver.h"
 
 bool StructType::equals(StructType *type) {
     auto& elem_types = variables;
@@ -19,6 +20,18 @@ bool StructType::equals(StructType *type) {
         itr_first++;
         itr_second++;
         i++;
+    }
+    return true;
+}
+
+bool StructType::link(SymbolResolver &linker) {
+    for(auto& var : variables) {
+        if(!var.second->known_type()->link(linker)) {
+            return false;
+        }
+    }
+    if(!name.empty()) {
+        linker.declare(name, this);
     }
     return true;
 }

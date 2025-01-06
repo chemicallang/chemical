@@ -205,10 +205,16 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
     auto& t = *token;
     if(t.type == TokenType::StructKw) {
 
+        token++;
+
+        lexWhitespaceToken();
+
         // maybe null
         const auto id = consumeIdentifierOrKeyword();
 
-        const auto type = new (allocator.allocate<StructType>()) StructType(id ? id->value : chem::string_view(""), loc_single(t));
+        const auto type = new (allocator.allocate<StructType>()) StructType(id ? id->value : chem::string_view(""), parent_node, loc_single(t));
+
+        lexWhitespaceToken();
 
         if(token->type != TokenType::LBrace) {
             error("expected a '{' after the struct keyword for struct type");
@@ -244,10 +250,16 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
     auto& t = *token;
     if(t.type == TokenType::UnionKw) {
 
+        token++;
+
+        lexWhitespaceToken();
+
         // maybe null
         const auto id = consumeIdentifierOrKeyword();
 
-        const auto type = new (allocator.allocate<UnionType>()) UnionType(id ? id->value : chem::string_view(""), loc_single(t));
+        const auto type = new (allocator.allocate<UnionType>()) UnionType(id ? id->value : chem::string_view(""), parent_node, loc_single(t));
+
+        lexWhitespaceToken();
 
         if(token->type != TokenType::LBrace) {
             error("expected a '{' after the struct keyword for union type");

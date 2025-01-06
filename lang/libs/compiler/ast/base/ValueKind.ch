@@ -26,7 +26,6 @@ enum ValueKind {
     Expression,
     ArrayValue,
     StructValue,
-    UnnamedStructValue,
     LambdaFunc,
     IfValue,
     SwitchValue,

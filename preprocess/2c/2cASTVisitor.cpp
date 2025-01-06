@@ -4732,7 +4732,7 @@ void ToCAstVisitor::visit(StructValue *val) {
                 write(var.first);
                 write(" = ");
                 accept_mutating_value(member ? member->known_type() : nullptr, defValue, false);
-            } else if(val->linked_kind != ASTNodeKind::UnionDecl) {
+            } else if(!val->is_union()) {
                 error("no default value present for '" + var.first.str() + "' in struct value", val);
             }
         }

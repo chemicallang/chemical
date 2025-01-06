@@ -227,7 +227,7 @@ llvm::Type *StructType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &
 llvm::Type *UnionType::llvm_type(Codegen &gen) {
     auto largest = largest_member();
     if(!largest) {
-        gen.error("Couldn't determine the largest member of the unnamed union", this);
+        gen.error("Couldn't determine the largest member of the unnamed union", (BaseType*) this);
         return nullptr;
     }
     std::vector<llvm::Type*> members {largest->llvm_type(gen)};

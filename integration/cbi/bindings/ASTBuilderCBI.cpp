@@ -338,7 +338,7 @@ StringValue* ASTBuildermake_string_value(ASTAllocator* allocator, chem::string_v
 }
 
 StructValue* ASTBuildermake_struct_value(ASTAllocator* allocator, BaseType* ref, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<StructValue>()) StructValue(ref, nullptr, location, parent_node);
+    return new (allocator->allocate<StructValue>()) StructValue(ref, location, parent_node);
 }
 
 UBigIntValue* ASTBuildermake_ubigint_value(ASTAllocator* allocator, unsigned long long value, uint64_t location) {

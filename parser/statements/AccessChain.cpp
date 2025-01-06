@@ -77,6 +77,11 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
         return nullptr;
     }
 
+    if(id->type == TokenType::StructKw) {
+        lexWhitespaceToken();
+        return (Value*) parseStructValue(allocator, nullptr, id->position);
+    }
+
     auto tokenType = token->type;
 
     switch(tokenType) {
@@ -89,9 +94,6 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
         case TokenType::LBrace: {
             auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), loc_single(id));
             return parseStructValue(allocator, ref_type, id->position);
-        }
-        case TokenType::StructKw: {
-            return (Value*) parseUnnamedStructValue(allocator, id->position);
         }
         case TokenType::Whitespace: {
             token++;

@@ -212,7 +212,7 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
         // maybe null
         const auto id = consumeIdentifierOrKeyword();
 
-        const auto type = new (allocator.allocate<StructType>()) StructType(id ? id->value : chem::string_view(""), parent_node, loc_single(t));
+        const auto type = new (allocator.allocate<StructType>()) StructType(id ? allocate_view(allocator, id->value) : chem::string_view(""), parent_node, loc_single(t));
 
         lexWhitespaceToken();
 
@@ -257,7 +257,7 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
         // maybe null
         const auto id = consumeIdentifierOrKeyword();
 
-        const auto type = new (allocator.allocate<UnionType>()) UnionType(id ? id->value : chem::string_view(""), parent_node, loc_single(t));
+        const auto type = new (allocator.allocate<UnionType>()) UnionType(id ? allocate_view(allocator, id->value) : chem::string_view(""), parent_node, loc_single(t));
 
         lexWhitespaceToken();
 

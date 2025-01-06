@@ -63,6 +63,10 @@ public:
         visitor->visit(this);
     }
 
+    inline VariablesContainer* variables() {
+        return container;
+    }
+
     bool primitive() final;
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
@@ -105,6 +109,8 @@ public:
 
     void runtime_name(std::ostream& output);
 
+    std::string runtime_name_str();
+
     int16_t get_active_iteration() {
         return definition->active_iteration;
     }
@@ -114,7 +120,7 @@ public:
     }
 
     BaseDefMember* child_member(const chem::string_view& name){
-        return definition->child_member(name);
+        return container->child_member(name);
     }
 
     ExtendableMembersContainerNode* linked_extendable() {
@@ -125,13 +131,7 @@ public:
         return (StructDefinition*) definition;
     }
 
-    UnionDef* linked_union() {
-        return (UnionDef*) definition;
-    }
-
-    inline const chem::string_view& linked_name_view() {
-        return definition->name_view();
-    }
+    const chem::string_view& linked_name_view();
 
     bool allows_direct_init();
 

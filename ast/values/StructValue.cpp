@@ -13,6 +13,7 @@
 #include "ast/types/LinkedType.h"
 #include "StructMemberInitializer.h"
 #include "ast/values/DereferenceValue.h"
+#include <sstream>
 
 #ifdef COMPILER_BUILD
 
@@ -286,6 +287,21 @@ bool node_allows_direct_init(ASTNode* node) {
     }
 }
 
+const chem::string_view& StructValue::linked_name_view() {
+    if(definition) {
+        return definition->name_view();
+    } else {
+        switch(refType->kind()) {
+            case BaseTypeKind::Struct:
+                return refType->as_struct_type_unsafe()->name;
+            case BaseTypeKind::Union:
+                return refType->as_union_type_unsafe()->name;
+            default:
+                return "";
+        }
+    }
+}
+
 bool StructValue::allows_direct_init() {
     if(definition) {
         return node_allows_direct_init(definition);
@@ -515,7 +531,7 @@ void StructValue::runtime_name(std::ostream& output) {
     if(definition) {
         switch (definition->kind()) {
             case ASTNodeKind::UnionDecl: {
-                const auto uni = linked_union();
+                const auto uni = definition->as_union_def_unsafe();
                 if (uni->is_generic()) {
                     auto prev = uni->active_iteration;
                     uni->set_active_iteration(generic_iteration);
@@ -527,7 +543,7 @@ void StructValue::runtime_name(std::ostream& output) {
                 return;
             }
             case ASTNodeKind::StructDecl: {
-                const auto decl = linked_struct();
+                const auto decl = definition->as_struct_def_unsafe();
                 if (decl->is_generic()) {
                     auto prev = decl->active_iteration;
                     decl->set_active_iteration(generic_iteration);
@@ -553,6 +569,12 @@ void StructValue::runtime_name(std::ostream& output) {
                 return;
         }
     }
+}
+
+std::string StructValue::runtime_name_str() {
+    std::stringstream stream;
+    runtime_name(stream);
+    return stream.str();
 }
 
 Value *StructValue::call_member(

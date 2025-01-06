@@ -2167,9 +2167,10 @@ void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
 
 void CValueDeclarationVisitor::visit(StructValue *structValue) {
 
+    const auto container = structValue->variables();
     for(auto& value : structValue->values) {
         auto& value_ptr = value.second.value;
-        auto variable = structValue->linked_extendable()->variable_type_index(value.first);
+        auto variable = container->variable_type_index(value.first);
         auto implicit = variable.second->implicit_constructor_for(visitor.allocator, value_ptr);
         if(implicit) {
             value_ptr = call_with_arg(implicit, value_ptr, variable.second, visitor.allocator, visitor);
@@ -4679,20 +4680,23 @@ void ToCAstVisitor::visit(ArrayValue *arr) {
 void ToCAstVisitor::visit(StructValue *val) {
     auto linked = val->linked_node();
     auto linked_kind = linked->kind();
-    write('(');
     int16_t prev_itr;
     bool is_generic = val->is_generic();
     if(is_generic) {
         prev_itr = val->get_active_iteration();
         val->set_active_iteration(val->generic_iteration);
     }
-    if(linked_kind == ASTNodeKind::UnionDecl) {
-        write("union ");
-    } else {
-        write("struct ");
+    const auto runName = val->runtime_name_str();
+    if(!runName.empty()) {
+        write('(');
+        if (linked_kind == ASTNodeKind::UnionDecl) {
+            write("union ");
+        } else {
+            write("struct ");
+        }
+        *output << runName;
+        write(')');
     }
-    val->runtime_name(*output);
-    write(')');
     write('{');
     auto prev = nested_value;
     nested_value = true;
@@ -4717,7 +4721,8 @@ void ToCAstVisitor::visit(StructValue *val) {
         write(" = ");
         accept_mutating_value(member ? member->known_type() : nullptr, value.second.value, false);
     }
-    for(auto& var : val->linked_extendable()->variables) {
+    auto& variables = val->variables()->variables;
+    for(auto& var : variables) {
         auto found = val->values.find(var.first);
         if(found == val->values.end()) {
             auto defValue = var.second->default_value();
@@ -5160,11 +5165,31 @@ void ToCAstVisitor::visit(StringType *func) {
 }
 
 void ToCAstVisitor::visit(StructType *val) {
-    write("[StructType_UNIMPLEMENTED]");
+    write("struct ");
+    if(!val->name.empty()) {
+        write(val->name);
+        write(' ');
+    }
+    write("{ ");
+    for(auto& variable : val->variables) {
+        variable.second->accept(this);
+        write(' ');
+    }
+    write("}");
 }
 
-void ToCAstVisitor::visit(UnionType *unionType) {
-    write("[UnionType_UNIMPLEMENTED]");
+void ToCAstVisitor::visit(UnionType *val) {
+    write("union ");
+    if(!val->name.empty()) {
+        write(val->name);
+        write(' ');
+    }
+    write("{ ");
+    for(auto& variable : val->variables) {
+        variable.second->accept(this);
+        write(' ');
+    }
+    write("}");
 }
 
 void ToCAstVisitor::visit(UBigIntType *func) {

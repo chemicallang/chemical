@@ -14,6 +14,8 @@ extern "C" {
 
     void LexersetUserLexer(Lexer* lexer, void* instance, void* subroutine);
 
+    void LexerunsetUserLexer(Lexer* lexer);
+
     void LexergetEmbeddedToken(Token* returning_token, Lexer* lexer);
 
 }

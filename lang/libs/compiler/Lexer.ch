@@ -31,6 +31,8 @@ struct Lexer : LexerState {
 
     func setUserLexer(&self, instance : *void, subroutine : (instance : &void, lexer : &Lexer) => Token);
 
+    func unsetUserLexer(&self);
+
     func getEmbeddedToken(&mut self) : Token
 
 }

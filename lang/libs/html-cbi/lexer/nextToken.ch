@@ -23,8 +23,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             if(html.lb_count == 1) {
                 printf("exiting, didn't expect an rb\n");
                 html.reset();
-                lexer.user_mode = false;
-                lexer.other_mode = false;
+                lexer.unsetUserLexer();
             } else {
                 html.lb_count--;
                 printf("lb_count decreased to %d\n", html.lb_count);

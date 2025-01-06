@@ -82,16 +82,11 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
 public func initializeLexer(lexer : *mut Lexer) {
     const file_allocator = lexer.getFileAllocator();
     const ptr = file_allocator.allocate_size(#sizeof(HtmlLexer), #alignof(HtmlLexer)) as *mut HtmlLexer;
-    const x = new (ptr) HtmlLexer {
+    new (ptr) HtmlLexer {
         has_lt : false,
         other_mode : false,
         chemical_mode : false,
         lb_count : 0
     }
-    lexer.other_mode = true;
-    lexer.user_mode = true;
-    lexer.user_lexer = UserLexerFn {
-        instance : ptr,
-        subroutine : getNextToken
-    }
+    lexer.setUserLexer(ptr, getNextToken)
 }

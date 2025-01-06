@@ -72,6 +72,12 @@ public:
     BatchAllocator& file_allocator;
 
     /**
+     * so when user sets a user lexer, if there is already one in progress we
+     * put that on this stack, we will restore, after this lexer has finished it's job
+     */
+    std::vector<UserLexerGetNextToken> user_lexer_fns_stack;
+
+    /**
      * the path to the file we are lexing
      */
     std::string file_path;

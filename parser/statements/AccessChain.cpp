@@ -79,7 +79,11 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
     if(id->type == TokenType::StructKw) {
         lexWhitespaceToken();
-        return (Value*) parseStructValue(allocator, nullptr, id->position);
+        const auto value = (Value*) parseStructValue(allocator, nullptr, id->position);
+        if(!value) {
+            error("expected '{' after the struct keyword for unnamed struct value");
+        }
+        return value;
     }
 
     auto tokenType = token->type;

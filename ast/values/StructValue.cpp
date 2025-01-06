@@ -389,6 +389,8 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             linker.error("couldn't find struct definition for struct name " + refType->representation(), this);
             return false;
         }
+        definition = (ExtendableMembersContainerNode*) found;
+        container = definition;
         const auto k = found->kind();
         switch (k) {
             case ASTNodeKind::UnionDecl:
@@ -401,12 +403,24 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             case ASTNodeKind::UnnamedStruct:
             case ASTNodeKind::StructDecl:
                 break;
+            case ASTNodeKind::StructType:{
+                const auto structType = (StructType*) found; //StructType::castASTNode(found);
+                refType = structType;
+                definition = nullptr;
+                container = structType;
+                break;
+            }
+            case ASTNodeKind::UnionType: {
+                const auto unionType = (UnionType*) found; // UnionType::castASTNode(found);
+                refType = unionType;
+                definition = nullptr;
+                container = unionType;
+                break;
+            }
             default:
                 linker.error("given struct name is not a struct definition : " + refType->representation(), this);
                 return false;
         }
-        definition = (ExtendableMembersContainerNode*) found;
-        container = definition;
     } else {
         if(!expected_type) {
             linker.error("unnamed struct value cannot link without a type", this);

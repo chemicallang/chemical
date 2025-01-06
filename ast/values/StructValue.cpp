@@ -243,7 +243,18 @@ llvm::Type *StructValue::llvm_type(Codegen &gen) {
 }
 
 bool StructValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
-    return definition->add_child_index(gen, indexes, name);
+    if(definition) {
+        return definition->add_child_index(gen, indexes, name);
+    } else {
+        switch(refType->kind()) {
+            case BaseTypeKind::Union:
+                return refType->as_union_type_unsafe()->add_child_index(gen, indexes, name);
+            case BaseTypeKind::Struct:
+                return refType->as_struct_type_unsafe()->add_child_index(gen, indexes, name);
+            default:
+                return false;
+        }
+    }
 }
 
 #endif
@@ -481,7 +492,11 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
 }
 
 ASTNode *StructValue::linked_node() {
-    return definition;
+    if(definition) {
+        return definition;
+    } else {
+        return refType->linked_node();
+    }
 }
 
 bool StructValue::is_generic() {

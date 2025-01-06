@@ -27,6 +27,8 @@ public:
 
     uint64_t total_byte_size(bool is64Bit);
 
+    uint64_t largest_member_byte_size(bool is64Bit);
+
     BaseDefMember *child_def_member(const chem::string_view& name);
 
     BaseDefMember* largest_member();

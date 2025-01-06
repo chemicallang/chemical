@@ -20,7 +20,7 @@ struct UnionDeclAttributes {
 
 };
 
-class UnionDef : public ExtendableMembersContainerNode, public UnionType {
+class UnionDef : public ExtendableMembersContainerNode {
 public:
 
     UnionDeclAttributes attrs;
@@ -57,9 +57,9 @@ public:
         return ASTNodeKind::UnionDecl;
     }
 
-    std::string union_name_str() final {
-        return name_view().str();
-    }
+//    std::string union_name_str() final {
+//        return name_view().str();
+//    }
 
     inline AccessSpecifier specifier() {
         return attrs.specifier;
@@ -93,7 +93,7 @@ public:
         attrs.is_comptime = value;
     }
 
-    inline bool is_anonymous() final {
+    inline bool is_anonymous() {
         return attrs.anonymous;
     }
 
@@ -102,24 +102,16 @@ public:
     }
 
     uint64_t byte_size(bool is64Bit) final {
-        return UnionType::byte_size(is64Bit);
-    }
-
-    uint64_t byte_size(bool is64Bit, int16_t iteration) {
-        auto prev = active_iteration;
-        set_active_iteration(iteration);
-        auto size = UnionType::byte_size(is64Bit);
-        set_active_iteration(prev);
-        return size;
+        return largest_member_byte_size(is64Bit);
     }
 
     VariablesContainer *as_variables_container() final {
         return this;
     }
 
-    VariablesContainer *variables_container() final {
-        return this;
-    }
+//    VariablesContainer *variables_container() final {
+//        return this;
+//    }
 
     VariablesContainer* copy_container(ASTAllocator &allocator) final;
 
@@ -139,16 +131,16 @@ public:
 
     BaseType* known_type() final;
 
-    [[nodiscard]]
-    BaseType * copy(ASTAllocator &allocator) const final;
+//    [[nodiscard]]
+//    BaseType * copy(ASTAllocator &allocator) const final;
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
-    ASTNode *linked_node() final {
-        return this;
-    }
+//    ASTNode *linked_node() final {
+//        return this;
+//    }
 
     [[nodiscard]]
     ValueType value_type() const final {
@@ -183,27 +175,15 @@ public:
 
     void code_gen_external_declare(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen) final {
-        return UnionType::llvm_type(gen);
-    }
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen, int16_t iteration) {
-        auto prev = active_iteration;
-        set_active_iteration(iteration);
-        auto type = llvm_type(gen);
-        set_active_iteration(prev);
-        return type;
-    }
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final {
-        return UnionType::llvm_chain_type(gen, values, index);
-    }
-
-    llvm::StructType *llvm_union_get_stored_type() final {
+    inline llvm::StructType *llvm_union_get_stored_type() {
         return llvm_struct_type;
     }
 
-    void llvm_union_type_store(llvm::StructType* type) final {
+    inline void llvm_union_type_store(llvm::StructType* type) {
         llvm_struct_type = type;
     }
 

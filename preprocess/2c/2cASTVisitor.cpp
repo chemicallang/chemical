@@ -3406,7 +3406,7 @@ void process_struct_members_using(
         }
     }
     for (auto& var: def->variables) {
-        auto value_type = var.second->known_type();
+        auto value_type = var.second->create_value_type(visitor.allocator);
         process_member(visitor, value_type, var.second->name);
     }
 }

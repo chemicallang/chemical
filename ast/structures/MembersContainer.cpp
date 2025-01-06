@@ -9,6 +9,8 @@
 #include "FunctionDeclaration.h"
 #include "VariablesContainer.h"
 #include "ast/structures/VariantMember.h"
+#include "ast/structures/UnnamedStruct.h"
+#include "ast/structures/UnnamedUnion.h"
 #include "ast/values/StructValue.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
@@ -202,6 +204,18 @@ uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
     size_t totalPadding = (maxAlignment - (offset % maxAlignment)) % maxAlignment;
     offset += totalPadding;
     return offset;
+}
+
+uint64_t VariablesContainer::largest_member_byte_size(bool is64Bit) {
+    uint64_t size = 0;
+    uint64_t previous;
+    for (auto &mem: variables) {
+        previous = mem.second->byte_size(is64Bit);
+        if (previous > size) {
+            size = previous;
+        }
+    }
+    return size;
 }
 
 void declare_inherited_members(MembersContainer* container, SymbolResolver& linker) {
@@ -558,14 +572,13 @@ FunctionDeclaration* MembersContainer::implicit_constructor_func(ASTAllocator& a
     return nullptr;
 }
 
-bool members_type_require(MembersContainer& container, bool(*requirement)(BaseType*)) {
+bool variables_type_require(VariablesContainer& container, bool(*requirement)(BaseType*), bool variant_container) {
     for(const auto& inh : container.inherited) {
         if(requirement(inh->type)) {
             return true;
         }
     }
-    auto var_def = container.as_variant_def();
-    if(var_def) {
+    if(variant_container) {
         for(const auto& var : container.variables) {
             const auto mem = var.second->as_variant_member_unsafe();
             for(auto& val : mem->values) {
@@ -577,13 +590,33 @@ bool members_type_require(MembersContainer& container, bool(*requirement)(BaseTy
         return false;
     } else {
         for(const auto& var : container.variables) {
-            auto type = var.second->known_type();
-            if(requirement(type)) {
-                return true;
+            const auto k = var.second->kind();
+            switch(k) {
+                case ASTNodeKind::UnnamedStruct:
+                    if(variables_type_require(*var.second->as_unnamed_struct_unsafe(), requirement, false)){
+                        return true;
+                    }
+                    break;
+                case ASTNodeKind::UnnamedUnion:
+                    if(variables_type_require(*var.second->as_unnamed_union_unsafe(), requirement, false)){
+                        return true;
+                    }
+                    break;
+                case ASTNodeKind::StructMember:
+                    if(requirement(var.second->as_struct_member_unsafe()->type)) {
+                        return true;
+                    }
+                    break;
+                default:
+                    break;
             }
         }
+        return false;
     }
-    return false;
+}
+
+inline bool members_type_require(MembersContainer& container, bool(*requirement)(BaseType*)) {
+    return variables_type_require(container, requirement, ASTNode::isVariantDecl(container.kind()));
 }
 
 bool MembersContainer::any_member_has_destructor() {

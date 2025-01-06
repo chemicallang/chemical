@@ -6,7 +6,7 @@
 #include "BaseDefMember.h"
 #include "ast/types/UnionType.h"
 
-class UnnamedUnion : public BaseDefMember, public VariablesContainer, public UnionType {
+class UnnamedUnion : public BaseDefMember, public VariablesContainer {
 public:
 
     ASTNode* parent_node;
@@ -30,9 +30,9 @@ public:
         return ASTNodeKind::UnnamedUnion;
     }
 
-    VariablesContainer *variables_container() final {
-        return this;
-    }
+//    VariablesContainer *variables_container() final {
+//        return this;
+//    }
 
     VariablesContainer *as_variables_container() final {
         return this;
@@ -71,16 +71,16 @@ public:
         return largest_member()->byte_size(is64Bit);
     }
 
-    ASTNode *linked_node() final {
-        return this;
-    }
+//    ASTNode *linked_node() final {
+//        return this;
+//    }
 
-    [[nodiscard]]
-    BaseType *copy(ASTAllocator& allocator) const final;
+//    [[nodiscard]]
+//    BaseType *copy(ASTAllocator& allocator) const final;
 
-    BaseType* known_type() final {
-        return this;
-    }
+//    BaseType* known_type() final {
+//        return this;
+//    }
 
     BaseType* create_value_type(ASTAllocator &allocator) final;
 
@@ -96,13 +96,9 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) final {
-        return UnionType::llvm_type(gen);
-    }
+    llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final {
-        return UnionType::llvm_chain_type(gen, values, index);
-    }
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
     bool add_child_index(
         Codegen &gen,

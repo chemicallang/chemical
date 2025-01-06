@@ -5,6 +5,7 @@
 #include "FunctionDeclaration.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/types/LinkedType.h"
+#include "ast/base/ChainValue.h"
 
 #ifdef COMPILER_BUILD
 
@@ -66,11 +67,67 @@ void UnionDef::code_gen_external_declare(Codegen &gen) {
     llvm_struct_type = nullptr;
 }
 
+llvm::Type *UnionDef::llvm_type(Codegen &gen) {
+    auto largest = largest_member();
+    if(!largest) {
+        gen.error("Couldn't determine the largest member of the union with name " + name_view().str(), this);
+        return nullptr;
+    }
+    auto stored = llvm_union_get_stored_type();
+    if(!stored) {
+        std::vector<llvm::Type*> members {largest->llvm_type(gen)};
+        if(is_anonymous()) {
+            return llvm::StructType::get(*gen.ctx, members);
+        }
+        stored = llvm::StructType::create(*gen.ctx, members, "union." + name_view().str());
+        llvm_union_type_store(stored);
+        return stored;
+    }
+    return stored;
+}
+
+llvm::Type* llvm_union_chain_type(VariablesContainer* container, Codegen& gen, std::vector<ChainValue*> &values, unsigned int index) {
+    if(index + 1 < values.size()) {
+        auto linked = values[index + 1]->linked_node();
+        if(linked) {
+            for (auto &member : container->variables) {
+                if (member.second == linked) {
+                    std::vector<llvm::Type *> struct_type{member.second->llvm_chain_type(gen, values, index + 1)};
+                    return llvm::StructType::get(*gen.ctx, struct_type);
+                }
+            }
+        }
+    }
+    return nullptr;
+}
+
+llvm::Type *UnionDef::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+    const auto type = llvm_union_chain_type(this, gen, values, index);
+    if(type) return type;
+    return llvm_type(gen);
+}
+
+llvm::Type *UnnamedUnion::llvm_type(Codegen &gen) {
+    auto largest = largest_member();
+    if(!largest) {
+        gen.error("Couldn't determine the largest member of the unnamed union", this);
+        return nullptr;
+    }
+    std::vector<llvm::Type*> members {largest->llvm_type(gen)};
+    return llvm::StructType::get(*gen.ctx, members);
+}
+
+llvm::Type *UnnamedUnion::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+    const auto type = llvm_union_chain_type(this, gen, values, index);
+    if(type) return type;
+    return llvm_type(gen);
+}
+
 #endif
 
-BaseType *UnionDef::copy(ASTAllocator& allocator) const {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode*) this, location);
-}
+//BaseType *UnionDef::copy(ASTAllocator& allocator) const {
+//    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode*) this, location);
+//}
 
 VariablesContainer *UnionDef::copy_container(ASTAllocator& allocator) {
     auto container = new (allocator.allocate<UnionDef>()) UnionDef(identifier, parent_node, location);
@@ -84,9 +141,9 @@ BaseType* UnnamedUnion::create_value_type(ASTAllocator &allocator) {
     return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, location);
 }
 
-BaseType *UnnamedUnion::copy(ASTAllocator& allocator) const {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, location);
-}
+//BaseType *UnnamedUnion::copy(ASTAllocator& allocator) const {
+//    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, location);
+//}
 
 BaseType* UnionDef::create_value_type(ASTAllocator& allocator) {
     return create_linked_type(name_view(), allocator);

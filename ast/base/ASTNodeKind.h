@@ -65,5 +65,8 @@ enum class ASTNodeKind : uint8_t {
     CapturedVariable,
     VariantCaseVariable,
 
+    StructType,
+    UnionType,
+
 
 };

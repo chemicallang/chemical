@@ -79,15 +79,7 @@ public:
 
     ASTNode *child(const chem::string_view &name);
 
-    BaseDefMember *direct_variable(const chem::string_view& name);
-
-    ASTNode *direct_child_member(const chem::string_view& name);
-
-    BaseDefMember *inherited_member(const chem::string_view& name);
-
     FunctionDeclaration* inherited_function(const chem::string_view& name);
-
-    BaseDefMember *child_member(const chem::string_view& name);
 
     FunctionDeclaration *direct_child_function(const chem::string_view& name);
 

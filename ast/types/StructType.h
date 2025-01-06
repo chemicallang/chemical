@@ -7,18 +7,23 @@
 #include <memory>
 #include "ast/structures/VariablesContainer.h"
 
-class StructType : public BaseType, public VariablesContainer {
+class StructType : public BaseType, public ASTNode, public VariablesContainer {
 public:
 
     chem::string_view name;
+    ASTNode* parent_node;
     SourceLocation location;
 
-    StructType(chem::string_view name, SourceLocation location) : name(name), location(location) {
+    StructType(chem::string_view name, ASTNode* parent, SourceLocation location) : name(name), parent_node(parent), location(location) {
 
     }
 
     SourceLocation encoded_location() override {
         return location;
+    }
+
+    ASTNode* parent() override {
+        return parent_node;
     }
 
     void accept(Visitor *visitor) {
@@ -30,23 +35,42 @@ public:
         return BaseTypeKind::Struct;
     }
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::StructType;
+    }
+
     [[nodiscard]]
     ValueType value_type() const {
         return ValueType::Struct;
     }
 
     BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<StructType>()) StructType(name, location);
+        return new (allocator.allocate<StructType>()) StructType(name, parent_node, location);
     }
 
     bool equals(StructType *type);
 
     bool is_same(BaseType *type) final {
-        return kind() == type->kind() && equals(static_cast<StructType *>(type));
+        return BaseType::kind() == type->kind() && equals(static_cast<StructType *>(type));
     }
 
     bool satisfies(ValueType type) final {
         return type == ValueType::Struct;
+    }
+
+    bool link(SymbolResolver &linker) override;
+
+    ASTNode* child(const chem::string_view &name) override {
+        const auto found = variables.find(name);
+        if(found != variables.end()) {
+            return found->second;
+        } else {
+            return nullptr;
+        }
+    }
+
+    int child_index(const chem::string_view &name) override {
+        return VariablesContainer::variable_index(name, false);
     }
 
 #ifdef COMPILER_BUILD

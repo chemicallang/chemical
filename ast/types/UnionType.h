@@ -7,18 +7,23 @@
 #include "ast/structures/BaseDefMember.h"
 #include "ast/structures/VariablesContainer.h"
 
-class UnionType : public BaseType, public VariablesContainer {
+class UnionType : public BaseType, public ASTNode, public VariablesContainer {
 public:
 
     chem::string_view name;
+    ASTNode* parent_node;
     SourceLocation location;
 
-    UnionType(chem::string_view name, SourceLocation location) : name(name), location(location) {
+    UnionType(chem::string_view name, ASTNode* parent, SourceLocation location) : name(name), parent_node(parent), location(location) {
 
     }
 
     SourceLocation encoded_location() override {
         return location;
+    }
+
+    ASTNode* parent() override {
+        return parent_node;
     }
 
     void accept(Visitor *visitor) {
@@ -28,6 +33,10 @@ public:
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::Union;
+    }
+
+    ASTNodeKind kind() override {
+        return ASTNodeKind::UnionType;
     }
 
     ValueType value_type() const {
@@ -43,14 +52,29 @@ public:
     }
 
     bool is_same(BaseType *type) final {
-        return kind() == type->kind() && equals(static_cast<UnionType *>(type));
+        return BaseType::kind() == type->kind() && equals(static_cast<UnionType *>(type));
     }
 
     BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<UnionType>()) UnionType(name, location);
+        return new (allocator.allocate<UnionType>()) UnionType(name, parent_node, location);
     }
 
     bool satisfies(ValueType type) final;
+
+    bool link(SymbolResolver &linker) override;
+
+    ASTNode* child(const chem::string_view &name) override {
+        const auto found = variables.find(name);
+        if(found != variables.end()) {
+            return found->second;
+        } else {
+            return nullptr;
+        }
+    }
+
+    int child_index(const chem::string_view &name) override {
+        return VariablesContainer::variable_index(name, false);
+    }
 
 #ifdef COMPILER_BUILD
 

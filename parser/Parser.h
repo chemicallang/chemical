@@ -714,11 +714,6 @@ public:
     StructValue* parseStructValue(ASTAllocator& allocator, BaseType* refType, Position& start);
 
     /**
-     * parses a single unnamed struct value
-     */
-    UnnamedStructValue* parseUnnamedStructValue(ASTAllocator& allocator, Position& start);
-
-    /**
      * parses array initialization
      */
     Value* parseArrayInit(ASTAllocator& allocator);

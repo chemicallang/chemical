@@ -176,6 +176,37 @@ BaseDefMember *VariablesContainer::child_def_member(const chem::string_view &nam
     }
 }
 
+ASTNode *VariablesContainer::child_member_or_inherited_struct(const chem::string_view& name) {
+    auto direct_var = direct_variable(name);
+    if(direct_var) return direct_var;
+    for(auto& inherits : inherited) {
+        const auto struct_def = inherits->type->linked_struct_def();
+        if(struct_def && struct_def->name_view().data() == name) {
+            return struct_def;
+        }
+    }
+    return nullptr;
+}
+
+BaseDefMember *VariablesContainer::inherited_member(const chem::string_view& name) {
+    for(auto& inherits : inherited) {
+        const auto struct_def = inherits->type->linked_struct_def();
+        if(struct_def) {
+            const auto mem = struct_def->child_member(name);
+            if(mem) return mem;
+        }
+    }
+    return nullptr;
+}
+
+BaseDefMember *VariablesContainer::child_member(const chem::string_view& name) {
+    const auto direct_mem = direct_variable(name);
+    if(direct_mem) return direct_mem;
+    const auto inherited_mem = inherited_member(name);
+    if(inherited_mem) return inherited_mem;
+    return nullptr;
+}
+
 BaseDefMember* VariablesContainer::largest_member() {
     BaseDefMember* member = nullptr;
     for(auto& var : variables) {
@@ -327,38 +358,6 @@ ASTNode *MembersContainer::child(const chem::string_view &varName) {
     }
 }
 
-BaseDefMember *MembersContainer::direct_variable(const chem::string_view& name) {
-    auto found = variables.find(name);
-    if (found != variables.end()) {
-        return found->second;
-    } else {
-        return nullptr;
-    }
-}
-
-ASTNode *MembersContainer::direct_child_member(const chem::string_view& name) {
-    auto direct_var = direct_variable(name);
-    if(direct_var) return direct_var;
-    for(auto& inherits : inherited) {
-        const auto struct_def = inherits->type->linked_struct_def();
-        if(struct_def && struct_def->name_view().data() == name) {
-            return struct_def;
-        }
-    }
-    return nullptr;
-}
-
-BaseDefMember *MembersContainer::inherited_member(const chem::string_view& name) {
-    for(auto& inherits : inherited) {
-        const auto struct_def = inherits->type->linked_struct_def();
-        if(struct_def) {
-            const auto mem = struct_def->child_member(name);
-            if(mem) return mem;
-        }
-    }
-    return nullptr;
-}
-
 FunctionDeclaration* MembersContainer::inherited_function(const chem::string_view& name) {
     for(auto& inherits : inherited) {
         const auto linked = inherits->type->get_direct_linked_node();
@@ -370,14 +369,6 @@ FunctionDeclaration* MembersContainer::inherited_function(const chem::string_vie
             return func2;
         }
     }
-    return nullptr;
-}
-
-BaseDefMember *MembersContainer::child_member(const chem::string_view& name) {
-    const auto direct_mem = direct_variable(name);
-    if(direct_mem) return direct_mem;
-    const auto inherited_mem = inherited_member(name);
-    if(inherited_mem) return inherited_mem;
     return nullptr;
 }
 

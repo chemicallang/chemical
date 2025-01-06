@@ -31,6 +31,19 @@ public:
 
     BaseDefMember *child_def_member(const chem::string_view& name);
 
+    inline BaseDefMember *direct_variable(const chem::string_view& name) {
+        return child_def_member(name);
+    }
+
+    // searches for member or a inherited struct by the given name
+    ASTNode *child_member_or_inherited_struct(const chem::string_view& name);
+
+    // member of this name that exists in inherited structs
+    BaseDefMember *inherited_member(const chem::string_view& name);
+
+    // direct member or inherited member
+    BaseDefMember *child_member(const chem::string_view& name);
+
     BaseDefMember* largest_member();
 
     virtual void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);

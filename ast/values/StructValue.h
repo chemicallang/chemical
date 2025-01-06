@@ -12,7 +12,14 @@
 
 class StructValue : public Value {
 private:
+
+    // we store the reference to container, if the linked container
+    // is not a extendable members container which is that it cannot supply
+    VariablesContainer* container = nullptr;
+
+    // we only store pointer to definition, if found
     ExtendableMembersContainerNode *definition = nullptr;
+
 public:
 
     BaseType* refType;
@@ -20,25 +27,27 @@ public:
     int16_t generic_iteration = 0;
     SourceLocation location;
     ASTNode* parent_node;
-    ASTNodeKind linked_kind;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst = nullptr;
 #endif
 
     StructValue(
             BaseType* refType,
-            ExtendableMembersContainerNode *definition,
             SourceLocation location,
             ASTNode* parent
-    ) : refType(refType), definition(definition), location(location), parent_node(parent) {}
+    ) : refType(refType), definition(nullptr), container(nullptr), location(location), parent_node(parent)
+    {
+
+    }
 
     StructValue(
             BaseType* refType,
             ExtendableMembersContainerNode *definition,
-            InterpretScope &scope,
+            VariablesContainer* container,
             SourceLocation location,
             ASTNode* parent
-    ) : refType(refType), definition(definition), location(location), parent_node(parent) {
+    ) : refType(refType), definition(definition), container(container), location(location), parent_node(parent)
+    {
 
     }
 
@@ -79,7 +88,13 @@ public:
     StructValue *copy(ASTAllocator& allocator) final;
 
     ASTNode* child(const chem::string_view& name) {
-        return definition->child(name);
+        if(definition) {
+            return definition->child(name);
+        } else {
+            auto& variables = container->variables;
+            auto found = variables.find(name);
+            return found == variables.end() ? nullptr : found->second;
+        }
     }
 
     Value *child(InterpretScope &scope, const chem::string_view &name) final;
@@ -121,7 +136,12 @@ public:
     bool allows_direct_init();
 
     bool is_union() {
-        return linked_kind == ASTNodeKind::UnionDecl || linked_kind == ASTNodeKind::UnnamedUnion;
+        if(definition) {
+            const auto k = definition->kind();
+            return k == ASTNodeKind::UnionDecl || k == ASTNodeKind::UnnamedUnion;
+        } else {
+            return refType->kind() == BaseTypeKind::Union;
+        }
     }
 
     std::vector<BaseType*>& generic_list();

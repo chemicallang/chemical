@@ -5,18 +5,20 @@
 #include "ast/base/BaseType.h"
 #include "ordered_map.h"
 #include "ast/structures/BaseDefMember.h"
+#include "ast/structures/VariablesContainer.h"
 
-class VariablesContainer;
-
-class UnionType : public BaseType {
+class UnionType : public BaseType, public VariablesContainer {
 public:
 
-    UnionType() = default;
+    chem::string_view name;
+    SourceLocation location;
 
-    virtual VariablesContainer* variables_container() = 0;
+    UnionType(chem::string_view name, SourceLocation location) : name(name), location(location) {
 
-    virtual std::string union_name_str() {
-        return "";
+    }
+
+    SourceLocation encoded_location() override {
+        return location;
     }
 
     void accept(Visitor *visitor) {
@@ -32,7 +34,9 @@ public:
         return ValueType::Union;
     }
 
-    uint64_t byte_size(bool is64Bit);
+    uint64_t byte_size(bool is64Bit) {
+        return largest_member_byte_size(is64Bit);
+    }
 
     bool equals(UnionType *type) const {
         return type->byte_size(true) == const_cast<UnionType*>(this)->byte_size(true);
@@ -42,24 +46,13 @@ public:
         return kind() == type->kind() && equals(static_cast<UnionType *>(type));
     }
 
-    [[nodiscard]]
-    BaseType *copy(ASTAllocator& allocator) const = 0;
+    BaseType* copy(ASTAllocator &allocator) const override {
+        return new (allocator.allocate<UnionType>()) UnionType(name, location);
+    }
 
     bool satisfies(ValueType type) final;
 
-    virtual bool is_anonymous() {
-        return true;
-    }
-
 #ifdef COMPILER_BUILD
-
-    virtual llvm::StructType *llvm_union_get_stored_type() {
-        return nullptr;
-    }
-
-    virtual void llvm_union_type_store(llvm::StructType* type) {
-        // does nothing
-    }
 
     llvm::Type *llvm_type(Codegen &gen);
 

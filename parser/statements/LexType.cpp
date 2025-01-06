@@ -20,6 +20,8 @@
 #include "ast/types/StringType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/BoolType.h"
+#include "ast/types/StructType.h"
+#include "ast/types/UnionType.h"
 #include "ast/types/CharType.h"
 #include "ast/types/UCharType.h"
 #include "ast/types/DoubleType.h"
@@ -199,6 +201,84 @@ BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, Source
     }
 }
 
+StructType* Parser::parseStructType(ASTAllocator& allocator) {
+    auto& t = *token;
+    if(t.type == TokenType::StructKw) {
+
+        // maybe null
+        const auto id = consumeIdentifierOrKeyword();
+
+        const auto type = new (allocator.allocate<StructType>()) StructType(id ? id->value : chem::string_view(""), loc_single(t));
+
+        if(token->type != TokenType::LBrace) {
+            error("expected a '{' after the struct keyword for struct type");
+            return type;
+        }
+
+        token++;
+
+        do {
+            lexWhitespaceAndNewLines();
+            if(parseVariableMemberInto(type, allocator, AccessSpecifier::Public)) {
+                lexWhitespaceToken();
+                consumeToken(TokenType::SemiColonSym);
+            } else {
+                break;
+            }
+        } while(token->type != TokenType::RBrace);
+
+        if(token->type != TokenType::RBrace) {
+            error("expected a '}' after the struct type declaration");
+            return type;
+        }
+
+        token++;
+
+        return type;
+    } else {
+        return nullptr;
+    }
+}
+
+UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
+    auto& t = *token;
+    if(t.type == TokenType::UnionKw) {
+
+        // maybe null
+        const auto id = consumeIdentifierOrKeyword();
+
+        const auto type = new (allocator.allocate<UnionType>()) UnionType(id ? id->value : chem::string_view(""), loc_single(t));
+
+        if(token->type != TokenType::LBrace) {
+            error("expected a '{' after the struct keyword for union type");
+            return type;
+        }
+
+        token++;
+
+        do {
+            lexWhitespaceAndNewLines();
+            if(parseVariableMemberInto(type, allocator, AccessSpecifier::Public)) {
+                lexWhitespaceToken();
+                consumeToken(TokenType::SemiColonSym);
+            } else {
+                break;
+            }
+        } while(token->type != TokenType::RBrace);
+
+        if(token->type != TokenType::RBrace) {
+            error("expected a '}' after the union type declaration");
+            return type;
+        }
+
+        token++;
+
+        return type;
+    } else {
+        return nullptr;
+    }
+}
+
 /**
  * here's how mutable, dynamic and pointer types work
  * *mut Phone <-- direct linked type made mutable, ptr before type finds the linked type, makes itself mutable \n
@@ -214,7 +294,10 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
 
     switch(token->type) {
         case TokenType::StructKw: {
-
+            return parseStructType(allocator);
+        }
+        case TokenType::UnionKw: {
+            return parseUnionType(allocator);
         }
         case TokenType::LBracket:{
             token++;

@@ -5,19 +5,21 @@
 #include <vector>
 #include "ast/base/BaseType.h"
 #include <memory>
+#include "ast/structures/VariablesContainer.h"
 
-class VariablesContainer;
-
-class StructType : public BaseType {
+class StructType : public BaseType, public VariablesContainer {
 public:
 
-    StructType() = default;
+    chem::string_view name;
+    SourceLocation location;
 
-    virtual VariablesContainer* variables_container() = 0;
+    StructType(chem::string_view name, SourceLocation location) : name(name), location(location) {
 
-    virtual std::string get_runtime_name() = 0;
+    }
 
-    virtual int16_t get_generic_iteration() = 0;
+    SourceLocation encoded_location() override {
+        return location;
+    }
 
     void accept(Visitor *visitor) {
         visitor->visit(this);
@@ -33,30 +35,21 @@ public:
         return ValueType::Struct;
     }
 
+    BaseType* copy(ASTAllocator &allocator) const override {
+        return new (allocator.allocate<StructType>()) StructType(name, location);
+    }
+
     bool equals(StructType *type);
 
     bool is_same(BaseType *type) final {
         return kind() == type->kind() && equals(static_cast<StructType *>(type));
     }
 
-    [[nodiscard]]
-    BaseType *copy(ASTAllocator& allocator) const = 0;
-
     bool satisfies(ValueType type) final {
         return type == ValueType::Struct;
     }
 
 #ifdef COMPILER_BUILD
-
-    virtual llvm::StructType* llvm_stored_type() {
-        return nullptr;
-    }
-
-    virtual void llvm_store_type(llvm::StructType* type) {
-        // does not store by default
-    }
-
-    llvm::Type *with_elements_type(Codegen &gen, const std::vector<llvm::Type *>& elements, const std::string& runtime_name);
 
     llvm::Type *llvm_type(Codegen &gen);
 

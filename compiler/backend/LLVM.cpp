@@ -212,22 +212,8 @@ llvm::Type *StringType::llvm_type(Codegen &gen) {
     return gen.builder->getInt8PtrTy();
 }
 
-llvm::Type *StructType::with_elements_type(Codegen &gen, const std::vector<llvm::Type *>& elements, const std::string& runtime_name) {
-    if(runtime_name.empty()) {
-        return llvm::StructType::get(*gen.ctx, elements);
-    }
-    auto stored = llvm_stored_type();
-    if(!stored) {
-        auto new_stored = llvm::StructType::create(*gen.ctx, elements, runtime_name);
-        llvm_store_type(new_stored);
-        return new_stored;
-    }
-    return stored;
-}
-
 llvm::Type *StructType::llvm_type(Codegen &gen) {
-    auto container = variables_container();
-    return with_elements_type(gen, container->elements_type(gen), get_runtime_name());
+    return llvm::StructType::get(*gen.ctx, elements_type(gen));
 }
 
 llvm::Type *StructType::llvm_param_type(Codegen &gen) {
@@ -235,36 +221,24 @@ llvm::Type *StructType::llvm_param_type(Codegen &gen) {
 }
 
 llvm::Type *StructType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
-    auto container = variables_container();
-    return with_elements_type(gen, container->elements_type(gen, values, index), "");
+    return llvm::StructType::get(*gen.ctx, elements_type(gen, values, index));
 }
 
 llvm::Type *UnionType::llvm_type(Codegen &gen) {
-    auto container = variables_container();
-    auto largest = container->largest_member();
+    auto largest = largest_member();
     if(!largest) {
-        gen.error("Couldn't determine the largest member of the union with name " + union_name_str(), this);
+        gen.error("Couldn't determine the largest member of the unnamed union", this);
         return nullptr;
     }
-    auto stored = llvm_union_get_stored_type();
-    if(!stored) {
-        std::vector<llvm::Type*> members {largest->llvm_type(gen)};
-        if(is_anonymous()) {
-            return llvm::StructType::get(*gen.ctx, members);
-        }
-        stored = llvm::StructType::create(*gen.ctx, members, "union." + union_name_str());
-        llvm_union_type_store(stored);
-        return stored;
-    }
-    return stored;
+    std::vector<llvm::Type*> members {largest->llvm_type(gen)};
+    return llvm::StructType::get(*gen.ctx, members);
 }
 
 llvm::Type *UnionType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
-    auto container = variables_container();
     if(index + 1 < values.size()) {
         auto linked = values[index + 1]->linked_node();
         if(linked) {
-            for (auto &member: container->variables) {
+            for (auto &member: variables) {
                 if (member.second == linked) {
                     std::vector<llvm::Type *> struct_type{member.second->llvm_chain_type(gen, values, index + 1)};
                     return llvm::StructType::get(*gen.ctx, struct_type);

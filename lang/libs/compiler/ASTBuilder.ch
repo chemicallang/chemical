@@ -158,7 +158,7 @@ struct StringValue : Value {}
 
 struct StructValue : Value {
 
-    func add_value(&self, name : &string_view, initializer : *StructMemberInitializer)
+    func add_value(&self, name : &string_view, value : *mut Value)
 
 }
 
@@ -480,8 +480,6 @@ public struct ASTBuilder : BatchAllocator {
     func make_sizeof_value(&self, type : *BaseType, location : ubigint) : *mut SizeOfValue
 
     func make_string_value(&self, value : &string_view, location : ubigint) : *mut StringValue
-
-    func make_struct_member_initializer(&self, name : &string_view, value : *Value, structValue : *StructValue) : *mut StructMemberInitializer
 
     func make_struct_value(&self, ref : *BaseType, parent_node : *ASTNode, location : ubigint) : *mut StructValue
 

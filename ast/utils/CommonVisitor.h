@@ -59,8 +59,6 @@ public:
 
     void visit(StructValue *structValue);
 
-    void visit(StructMemberInitializer *init) final;
-
     void visit(ArrayValue *arrayVal);
 
     void visit(ArrayType *func) final;

@@ -213,6 +213,9 @@ BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, Source
 BaseType* Parser::parseType(ASTAllocator& allocator) {
 
     switch(token->type) {
+        case TokenType::StructKw: {
+
+        }
         case TokenType::LBracket:{
             token++;
             if(!consumeToken(TokenType::RBracket)) {

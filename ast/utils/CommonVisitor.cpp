@@ -222,12 +222,8 @@ void CommonVisitor::visit(AccessChain *chain) {
 
 void CommonVisitor::visit(StructValue *val) {
     for(auto& value : val->values) {
-        value.second->accept(this);
+        value.second.value->accept(this);
     }
-}
-
-void CommonVisitor::visit(StructMemberInitializer *init) {
-    init->value->accept(this);
 }
 
 void CommonVisitor::visit(ArrayValue *arr) {

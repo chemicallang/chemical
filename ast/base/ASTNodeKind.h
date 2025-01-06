@@ -61,7 +61,6 @@ enum class ASTNodeKind : uint8_t {
     FunctionParam,
     ExtensionFuncReceiver,
     GenericTypeParam,
-    StructMemberInitializer,
     VariantMemberParam,
     CapturedVariable,
     VariantCaseVariable,

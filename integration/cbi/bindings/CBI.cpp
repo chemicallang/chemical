@@ -187,7 +187,6 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "ASTBuildermake_short_value", (void*) ASTBuildermake_short_value },
             { "ASTBuildermake_sizeof_value", (void*) ASTBuildermake_sizeof_value },
             { "ASTBuildermake_string_value", (void*) ASTBuildermake_string_value },
-            { "ASTBuildermake_struct_member_initializer", (void*) ASTBuildermake_struct_member_initializer },
             { "ASTBuildermake_struct_value", (void*) ASTBuildermake_struct_value },
             { "ASTBuildermake_ubigint_value", (void*) ASTBuildermake_ubigint_value },
             { "ASTBuildermake_uchar_value", (void*) ASTBuildermake_uchar_value },

@@ -988,19 +988,19 @@ void Value::set_value_in(InterpretScope& scope, Value* parent, Value* value, Ope
     }
 }
 
-BaseType* implicit_constructor_type(ASTAllocator& allocator, BaseType* return_type, Value* value) {
-    auto k = return_type->kind();
-    if(k == BaseTypeKind::Linked || k == BaseTypeKind::Generic) {
-        const auto linked = return_type->linked_node();
-        const auto struc = linked->as_struct_def();
-        if(struc) {
-            const auto constr = struc->implicit_constructor_for(allocator, value);
-            if(constr) {
-                return constr->func_param_for_arg_at(0)->type;
-            }
-        }
-    }
-    return return_type;
-}
+//BaseType* implicit_constructor_type(ASTAllocator& allocator, BaseType* return_type, Value* value) {
+//    auto k = return_type->kind();
+//    if(k == BaseTypeKind::Linked || k == BaseTypeKind::Generic) {
+//        const auto linked = return_type->linked_node();
+//        const auto struc = linked->as_struct_def();
+//        if(struc) {
+//            const auto constr = struc->implicit_constructor_for(allocator, value);
+//            if(constr) {
+//                return constr->func_param_for_arg_at(0)->type;
+//            }
+//        }
+//    }
+//    return return_type;
+//}
 
 Value::~Value() = default;

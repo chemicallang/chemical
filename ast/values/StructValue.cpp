@@ -35,8 +35,8 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
         inst = allocaInst;
     }
 
-    for (const auto &value: values) {
-        auto& value_ptr = value.second->value;
+    for (auto &value: values) {
+        auto& value_ptr = value.second.value;
         auto variable = definition->variable_type_index(value.first);
         if (variable.first == -1) {
             gen.error("couldn't get struct child " + value.first.str() + " in definition with name " + definition->name_str(), this);
@@ -346,7 +346,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         }
         // linking values
         for (auto &val: values) {
-            auto& val_ptr = val.second->value;
+            auto& val_ptr = val.second.value;
             const auto value = val_ptr;
             auto child_node = definition->direct_child_member(val.first);
             if(!child_node) {
@@ -359,7 +359,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             if(val_linked && definition->variables.end() != member) {
                 const auto mem_type = member->second->get_value_type(linker.allocator);
                 auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
-                current_func_type.mark_moved_value(linker.allocator, val.second->value, mem_type, linker);
+                current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
                 if(implicit) {
                     link_with_implicit_constructor(implicit, linker, val_ptr);
                 } else if(!mem_type->satisfies(linker.allocator, value, false)) {
@@ -449,7 +449,7 @@ void StructValue::set_child_value(InterpretScope& scope, const chem::string_view
         std::cerr << "couldn't find child by name '" + name.str() + "' in struct";
         return;
     }
-    ptr->second->value = value;
+    ptr->second.value = value;
 }
 
 Value *StructValue::scope_value(InterpretScope &scope) {
@@ -469,13 +469,8 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
     );
     declare_default_values(struct_value->values, scope);
     struct_value->values.reserve(values.size());
-    for (const auto &value: values) {
-        struct_value->values[value.first] = new (scope.allocate<StructMemberInitializer>()) StructMemberInitializer(
-                value.first,
-                value.second->value->scope_value(scope),
-                struct_value,
-                value.second->member
-        );
+    for (auto &value: values) {
+        struct_value->values.emplace(value.first, StructMemberInitializer { value.first, value.second.value->scope_value(scope) });
     }
 //    struct_value->generic_list.reserve(generic_list.size());
 //    for(const auto& arg : generic_list) {
@@ -485,14 +480,13 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
 }
 
 void StructValue::declare_default_values(
-        std::unordered_map<chem::string_view, StructMemberInitializer*> &into,
+        std::unordered_map<chem::string_view, StructMemberInitializer> &into,
         InterpretScope &scope
 ) {
-    Value* defValue;
     for (const auto &field: definition->variables) {
-        defValue = field.second->default_value();
+        const auto defValue = field.second->default_value();
         if (into.find(field.second->name) == into.end() && defValue) {
-            into[field.second->name]->value = defValue->scope_value(scope);
+            into.emplace(field.second->name, StructMemberInitializer { field.second->name, defValue->scope_value(scope) });
         }
     }
 }
@@ -506,7 +500,7 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
     );
     struct_value->values.reserve(values.size());
     for (const auto &value: values) {
-        struct_value->values[value.first] = value.second->copy(allocator);
+        struct_value->values.emplace(value.first, StructMemberInitializer { value.first, value.second.value->copy(allocator) });
     }
 //    struct_value->generic_list.reserve(generic_list.size());
 //    for(const auto& arg : generic_list) {
@@ -533,17 +527,5 @@ Value *StructValue::child(InterpretScope &scope, const chem::string_view &name) 
             return nullptr;
         }
     }
-    return value->second->value;
-}
-
-StructMemberInitializer* StructMemberInitializer::copy(ASTAllocator& allocator) {
-    return new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(name, value->copy(allocator), struct_value, member);
-}
-
-SourceLocation StructMemberInitializer::encoded_location() {
-    return value->encoded_location();
-}
-
-ASTNode* StructMemberInitializer::parent() {
-    return struct_value->parent_node;
+    return value->second.value;
 }

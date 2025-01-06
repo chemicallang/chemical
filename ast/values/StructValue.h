@@ -16,7 +16,7 @@ private:
 public:
 
     BaseType* refType;
-    std::unordered_map<chem::string_view, StructMemberInitializer*> values;
+    std::unordered_map<chem::string_view, StructMemberInitializer> values;
     int16_t generic_iteration = 0;
     SourceLocation location;
     ASTNode* parent_node;
@@ -74,7 +74,7 @@ public:
 
     Value *scope_value(InterpretScope &scope) final;
 
-    void declare_default_values(std::unordered_map<chem::string_view, StructMemberInitializer*> &into, InterpretScope &scope);
+    void declare_default_values(std::unordered_map<chem::string_view, StructMemberInitializer> &into, InterpretScope &scope);
 
     StructValue *copy(ASTAllocator& allocator) final;
 

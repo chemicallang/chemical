@@ -90,6 +90,9 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
             auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), loc_single(id));
             return parseStructValue(allocator, ref_type, id->position);
         }
+        case TokenType::StructKw: {
+            return (Value*) parseUnnamedStructValue(allocator, id->position);
+        }
         case TokenType::Whitespace: {
             token++;
             auto tokenType2 = token->type;

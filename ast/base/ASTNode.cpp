@@ -318,7 +318,7 @@ bool ASTNode::is_stored_ref(ASTAllocator& allocator) {
 bool ASTNode::requires_moving(ASTNodeKind k) {
     switch(k) {
         case ASTNodeKind::StructDecl:
-            return as_struct_def_unsafe()->requires_destructor() || as_struct_def_unsafe()->requires_clear_fn();
+            return as_struct_def_unsafe()->has_destructor() || as_struct_def_unsafe()->has_clear_fn();
         case ASTNodeKind::VariantDecl:
             return as_variant_def_unsafe()->requires_destructor() || as_variant_def_unsafe()->requires_destructor();
         default:

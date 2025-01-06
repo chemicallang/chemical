@@ -122,10 +122,9 @@ namespace std {
         // Hash Specialization Using FNV-1a
         std::size_t operator()(const chem::string_view& s) const noexcept {
             std::size_t hash = 0xcbf29ce484222325; // FNV offset basis
-            std::size_t prime = 0x100000001b3;     // FNV prime
             for (char c : s) {
                 hash ^= static_cast<std::size_t>(c);
-                hash *= prime;
+                hash *= 0x100000001b3;
             }
             return hash;
         }

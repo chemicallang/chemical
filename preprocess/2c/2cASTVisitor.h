@@ -368,8 +368,6 @@ public:
 
     void visit(ImplDefinition* implDefinition) final;
 
-    void visit(StructMemberInitializer *init) final;
-
     void visit(UnionDef *def) final;
 
     void visit(InterfaceDefinition* interfaceDefinition) final;

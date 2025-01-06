@@ -61,7 +61,7 @@ struct StructDeclAttributes {
 
 };
 
-class StructDefinition : public ExtendableMembersContainerNode, public StructType {
+class StructDefinition : public ExtendableMembersContainerNode {
 private:
     StructDeclAttributes attrs;
 
@@ -167,22 +167,30 @@ public:
         attrs.anonymous = value;
     }
 
-    std::string get_runtime_name() final {
+    inline std::string get_runtime_name() {
         if(is_anonymous()) {
             return "";
         }
         return runtime_name_str();
     }
 
-    int16_t get_generic_iteration() final {
-        return active_iteration;
+    inline bool has_destructor() {
+        return destructor_func() != nullptr;
     }
+
+    inline bool has_clear_fn() {
+        return clear_func() != nullptr;
+    }
+
+//    int16_t get_generic_iteration() final {
+//        return active_iteration;
+//    }
 
     VariablesContainer *copy_container(ASTAllocator& allocator) final;
 
-    ASTNode *linked_node() final {
-        return this;
-    }
+//    ASTNode *linked_node() final {
+//        return this;
+//    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;
@@ -199,10 +207,10 @@ public:
     VariablesContainer *as_variables_container() final {
         return this;
     }
-
-    VariablesContainer *variables_container() final {
-        return this;
-    }
+//
+//    VariablesContainer *variables_container() final {
+//        return this;
+//    }
 
     bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;
@@ -235,14 +243,20 @@ public:
         return total_byte_size(is64Bit);
     }
 
-    [[nodiscard]]
-    BaseType* copy(ASTAllocator &allocator) const final;
+//    [[nodiscard]]
+//    BaseType* copy(ASTAllocator &allocator) const final;
 
 #ifdef COMPILER_BUILD
 
-    llvm::StructType* llvm_stored_type() final;
+    llvm::Type* with_elements_type(
+        Codegen &gen,
+        const std::vector<llvm::Type *>& elements,
+        const std::string& runtime_name
+    );
 
-    void llvm_store_type(llvm::StructType* type) final;
+    llvm::StructType* llvm_stored_type();
+
+    void llvm_store_type(llvm::StructType* type);
 
     llvm::Type *llvm_type(Codegen &gen) final;
 

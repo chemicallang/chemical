@@ -38,7 +38,7 @@ SwitchStatement* Parser::parseSwitchStatementBlock(ASTAllocator& allocator, bool
                 int body_index = (int) stmt->scopes.size();
                 do {
                     if(has_single) {
-                        lexWhitespaceToken();
+                        lexWhitespaceAndNewLines();
                     }
                     if(consumeWSOfType(TokenType::DefaultKw)) {
                         has_single = true;

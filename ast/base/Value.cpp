@@ -771,7 +771,12 @@ hybrid_ptr<BaseType> Value::get_child_type() {
 }
 
 Value* Value::scope_value(InterpretScope& scope) {
-    return copy(scope.allocator);
+    const auto eval = evaluated_value(scope);
+    if(eval == this) {
+        return copy(scope.allocator);
+    } else {
+        return eval;
+    }
 }
 
 BaseType* Value::get_pure_type(ASTAllocator& allocator) {

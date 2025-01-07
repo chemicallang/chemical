@@ -38,6 +38,8 @@ public:
 
     BaseType* create_type(ASTAllocator &allocator) final;
 
+    Value* evaluated_value(InterpretScope &scope) override;
+
     void accept(Visitor *visitor) final {
         visitor->visit(this);
     }

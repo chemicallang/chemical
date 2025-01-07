@@ -127,10 +127,6 @@ public:
 
     Expression *copy(ASTAllocator& allocator) final;
 
-    Value *scope_value(InterpretScope &scope) final {
-        return evaluate(scope);
-    }
-
     Value* evaluated_value(InterpretScope &scope) final {
         return evaluate(scope);
     }

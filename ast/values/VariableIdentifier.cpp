@@ -220,15 +220,6 @@ Value* VariableIdentifier::evaluated_chain_value(InterpretScope &scope, Value* p
     return parent ? parent->child(scope, value) : nullptr;
 }
 
-Value *VariableIdentifier::scope_value(InterpretScope &scope) {
-    // evaluates the value, copies it
-    auto val = scope.find_value_iterator(value.str());
-    if (val.first == val.second.values.end() || val.first->second == nullptr) {
-        return nullptr;
-    }
-    return val.first->second;
-}
-
 BaseTypeKind VariableIdentifier::type_kind() const {
     return linked->type_kind();
 }

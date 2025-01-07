@@ -114,8 +114,6 @@ public:
 
     Value *find_in(InterpretScope &scope, Value *parent) final;
 
-    Value *scope_value(InterpretScope &scope) final;
-
     Value* evaluated_value(InterpretScope &scope) final;
 
     Value* evaluated_chain_value(InterpretScope &scope, Value *parent) final;

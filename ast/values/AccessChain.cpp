@@ -273,10 +273,6 @@ Value* AccessChain::evaluated_value(InterpretScope &scope) {
     return evaluate_from(values, scope, evaluated, 1);
 }
 
-Value *AccessChain::scope_value(InterpretScope &scope) {
-    return evaluated_value(scope);
-}
-
 ASTNode *AccessChain::linked_node() {
     return values[values.size() - 1]->linked_node();
 }

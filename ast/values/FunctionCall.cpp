@@ -1147,10 +1147,6 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
     return nullptr;
 }
 
-Value *FunctionCall::scope_value(InterpretScope &scope) {
-    return interpret_value(this, scope, nullptr);
-}
-
 Value* FunctionCall::evaluated_value(InterpretScope &scope) {
     const auto parent = get_parent_from(parent_val);
     const auto evaluated_parent = parent ? parent->evaluated_value(scope) : parent;

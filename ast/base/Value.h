@@ -492,7 +492,7 @@ public:
      *
      * this method will always create a copy of the value, which means the caller must handle the returned value
      */
-    virtual Value* scope_value(InterpretScope& scope);
+    Value* scope_value(InterpretScope& scope);
 
     /**
      * does this value compute the value, in other words (is it an expression -> e.g a + b)

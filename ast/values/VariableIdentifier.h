@@ -125,8 +125,6 @@ public:
 
     VariableIdentifier *copy(ASTAllocator& allocator) final;
 
-    Value *scope_value(InterpretScope &scope) final;
-
     BaseType* create_type(ASTAllocator &allocator) final;
 
     [[nodiscard]]

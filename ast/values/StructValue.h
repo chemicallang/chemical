@@ -85,8 +85,6 @@ public:
 
     Value *evaluated_value(InterpretScope &scope) final;
 
-    Value *scope_value(InterpretScope &scope) final;
-
     void declare_default_values(std::unordered_map<chem::string_view, StructMemberInitializer> &into, InterpretScope &scope);
 
     StructValue *copy(ASTAllocator& allocator) final;

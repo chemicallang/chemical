@@ -622,10 +622,6 @@ void StructValue::set_child_value(InterpretScope& scope, const chem::string_view
     ptr->second.value = value;
 }
 
-Value *StructValue::scope_value(InterpretScope &scope) {
-    return initialized_value(scope);
-}
-
 Value *StructValue::evaluated_value(InterpretScope &scope) {
     return initialized_value(scope);
 }

@@ -169,8 +169,6 @@ public:
 
     Value *pointer(InterpretScope &scope);
 
-    Value *scope_value(InterpretScope &scope) final;
-
     Value* evaluated_value(InterpretScope &scope);
 
     inline std::string chain_representation() {

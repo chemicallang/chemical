@@ -34,10 +34,6 @@ ValueType NumberValue::value_type() const {
     }
 }
 
-Value *NumberValue::scope_value(InterpretScope &scope) {
-    return new (scope.allocate<IntValue>()) IntValue((int) value, location);
-}
-
 IntNType* linked(BaseType* type) {
     auto pure = type->pure_type();
     if(pure && pure->kind() == BaseTypeKind::IntN) {

@@ -56,8 +56,6 @@ public:
         return true;
     }
 
-    Value *scope_value(InterpretScope &scope) final;
-
     NumberValue* as_number_val() final {
         return this;
     }

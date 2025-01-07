@@ -2,6 +2,8 @@
 
 #include "DereferenceValue.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/values/StringValue.h"
+#include "ast/base/InterpretScope.h"
 
 DereferenceValue::DereferenceValue(
         Value* value,
@@ -24,6 +26,20 @@ BaseType* DereferenceValue::create_type(ASTAllocator& allocator) {
     } else {
         // TODO cannot report error here, the type cannot be created because the linked type is not a pointer
         return nullptr;
+    }
+}
+
+Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
+    const auto eval = value->evaluated_value(scope);
+    const auto k = eval->val_kind();
+    switch(k) {
+        case ValueKind::String:{
+            const auto val = eval->as_string_unsafe();
+            return new (scope.allocate<CharValue>()) CharValue(val->value[0], location);
+        }
+        default:
+            scope.error("couldn't dereference value in comptime", this);
+            return eval;
     }
 }
 

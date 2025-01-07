@@ -28,9 +28,7 @@ public:
 
     CastedValue *copy(ASTAllocator& allocator) final;
 
-    Value* evaluated_value(InterpretScope &scope) final {
-        return value->evaluated_value(scope);
-    }
+    Value* evaluated_value(InterpretScope &scope) final;
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { type.get(), false };

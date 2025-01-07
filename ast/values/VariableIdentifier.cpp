@@ -129,8 +129,11 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
         return;
     }
 
-    // using the scope of the found value, so that it's initialized in the same scope
-    auto newValue = rawValue->scope_value(itr.second);
+    // first we resolve the value in the current scope
+    const auto evalNewValue = rawValue->evaluated_value(scope);
+    // now we copy the value onto the scope of the previous value
+    const auto newValue = evalNewValue->scope_value(itr.second);
+//    auto newValue = rawValue->scope_value(itr.second);
     if (newValue == nullptr) {
         scope.error("trying to assign null ptr to identifier " + value.str(), this);
         return;

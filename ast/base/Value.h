@@ -434,18 +434,11 @@ public:
 #endif
 
     /**
-     * check if this value is an int n
-     */
-    virtual bool is_int_n() {
-        return false;
-    }
-
-    /**
      * is an int num value, this includes referenced values
      */
     bool is_value_int_n() {
-        auto type = value_type();
-        return type >= ValueType::IntNStart && type <= ValueType::IntNEnd;
+        auto k = val_kind();
+        return k >= ValueKind::IntNStart && k <= ValueKind::IntNEnd;
     }
 
     /**

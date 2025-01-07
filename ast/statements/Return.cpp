@@ -4,6 +4,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
+#include "ast/base/LoopASTNode.h"
 
 ReturnStatement::ReturnStatement(
         Value* value,
@@ -14,6 +15,33 @@ ReturnStatement::ReturnStatement(
 
 }
 
+bool isLoopNode(ASTNodeKind k) {
+    switch(k) {
+        case ASTNodeKind::WhileLoopStmt:
+        case ASTNodeKind::DoWhileLoopStmt:
+        case ASTNodeKind::ForLoopStmt:
+        case ASTNodeKind::LoopBlock:
+            return true;
+        default:
+            return false;
+    }
+}
+
+LoopASTNode* asLoopNode(ASTNode* node) {
+    return isLoopNode(node->kind()) ? node->as_loop_node_unsafe() : nullptr;
+}
+
+void stop_interpretation_above(ASTNode* node) {
+    const auto p = asLoopNode(node);
+    if(p) {
+        p->stopInterpretation();
+        const auto parent = node->parent();
+        if(parent) {
+            stop_interpretation_above(parent);
+        }
+    }
+}
+
 void ReturnStatement::interpret(InterpretScope &scope) {
     auto decl = func_type->as_function();
     if(!decl) return;
@@ -22,6 +50,7 @@ void ReturnStatement::interpret(InterpretScope &scope) {
     } else {
         decl->set_return(scope, nullptr);
     }
+    stop_interpretation_above(parent_node);
 }
 
 void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {

@@ -56,10 +56,6 @@ public:
         return true;
     }
 
-    NumberValue* as_number_val() final {
-        return this;
-    }
-
     unsigned int get_num_bits() final;
 
     [[nodiscard]]
@@ -80,6 +76,8 @@ public:
     }
 
     bool is_unsigned() final;
+
+    Value* evaluated_value(InterpretScope &scope) override;
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        if(!linked_type) {

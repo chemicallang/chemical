@@ -558,6 +558,12 @@ public:
     int get_the_int();
 
     /**
+     * get number value if this value is any interger
+     * otherwise nullopt
+     */
+    std::optional<uint64_t> get_number();
+
+    /**
      * will return a unsigned int representation
      */
     unsigned get_the_uint();
@@ -571,13 +577,6 @@ public:
      * a function to be overridden by values that can return double
      */
     double get_the_double();
-
-    /**
-     * a function to be overridden by number value to return itself
-     */
-    virtual NumberValue* as_number_val() {
-        return nullptr;
-    }
 
     /**
      * returns the type of value
@@ -965,6 +964,10 @@ public:
 
     inline UBigIntValue* as_ubigint_unsafe() {
         return ((UBigIntValue*) this);
+    }
+
+    inline IntNumValue* as_int_num_value_unsafe() {
+        return ((IntNumValue*) this);
     }
 
     inline Int128Value* as_int128_unsafe() {

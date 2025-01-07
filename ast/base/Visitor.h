@@ -100,6 +100,8 @@ class ShortValue;
 
 class UBigIntValue;
 
+class IntNumValue;
+
 class UIntValue;
 
 class UCharValue;

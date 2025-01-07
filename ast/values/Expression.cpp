@@ -26,24 +26,24 @@ EnumDeclaration* getEnumDecl(BaseType* type) {
 
 void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
-        if(firstValue->as_number_val() != nullptr) {
+        if(Value::isNumberValue(firstValue->val_kind())) {
             auto value = ((IntNumValue*)firstValue)->get_num_value();
             firstValue = ((IntNType*) secondType)->create(allocator, value);
-        } else if(secondValue->as_number_val() != nullptr){
+        } else if(Value::isNumberValue(secondValue->val_kind())){
             auto value = ((IntNumValue*)secondValue)->get_num_value();
             secondValue = ((IntNType*) firstType)->create(allocator, value);
         }
     }
     const auto first = getEnumDecl(firstType);
     if(first) {
-        const auto second = secondValue->as_number_val();
+        const auto second = secondValue->as_number_value();
         if(second) {
             secondValue = first->underlying_type->create(allocator, second->value);
         }
     } else {
         const auto second = getEnumDecl(secondType);
         if(second) {
-            const auto firstVal = firstValue->as_number_val();
+            const auto firstVal = firstValue->as_number_value();
             if(firstVal) {
                 firstValue = second->underlying_type->create(allocator, firstVal->value);
             }

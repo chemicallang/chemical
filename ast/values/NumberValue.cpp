@@ -26,6 +26,14 @@ bool NumberValue::is_unsigned() {
     }
 }
 
+Value* NumberValue::evaluated_value(InterpretScope &scope) {
+    if(linked_type) {
+        return linked_type->create(scope.allocator, value);
+    } else {
+        return this;
+    }
+}
+
 ValueType NumberValue::value_type() const {
     if(linked_type == nullptr) {
         return ValueType::Int;

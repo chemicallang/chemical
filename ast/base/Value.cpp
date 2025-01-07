@@ -722,6 +722,14 @@ int Value::get_the_int() {
     }
 }
 
+std::optional<uint64_t> Value::get_number() {
+    if(is_value_int_n()) {
+        return as_int_num_value_unsafe()->get_num_value();
+    } else {
+        return std::nullopt;
+    }
+}
+
 float Value::get_the_float() {
     return ((FloatValue*) this)->value;
 }

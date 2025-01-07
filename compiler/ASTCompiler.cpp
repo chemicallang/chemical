@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "Codegen.h"
-#include "preprocess/ShrinkingVisitor.h"
 #include "utils/Benchmark.h"
 #include "ASTProcessor.h"
 #include "compiler/SymbolResolver.h"

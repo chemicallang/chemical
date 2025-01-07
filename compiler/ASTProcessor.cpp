@@ -9,7 +9,6 @@
 #include "preprocess/2c/2cASTVisitor.h"
 #include "utils/Benchmark.h"
 #include <sstream>
-#include "preprocess/ShrinkingVisitor.h"
 #include "utils/PathUtils.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "std/chem_string.h"
@@ -444,13 +443,4 @@ void ASTProcessor::declare_in_c(
         std::cout << std::endl;
     }
     visitor.reset_errors();
-}
-
-void ASTProcessor::shrink_nodes(
-        ShrinkingVisitor& shrinker,
-        ASTUnit unit,
-        const std::string& abs_path
-) {
-    shrinker.visit(unit.scope.nodes);
-    shrinked_unit[abs_path] = std::move(unit);
 }

@@ -451,9 +451,61 @@ bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value
     });
 }
 
+bool isValueRValue(ValueKind k) {
+    switch(k) {
+        case ValueKind::NumberValue:
+        case ValueKind::Char:
+        case ValueKind::UChar:
+        case ValueKind::Short:
+        case ValueKind::UShort:
+        case ValueKind::Int:
+        case ValueKind::UInt:
+        case ValueKind::Long:
+        case ValueKind::ULong:
+        case ValueKind::BigInt:
+        case ValueKind::UBigInt:
+        case ValueKind::Double:
+        case ValueKind::Float:
+        case ValueKind::String:
+        case ValueKind::NegativeValue:
+        case ValueKind::SizeOfValue:
+        case ValueKind::NullValue:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// when a value is being stored or passed as a reference we must write address of it
+// even if it means storing it in a temporary variable
+// for example my_func(3) <-- here parameter takes a constant reference, which means r values are allowed
+// so we must store 3 in a temporary variable and pass address of it
+// this returns whether the value has already been written, should not be re-written
+bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, ReferenceType* ref_type) {
+    if(isValueRValue(val->val_kind())) {
+        const auto temp_var = visitor.get_local_temp_var_name();
+        visitor.write("({ ");
+        ref_type->type->accept(&visitor);
+        visitor.write(' ');
+        visitor.write_str(temp_var);
+        visitor.write(" = ");
+        val->accept(&visitor);
+        visitor.write("; &");
+        visitor.write_str(temp_var);
+        visitor.write("; })");
+        return true;
+    } else {
+        visitor.write('&');
+        return false;
+    }
+}
+
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
     if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_stored_ref(allocator)) {
-        write('&');
+        const auto ref_type = type->as_reference_type_unsafe();
+        if(write_value_for_ref_type(*this, value, ref_type)) {
+            return;
+        }
     }
     if(!implicit_mutate_value_default(*this, type, value)) {
         value->accept(this);
@@ -490,12 +542,18 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             visitor.write(" = ");
             visitor.write('*');
         }
-        if((param->type->is_reference(param_type_kind) && !val->is_stored_ptr_or_ref(visitor.allocator)) || is_struct_param || is_variant_param) {
-            auto allocated = visitor.local_allocated.find(val);
+        const auto is_param_type_ref = param_type_kind == BaseTypeKind::Reference;
+        bool accept_value = true;
+        if(is_struct_param || is_variant_param) {
             visitor.write('&');
+        } else if(is_param_type_ref && !val->is_stored_ptr_or_ref(visitor.allocator)) {
+            accept_value = !write_value_for_ref_type(visitor, val, param->type->as_reference_type_unsafe());
+        }
+        if(is_struct_param || is_variant_param || (is_param_type_ref && !val->is_stored_ptr_or_ref(visitor.allocator))) {
+            auto allocated = visitor.local_allocated.find(val);
             if(allocated != visitor.local_allocated.end()) {
                 visitor.write(allocated->second);
-            } else {
+            } else if(accept_value) {
                 val->accept(&visitor);
             }
         } else if(!val->reference() && val->value_type() == ValueType::Array) {
@@ -1047,7 +1105,7 @@ void move_func_call(ToCAstVisitor& visitor, FunctionCall* call) {
 //    }
 //}
 
-void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call);
+void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool has_comma_before);
 
 void func_call_that_returns_struct(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call) {
     auto last = call;
@@ -1095,10 +1153,10 @@ void func_call_that_returns_struct(ToCAstVisitor& visitor, FunctionType* func_ty
         }
         visitor.write('&');
         visitor.write(allocated->second);
-        if (!last->values.empty() || func_type->has_self_param()) {
-            visitor.write(", ");
-        }
-        write_implicit_args(visitor, func_type, call);
+//        if (!last->values.empty() || func_type->has_self_param()) {
+//            visitor.write(", ");
+//        }
+        write_implicit_args(visitor, func_type, call, false);
         func_call_args(visitor, last, func_type);
         visitor.write(')');
         if(!visitor.nested_value) {
@@ -1191,11 +1249,6 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
 void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, const unsigned end, const unsigned total_size);
 
 void func_name(ToCAstVisitor& visitor, Value* ref, FunctionDeclaration* func_decl) {
-//    ref->accept(&visitor); // function name
-//    if(func_decl->multi_func_index != 0) {
-//        visitor.write("__cmf_");
-//        visitor.write(std::to_string(func_decl->multi_func_index));
-//    }
     func_decl->runtime_name_no_parent_fast(*visitor.output);
 }
 
@@ -1203,69 +1256,7 @@ void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
     func_decl->runtime_name_no_parent_fast(*visitor.output);
 }
 
-//void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<ChainValue*>& values, unsigned end, FunctionCall* call) {
-//    bool has_comma_before = true;
-//    for(auto& param : func_type->params) {
-//        if(param->is_implicit) {
-//            if(param->name == "self") {
-//                if(end >= 3) {
-//                    if(!has_comma_before) {
-//                        visitor.write(", ");
-//                    }
-//                    write_self_arg(visitor, values, (((int) end) - 3), call, false);
-//                    has_comma_before = false;
-//                } else if(visitor.current_func_type) {
-//                    auto self_param = visitor.current_func_type->get_self_param();
-//                    if(self_param) {
-//                        if(!has_comma_before) {
-//                            visitor.write(", ");
-//                        }
-//                        visitor.write(param->name);
-//                        has_comma_before = false;
-//                    } else {
-////                        visitor->error("No self param can be passed to a function, because current function doesn't take a self arg");
-//                    }
-//                }
-//            } else if(param->name == "other") {
-//                // skipping it
-//                // TODO check it
-//            } else {
-//                auto found = visitor.implicit_args.find(param->name);
-//                if(found != visitor.implicit_args.end()) {
-//                    if(!has_comma_before) {
-//                        visitor.write(", ");
-//                    }
-//                    auto type = found->second->create_type(visitor.allocator);
-//                    const auto node = type->get_direct_linked_node();
-//                    if(node && ASTNode::isStoredStructType(node->kind())) {
-//                        visitor.write('&');
-//                    }
-//                    found->second->accept(&visitor);
-//                    has_comma_before = false;
-//                } else {
-//                    const auto between = visitor.current_func_type->implicit_param_for(param->name);
-//                    if(between) {
-//                        if(!has_comma_before) {
-//                            visitor.write(", ");
-//                        }
-//                        visitor.write(between->name);
-//                        has_comma_before = false;
-//                    } else {
-//                        visitor.error("couldn't find implicit argument with name '" + param->name + "'", call);
-//                    }
-//                }
-//             }
-//        } else {
-//            break;
-//        }
-//    }
-//    if (!has_comma_before && !call->values.empty()) {
-//        visitor.write(", ");
-//    }
-//};
-
-void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call) {
-    bool has_comma_before = true;
+void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool has_comma_before = true) {
     for(const auto param : func_type->params) {
         if(param->is_implicit) {
             if(param->name == "self") {
@@ -1602,7 +1593,7 @@ public:
 };
 
 void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
-    auto type = assign->lhs->known_type();
+    auto type = assign->lhs->create_type(visitor.allocator);
     if(type->requires_moving(type->kind()) && !assign->lhs->is_ref_moved()) {
         auto container = type->linked_node()->as_members_container();
         auto destr = container->destructor_func();
@@ -1616,9 +1607,6 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     }
     const auto prev_nested = visitor.nested_value;
     visitor.nested_value = true;
-    if(type->is_reference()) {
-        visitor.write('*');
-    }
     assign->lhs->accept(&visitor);
     visitor.nested_value = prev_nested;
     visitor.write(' ');
@@ -4238,6 +4226,12 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
     if(diff == 0) {
         return;
     } else if(diff == 1) {
+        if(values[start]->val_kind() != ValueKind::Identifier) {
+            const auto type = values[start]->create_type(visitor.allocator);
+            if (type && type->kind() == BaseTypeKind::Reference) {
+                visitor.write('*');
+            }
+        }
         chain_value_accept(visitor, nullptr, values[start], nullptr);
         return;
     }
@@ -4826,7 +4820,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
         auto& type = *linked->as_func_param_unsafe()->type;
         const auto type_kind = type.kind();
         if(type_kind == BaseTypeKind::Reference) {
-            const auto d_linked = ((ReferenceType&) type).type->get_direct_linked_node();
+            // const auto d_linked = ((ReferenceType&) type).type->get_direct_linked_node();
 //            if(should_deref_node(d_linked)) {
                 deref_id(*this, identifier);
                 return;

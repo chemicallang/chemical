@@ -18,7 +18,7 @@ public:
             bool isVariadic,
             ASTNode* parent_node,
             SourceLocation location,
-            std::optional<LoopScope> body = std::nullopt,
+            std::optional<Scope> body = std::nullopt,
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
 

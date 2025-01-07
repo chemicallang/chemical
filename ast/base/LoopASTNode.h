@@ -7,7 +7,7 @@
 #pragma once
 
 #include "ASTNode.h"
-#include "ast/structures/LoopScope.h"
+#include "ast/structures/Scope.h"
 
 /**
  * Anything that's a loop (for, while..) inherits this LoopASTNode
@@ -15,20 +15,13 @@
 class LoopASTNode : public ASTNode {
 public:
 
-    LoopScope body;
-
-//    /**
-//     * Initialize an empty loop ast node
-//     */
-//    explicit LoopASTNode(CSTToken* token) : body(this, token) {
-//
-//    }
+    Scope body;
 
     /**
      * initialize with the given body
      * @param body
      */
-    explicit LoopASTNode(LoopScope body) : body(std::move(body)) {
+    explicit LoopASTNode(Scope body) : body(std::move(body)) {
 
     }
 

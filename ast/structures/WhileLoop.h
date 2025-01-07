@@ -8,7 +8,6 @@
 
 #include "ast/base/Value.h"
 #include "Scope.h"
-#include "LoopScope.h"
 #include "ast/base/LoopASTNode.h"
 
 class WhileLoop : public LoopASTNode {
@@ -20,18 +19,12 @@ public:
     SourceLocation location;
 
     /**
-     * initializes the loop with only a condition and empty body
-     * @param condition
-     */
-//    WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node, CSTToken* token);
-
-    /**
      * @brief Construct a new WhileLoop object.
      *
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    WhileLoop(Value* condition, LoopScope body, ASTNode* parent_node, SourceLocation location);
+    WhileLoop(Value* condition, Scope body, ASTNode* parent_node, SourceLocation location);
 
     SourceLocation encoded_location() final {
         return location;

@@ -14,7 +14,7 @@ void ShrinkingVisitor::visit(std::vector<ASTNode*>& nodes) {
     }
 }
 
-void shrink(std::optional<LoopScope>& scope) {
+void shrink(std::optional<Scope>& scope) {
     if(scope.has_value()) {
         scope->nodes.clear();
         scope->nodes.shrink_to_fit();

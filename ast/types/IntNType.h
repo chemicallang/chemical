@@ -44,7 +44,7 @@ public:
     /**
      * creates a Value of this type, but with the given value
      */
-    virtual Value* create(ASTAllocator& allocator, int64_t value) = 0;
+    virtual Value* create(ASTAllocator& allocator, uint64_t value) = 0;
 
     bool satisfies(ValueType type) {
         return type == value_type();

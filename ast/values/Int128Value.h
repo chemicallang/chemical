@@ -59,7 +59,7 @@ public:
     }
 
     [[nodiscard]]
-    int64_t get_num_value() const final {
+    uint64_t get_num_value() const final {
         if(magnitude < UINT_MAX) {
             if(is_negative) {
                 return -magnitude;

@@ -50,7 +50,7 @@ public:
     }
 
     [[nodiscard]]
-    int64_t get_num_value() const final {
+    uint64_t get_num_value() const final {
         return value;
     }
 

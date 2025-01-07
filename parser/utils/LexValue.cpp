@@ -479,7 +479,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                 const auto num_value = parse_num(value, value_size, strtod);
                 return { new(alloc.allocate<DoubleValue>()) DoubleValue(num_value.result, location), err.empty() ? num_value.error : err };
             } else {
-                const auto num_value = parse_num(value, value_size, strtoll);
+                const auto num_value = parse_num(value, value_size, strtoull);
                 return { new(alloc.allocate<NumberValue>()) NumberValue(num_value.result, location), err.empty() ? num_value.error : err };
             }
         }

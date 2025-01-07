@@ -59,7 +59,7 @@ public:
     }
 
     [[nodiscard]]
-    int64_t get_num_value() const final {
+    uint64_t get_num_value() const final {
         if (high > 0) {
             // Overflow: The UInt128 value is too large to fit into a uint64_t
             throw std::overflow_error("UInt128 value exceeds uint64_t range");

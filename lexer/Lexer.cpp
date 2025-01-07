@@ -164,6 +164,17 @@ void read_digits(SerialStrAllocator& str, SourceProvider& provider) {
     }
 }
 
+void read_alpha_or_digits(SerialStrAllocator& str, SourceProvider& provider) {
+    while(true) {
+        auto next = provider.peek();
+        if(next != -1 && std::isalnum(next)) {
+            str.append(provider.readCharacter());
+        } else {
+            break;
+        }
+    }
+}
+
 // assumes that a digit exists at current location
 bool read_floating_digits(SerialStrAllocator& str, SourceProvider& provider) {
     read_digits(str, provider);
@@ -176,7 +187,39 @@ bool read_floating_digits(SerialStrAllocator& str, SourceProvider& provider) {
     }
 }
 
-// reads  numbers with suffixes 123i8, 124ui16 123u32
+void read_number_suffix(SerialStrAllocator& str, SourceProvider& provider) {
+    switch(provider.peek()) {
+        case 'i':
+            str.append(provider.readCharacter());
+            read_digits(str, provider);
+            return;
+        case 'u':
+            str.append(provider.readCharacter());
+            if (provider.peek() == 'i') {
+                str.append(provider.readCharacter());
+            } else if(provider.peek() == 'l') {
+                str.append(provider.readCharacter());
+                return;
+            }
+            read_digits(str, provider);
+            return;
+        case 'U':
+            if(provider.peek() == 'L') {
+                str.append(provider.readCharacter());
+            }
+            return;
+        case 'l':
+        case 'L':
+            str.append(provider.readCharacter());
+            return;
+        default:
+            return;
+    }
+}
+
+
+
+// reads  numbers with suffixes 123i8, 124ui16 123u32 or 0x332b2
 void read_number(SerialStrAllocator& str, SourceProvider& provider) {
     if(read_floating_digits(str, provider)) {
         auto next = provider.peek();
@@ -184,34 +227,21 @@ void read_number(SerialStrAllocator& str, SourceProvider& provider) {
             str.append(provider.readCharacter());
         }
     } else {
-        switch(provider.peek()) {
-            case 'i':
-                str.append(provider.readCharacter());
-                read_digits(str, provider);
-                break;
-            case 'u':
-                str.append(provider.readCharacter());
-                if (provider.peek() == 'i') {
-                    str.append(provider.readCharacter());
-                } else if(provider.peek() == 'l') {
-                    str.append(provider.readCharacter());
-                    return;
-                }
-                read_digits(str, provider);
-                break;
-            case 'U':
-                if(provider.peek() == 'L') {
-                    str.append(provider.readCharacter());
-                }
-                break;
-            case 'l':
-            case 'L':
-                str.append(provider.readCharacter());
-                break;
-            default:
-                break;
-        }
+        read_number_suffix(str, provider);
     }
+}
+
+// if number starts with zero, we call this function
+// it allows us to check whether number is hex or bool like 0x34ffb3
+// this also assumes that zero has already been consumed and put onto the string
+void read_zero_starting_number(SerialStrAllocator& str, SourceProvider& provider) {
+    if(provider.peek() == 'x') {
+        str.append(provider.readCharacter());
+        read_alpha_or_digits(str, provider);
+        read_number_suffix(str, provider);
+        return;
+    }
+    return read_number(str, provider);
 }
 
 void read_current_line(SerialStrAllocator& str, SourceProvider& provider) {
@@ -506,6 +536,10 @@ Token Lexer::getNextToken() {
             return Token(TokenType::NewLine, view_str(NewlineCStr), pos);
         case '\r':
             return win_new_line(provider, pos);
+        case '0':
+            str.append('0');
+            read_zero_starting_number(str, provider);
+            return Token(TokenType::Number, str.finalize_view(), pos);
         default:
             break;
     }

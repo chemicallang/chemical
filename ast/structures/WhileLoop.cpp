@@ -48,7 +48,7 @@ void WhileLoop::code_gen(Codegen &gen) {
  * @param condition The loop condition.
  * @param body The body of the while loop.
  */
-WhileLoop::WhileLoop(Value* condition, LoopScope body, ASTNode* parent_node, SourceLocation location)
+WhileLoop::WhileLoop(Value* condition, Scope body, ASTNode* parent_node, SourceLocation location)
         : condition(condition), LoopASTNode(std::move(body)), parent_node(parent_node), location(location) {}
 
 void WhileLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {

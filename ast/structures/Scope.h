@@ -11,6 +11,7 @@
 class Scope : public ASTNode {
 public:
 
+    bool stoppedInterpretOnce = false;
     std::vector<ASTNode*> nodes;
     ASTNode* parent_node;
     SourceLocation location;
@@ -90,13 +91,13 @@ public:
 
 #endif
 
-    void interpret(InterpretScope &scope);
+    void interpret(InterpretScope &scope) final;
 
     /**
      * function is supposed to implemented by other scopes
      * like loop scope, which can be stopped in the middle of the loop
      */
-    virtual void stopInterpretOnce();
+    void stopInterpretOnce();
 
 };
 

@@ -12,7 +12,7 @@
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
 #include "ast/base/BaseType.h"
-#include "LoopScope.h"
+#include "Scope.h"
 #include <optional>
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/AnnotableNode.h"
@@ -152,7 +152,7 @@ public:
     /**
      * optional body
      */
-    std::optional<LoopScope> body;
+    std::optional<Scope> body;
     /**
      * if this is a generic function (it has generic parameters), generic parameters
      * pretend to be different types on different iterations, iterations are number of usages
@@ -191,7 +191,7 @@ public:
             bool isVariadic,
             ASTNode* parent_node,
             SourceLocation location,
-            std::optional<LoopScope> body = std::nullopt,
+            std::optional<Scope> body = std::nullopt,
             AccessSpecifier = AccessSpecifier::Internal,
             bool signature_resolved = false
     );

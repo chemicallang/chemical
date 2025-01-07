@@ -436,7 +436,7 @@ Scope* ASTBuildermake_scope(ASTAllocator* allocator, ASTNode* parent_node, uint6
 }
 
 DoWhileLoop* ASTBuildermake_do_while_loop(ASTAllocator* allocator, Value* condition, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<DoWhileLoop>()) DoWhileLoop(condition, LoopScope(parent_node, location), parent_node, location);
+    return new (allocator->allocate<DoWhileLoop>()) DoWhileLoop(condition, Scope(parent_node, location), parent_node, location);
 }
 
 EnumDeclaration* ASTBuildermake_enum_decl(ASTAllocator* allocator, chem::string_view* name, uint64_t name_loc, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
@@ -448,7 +448,7 @@ EnumMember* ASTBuildermake_enum_member(ASTAllocator* allocator, chem::string_vie
 }
 
 ForLoop* ASTBuildermake_for_loop(ASTAllocator* allocator, VarInitStatement* initializer, Value* conditionExpr, ASTNode* incrementerExpr, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<ForLoop>()) ForLoop(initializer, conditionExpr, incrementerExpr, LoopScope(parent_node, location), parent_node, location);
+    return new (allocator->allocate<ForLoop>()) ForLoop(initializer, conditionExpr, incrementerExpr, Scope(parent_node, location), parent_node, location);
 }
 
 FunctionDeclaration* ASTBuildermake_function(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
@@ -500,7 +500,7 @@ UnsafeBlock* ASTBuildermake_unsafe_block(ASTAllocator* allocator, ASTNode* node,
 }
 
 WhileLoop* ASTBuildermake_while_loop(ASTAllocator* allocator, Value* condition, ASTNode* node, uint64_t location) {
-    return new (allocator->allocate<WhileLoop>()) WhileLoop(condition, LoopScope(node, location), node, location);
+    return new (allocator->allocate<WhileLoop>()) WhileLoop(condition, Scope(node, location), node, location);
 }
 
 VariantDefinition* ASTBuildermake_variant_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* node, uint64_t location) {

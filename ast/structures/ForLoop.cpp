@@ -62,7 +62,7 @@ ForLoop::ForLoop(
         VarInitStatement* initializer,
         Value* conditionExpr,
         ASTNode* incrementerExpr,
-        LoopScope body,
+        Scope body,
         ASTNode* parent_node,
         SourceLocation location
 ) : initializer(initializer),

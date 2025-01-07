@@ -190,7 +190,7 @@ void initialize_constructor_def_values(Codegen &gen, FunctionDeclaration* decl) 
     }
 }
 
-void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body, FunctionDeclaration* func_type) {
+void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<Scope>& body, FunctionDeclaration* func_type) {
     if(body.has_value()) {
         auto prev_func_type = gen.current_func_type;
         auto prev_func = gen.current_function;
@@ -1060,7 +1060,7 @@ FunctionDeclaration::FunctionDeclaration(
         bool isVariadic,
         ASTNode* parent_node,
         SourceLocation location,
-        std::optional<LoopScope> body,
+        std::optional<Scope> body,
         AccessSpecifier specifier,
         bool signature_resolved
 ) : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),

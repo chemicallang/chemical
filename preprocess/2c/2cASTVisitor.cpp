@@ -40,7 +40,6 @@
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/ForLoop.h"
-#include "ast/structures/LoopScope.h"
 #include "ast/structures/CapturedVariable.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/structures/Scope.h"

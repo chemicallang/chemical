@@ -110,7 +110,7 @@ ExtensionFunction::ExtensionFunction(
         bool isVariadic,
         ASTNode* parent_node,
         SourceLocation location,
-        std::optional<LoopScope> body,
+        std::optional<Scope> body,
         AccessSpecifier specifier
 ) : FunctionDeclaration(
     std::move(identifier),

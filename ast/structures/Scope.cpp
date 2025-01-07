@@ -54,6 +54,10 @@ void top_level_dedupe(std::vector<ASTNode*>& nodes) {
 void Scope::interpret(InterpretScope &scope) {
     for (const auto &node: nodes) {
         node->interpret(scope);
+        if (stoppedInterpretOnce) {
+            stoppedInterpretOnce = false;
+            return;
+        }
     }
 }
 
@@ -94,7 +98,7 @@ void Scope::link_asynchronously(SymbolResolver &linker) {
 }
 
 void Scope::stopInterpretOnce() {
-
+    stoppedInterpretOnce = true;
 }
 
 void LoopBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {

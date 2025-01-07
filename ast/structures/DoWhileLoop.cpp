@@ -42,7 +42,7 @@ void DoWhileLoop::code_gen(Codegen &gen) {
  */
 DoWhileLoop::DoWhileLoop(
     Value* condition,
-    LoopScope body,
+    Scope body,
     ASTNode* parent_node,
     SourceLocation location
 ) : condition(condition), LoopASTNode(std::move(body)), parent_node(parent_node), location(location) {

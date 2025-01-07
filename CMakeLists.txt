@@ -172,7 +172,6 @@ set(COMMON_SOURCES
         ast/base/InterpretScope.cpp
         ast/base/GlobalInterpretScope.cpp
         ast/utils/Operation.cpp
-        ast/structures/LoopScope.h
         ast/base/LoopASTNode.h
         ast/structures/ImplDefinition.h
         parser/structures/ImplDef.cpp
@@ -204,7 +203,6 @@ set(COMMON_SOURCES
         ast/statements/MacroValueStatement.h
         integration/common/Diagnostic.cpp
         ast/structures/Scope.cpp
-        ast/structures/LoopScope.cpp
         ast/types/PointerType.h
         ast/types/GenericType.h
         ast/base/Value.cpp

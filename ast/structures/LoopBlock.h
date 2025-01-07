@@ -4,7 +4,7 @@
 
 #include "ast/base/LoopASTNode.h"
 #include "ast/base/Value.h"
-#include "LoopScope.h"
+#include "Scope.h"
 
 /**
  * loop block represents the Loop Block
@@ -23,7 +23,7 @@ public:
     /**
      * constructor
      */
-    LoopBlock(LoopScope scope, ASTNode* parent_node, SourceLocation location) : LoopASTNode(std::move(scope)), parent_node(parent_node), location(location) {
+    LoopBlock(Scope scope, ASTNode* parent_node, SourceLocation location) : LoopASTNode(std::move(scope)), parent_node(parent_node), location(location) {
 
     }
 

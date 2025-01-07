@@ -45,7 +45,7 @@ public:
      */
     DoWhileLoop(
             Value* condition,
-            LoopScope body,
+            Scope body,
             ASTNode* parent_node,
             SourceLocation location
     );

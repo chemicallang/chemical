@@ -45,13 +45,6 @@ public:
      */
     virtual bool is_unsigned() = 0;
 
-    /**
-     * returns true for is int n
-     */
-    bool is_int_n() final {
-        return true;
-    }
-
 #ifdef COMPILER_BUILD
 
     /**

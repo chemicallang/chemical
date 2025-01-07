@@ -916,7 +916,7 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
                 }
                 unsigned i = 0;
                 while(i < siz) {
-                    if(this_index_op->values[i]->is_int_n() && other_index_op->values[i]->is_int_n()) {
+                    if(this_index_op->values[i]->is_value_int_n() && other_index_op->values[i]->is_value_int_n()) {
                         auto this_value = ((IntNumValue*) this_index_op->values[i])->get_num_value();
                         auto other_value = ((IntNumValue*) other_index_op->values[i])->get_num_value();
                         if(this_value != other_value) {

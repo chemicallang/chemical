@@ -52,7 +52,7 @@ void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstT
 
 void Expression::shrink_literal_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType) {
     if(!(!firstValue->primitive() && !secondValue->primitive())) { // if at least one of the value is a literal
-        if (firstValue->is_int_n() && secondValue->is_int_n()) { // if both are int n
+        if (firstValue->is_value_int_n() && secondValue->is_value_int_n()) { // if both are int n
             if(firstValue->primitive()) {
                 auto secIntNTy = (IntNType*) secondType;
                 auto firstVal = (IntNumValue*) firstValue;

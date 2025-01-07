@@ -201,7 +201,14 @@ namespace InterpretVector {
     }
 
     Value *InterpretVectorGet::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        return static_cast<InterpretVectorVal*>(parent_val)->values[call->values[0]->evaluated_value(*call_scope)->get_the_int()]->scope_value(*call_scope);
+        const auto index_val = call->values[0]->evaluated_value(*call_scope);
+        if(index_val->is_value_int_n()) {
+            return static_cast<InterpretVectorVal*>(parent_val)->values[((IntNumValue*) index_val)->get_num_value()]->scope_value(*call_scope);
+        } else {
+            call_scope->error("vector::get only supports integer value as an index", call);
+            return new (call_scope->allocate<NullValue>()) NullValue(call->encoded_location());
+        }
+
     }
 
     InterpretVectorPush::InterpretVectorPush(InterpretVectorNode* node) : FunctionDeclaration(

@@ -11,6 +11,7 @@
 #include "ast/values/NumberValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
+#include "ast/values/StringValue.h"
 #include "ast/base/InterpretScope.h"
 #include "compiler/SymbolResolver.h"
 
@@ -196,6 +197,8 @@ uint64_t operate(Operation op, uint64_t first, uint64_t second) {
             return first & second;
         case Operation::BitwiseOR:
             return first | second;
+        case Operation::BitwiseXOR:
+            return first ^ second;
         default:
 #ifdef DEBUG
         throw std::runtime_error("UNKNOWN INTERPRET OPERATION");
@@ -248,10 +251,14 @@ ValueKind determine_output(Operation op, ValueKind first, ValueKind second) {
     }
 }
 
+inline bool is_int_n(ValueKind k) {
+    return k >= ValueKind::IntNStart && k <= ValueKind::IntNEnd;
+}
+
 Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl, SourceLocation location) {
     const auto fKind = fEvl->val_kind();
     const auto sKind = sEvl->val_kind();
-    if(fKind >= ValueKind::IntNStart && fKind <= ValueKind::IntNEnd && sKind >= ValueKind::IntNStart && sKind <= ValueKind::IntNEnd) {
+    if(is_int_n(fKind) && is_int_n(sKind)) {
         // both values are int num values
         const auto first = (IntNumValue*) fEvl;
         const auto second = (IntNumValue*) sEvl;
@@ -277,6 +284,16 @@ Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* 
                 break;
         }
         return new (scope.allocate<BoolValue>()) BoolValue(result, location);
+    } else if((fKind == ValueKind::String && is_int_n(sKind))) {
+        const auto strVal = fEvl->as_string_unsafe();
+        const auto numVal = (IntNumValue*) sEvl;
+        const auto num = numVal->get_num_value();
+        return new (scope.allocate<StringValue>()) StringValue(chem::string_view(strVal->value.data() + num, strVal->value.size() - num), location);
+    } else if ((sKind == ValueKind::String && is_int_n(fKind))) {
+        const auto strVal = sEvl->as_string_unsafe();
+        const auto numVal = (IntNumValue*) fEvl;
+        const auto num = numVal->get_num_value();
+        return new (scope.allocate<StringValue>()) StringValue(chem::string_view(strVal->value.data() + num, strVal->value.size() - num), location);
     } else {
 #ifdef DEBUG
         throw std::runtime_error("OPERATION BETWEEN VALUES OF UNKNOWN KIND");

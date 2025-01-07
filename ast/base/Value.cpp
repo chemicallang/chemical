@@ -958,10 +958,12 @@ void Value::set_value(InterpretScope& scope, Value* value, Operation op, SourceL
     switch(val_kind()) {
         case ValueKind::AccessChain: {
             const auto chain = as_access_chain_unsafe();
-            return chain->set_value(scope, value, op, location);
+            chain->set_value(scope, value, op, location);
+            return;
         }
         case ValueKind::Identifier:
             as_identifier_unsafe()->set_value(scope, value, op, location);
+            return;
             // TODO
 //        case ValueKind::FunctionCall:
             // TODO

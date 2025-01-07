@@ -173,6 +173,10 @@ func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder,
                 a++
             }
 
+            if(element.isSelfClosing) {
+                str.append('/');
+            }
+
             str.append('>')
 
             // doing children
@@ -184,10 +188,13 @@ func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder,
                 i++;
             }
 
-            str.append('<')
-            str.append('/')
-            str.append_with_len(element.name.data(), element.name.size())
-            str.append('>')
+            if(!element.isSelfClosing) {
+                str.append('<')
+                str.append('/')
+                str.append_with_len(element.name.data(), element.name.size())
+                str.append('>')
+            }
+
         }
         HtmlChildKind.ChemicalValue => {
             if(!str.empty()) {

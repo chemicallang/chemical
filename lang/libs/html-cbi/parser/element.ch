@@ -2,9 +2,24 @@ import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 import "../utils/stdutils.ch"
 import "./attribute.ch"
+import "@std/hashing/fnv1.ch"
 
 // forward declare
 func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild
+
+func isTagNameSelfClosing(ptr : *char) : bool {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("area"), comptime_fnv1_hash("base"), comptime_fnv1_hash("br"), comptime_fnv1_hash("col"),
+        comptime_fnv1_hash("embed"), comptime_fnv1_hash("hr"), comptime_fnv1_hash("img"), comptime_fnv1_hash("input"),
+        comptime_fnv1_hash("link"), comptime_fnv1_hash("meta"), comptime_fnv1_hash("source"), comptime_fnv1_hash("track"),
+        comptime_fnv1_hash("wbr") => {
+            return true;
+        }
+        default => {
+            return false;
+        }
+    }
+}
 
 func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlElement {
 
@@ -23,6 +38,12 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
         }
         parser.increment();
 
+        const isSelfClosing = isTagNameSelfClosing(id.value.data());
+
+        if(isSelfClosing) {
+            printf("THE Tag %s is self closing\n", id.value.data())
+        }
+
         printf("size of HtmlElement is %d\n", #sizeof(HtmlElement))
         fflush(null)
 
@@ -32,6 +53,7 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
                 kind : HtmlChildKind.Element
             },
             name : builder.allocate_view(id.value),
+            isSelfClosing : isSelfClosing,
             attributes : std::vector<*HtmlAttribute>(),
             children : std::vector<*HtmlChild>()
         }
@@ -50,11 +72,23 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
             }
         }
 
+        // optional forward slash in self closing tags <br />
+        if(isSelfClosing) {
+            const fs = parser.getToken();
+            if(fs.type == TokenType.FwdSlash) {
+                parser.increment();
+            }
+        }
+
         const gt = parser.getToken();
         if(gt.type != TokenType.GreaterThan) {
             parser.error("expected a greater than sign '>' after the identifier");
         } else {
             parser.increment();
+        }
+
+        if(isSelfClosing) {
+            return element;
         }
 
         printf("let's checkout size of the children : %d\n", element.children.size())

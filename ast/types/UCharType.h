@@ -42,7 +42,7 @@ public:
         return ValueType::UChar;
     }
 
-    Value *create(ASTAllocator& allocator, int64_t value) final;
+    Value *create(ASTAllocator& allocator, uint64_t value) final;
 
     [[nodiscard]]
     UCharType* copy(ASTAllocator& allocator) const final {

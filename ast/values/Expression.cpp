@@ -164,7 +164,7 @@ bool Expression::computed() {
     return true;
 }
 
-int64_t operate(Operation op, int64_t first, int64_t second) {
+uint64_t operate(Operation op, uint64_t first, uint64_t second) {
     switch(op) {
         case Operation::Addition:
             return first + second;

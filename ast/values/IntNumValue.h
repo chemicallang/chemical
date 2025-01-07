@@ -8,7 +8,7 @@ double get_double_value(Value* value, ValueKind k);
 
 Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value, SourceLocation location);
 
-Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, SourceLocation location);
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, uint64_t value, SourceLocation location);
 
 /**
  * This class is the base class for integer type value
@@ -38,7 +38,7 @@ public:
      * get number value
      */
     [[nodiscard]]
-    virtual int64_t get_num_value() const = 0;
+    virtual uint64_t get_num_value() const = 0;
 
     /**
      * return if this is a unsigned value

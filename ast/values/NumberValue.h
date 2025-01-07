@@ -23,7 +23,7 @@
 class NumberValue : public IntNumValue {
 public:
 
-    int64_t value;
+    uint64_t value;
     IntNType* linked_type = nullptr;
     SourceLocation location;
 
@@ -32,7 +32,7 @@ public:
      *
      * @param value The integer value.
      */
-    explicit NumberValue(int64_t value, SourceLocation location) : value(value), location(location) {}
+    explicit NumberValue(uint64_t value, SourceLocation location) : value(value), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;
@@ -65,7 +65,7 @@ public:
     unsigned int get_num_bits() final;
 
     [[nodiscard]]
-    int64_t get_num_value() const final {
+    uint64_t get_num_value() const final {
         return value;
     }
 

@@ -33,52 +33,52 @@ const LongType LongType::instance32Bit(false, ZERO_LOC);
 const ULongType ULongType::instance64Bit(true, ZERO_LOC);
 const ULongType ULongType::instance32Bit(false, ZERO_LOC);
 
-Value *IntType::create(ASTAllocator& allocator, int64_t value) {
+Value *IntType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<IntValue>()) IntValue(value, ZERO_LOC);
 }
 
-Value *CharType::create(ASTAllocator& allocator, int64_t value) {
+Value *CharType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<CharValue>()) CharValue(value, location);
 }
 
-Value *UCharType::create(ASTAllocator& allocator, int64_t value) {
+Value *UCharType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<UCharValue>()) UCharValue(value, location);
 }
 
-Value *UIntType::create(ASTAllocator& allocator, int64_t value) {
+Value *UIntType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<UIntValue>()) UIntValue(value, location);
 }
 
-Value *ShortType::create(ASTAllocator& allocator, int64_t value) {
+Value *ShortType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<ShortValue>()) ShortValue(value, location);
 }
 
-Value *UShortType::create(ASTAllocator& allocator, int64_t value) {
+Value *UShortType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<UShortValue>()) UShortValue(value, location);
 }
 
-Value *LongType::create(ASTAllocator& allocator, int64_t value) {
+Value *LongType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<LongValue>()) LongValue(value, num_bits() == 64, location);
 }
 
-Value *ULongType::create(ASTAllocator& allocator, int64_t value) {
+Value *ULongType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<ULongValue>()) ULongValue(value, num_bits() == 64, location);
 }
 
-Value *BigIntType::create(ASTAllocator& allocator, int64_t value) {
+Value *BigIntType::create(ASTAllocator& allocator, uint64_t value) {
     return new BigIntValue(value, location);
 }
 
-Value *UBigIntType::create(ASTAllocator& allocator, int64_t value) {
+Value *UBigIntType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, location);
 }
 
-Value *Int128Type::create(ASTAllocator& allocator, int64_t value) {
+Value *Int128Type::create(ASTAllocator& allocator, uint64_t value) {
     bool is_neg = value < 0;
     return new (allocator.allocate<Int128Value>()) Int128Value(is_neg ? -value : value, is_neg, location);
 }
 
-Value *UInt128Type::create(ASTAllocator& allocator, int64_t value) {
+Value *UInt128Type::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<UInt128Value>()) UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, location);
 }
 
@@ -111,7 +111,7 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value, SourceL
     }
 }
 
-Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, SourceLocation location) {
+Value* pack_by_kind(InterpretScope& scope, ValueKind kind, uint64_t value, SourceLocation location) {
     switch(kind) {
         case ValueKind::Char:
             return new (scope.allocate<CharValue>()) CharValue((char) value, location);
@@ -127,15 +127,15 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, int64_t value, Source
             // TODO int128 is_negative is always false
             return new (scope.allocate<Int128Value>()) Int128Value((uint64_t) value, false, location);
         case ValueKind::UChar:
-            return new (scope.allocate<UCharValue>()) UCharValue((char) value, location);
+            return new (scope.allocate<UCharValue>()) UCharValue((unsigned char) value, location);
         case ValueKind::UShort:
-            return new (scope.allocate<UShortValue>()) UShortValue((short) value, location);
+            return new (scope.allocate<UShortValue>()) UShortValue((unsigned short) value, location);
         case ValueKind::UInt:
-            return new (scope.allocate<UIntValue>()) UIntValue((int) value, location);
+            return new (scope.allocate<UIntValue>()) UIntValue((unsigned int) value, location);
         case ValueKind::ULong:
-            return new (scope.allocate<ULongValue>()) ULongValue((long) value, isExe64Bit(), location);
+            return new (scope.allocate<ULongValue>()) ULongValue((unsigned long) value, isExe64Bit(), location);
         case ValueKind::UBigInt:
-            return new (scope.allocate<UBigIntValue>()) UBigIntValue((long long) value, location);
+            return new (scope.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, location);
         case ValueKind::UInt128:
             return new (scope.allocate<UInt128Value>()) UInt128Value((uint64_t) value, false, location);
         case ValueKind::Bool:

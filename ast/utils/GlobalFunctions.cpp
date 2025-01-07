@@ -202,8 +202,9 @@ namespace InterpretVector {
 
     Value *InterpretVectorGet::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
         const auto index_val = call->values[0]->evaluated_value(*call_scope);
-        if(index_val->is_value_int_n()) {
-            return static_cast<InterpretVectorVal*>(parent_val)->values[((IntNumValue*) index_val)->get_num_value()]->scope_value(*call_scope);
+        const auto number = index_val->get_number();
+        if(number.has_value()) {
+            return static_cast<InterpretVectorVal*>(parent_val)->values[number.value()]->scope_value(*call_scope);
         } else {
             call_scope->error("vector::get only supports integer value as an index", call);
             return new (call_scope->allocate<NullValue>()) NullValue(call->encoded_location());
@@ -251,7 +252,12 @@ namespace InterpretVector {
     }
     Value *InterpretVectorRemove::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
         auto& ref = static_cast<InterpretVectorVal*>(parent_val)->values;
-        ref.erase(ref.begin() + call->values[0]->evaluated_value(*call_scope)->get_the_int());
+        const auto ind = call->values[0]->evaluated_value(*call_scope)->get_number();
+        if(ind.has_value()) {
+            ref.erase(ref.begin() + ind.value());
+        } else {
+            call_scope->error("expected a number value for index", call);
+        }
         return nullptr;
     }
 

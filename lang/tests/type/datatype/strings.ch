@@ -1,10 +1,47 @@
 import "../../test.ch"
 import "@std/string.ch"
+import "@std/hashing/fnv1.ch"
 
 using namespace std;
 
 struct Str {
     var value : *char
+}
+
+enum HashingResult {
+    Hello,
+    Wello,
+    Dello,
+    Jello,
+    Nello,
+    Xello,
+    Unknown
+}
+
+func check_str_hash(s : *char) : HashingResult {
+    switch(fnv1_hash(s)) {
+        comptime_fnv1_hash("hello") => {
+            return HashingResult.Hello
+        }
+        comptime_fnv1_hash("wello") => {
+            return HashingResult.Wello
+        }
+        comptime_fnv1_hash("dello") => {
+            return HashingResult.Dello
+        }
+        comptime_fnv1_hash("jello") => {
+            return HashingResult.Jello
+        }
+        comptime_fnv1_hash("nello") => {
+            return HashingResult.Nello
+        }
+        comptime_fnv1_hash("xello") => {
+            return HashingResult.Xello
+        }
+        default => {
+            return HashingResult.Unknown
+        }
+    }
 }
 
 func test_strings() {
@@ -81,5 +118,26 @@ func test_strings() {
         var first = "abcdefghij
 klmnopqrstuvwxyz"
         return strlen(first) == 27
+    })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 1", () => {
+        return check_str_hash("hello") == HashingResult.Hello;
+    })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 2", () => {
+        return check_str_hash("wello") == HashingResult.Wello;
+    })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 3", () => {
+        return check_str_hash("dello") == HashingResult.Dello;
+    })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 4", () => {
+        return check_str_hash("jello") == HashingResult.Jello;
+    })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 5", () => {
+        return check_str_hash("nello") == HashingResult.Nello;
+    })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 6", () => {
+        return check_str_hash("xello") == HashingResult.Xello;
+    })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 7", () => {
+        return check_str_hash("xcvcx") == HashingResult.Unknown;
     })
 }

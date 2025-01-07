@@ -297,15 +297,6 @@ public:
         const std::string& file
     );
 
-    /**
-     * shrink the imported nodes
-     */
-    void shrink_nodes(
-        ShrinkingVisitor& visitor,
-        ASTUnit unit,
-        const std::string& file
-    );
-
 #ifdef COMPILER_BUILD
 
     /**

@@ -16,7 +16,6 @@
 #include "compiler/SymbolResolver.h"
 #include "compiler/ASTProcessor.h"
 #include "ast/structures/Namespace.h"
-#include "preprocess/ShrinkingVisitor.h"
 #include "preprocess/2c/2cASTVisitor.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "integration/libtcc/LibTccInteg.h"
@@ -371,9 +370,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
     // a new symbol resolver for every executable
     SymbolResolver resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
-
-    // shrinking visitor will shrink everything
-    ShrinkingVisitor shrinker;
 
     // TODO this is only required in CBI
     std::vector<std::string> compiler_interfaces;
@@ -737,10 +733,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #endif
 
             if(!already_imported) {
-                if(options->verbose) {
-                    std::cout << rang::fg::magenta << "[Shrinking] " << file.abs_path << rang::fg::reset << std::endl;
-                }
-                processor.shrink_nodes(shrinker, std::move(result.unit), file.abs_path);
+                // save the file result, for future retrievals
+                processor.shrinked_unit[file.abs_path] = std::move(result.unit);
             }
 
             // clear everything we allocated using file allocator to make it re-usable
@@ -1034,9 +1028,6 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     // the allocator is used in lab
     ASTAllocator lab_allocator(lab_mem_size);
 
-    // shrinking visitor will shrink everything
-    ShrinkingVisitor shrinker;
-
     // a global interpret scope required to evaluate compile time things
     GlobalInterpretScope global(options->target_triple, nullptr, this, lab_allocator, loc_man);
 
@@ -1207,8 +1198,8 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             // translate build.lab file to c
             lab_processor.translate_to_c(c_visitor, result.unit.scope.nodes, file.abs_path);
 
-            // shrinking the nodes
-            lab_processor.shrink_nodes(shrinker, std::move(result.unit), file.abs_path);
+            // save the file result, for future retrievals
+            lab_processor.shrinked_unit[file.abs_path] = std::move(result.unit);
 
             i++;
         }

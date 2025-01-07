@@ -12,6 +12,10 @@ func in_between_ref_pass(r : &ReferencableStruct) : int {
     return take_ref(r);
 }
 
+func assign_to_passed_ref(r : &mut int) {
+    r = 434
+}
+
 struct ReferencableStructRef {
     var r : &ReferencableStruct
 }
@@ -111,5 +115,10 @@ func test_references() {
         var p = ReferencableStruct { i : 32 }
         give_ref_struct_ref(p) = ReferencableStruct { i : 98 }
         return p.i == 98
+    })
+    test("assignment to passed reference works", () => {
+        var i = 0;
+        assign_to_passed_ref(i)
+        return i == 434;
     })
 }

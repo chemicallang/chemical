@@ -14,7 +14,7 @@ static bool read_pointer_type(Parser& parser);
 
 static bool read_type_involving_token(Parser& parser) {
     const auto type = parser.token->type;
-    if(type == TokenType::MultiplySym || type == TokenType::AmpersandSym || type == TokenType::DynKw || type == TokenType::MutKw) {
+    if(type == TokenType::MultiplySym || type == TokenType::AmpersandSym || type == TokenType::DynKw || type == TokenType::MutKw || type == TokenType::Whitespace) {
         parser.token++;
         read_type_involving_token(parser);
         return true;

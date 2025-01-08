@@ -33,6 +33,7 @@ enum ValueKind {
     NewTypedValue,
     NewValue,
     PlacementNewValue,
+    IncDecValue,
     IsValue,
     DereferenceValue,
     RetStructParamValue,

@@ -36,7 +36,7 @@ public:
     }
 
     void interpret(InterpretScope &scope) override {
-        value->interpret(scope);
+        value->evaluated_value(scope);
     }
 
 #ifdef COMPILER_BUILD

@@ -22,6 +22,7 @@
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
 #include "ast/values/BigIntValue.h"
+#include "ast/values/IncDecValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/Int128Value.h"
 #include "ast/values/UInt128Value.h"
@@ -224,6 +225,14 @@ ASTNode* Parser::parseNewValueAsNode(ASTAllocator& allocator) {
 Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token) {
 entry:
     switch(token->type) {
+        case TokenType::DoublePlusSym: {
+            token++;
+            return new (allocator.allocate<IncDecValue>()) IncDecValue(value, true, true, loc_single(start_token));
+        }
+        case TokenType::DoubleMinusSym: {
+            token++;
+            return new (allocator.allocate<IncDecValue>()) IncDecValue(value, false, true, loc_single(start_token));
+        }
         case TokenType::AsKw: {
             token++;
             readWhitespace();
@@ -252,6 +261,24 @@ entry:
     }
 }
 
+Value* Parser::parsePreIncDecValue(ASTAllocator& allocator, bool increment) {
+    auto& t = *token;
+    if(t.type == (increment ? TokenType::DoublePlusSym : TokenType::DoubleMinusSym)) {
+        token++;
+    } else {
+        return nullptr;
+    }
+    const auto expr = parseExpression(allocator, false, false);
+    if(!expr) {
+        if(increment) {
+            error("expected an expression after the pre increment");
+        } else {
+            error("expected an expression after the pre decrement");
+        }
+    }
+    return new (allocator.allocate<IncDecValue>()) IncDecValue(expr, increment, false, loc_single(t));
+}
+
 Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct) {
     const auto start_token = token;
     switch(start_token->type) {
@@ -261,6 +288,10 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
             return parseSwitchStatementBlock(allocator, true, true);
         case TokenType::LoopKw:
             return parseLoopBlockTokens(allocator, true);
+        case TokenType::DoublePlusSym:
+            return parseAfterValue(allocator, (Value*) parsePreIncDecValue(allocator, true), start_token);
+        case TokenType::DoubleMinusSym:
+            return parseAfterValue(allocator, (Value*) parsePreIncDecValue(allocator, false), start_token);
         case TokenType::NewKw:
             return parseNewValue(allocator);
         case TokenType::Char:

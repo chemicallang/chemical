@@ -158,6 +158,10 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
             return (Value*) parseAddrOfValue(allocator);
         case TokenType::MultiplySym:
             return (Value*) parseDereferenceValue(allocator);
+        case TokenType::DoublePlusSym:
+            return parsePreIncDecValue(allocator, true);
+        case TokenType::DoubleMinusSym:
+            return parsePreIncDecValue(allocator, false);
         case TokenType::NullKw: {
             const auto t = token;
             token++;

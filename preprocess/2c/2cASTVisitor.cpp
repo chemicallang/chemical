@@ -76,6 +76,7 @@
 #include "ast/values/IntValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/IncDecValue.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
@@ -3088,8 +3089,11 @@ void ToCAstVisitor::visit(ForLoop *forLoop) {
     forLoop->initializer->accept(this);
     forLoop->conditionExpr->accept(this);
     write(';');
-    if(forLoop->incrementerExpr->as_assignment() != nullptr) {
-        assign_statement(*this, forLoop->incrementerExpr->as_assignment());
+    const auto inc_kind = forLoop->incrementerExpr->kind();
+    if(inc_kind == ASTNodeKind::AssignmentStmt) {
+        assign_statement(*this, forLoop->incrementerExpr->as_assignment_unsafe());
+    } else if(inc_kind == ASTNodeKind::ValueWrapper) {
+        forLoop->incrementerExpr->as_value_wrapper_unsafe()->value->accept(this);
     } else {
         forLoop->incrementerExpr->accept(this);
     }
@@ -3816,6 +3820,16 @@ void ToCAstVisitor::visit(VariantCall *call) {
         write("[VariantCallNotAllocated]");
     } else {
         write(found->second);
+    }
+}
+
+void ToCAstVisitor::visit(IncDecValue *value) {
+    if(!value->post) {
+        write(value->increment ? "++" : "--");
+    }
+    value->value->accept(this);
+    if(value->post) {
+        write(value->increment ? "++" : "--");
     }
 }
 

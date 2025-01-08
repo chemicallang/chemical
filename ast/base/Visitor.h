@@ -124,6 +124,8 @@ class StringValue;
 
 class BoolValue;
 
+class IncDecValue;
+
 class ArrayValue;
 
 class StructValue;
@@ -517,6 +519,10 @@ public:
 
     virtual void visit(BoolValue* boolVal) {
         visitCommonValue((Value*) boolVal);
+    }
+
+    virtual void visit(IncDecValue* value) {
+        visitCommonValue((Value*) value);
     }
 
     virtual void visit(ArrayValue* arrayVal) {

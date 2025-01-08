@@ -741,6 +741,11 @@ public:
     Value* parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token);
 
     /**
+     * increment decrement value is parsed
+     */
+    Value* parsePreIncDecValue(ASTAllocator& allocator, bool increment);
+
+    /**
      * lexes access chain like x.y.z or a value like 10, could be int, string, char
      */
     Value* parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct = false);

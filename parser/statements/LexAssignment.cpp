@@ -5,6 +5,7 @@
 #include "ast/values/IntValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/IncDecValue.h"
 #include "ast/statements/ValueWrapperNode.h"
 
 std::optional<Operation> Parser::parseOperation() {
@@ -122,15 +123,13 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
     switch(tok.type) {
         case TokenType::DoublePlusSym: {
             token++;
-            auto rhs = new (allocator.allocate<NumberValue>()) NumberValue(1, loc_single(tok));
-            auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, rhs, Operation::Addition, parent_node, loc_single(start_tok));
-            return stmt;
+            const auto val = new (allocator.allocate<IncDecValue>()) IncDecValue(lhs, true, true, loc_single(tok));
+            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(val, parent_node);
         }
         case TokenType::DoubleMinusSym:{
             token++;
-            auto rhs = new (allocator.allocate<NumberValue>()) NumberValue(1, loc_single(tok));
-            auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, rhs, Operation::Subtraction, parent_node, loc_single(start_tok));
-            return stmt;
+            const auto val = new (allocator.allocate<IncDecValue>()) IncDecValue(lhs, false, true, loc_single(tok));
+            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(val, parent_node);
         }
         case TokenType::Whitespace:
             token++;
@@ -147,10 +146,13 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
         if (assOp.has_value()) {
             error("expected an equal for assignment after the assignment operator");
         }
-        if (lhs->val_kind() == ValueKind::AccessChain) {
-            auto chain = lhs->as_access_chain_unsafe();
+        const auto lhs_kind = lhs->val_kind();
+        if (lhs_kind == ValueKind::AccessChain) {
+            const auto chain = lhs->as_access_chain_unsafe();
             chain->set_is_node(true);
-            return new(allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(chain, parent_node);
+            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(chain, parent_node);
+        } else if(lhs_kind == ValueKind::IncDecValue) {
+            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(lhs, parent_node);
         }
     }
 

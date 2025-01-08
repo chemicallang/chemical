@@ -38,6 +38,7 @@
 #include "ast/values/PlacementNewValue.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/Negative.h"
+#include "ast/values/ShortValue.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/SizeOfValue.h"
@@ -50,6 +51,7 @@
 #include "ast/values/Expression.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/IncDecValue.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/statements/Continue.h"
@@ -498,6 +500,18 @@ llvm::Type *Expression::llvm_type(Codegen &gen) {
 
 bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return linked_node()->add_child_index(gen, indexes, name);
+}
+
+llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
+    const auto type = value->create_type(gen.allocator);
+    const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, location);
+    const auto value_loaded = value->llvm_value(gen);
+    const auto op = increment ? Operation::Addition : Operation::Subtraction;
+    const auto result = gen.operate(op, value, rhs, type, type, value_loaded, rhs->llvm_value(gen, nullptr));
+    // TODO loading teh pointer again using value->llvm_pointer(gen)
+    // TODo load the pointer by providing it to llvm_value
+    gen.builder->CreateStore(result, value->llvm_pointer(gen));
+    return post ? value_loaded : result;
 }
 
 llvm::Type *CastedValue::llvm_type(Codegen &gen) {

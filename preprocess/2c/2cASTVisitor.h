@@ -386,6 +386,8 @@ public:
 
     void visit(DestructStmt *delStmt) final;
 
+    void visit(IncDecValue *value) override;
+
     void visit(IsValue *casted) final;
 
     void visit(NewTypedValue *value) override;

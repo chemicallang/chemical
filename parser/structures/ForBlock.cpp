@@ -72,12 +72,28 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
         return loop;
     }
 
-    auto statement = parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, false);
-    if(statement) {
-        loop->initializer = statement;
-    } else {
-        error("expected a var initialization in for loop");
-        return loop;
+    switch(token->type) {
+        case TokenType::VarKw:
+        case TokenType::ConstKw: {
+            auto statement = parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, false);
+            if(statement) {
+                loop->initializer = statement;
+                break;
+            } else {
+                error("expected a var initialization in for loop");
+                return loop;
+            }
+        }
+        default: {
+            const auto assign = parseAssignmentStmt(allocator);
+            if(assign) {
+                loop->initializer = assign;
+                break;
+            } else {
+                error("expected a variable initialization or assignment statement in for loop");
+                return loop;
+            }
+        }
     }
 
     // lex ;

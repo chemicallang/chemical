@@ -16,7 +16,7 @@ public:
 
     ASTNode* parent_node;
     SourceLocation location;
-    VarInitStatement* initializer;
+    ASTNode* initializer;
     Value* conditionExpr;
     ASTNode* incrementerExpr;
     bool stoppedInterpretation = false;

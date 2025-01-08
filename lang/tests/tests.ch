@@ -1,6 +1,7 @@
 import "basic/lambda.ch"
-import "basic/expression.ch"
-import "basic/floating.ch"
+import "basic/values/expression.ch"
+import "basic/values/floating.ch"
+import "basic/values/inc_dec.ch"
 import "basic/nodes.ch"
 import "nodes/varinit.ch"
 import "nodes/struct.ch"
@@ -9,9 +10,9 @@ import "nodes/enum.ch"
 import "type/datatype/numbers.ch"
 import "type/datatype/strings.ch"
 import "basic/macros/macros.ch"
-import "basic/arrays.ch"
-import "basic/pointers.ch"
-import "basic/casts.ch"
+import "basic/values/arrays.ch"
+import "basic/values/pointers.ch"
+import "basic/values/casts.ch"
 import "basic/functions/functions.ch"
 import "basic/functions/extension_func.ch"
 import "basic/functions/implicit.ch"
@@ -37,7 +38,7 @@ import "basic/moves.ch"
 import "comptime/is_value.ch"
 import "comptime/satisfies.ch"
 import "cbi/html/basic.ch"
-import "basic/new.ch"
+import "basic/values/new.ch"
 
 public func main() : int {
     test_var_init();
@@ -80,6 +81,7 @@ public func main() : int {
     test_new();
     test_extension_functions();
     test_typealias();
+    test_inc_dec();
     print_test_stats();
     return 0;
 }

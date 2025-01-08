@@ -396,8 +396,6 @@ unsigned BaseType::type_alignment(bool is64Bit) {
         case BaseTypeKind::Dynamic:
             return 8;
         case BaseTypeKind::Bool:
-        case BaseTypeKind::Char:
-        case BaseTypeKind::UChar:
             return 1;
         case BaseTypeKind::Double:
             break;

@@ -32,7 +32,7 @@ public:
 
     [[nodiscard]]
     BaseTypeKind kind() const final {
-        return BaseTypeKind::Char;
+        return BaseTypeKind::IntN;
     }
 
     [[nodiscard]]

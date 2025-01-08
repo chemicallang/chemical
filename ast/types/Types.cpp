@@ -29,7 +29,7 @@ bool ArrayType::satisfies(BaseType *pure_type) {
     const auto pure_type_kind = pure_type->kind();
     if(pure_type_kind == BaseTypeKind::String) {
         const auto pure = elem_type->pure_type();
-        return pure->kind() == BaseTypeKind::Char;
+        return pure->kind() == BaseTypeKind::IntN && pure->as_intn_type_unsafe()->num_bits() == 8;
     }
     if(pure_type_kind != BaseTypeKind::Array) return false;
     const auto arr_type = (ArrayType*) pure_type;
@@ -59,7 +59,7 @@ bool LiteralType::satisfies(ASTAllocator& allocator, Value* value, bool assignme
 
 bool IntNType::satisfies(BaseType* type) {
     const auto type_kind = type->kind();
-    if(type_kind == BaseTypeKind::IntN || type_kind == BaseTypeKind::Char || type_kind == BaseTypeKind::UChar) {
+    if(type_kind == BaseTypeKind::IntN) {
         const auto intN = (IntNType*) type;
         const auto this_unsigned = is_unsigned();
         const auto other_unsigned = intN->is_unsigned();

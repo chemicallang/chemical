@@ -1,4 +1,4 @@
-import "../test.ch"
+import "../../test.ch"
 
 struct DataStr1 {
 

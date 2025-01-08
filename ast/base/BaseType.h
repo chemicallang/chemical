@@ -505,14 +505,6 @@ public:
         return k == BaseTypeKind::Bool;
     }
 
-    static inline constexpr bool isCharType(BaseTypeKind k) {
-        return k == BaseTypeKind::Char;
-    }
-
-    static inline constexpr bool isUCharType(BaseTypeKind k) {
-        return k == BaseTypeKind::UChar;
-    }
-
     static inline constexpr bool isDoubleType(BaseTypeKind k) {
         return k == BaseTypeKind::Double;
     }
@@ -595,14 +587,6 @@ public:
 
     inline BoolType* as_bool_type() {
         return isBoolType(kind()) ? (BoolType*) this : nullptr;
-    }
-
-    inline CharType* as_char_type() {
-        return isCharType(kind()) ? (CharType*) this : nullptr;
-    }
-
-    inline UCharType* as_uchar_type() {
-        return isUCharType(kind()) ? (UCharType*) this : nullptr;
     }
 
     inline DoubleType* as_double_type() {

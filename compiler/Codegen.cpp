@@ -585,8 +585,8 @@ void Codegen::loop_body_gen(Scope& body, llvm::BasicBlock *currentBlock, llvm::B
     current_loop_exit = prev_loop_exit;
 }
 
-bool is_final_intN(BaseTypeKind kind) {
-    return kind == BaseTypeKind::IntN || kind == BaseTypeKind::Char || kind == BaseTypeKind::UChar;
+inline bool is_final_intN(BaseTypeKind kind) {
+    return kind == BaseTypeKind::IntN;
 }
 
 llvm::Value *Codegen::implicit_cast(llvm::Value* value, BaseType* from_type, BaseType* to_type) {

@@ -210,7 +210,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         auto value = parseAfterValue(allocator, first_value, identifier);
         auto expr = parseRemainingExpression(allocator, value, identifier);
         if(consumeToken(TokenType::RParen)) {
-            return parseRemainingExpression(allocator, expr, identifier);
+            return parseRemainingExpression(allocator, parseAfterValue(allocator, expr, identifier), identifier);
         } else {
             auto second_expression = parseRemainingExpression(allocator, expr, identifier);
             if(!consumeToken(TokenType::RParen)) {
@@ -220,6 +220,8 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         }
     } else {
         auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(identifier));
+        auto first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
+        chain->values.emplace_back(first_value);
         auto value = parseAccessChainAfterId(allocator, chain, identifier->position);
         auto expr = parseRemainingExpression(allocator, value, identifier);
         if(!consumeToken(TokenType::RParen)) {

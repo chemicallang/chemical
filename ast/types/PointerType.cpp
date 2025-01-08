@@ -24,8 +24,8 @@ bool PointerType::satisfies(BaseType *given) {
     const auto type_kind = type->kind();
     const auto given_pure = given->pure_type();
     const auto other_kind = given_pure->kind();
-    if(type_kind == BaseTypeKind::Char) {
-        // this is a char* which is a string
+    if(type_kind == BaseTypeKind::IntN && type->as_intn_type_unsafe()->num_bits() == 8) {
+        // this is a char* or uchar* which is a string
         if(other_kind == BaseTypeKind::String) {
             return true;
         }

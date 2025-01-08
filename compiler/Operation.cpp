@@ -50,11 +50,11 @@ void perform_implicit_cast_on_integers(IntNType* fIntN, IntNType* secIntN, llvm:
 llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType, llvm::Value* lhs, llvm::Value* rhs){
     // subtraction or addition to the pointer, pointer math
     if((op == Operation::Addition || op == Operation::Subtraction) && firstType->kind() == BaseTypeKind::Pointer) {
-        auto second_value_type = second->value_type();
-        if(second_value_type >= ValueType::IntNStart && second_value_type <= ValueType::IntNEnd) {
+        const auto secType = rhs->getType();
+        if(secType->isIntegerTy()) {
             llvm::Value *index = op == Operation::Addition ? rhs : builder->CreateNeg(rhs);
             return builder->CreateGEP(((PointerType *) firstType)->type->llvm_type(*this), lhs, {index}, "", inbounds);
-        } else if(second_value_type == ValueType::Pointer) {
+        } else if(secType->isPointerTy()) {
             lhs = builder->CreatePointerCast(lhs, is64Bit ? llvm::Type::getInt64Ty(*ctx) : llvm::Type::getInt32Ty(*ctx));
             rhs = builder->CreatePointerCast(rhs, is64Bit ? llvm::Type::getInt64Ty(*ctx) : llvm::Type::getInt32Ty(*ctx));
             llvm::Value* final;

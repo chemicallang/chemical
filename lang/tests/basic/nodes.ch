@@ -148,6 +148,14 @@ func test_nodes() {
        }
        return j == 5;
     });
+    test("for loop works with assignment statement", () => {
+        var i = 0;
+        var j = 0;
+        for(i = 3; i < 7; i++) {
+            j++
+        }
+        return j == 3
+    })
     test("while loop", () => {
        var j = 0;
        while(j != 5) {

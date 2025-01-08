@@ -40,6 +40,16 @@
 #include "llvm/TargetParser/Triple.h"
 #endif
 
+#include <cstdint>
+#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && defined(__ORDER_LITTLE_ENDIAN__)
+#define IS_LITTLE_ENDIAN (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#elif defined(_WIN32) || defined(_WIN64)
+#define IS_LITTLE_ENDIAN 1
+#else
+#include <endian.h>
+    #define IS_LITTLE_ENDIAN (__BYTE_ORDER == __LITTLE_ENDIAN)
+#endif
+
 namespace InterpretVector {
 
     class InterpretVectorNode;
@@ -1335,6 +1345,8 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
             break;
     }
 
+    data.is_little_endian = triple.isLittleEndian();
+
 }
 
 void GlobalInterpretScope::prepare_target_data(TargetData& data) {
@@ -1415,6 +1427,9 @@ void prepare_executable_target_data(TargetData& data) {
 #ifdef __aarch64__
     data.is_aarch64 = true;
 #endif
+
+    data.is_little_endian = IS_LITTLE_ENDIAN;
+
 }
 
 void GlobalInterpretScope::prepare_target_data(TargetData& data) {
@@ -1434,6 +1449,7 @@ void GlobalInterpretScope::prepare_target_data(TargetData& data) {
 
     std::string arch = parts[0];
     std::string sys = parts[2];
+    std::string abi = (parts.size() > 3) ? parts[3] : ""; // Optional ABI part
 
     // Determine architecture
     if (arch == "x86_64") {
@@ -1474,6 +1490,22 @@ void GlobalInterpretScope::prepare_target_data(TargetData& data) {
         data.is_windows = true;
     }
 
+    if (arch == "x86_64" || arch == "i386" || arch == "aarch64") {
+        data.is_little_endian = true;
+    } else if (arch == "arm") {
+        if (target_triple.find("arm-be") != std::string::npos || abi == "be") {
+            data.is_little_endian = false;
+        } else if (target_triple.find("arm-le") != std::string::npos || abi == "le") {
+            data.is_little_endian = true;
+        } else {
+            data.is_little_endian = IS_LITTLE_ENDIAN;
+        }
+    } else if (arch.find("be") != std::string::npos) {
+        data.is_little_endian = false;
+    } else {
+        data.is_little_endian = IS_LITTLE_ENDIAN;
+    }
+
 }
 
 #endif
@@ -1498,6 +1530,8 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) 
     defThing.declare_value(allocator, "release_safe", boolType, boolValue(allocator, mode == OutputMode::ReleaseSafe));
     defThing.declare_value(allocator, "release_small", boolType, boolValue(allocator, mode == OutputMode::ReleaseSmall));
     defThing.declare_value(allocator, "release_fast", boolType, boolValue(allocator, mode == OutputMode::ReleaseFast));
+    defThing.declare_value(allocator, "is_little_endian", boolType, boolValue(allocator, targetData.is_little_endian));
+    defThing.declare_value(allocator, "is_big_endian", boolType, boolValue(allocator, !targetData.is_little_endian));
     defThing.declare_value(allocator, "is64Bit", boolType, boolValue(allocator, targetData.is_64Bit));
     defThing.declare_value(allocator, "windows", boolType, boolValue(allocator, targetData.is_windows));
     defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, targetData.is_win32));

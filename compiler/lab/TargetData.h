@@ -9,6 +9,7 @@
  */
 struct TargetData {
     bool is_64Bit = false;
+    bool is_little_endian = false;
     bool is_win32 = false;
     bool is_win64 = false;
     bool is_windows = false;

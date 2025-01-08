@@ -25,7 +25,6 @@ func test_inc_dec() {
         --i
         return i == 0
     })
-    /**
     test("post incrementing / decrementing as a value - 1", () => {
         var i = 1;
         const result = i++ == 1
@@ -46,7 +45,6 @@ func test_inc_dec() {
         const result = --i == 0
         return result && i == 0
     })
-    **/
     test("can pass post inc / dec value to functions - 1", () => {
         var i = 1;
         return passed_inc_dec(i++) == 1 && i == 2

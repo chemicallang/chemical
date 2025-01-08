@@ -268,7 +268,7 @@ Value* Parser::parsePreIncDecValue(ASTAllocator& allocator, bool increment) {
     } else {
         return nullptr;
     }
-    const auto expr = parseExpression(allocator, false, false);
+    const auto expr = parseAccessChainOrAddrOf(allocator);
     if(!expr) {
         if(increment) {
             error("expected an expression after the pre increment");

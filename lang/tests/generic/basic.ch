@@ -98,6 +98,20 @@ struct check_gen_multi_typed<T> {
     var b : T
 }
 
+func <T> gen_ret_func(value : T) : T {
+    if(T is char || T is uchar) {
+        return value + 1
+    } else if(T is short || T is ushort) {
+        return value + 2
+    } else if(T is int || T is uint) {
+        return value + 4
+    } else if(T is bigint || T is ubigint) {
+        return value + 8
+    } else {
+        return value + 0
+    }
+}
+
 func test_basic_generics() {
     test("test that basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -204,5 +218,17 @@ func test_basic_generics() {
             }
         }
         return g.a.a == 10 && g.a.b == 20 && g.a.c == 30 && g.b.a == 40 && g.b.b == 50 && g.b.c == 60;
+    })
+    test("generic functions call the right instantiation - 1", () => {
+        return gen_ret_func(0i8) == 1 && gen_ret_func(0ui8) == 1
+    })
+    test("generic functions call the right instantiation - 2", () => {
+          return gen_ret_func(0i16) == 2 && gen_ret_func(0ui16) == 2
+    })
+    test("generic functions call the right instantiation - 3", () => {
+          return gen_ret_func(0i32) == 4 && gen_ret_func(0ui32) == 4
+    })
+    test("generic functions call the right instantiation - 4", () => {
+          return gen_ret_func(0i64) == 8 && gen_ret_func(0ui64) == 8
     })
 }

@@ -18,16 +18,17 @@ func <T> __wrap_murmur_hash(value : T) : uint {
 
 @comptime
 func <T> hash(value : T) : uint {
+     typealias ptr = *char
     if(T is char || T is uchar) {
-        return value
+        return compiler::wrap(value as uint)
     } else if(T is short || T is ushort) {
         return compiler::wrap(value * KnuthsMultiplicativeConstant)
-    } else if(T is int || T is uint || T is long || T is ulong || T is bigint || T is ubigint || T is float || T is double) {
-        return compiler::wrap(__wrap_murmur_hash(value))
     } else if(T is *void) {
         return compiler::wrap(murmurhash(value, #sizeof(T), 0))
-    } else if(T is *char) {
-        return compiler::wrap(murmurhash(value, strlen(value)))
+    } else if(compiler::satisfies(ptr, T)) {
+        return compiler::wrap(murmurhash(value, strlen(value), 0))
+    } else if(T is int || T is uint || T is long || T is ulong || T is bigint || T is ubigint || T is float || T is double) {
+        return compiler::wrap(__wrap_murmur_hash(value))
     } else {
         compiler::error("couldn't determine the hash function for the given type");
     }

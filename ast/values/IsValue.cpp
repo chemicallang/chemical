@@ -4,6 +4,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/values/BoolValue.h"
+#include "ast/values/NullValue.h"
 
 IsValue::IsValue(
         Value* value,
@@ -34,8 +35,7 @@ Value* IsValue::evaluated_value(InterpretScope &scope) {
     if(result.has_value()) {
         return new (scope.allocate<BoolValue>()) BoolValue(result.value(), location);
     } else {
-        scope.error("unknown result for given is value", this);
-        return new (scope.allocate<BoolValue>()) BoolValue(false, location);
+        return new (scope.allocate<NullValue>()) NullValue(location);
     }
 }
 
@@ -45,8 +45,12 @@ std::optional<bool> IsValue::get_comp_time_result() {
         const auto param = linked->as_generic_type_param();
         if (param) {
             const auto kt = linked->known_type();
-            const auto result = type->is_same(kt);
-            return is_negating ? !result : result;
+            if(kt) {
+                const auto result = type->is_same(kt);
+                return is_negating ? !result : result;
+            } else {
+                return std::nullopt;
+            }
         }
         const auto alias = linked->as_typealias();
         if(alias) {

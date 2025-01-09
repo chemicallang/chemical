@@ -9,6 +9,7 @@
 #include "ast/types/LongType.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/NumberValue.h"
+#include "ast/values/NullVAlue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/StringValue.h"
@@ -269,6 +270,10 @@ inline bool is_int_n(ValueKind k) {
     return k >= ValueKind::IntNStart && k <= ValueKind::IntNEnd;
 }
 
+inline BoolValue* pack_bool(InterpretScope& scope, bool value, SourceLocation location) {
+    return new (scope.allocate<BoolValue>()) BoolValue(value, location);
+}
+
 Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl, SourceLocation location) {
     const auto fKind = fEvl->val_kind();
     const auto sKind = sEvl->val_kind();
@@ -288,19 +293,15 @@ Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* 
         return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer, location);
     } else if(fKind == ValueKind::NullValue || sKind == ValueKind::NullValue) {
         // comparison with null, a == null or null == a
-        bool result;
         switch (operation) {
             case Operation::IsEqual:
-                result = fKind == ValueKind::NullValue && sKind == ValueKind::NullValue;
-                break;
+                return pack_bool(scope, fKind == ValueKind::NullValue && sKind == ValueKind::NullValue, location);
             case Operation::IsNotEqual:
-                result = fKind != sKind;
+                return pack_bool(scope, fKind != sKind, location);
                 break;
             default:
-                result = false;
-                break;
+                return new (scope.allocate<NullValue>()) NullValue(location);
         }
-        return new (scope.allocate<BoolValue>()) BoolValue(result, location);
     } else if((fKind == ValueKind::String && is_int_n(sKind))) {
         const auto strVal = fEvl->as_string_unsafe();
         const auto numVal = (IntNumValue*) sEvl;

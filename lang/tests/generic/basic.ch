@@ -112,6 +112,10 @@ func <T> gen_ret_func(value : T) : T {
     }
 }
 
+func <T> gen_ret_func2(value : T) : T {
+    return gen_ret_func(value)
+}
+
 func test_basic_generics() {
     test("test that basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -223,12 +227,24 @@ func test_basic_generics() {
         return gen_ret_func(0i8) == 1 && gen_ret_func(0ui8) == 1
     })
     test("generic functions call the right instantiation - 2", () => {
-          return gen_ret_func(0i16) == 2 && gen_ret_func(0ui16) == 2
+        return gen_ret_func(0i16) == 2 && gen_ret_func(0ui16) == 2
     })
     test("generic functions call the right instantiation - 3", () => {
-          return gen_ret_func(0i32) == 4 && gen_ret_func(0ui32) == 4
+        return gen_ret_func(0i32) == 4 && gen_ret_func(0ui32) == 4
     })
     test("generic functions call the right instantiation - 4", () => {
-          return gen_ret_func(0i64) == 8 && gen_ret_func(0ui64) == 8
+        return gen_ret_func(0i64) == 8 && gen_ret_func(0ui64) == 8
+    })
+    test("generic functions calling other generic functions call the right instantiation  - 1", () => {
+        return gen_ret_func2(0i8) == 1 && gen_ret_func2(0ui8) == 1
+    })
+    test("generic functions calling other generic functions call the right instantiation  - 2", () => {
+        return gen_ret_func2(0i16) == 2 && gen_ret_func2(0ui16) == 2
+    })
+    test("generic functions calling other generic functions call the right instantiation  - 3", () => {
+        return gen_ret_func2(0i32) == 4 && gen_ret_func2(0ui32) == 4
+    })
+    test("generic functions calling other generic functions call the right instantiation  - 4", () => {
+        return gen_ret_func2(0i64) == 8 && gen_ret_func2(0ui64) == 8
     })
 }

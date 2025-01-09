@@ -4377,7 +4377,6 @@ void ToCAstVisitor::visit(FunctionCall *call) {
     }
 
     // normal functions
-//    call->fix_generic_iteration(*this, nullptr);
     call->set_curr_itr_on_decl();
     call->parent_val->accept(this);
     write('(');

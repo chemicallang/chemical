@@ -1122,7 +1122,7 @@ void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
         stream << "__cmf_";
         stream << std::to_string(multi_func_index());
     }
-    if(is_generic() && active_iteration != -1) {
+    if(is_generic()) {
         stream << "__cgf_";
         stream << active_iteration;
     }
@@ -1207,6 +1207,18 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
     for (auto sub: subscribers) {
         sub->set_parent_iteration(iteration);
     }
+    // activating generic iterations of nested generic function calls that are present in the declaration
+    // generic calls within generic function needs explicit setting of generic iterations
+
+    // TODO sometimes we're just making a call, which means the body of the function is not being processed
+    // which means we do not need to set the iterations of nested calls, we should have a boolean check for this whether
+    // user needs that or not
+    for(const auto sub_call : call_subscribers) {
+        auto found = sub_call->subscribed_map.find(iteration);
+        if(found != sub_call->subscribed_map.end()) {
+            sub_call->generic_iteration = found->second;
+        }
+    }
 }
 
 int16_t FunctionDeclaration::register_call_with_existing(ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type) {
@@ -1239,13 +1251,16 @@ int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagno
         i++;
     }
     const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
-    // we active the iteration
+    // we activate the iteration just registered, because below we make call to register_indirect_iteration
+    // which basically calls register_call recursive on function calls present inside this function that are generic
+    // which resolve specialized type using pure_type we called in the above loop
     set_active_iteration(itr.first);
     if(itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
         for (auto sub: subscribers) {
             sub->report_parent_usage(astAllocator, diagnoser, itr.first);
         }
         for(auto call_sub : call_subscribers) {
+            // recursive
             call_sub->register_indirect_generic_iteration(astAllocator, diagnoser, itr.first, this);
         }
     }

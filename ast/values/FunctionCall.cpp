@@ -973,7 +973,7 @@ void FunctionCall::register_indirect_generic_iteration(ASTAllocator& astAllocato
     const auto func_decl = safe_linked_func();
     if(func_decl) {
         // TODO we pass nullptr as expected type, which means we cannot infer return type at this stage
-        generic_iteration = func_decl->register_call(astAllocator, diagnoser, this, nullptr);
+        subscribed_map[iteration] = func_decl->register_call(astAllocator, diagnoser, this, nullptr);
     }
 }
 

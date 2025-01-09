@@ -32,5 +32,6 @@ func <T> hash(value : T) : uint {
         return compiler::wrap(murmurhash(value, strlen(value), 0))
     } else {
         compiler::error("couldn't determine the hash function for the given type");
+        return 0;
     }
 }

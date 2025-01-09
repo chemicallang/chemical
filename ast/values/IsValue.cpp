@@ -46,7 +46,7 @@ std::optional<bool> IsValue::get_comp_time_result() {
         if (param) {
             const auto kt = linked->known_type();
             if(kt) {
-                const auto result = type->is_same(kt);
+                const auto result = type->is_same(kt->pure_type());
                 return is_negating ? !result : result;
             } else {
                 return std::nullopt;

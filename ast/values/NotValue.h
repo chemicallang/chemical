@@ -56,6 +56,8 @@ public:
 
     BaseType* create_type(ASTAllocator &allocator) final;
 
+    Value* evaluated_value(InterpretScope &scope) override;
+
 //    hybrid_ptr<BaseType> get_base_type() final;
 
     BaseType* known_type() final;

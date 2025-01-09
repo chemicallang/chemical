@@ -210,25 +210,25 @@ func test_satisfies() {
         typealias U = *BaseSatisfies11
         return compiler::satisfies(U, T)
     })
-    test("intN pointer types satisfy other intN pointer types - 1", () => {
+    test("intN pointer types NOT satisfy other intN pointer types - 1", () => {
         typealias T = *int
         typealias U = *long
-        return compiler::satisfies(T, U)
+        return !compiler::satisfies(T, U)
     })
-    test("intN pointer types satisfy other intN pointer types - 2", () => {
+    test("intN pointer types NOT satisfy other intN pointer types - 2", () => {
         typealias T = *int
         typealias U = *long
-        return compiler::satisfies(T, U)
+        return !compiler::satisfies(T, U)
     })
-    test("intN pointer types satisfy other intN pointer types - 3", () => {
+    test("intN pointer types NOT satisfy other intN pointer types - 3", () => {
         typealias T = *uint
         typealias U = *ulong
-        return compiler::satisfies(T, U)
+        return !compiler::satisfies(T, U)
     })
-    test("intN pointer types satisfy other intN pointer types - 4", () => {
+    test("intN pointer types NOT satisfy other intN pointer types - 4", () => {
         typealias T = *uint
         typealias U = *ulong
-        return compiler::satisfies(T, U)
+        return !compiler::satisfies(T, U)
     })
     test("intN pointer types satisfy other intN pointer types - 5", () => {
         typealias T = *int

@@ -13,6 +13,7 @@
 #include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/UBigIntValue.h"
+#include "ast/values/CastedValue.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
@@ -464,6 +465,19 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
             return value;
+        case ValueKind::CastedValue: {
+            const auto casted = value->as_casted_value_unsafe();
+            const auto copied = (CastedValue*) casted->copy(scope.allocator);
+            copied->value = evaluated_comptime(copied->value, scope);
+            return copied;
+        }
+        case ValueKind::Expression: {
+            const auto expr = value->as_expression_unsafe();
+            const auto copied = (Expression*) expr->copy(scope.allocator);
+            copied->firstValue = evaluated_comptime(copied->firstValue, scope);
+            copied->secondValue = evaluated_comptime(copied->secondValue, scope);
+            return copied;
+        }
         default:
             const auto eval = value->evaluated_value(scope);
             return eval ? eval : value;

@@ -128,23 +128,6 @@ ASTNode* Expression::linked_node() {
     return created_type->linked_node();
 }
 
-/**
-  * @brief Construct a new Expression object.
-  *
-  * @param firstValue The first value in the expression.
-  * @param secondValue The second value in the expression.
-  * @param operation The operation between the two values.
-  */
-Expression::Expression(
-        Value* firstValue,
-        Value* secondValue,
-        Operation operation,
-        bool is64Bit,
-        SourceLocation location
-) : firstValue(firstValue), secondValue(secondValue), operation(operation), is64Bit(is64Bit), location(location) {
-
-}
-
 bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     is64Bit = linker.is64Bit;
     auto f = firstValue->link(linker, firstValue);
@@ -336,7 +319,8 @@ Expression *Expression::copy(ASTAllocator& allocator) {
         secondValue->copy(allocator),
         operation,
         is64Bit,
-        location
+        location,
+        created_type
     );
 }
 

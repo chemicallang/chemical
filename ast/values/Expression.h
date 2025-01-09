@@ -22,8 +22,7 @@ public:
     BaseType* created_type = nullptr;
 
     /**
-     * @brief Construct a new Expression object.
-     *
+     * Construct a new Expression object.
      * @param firstValue The first value in the expression.
      * @param secondValue The second value in the expression.
      * @param operation The operation between the two values.
@@ -33,8 +32,11 @@ public:
             Value* secondValue,
             Operation operation,
             bool is64Bit,
-            SourceLocation location
-    );
+            SourceLocation location,
+            BaseType* created_type = nullptr
+    ) : firstValue(firstValue), secondValue(secondValue), operation(operation), is64Bit(is64Bit), location(location), created_type(created_type) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;

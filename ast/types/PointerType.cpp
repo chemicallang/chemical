@@ -21,20 +21,21 @@ ASTNode *PointerType::linked_node() {
 }
 
 bool PointerType::satisfies(BaseType *given) {
-    const auto type_kind = type->kind();
-    const auto given_pure = given->pure_type();
-    const auto other_kind = given_pure->kind();
-    if(type_kind == BaseTypeKind::IntN && type->as_intn_type_unsafe()->num_bits() == 8) {
+    const auto current = type->pure_type();
+    const auto type_kind = current->kind();
+    const auto other_pure = given->pure_type();
+    const auto other_kind = other_pure->kind();
+    if(type_kind == BaseTypeKind::Any || (type_kind == BaseTypeKind::IntN && current->as_intn_type_unsafe()->num_bits() == 8)) {
         // this is a char* or uchar* which is a string
         if(other_kind == BaseTypeKind::String) {
             return true;
         }
     }
     if(other_kind == BaseTypeKind::Array) {
-        const auto pure_type = ((ArrayType*) given_pure);
-        return type->satisfies(pure_type->elem_type);
+        const auto pure_type = ((ArrayType*) other_pure);
+        return current->satisfies(pure_type->elem_type);
     }
-    const auto pointer = given_pure->pointer_type(other_kind);
+    const auto pointer = other_pure->pointer_type(other_kind);
     if(pointer && pointer->type) {
         if(!pointer->is_mutable && is_mutable) {
             return false;
@@ -42,7 +43,16 @@ bool PointerType::satisfies(BaseType *given) {
         if(type_kind == BaseTypeKind::Void) {
             return true;
         }
-        return type->satisfies(pointer->type);
+        // pointer to integer types must be checked explicitly, *char must not be satisfied by *int
+        // because int satisfies char
+        const auto other_pointee = pointer->type->pure_type();
+        if(type_kind == BaseTypeKind::IntN) {
+            const auto other_pointee_kind = other_pointee->kind();
+            if(other_pointee_kind == BaseTypeKind::IntN && current->as_intn_type_unsafe()->num_bits() != other_pointee->as_intn_type_unsafe()->num_bits()) {
+                return false;
+            }
+        }
+        return current->satisfies(other_pointee);
     }
     return false;
 }

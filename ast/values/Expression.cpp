@@ -165,6 +165,20 @@ bool Expression::computed() {
     return true;
 }
 
+bool operate(Operation op, bool first, bool second) {
+    switch(op) {
+        case Operation::LogicalAND:
+            return first && second;
+        case Operation::LogicalOR:
+            return first || second;
+        default:
+#ifdef DEBUG
+        throw std::runtime_error("unknown operation between bool values");
+#endif
+            return false;
+    }
+}
+
 uint64_t operate(Operation op, uint64_t first, uint64_t second) {
     switch(op) {
         case Operation::Addition:
@@ -258,7 +272,10 @@ inline bool is_int_n(ValueKind k) {
 Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl, SourceLocation location) {
     const auto fKind = fEvl->val_kind();
     const auto sKind = sEvl->val_kind();
-    if(is_int_n(fKind) && is_int_n(sKind)) {
+    if(fKind == ValueKind::Bool && sKind == ValueKind::Bool) {
+        const auto result = operate(operation, fEvl->get_the_bool(), sEvl->get_the_bool());
+        return new (scope.allocate<BoolValue>()) BoolValue(result, location);
+    } else if(is_int_n(fKind) && is_int_n(sKind)) {
         // both values are int num values
         const auto first = (IntNumValue*) fEvl;
         const auto second = (IntNumValue*) sEvl;

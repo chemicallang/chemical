@@ -969,6 +969,14 @@ void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expe
     }
 }
 
+void FunctionCall::register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t iteration, FunctionDeclaration* curr_func) {
+    const auto func_decl = safe_linked_func();
+    if(func_decl) {
+        // TODO we pass nullptr as expected type, which means we cannot infer return type at this stage
+        generic_iteration = func_decl->register_call(astAllocator, diagnoser, this, nullptr);
+    }
+}
+
 void relink_multi_id(
     VariableIdentifier* parent,
     std::vector<Value*>& values,
@@ -1102,9 +1110,15 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
     if(struct_itr > -2) {
         prev_itr = struct_itr;
     } else if(func_decl && !func_decl->generic_params.empty()) {
-        prev_itr = func_decl->active_iteration;
-        generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
-        func_decl->set_active_iteration(generic_iteration);
+        const auto func_type = resolver.current_func_type;
+        const auto curr_func = func_type->as_function();
+        if(curr_func && curr_func->is_generic()) {
+            // current function is generic, do not register generic iterations of the call
+            curr_func->call_subscribers.emplace_back(this);
+        } else {
+            prev_itr = func_decl->active_iteration;
+            generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
+        }
     }
     // relink values, because now we know the function type, so we know expected type
     relink_values(resolver);

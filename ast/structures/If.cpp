@@ -269,16 +269,18 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
             }
             return;
         }
-        auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
-        if(condition_val.has_value()) {
-            auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
-            computed_scope = eval;
-            if (eval) {
-                eval->declare_and_link(linker, (ASTNode*&) computed_scope.value());
+        if(!linker.comptime_context) {
+            auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
+            if (condition_val.has_value()) {
+                auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
+                computed_scope = eval;
+                if (eval) {
+                    eval->declare_and_link(linker, (ASTNode*&) computed_scope.value());
+                }
+                return;
+            } else {
+                is_computable = false;
             }
-            return;
-        } else {
-            is_computable = false;
         }
     }
     linker.scope_start();

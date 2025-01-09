@@ -818,12 +818,12 @@ public:
     StringType stringType;
     FunctionParam valueParam;
 
-    explicit InterpretError() : FunctionDeclaration(
+    explicit InterpretError(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("error"),
             std::vector<FunctionParam*> {},
             &voidType,
             false,
-            nullptr,
+            parent_node,
             ZERO_LOC,
             std::nullopt,
             AccessSpecifier::Public,
@@ -1158,14 +1158,14 @@ public:
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
         printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this), satisfiesFn(this),
-        get_target_fn(this), get_current_file_path(this), get_child_fn(this)
+        get_target_fn(this), get_current_file_path(this), get_child_fn(this), error_fn(this)
     {
 
         set_comptime(true);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
             &satisfiesFn, &get_raw_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
-            &error_fn, &get_target_fn, &get_current_file_path, &get_child_fn
+            &get_target_fn, &get_current_file_path, &get_child_fn, &error_fn
         };
 
     }

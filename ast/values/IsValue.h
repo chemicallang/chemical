@@ -57,6 +57,8 @@ public:
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
+    Value* evaluated_value(InterpretScope &scope) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;

@@ -40,10 +40,6 @@ public:
         return ValueType::Char;
     }
 
-    bool is_same(BaseType *type) final {
-        return type->kind() == kind();
-    }
-
     [[nodiscard]]
     CharType* copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<CharType>()) CharType(location);

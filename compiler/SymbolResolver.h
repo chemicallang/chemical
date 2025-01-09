@@ -234,6 +234,12 @@ public:
     bool safe_context = true;
 
     /**
+     * is the current context comptime, which means we're inside
+     * a comptime function or a comptime block
+     */
+    bool comptime_context = false;
+
+    /**
      * does symbol resolver support function name overloading
      * we turn this off for c files
      */

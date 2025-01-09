@@ -150,6 +150,12 @@ public:
      */
     std::vector<GenericType*> subscribers;
     /**
+     * these function calls are in the body of this function, they call generic functions
+     * if this function is generic, register_iteration is called on this function
+     * for each registered iteration, we notify the subscribers about registered iteration
+     */
+    std::vector<FunctionCall*> call_subscribers;
+    /**
      * optional body
      */
     std::optional<Scope> body;
@@ -158,7 +164,7 @@ public:
      * pretend to be different types on different iterations, iterations are number of usages
      * that we determined during symbol resolution
      */
-    int16_t active_iteration = 0;
+    int16_t active_iteration = -1;
     /**
      * this index corresponds to number of iterations in llvm_data, for which function bodies
      * have been generated, so next time we should start at this index to generate bodies

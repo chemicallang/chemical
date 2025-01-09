@@ -87,6 +87,14 @@ public:
 
     void fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type);
 
+    /**
+     * called by the current function (in the body of which this function call exists)
+     * this means the current function is generic, and this call also calls a generic function
+     * and a generic iteration has been registered for current function, which means we must register
+     * a generic iteration of the called function
+     */
+    void register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t iteration, FunctionDeclaration* curr_func);
+
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
     int16_t link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser);

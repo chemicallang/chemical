@@ -343,6 +343,8 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
 
 void create_fn(Codegen& gen, FunctionDeclaration *decl) {
     if(decl->generic_params.empty()) {
+        // non generic functions always have generic iteration equal to zero
+        decl->active_iteration = 0;
         create_non_generic_fn(gen, decl, decl->runtime_name_fast(gen));
     } else {
         const auto total_use = decl->total_generic_iterations();
@@ -365,6 +367,8 @@ void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::stri
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
     if(decl->generic_params.empty()) {
+        // non generic functions always have generic iteration equal to zero
+        decl->active_iteration = 0;
         declare_non_gen_fn(gen, decl, decl->runtime_name_fast(gen));
     } else {
         const auto total_use = decl->total_generic_iterations();
@@ -1118,9 +1122,9 @@ void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
         stream << "__cmf_";
         stream << std::to_string(multi_func_index());
     }
-    if(active_iteration != 0) {
+    if(is_generic() && active_iteration != -1) {
         stream << "__cgf_";
-        stream << std::to_string(active_iteration);
+        stream << active_iteration;
     }
 }
 
@@ -1196,15 +1200,11 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
         throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
     }
 #endif
-    if(iteration == -1) {
-        active_iteration = 0;
-    } else {
-        active_iteration = iteration;
-    }
-    for (auto &param: generic_params) {
+    active_iteration = iteration;
+    for (auto& param: generic_params) {
         param->active_iteration = iteration;
     }
-    for(auto sub : subscribers) {
+    for (auto sub: subscribers) {
         sub->set_parent_iteration(iteration);
     }
 }
@@ -1226,10 +1226,27 @@ int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagno
     const auto total = generic_params.size();
     std::vector<BaseType*> generic_args(total);
     infer_generic_args(generic_args, generic_params, call, diagnoser, expected_type);
+    // purify generic args, this is done if this call is inside a generic function
+    // by calling pure we resolve that type to its specialized version
+    // because this function runs in a loop, below the function 'register_indirect_generic_iteration' calls this
+    // function on functions that registered as subscribers (generic calls were present inside this generic function)
+    unsigned i = 0;
+    while(i < generic_args.size()) {
+        auto& type = generic_args[i];
+        if(type) {
+            type = type->pure_type();
+        }
+        i++;
+    }
     const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
-    if(itr.second) {
+    // we active the iteration
+    set_active_iteration(itr.first);
+    if(itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
         for (auto sub: subscribers) {
             sub->report_parent_usage(astAllocator, diagnoser, itr.first);
+        }
+        for(auto call_sub : call_subscribers) {
+            call_sub->register_indirect_generic_iteration(astAllocator, diagnoser, itr.first, this);
         }
     }
     return itr.first;
@@ -1271,8 +1288,13 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& no
 
     bool resolved = true;
     linker.scope_start();
-    for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
+    if(is_generic()) {
+        for (auto& gen_param: generic_params) {
+            gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
+        }
+    } else {
+        // non generic functions always have generic iteration equal to zero
+        active_iteration = 0;
     }
     for(auto param : params) {
         if(!param->link_param_type(linker)) {
@@ -1313,7 +1335,11 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& nod
         param->declare_and_link(linker, (ASTNode*&) param);
     }
     if (body.has_value() && FunctionType::data.signature_resolved) {
+        if(is_comptime()) {
+            linker.comptime_context = true;
+        }
         body->link_sequentially(linker);
+        linker.comptime_context = false;
     }
     linker.scope_end();
     linker.current_func_type = prev_func_type;

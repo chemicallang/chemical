@@ -2,6 +2,8 @@
 
 #include "IsValue.h"
 #include "ast/base/ASTNode.h"
+#include "ast/base/InterpretScope.h"
+#include "ast/values/BoolValue.h"
 
 IsValue::IsValue(
         Value* value,
@@ -27,18 +29,28 @@ bool IsValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected
     return true;
 }
 
+Value* IsValue::evaluated_value(InterpretScope &scope) {
+    const auto result = get_comp_time_result();
+    if(result.has_value()) {
+        return new (scope.allocate<BoolValue>()) BoolValue(result.value(), location);
+    } else {
+        scope.error("unknown result for given is value", this);
+        return new (scope.allocate<BoolValue>()) BoolValue(false, location);
+    }
+}
+
 std::optional<bool> IsValue::get_comp_time_result() {
     const auto linked = value->linked_node();
     if(linked) {
-        bool result;
         const auto param = linked->as_generic_type_param();
         if (param) {
-            result = type->is_same(linked->known_type());
+            const auto kt = linked->known_type();
+            const auto result = type->is_same(kt);
             return is_negating ? !result : result;
         }
         const auto alias = linked->as_typealias();
         if(alias) {
-            result = type->is_same(linked->known_type());
+            const auto result = type->is_same(linked->known_type());
             return is_negating ? !result : result;
         }
     }

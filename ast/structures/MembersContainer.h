@@ -83,6 +83,10 @@ public:
 
     FunctionDeclaration *direct_child_function(const chem::string_view& name);
 
+    inline bool is_generic() {
+        return !generic_params.empty();
+    }
+
     /**
      * get child variable index, including the inherited types
      */

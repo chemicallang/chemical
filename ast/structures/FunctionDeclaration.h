@@ -19,6 +19,7 @@
 #include "ast/types/FunctionType.h"
 #include "GenericTypeParameter.h"
 #include "ast/base/LocatedIdentifier.h"
+#include <unordered_map>
 
 class ExtendableMembersContainerNode;
 
@@ -135,6 +136,28 @@ private:
      * TODO call scope shouldn't be stored here
      */
     InterpretScope* callScope = nullptr;
+
+    /**
+     * The high here corresponds to struct iteration and low to the function iteration
+     */
+    static inline int32_t pack_gen_itr(int16_t high, int16_t low) {
+        return (static_cast<int32_t>(high) << 16) | (static_cast<uint16_t>(low));
+    }
+
+    /**
+     * the high corresponding to struct iteration can be unpacked from a 32 bit iteration integer
+     */
+    static inline int16_t unpackHigh(int32_t packed) {
+        return static_cast<int16_t>(packed >> 16);
+    }
+
+    /**
+     * the low corresponding to the function integer can be unpacked from a 32 bit iteration integer
+     */
+    static inline int16_t unpackLow(int32_t packed) {
+        return static_cast<int16_t>(packed & 0xFFFF);
+    }
+
 public:
 
     /**
@@ -155,6 +178,28 @@ public:
      * for each registered iteration, we notify the subscribers about registered iteration
      */
     std::vector<FunctionCall*> call_subscribers;
+    /**
+     * the iterations of the generic calls present inside this function
+     * if this function or the struct above it is generic, we can find them out
+     * using the combined integer we receive from packing functions above
+     *
+     * There are two iterations that we're concerned about
+     * the struct containing this function can be generic, this function can be generic
+     * both of whose generic iterations can be packed into a single 32bit integer
+     *
+     * Why ? struct iteration + function iteration means we exactly know which generic function
+     * instantiation is being used, When there are generic calls inside the function body, where
+     * the function itself and it's parent struct can be generic, we need to know the generic call
+     * calls which function exactly (due to changing types of parent function and struct who are generic)
+     *
+     * We store this iteration integer and then we also store generic call iteration corresponding
+     * and when we activate a generic iteration for a function, we also activate all generic iterations
+     * of all function calls inside the body that we stored
+     *
+     * We use zero as generic iteration of the struct when the struct is not generic and zero as
+     *  function's generic iteration when the function is not generic
+     */
+    std::unordered_map<int32_t, int16_t> gen_call_iterations;
     /**
      * optional body
      */
@@ -413,8 +458,10 @@ public:
     /**
      * set's the active iteration for a generic function
      * this helps generics types pretend to be certain type
+     * @param set_generic_calls you can send false to do less work, the generic calls present inside the body of the function will be
+     * activated (so they call the right generic function based on types of parent generic struct / generic function)
      */
-    void set_active_iteration(int16_t iteration);
+    void set_active_iteration(int16_t iteration, bool set_generic_calls = true);
 
     /**
      * set's the generic active iteration safely
@@ -428,6 +475,10 @@ public:
      * we return generic iteration if it already exists
      */
     int16_t register_call_with_existing(ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type);
+
+    void register_parent_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t parent_itr);
+
+    int16_t get_parent_iteration();
 
     /**
      * a call notifies a function, during symbol resolution that it exists

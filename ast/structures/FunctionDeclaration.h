@@ -158,6 +158,8 @@ private:
         return static_cast<int16_t>(packed & 0xFFFF);
     }
 
+    void set_gen_itr_no_subs(int16_t iteration);
+
 public:
 
     /**

@@ -63,7 +63,7 @@ struct unordered_map<Key, Value> {
             resize();
         }
 
-        var index = hash(key);
+        var index = hash<Key>(key);
         var attempt : size_t = 0;
 
         while (table[index].key != EMPTY_KEY && table[index].key != DELETED_KEY) {
@@ -82,7 +82,7 @@ struct unordered_map<Key, Value> {
 
     // Find a value by key
     func find(&self, key : &Key, value : &mut Value) : bool {
-        var index : size_t = hash(key);
+        var index : size_t = hash<Key>(key);
         var attempt : size_t = 0;
 
         while (table[index].key != EMPTY_KEY) {
@@ -98,7 +98,7 @@ struct unordered_map<Key, Value> {
 
     // Remove a key-value pair
     func erase(&self, key : &Key) : bool {
-        var index : size_t = hash(key);
+        var index : size_t = hash<Key>(key);
         var attempt : size_t = 0;
 
         while (table[index].key != EMPTY_KEY) {

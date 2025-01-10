@@ -116,6 +116,24 @@ func <T> gen_ret_func2(value : T) : T {
     return gen_ret_func(value)
 }
 
+struct check_gen_right_impl<T> {
+
+    func get_integer() : T {
+        if(T is char || T is uchar) {
+            return 1;
+        } else if(T is short || T is ushort) {
+            return 2;
+        } else if(T is int || T is uint) {
+            return 4;
+        } else if(T is bigint || T is ubigint) {
+            return 8;
+        } else {
+            return 0;
+        }
+    }
+
+}
+
 func test_basic_generics() {
     test("test that basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -274,5 +292,47 @@ func test_basic_generics() {
     })
     test("generic functions calling other generic functions call the right instantiation  - 8", () => {
         return gen_ret_func2(0i64) == 8 && gen_ret_func2(0ui64) == 8
+    })
+    test("functions inside generic struct call correct implementation based on type - 1", () => {
+        var i = check_gen_right_impl<char> {}
+        var u = check_gen_right_impl<uchar> {}
+        return i.get_integer() == 1 && u.get_integer() == 1
+    })
+    test("functions inside generic struct call correct implementation based on type - 2", () => {
+        var i = check_gen_right_impl<short> {}
+        var u = check_gen_right_impl<ushort> {}
+        return i.get_integer() == 2 && u.get_integer() == 2
+    })
+    test("functions inside generic struct call correct implementation based on type - 3", () => {
+        var i = check_gen_right_impl<int> {}
+        var u = check_gen_right_impl<uint> {}
+        return i.get_integer() == 4 && u.get_integer() == 4
+    })
+    test("functions inside generic struct call correct implementation based on type - 4", () => {
+        var i = check_gen_right_impl<bigint> {}
+        var u = check_gen_right_impl<ubigint> {}
+        return i.get_integer() == 8 && u.get_integer() == 8
+    })
+    // duplicating tests so when generic implementations are reused based on types
+    // we test that correct implementations are called still.
+    test("functions inside generic struct call correct implementation based on type - 5", () => {
+        var i = check_gen_right_impl<char> {}
+        var u = check_gen_right_impl<uchar> {}
+        return i.get_integer() == 1 && u.get_integer() == 1
+    })
+    test("functions inside generic struct call correct implementation based on type - 6", () => {
+        var i = check_gen_right_impl<short> {}
+        var u = check_gen_right_impl<ushort> {}
+        return i.get_integer() == 2 && u.get_integer() == 2
+    })
+    test("functions inside generic struct call correct implementation based on type - 7", () => {
+        var i = check_gen_right_impl<int> {}
+        var u = check_gen_right_impl<uint> {}
+        return i.get_integer() == 4 && u.get_integer() == 4
+    })
+    test("functions inside generic struct call correct implementation based on type - 8", () => {
+        var i = check_gen_right_impl<bigint> {}
+        var u = check_gen_right_impl<ubigint> {}
+        return i.get_integer() == 8 && u.get_integer() == 8
     })
 }

@@ -1215,7 +1215,7 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration, bool set_gener
             const auto compl_itr = pack_gen_itr(parent_itr, iteration);
             auto found = gen_call_iterations.find(compl_itr);
             if (found != gen_call_iterations.end()) {
-                sub_call->generic_iteration = found->second;
+                sub_call.first->generic_iteration = found->second;
             }
         }
     }
@@ -1237,7 +1237,7 @@ int16_t FunctionDeclaration::register_call_with_existing(ASTDiagnoser& diagnoser
 void FunctionDeclaration::register_parent_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t parent_itr) {
     for(auto call_sub : call_subscribers) {
         // recursive
-        const auto itr = call_sub->register_indirect_generic_iteration(astAllocator, diagnoser, this);
+        const auto itr = call_sub.first->register_indirect_generic_iteration(astAllocator, diagnoser, call_sub.second);
         // saving the generic iteration
         const auto compl_itr = pack_gen_itr(parent_itr, active_iteration);
         gen_call_iterations[compl_itr] = itr;
@@ -1290,7 +1290,7 @@ int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagno
         const auto parent_itr = get_parent_iteration();
         for(auto call_sub : call_subscribers) {
             // recursive
-            const auto call_itr = call_sub->register_indirect_generic_iteration(astAllocator, diagnoser, this);
+            const auto call_itr = call_sub.first->register_indirect_generic_iteration(astAllocator, diagnoser, call_sub.second);
             // saving the call iteration into the map
             gen_call_iterations[pack_gen_itr(parent_itr, itr.first)] = call_itr;
         }

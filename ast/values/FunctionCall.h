@@ -93,7 +93,7 @@ public:
      * and a generic iteration has been registered for current function, which means we must register
      * a generic iteration of the called function
      */
-    int16_t register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionDeclaration* curr_func);
+    int16_t register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, BaseType* expected_type);
 
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 

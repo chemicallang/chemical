@@ -177,7 +177,7 @@ public:
      * if this function is generic, register_iteration is called on this function
      * for each registered iteration, we notify the subscribers about registered iteration
      */
-    std::vector<FunctionCall*> call_subscribers;
+    std::vector<std::pair<FunctionCall*, BaseType*>> call_subscribers;
     /**
      * the iterations of the generic calls present inside this function
      * if this function or the struct above it is generic, we can find them out

@@ -235,6 +235,20 @@ func test_basic_generics() {
     test("generic functions call the right instantiation - 4", () => {
         return gen_ret_func(0i64) == 8 && gen_ret_func(0ui64) == 8
     })
+    // duplicating tests so when generic implementations are reused based on types
+    // we test that correct implementations are called still.
+    test("generic functions call the right instantiation - 5", () => {
+        return gen_ret_func(0i8) == 1 && gen_ret_func(0ui8) == 1
+    })
+    test("generic functions call the right instantiation - 6", () => {
+        return gen_ret_func(0i16) == 2 && gen_ret_func(0ui16) == 2
+    })
+    test("generic functions call the right instantiation - 7", () => {
+        return gen_ret_func(0i32) == 4 && gen_ret_func(0ui32) == 4
+    })
+    test("generic functions call the right instantiation - 8", () => {
+        return gen_ret_func(0i64) == 8 && gen_ret_func(0ui64) == 8
+    })
     test("generic functions calling other generic functions call the right instantiation  - 1", () => {
         return gen_ret_func2(0i8) == 1 && gen_ret_func2(0ui8) == 1
     })
@@ -245,6 +259,20 @@ func test_basic_generics() {
         return gen_ret_func2(0i32) == 4 && gen_ret_func2(0ui32) == 4
     })
     test("generic functions calling other generic functions call the right instantiation  - 4", () => {
+        return gen_ret_func2(0i64) == 8 && gen_ret_func2(0ui64) == 8
+    })
+    // duplicating tests so when generic implementations are reused based on types
+    // we test that correct implementations are called still.
+    test("generic functions calling other generic functions call the right instantiation  - 5", () => {
+        return gen_ret_func2(0i8) == 1 && gen_ret_func2(0ui8) == 1
+    })
+    test("generic functions calling other generic functions call the right instantiation  - 6", () => {
+        return gen_ret_func2(0i16) == 2 && gen_ret_func2(0ui16) == 2
+    })
+    test("generic functions calling other generic functions call the right instantiation  - 7", () => {
+        return gen_ret_func2(0i32) == 4 && gen_ret_func2(0ui32) == 4
+    })
+    test("generic functions calling other generic functions call the right instantiation  - 8", () => {
         return gen_ret_func2(0i64) == 8 && gen_ret_func2(0ui64) == 8
     })
 }

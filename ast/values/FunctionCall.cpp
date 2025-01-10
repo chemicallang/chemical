@@ -969,11 +969,10 @@ void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expe
     }
 }
 
-int16_t FunctionCall::register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionDeclaration* curr_func) {
+int16_t FunctionCall::register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, BaseType* expected_type) {
     const auto func_decl = safe_linked_func();
     if(func_decl) {
-        // TODO we pass nullptr as expected type, which means we cannot infer return type at this stage
-        return func_decl->register_call(astAllocator, diagnoser, this, nullptr);
+        return func_decl->register_call(astAllocator, diagnoser, this, expected_type);
     }
 #ifdef DEBUG
     throw std::runtime_error("this call should not happen because this function is not generic");
@@ -1119,7 +1118,7 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
         if(curr_func) {
             if(curr_func->is_generic()) {
                 // current function is generic, do not register generic iterations of the call
-                curr_func->call_subscribers.emplace_back(this);
+                curr_func->call_subscribers.emplace_back(this, expected_type);
             } else {
                 const auto parent = curr_func->parent_node;
                 if(parent) {
@@ -1127,30 +1126,33 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
                     if (container && container->is_generic()) {
                         // current function has a generic parent (struct), we will not register generic iterations of the call
                         // because when the generic parent get's reported an iteration, it'll ask all the functions to register calls
-                        curr_func->call_subscribers.emplace_back(this);
+                        curr_func->call_subscribers.emplace_back(this, expected_type);
                     } else {
-                        prev_itr = func_decl->active_iteration;
-                        generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
+                        goto register_block;
                     }
                 } else {
-                    prev_itr = func_decl->active_iteration;
-                    generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
+                    goto register_block;
                 }
             }
         } else {
-            prev_itr = func_decl->active_iteration;
-            generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
+            goto register_block;
         }
     }
-    // relink values, because now we know the function type, so we know expected type
-    relink_values(resolver);
-    if(link_implicit_constructor) {
-        link_args_implicit_constructor(resolver, properly_linked_args);
-    }
-    if(prev_itr > -2) {
-        set_gen_itr_on_decl(prev_itr);
-    }
+
+    ending_block:
+        // relink values, because now we know the function type, so we know expected type
+        relink_values(resolver);
+        if(link_implicit_constructor) {
+            link_args_implicit_constructor(resolver, properly_linked_args);
+        }
+        if(prev_itr > -2) {
+            set_gen_itr_on_decl(prev_itr);
+        }
     return true;
+    register_block:
+        prev_itr = func_decl->active_iteration;
+        generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
+        goto ending_block;
 }
 
 

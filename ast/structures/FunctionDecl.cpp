@@ -1194,6 +1194,18 @@ void FunctionDeclaration::ensure_move_fn(SymbolResolver& resolver, ExtendableMem
     check_self_other_params(resolver, this, def);
 }
 
+void FunctionDeclaration::set_gen_itr_no_subs(int16_t iteration) {
+#ifdef DEBUG
+    if(iteration < -1) {
+        throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
+    }
+#endif
+    active_iteration = iteration;
+    for (auto& param: generic_params) {
+        param->active_iteration = iteration;
+    }
+}
+
 void FunctionDeclaration::set_active_iteration(int16_t iteration, bool set_generic_calls) {
 #ifdef DEBUG
     if(iteration < -1) {
@@ -1276,13 +1288,13 @@ int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagno
         i++;
     }
     const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
-    // we activate the iteration just registered, because below we make call to register_indirect_iteration
+    // we activate the iteration just registered, because below we make call to register_indirect_iteration below
     // which basically calls register_call recursive on function calls present inside this function that are generic
     // which resolve specialized type using pure_type we called in the above loop
     // this function sets the iterations of the call_subscribers, however we haven't even
     // set their corresponding iterations in their subscribed map, we're doing it in the loop below
-    // therefore we're sending false for set_generic_calls parameter
-    set_active_iteration(itr.first, false);
+    // therefore we don't need to set generic iterations of subscribers
+    set_gen_itr_no_subs(itr.first);
     if(itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
         for (auto sub: subscribers) {
             sub->report_parent_usage(astAllocator, diagnoser, itr.first);

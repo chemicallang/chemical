@@ -1206,6 +1206,17 @@ void FunctionDeclaration::set_gen_itr_no_subs(int16_t iteration) {
     }
 }
 
+void FunctionDeclaration::activate_gen_call_iterations(int16_t iteration) {
+    const auto parent_itr = get_parent_iteration();
+    for (const auto sub_call: call_subscribers) {
+        const auto compl_itr = pack_gen_itr(parent_itr, iteration);
+        auto found = gen_call_iterations.find(compl_itr);
+        if (found != gen_call_iterations.end()) {
+            sub_call.first->generic_iteration = found->second;
+        }
+    }
+}
+
 void FunctionDeclaration::set_active_iteration(int16_t iteration, bool set_generic_calls) {
 #ifdef DEBUG
     if(iteration < -1) {
@@ -1222,14 +1233,7 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration, bool set_gener
     // activating generic iterations of nested generic function calls that are present in the declaration
     // generic calls within generic function needs explicit setting of generic iterations
     if(set_generic_calls) {
-        const auto parent_itr = get_parent_iteration();
-        for (const auto sub_call: call_subscribers) {
-            const auto compl_itr = pack_gen_itr(parent_itr, iteration);
-            auto found = gen_call_iterations.find(compl_itr);
-            if (found != gen_call_iterations.end()) {
-                sub_call.first->generic_iteration = found->second;
-            }
-        }
+        activate_gen_call_iterations(iteration);
     }
 }
 

@@ -488,7 +488,6 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
     if(definition && !definition->generic_params.empty()) {
         prev_itr = definition->active_iteration;
         generic_iteration = definition->register_value(linker, this);
-        definition->set_active_iteration(generic_iteration);
     }
     auto& current_func_type = *linker.current_func_type;
     // linking values

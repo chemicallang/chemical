@@ -18,6 +18,8 @@ private:
     std::unordered_map<chem::string_view, FunctionDeclaration*> indexes;
     std::vector<std::unique_ptr<MultiFunctionNode>> multi_nodes;
 
+    void set_active_iteration_no_subs(int16_t iteration);
+
 public:
 
     std::vector<GenericTypeParameter*> generic_params;

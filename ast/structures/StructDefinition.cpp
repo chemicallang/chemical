@@ -48,6 +48,7 @@ void StructDefinition::struct_func_gen(
                 }
                 continue;
             }
+            function->activate_gen_call_iterations(function->active_iteration);
             function->code_gen_body(gen, this);
         }
     }

@@ -3653,8 +3653,16 @@ void ToCAstVisitor::visit(UnnamedStruct *def) {
 
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def) {
     for(auto& func : def->functions()) {
-        const auto interface = def->get_overriding_interface(func);
-        contained_func_decl(visitor, func, interface != nullptr, def);
+        if(func->is_generic()) {
+            visitor.write("[GENERIC_FUNCTIONS inside a struct not supported YET]");
+        } else {
+            // active iteration is probably going to zero here since function is non generic
+            // it get's the parent iteration and figures out which functions generic calls
+            // are calling inside the body of the function and activates it
+            func->activate_gen_call_iterations(func->active_iteration);
+            const auto interface = def->get_overriding_interface(func);
+            contained_func_decl(visitor, func, interface != nullptr, def);
+        }
     }
 }
 

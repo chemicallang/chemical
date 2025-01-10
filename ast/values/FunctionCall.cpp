@@ -1117,7 +1117,7 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
         if(curr_func) {
             if(curr_func->is_generic()) {
                 // current function is generic, do not register generic iterations of the call
-                curr_func->call_subscribers.emplace_back(this, expected_type);
+                curr_func->call_subscribers.emplace_back(this, expected_type ? expected_type->copy(*resolver.ast_allocator) : nullptr);
             } else {
                 const auto parent = curr_func->parent_node;
                 if(parent) {
@@ -1125,7 +1125,7 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
                     if (container && container->is_generic()) {
                         // current function has a generic parent (struct), we will not register generic iterations of the call
                         // because when the generic parent get's reported an iteration, it'll ask all the functions to register calls
-                        curr_func->call_subscribers.emplace_back(this, expected_type);
+                        curr_func->call_subscribers.emplace_back(this, expected_type ? expected_type->copy(*resolver.ast_allocator) : nullptr);
                     } else {
                         goto register_block;
                     }

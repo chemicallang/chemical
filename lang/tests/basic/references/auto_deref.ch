@@ -20,6 +20,11 @@ func create_IntStorageT3232(i : &int) : IntStorageT3232 {
     return IntStorageT3232 { i : i }
 }
 
+variant OptIntStorage8373 {
+    Some(value : int)
+    None
+}
+
 func test_auto_deref() {
     test("auto dereferences when value is being passed to function calls", () => {
         var i = 38
@@ -38,5 +43,17 @@ func test_auto_deref() {
         var i = 356
         var s : int[] = { give_ref(i) }
         return s[0] == 356
+    })
+    test("auto dereferences when calling variants", () => {
+        var i = 34343;
+        var thing : OptIntStorage8373 = OptIntStorage8373.Some(give_ref(i))
+        switch(thing) {
+            Some(value) => {
+                return value == 34343;
+            }
+            None => {
+                return false;
+            }
+        }
     })
 }

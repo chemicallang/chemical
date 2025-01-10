@@ -10,7 +10,6 @@
 #include <memory>
 #include "ast/base/ChainValue.h"
 #include "ast/base/ASTNode.h"
-#include <unordered_map>
 
 class ASTDiagnoser;
 
@@ -22,16 +21,6 @@ public:
     std::vector<Value*> values;
     int16_t generic_iteration = -1;
     SourceLocation location;
-
-    /**
-     * when this generic type subscribes to a parent generic node, we receive
-     * generic iterations for each iteration of parent generic node
-     *
-     * the parent generic iteration which is the key of this map corresponds
-     * to a set of generic args that we registered for this type and got a generic iteration.
-     * the received generic iteration is the value of this map.
-     */
-    std::unordered_map<int16_t, int16_t> subscribed_map;
 
     FunctionCall(
             ChainValue* parent,
@@ -104,7 +93,7 @@ public:
      * and a generic iteration has been registered for current function, which means we must register
      * a generic iteration of the called function
      */
-    void register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t iteration, FunctionDeclaration* curr_func);
+    int16_t register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionDeclaration* curr_func);
 
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 

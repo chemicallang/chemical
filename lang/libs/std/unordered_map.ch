@@ -1,4 +1,5 @@
 import "@std/std.ch"
+import "hashing/hash.ch"
 
 @comptime
 const EMPTY_KEY = -1
@@ -19,17 +20,6 @@ struct unordered_map<Key, Value> {
     var table : *mut unordered_map_node<Key, Value>;
     var capacity : size_t;
     var size : size_t;
-
-    // Simple hash function (use a better one in production)
-    // TODO this hash function
-    // func hash(key : &Key) : size_t {
-    //    return (std::hash<Key>()(key) & (capacity - 1));
-    // }
-
-    // Hash function (simple, non-cryptographic)
-    func hash(&self, key : &Key) : size_t {
-        return (&key as size_t) % capacity;
-    }
 
     // Resize and rehash
     func resize(&self) : void {

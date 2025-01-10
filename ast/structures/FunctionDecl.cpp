@@ -1194,7 +1194,7 @@ void FunctionDeclaration::ensure_move_fn(SymbolResolver& resolver, ExtendableMem
     check_self_other_params(resolver, this, def);
 }
 
-void FunctionDeclaration::set_active_iteration(int16_t iteration) {
+void FunctionDeclaration::set_active_iteration(int16_t iteration, bool set_generic_calls) {
 #ifdef DEBUG
     if(iteration < -1) {
         throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
@@ -1209,14 +1209,14 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
     }
     // activating generic iterations of nested generic function calls that are present in the declaration
     // generic calls within generic function needs explicit setting of generic iterations
-
-    // TODO sometimes we're just making a call, which means the body of the function is not being processed
-    // which means we do not need to set the iterations of nested calls, we should have a boolean check for this whether
-    // user needs that or not
-    for(const auto sub_call : call_subscribers) {
-        auto found = sub_call->subscribed_map.find(iteration);
-        if(found != sub_call->subscribed_map.end()) {
-            sub_call->generic_iteration = found->second;
+    if(set_generic_calls) {
+        const auto parent_itr = get_parent_iteration();
+        for (const auto sub_call: call_subscribers) {
+            const auto compl_itr = pack_gen_itr(parent_itr, iteration);
+            auto found = gen_call_iterations.find(compl_itr);
+            if (found != gen_call_iterations.end()) {
+                sub_call->generic_iteration = found->second;
+            }
         }
     }
 }
@@ -1232,6 +1232,31 @@ int16_t FunctionDeclaration::register_call_with_existing(ASTDiagnoser& diagnoser
         return -1;
     }
     return -1;
+}
+
+void FunctionDeclaration::register_parent_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t parent_itr) {
+    for(auto call_sub : call_subscribers) {
+        // recursive
+        const auto itr = call_sub->register_indirect_generic_iteration(astAllocator, diagnoser, this);
+        // saving the generic iteration
+        const auto compl_itr = pack_gen_itr(parent_itr, active_iteration);
+        gen_call_iterations[compl_itr] = itr;
+    }
+}
+
+int16_t FunctionDeclaration::get_parent_iteration() {
+    if(parent_node) {
+        const auto container = parent_node->as_members_container();
+        if(container && container->is_generic()) {
+            return container->active_iteration;
+        } else {
+            // it's not a members container or not generic
+            return 0;
+        }
+    } else {
+        // struct has no parent
+        return 0;
+    }
 }
 
 int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type) {
@@ -1254,14 +1279,20 @@ int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagno
     // we activate the iteration just registered, because below we make call to register_indirect_iteration
     // which basically calls register_call recursive on function calls present inside this function that are generic
     // which resolve specialized type using pure_type we called in the above loop
-    set_active_iteration(itr.first);
+    // this function sets the iterations of the call_subscribers, however we haven't even
+    // set their corresponding iterations in their subscribed map, we're doing it in the loop below
+    // therefore we're sending false for set_generic_calls parameter
+    set_active_iteration(itr.first, false);
     if(itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
         for (auto sub: subscribers) {
             sub->report_parent_usage(astAllocator, diagnoser, itr.first);
         }
+        const auto parent_itr = get_parent_iteration();
         for(auto call_sub : call_subscribers) {
             // recursive
-            call_sub->register_indirect_generic_iteration(astAllocator, diagnoser, itr.first, this);
+            const auto call_itr = call_sub->register_indirect_generic_iteration(astAllocator, diagnoser, this);
+            // saving the call iteration into the map
+            gen_call_iterations[pack_gen_itr(parent_itr, itr.first)] = call_itr;
         }
     }
     return itr.first;

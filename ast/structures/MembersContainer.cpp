@@ -468,6 +468,9 @@ int16_t MembersContainer::register_generic_args(ASTAllocator& astAllocator, ASTD
         for (auto sub: subscribers) {
             sub->report_parent_usage(astAllocator, diagnoser, itr.first);
         }
+        for(const auto func : functions()) {
+            func->register_parent_iteration(astAllocator, diagnoser, itr.first);
+        }
     }
     return itr.first;
 }

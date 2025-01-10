@@ -969,12 +969,16 @@ void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expe
     }
 }
 
-void FunctionCall::register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t iteration, FunctionDeclaration* curr_func) {
+int16_t FunctionCall::register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionDeclaration* curr_func) {
     const auto func_decl = safe_linked_func();
     if(func_decl) {
         // TODO we pass nullptr as expected type, which means we cannot infer return type at this stage
-        subscribed_map[iteration] = func_decl->register_call(astAllocator, diagnoser, this, nullptr);
+        return func_decl->register_call(astAllocator, diagnoser, this, nullptr);
     }
+#ifdef DEBUG
+    throw std::runtime_error("this call should not happen because this function is not generic");
+#endif
+    return -2;
 }
 
 void relink_multi_id(
@@ -1112,9 +1116,27 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
     } else if(func_decl && !func_decl->generic_params.empty()) {
         const auto func_type = resolver.current_func_type;
         const auto curr_func = func_type->as_function();
-        if(curr_func && curr_func->is_generic()) {
-            // current function is generic, do not register generic iterations of the call
-            curr_func->call_subscribers.emplace_back(this);
+        if(curr_func) {
+            if(curr_func->is_generic()) {
+                // current function is generic, do not register generic iterations of the call
+                curr_func->call_subscribers.emplace_back(this);
+            } else {
+                const auto parent = curr_func->parent_node;
+                if(parent) {
+                    const auto container = parent->as_members_container();
+                    if (container && container->is_generic()) {
+                        // current function has a generic parent (struct), we will not register generic iterations of the call
+                        // because when the generic parent get's reported an iteration, it'll ask all the functions to register calls
+                        curr_func->call_subscribers.emplace_back(this);
+                    } else {
+                        prev_itr = func_decl->active_iteration;
+                        generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
+                    }
+                } else {
+                    prev_itr = func_decl->active_iteration;
+                    generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
+                }
+            }
         } else {
             prev_itr = func_decl->active_iteration;
             generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);

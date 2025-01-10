@@ -17,6 +17,7 @@ import "basic/functions/functions.ch"
 import "basic/functions/extension_func.ch"
 import "basic/functions/implicit.ch"
 import "basic/references/basic.ch"
+import "basic/references/auto_deref.ch"
 import "basic/destructors.ch"
 import "nodes/union.ch"
 import "nodes/namespaces.ch"
@@ -77,6 +78,7 @@ public func main() : int {
     test_moves();
     test_html();
     test_references();
+    test_auto_deref();
     test_satisfies();
     test_new();
     test_extension_functions();

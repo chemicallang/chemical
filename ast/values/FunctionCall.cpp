@@ -15,6 +15,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/types/LinkedType.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/utils/GenericUtils.h"
@@ -124,6 +125,10 @@ void put_implicit_params(
     }
 }
 
+inline bool isReferenceValue(ValueKind kind) {
+    return kind == ValueKind::AccessChain || kind == ValueKind::Identifier;
+}
+
 llvm::Value* arg_value(
         Codegen& gen,
         FunctionCall* call,
@@ -153,7 +158,7 @@ llvm::Value* arg_value(
     if(
         (is_param_ref && !is_val_stored_ptr) || (
             linked && ASTNode::isStoredStructDecl(linked->kind()) &&
-            (Value::isReference(value_kind) && pure_type->is_linked_struct()) && !(value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue || value_kind == ValueKind::VariantCall)
+            (isReferenceValue(value_kind) && pure_type->is_linked_struct()) && !(value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue || value_kind == ValueKind::VariantCall)
     )) {
         argValue = value->llvm_pointer(gen);
     } else {
@@ -180,8 +185,19 @@ llvm::Value* arg_value(
             }
         }
         // pack it into a fat pointer, if the function expects a dynamic type
-        argValue = gen.pack_dyn_obj(value, func_param->type, argValue);
+        const auto dyn_impl = gen.get_dyn_obj_impl(value, func_param->type);
+        if(dyn_impl) {
+            argValue = gen.pack_fat_pointer(argValue, dyn_impl);
+        } else {
+            // automatic dereference arguments that are references
+            const auto val_type = value->create_type(gen.allocator);
+            const auto derefType = val_type->getAutoDerefType(func_param->type);
+            if(derefType) {
+                argValue = gen.builder->CreateLoad(derefType->llvm_type(gen), argValue);
+            }
+        }
     }
+
     return argValue;
 }
 

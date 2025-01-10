@@ -372,6 +372,25 @@ FunctionType *BaseType::function_type(BaseTypeKind k) {
     }
 }
 
+BaseType* BaseType::getAutoDerefType(BaseType* expected_type) {
+    const auto value_type_pure = pure_type();
+    const auto value_type_k = value_type_pure->kind();
+    const auto exp_type_pure = expected_type->pure_type();
+    const auto exp_type_k = exp_type_pure->kind();
+    switch(value_type_k) {
+        case BaseTypeKind::Reference: {
+            const auto ref_type = value_type_pure->as_reference_type_unsafe();
+            const auto pure_referencee = ref_type->type->pure_type();
+            if(pure_referencee->is_same(exp_type_pure) && BaseType::isIntNType(pure_referencee->kind())) {
+                return pure_referencee;
+            }
+            return nullptr;
+        }
+        default:
+            return nullptr;
+    }
+}
+
 bool BaseType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
     const auto val_type = value->create_type(allocator);
     return val_type != nullptr && satisfies(val_type->pure_type());

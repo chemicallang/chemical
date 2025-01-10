@@ -864,7 +864,16 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             if(func_type) {
                 auto value_type = value->get_pure_type(gen.allocator);
                 auto to_type = func_type->returnType->pure_type();
+
+                // automatic dereference if required
+                const auto derefType = value_type->getAutoDerefType(to_type);
+                if(derefType) {
+                    return_value = gen.builder->CreateLoad(derefType->llvm_type(gen), return_value);
+                }
+
+                // implicit cast to value that's required
                 return_value = gen.implicit_cast(return_value, value_type, to_type);
+
             }
         }
     }

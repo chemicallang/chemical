@@ -30,7 +30,7 @@ struct ReferencableInt {
 }
 
 func take_int_ref(a : &int) : int {
-    return *a;
+    return a;
 }
 
 func give_int_ref_32(a : &mut int) : &mut int {

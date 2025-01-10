@@ -218,6 +218,13 @@ public:
     }
 
     /**
+     * if this value can be auto dereferenced, the type of dereferenced value is returned
+     * the expected type should be a reference for that to happen, otherwise a null pointer is
+     * returned
+     */
+    BaseType* getAutoDerefType(BaseType* expected_type);
+
+    /**
      * function type returns function type
      */
     FunctionType *function_type(BaseTypeKind k);

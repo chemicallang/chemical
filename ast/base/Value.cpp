@@ -85,7 +85,9 @@ unsigned int Value::store_in_struct(
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value)) {
-        gen.builder->CreateStore(value, elementPtr);
+        const auto value_pure = create_type(gen.allocator)->pure_type();
+        const auto derefType = value_pure->getAutoDerefType(expected_type);
+        gen.builder->CreateStore(derefType ? gen.builder->CreateLoad(derefType->llvm_type(gen), value) : value, elementPtr);
     }
     return index + 1;
 }
@@ -102,7 +104,9 @@ unsigned int Value::store_in_array(
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value)) {
-        gen.builder->CreateStore(value, elementPtr);
+        const auto value_pure = create_type(gen.allocator)->pure_type();
+        const auto derefType = value_pure->getAutoDerefType(expected_type);
+        gen.builder->CreateStore(derefType ? gen.builder->CreateLoad(derefType->llvm_type(gen), value) : value, elementPtr);
     }
     return index + 1;
 }

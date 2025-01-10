@@ -72,7 +72,7 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
                 gen.memcpy_struct(value.llvm_type(gen), elementPtr, value.llvm_value(gen, nullptr));
             } else {
                 // couldn't move the struct
-                value.store_in_array(gen, this, allocated, parent_type, idxList, i, child_type);
+                value.store_in_array(gen, this, allocated, parent_type, idxList, i, known_child_t);
             }
         }
     }

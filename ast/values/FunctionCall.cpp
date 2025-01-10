@@ -1025,7 +1025,6 @@ int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocat
             if(constructorFunc->generic_params.empty() && parent_struct->is_generic()) {
                 const auto prev_itr = parent_struct->active_iteration;
                 call->generic_iteration = parent_struct->register_generic_args(astAllocator, diagnoser, call->generic_list);
-                parent_struct->set_active_iteration(call->generic_iteration);
                 return prev_itr;
             }
         } else {

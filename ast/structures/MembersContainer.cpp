@@ -464,6 +464,7 @@ int16_t MembersContainer::register_generic_args(ASTAllocator& astAllocator, ASTD
         i++;
     }
     const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
+    set_active_iteration_no_subs(itr.first);
     if(itr.second) {
         for (auto sub: subscribers) {
             sub->report_parent_usage(astAllocator, diagnoser, itr.first);
@@ -482,6 +483,22 @@ int16_t MembersContainer::register_value(SymbolResolver& resolver, StructValue* 
 
 int16_t MembersContainer::total_generic_iterations() {
     return ::total_generic_iterations(generic_params);
+}
+
+void MembersContainer::set_active_iteration_no_subs(int16_t iteration) {
+#ifdef DEBUG
+    if(iteration < -1) {
+        throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
+    }
+#endif
+    if(iteration == -1) {
+        active_iteration = 0;
+    } else {
+        active_iteration = iteration;
+    }
+    for (auto &param: generic_params) {
+        param->active_iteration = iteration;
+    }
 }
 
 void MembersContainer::set_active_iteration(int16_t iteration) {

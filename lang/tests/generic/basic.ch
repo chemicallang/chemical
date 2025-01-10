@@ -142,6 +142,26 @@ struct unused_gen_calls_gen<T> {
     }
 }
 
+func <T> gen_func_called_by_gen_struct(value : T) : T {
+    if(T is char || T is uchar) {
+        return value + 1;
+    } else if(T is short || T is ushort) {
+        return value + 2
+    } else if(T is int || T is uint) {
+        return value + 4;
+    } else if (T is bigint || T is ubigint) {
+        return value + 8;
+    } else {
+        return 0
+    }
+}
+
+struct gen_struct_calls_gen<T> {
+    func call_it(value : T) : T {
+        return gen_func_called_by_gen_struct(value);
+    }
+}
+
 func test_basic_generics() {
     test("test that basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -342,5 +362,47 @@ func test_basic_generics() {
         var i = check_gen_right_impl<bigint> {}
         var u = check_gen_right_impl<ubigint> {}
         return i.get_integer() == 8 && u.get_integer() == 8
+    })
+    test("generic function call inside a function of a generic struct calls correct implementation - 1", () => {
+        var i = gen_struct_calls_gen<char> {};
+        var u = gen_struct_calls_gen<uchar> {};
+        return i.call_it(60) == 61 && u.call_it(60) == 61
+    })
+    test("generic function call inside a function of a generic struct calls correct implementation - 2", () => {
+        var i = gen_struct_calls_gen<short> {};
+        var u = gen_struct_calls_gen<ushort> {};
+        return i.call_it(60) == 62 && u.call_it(60) == 62
+    })
+    test("generic function call inside a function of a generic struct calls correct implementation - 3", () => {
+        var i = gen_struct_calls_gen<int> {};
+        var u = gen_struct_calls_gen<uint> {};
+        return i.call_it(60) == 64 && u.call_it(60) == 64
+    })
+    test("generic function call inside a function of a generic struct calls correct implementation - 4", () => {
+        var i = gen_struct_calls_gen<bigint> {};
+        var u = gen_struct_calls_gen<ubigint> {};
+        return i.call_it(60) == 68 && u.call_it(60) == 68
+    })
+    // duplicating tests so when generic implementations are reused based on types
+    // we test that correct implementations are called still.
+    test("generic function call inside a function of a generic struct calls correct implementation - 5", () => {
+        var i = gen_struct_calls_gen<char> {};
+        var u = gen_struct_calls_gen<uchar> {};
+        return i.call_it(60) == 61 && u.call_it(60) == 61
+    })
+    test("generic function call inside a function of a generic struct calls correct implementation - 6", () => {
+        var i = gen_struct_calls_gen<short> {};
+        var u = gen_struct_calls_gen<ushort> {};
+        return i.call_it(60) == 62 && u.call_it(60) == 62
+    })
+    test("generic function call inside a function of a generic struct calls correct implementation - 7", () => {
+        var i = gen_struct_calls_gen<int> {};
+        var u = gen_struct_calls_gen<uint> {};
+        return i.call_it(60) == 64 && u.call_it(60) == 64
+    })
+    test("generic function call inside a function of a generic struct calls correct implementation - 8", () => {
+        var i = gen_struct_calls_gen<bigint> {};
+        var u = gen_struct_calls_gen<ubigint> {};
+        return i.call_it(60) == 68 && u.call_it(60) == 68
     })
 }

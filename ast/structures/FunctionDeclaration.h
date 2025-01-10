@@ -457,6 +457,8 @@ public:
 
     using FunctionType::as_extension_func;
 
+    void activate_gen_call_iterations(int16_t iteration);
+
     /**
      * set's the active iteration for a generic function
      * this helps generics types pretend to be certain type

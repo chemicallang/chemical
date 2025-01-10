@@ -134,6 +134,14 @@ struct check_gen_right_impl<T> {
 
 }
 
+// struct won't be used, but calls a generic function
+// tests: doesn't cause a compiler error just by being there
+struct unused_gen_calls_gen<T> {
+    func call_gen_func(value : T) {
+        var x = gen_ret_func(value)
+    }
+}
+
 func test_basic_generics() {
     test("test that basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;

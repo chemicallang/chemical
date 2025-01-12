@@ -503,7 +503,7 @@ bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 }
 
 llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
-    const auto type = value->create_type(gen.allocator);
+    const auto type = value->create_type(gen.allocator)->pure_type();
     const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, location);
     const auto value_loaded = value->llvm_value(gen);
     const auto op = increment ? Operation::Addition : Operation::Subtraction;
@@ -664,6 +664,21 @@ llvm::Type *AddrOfValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *AddrOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+    // reporting parameters that their address has been taken
+    // which allows them to generate a variable and store themselves onto it
+    // if they are of integer types
+    // before the taking of address, the variables act immutable
+    const auto linked = value->linked_node();
+    if(linked) {
+        switch (linked->kind()) {
+            case ASTNodeKind::FunctionParam:
+            case ASTNodeKind::ExtensionFuncReceiver:
+                linked->as_base_func_param_unsafe()->set_has_address_taken(true);
+                break;
+            default:
+                break;
+        }
+    }
     const auto struct_value = value->as_struct_value();
     if(struct_value) {
         return struct_value->llvm_allocate(gen, "", nullptr);

@@ -2,7 +2,9 @@
 
 #include "AddrOfValue.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/base/ASTNode.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/structures/BaseFunctionParam.h"
 
 
 AddrOfValue::AddrOfValue(

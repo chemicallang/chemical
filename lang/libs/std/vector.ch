@@ -43,7 +43,7 @@ public struct vector<T> {
             // Double the capacity if needed
             resize(data_cap * 2);
         }
-        data_ptr[s] = value;
+        memcpy(&data_ptr[s], &value, #sizeof(T))
         data_size = s + 1
     }
 
@@ -79,7 +79,7 @@ public struct vector<T> {
             data_size = last;
         } else {
             for (var i = index; i < last; i++) {
-                data_ptr[i] = data_ptr[i + 1];
+                memcpy(&data_ptr[i], &data_ptr[i + 1], #sizeof(T))
             }
             data_size = last;
         }

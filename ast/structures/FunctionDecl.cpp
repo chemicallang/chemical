@@ -46,9 +46,13 @@ void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
     if(!(returnValue && returnValue->linked_node() == this)) {
         type->linked_node()->llvm_destruct(gen, gen.current_function->getArg(calculate_c_or_llvm_index()));
     }
+    pointer = nullptr;
 }
 
 llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
+    if(pointer) {
+        return pointer;
+    }
     auto index = calculate_c_or_llvm_index();
     if(index > gen.current_function->arg_size()) {
         gen.error("couldn't get argument with name " + name.str() + " since function has " + std::to_string(gen.current_function->arg_size()) + " arguments", this);
@@ -56,6 +60,14 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
     }
     auto arg = gen.current_function->getArg(index);
     if (arg) {
+        if(has_address_taken()) {
+            const auto pure = type->pure_type();
+            if(pure->kind() == BaseTypeKind::IntN) {
+                pointer = gen.builder->CreateAlloca(pure->llvm_type(gen));
+                gen.builder->CreateStore(arg, pointer);
+                return pointer;
+            }
+        }
         return arg;
     } else {
         gen.error("couldn't get argument with name " + name.str(), this);
@@ -65,7 +77,11 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
 
 llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
     if (gen.current_function != nullptr) {
-        return llvm_pointer(gen);
+        if(pointer) {
+            return gen.builder->CreateLoad(type->llvm_type(gen), pointer);
+        } else {
+            return llvm_pointer(gen);
+        }
     } else {
         gen.error("cannot provide pointer to a function parameter when not generating code for a function", this);
     }

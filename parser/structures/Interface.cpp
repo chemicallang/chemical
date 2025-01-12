@@ -13,7 +13,6 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
 
     if (tok.type == TokenType::InterfaceKw) {
         token++;
-        readWhitespace();
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
             error("expected interface name after the interface keyword");
@@ -23,9 +22,7 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
 
         annotate(decl);
 
-        lexWhitespaceToken();
         parseGenericParametersList(allocator, decl->generic_params);
-        lexWhitespaceToken();
 
         if (!consumeToken(TokenType::LBrace)) {
             error("expected a '{' when starting an interface block");
@@ -35,9 +32,8 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
         auto prev_parent_node = parent_node;
         parent_node = decl;
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
-                lexWhitespaceToken();
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

@@ -19,7 +19,6 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
         }
     }
 
-    readWhitespace();
 
     auto identifier = consumeIdentifierOrKeyword();
     if(!identifier) {
@@ -27,8 +26,6 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
     }
 
     auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), nullptr, nullptr, parent_node, 0, constId != nullptr, AccessSpecifier::Public);
-
-    readWhitespace();
 
     if(!consumeWSOfType(TokenType::ColonSym)) {
         error("expected a colon symbol after the identifier");
@@ -39,10 +36,8 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
         member->type = type;
     }
 
-    readWhitespace();
 
     if(consumeToken(TokenType::EqualSym)) {
-        readWhitespace();
         auto value = parseExpression(allocator);
         if(value) {
             member->defValue = value;
@@ -61,49 +56,40 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
 
         auto decl = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct("", parent_node, 0, specifier);
 
-        lexWhitespaceToken();
         if(consumeToken(TokenType::ColonSym)) {
             do {
-                lexWhitespaceToken();
                 auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
-                readWhitespace();
                 auto type = parseLinkedOrGenericType(allocator);
                 if(!type) {
                     return decl;
                 }
                 decl->inherited.emplace_back(new InheritedType(type, in_spec));
-                lexWhitespaceToken();
             } while(consumeToken(TokenType::CommaSym));
         }
-        lexWhitespaceToken();
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return decl;
         }
 
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
-                lexWhitespaceToken();
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
             }
         } while(token->type != TokenType::RBrace);
-        lexWhitespaceToken();
 
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");
             return decl;
         }
-        if(lexWhitespaceToken()) {
-            auto id = consumeIdentifierOrKeyword();
-            if(id) {
-                decl->name = allocate_view(allocator, id->value);
-            } else {
-                error("expected an identifier after the '}' for anonymous struct definition");
-                return decl;
-            }
+        auto id = consumeIdentifierOrKeyword();
+        if(id) {
+            decl->name = allocate_view(allocator, id->value);
+        } else {
+            error("expected an identifier after the '}' for anonymous struct definition");
+            return decl;
         }
         return decl;
     } else {
@@ -192,32 +178,25 @@ StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, Ac
         auto prev_parent_node = parent_node;
         parent_node = decl;
 
-        lexWhitespaceToken();
         parseGenericParametersList(allocator, decl->generic_params);
-        lexWhitespaceToken();
         if(consumeToken(TokenType::ColonSym)) {
             do {
-                lexWhitespaceToken();
                 auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
-                readWhitespace();
                 auto type = parseLinkedOrGenericType(allocator);
                 if(!type) {
                     return decl;
                 }
                 decl->inherited.emplace_back(new InheritedType(type, in_spec));
-                lexWhitespaceToken();
             } while(consumeToken(TokenType::CommaSym));
         }
-        lexWhitespaceToken();
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return decl;
         }
 
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
-                lexWhitespaceToken();
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

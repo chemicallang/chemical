@@ -14,7 +14,7 @@ void Parser::parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, s
     // lex a statement and then optional whitespace, lex semicolon
 
     while(true) {
-        lexWhitespaceAndNewLines();
+        consumeNewLines();
         auto stmt = parseNestedLevelStatementTokens(allocator, is_value, parse_value_node);
         if(stmt) {
             nodes.emplace_back(stmt);
@@ -23,7 +23,6 @@ void Parser::parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, s
                 break;
             }
         }
-        lexWhitespaceToken();
         consumeToken(TokenType::SemiColonSym);
     }
 }
@@ -31,7 +30,7 @@ void Parser::parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, s
 std::optional<Scope> Parser::parseBraceBlock(const std::string_view &forThing, ASTAllocator& allocator, void(*nested_lexer)(Parser*, ASTAllocator& allocator, std::vector<ASTNode*>& nodes)) {
 
     // whitespace and new lines
-    lexWhitespaceAndNewLines();
+    consumeNewLines();
 
     // starting brace
     auto lb = consumeOfType(TokenType::LBrace);
@@ -72,7 +71,7 @@ std::optional<Scope> Parser::parseTopLevelBraceBlock(ASTAllocator& allocator, co
 std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator, const std::string_view& forThing, bool is_value, bool parse_value_node) {
 
     // whitespace and new lines
-    lexWhitespaceAndNewLines();
+    consumeNewLines();
 
     // starting brace
     auto lb = consumeOfType(TokenType::LBrace);
@@ -80,9 +79,9 @@ std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator,
         if (parse_value_node) {
             auto valNode = parseValueNode(allocator);
             if (valNode) {
-                lexWhitespaceAndNewLines();
+                consumeNewLines();
                 if (consumeToken(TokenType::SemiColonSym)) {
-                    lexWhitespaceAndNewLines();
+                    consumeNewLines();
                 }
                 return Scope{{valNode}, parent_node, valNode->encoded_location()};
             } else {
@@ -91,9 +90,9 @@ std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator,
         }
         auto nested_stmt = parseNestedLevelStatementTokens(allocator, is_value, parse_value_node);
         if (nested_stmt) {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if (consumeToken(TokenType::SemiColonSym)) {
-                lexWhitespaceAndNewLines();
+                consumeNewLines();
             }
             return Scope{{nested_stmt}, parent_node, nested_stmt->encoded_location()};
         }

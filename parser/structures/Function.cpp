@@ -21,7 +21,6 @@ ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::ReturnKw) {
         token++;
-        lexWhitespaceToken();
         auto stmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(nullptr, current_func_type, parent_node, loc_single(tok));
         auto expr = parseExpression(allocator, true);
         if(expr) {
@@ -37,7 +36,6 @@ InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::InitKw) {
         token++;
-        readWhitespace();
         auto init = new (allocator.allocate<InitBlock>()) InitBlock({ nullptr, 0 }, parent_node, loc_single(tok));
         auto block = parseBraceBlock("init-block", init, allocator);
         if(block.has_value()) {
@@ -55,7 +53,6 @@ UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::UnsafeKw) {
         token++;
-        readWhitespace();
         auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock({ nullptr, 0 }, loc_single(tok));
         auto block = parseBraceBlock("unsafe_block", unsafe, allocator);
         if(block.has_value()) {
@@ -74,22 +71,15 @@ DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::DestructKw) {
         token++;
-        readWhitespace();
         auto stmt = new (allocator.allocate<DestructStmt>()) DestructStmt(nullptr, nullptr, false, parent_node, loc_single(tok));
         if(consumeToken(TokenType::LBracket)) {
-            lexWhitespaceToken();
             stmt->is_array = true;
             auto value = parseAccessChainOrValue(allocator);
             if(value) {
                 stmt->array_value = value;
             }
-            lexWhitespaceToken();
             if(!consumeToken(TokenType::RBracket)) {
                 error("expected a ']' after the access chain value");
-                return stmt;
-            }
-            if(!lexWhitespaceToken()) {
-                error("expected whitespace after ']' in destruct statement");
                 return stmt;
             }
         }
@@ -116,7 +106,7 @@ bool Parser::parseParameterList(
 ) {
     unsigned int index = parameters.size();
     do {
-        lexWhitespaceAndNewLines();
+        consumeNewLines();
         if(lexImplicitParams) {
             auto ampersand = consumeOfType(TokenType::AmpersandSym);
             if (ampersand) {
@@ -128,7 +118,6 @@ bool Parser::parseParameterList(
                                                                                         index, nullptr, true,
                                                                                         current_func_type, loc(ampersand, id));
                     parameters.emplace_back(param);
-                    readWhitespace();
                     index++;
                     continue;
                 } else {
@@ -139,9 +128,7 @@ bool Parser::parseParameterList(
         }
         auto id = consumeIdentifierOrKeyword();
         if(id) {
-            readWhitespace();
             if(consumeToken(TokenType::ColonSym)) {
-                lexWhitespaceToken();
                 auto type = parseType(allocator);
                 if(type) {
                     if(variadicParam && consumeToken(TokenType::TripleDotSym)) {
@@ -151,9 +138,7 @@ bool Parser::parseParameterList(
                     }
                     Value* defValue = nullptr;
                     if(defValues) {
-                        readWhitespace();
                         if (consumeToken(TokenType::EqualSym)) {
-                            readWhitespace();
                             auto expr = parseExpression(allocator);
                             if(expr) {
                                 defValue = expr;
@@ -179,7 +164,6 @@ bool Parser::parseParameterList(
                 }
             }
         }
-        lexWhitespaceToken();
         index++;
     } while(consumeToken(TokenType::CommaSym));
     return false;
@@ -189,16 +173,13 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
     if(consumeToken(TokenType::LessThanSym)) {
         unsigned int param_index = 0;
         while(true) {
-            lexWhitespaceToken();
             auto id = consumeIdentifierOrKeyword();
             if(!id) {
                 break;
             }
             auto parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(allocate_view(allocator, id->value), nullptr, nullptr, parent_node, param_index, loc_single(id));
             params.emplace_back(parameter);
-            lexWhitespaceToken();
             if(consumeToken(TokenType::ColonSym)) {
-                lexWhitespaceToken();
                 auto type = parseType(allocator);
                 if(type) {
                     parameter->at_least_type = type;
@@ -206,10 +187,8 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
                     error("expected a type after ':' in generic parameter list");
                     return true;
                 }
-                lexWhitespaceToken();
             }
             if(consumeToken(TokenType::EqualSym)) {
-                lexWhitespaceToken();
                 auto type = parseType(allocator);
                 if(type) {
                     parameter->def_type = type;
@@ -217,7 +196,6 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
                     error("expected a default type after '=' in generic parameter list");
                     return true;
                 }
-                lexWhitespaceToken();
             }
             if(!consumeToken(TokenType::CommaSym)) {
                 break;
@@ -241,20 +219,15 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
 
     std::vector<GenericTypeParameter*> gen_params;
 
-    readWhitespace();
-
     if(parseGenericParametersList(allocator, gen_params) && has_errors) {
         return nullptr;
     }
-
-    lexWhitespaceToken();
 
     FunctionDeclaration* decl;
 
     if(allow_extensions && consumeToken(TokenType::LParen)) {
         auto ext_func = new (allocator.allocate<ExtensionFunction>()) ExtensionFunction(loc_id(allocator, "", {0, 0}), { "", nullptr, nullptr, 0 }, {}, nullptr, false, parent_node, 0, std::nullopt, specifier);;
         decl = ext_func;
-        lexWhitespaceToken();
         auto id = consumeIdentifierOrKeyword();
         if(id) {
             ext_func->receiver.name = allocate_view(allocator, id->value);
@@ -262,12 +235,10 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
             error("expected identifier for receiver in extension function after '('");
             return decl;
         }
-        lexWhitespaceToken();
         if(!consumeToken(TokenType::ColonSym)) {
             error("expected ':' in extension function after identifier for receiver");
             return decl;
         }
-        lexWhitespaceToken();
         auto type = parseType(allocator);
         if(type) {
             ext_func->receiver.type = type;
@@ -275,12 +246,10 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
             error("expected type after ':' in extension function for receiver");
             return decl;
         }
-        lexWhitespaceToken();
         if(!consumeToken(TokenType::RParen)) {
             error("expected ')' in extension function after receiver");
             return decl;
         }
-        lexWhitespaceToken();
     } else {
         decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id(allocator, "", {0, 0}), {}, nullptr, false, parent_node, 0, std::nullopt, specifier, false);
     }
@@ -300,8 +269,6 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
         return decl;
     }
 
-    lexWhitespaceToken();
-
     if(!consumeToken(TokenType::LParen)) {
         error("expected a starting parenthesis ( in a function signature");
         return decl;
@@ -316,19 +283,16 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
     auto isVariadic = parseParameterList(allocator, decl->params);
     decl->setIsVariadic(isVariadic);
 
-    lexWhitespaceAndNewLines();
+    consumeNewLines();
 
     if(!consumeToken(TokenType::RParen)) {
         error("expected a closing parenthesis ) when ending a function signature");
         return decl;
     }
 
-    lexWhitespaceToken();
-
     auto& tok = *token;
     if(tok.type == TokenType::ColonSym) {
         token++;
-        lexWhitespaceToken();
         auto type = parseType(allocator);
         if(type) {
             decl->returnType = type;

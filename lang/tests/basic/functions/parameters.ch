@@ -22,6 +22,7 @@ func <T> gen_assign_to_addr(value : *T) {
 }
 
 func <T> gen_take_addr_of(value : T) : T {
+    // TODO this type parameter is not being inferred
     gen_assign_to_addr<T>(&value)
     return value
 }

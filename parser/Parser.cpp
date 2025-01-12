@@ -57,7 +57,7 @@ uint64_t Parser::loc_single(Position& pos, unsigned int length) {
 
 void Parser::parseTopLevelMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
     while (true) {
-        lexWhitespaceAndNewLines();
+        consumeNewLines();
         auto importStmt = parseImportStatement(allocator);
         if(importStmt) {
             nodes.emplace_back((ASTNode*) importStmt);
@@ -74,7 +74,6 @@ void Parser::parseTopLevelMultipleImportStatements(ASTAllocator& allocator, std:
                 }
             }
         }
-        lexWhitespaceToken();
         consumeToken(TokenType::SemiColonSym);
     }
 }
@@ -85,7 +84,7 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
     // lex a statement and then optional whitespace, lex semicolon
 
     while (true) {
-        lexWhitespaceAndNewLines();
+        consumeNewLines();
         auto stmt = parseTopLevelStatement(allocator);
         if(stmt) {
             nodes.emplace_back(stmt);
@@ -99,7 +98,6 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
                 continue;
             }
         }
-        lexWhitespaceToken();
         consumeToken(TokenType::SemiColonSym);
     }
 }
@@ -110,7 +108,6 @@ void Parser::parse(std::vector<ASTNode*>& nodes) {
 }
 
 Value* parseSizeOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
-    parser->readWhitespace();
     auto tok = parser->token;
     const auto first_type = tok->type;
     if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
@@ -119,11 +116,9 @@ Value* parseSizeOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
         parser->error("expected '{' or '(' when parsing sizeof");
         return nullptr;
     }
-    parser->readWhitespace();
     auto& allocator = *allocator_ptr;
     auto type = parser->parseType(allocator);
     if(type) {
-        parser->readWhitespace();
         auto last = parser->token;
         auto value = new (allocator.allocate<SizeOfValue>()) SizeOfValue(type, parser->loc(tok, last));
         const auto last_type = last->type;
@@ -140,7 +135,6 @@ Value* parseSizeOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
 }
 
 Value* parseAlignOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
-    parser->readWhitespace();
     auto tok = parser->token;
     const auto first_type = tok->type;
     if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
@@ -149,11 +143,9 @@ Value* parseAlignOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
         parser->error("expected '{' or '(' when parsing alignof");
         return nullptr;
     }
-    parser->readWhitespace();
     auto& allocator = *allocator_ptr;
     auto type = parser->parseType(allocator);
     if(type) {
-        parser->readWhitespace();
         auto last = parser->token;
         auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, parser->loc(tok, last));
         const auto last_type = last->type;
@@ -170,7 +162,6 @@ Value* parseAlignOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
 }
 
 Value* parseEvalValue(Parser* parser, ASTAllocator* allocator_ptr) {
-    parser->readWhitespace();
     auto tok = parser->token;
     const auto first_type = tok->type;
     if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
@@ -179,11 +170,9 @@ Value* parseEvalValue(Parser* parser, ASTAllocator* allocator_ptr) {
         parser->error("expected '{' or '(' when parsing sizeof");
         return nullptr;
     }
-    parser->readWhitespace();
     auto& allocator = *allocator_ptr;
     auto expr = parser->parseExpression(allocator);
     if(expr) {
-        parser->readWhitespace();
         auto last = parser->token;
         auto evaluated = expr->evaluated_value((InterpretScope&) parser->comptime_scope);
         const auto last_type = last->type;

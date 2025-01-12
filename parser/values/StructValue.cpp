@@ -11,15 +11,13 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
 
         // lex struct member value tokens
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             auto id = consumeIdentifierOrKeyword();
             if(id) {
-                readWhitespace();
                 if(!consumeToken(TokenType::ColonSym)) {
                     error("expected a ':' for initializing struct member " + id->value.str());
                     return structValue;
                 }
-                readWhitespace();
                 auto expression = parseExpression(allocator, true);
                 if(expression) {
                     const auto id_view = allocate_view(allocator, id->value);
@@ -34,14 +32,13 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
                         return structValue;
                     }
                 }
-                readWhitespace();
                 consumeToken(TokenType::CommaSym);
             } else {
                 break;
             }
         } while(true);
 
-        lexWhitespaceAndNewLines();
+        consumeNewLines();
 
         auto rBrace = consumeOfType(TokenType::RBrace);
 

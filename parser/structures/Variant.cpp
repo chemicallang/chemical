@@ -14,7 +14,6 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
     if(id) {
         auto member = new (allocator.allocate<VariantMember>()) VariantMember(allocate_view(allocator, id->value), definition, loc_single(id));
         annotate(member);
-        readWhitespace();
         if(consumeToken(TokenType::LParen)) {
 
             unsigned int index = 0;
@@ -22,8 +21,6 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
 
                 auto paramId = consumeIdentifierOrKeyword();
                 if(paramId) {
-
-                    readWhitespace();
 
                     auto name_view = allocate_view(allocator, paramId->value);
                     auto param = new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name_view, index, false, nullptr, nullptr, member, loc_single(paramId));
@@ -33,14 +30,10 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
                         error("expected ':' after the variant member parameter");
                     }
 
-                    readWhitespace();
-
                     auto type = parseType(allocator);
                     if(type) {
                         param->type = type;
                     }
-
-                    readWhitespace();
 
                     if(consumeToken(TokenType::EqualSym)) {
                         auto defValue = parseExpression(allocator);
@@ -49,13 +42,9 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
                         }
                     }
 
-                    readWhitespace();
-
-
                     index++;
 
                     if(consumeToken(TokenType::CommaSym)) {
-                        readWhitespace();
                         continue;
                     }
 
@@ -121,25 +110,21 @@ VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, 
 
         annotate(decl);
 
-        lexWhitespaceToken();
         parseGenericParametersList(allocator, decl->generic_params);
 
-        lexWhitespaceToken();
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return decl;
         }
 
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if(parseAnyVariantMember(allocator, decl, AccessSpecifier::Public)) {
-                readWhitespace();
                 consumeOfType(TokenType::SemiColonSym);
             } else {
                 break;
             }
         } while(token->type != TokenType::RBrace);
-        lexWhitespaceToken();
 
         parent_node = prev_parent_type;
 

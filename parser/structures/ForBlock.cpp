@@ -15,7 +15,6 @@ ContinueStatement* Parser::parseContinueStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::ContinueKw) {
         token++;
-        readWhitespace();
         auto stmt = new (allocator.allocate<ContinueStatement>()) ContinueStatement(current_loop_node, parent_node, loc_single(tok));
         return stmt;
     } else {
@@ -27,7 +26,6 @@ BreakStatement* Parser::parseBreakStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::BreakKw) {
         token++;
-        readWhitespace();
         auto stmt = new (allocator.allocate<BreakStatement>()) BreakStatement(current_loop_node, parent_node, loc_single(tok));
         auto value = parseAccessChainOrValue(allocator);
         if(value) {
@@ -45,7 +43,6 @@ UnreachableStmt* Parser::parseUnreachableStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::UnreachableKw) {
         token++;
-        readWhitespace();
         const auto stmt = new (allocator.allocate<UnreachableStmt>()) UnreachableStmt(parent_node, loc_single(tok));
         return stmt;
     } else {
@@ -62,7 +59,6 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
     }
 
     token++;
-    readWhitespace();
 
     auto loop = new (allocator.allocate<ForLoop>()) ForLoop(nullptr, nullptr, nullptr, { nullptr, 0 }, parent_node, loc_single(tok));
 
@@ -102,9 +98,6 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
         return loop;
     }
 
-    // whitespace
-    lexWhitespaceToken();
-
     // lex conditional expression
     auto expr = parseExpression(allocator);
     if(expr) {
@@ -118,9 +111,6 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
         error("expected semicolon ; after the condition in for loop");
         return loop;
     }
-
-    // whitespace
-    lexWhitespaceToken();
 
     // lex assignment token
     auto assignment = parseAssignmentStmt(allocator);
@@ -163,7 +153,6 @@ LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) 
     }
 
     token++;
-    readWhitespace();
 
     auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock({ parent_node, 0 }, parent_node, loc_single(tok));
 

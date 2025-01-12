@@ -15,7 +15,6 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
     auto& start_tok = *token;
     if(start_tok.type == TokenType::EnumKw) {
         token++;
-        readWhitespace();
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
             error("expected a identifier as enum name");
@@ -27,10 +26,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
 
         annotate(decl);
 
-        lexWhitespaceToken();
-
         if(consumeToken(TokenType::ColonSym)) {
-            lexWhitespaceToken();
             auto type = parseType(allocator);
             if(type) {
                 const auto k = type->kind();
@@ -47,22 +43,19 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
             decl->underlying_type = new (allocator.allocate<IntType>()) IntType(loc);
         }
 
-        lexWhitespaceToken();
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for after the enum name");
             return decl;
         }
         unsigned int index = 0;
         while(true) {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             auto memberId = consumeIdentifierOrKeyword();
             if(memberId) {
                 const auto member_name = allocate_view(allocator, memberId->value);
                 auto member = new (allocator.allocate<EnumMember>()) EnumMember(member_name, index, nullptr, decl, loc_single(memberId));
                 decl->members[member_name] = member;
-                lexWhitespaceToken();
                 if(consumeToken(TokenType::EqualSym)) {
-                    lexWhitespaceToken();
                     if(token->type == TokenType::Number) {
                         auto& value = token->value;
                         auto expr = parse_num(value.data(), value.size(), strtol);
@@ -81,7 +74,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
                 if(consumeToken(TokenType::CommaSym)) {
                     continue;
                 } else {
-                    lexWhitespaceAndNewLines();
+                    consumeNewLines();
                     break;
                 }
             } else {

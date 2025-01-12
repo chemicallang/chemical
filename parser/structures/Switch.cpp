@@ -10,7 +10,6 @@ SwitchStatement* Parser::parseSwitchStatementBlock(ASTAllocator& allocator, bool
     if (tok.type == TokenType::SwitchKw) {
 
         token++;
-        readWhitespace();
 
         auto stmt = new (allocator.allocate<SwitchStatement>()) SwitchStatement(nullptr, parent_node, is_value, loc_single(tok));
 
@@ -30,15 +29,15 @@ SwitchStatement* Parser::parseSwitchStatementBlock(ASTAllocator& allocator, bool
             error("expect '(' after keyword 'switch' for the expression");
             return stmt;
         }
-        lexWhitespaceAndNewLines();
+        consumeNewLines();
         if (consumeToken(TokenType::LBrace)) {
             while(true) {
-                lexWhitespaceAndNewLines();
+                consumeNewLines();
                 bool has_single = false;
                 int body_index = (int) stmt->scopes.size();
                 do {
                     if(has_single) {
-                        lexWhitespaceAndNewLines();
+                        consumeNewLines();
                     }
                     if(consumeWSOfType(TokenType::DefaultKw)) {
                         has_single = true;
@@ -56,12 +55,10 @@ SwitchStatement* Parser::parseSwitchStatementBlock(ASTAllocator& allocator, bool
                             break;
                         }
                     }
-                    lexWhitespaceToken();
                 } while(consumeToken(TokenType::CommaSym));
                 if(!has_single) {
                     break;
                 }
-                lexWhitespaceToken();
                 stmt->scopes.emplace_back(parent_node, 0);
                 auto& scope = stmt->scopes.back();
                 if (consumeToken(TokenType::ColonSym)) {

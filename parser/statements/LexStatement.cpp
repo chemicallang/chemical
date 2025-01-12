@@ -19,7 +19,6 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator
     if(!specifier.has_value()) {
         return nullptr;
     }
-    readWhitespace();
     auto spec = specifier.value();
     auto& allocator = spec == AccessSpecifier::Public ? global_allocator : local_allocator;
     switch (token->type) {
@@ -158,7 +157,6 @@ ThrowStatement* Parser::parseThrowStatement(ASTAllocator& allocator) {
     if(tok.type == TokenType::ThrowKw) {
         token++;
         auto stmt = new (allocator.allocate<ThrowStatement>()) ThrowStatement(nullptr, parent_node, loc_single(tok));
-        readWhitespace();
         auto expr = parseExpression(allocator);
         if(expr) {
             stmt->value = expr;
@@ -174,7 +172,6 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::UsingKw) {
         token++;
-        readWhitespace();
         auto has_namespace = consumeWSOfType(TokenType::NamespaceKw);
         const auto location = loc_single(tok);
         auto chain = new (allocator.allocate<AccessChain>()) AccessChain({}, false, location);
@@ -238,7 +235,6 @@ ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::ProvideKw) {
         token++;
-        readWhitespace();
         auto stmt = new (allocator.allocate<ProvideStmt>()) ProvideStmt(nullptr, "", { nullptr, 0 }, parent_node, loc_single(tok));
         auto val = parseProvideValue(allocator);
         if(val) {
@@ -247,13 +243,11 @@ ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {
             error("expected a value after provide keyword");
             return nullptr;
         }
-        readWhitespace();
         auto asKw = consumeWSOfType(TokenType::AsKw);
         if(!asKw) {
             error("expected 'as' keyword after provide (expression)");
             return stmt;
         }
-        readWhitespace();
         auto id = consumeIdentifierOrKeyword();
         if(id) {
             stmt->identifier = allocate_view(allocator, id->value);
@@ -278,7 +272,6 @@ ComptimeBlock* Parser::parseComptimeBlock(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::ComptimeKw) {
         token++;
-        readWhitespace();
         auto ctBlock = new (allocator.allocate<ComptimeBlock>()) ComptimeBlock({ nullptr, 0 }, parent_node, loc_single(tok));
         auto block = parseBraceBlock("comptime", ctBlock, allocator);
         if(block.has_value()) {

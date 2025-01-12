@@ -6,21 +6,9 @@
 #include "parser/Parser.h"
 #include <memory>
 
-bool Parser::readWhitespace() {
-    if(token->type == TokenType::Whitespace) {
-        token++;
-        return true;
-    } else {
-        return false;
-    }
-}
-
-void Parser::consumeWhitespaceAndNewLines() {
+void Parser::consumeNewLines() {
     while(true) {
         switch(token->type) {
-            // case TokenType::SingleLineComment:
-            // case TokenType::MultiLineComment:
-            case TokenType::Whitespace:
             case TokenType::NewLine:
                 token++;
                 break;

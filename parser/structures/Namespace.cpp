@@ -8,7 +8,6 @@ Namespace* Parser::parseNamespace(ASTAllocator& allocator, AccessSpecifier speci
     auto& tok = *token;
     if(tok.type == TokenType::NamespaceKw) {
         token++;
-        readWhitespace();
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
             error("expected identifier for namespace name");

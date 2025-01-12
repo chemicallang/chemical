@@ -54,7 +54,6 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
     }
 
     token++;
-    readWhitespace();
 
     auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, { nullptr, 0 }, {}, std::nullopt, parent_node, is_value, loc_single(first));
 
@@ -68,11 +67,11 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
     }
 
     // lex whitespace
-    lexWhitespaceAndNewLines();
+    consumeNewLines();
 
     // keep lexing else if blocks until last else appears
     while (consumeWSOfType(TokenType::ElseKw) != nullptr) {
-        lexWhitespaceAndNewLines();
+        consumeNewLines();
         if(consumeWSOfType(TokenType::IfKw)) {
             auto exprBlock2 = parseIfExprAndBlock(allocator, is_value, parse_value_node, top_level);
             if(exprBlock2.has_value()) {
@@ -80,7 +79,6 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
             } else {
                 return statement;
             }
-            lexWhitespaceToken();
         } else {
             if(top_level) {
                 auto block = parseTopLevelBraceBlock(allocator, "else");

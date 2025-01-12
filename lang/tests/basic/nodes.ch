@@ -154,7 +154,7 @@ func test_nodes() {
         for(i = 3; i < 7; i++) {
             j++
         }
-        return j == 3
+        return j == 4
     })
     test("while loop", () => {
        var j = 0;

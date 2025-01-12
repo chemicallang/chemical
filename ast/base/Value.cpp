@@ -396,6 +396,11 @@ bool Value::is_ptr_or_ref(ASTAllocator& allocator) {
     return linked != nullptr && linked->is_ptr_or_ref(allocator, linked->kind());
 }
 
+bool Value::is_ref(ASTAllocator& allocator) {
+    auto linked = linked_node();
+    return linked != nullptr && linked->is_ref(allocator);
+}
+
 bool Value::is_ref_value() {
     switch(val_kind()) {
         case ValueKind::AccessChain:

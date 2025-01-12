@@ -257,7 +257,12 @@ public:
     bool is_ptr_or_ref(ASTAllocator& allocator);
 
     /**
-     * check if this value is a reference (access chain or identifier)
+     * check if this value is a reference (reference type)
+     */
+    bool is_ref(ASTAllocator& allocator);
+
+    /**
+     * check if this value references other values  (access chain or identifier)
      */
     bool is_ref_value();
 

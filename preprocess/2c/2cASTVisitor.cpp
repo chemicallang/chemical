@@ -4579,10 +4579,23 @@ void write_variant_call_index(ToCAstVisitor& visitor, VariantDefinition* variant
     }
 }
 
+void switch_expr(ToCAstVisitor& visitor, Value* expr, BaseType* type) {
+    // automatic dereference
+    const auto pure_type = type->pure_type();
+    if(pure_type->kind() == BaseTypeKind::Reference) {
+        const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type();
+        const auto ref_kind = ref->kind();
+        if(BaseType::isIntNType(ref_kind) || ref_kind == BaseTypeKind::Bool) {
+            visitor.write('*');
+        }
+    }
+    expr->accept(&visitor);
+}
+
 void ToCAstVisitor::visit(SwitchStatement *statement) {
     write("switch(");
     VariantDefinition* variant = nullptr;
-    const auto known_t = statement->expression->known_type();
+    const auto known_t = statement->expression->create_type(allocator);
     if(known_t) {
         const auto linked = known_t->linked_node();
         if(linked) {
@@ -4597,10 +4610,10 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
                 write_accessor(*this, statement->expression, nullptr);
                 write(variant_type_variant_name);
             } else {
-                statement->expression->accept(this);
+                switch_expr(*this, statement->expression, known_t);
             }
         } else {
-            statement->expression->accept(this);
+            switch_expr(*this, statement->expression, known_t);
         }
     } else {
         statement->expression->accept(this);

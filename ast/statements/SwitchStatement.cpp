@@ -9,6 +9,7 @@
 #include "ast/values/VariableIdentifier.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/values/VariantCase.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/structures/VariantDefinition.h"
 
 #ifdef COMPILER_BUILD
@@ -97,6 +98,18 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
     llvm::Value* expr_value = expression->llvm_value(gen);
     const auto expr_type = expression->create_type(gen.allocator);
     if(expr_type) {
+
+        // automatic dereference
+        const auto pure_type = expr_type->pure_type();
+        if(pure_type->kind() == BaseTypeKind::Reference) {
+            const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type();
+            const auto ref_kind = ref->kind();
+            if(BaseType::isIntNType(ref_kind) || ref_kind == BaseTypeKind::Bool) {
+                expr_value = gen.builder->CreateLoad(ref->llvm_type(gen), expr_value);
+            }
+        }
+
+        // variant members
         const auto linked = expr_type->linked_node();
         if(linked) {
             const auto linked_kind = linked->kind();
@@ -116,6 +129,7 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
                 expr_value = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
             }
         }
+
     }
 
     auto switchInst = gen.builder->CreateSwitch(expr_value, end, total_scopes);

@@ -8,6 +8,10 @@ func give_ref(i : &int) : &int {
     return i;
 }
 
+func give_ref_bool(i : &bool) : &bool {
+    return i;
+}
+
 func ret_auto_deref(i : &int) : int {
     return i
 }
@@ -52,6 +56,31 @@ func test_auto_deref() {
                 return value == 34343;
             }
             None => {
+                return false;
+            }
+        }
+    })
+    test("referenced intN types are automatically de-referenced in switch statements", () => {
+        var i = 33;
+        switch(give_ref(i)) {
+            33 => {
+                return true;
+            }
+            default => {
+                return false;
+            }
+        }
+    })
+    test("referenced boolean types are automatically de-referenced in switch statements", () => {
+        var i = true;
+        switch(give_ref_bool(i)) {
+            true => {
+                return true;
+            }
+            false => {
+                return false;
+            }
+            default => {
                 return false;
             }
         }

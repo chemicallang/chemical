@@ -4969,11 +4969,29 @@ void ToCAstVisitor::visit(Expression *expr) {
     write('(');
     auto prev_nested = nested_value;
     nested_value = true;
+
+    // automatic dereferencing the first value
+    const auto first_type = expr->firstValue->create_type(allocator);
+    const auto first_pure = first_type->pure_type();
+    if(isLoadableReference(first_pure)) {
+        write('*');
+    }
+
     expr->firstValue->accept(this);
+
     space();
     write_str(to_string(expr->operation));
     space();
+
+    // automatic dereferencing the second value
+    const auto second_type = expr->secondValue->create_type(allocator);
+    const auto second_pure = second_type->pure_type();
+    if(isLoadableReference(second_pure)) {
+        write('*');
+    }
+
     expr->secondValue->accept(this);
+
     nested_value = prev_nested;
     write(')');
 }

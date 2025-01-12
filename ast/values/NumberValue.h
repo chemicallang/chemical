@@ -24,7 +24,7 @@ class NumberValue : public IntNumValue {
 public:
 
     uint64_t value;
-    IntNType* linked_type = nullptr;
+    BaseType* linked_type = nullptr;
     SourceLocation location;
 
     /**
@@ -86,12 +86,7 @@ public:
 //        return hybrid_ptr<BaseType> { linked_type.get(), false };
 //    }
 
-    BaseType* known_type() final {
-        if(!linked_type) {
-            return (BaseType*) &IntType::instance;
-        }
-        return linked_type;
-    }
+    BaseType* known_type() final;
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {

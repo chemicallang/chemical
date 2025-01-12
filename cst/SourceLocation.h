@@ -23,4 +23,4 @@ public:
  * location at file-id = 0, line-start = 0, char-start = 0, line-end = 0, char-end = 0
  * file-id being zero, means invalid location, this is used when location is unknown
  */
-inline constexpr auto ZERO_LOC = 0ui64;
+inline constexpr uint64_t ZERO_LOC = 0;

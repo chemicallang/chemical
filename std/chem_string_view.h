@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cstring>
+#include <string>
 
 namespace chem {
 
@@ -72,7 +73,7 @@ namespace chem {
         constexpr const_iterator cend() const noexcept { return data_ + size_; }
 
         [[nodiscard]]
-        inline constexpr std::string str() const noexcept {
+        inline std::string str() const noexcept {
             return { data_, size_ };
         }
 

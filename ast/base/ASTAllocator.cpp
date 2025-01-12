@@ -2,6 +2,7 @@
 
 #include "ASTAllocator.h"
 #include <mutex>
+#include "cstring"
 
 BatchAllocator::BatchAllocator(std::size_t heapBatchSize) : heap_offset(heapBatchSize), heap_batch_size(heapBatchSize) {
     if(heapBatchSize > 0) {
@@ -155,7 +156,7 @@ char* BatchAllocator::allocate_released_size(std::size_t obj_size, std::size_t a
 
 char* BatchAllocator::allocate_str(const char* data, std::size_t size) {
     auto ptr = allocate_released_size(sizeof(char) * (size + 1), alignof(char));
-    std::memcpy(ptr, data, size);
+    memcpy(ptr, data, size);
     *(ptr + size) = '\0';
     return ptr;
 }

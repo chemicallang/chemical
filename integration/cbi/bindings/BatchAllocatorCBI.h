@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "cstddef"
+
 class BatchAllocator;
 
 class ASTAllocator;

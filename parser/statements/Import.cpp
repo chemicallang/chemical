@@ -14,11 +14,10 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
     }
     auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement("", parent_node, loc_single(kw_tok));
     token++;
-    readWhitespace();
     auto str = parseStringValue(allocator);
     if (str) {
         stmt->filePath = str->get_the_string();
-        if(lexWhitespaceToken() && consumeWSOfType(TokenType::AsKw)) {
+        if(consumeWSOfType(TokenType::AsKw)) {
             auto id = consumeIdentifierOrKeyword();
             if(id) {
                 stmt->as_identifier = allocate_view(allocator, id->value);
@@ -34,12 +33,11 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
         } else {
             if (consumeToken(TokenType::LBrace)) {
                 do {
-                    lexWhitespaceAndNewLines();
+                    consumeNewLines();
                     auto identifier = consumeIdentifierOrKeyword();
                     if(!identifier) {
                         break;
                     }
-                    lexWhitespaceToken();
                 } while (consumeToken(TokenType::CommaSym));
                 if (!consumeToken(TokenType::RBrace)) {
                     error("expected a closing bracket '}' after identifier list in import statement");
@@ -49,7 +47,6 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
                 return stmt;
             }
         }
-        lexWhitespaceToken();
         if (consumeWSOfType(TokenType::FromKw)) {
             auto str2 = parseStringValue(allocator);
             if(str2) {

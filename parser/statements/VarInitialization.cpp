@@ -16,7 +16,6 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
     }
 
     token++;
-    readWhitespace();
 
     auto id = consumeIdentifierOrKeyword();
     if(!id) {
@@ -31,14 +30,8 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
 
     annotate(stmt);
 
-    // whitespace
-    lexWhitespaceToken();
-
     // :
     if (consumeToken(TokenType::ColonSym)) {
-
-        // whitespace
-        lexWhitespaceToken();
 
         // type
         stmt->type = parseType(allocator);
@@ -46,9 +39,6 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
             error("expected type tokens for variable initialization");
             return stmt;
         }
-
-        // whitespace
-        lexWhitespaceToken();
 
     } else if(requiredType) {
         error("expected ':' for type");
@@ -68,9 +58,6 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
             return stmt;
         }
     }
-
-    // whitespace
-    lexWhitespaceToken();
 
     // value
     auto expr = parseExpression(allocator, true);

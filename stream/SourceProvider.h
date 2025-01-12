@@ -150,8 +150,15 @@ public:
 
     /**
      * reads whitespaces, returns how many whitespaces were read
+     * doesn't read newlines
      */
     unsigned int readWhitespaces();
+
+    /**
+     * skips whitespaces, this doesn't include new lines
+     * characters ' ', '\t' are skipped
+     */
+    void skipWhitespaces();
 
     /**
      * @return whether there's a newline at current position

@@ -97,6 +97,20 @@ void SourceProvider::switch_source(InputSource* source) {
     bufferPos = 0;
 }
 
+void SourceProvider::skipWhitespaces() {
+    while(true) {
+        switch(peek()) {
+            case ' ':
+            case '\t':
+                readCharacter();
+                continue;
+            case -1:
+            default:
+                return;
+        }
+    }
+}
+
 unsigned int SourceProvider::readWhitespaces() {
     unsigned int whitespaces = 0;
     auto p = peek();

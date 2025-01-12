@@ -100,11 +100,7 @@ void Parser::parseExpressionWith(ASTAllocator& allocator, ValueAndOperatorStack&
                 break;
             }
         } else {
-            if (token->type == TokenType::Whitespace) {
-                token++;
-            } else {
-                break;
-            }
+            break;
         }
     }
     stack.putAllInto(final);
@@ -112,14 +108,11 @@ void Parser::parseExpressionWith(ASTAllocator& allocator, ValueAndOperatorStack&
 
 Value* Parser::parseRemainingExpression(ASTAllocator& allocator, Value* first_value, Token* start_tok) {
 
-    lexWhitespaceToken();
-
     auto operation = parseOperation();
     if(!operation.has_value()) {
         return first_value;
     }
 
-    readWhitespace();
 
     ValueAndOperatorStack stack;
     ValueAndOperatorStack final;
@@ -144,8 +137,6 @@ bool parseLambdaAfterComma(Parser *lexer, ASTAllocator& allocator, LambdaFunctio
 
 Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
-    lexWhitespaceToken();
-
     lexNewLineChars();
 
     // lambda with no params
@@ -163,8 +154,6 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         return nullptr;
     }
 
-    bool has_whitespace = lexWhitespaceToken();
-
     if (consumeToken(TokenType::RParen)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
@@ -175,10 +164,8 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         current_func_type = prev_func_type;
         return lamb;
     } else if (consumeToken(TokenType::ColonSym)) {
-        lexWhitespaceToken();
         auto type = parseType(allocator);
         if (type) {
-            lexWhitespaceToken();
         } else {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
@@ -205,30 +192,20 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         return lamb;
     }
 
-    if(has_whitespace) {
-        auto first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
-        auto value = parseAfterValue(allocator, first_value, identifier);
-        auto expr = parseRemainingExpression(allocator, value, identifier);
-        if(consumeToken(TokenType::RParen)) {
-            return parseRemainingExpression(allocator, parseAfterValue(allocator, expr, identifier), identifier);
-        } else {
-            auto second_expression = parseRemainingExpression(allocator, expr, identifier);
-            if(!consumeToken(TokenType::RParen)) {
-                error("expected ')' after the nested parenthesized expression");
-            }
-            return second_expression;
-        }
+    Value* first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(identifier));
+    chain->values.emplace_back((ChainValue*) first_value);
+    auto value = parseAccessChainAfterId(allocator, chain, identifier->position);
+    const auto finalValue = parseAfterValue(allocator, value, identifier);
+    auto expr = parseRemainingExpression(allocator, finalValue, identifier);
+    if(consumeToken(TokenType::RParen)) {
+        const auto afterVl = parseAfterValue(allocator, expr, identifier);
+        return parseRemainingExpression(allocator, afterVl, identifier);
     } else {
-        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(identifier));
-        auto first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
-        chain->values.emplace_back(first_value);
-        auto value = parseAccessChainAfterId(allocator, chain, identifier->position);
-        auto expr = parseRemainingExpression(allocator, value, identifier);
-        if(!consumeToken(TokenType::RParen)) {
-            error("expected a ')' after the access chain");
-        }
+        error("expected ')' after the nested parenthesized expression");
         return expr;
     }
+
 }
 
 Value* Parser::parseParenExpression(ASTAllocator& allocator) {
@@ -256,7 +233,6 @@ NotValue* Parser::parseNotValue(ASTAllocator& allocator) {
     auto& tok = *token;
     if (tok.type == TokenType::NotSym) {
         token++;
-        readWhitespace();
         auto parenExpression = parseParenExpression(allocator);
         if(parenExpression) {
             return new (allocator.allocate<NotValue>()) NotValue(parenExpression, loc_single(tok));
@@ -278,7 +254,6 @@ NegativeValue* Parser::parseNegativeValue(ASTAllocator& allocator) {
     auto& tok = *token;
     if (tok.type == TokenType::MinusSym) {
         token++;
-        readWhitespace();
         auto parenExpression = parseParenExpression(allocator);
         if(parenExpression) {
             return new (allocator.allocate<NegativeValue>()) NegativeValue(parenExpression, loc_single(tok));
@@ -325,8 +300,6 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
     } else {
         return nullptr;
     }
-
-    lexWhitespaceToken();
 
     if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
         auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(start_tok));

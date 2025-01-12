@@ -41,7 +41,6 @@ Token* Parser::consumeWSOfType(enum TokenType type) {
     auto& t = *token;
     if(t.type == type) {
         token++;
-        readWhitespace();
         return &t;
     } else {
         return nullptr;
@@ -78,7 +77,6 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
     }
 
     if(id->type == TokenType::StructKw) {
-        lexWhitespaceToken();
         const auto value = (Value*) parseStructValue(allocator, nullptr, id->position);
         if(!value) {
             error("expected '{' after the struct keyword for unnamed struct value");
@@ -98,17 +96,6 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
         case TokenType::LBrace: {
             auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), loc_single(id));
             return parseStructValue(allocator, ref_type, id->position);
-        }
-        case TokenType::Whitespace: {
-            token++;
-            auto tokenType2 = token->type;
-            if(tokenType2 == TokenType::LBrace) {
-                // StructName {
-                auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), loc_single(id));
-                return parseStructValue(allocator, ref_type, id->position);
-            } else {
-                break;
-            }
         }
         default:
             break;
@@ -209,7 +196,7 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, AccessChain* ch
         auto call = new (allocator.allocate<FunctionCall>()) FunctionCall(take_parent(allocator, chain, location), {}, location);
         token++;
         do {
-            consumeWhitespaceAndNewLines();
+            consumeNewLines();
             auto expr = parseExpression(allocator, true);
             if(expr) {
                 call->values.emplace_back(expr);
@@ -219,9 +206,8 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, AccessChain* ch
                     call->values.emplace_back(init);
                 }
             }
-            readWhitespace();
         } while (consumeToken(TokenType::CommaSym));
-        consumeWhitespaceAndNewLines();
+        consumeNewLines();
         if (!consumeToken(TokenType::RParen)) {
             error("expected a ')' for a function call, after starting '('");
             return call;
@@ -235,7 +221,6 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, AccessChain* ch
 void Parser::parseGenericArgsList(std::vector<BaseType*>& outArgs, ASTAllocator& allocator) {
     if(consumeToken(TokenType::LessThanSym)) {
         do {
-            readWhitespace();
             auto type = parseType(allocator);
             if (type) {
                 outArgs.emplace_back(type);
@@ -261,7 +246,6 @@ BaseType* Parser::ref_type_from(ASTAllocator& allocator, AccessChain* chain) {
 Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct) {
 
     if(parseStruct) {
-        readWhitespace();
         if(token->type == TokenType::LBrace) {
             return parseStructValue(allocator, ref_type_from(allocator, chain), start);
         }
@@ -271,7 +255,6 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
     if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
         std::vector<BaseType*> genArgs;
         parseGenericArgsList(genArgs, allocator);
-        readWhitespace();
         if(token->type == TokenType::LParen) {
             auto call = parseFunctionCall(allocator, chain);
             call->generic_list = std::move(genArgs);
@@ -300,14 +283,12 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
             chain->values.emplace_back(indexOp);
             while (token->type == TokenType::LBracket) {
                 token++;
-                readWhitespace();
                 auto expr = parseExpression(allocator);
                 if (!expr) {
                     error("expected an expression in indexing operators for access chain");
                     return chain;
                 }
                 indexOp->values.emplace_back(expr);
-                readWhitespace();
                 auto rbToken = consumeOfType(TokenType::RBracket);
                 if (!rbToken) {
                     error("expected a closing bracket ] in access chain");

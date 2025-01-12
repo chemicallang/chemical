@@ -15,7 +15,6 @@ WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
     }
 
     token++;
-    readWhitespace();
 
     auto loop = new (allocator.allocate<WhileLoop>()) WhileLoop(nullptr, { nullptr, 0 }, parent_node, loc_single(tok));
 

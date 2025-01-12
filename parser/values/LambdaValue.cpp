@@ -7,14 +7,12 @@
 
 bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction* lambda) {
 
-    lexWhitespaceToken();
 
     if (!consumeToken(TokenType::LambdaSym)) {
         error("expected '=>' for a lambda");
         return false;
     }
 
-    lexWhitespaceToken();
 
     auto braceBlock = parseBraceBlock("lambda", parent_node, allocator);
     if(braceBlock.has_value()) {
@@ -46,7 +44,7 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
         // the capture list
         unsigned int index = 0;
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             bool lexed_amp = consumeOfType(TokenType::AmpersandSym);
             auto id = consumeIdentifierOrKeyword();
             if(id) {
@@ -59,7 +57,6 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
                     return lambda;
                 }
             }
-            lexWhitespaceToken();
             index++;
         } while (consumeToken(TokenType::CommaSym));
 

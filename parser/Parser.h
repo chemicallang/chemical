@@ -653,30 +653,9 @@ public:
     EnumDeclaration* parseEnumStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
-     * reads whitespace at current position
-     */
-    bool readWhitespace();
-
-    /**
-     * lex whitespace tokens
-     * @deprecated
-     */
-    bool lexWhitespaceToken() {
-        return readWhitespace();
-    }
-
-    /**
      * a utility function to lex whitespace tokens and also skip new lines
      */
-    void consumeWhitespaceAndNewLines();
-
-    /**
-     * use consumeWhitespaceAndNewLines
-     * @deprecated
-     */
-    void lexWhitespaceAndNewLines() {
-        consumeWhitespaceAndNewLines();
-    }
+    void consumeNewLines();
 
     /**
      * parses a single string value using the given allocator

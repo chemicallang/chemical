@@ -131,9 +131,6 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
             const auto val = new (allocator.allocate<IncDecValue>()) IncDecValue(lhs, false, true, loc_single(tok));
             return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(val, parent_node);
         }
-        case TokenType::Whitespace:
-            token++;
-            break;
         default:
             break;
     }
@@ -161,9 +158,6 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
     if(assOp.has_value()) {
         stmt->assOp = assOp.value();
     }
-
-    // whitespace
-    lexWhitespaceToken();
 
     // value
     auto expr = parseExpression(allocator, true);

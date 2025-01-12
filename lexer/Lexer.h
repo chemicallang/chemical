@@ -93,6 +93,14 @@ public:
      */
     CSTDiagnoser diagnoser;
 
+#ifdef LSP_BUILD
+    /**
+     * whitespace tokens will be lexed, only available in LSP
+     * where we check this boolean everytime whitespace is there
+     */
+    bool lex_whitespace = false;
+#endif
+
     /**
      * the constructor
      */

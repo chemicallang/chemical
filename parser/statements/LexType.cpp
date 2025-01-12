@@ -53,9 +53,7 @@ BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
         if(!consumeToken(TokenType::RParen)) {
             error("expected a ')' after the ')' in lambda function type");
         }
-        lexWhitespaceToken();
         if(consumeToken(TokenType::LambdaSym)) {
-            lexWhitespaceToken();
             auto type = parseType(allocator);
             if(type) {
                 func_type->returnType = type;
@@ -76,16 +74,13 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
     if(consumeToken(TokenType::LessThanSym)) {
         std::vector<BaseType*> types;
         do {
-            lexWhitespaceToken();
             auto type = parseType(allocator);
             if(type) {
                 types.emplace_back(type);
             } else {
                 break;
             }
-            lexWhitespaceToken();
         } while(consumeToken(TokenType::CommaSym));
-        lexWhitespaceToken();
         if(!consumeToken(TokenType::GreaterThanSym)) {
             error("expected '>' for generic type");
         }
@@ -112,7 +107,6 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
         return nullptr;
     }
     auto idType = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), loc_single(id));
-    lexWhitespaceToken();
     return parseGenericTypeAfterId(allocator, idType);
 }
 
@@ -207,14 +201,11 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
 
         token++;
 
-        lexWhitespaceToken();
 
         // maybe null
         const auto id = consumeIdentifierOrKeyword();
 
         const auto type = new (allocator.allocate<StructType>()) StructType(id ? allocate_view(allocator, id->value) : chem::string_view(""), parent_node, loc_single(t));
-
-        lexWhitespaceToken();
 
         if(token->type != TokenType::LBrace) {
             error("expected a '{' after the struct keyword for struct type");
@@ -224,9 +215,8 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
         token++;
 
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if(parseVariableMemberInto(type, allocator, AccessSpecifier::Public)) {
-                lexWhitespaceToken();
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
@@ -252,14 +242,10 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
 
         token++;
 
-        lexWhitespaceToken();
-
         // maybe null
         const auto id = consumeIdentifierOrKeyword();
 
         const auto type = new (allocator.allocate<UnionType>()) UnionType(id ? allocate_view(allocator, id->value) : chem::string_view(""), parent_node, loc_single(t));
-
-        lexWhitespaceToken();
 
         if(token->type != TokenType::LBrace) {
             error("expected a '{' after the struct keyword for union type");
@@ -269,9 +255,8 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
         token++;
 
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if(parseVariableMemberInto(type, allocator, AccessSpecifier::Public)) {
-                lexWhitespaceToken();
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
@@ -317,7 +302,6 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
                 error("expected ']' after '[' for lambda type");
                 return nullptr;
             }
-            lexWhitespaceToken();
             auto lambdaType = parseLambdaType(allocator, true);
             if(lambdaType) {
                 return lambdaType;
@@ -334,7 +318,6 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             auto is_mutable = token->type == TokenType::MutKw;
             if (is_mutable) {
                 token++;
-                readWhitespace();
             }
             auto type = parseType(allocator);
             if (type) {
@@ -350,7 +333,6 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             auto is_mutable = token->type == TokenType::MutKw;
             if(is_mutable) {
                 token++;
-                readWhitespace();
             }
             auto type = parseType(allocator);
             if(type) {
@@ -363,7 +345,6 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
         case TokenType::DynKw: {
             const auto dynToken = token;
             token++;
-            readWhitespace();
             auto type = parseType(allocator);
             if (type) {
                 return make_dynamic_type(allocator, type, loc_single(dynToken));
@@ -374,7 +355,6 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
         }
         case TokenType::MutKw: {
             token++;
-            readWhitespace();
             auto type = parseType(allocator);
             if(type) {
                 type->make_mutable(type->kind());

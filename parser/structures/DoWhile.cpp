@@ -34,8 +34,6 @@ DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
     }
     current_loop_node = prev_loop_node;
 
-    lexWhitespaceToken();
-
     if(!consumeWSOfType(TokenType::WhileKw)) {
         error("expected 'while' with condition in a do while loop");
         return loop;

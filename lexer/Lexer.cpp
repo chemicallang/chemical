@@ -529,9 +529,15 @@ Token Lexer::getNextToken() {
         case '"':
             return read_double_quoted_string(*this, str, provider, pos);
         case ' ':
-            return Token(TokenType::Whitespace, { WSCStr, provider.readWhitespaces() + 1 }, pos);
         case '\t':
-            return Token(TokenType::Whitespace, { WSCStr, provider.readWhitespaces() + 4 }, pos);
+#ifdef LSP_BUILD
+            if(lex_whitespace) {
+                return Token(TokenType::Whitespace, { WSCStr, provider.readWhitespaces() + (current == '\t' ? 4 : 1) }, pos);
+            }
+#endif
+            // skip the whitespaces
+            provider.skipWhitespaces();
+            return getNextToken();
         case '\n':
             return Token(TokenType::NewLine, view_str(NewlineCStr), pos);
         case '\r':

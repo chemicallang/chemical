@@ -98,7 +98,7 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
     if (token1) {
         auto arrayValue = new (allocator.allocate<ArrayValue>()) ArrayValue({}, nullptr, { }, loc(token1, token), allocator);
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             auto expr = parseExpression(allocator, true);
             if(expr) {
                 arrayValue->values.emplace_back(expr);
@@ -110,28 +110,23 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
                     break;
                 }
             }
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
         } while (consumeToken(TokenType::CommaSym));
         if (!consumeToken(TokenType::RBrace)) {
             error("expected a '}' when lexing an array");
             return arrayValue;
         }
-        lexWhitespaceToken();
         auto type = parseType(allocator);
         if(type) {
-            lexWhitespaceToken();
             if (consumeToken(TokenType::LParen)) {
                 do {
-                    lexWhitespaceToken();
                     auto number = parseNumberValue(allocator);
                     if(number) {
                         arrayValue->sizes.emplace_back((unsigned int) number->get_the_int());
                     } else {
                         break;
                     }
-                    lexWhitespaceToken();
                 } while (consumeToken(TokenType::CommaSym));
-                lexWhitespaceToken();
                 if (!consumeToken(TokenType::RParen)) {
                     error("expected a ')' when ending array size");
                 }
@@ -163,22 +158,18 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
         return nullptr;
     }
     token++;
-    readWhitespace();
 
     // placement new
     const auto t_type = token->type;
     if(t_type == TokenType::LParen) {
         auto new_value = new (allocator.allocate<PlacementNewValue>()) PlacementNewValue(nullptr, nullptr, loc_single(new_tok));
         token++;
-        readWhitespace();
         auto pointer_val = parseExpression(allocator);
         new_value->pointer = pointer_val;
-        readWhitespace();
         if(token->type != TokenType::RParen) {
             error("expected a ')' after the pointer value in new expression");
         }
         token++;
-        readWhitespace();
         auto value = parseExpression(allocator);
         if(!value) {
             error("expected a value for placement new expression");
@@ -223,7 +214,6 @@ ASTNode* Parser::parseNewValueAsNode(ASTAllocator& allocator) {
 }
 
 Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token) {
-entry:
     switch(token->type) {
         case TokenType::DoublePlusSym: {
             token++;
@@ -235,7 +225,6 @@ entry:
         }
         case TokenType::AsKw: {
             token++;
-            readWhitespace();
             auto type = parseType(allocator);
             auto casted_value = new(allocator.allocate<CastedValue>()) CastedValue(value, type, loc_single(start_token));
             if (!type) {
@@ -245,7 +234,6 @@ entry:
         }
         case TokenType::IsKw: {
             token++;
-            readWhitespace();
             auto type = parseType(allocator);
             auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, false, loc_single(start_token));
             if (!type) {
@@ -253,9 +241,6 @@ entry:
             }
             return isValue;
         }
-        case TokenType::Whitespace:
-            token++;
-            goto entry;
         default:
             return value;
     }

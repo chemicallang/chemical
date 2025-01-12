@@ -17,7 +17,6 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
         annotate(decl);
 
-        lexWhitespaceToken();
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for union block");
             return decl;
@@ -26,9 +25,8 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
         auto prev_parent_node = parent_node;
         parent_node = decl;
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
-                lexWhitespaceToken();
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
@@ -40,14 +38,12 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
             error("expected a closing bracket '}' for union block");
             return decl;
         }
-        if(lexWhitespaceToken()) {
-            auto id = consumeIdentifierOrKeyword();
-            if(id) {
-                decl->name = allocate_view(allocator, id->value);
-            } else {
-                error("expected an identifier after the '}' for anonymous union definition");
-                return decl;
-            }
+        auto id = consumeIdentifierOrKeyword();
+        if(id) {
+            decl->name = allocate_view(allocator, id->value);
+        } else {
+            error("expected an identifier after the '}' for anonymous union definition");
+            return decl;
         }
         return decl;
     } else {
@@ -68,22 +64,19 @@ UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpeci
 
         auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(allocator, identifier), parent_node, 0, specifier);
 
-        lexWhitespaceToken();
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for union block");
             return decl;
         }
 
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
-                lexWhitespaceToken();
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
             }
         } while(token->type != TokenType::RBrace);
-        lexWhitespaceToken();
 
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for union block");

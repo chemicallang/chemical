@@ -14,21 +14,18 @@ ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier
     if (tok.type == TokenType::ImplKw) {
 
         token++;
-        readWhitespace();
 
         auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, loc_single(tok));
 
         annotate(impl);
 
         parseGenericParametersList(allocator, impl->generic_params);
-        lexWhitespaceToken();
         auto type = parseLinkedOrGenericType(allocator);
         if(type) {
             impl->interface_type = type;
         } else {
             return impl;
         }
-        lexWhitespaceToken();
         if(consumeWSOfType(TokenType::ForKw)) {
             auto type = parseLinkedOrGenericType(allocator);
             if(type) {
@@ -36,7 +33,6 @@ ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier
             } else {
                 return impl;
             }
-            lexWhitespaceToken();
         } else {
             impl->struct_type = nullptr;
         }
@@ -48,9 +44,8 @@ ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier
         auto prev_parent_node = parent_node;
         parent_node = impl;
         do {
-            lexWhitespaceAndNewLines();
+            consumeNewLines();
             if(parseVariableAndFunctionInto(impl, allocator, AccessSpecifier::Public)) {
-                lexWhitespaceToken();
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

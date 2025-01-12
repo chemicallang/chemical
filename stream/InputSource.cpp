@@ -21,7 +21,7 @@ FileInputSource::FileInputSource(const char* file_path) {
         error.kind = InputSourceErrorKind::FileNotOpen;
     }
 #else
-    fileDescriptor = open(filePath, O_RDONLY);
+    fileDescriptor = open(file_path, O_RDONLY);
         if (fileDescriptor == -1) {
             error.kind = InputSourceErrorKind::FileNotOpen;
         }

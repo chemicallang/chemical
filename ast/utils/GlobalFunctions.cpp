@@ -1421,10 +1421,6 @@ void prepare_executable_target_data(TargetData& data) {
     data.is_windows = true;
 #endif
 
-#ifdef __GNUC__
-    data.is_gcc = true;
-#endif
-
 // Detect architecture using predefined macros
 #ifdef __x86_64__
     data.is_x86_64 = true;

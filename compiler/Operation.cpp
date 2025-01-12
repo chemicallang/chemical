@@ -6,6 +6,7 @@
 #include "ast/types/IntNType.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -48,6 +49,24 @@ void perform_implicit_cast_on_integers(IntNType* fIntN, IntNType* secIntN, llvm:
 }
 
 llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType, llvm::Value* lhs, llvm::Value* rhs){
+
+    // automatically dereference reference types
+    if(firstType->kind() == BaseTypeKind::Reference) {
+        const auto ref_type = firstType->as_reference_type_unsafe();
+        const auto ref_kind = ref_type->type->kind();
+        if(BaseType::isLoadableReferencee(ref_kind)) {
+            lhs = builder->CreateLoad(ref_type->type->llvm_type(*this), lhs);
+            firstType = ref_type->type;
+        }
+    }
+    if(secondType->kind() == BaseTypeKind::Reference) {
+        const auto ref_type = secondType->as_reference_type_unsafe();
+        const auto ref_kind = ref_type->type->kind();
+        if(BaseType::isLoadableReferencee(ref_kind)) {
+            rhs = builder->CreateLoad(ref_type->type->llvm_type(*this), rhs);
+            secondType = ref_type->type;
+        }
+    }
 
     // subtraction or addition to the pointer, pointer math
     if((op == Operation::Addition || op == Operation::Subtraction) && firstType->kind() == BaseTypeKind::Pointer) {

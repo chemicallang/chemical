@@ -923,7 +923,7 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
     const auto values_size = values.size();
     while(arg_offset < values_size) {
         const auto param = func->params[arg_offset];
-        const auto param_type = param->known_type();
+        const auto param_type = param->type;
         const auto arg_type = values[arg_offset]->known_type();
         if(!arg_type) {
 #ifdef DEBUG

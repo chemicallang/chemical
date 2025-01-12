@@ -69,6 +69,8 @@ public:
 
     llvm::Value *llvm_load(Codegen &gen) final;
 
+    void code_gen(Codegen &gen) override;
+
     void code_gen_destruct(Codegen &gen, Value *returnValue) final;
 
     bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;

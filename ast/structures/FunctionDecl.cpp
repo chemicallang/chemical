@@ -42,6 +42,10 @@ llvm::Type *BaseFunctionParam::llvm_chain_type(Codegen &gen, std::vector<ChainVa
     return type->llvm_chain_type(gen, values, index);
 }
 
+void BaseFunctionParam::code_gen(Codegen &gen) {
+    pointer = nullptr;
+}
+
 void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
     if(!(returnValue && returnValue->linked_node() == this)) {
         type->linked_node()->llvm_destruct(gen, gen.current_function->getArg(calculate_c_or_llvm_index()));
@@ -217,6 +221,9 @@ void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<Scope>& bo
         func_type->queue_destruct_params(gen);
         gen.SetInsertPoint(&funcCallee->getEntryBlock());
         initialize_constructor_def_values(gen, func_type);
+        for(auto& param : func_type->params) {
+            param->code_gen(gen);
+        }
         body->code_gen(gen, destruct_begin);
         gen.end_function_block();
         gen.destruct_nodes = std::move(prev_destruct_nodes);

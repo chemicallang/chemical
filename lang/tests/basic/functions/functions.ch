@@ -1,4 +1,5 @@
 import "../../test.ch"
+import "./parameters.ch"
 
 struct TestStruct1 {
     var x : int
@@ -210,4 +211,5 @@ func test_functions() {
     })
     test_name_overriding();
     test_name_overriding_in_struct();
+    test_parameters();
 }

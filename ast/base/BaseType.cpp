@@ -364,6 +364,18 @@ bool BaseType::is_reference_to(ASTNode* node, BaseTypeKind k) {
     return false;
 }
 
+BaseType* BaseType::getLoadableReferredType() {
+    const auto pure = pure_type();
+    if(pure->kind() == BaseTypeKind::Reference) {
+        const auto ref = pure->as_reference_type_unsafe()->type->pure_type();
+        const auto ref_kind = ref->kind();
+        if(BaseType::isLoadableReferencee(ref_kind)) {
+            return ref;
+        }
+    }
+    return nullptr;
+}
+
 FunctionType *BaseType::function_type(BaseTypeKind k) {
     if(k == BaseTypeKind::Function) {
         return (FunctionType*) this;

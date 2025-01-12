@@ -48,6 +48,7 @@ void perform_implicit_cast_on_integers(IntNType* fIntN, IntNType* secIntN, llvm:
 }
 
 llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType, llvm::Value* lhs, llvm::Value* rhs){
+
     // subtraction or addition to the pointer, pointer math
     if((op == Operation::Addition || op == Operation::Subtraction) && firstType->kind() == BaseTypeKind::Pointer) {
         const auto secType = rhs->getType();

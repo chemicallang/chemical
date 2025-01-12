@@ -4,12 +4,29 @@
 
 class FunctionType;
 
+struct FunctionParamAttributes {
+
+    /**
+     * has the address been taken of the function param
+     * this means now a variable will be generated in which the parameter value
+     * will be stored and loaded subsequently
+     */
+    bool has_address_taken_of;
+
+};
+
 class BaseFunctionParam : public ASTNode {
 public:
 
     chem::string_view name;
     BaseType* type;
     FunctionType* func_type;
+    FunctionParamAttributes attrs;
+
+#ifdef COMPILER_BUILD
+    // the pointer function param, loaded once
+    llvm::Value* pointer = nullptr;
+#endif
 
     /**
      * constructor
@@ -18,12 +35,20 @@ public:
             chem::string_view name,
             BaseType* type,
             FunctionType* func_type = nullptr
-    ) : name(name), type(type), func_type(func_type) {
+    ) : name(name), type(type), func_type(func_type), attrs(false) {
 
     };
 
     ASTNodeKind kind() {
         return ASTNodeKind::FunctionParam;
+    }
+
+    inline bool has_address_taken() {
+        return attrs.has_address_taken_of;
+    }
+
+    inline void set_has_address_taken(bool value) {
+        attrs.has_address_taken_of = value;
     }
 
     virtual unsigned calculate_c_or_llvm_index() = 0;

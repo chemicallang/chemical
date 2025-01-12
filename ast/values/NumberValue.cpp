@@ -14,7 +14,13 @@ unsigned int NumberValue::get_num_bits() {
     if(linked_type == nullptr) {
         return 32;
     } else {
-        return linked_type->num_bits();
+        const auto pure = linked_type->pure_type();
+        const auto num_type = pure->as_intn_type();
+        if(num_type) {
+            return num_type->num_bits();
+        } else {
+            return 32;
+        }
     }
 }
 
@@ -22,13 +28,25 @@ bool NumberValue::is_unsigned() {
     if(linked_type == nullptr) {
         return false;
     } else {
-        return linked_type->is_unsigned();
+        const auto pure = linked_type->pure_type();
+        const auto num_type = pure->as_intn_type();
+        if(num_type) {
+            return num_type->is_unsigned();
+        } else {
+            return false;
+        }
     }
 }
 
 Value* NumberValue::evaluated_value(InterpretScope &scope) {
     if(linked_type) {
-        return linked_type->create(scope.allocator, value);
+        const auto pure = linked_type->pure_type();
+        const auto num_type = pure->as_intn_type();
+        if(num_type) {
+            return num_type->create(scope.allocator, value);
+        } else {
+            return this;
+        }
     } else {
         return this;
     }
@@ -40,6 +58,13 @@ ValueType NumberValue::value_type() const {
     } else {
         return linked_type->value_type();
     }
+}
+
+BaseType* NumberValue::known_type() {
+    if(!linked_type) {
+        return (BaseType*) &IntType::instance;
+    }
+    return linked_type;
 }
 
 IntNType* linked(BaseType* type) {
@@ -58,7 +83,7 @@ bool NumberValue::link(SymbolResolver &linker, BaseType *type) {
             const auto param = linked->as_generic_type_param();
             if(param && param->active_iteration < 0) {
                 if(param->def_type) {
-                    linked_type = (IntNType*) param->def_type;
+                    linked_type = param->def_type;
                 }
                 return true;
             }
@@ -67,7 +92,7 @@ bool NumberValue::link(SymbolResolver &linker, BaseType *type) {
         if(pure) {
             const auto pure_kind = pure->kind();
             if(pure_kind == BaseTypeKind::IntN) {
-                linked_type = (IntNType*) pure->copy(*linker.ast_allocator);
+                linked_type = pure->copy(*linker.ast_allocator);
             }
         }
     }

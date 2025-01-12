@@ -505,21 +505,19 @@ bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     auto type = value->create_type(gen.allocator)->pure_type();
     const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, location);
+    auto value_pointer = value->llvm_pointer(gen);
+    // TODO loading the value after pointer, value is not being loaded using the pointer we have
     auto value_loaded = value->llvm_value(gen);
     const auto op = increment ? Operation::Addition : Operation::Subtraction;
     // automatic de-referencing
-    if(type->kind() == BaseTypeKind::Reference) {
-        const auto ref_type = type->as_reference_type_unsafe();
-        const auto ref_kind = ref_type->type->kind();
-        if(BaseType::isLoadableReferencee(ref_kind)) {
-            value_loaded = gen.builder->CreateLoad(ref_type->type->llvm_type(gen), value_loaded);
-            type = ref_type->type;
-        }
+    const auto referred = type->getLoadableReferredType();
+    if(referred) {
+        value_pointer = value_loaded;
+        value_loaded = gen.builder->CreateLoad(referred->llvm_type(gen), value_loaded);
+        type = referred;
     }
     const auto result = gen.operate(op, value, rhs, type, ((BaseType*) &ShortType::instance), value_loaded, rhs->llvm_value(gen, nullptr));
-    // TODO loading teh pointer again using value->llvm_pointer(gen)
-    // TODo load the pointer by providing it to llvm_value
-    gen.builder->CreateStore(result, value->llvm_pointer(gen));
+    gen.builder->CreateStore(result, value_pointer);
     return post ? value_loaded : result;
 }
 

@@ -113,6 +113,11 @@ public:
     bool is_reference_to(ASTNode* node, BaseTypeKind k);
 
     /**
+     * get loadable referred to type
+     */
+    BaseType* getLoadableReferredType();
+
+    /**
      * a type, or a referenced type, can link itself with its definition
      */
     virtual bool link(SymbolResolver &linker) {

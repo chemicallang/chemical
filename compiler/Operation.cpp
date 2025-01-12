@@ -53,18 +53,20 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
     // automatically dereference reference types
     if(firstType->kind() == BaseTypeKind::Reference) {
         const auto ref_type = firstType->as_reference_type_unsafe();
-        const auto ref_kind = ref_type->type->kind();
+        const auto referred = ref_type->type->pure_type();
+        const auto ref_kind = referred->kind();
         if(BaseType::isLoadableReferencee(ref_kind)) {
-            lhs = builder->CreateLoad(ref_type->type->llvm_type(*this), lhs);
-            firstType = ref_type->type;
+            lhs = builder->CreateLoad(referred->llvm_type(*this), lhs);
+            firstType = referred;
         }
     }
     if(secondType->kind() == BaseTypeKind::Reference) {
         const auto ref_type = secondType->as_reference_type_unsafe();
-        const auto ref_kind = ref_type->type->kind();
+        const auto referred = ref_type->type->pure_type();
+        const auto ref_kind = referred->kind();
         if(BaseType::isLoadableReferencee(ref_kind)) {
-            rhs = builder->CreateLoad(ref_type->type->llvm_type(*this), rhs);
-            secondType = ref_type->type;
+            rhs = builder->CreateLoad(referred->llvm_type(*this), rhs);
+            secondType = referred;
         }
     }
 

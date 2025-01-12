@@ -3898,14 +3898,8 @@ void ToCAstVisitor::visit(VariantCall *call) {
     }
 }
 
-bool isLoadableReference(BaseType* type) {
-    const auto pure_type = type->pure_type();
-    if(pure_type->kind() == BaseTypeKind::Reference) {
-        const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type();
-        const auto ref_kind = ref->kind();
-        return BaseType::isLoadableReferencee(ref_kind);
-    }
-    return false;
+inline bool isLoadableReference(BaseType* type) {
+    return type->getLoadableReferredType() != nullptr;
 }
 
 void ToCAstVisitor::visit(IncDecValue *value) {

@@ -88,7 +88,9 @@ func build(ctx : *mut BuildContext) {
     }
 
     const exe_name = string("chemical-tests");
-    const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), { })
+    const ext_c_path = relative_path(string("ext/file.c"));
+    printf("ext_c_file path is %s\n", ext_c_path.data())
+    const ext_module = ctx.c_file_module(string("ext_c"), ext_c_path, { })
     const ext_cpp_module = ctx.cpp_file_module(string("ext_cpp"), relative_path(string("ext/file2.cpp")), { })
     const std_module = ctx.chemical_dir_module(string("std"), relative_path(string("../libs/std")), { })
     ctx.include_headers(std_module, {

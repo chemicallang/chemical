@@ -185,6 +185,11 @@ public:
     bool is_stored_ref(ASTAllocator& allocator);
 
     /**
+     * check if this is a reference
+     */
+    bool is_ref(ASTAllocator& allocator);
+
+    /**
      * check if the given type is movable
      */
     bool requires_moving(ASTNodeKind k);

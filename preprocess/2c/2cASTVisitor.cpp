@@ -3898,9 +3898,32 @@ void ToCAstVisitor::visit(VariantCall *call) {
     }
 }
 
+bool isLoadableReference(BaseType* type) {
+    const auto pure_type = type->pure_type();
+    if(pure_type->kind() == BaseTypeKind::Reference) {
+        const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type();
+        const auto ref_kind = ref->kind();
+        return BaseType::isLoadableReferencee(ref_kind);
+    }
+    return false;
+}
+
 void ToCAstVisitor::visit(IncDecValue *value) {
     if(!value->post) {
         write(value->increment ? "++" : "--");
+    }
+    const auto type = value->value->create_type(allocator);
+    if(type && isLoadableReference(type)) {
+        write('*');
+        if(value->post) {
+            write('(');
+        }
+        value->value->accept(this);
+        if(value->post) {
+            write(')');
+            write(value->increment ? "++" : "--");
+        }
+        return;
     }
     value->value->accept(this);
     if(value->post) {
@@ -4581,13 +4604,8 @@ void write_variant_call_index(ToCAstVisitor& visitor, VariantDefinition* variant
 
 void switch_expr(ToCAstVisitor& visitor, Value* expr, BaseType* type) {
     // automatic dereference
-    const auto pure_type = type->pure_type();
-    if(pure_type->kind() == BaseTypeKind::Reference) {
-        const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type();
-        const auto ref_kind = ref->kind();
-        if(BaseType::isIntNType(ref_kind) || ref_kind == BaseTypeKind::Bool) {
-            visitor.write('*');
-        }
+    if(isLoadableReference(type)) {
+        visitor.write('*');
     }
     expr->accept(&visitor);
 }

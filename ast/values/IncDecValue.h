@@ -33,9 +33,7 @@ public:
         return location;
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override {
-        return value->create_type(allocator);
-    }
+    BaseType* create_type(ASTAllocator &allocator) override;
 
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) override {
         return value->link(linker, value_ptr, expected_type);

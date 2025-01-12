@@ -85,4 +85,48 @@ func test_auto_deref() {
             }
         }
     })
+    test("increment decrement can handle references - 1", () => {
+        var i = 26
+        var ref = give_ref(i)
+        ref++
+        return i == 27
+    })
+    test("increment decrement can handle references - 2", () => {
+        var i = 23
+        var ref = give_ref(i)
+        ++ref
+        return i == 24
+    })
+    test("increment decrement can handle references - 3", () => {
+        var i = 26
+        var ref = give_ref(i)
+        ref--
+        return i == 25
+    })
+    test("increment decrement can handle references - 4", () => {
+        var i = 23
+        var ref = give_ref(i)
+        --ref
+        return i == 22
+    })
+    test("increment decrement can handle references - 5", () => {
+        var i = 26
+        var ref = give_ref(i)
+        return ref++ == 26
+    })
+    test("increment decrement can handle references - 6", () => {
+        var i = 23
+        var ref = give_ref(i)
+        return ++ref == 24
+    })
+    test("increment decrement can handle references - 7", () => {
+        var i = 26
+        var ref = give_ref(i)
+        return i-- == 26
+    })
+    test("increment decrement can handle references - 8", () => {
+        var i = 23
+        var ref = give_ref(i)
+        return --i == 22
+    })
 }

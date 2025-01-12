@@ -492,6 +492,18 @@ public:
     // Helper is methods
     //---------------------------------------------
 
+    static inline constexpr bool isIntFloatOrBool(BaseTypeKind k) {
+        return k == BaseTypeKind::IntN || k == BaseTypeKind::Bool || k == BaseTypeKind::Double || k == BaseTypeKind::Float;
+    }
+
+    static inline constexpr bool isPrimitiveType(BaseTypeKind k) {
+        return isIntFloatOrBool(k) || k == BaseTypeKind::Pointer;
+    }
+
+    static inline constexpr bool isLoadableReferencee(BaseTypeKind k) {
+        return isPrimitiveType(k) || k == BaseTypeKind::Function || k == BaseTypeKind::Literal;
+    }
+
     static inline constexpr bool isAnyType(BaseTypeKind k) {
         return k == BaseTypeKind::Any;
     }

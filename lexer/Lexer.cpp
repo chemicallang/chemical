@@ -210,6 +210,7 @@ void read_number_suffix(SerialStrAllocator& str, SourceProvider& provider) {
             return;
         case 'l':
         case 'L':
+        case 'f':
             str.append(provider.readCharacter());
             return;
         default:

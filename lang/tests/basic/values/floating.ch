@@ -4,6 +4,17 @@ func test_floating_expr() {
     test("comparing floats", () => {
         return 5.5f == 5.5f;
     });
+    test("initialized comparing floats", () => {
+        var a = 5f
+        var b = 4f
+        return a == b;
+    })
+    // TODO this is failing
+    // test("integers can be divided with floats", () => {
+    //     var a = 10
+    //     var b = 2f
+    //     return a / b == 5f
+    // })
     test("comparing float expr with fp", () => {
         return (4.0f + 1.5f) == 5.5f;
     });

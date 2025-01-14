@@ -221,18 +221,6 @@ llvm::Type *VarInitStatement::llvm_chain_type(Codegen &gen, std::vector<ChainVal
 
 #endif
 
-VarInitStatement::VarInitStatement(
-        bool is_const,
-        LocatedIdentifier identifier,
-        BaseType* type,
-        Value* value,
-        ASTNode* parent_node,
-        SourceLocation location,
-        AccessSpecifier specifier
-) : data(specifier, false, false, false, is_const, false), located_id(std::move(identifier)), type(type), value(value), parent_node(parent_node), location(location) {
-
-}
-
 bool VarInitStatement::is_top_level() {
     return parent_node == nullptr || parent_node->as_namespace();
 }

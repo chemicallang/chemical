@@ -17,13 +17,18 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
 
     token++;
 
+    const auto is_ref = token->type == TokenType::AmpersandSym;
+    if(is_ref) {
+        token++;
+    }
+
     auto id = consumeIdentifierOrKeyword();
     if(!id) {
         error("expected an identifier for variable initialization");
         return nullptr;
     }
 
-    auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(is_const, loc_id(allocator, id), nullptr, nullptr, parent_node, loc_single(start_tok), specifier);
+    auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(is_const, is_ref, loc_id(allocator, id), nullptr, nullptr, parent_node, loc_single(start_tok), specifier);
 
     auto prev_parent_node = parent_node;
     parent_node = stmt;

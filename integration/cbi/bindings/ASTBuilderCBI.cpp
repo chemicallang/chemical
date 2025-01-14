@@ -426,8 +426,8 @@ UsingStmt* ASTBuildermake_using_stmt(ASTAllocator* allocator, AccessChain* chain
     return new (allocator->allocate<UsingStmt>()) UsingStmt(chain, parent_node, is_namespace, location);
 }
 
-VarInitStatement* ASTBuildermake_varinit_stmt(ASTAllocator* allocator, bool is_const, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<VarInitStatement>()) VarInitStatement(is_const, LOC_ID(*identifier, id_loc), type, value, parent_node, location, specifier);
+VarInitStatement* ASTBuildermake_varinit_stmt(ASTAllocator* allocator, bool is_const, bool is_reference, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (allocator->allocate<VarInitStatement>()) VarInitStatement(is_const, is_reference, LOC_ID(*identifier, id_loc), type, value, parent_node, location, specifier);
 }
 
 // TODO scope needs a children method to get the nodes PtrVec

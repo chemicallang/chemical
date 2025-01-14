@@ -64,6 +64,10 @@ enum class Operation : uint8_t {
     IsEqual,
     IsNotEqual,
 
+    // Logical
+    LogicalAND,
+    LogicalOR,
+
     // Bitwise AND
     BitwiseAND,
 
@@ -72,12 +76,6 @@ enum class Operation : uint8_t {
 
     // Bitwise inclusive OR
     BitwiseOR,
-
-    // Logical AND
-    LogicalAND,
-
-    // Logical OR
-    LogicalOR,
 
     // Conditional operator
     Conditional,
@@ -97,7 +95,9 @@ enum class Operation : uint8_t {
 
     // Indexes into the enum
     IndexComparisonStart=GreaterThan,
-    IndexComparisonEnd=IsNotEqual
+    IndexComparisonEnd=IsNotEqual,
+    IndexBooleanReturningStart=GreaterThan,
+    IndexBooleanReturningEnd=LogicalOR,
 };
 
 std::string to_string(Operation operation);

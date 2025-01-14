@@ -1,6 +1,6 @@
 enum Operation {
     // Grouping and scope resolution operators
-    Grouping,
+    Grouping = 1,
     ScopeResolutionUnary,
     ScopeResolutionBinary,
 
@@ -49,6 +49,10 @@ enum Operation {
     IsEqual,
     IsNotEqual,
 
+    // Logical
+    LogicalAND,
+    LogicalOR,
+
     // Bitwise AND
     BitwiseAND,
 
@@ -57,12 +61,6 @@ enum Operation {
 
     // Bitwise inclusive OR
     BitwiseOR,
-
-    // Logical AND
-    LogicalAND,
-
-    // Logical OR
-    LogicalOR,
 
     // Conditional operator
     Conditional,

@@ -15,7 +15,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/LocatedIdentifier.h"
 
-struct VarInitExtData {
+struct VarInitAttributes {
 
     /**
      * the access specifier of the declaration
@@ -46,6 +46,11 @@ struct VarInitExtData {
     bool is_const;
 
     /**
+     * true when user writes var& or const& to take a reference
+     */
+    bool is_reference;
+
+    /**
      * is var init deprecated
      */
     bool deprecated;
@@ -69,20 +74,23 @@ public:
     /**
      * extra data for the var init
      */
-    VarInitExtData data;
+    VarInitAttributes attrs;
 
     /**
      * constructor
      */
     VarInitStatement(
             bool is_const,
-            LocatedIdentifier id,
+            bool is_reference,
+            LocatedIdentifier identifier,
             BaseType* type,
             Value* value,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : attrs(specifier, false, false, false, is_const, is_reference, false), located_id(identifier), type(type), value(value), parent_node(parent_node), location(location) {
+
+    }
 
     /**
      * get the name of node
@@ -113,75 +121,82 @@ public:
     }
 
     inline bool deprecated() {
-        return data.deprecated;
+        return attrs.deprecated;
     }
 
     inline void set_deprecated(bool value) {
-        data.deprecated = value;
+        attrs.deprecated = value;
     }
 
     inline bool is_comptime() {
-        return data.is_comptime;
+        return attrs.is_comptime;
     }
 
     inline void set_comptime(bool value) {
-        data.is_comptime = value;
+        attrs.is_comptime = value;
     }
 
     /**
      * get the access specifier
      */
     inline AccessSpecifier specifier() const {
-        return data.specifier;
+        return attrs.specifier;
     }
 
     /**
      * set's the specifier of this decl fast
      */
     inline void set_specifier(AccessSpecifier specifier) {
-        data.specifier = specifier;
+        attrs.specifier = specifier;
     }
 
     /**
      * check is this declaration const
      */
     inline bool is_const() {
-        return data.is_const;
+        return attrs.is_const;
+    }
+
+    /**
+     * check is this a reference like const& or var&
+     */
+    inline bool is_reference() {
+        return attrs.is_reference;
     }
 
     /**
      * check this variable has been moved
      */
     inline bool get_has_moved() const {
-        return data.has_moved;
+        return attrs.has_moved;
     }
 
     /**
      * call it when this variable has been moved
      */
     inline void moved() {
-        data.has_moved = true;
+        attrs.has_moved = true;
     }
 
     /**
      * call it when this variable should be unmoved
      */
     inline void unmove() {
-        data.has_moved = false;
+        attrs.has_moved = false;
     }
 
     /**
      * get has assignment
      */
     inline bool get_has_assignment() {
-        return data.has_assignment;
+        return attrs.has_assignment;
     }
 
     /**
      * assignment can be set to true
      */
     inline void set_has_assignment() {
-        data.has_assignment = true;
+        attrs.has_assignment = true;
     }
 
     SourceLocation encoded_location() final {

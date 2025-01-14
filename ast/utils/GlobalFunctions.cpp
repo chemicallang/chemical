@@ -1267,7 +1267,7 @@ struct DefThing {
     DefValue defValue;
     VarInitStatement defStmt;
 
-    DefThing() : defValue(&decl), defStmt(true, ZERO_LOC_ID("def"), defValue.refType, &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
+    DefThing() : defValue(&decl), defStmt(true, false, ZERO_LOC_ID("def"), defValue.refType, &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
         defStmt.set_comptime(true);
     }
 

@@ -52,39 +52,6 @@ void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstT
     }
 }
 
-void Expression::shrink_literal_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType) {
-    if(!(!firstValue->primitive() && !secondValue->primitive())) { // if at least one of the value is a literal
-        if (firstValue->is_value_int_n() && secondValue->is_value_int_n()) { // if both are int n
-            if(firstValue->primitive()) {
-                auto secIntNTy = (IntNType*) secondType;
-                auto firstVal = (IntNumValue*) firstValue;
-                if(firstVal->get_num_bits() > secIntNTy->num_bits() || (firstVal->get_num_bits() == secIntNTy->num_bits() && !firstVal->is_unsigned() && secIntNTy->is_unsigned())) {
-                    firstValue = secIntNTy->create(allocator, firstVal->get_num_value());
-                }
-            } else {
-                auto firIntTy = (IntNType*) firstType;
-                auto secondVal = (IntNumValue*) secondValue;
-                if(secondVal->get_num_bits() > firIntTy->num_bits() || (secondVal->get_num_bits() == firIntTy->num_bits() && !secondVal->is_unsigned() && firIntTy->is_unsigned())) {
-                    secondValue = firIntTy->create(allocator, secondVal->get_num_value());
-                }
-            }
-        }
-    }
-}
-
-void Expression::promote_literal_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType) {
-#ifdef DEBUG
-    if(firstType->can_promote(secondValue) && secondType->can_promote(firstValue)) {
-        throw std::runtime_error("Both values can promote each other");
-    }
-#endif
-    if (firstType->can_promote(secondValue)) {
-        secondValue = firstType->promote(allocator, secondValue);
-    } else if(secondType->can_promote(firstValue)) {
-        firstValue = secondType->promote(allocator, firstValue);
-    }
-}
-
 BaseType* Expression::create_type(ASTAllocator& allocator) {
     if(operation >= Operation::IndexBooleanReturningStart && operation <= Operation::IndexBooleanReturningEnd) {
         return new (allocator.allocate<BoolType>()) BoolType(location);

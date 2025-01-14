@@ -146,41 +146,6 @@ public:
     }
 
     /**
-     * if the other value can be promoted, this should return true
-     * promotion means changing type to a higher type for expression
-     * in an expression firstValue(10) operator(==) secondValue(10)
-     *
-     * the type of both values should be same, when two values of different type
-     * for example a float and an integer are involved, we promote the integer type to a float
-     *
-     * if one of the values is a referenced value, meaning a variable, a cast is performed
-     * a (int) == b (short), we will promote b in this example to an int
-     *
-     * in the case of 'a' (float / double) == b (int32), we would promote b to a float / double
-     *
-     * in the case of 'a' (long / ulong / bigint / ubigint) == b (int32), we must cast the a variable to a int32
-     * to perform the comparison operation, this will be faster
-     *
-     * in the case of 'a' (short) == b (int32), as 'a' has less bits than int32
-     * if b can fit in the range of a (short), we will demote int32 to a short
-     * otherwise we will
-     */
-    virtual bool can_promote(Value* value) {
-        return false;
-    }
-
-    /**
-     * a promotion always results in a new value creation or none at all
-     * promote will only be called if can_promote returns true
-     *
-     * Refer to can_promote for documentation
-     * \see can_promote
-     */
-    virtual Value* promote(ASTAllocator& allocator, Value* value) {
-        return nullptr;
-    }
-
-    /**
      * check if given base type is of same type
      */
     virtual bool is_same(BaseType* type) = 0;

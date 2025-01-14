@@ -37,10 +37,6 @@ public:
         return type->kind() == BaseTypeKind::Float128;
     }
 
-    bool can_promote(Value *value) final;
-
-    Value *promote(ASTAllocator& allocator, Value *value) final;
-
     bool is_same(BaseType *type) final {
         return type->kind() == kind();
     }

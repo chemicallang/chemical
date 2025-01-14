@@ -70,30 +70,6 @@ public:
      */
     void replace_number_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType);
 
-    /**
-     *
-     * when a literal value is being compared with a variable
-     * but variable has less bits (e.g short variable with constant int32)
-     * we will demote int 32 to a short type, but only if it fits in the range of a short
-     * TODO only do this if the constant value is in range of the type
-     *
-     * the values are replaced before code_gen
-     *
-     * @param firstType type of the first value
-     * @param secondType type of the second value
-     */
-    void shrink_literal_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType);
-
-    /**
-     * promote values when the types don't match
-     * for example a float is being compared with an int32
-     * 2.0 == 2 or x (float) == 2.0
-     *
-     * this promotion is done before code_gen
-     *
-     */
-    void promote_literal_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType);
-
     uint64_t byte_size(bool is64Bit) final;
 
 #ifdef COMPILER_BUILD

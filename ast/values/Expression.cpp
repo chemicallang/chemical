@@ -86,34 +86,39 @@ void Expression::promote_literal_values(ASTAllocator& allocator, BaseType* first
 }
 
 BaseType* Expression::create_type(ASTAllocator& allocator) {
-    if(operation >= Operation::IndexComparisonStart && operation <= Operation::IndexComparisonEnd) {
+    if(operation >= Operation::IndexBooleanReturningStart && operation <= Operation::IndexBooleanReturningEnd) {
         return new (allocator.allocate<BoolType>()) BoolType(location);
     }
-    auto first = firstValue->create_type(allocator);
-    auto second = secondValue->create_type(allocator);
-    if(first == nullptr || second == nullptr) {
+    auto firstType = firstValue->create_type(allocator);
+    auto secondType = secondValue->create_type(allocator);
+    if(firstType == nullptr || secondType == nullptr) {
         return nullptr;
     }
-    if((operation == Operation::Addition || operation == Operation::Subtraction) && first->kind() == BaseTypeKind::Pointer) {
-        auto second_value_type = second->value_type();
-        if(second_value_type >= ValueType::IntNStart && second_value_type <= ValueType::IntNEnd) {
-            return first;
-        }
+    const auto first = firstType->pure_type();
+    const auto second = secondType->pure_type();
+    const auto first_kind = first->kind();
+    const auto second_kind = second->kind();
+    // operation between integer and float/double results in float/double
+    if(first_kind == BaseTypeKind::IntN && (second_kind == BaseTypeKind::Float || second_kind == BaseTypeKind::Double)) {
+        return second;
+    } else if(second_kind == BaseTypeKind::IntN && (first_kind == BaseTypeKind::Float || first_kind == BaseTypeKind::Double)) {
+        return first;
     }
-    if(first->value_type() == ValueType::Pointer && second->value_type() == ValueType::Pointer) {
+    // operation between two integers of different int n types results in int n type of higher bit width
+    if(first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::IntN) {
+        const auto first_intN = first->as_intn_type_unsafe();
+        const auto second_intN = second->as_intn_type_unsafe();
+        return first_intN->num_bits() > second_intN->num_bits() ? first : second;
+    }
+    // addition or subtraction of integer value into a pointer
+    if((operation == Operation::Addition || operation == Operation::Subtraction) && (first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::IntN) || (first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::Pointer)) {
+        return first;
+    }
+    // subtracting a pointer results in a long type
+    if(operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
         return new (allocator.allocate<LongType>()) LongType(is64Bit, location);
     }
-    if(first->can_promote(secondValue)) {
-        auto promoted = first->promote(allocator, secondValue);
-        return promoted->create_type(allocator);
-    } else {
-        if(second->can_promote(firstValue)) {
-            auto promoted = second->promote(allocator, firstValue);
-            return promoted->create_type(allocator);
-        } else {
-            return first;
-        }
-    }
+    return first;
 }
 
 BaseType* Expression::known_type() {

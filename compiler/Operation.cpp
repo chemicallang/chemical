@@ -133,14 +133,14 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
 
     // operation between integer and float values
     // promoting integer values to floats to perform the operation
-    if(firstTypeKind == BaseTypeKind::IntN && secondTypeKind == BaseTypeKind::Float) {
+    if(firstTypeKind == BaseTypeKind::IntN && (secondTypeKind == BaseTypeKind::Float || secondTypeKind == BaseTypeKind::Double)) {
         const auto firstIntN = firstType->as_intn_type_unsafe();
         if(firstIntN->is_unsigned()) {
             lhs = builder->CreateUIToFP(lhs, secondType->llvm_type(*this));
         } else {
             lhs = builder->CreateSIToFP(lhs, secondType->llvm_type(*this));
         }
-    } else if(secondTypeKind == BaseTypeKind::IntN && firstTypeKind == BaseTypeKind::Float) {
+    } else if(secondTypeKind == BaseTypeKind::IntN && (firstTypeKind == BaseTypeKind::Float || firstTypeKind == BaseTypeKind::Double)) {
         const auto secondIntN = secondType->as_intn_type_unsafe();
         if(secondIntN->is_unsigned()) {
             rhs = builder->CreateUIToFP(rhs, firstType->llvm_type(*this));

@@ -5206,7 +5206,7 @@ void ToCAstVisitor::visit(PointerType *func) {
 
 void ToCAstVisitor::visit(ReferenceType* func) {
     func->type->accept(this);
-    write('*');
+    write(" const*");
 }
 
 void ToCAstVisitor::visit(LinkedType *type) {

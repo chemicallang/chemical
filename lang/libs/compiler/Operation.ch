@@ -1,6 +1,6 @@
 enum Operation {
     // Grouping and scope resolution operators
-    Grouping = 1,
+    Grouping,
     ScopeResolutionUnary,
     ScopeResolutionBinary,
 

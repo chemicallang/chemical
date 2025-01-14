@@ -17,6 +17,23 @@ AddrOfValue::AddrOfValue(
 bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     auto res = value->link(linker, value);
     if(res) {
+
+        // reporting parameters that their address has been taken
+        // which allows them to generate a variable and store themselves onto it
+        // if they are of integer types
+        // before the taking of address, the variables act immutable
+        const auto linked = value->linked_node();
+        if(linked) {
+            switch (linked->kind()) {
+                case ASTNodeKind::FunctionParam:
+                case ASTNodeKind::ExtensionFuncReceiver:
+                    linked->as_base_func_param_unsafe()->set_has_address_taken(true);
+                    break;
+                default:
+                    break;
+            }
+        }
+
         _ptr_type.type = value->known_type();
     }
     is_value_mutable = value->check_is_mutable(linker.current_func_type, linker, true);

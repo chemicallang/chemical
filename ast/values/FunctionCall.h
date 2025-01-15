@@ -152,7 +152,7 @@ public:
      * if function is a constructor, will set the iteration on the struct instead
      * previous iteration of declaration is returned
      */
-    int16_t set_gen_itr_on_decl(int16_t itr);
+    int16_t set_gen_itr_on_decl(int16_t itr, bool set_generic_calls = true);
 
     /**
      * will set the current generic iteration on function declaration
@@ -160,8 +160,8 @@ public:
      * previous iteration is equal to -2, if couldn't set because it's
      * not a generic function
      */
-    inline int16_t set_curr_itr_on_decl() {
-        return set_gen_itr_on_decl(generic_iteration);
+    inline int16_t set_curr_itr_on_decl(bool set_generic_calls = true) {
+        return set_gen_itr_on_decl(generic_iteration, set_generic_calls);
     }
 
     /**

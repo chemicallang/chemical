@@ -84,6 +84,10 @@ public:
         }
     }
 
+    BaseType* type_for_itr(int16_t iteration) {
+        return usage[iteration];
+    }
+
     ASTNode* usage_linked() {
         return active_iteration > -1 ? usage[active_iteration]->linked_node() : nullptr;
     }

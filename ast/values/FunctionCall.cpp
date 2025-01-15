@@ -884,7 +884,7 @@ BaseType* FunctionCall::get_arg_type(unsigned int index) {
     return param->type;
 }
 
-int16_t FunctionCall::set_gen_itr_on_decl(int16_t itr) {
+int16_t FunctionCall::set_gen_itr_on_decl(int16_t itr, bool set_generic_calls) {
     const auto parent = parent_val->linked_node();
     // enum member being used as a no value
     const auto parent_kind = parent ? parent->kind() : ASTNodeKind::EnumMember;
@@ -899,7 +899,7 @@ int16_t FunctionCall::set_gen_itr_on_decl(int16_t itr) {
             }
         } else if(decl->is_generic()) {
             const auto prev_itr = decl->active_iteration;
-            decl->set_active_iteration(itr);
+            decl->set_active_iteration(itr, set_generic_calls);
             return prev_itr;
         }
     } else if(parent_kind == ASTNodeKind::VariantMember) {
@@ -1295,34 +1295,36 @@ void FunctionCall::interpret(InterpretScope &scope) {
 }
 
 BaseType* FunctionCall::known_type() {
-    if(parent_val) {
-        const auto parent_type = parent_val->known_type();
-        if(parent_type) {
-            switch(parent_type->kind()) {
-                case BaseTypeKind::Function:
-                    return ((FunctionType*) parent_type)->returnType;
-                case BaseTypeKind::Linked:{
-                    const auto linked = (LinkedType*) parent_type;
-                    const auto k = linked->linked->kind();
-                    // decl call (constructors) variant member (variant call)
-                    if(k == ASTNodeKind::VariantMember || k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl) {
-                        return parent_type;
-                    } else if(k == ASTNodeKind::TypealiasStmt) {
-                        return linked->pure_type();
-                    }
-                    break;
-                }
-                case BaseTypeKind::Generic: {
-                    const auto gen_type = (GenericType*) parent_type;
-                    const auto k = gen_type->referenced->linked->kind();
-                    // decl call (constructors) variant member (variant call)
-                    if(k == ASTNodeKind::VariantMember || k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl) {
-                        return parent_type;
-                    }
-                }
-                default:
-                    return nullptr;
+    const auto parent_type = parent_val->known_type();
+    if(parent_type) {
+        switch(parent_type->kind()) {
+            case BaseTypeKind::Function: {
+                const auto prev = set_curr_itr_on_decl(false);
+                const auto type = ((FunctionType*) parent_type)->returnType->pure_type();
+                set_gen_itr_on_decl(prev, false);
+                return type;
             }
+            case BaseTypeKind::Linked:{
+                const auto linked = (LinkedType*) parent_type;
+                const auto k = linked->linked->kind();
+                // decl call (constructors) variant member (variant call)
+                if(k == ASTNodeKind::VariantMember || k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl) {
+                    return parent_type;
+                } else if(k == ASTNodeKind::TypealiasStmt) {
+                    return linked->pure_type();
+                }
+                break;
+            }
+            case BaseTypeKind::Generic: {
+                const auto gen_type = (GenericType*) parent_type;
+                const auto k = gen_type->referenced->linked->kind();
+                // decl call (constructors) variant member (variant call)
+                if(k == ASTNodeKind::VariantMember || k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl) {
+                    return parent_type;
+                }
+            }
+            default:
+                return nullptr;
         }
     }
     return nullptr;

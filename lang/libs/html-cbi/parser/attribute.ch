@@ -47,22 +47,80 @@ func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Html
                 parser.error("expected a expression value after '{'");
             }
 
-            var value = builder.allocate<ChemicalAttributeValue>()
-            new (value) ChemicalAttributeValue {
-                AttributeValue : AttributeValue {
-                    kind : AttributeValueKind.Chemical
-                },
-                value : expr
-            }
+            const next = parser.getToken();
 
-            const rb = parser.getToken();
-            if(rb.type == TokenType.RBrace) {
-                parser.increment();
+            if(next.type == ChemicalTokenType.CommaSym) {
+
+                // multiple values
+
+                var value = builder.allocate<ChemicalAttributeValues>()
+                new (value) ChemicalAttributeValues {
+                    AttributeValue : AttributeValue {
+                        kind : AttributeValueKind.ChemicalValues
+                    },
+                    values : std::vector<*Value>()
+                }
+
+                value.values.push(expr);
+
+                while(true) {
+                    const got = parser.getToken();
+                    if(got.type == ChemicalTokenType.CommaSym) {
+
+                        parser.increment();
+
+                        const expr2 = parser.parseExpression(builder);
+                        if(expr2 != null) {
+
+                            value.values.push(expr2)
+
+                        } else {
+
+                            printf("WHAT ::::: couldn't get expression\n")
+                            fflush(null)
+                            break;
+
+                        }
+
+                    } else {
+                        printf("WHAT ::::: breaking at %d with value %s at line %d and char %d\n", got.type, got.value.data(), got.position.line, got.position.character)
+                        fflush(null)
+                        break;
+                    }
+                }
+
+                const rb = parser.getToken();
+                if(rb.type == ChemicalTokenType.RBrace) {
+                    parser.increment();
+                } else {
+                    printf("WHAT ::::: type %d with value %s at line %d and char %d\n", next.type, next.value.data(), next.position.line, next.position.character)
+                    fflush(null)
+                    parser.error("expected a '}' after the multiple chemical expressions");
+                }
+
+                attr.value = value;
+
             } else {
-                parser.error("expected a '}' after the chemical expression");
-            }
 
-            attr.value = value;
+                // single value
+
+                if(next.type == TokenType.RBrace) {
+                    parser.increment();
+                } else {
+                    parser.error("expected a '}' after the chemical expression");
+                }
+
+                var value = builder.allocate<ChemicalAttributeValue>()
+                new (value) ChemicalAttributeValue {
+                    AttributeValue : AttributeValue {
+                        kind : AttributeValueKind.Chemical
+                    },
+                    value : expr
+                }
+
+                attr.value = value;
+
+            }
 
         }
         default => {

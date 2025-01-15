@@ -12,7 +12,20 @@ struct parse_num_result {
 };
 
 inline int get_parse_num_base(const char* num, std::size_t num_size) {
-    return (num[0] == '0' && num_size > 1 && (num[1] == 'x' || num[1] == 'X')) ? 16 : 10;
+    if(num[0] == '0' && num_size > 1) {
+        switch(num[1]) {
+            case 'x':
+            case 'X':
+                return 16;
+            case 'b':
+            case 'B':
+                return 2;
+            default:
+                return 10;
+        }
+    } else {
+        return 10;
+    }
 }
 
 template<typename T>

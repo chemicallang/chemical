@@ -103,4 +103,28 @@ func test_bodmas() {
         const k = j - 1;
         return *k == 22;
     })
+    test("logical right shift", () => {
+        var value : uint = 0b10010010; // 146 in decimal
+        var expected : uint = 0b00100100; // 36 in decimal
+        var result : uint = value >> 2; // Logical right shift (unsigned)
+        return result == expected;
+    })
+    test("arithmetic right shift", () => {
+        var value : int = -8; // 0xFFFFFFF8 in 32-bit signed representation
+        var expected : int = -2; // Right shift retains the sign
+        var result : int = value >> 2; // Arithmetic right shift (signed)
+        return result == expected;
+    })
+    test("logical left shift", () => {
+        var value : uint = 0b00010010; // 18 in decimal
+        var expected : uint = 0b01001000; // 72 in decimal
+        var result : uint = value << 2; // Logical left shift (unsigned)
+        return result == expected;
+    })
+    test("arithmetic left shift", () => {
+        var value : int = -8; // -8 in signed
+        var expected : int = -32; // Left shift retains the sign
+        var result : int = value << 2; // Arithmetic left shift
+        return result == expected;
+    })
 }

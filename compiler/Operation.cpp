@@ -221,7 +221,11 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         case Operation::LeftShift:
             return builder->CreateShl(lhs, rhs);
         case Operation::RightShift:
-            return builder->CreateLShr(lhs, rhs);
+            if(is_unsigned()) {
+                return builder->CreateLShr(lhs, rhs);
+            } else {
+                return builder->CreateAShr(lhs, rhs);
+            }
         case Operation::GreaterThan:
             if(is_floating()) {
                 return builder->CreateFCmpOGT(lhs, rhs); // Floating greater than

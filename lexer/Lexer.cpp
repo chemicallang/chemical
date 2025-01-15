@@ -236,11 +236,19 @@ void read_number(SerialStrAllocator& str, SourceProvider& provider) {
 // it allows us to check whether number is hex or bool like 0x34ffb3
 // this also assumes that zero has already been consumed and put onto the string
 void read_zero_starting_number(SerialStrAllocator& str, SourceProvider& provider) {
-    if(provider.peek() == 'x') {
-        str.append(provider.readCharacter());
-        read_alpha_or_digits(str, provider);
-        read_number_suffix(str, provider);
-        return;
+    switch(provider.peek()) {
+        case 'X':
+        case 'x':
+            str.append(provider.readCharacter());
+            read_alpha_or_digits(str, provider);
+            // TODO is this needed here ?
+            read_number_suffix(str, provider);
+            return;
+        case 'b':
+        case 'B':
+            str.append(provider.readCharacter());
+            read_digits(str, provider);
+            return;
     }
     return read_number(str, provider);
 }

@@ -1,7 +1,11 @@
+import "@std/vector.ch"
+import "@compiler/ast/base/Value.ch"
+
 enum AttributeValueKind {
     Text,
     Number,
-    Chemical
+    Chemical,
+    ChemicalValues
 }
 
 struct AttributeValue {
@@ -19,6 +23,12 @@ struct TextAttributeValue : AttributeValue {
 struct ChemicalAttributeValue : AttributeValue {
 
     var value : *Value
+
+}
+
+struct ChemicalAttributeValues : AttributeValue {
+
+    var values : std::vector<*Value>
 
 }
 

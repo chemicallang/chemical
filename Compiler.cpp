@@ -482,7 +482,7 @@ int main(int argc, char *argv[]) {
     bool is64Bit = Codegen::is_arch_64bit(target.value());
 
 #else
-    std::optional<std::string> target = "native";
+    std::optional<std::string_view> target = "native";
 #if defined(_WIN64) || defined(__x86_64__) || defined(__ppc64__)
     bool is64Bit = true;
 #else
@@ -556,11 +556,18 @@ int main(int argc, char *argv[]) {
         compiler_opts.def_mode = mode;
 
         // giving build args to lab build context
+        if(output.has_value()) {
+            context.build_args["output"] = output.value();
+        }
+        if(mode_opt.has_value()) {
+            context.build_args["mode"] = mode_opt.value();
+        }
         for(auto& opt : options.options) {
             if(opt.first.starts_with("arg-")) {
                 context.build_args[opt.first.data() + 4] = opt.second;
             }
         }
+        // building the lab file
         return compiler.build_lab_file(context, std::string(args[0]));
     }
 

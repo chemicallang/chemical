@@ -182,11 +182,9 @@ inherit
 initial
 unset
 
-
-
 Here is a comprehensive list of CSS keywords that you’ll need to account for when writing a CSS lexer. These keywords are categorized based on their use in CSS syntax.
 
-General Syntax Keywords
+### General Syntax Keywords
 @charset
 @import
 @namespace
@@ -204,116 +202,6 @@ transparent
 currentColor
 Named Colors
 Common examples include: red, green, blue, yellow, cyan, magenta, black, white, gray, etc. (Refer to the CSS color list for the full set of 140+ named colors.)
-
-Display Keywords
-block
-inline
-inline-block
-flex
-grid
-inline-flex
-inline-grid
-none
-table
-table-cell
-table-row
-list-item
-run-in
-Positioning Keywords
-static
-relative
-absolute
-fixed
-sticky
-Overflow Keywords
-visible
-hidden
-scroll
-auto
-Visibility Keywords
-visible
-hidden
-collapse
-Flexbox and Grid Keywords
-Alignment Keywords
-flex-start
-flex-end
-center
-space-between
-space-around
-space-evenly
-start
-end
-baseline
-stretch
-Grid Keywords
-auto
-min-content
-max-content
-fit-content
-repeat
-span
-Font Keywords
-serif
-sans-serif
-monospace
-cursive
-fantasy
-system-ui
-inherit
-initial
-unset
-Font Style Keywords
-normal
-italic
-oblique
-Font Weight Keywords
-normal
-bold
-lighter
-bolder
-Numeric values: 100 to 900
-Background Keywords
-cover
-contain
-no-repeat
-repeat
-repeat-x
-repeat-y
-space
-round
-Border and Outline Keywords
-Border Style Keywords
-none
-solid
-dotted
-dashed
-double
-groove
-ridge
-inset
-outset
-hidden
-Animation Keywords
-linear
-ease
-ease-in
-ease-out
-ease-in-out
-infinite
-alternate
-reverse
-forwards
-backwards
-Sizing Keywords
-auto
-contain
-cover
-stretch
-CSS Global Values
-inherit
-initial
-unset
 
 ### Unit Keywords
 Units must be treated as keywords in your lexer to distinguish them from numbers:

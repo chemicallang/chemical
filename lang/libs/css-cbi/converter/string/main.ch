@@ -1,6 +1,7 @@
 import "@std/string.ch"
 import "../../utils/stdutils.ch"
 import "../../utils/comptime_utils.ch"
+import "@compiler/ASTBuilder.ch"
 
 func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());
@@ -162,101 +163,163 @@ func put_chemical_value_in(resolver : *mut SymbolResolver, builder : *mut ASTBui
     }
 }
 
-func convertHtmlAttribute(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, attr : *mut HtmlAttribute, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
-    str.append(' ')
-    str.append_with_len(attr.name.data(), attr.name.size())
-    if(attr.value != null) {
-        str.append('=')
-        switch(attr.value.kind) {
-            AttributeValueKind.Text, AttributeValueKind.Number => {
-                const value = attr.value as *mut TextAttributeValue
-                str.append_with_len(value.text.data(), value.text.size())
-            }
-            AttributeValueKind.Chemical => {
-                if(!str.empty()) {
-                    put_chain_in(resolver, builder, vec, parent, str);
-                }
-                const value = attr.value as *mut ChemicalAttributeValue
-                put_chemical_value_in(resolver, builder, vec, parent, value.value)
-            }
-            AttributeValueKind.ChemicalValues => {
-                if(!str.empty()) {
-                    put_chain_in(resolver, builder, vec, parent, str);
-                }
-                put_char_chain(resolver, builder, vec, parent, '"');
-                const value = attr.value as *mut ChemicalAttributeValues
-                const size = value.values.size();
-                const last = size - 1;
-                var i = 0;
-                while(i < size) {
-                    put_chemical_value_in(resolver, builder, vec, parent, value.values.get(i))
-                    if(i != last) {
-                        put_char_chain(resolver, builder, vec, parent, ' ');
-                    }
-                    i++;
-                }
-                put_char_chain(resolver, builder, vec, parent, '"');
-            }
+func writeUnitOfKind(str : &mut std::string, kind : CSSValueKind) : bool {
+    switch(kind) {
+        CSSValueKind.LengthPX => {
+            var view = std::string_view("px")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthEM => {
+            var view = std::string_view("em")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthREM => {
+            var view = std::string_view("rem")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthVH => {
+            var view = std::string_view("vh")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthVW => {
+            var view = std::string_view("vw")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthVMIN => {
+            var view = std::string_view("vmin")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthVMAX => {
+            var view = std::string_view("vmax")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthPERCENTAGE => {
+            var view = std::string_view("percentage")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthCM => {
+            var view = std::string_view("cm")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthMM => {
+            var view = std::string_view("mm")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthIN => {
+            var view = std::string_view("in")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthPT => {
+            var view = std::string_view("pt")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthPC => {
+            var view = std::string_view("pc")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthCH => {
+            var view = std::string_view("ch")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthEX => {
+            var view = std::string_view("ex")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthS => {
+            var view = std::string_view("s")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthMS => {
+            var view = std::string_view("ms")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthHZ => {
+            var view = std::string_view("hz")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthKHZ => {
+            var view = std::string_view("khz")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthDEG => {
+            var view = std::string_view("deg")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthRAD => {
+            var view = std::string_view("rad")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthGRAD => {
+            var view = std::string_view("grad")
+            str.append_with_len(view.data(), view.size())
+        }
+        CSSValueKind.LengthTURN => {
+            var view = std::string_view("turn")
+            str.append_with_len(view.data(), view.size())
+        }
+        default => {
+            return false;
         }
     }
+    return true;
 }
 
-func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, child : *mut HtmlChild, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
-    switch(child.kind) {
-        HtmlChildKind.Text => {
-            var text = child as *mut HtmlText
-            str.append_with_len(text.value.data(), text.value.size());
+func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, value : &mut CSSValue, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+
+    if(value.kind >= CSSValueKind.LengthPX && value.kind <= CSSValueKind.LengthTURN) {
+
+        if(value.data == null) {
+            printf("error no value found")
+            fflush(null)
         }
-        HtmlChildKind.Element => {
-            var element = child as *mut HtmlElement
-            str.append('<')
-            str.append_with_len(element.name.data(), element.name.size())
 
-            // putting attributes
-            var a = 0;
-            var attrs = element.attributes.size()
-            while(a < attrs) {
-                var attr = element.attributes.get(a)
-                convertHtmlAttribute(resolver, builder, attr, vec, parent, str);
-                a++
-            }
+        // length value
 
-            if(element.isSelfClosing) {
-                str.append('/');
-            }
+        // writing the length
+        var ptr = value.data as *mut CSSNumberValueData
+        str.append_with_len(ptr.value.data(), ptr.value.size())
 
-            str.append('>')
-
-            // doing children
-            var i = 0;
-            var s = element.children.size();
-            while(i < s) {
-                var nested_child = element.children.get(i)
-                convertHtmlChild(resolver, builder, nested_child, vec, parent, str)
-                i++;
-            }
-
-            if(!element.isSelfClosing) {
-                str.append('<')
-                str.append('/')
-                str.append_with_len(element.name.data(), element.name.size())
-                str.append('>')
-            }
-
+        // writing the unit
+        if(!writeUnitOfKind(str, value.kind)) {
+            // TODO error out here
         }
-        HtmlChildKind.ChemicalValue => {
-            if(!str.empty()) {
-                put_chain_in(resolver, builder, vec, parent, str);
-            }
-            const chem_child = child as *mut HtmlChemValueChild
-            put_chemical_value_in(resolver, builder, vec, parent, chem_child.value)
-        }
+
+    } else {
+
+        // TODO handle other values
+
     }
+
 }
 
-func convertHtmlRoot(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, root : *mut HtmlRoot, vec : *mut VecRef<ASTNode>, str : &mut std::string) {
-    convertHtmlChild(resolver, builder, root.element, vec, root.parent, str);
+func convertDeclaration(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, decl : *mut CSSDeclaration, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+
+    str.append_with_len(decl.property.name.data(), decl.property.name.size())
+    str.append(':')
+
+    // if(!str.empty()) {
+    //     put_chain_in(resolver, builder, vec, parent, str);
+    // }
+    // const value = attr.value as *mut ChemicalAttributeValue
+    // put_chemical_value_in(resolver, builder, vec, parent, value.value)
+
+    // put_char_chain(resolver, builder, vec, parent, '\"');
+
+    convertValue(resolver, builder, decl.value, vec, parent, str)
+
+    str.append(';')
+
+}
+
+func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om : *mut CSSOM, vec : *mut VecRef<ASTNode>, str : &mut std::string) {
+    var size = om.declarations.size()
+    var i = 0
+    while(i < size) {
+        var decl = om.declarations.get(i)
+        convertDeclaration(resolver, builder, decl, vec, om.parent, str)
+        i++;
+    }
     if(!str.empty()) {
-        put_chain_in(resolver, builder, vec, root.parent, str);
+        put_chain_in(resolver, builder, vec, om.parent, str);
     }
 }

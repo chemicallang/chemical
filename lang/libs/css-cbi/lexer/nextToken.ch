@@ -10,6 +10,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
     const position = provider.getPosition();
     const c = provider.readCharacter();
     printf("reading character : %d\n", c);
+    fflush(null)
     switch(c) {
         ':' => {
             return Token {
@@ -54,8 +55,8 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '!' => {
-            var view = provider.read_alpha(str);
-            if(strncmp(view.data(), "important", view.size()) == 0) {
+            var alpha = provider.read_alpha(str);
+            if(strncmp(alpha.data(), "important", alpha.size()) == 0) {
                 return Token {
                     type : TokenType.Important,
                     value : view("!important"),
@@ -69,10 +70,10 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 }
             }
         }
-        '@' => {
+        '%' => {
             return Token {
-                type : TokenType.At,
-                value : view("@"),
+                type : TokenType.Percentage,
+                value : view("%"),
                 position : position
             }
         }

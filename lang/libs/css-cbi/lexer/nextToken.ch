@@ -3,16 +3,6 @@ import "./TokenType.ch"
 import "./readutils.ch"
 import "../utils/comptime_utils.ch"
 
-
-// TODO Greater than or equal to (>=)
-// TODO Less than or equal to (<=)
-// TODO Exact match (=)
-// TODO Contains word (~=)
-// TODO Contains substring (*=)
-// TODO Starts with (^=)
-// TODO Ends with ($=)
-// TODO Dash-separated match (|=)
-
 func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
     const provider = &lexer.provider;
     const str = &lexer.str;
@@ -272,15 +262,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                     position : position
                 }
             } else {
-                printf("starting text with character : %d\n", c);
+                printf("starting id with character : %d\n", c);
                 str.append(c);
-                var text = provider.read_text(lexer.str)
-                if(text.size() != 0) {
-                    return Token {
-                        type : TokenType.Identifier,
-                        value : text,
-                        position : position
-                    }
+                var text = provider.read_css_id(lexer.str)
+                return Token {
+                    type : TokenType.Identifier,
+                    value : text,
+                    position : position
                 }
             }
         }

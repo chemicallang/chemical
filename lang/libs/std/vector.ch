@@ -78,9 +78,7 @@ public struct vector<T> {
         if(index == last) {
             data_size = last;
         } else {
-            for (var i = index; i < last; i++) {
-                memcpy(&data_ptr[i], &data_ptr[i + 1], #sizeof(T))
-            }
+            memmove(&data_ptr[index], &data_ptr[index + 1], #sizeof(T) * (last - index));
             data_size = last;
         }
     }
@@ -102,11 +100,6 @@ public struct vector<T> {
     func delete(&mut self) {
         destruct[data_size] data_ptr;
         free(data_ptr);
-        unsafe {
-            data_ptr = null;
-        }
-        data_size = 0;
-        data_cap = 0;
     }
 
 }

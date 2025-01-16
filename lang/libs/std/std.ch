@@ -31,6 +31,8 @@ public func strncmp(str1 : *char, str2 : *char, n : size_t) : int
 
 public func memcmp(ptr1 : *any, ptr2 : *any, num : size_t) : int
 
+public func memmove(dest : *mut void, src : *void, count : size_t) : *mut void
+
 public func memset(dest : *mut void, ch : int, count : size_t) : *mut void
 
 /**

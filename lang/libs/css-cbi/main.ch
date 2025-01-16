@@ -4,16 +4,15 @@ import "./lexer/TokenType.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 import "@compiler/ChemicalTokenType.ch"
-import "./ast/HtmlElement.ch"
 import "./lexer/CSSLexer.ch"
-import "./parser/root.ch"
+import "./parser/cssom.ch"
 
 public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro node\n");
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LBrace)) {
-        var root = parseHtmlRoot(parser, builder);
-        printf("parsed to html root\n")
+        var root = parseCSSOM(parser, builder);
+        printf("parsed to css om\n")
         fflush(null)
         const node = builder.make_sym_res_node(symResNodeDeclaration, symResNodeReplacement, root, root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace)) {
@@ -31,11 +30,11 @@ func symResNodeDeclaration(allocator : *mut ASTBuilder, resolver : *mut SymbolRe
 
 func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut ASTNode {
     const loc = compiler::get_raw_location();
-    const root = data as *mut HtmlRoot;
+    const root = data as *mut CSSOM;
     var scope = builder.make_scope(root.parent, loc);
     var scope_nodes = scope.getNodes();
     var str = std::string();
-    convertHtmlRoot(resolver, builder, root, scope_nodes, str);
+    convertCSSOM(resolver, builder, root, scope_nodes, str);
     return scope;
 }
 
@@ -43,12 +42,12 @@ public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *m
     printf("wow create macro node\n");
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LBrace)) {
-        var root = parseHtmlRoot(parser, builder);
-        printf("parsed to html root\n")
+        var root = parseCSSOM(parser, builder);
+        printf("parsed to css om\n")
         fflush(null)
         const node = builder.make_sym_res_node(symResNodeDeclaration, symResNodeReplacement, root, root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace)) {
-            parser.error("expected a rbrace for ending the html macro");
+            parser.error("expected a rbrace for ending the css macro");
         }
         return node;
     } else {
@@ -56,27 +55,27 @@ public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *m
     }
 }
 
-public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
-    if(html.other_mode) {
-        if(html.chemical_mode) {
+public func getNextToken(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
+    if(css.other_mode) {
+        if(css.chemical_mode) {
             var nested = lexer.getEmbeddedToken();
             if(nested.type == ChemicalTokenType.LBrace) {
-                html.lb_count++;
-                printf("lb_count increases to %d in chemical mode\n", html.lb_count);
+                css.lb_count++;
+                printf("lb_count increases to %d in chemical mode\n", css.lb_count);
             } else if(nested.type == ChemicalTokenType.RBrace) {
-                html.lb_count--;
-                printf("lb_count decreased to %d in chemical mode\n", html.lb_count);
-                if(html.lb_count == 1) {
-                    html.other_mode = false;
-                    html.chemical_mode = false;
-                    printf("since lb_count decreased to 1, we're switching to html mode\n");
+                css.lb_count--;
+                printf("lb_count decreased to %d in chemical mode\n", css.lb_count);
+                if(css.lb_count == 1) {
+                    css.other_mode = false;
+                    css.chemical_mode = false;
+                    printf("since lb_count decreased to 1, we're switching to css mode\n");
                 }
             }
             printf("in chemical mode, created token '%s'\n", nested.value.data());
             return nested;
         }
     }
-    const t = getNextToken2(html, lexer);
+    const t = getNextToken2(css, lexer);
     printf("I created token : '%s' with type %d\n", t.value.data(), t.type);
     return t;
 }

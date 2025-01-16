@@ -5,10 +5,12 @@ enum TokenType {
     Unexpected,
     // identifier
     Identifier,
+    // floating or non floating number
+    Number,
     // enclosed in double quotes
     DoubleQuotedValue,
     // enclosed in single quotes
-    SingleQuotesValue,
+    SingleQuotedValue,
     // :
     Colon,
     // ;
@@ -18,13 +20,15 @@ enum TokenType {
     // !important
     Important,
     // {
-    LRbrace,
+    LBrace,
     // }
     RBrace,
     // (
     LParen,
     // )
     RParen,
+    // %
+    Percentage,
     // ,
     Comma,
     // +
@@ -43,6 +47,8 @@ enum TokenType {
     GreaterThanOrEqual,
     // <
     LessThan,
+    // <=
+    LessThanOrEqual,
     // ~=
     ContainsWord,
     // *=

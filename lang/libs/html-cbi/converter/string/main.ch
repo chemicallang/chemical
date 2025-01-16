@@ -183,7 +183,7 @@ func convertHtmlAttribute(resolver : *mut SymbolResolver, builder : *mut ASTBuil
                 if(!str.empty()) {
                     put_chain_in(resolver, builder, vec, parent, str);
                 }
-                put_char_chain(resolver, builder, vec, parent, '\"');
+                put_char_chain(resolver, builder, vec, parent, '"');
                 const value = attr.value as *mut ChemicalAttributeValues
                 const size = value.values.size();
                 const last = size - 1;
@@ -195,7 +195,7 @@ func convertHtmlAttribute(resolver : *mut SymbolResolver, builder : *mut ASTBuil
                     }
                     i++;
                 }
-                put_char_chain(resolver, builder, vec, parent, '\"');
+                put_char_chain(resolver, builder, vec, parent, '"');
             }
         }
     }

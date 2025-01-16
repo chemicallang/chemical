@@ -393,7 +393,7 @@ BaseType* BaseType::getAutoDerefType(BaseType* expected_type) {
         case BaseTypeKind::Reference: {
             const auto ref_type = value_type_pure->as_reference_type_unsafe();
             const auto pure_referencee = ref_type->type->pure_type();
-            if(pure_referencee->is_same(exp_type_pure) && BaseType::isIntNType(pure_referencee->kind())) {
+            if((pure_referencee->is_same(exp_type_pure) || exp_type_pure->kind() == BaseTypeKind::Any) && BaseType::isIntNType(pure_referencee->kind())) {
                 return pure_referencee;
             }
             return nullptr;

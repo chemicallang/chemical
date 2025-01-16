@@ -1,13 +1,13 @@
 public func printf(format : *char, _ : any...) : int
 
-public func sprintf(to : *mut char, format : *char, _ : any...) : int
-
 if(compiler::is_clang()) {
     public typealias size_t = ubigint
 } else {
     @comptime
     public typealias size_t = ubigint
 }
+
+public func snprintf(buffer : *mut char, bufsz : size_t, format : *char, _ : any...) : int
 
 public func malloc(size : size_t) : *mut void
 

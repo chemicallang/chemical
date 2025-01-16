@@ -1,3 +1,4 @@
+import "@std/std.ch"
 import "../../test.ch"
 
 func take_int(i : int) : int {
@@ -150,5 +151,12 @@ func test_auto_deref() {
         var ref = give_ref(i)
         var ref2 = ref
         return ref == ref2;
+    })
+    test("automatic dereferences when passing to var args parameter", () => {
+        var i = 788
+        var ref = give_ref(i)
+        var str : char[20] = {}
+        snprintf(&str[0], 19, "%d", ref);
+        return strncmp(&str[0], "788", 3) == 0
     })
 }

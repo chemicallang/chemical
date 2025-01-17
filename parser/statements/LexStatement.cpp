@@ -48,15 +48,20 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator
 }
 
 ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
+    // TODO comments should be attached to upcoming ast node
+    while(true) {
+        const auto type = token->type;
+        if(type == TokenType::SingleLineComment || type == TokenType::MultiLineComment || type == TokenType::NewLine) {
+            token++;
+        } else {
+            break;
+        }
+    }
     switch(token->type) {
         case TokenType::PublicKw:
         case TokenType::PrivateKw:
         case TokenType::InternalKw:
             return parseTopLevelAccessSpecifiedDecls(allocator);
-        case TokenType::SingleLineComment:
-            return (ASTNode*) parseSingleLineComment(allocator);
-        case TokenType::MultiLineComment:
-            return (ASTNode*) parseMultiLineComment(allocator);
         case TokenType::ConstKw:
         case TokenType::VarKw:
             return (ASTNode*) parseVarInitializationTokens(allocator, AccessSpecifier::Internal, true);
@@ -94,11 +99,16 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
 }
 
 ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool is_value, bool parse_value_node) {
+    // TODO comments should be attached to upcoming ast node
+    while(true) {
+        const auto type = token->type;
+        if(type == TokenType::SingleLineComment || type == TokenType::MultiLineComment || type == TokenType::NewLine) {
+            token++;
+        } else {
+            break;
+        }
+    }
     switch(token->type) {
-        case TokenType::SingleLineComment:
-            return (ASTNode*) parseSingleLineComment(allocator);
-        case TokenType::MultiLineComment:
-            return (ASTNode*) parseMultiLineComment(allocator);
         case TokenType::VarKw:
         case TokenType::ConstKw:
             return (ASTNode*) parseVarInitializationTokens(allocator, AccessSpecifier::Internal);

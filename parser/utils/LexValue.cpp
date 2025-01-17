@@ -471,6 +471,20 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                 return {new(alloc.allocate<FloatValue>()) FloatValue(num_value.result, location), err.empty() ? num_value.error : err};
             }
         }
+        case 'U':
+        case 'u': {
+            mut_value[last_char_index] = '\0';
+            const auto num_val = parse_num(value, suffix_index, strtoul);
+            mut_value[last_char_index] = last_char;
+            return {new(alloc.allocate<UIntValue>()) UIntValue((unsigned int) num_val.result, location), num_val.error};
+        }
+        case 'i':
+        case 'I': {
+            mut_value[last_char_index] = '\0';
+            const auto num_val = parse_num(value, suffix_index, strtol);
+            mut_value[last_char_index] = last_char;
+            return {new(alloc.allocate<IntValue>()) IntValue((int) num_val.result, location), num_val.error};
+        }
         case 'l':
         case 'L': {
             if(value_size > 2) {

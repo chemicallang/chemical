@@ -44,6 +44,32 @@ func check_str_hash(s : *char) : HashingResult {
     }
 }
 
+func check_str_hash32(s : *char) : HashingResult {
+    switch(fnv1a_hash_32(s)) {
+        comptime_fnv1a_hash_32("hello") => {
+            return HashingResult.Hello
+        }
+        comptime_fnv1a_hash_32("wello") => {
+            return HashingResult.Wello
+        }
+        comptime_fnv1a_hash_32("dello") => {
+            return HashingResult.Dello
+        }
+        comptime_fnv1a_hash_32("jello") => {
+            return HashingResult.Jello
+        }
+        comptime_fnv1a_hash_32("nello") => {
+            return HashingResult.Nello
+        }
+        comptime_fnv1a_hash_32("xello") => {
+            return HashingResult.Xello
+        }
+        default => {
+            return HashingResult.Unknown
+        }
+    }
+}
+
 func test_strings() {
     test("check string indexing works", () => {
         var x = "true";
@@ -119,6 +145,9 @@ func test_strings() {
 klmnopqrstuvwxyz"
         return strlen(first) == 27
     })
+    test("hashing algorithm fnv1 results in same hash in comptime and runtime mode", () => {
+        return comptime_fnv1_hash("next") == fnv1_hash("next")
+    })
     test("hashing algorithm fnv1 works in both runtime and comptime - 1", () => {
         return check_str_hash("hello") == HashingResult.Hello;
     })
@@ -139,5 +168,26 @@ klmnopqrstuvwxyz"
     })
     test("hashing algorithm fnv1 works in both runtime and comptime - 7", () => {
         return check_str_hash("xcvcx") == HashingResult.Unknown;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 1", () => {
+        return check_str_hash32("hello") == HashingResult.Hello;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 2", () => {
+        return check_str_hash32("wello") == HashingResult.Wello;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 3", () => {
+        return check_str_hash32("dello") == HashingResult.Dello;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 4", () => {
+        return check_str_hash32("jello") == HashingResult.Jello;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 5", () => {
+        return check_str_hash32("nello") == HashingResult.Nello;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 6", () => {
+        return check_str_hash32("xello") == HashingResult.Xello;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 7", () => {
+        return check_str_hash32("xcvcx") == HashingResult.Unknown;
     })
 }

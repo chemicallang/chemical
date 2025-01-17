@@ -204,6 +204,7 @@ void read_number_suffix(SerialStrAllocator& str, SourceProvider& provider) {
             read_digits(str, provider);
             return;
         case 'U':
+            str.append(provider.readCharacter());
             if(provider.peek() == 'L') {
                 str.append(provider.readCharacter());
             }

@@ -55,24 +55,27 @@ uint64_t Parser::loc_single(Position& pos, unsigned int length) {
     return loc_man.addLocation(file_id, pos.line, pos.character, pos.line, pos.character + length);
 }
 
+ASTNode* parseImportLevelStmt(Parser* parser, ASTAllocator& allocator) {
+    // TODO comments should be attached to upcoming ast node
+    while(true) {
+        const auto type = parser->token->type;
+        if(type == TokenType::SingleLineComment || type == TokenType::MultiLineComment || type == TokenType::NewLine) {
+            parser->token++;
+        } else {
+            break;
+        }
+    }
+    return (ASTNode*) parser->parseImportStatement(allocator);
+}
+
 void Parser::parseTopLevelMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
     while (true) {
         consumeNewLines();
-        auto importStmt = parseImportStatement(allocator);
-        if(importStmt) {
-            nodes.emplace_back((ASTNode*) importStmt);
+        const auto node = parseImportLevelStmt(this, allocator);
+        if(node) {
+            nodes.emplace_back((ASTNode*) node);
         } else {
-            auto comment = parseSingleLineComment(allocator);
-            if(comment) {
-                nodes.emplace_back((ASTNode*) comment);
-            } else {
-                auto multiline = parseMultiLineComment(allocator);
-                if(multiline) {
-                    nodes.emplace_back((ASTNode*) multiline);
-                } else {
-                    break;
-                }
-            }
+            break;
         }
         consumeToken(TokenType::SemiColonSym);
     }

@@ -336,28 +336,46 @@ func base64_encode_32bit(hash : uint32_t, out : *mut char) {
     }
 }
 
+func put_class_name_chain(hash : uint32_t, prefix : char, resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode) {
+    var className : char[10] = {};
+    className[0] = '.'
+    className[1] = prefix
+    base64_encode_32bit(hash, &className[2])
+    className[8] = '{'
+    className[9] = '\0'
+    var ptr : *char = &className[0]
+    const total_size : size_t = 9
+    put_view_chain(resolver, builder, vec, parent, std::string_view(ptr, total_size))
+}
+
+func rand() : int;
+
+func generate_random_32bit() : uint32_t {
+    return (rand() as uint32_t << 16) | rand() as uint32_t;
+}
+
 func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om : *mut CSSOM, vec : *mut VecRef<ASTNode>, str : &mut std::string) {
     var size = om.declarations.size()
-    var i = 0
-    while(i < size) {
-        var decl = om.declarations.get(i)
-        convertDeclaration(resolver, builder, decl, vec, om.parent, str)
-        i++;
-    }
-    if(!str.empty()) {
-        if(!om.has_dynamic_values) {
-            var className : char[10] = {};
-            className[0] = '.'
-            className[1] = 'h'
-            const hash = fnv1a_hash_32(str.data());
-            base64_encode_32bit(hash, &className[2])
-            className[8] = '{'
-            className[9] = '\0'
-            var ptr : *char = &className[0]
-            const total_size : size_t = 9
-            put_view_chain(resolver, builder, vec, om.parent, std::string_view(ptr, total_size))
-            str.append('}')
+    if(size > 0) {
+        if(om.has_dynamic_values) {
+            const hash = generate_random_32bit();
+            put_class_name_chain(hash, 'r', resolver, builder, vec, om.parent)
         }
-        put_chain_in(resolver, builder, vec, om.parent, str);
+        var i = 0
+        while(i < size) {
+            var decl = om.declarations.get(i)
+            convertDeclaration(resolver, builder, decl, vec, om.parent, str)
+            i++;
+        }
+        if(str.empty()) {
+            put_char_chain(resolver, builder, vec, om.parent, '}')
+        } else {
+            if(!om.has_dynamic_values) {
+                const hash = fnv1a_hash_32(str.data());
+                put_class_name_chain(hash, 'h', resolver, builder, vec, om.parent);
+            }
+            str.append('}')
+            put_chain_in(resolver, builder, vec, om.parent, str);
+        }
     }
 }

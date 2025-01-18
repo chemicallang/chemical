@@ -1,7 +1,10 @@
 import "@std/string.ch"
+import "@std/string_view.ch"
 import "../../utils/stdutils.ch"
 import "../../utils/comptime_utils.ch"
 import "@compiler/ASTBuilder.ch"
+import "@std/hashing/fnv1.ch"
+import "@cstd/common/integer_types.ch"
 
 func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());
@@ -64,6 +67,12 @@ func replace_value_in_expr_chain(builder : *mut ASTBuilder, chain : *mut AccessC
     args.set(args.size() - 1, new_value)
 }
 
+func make_chain_of_view(builder : *mut ASTBuilder, view : &std::string_view) : *mut AccessChain {
+    const location = compiler::get_raw_location();
+    const value = builder.make_string_value(builder.allocate_view(view), location)
+    return make_value_chain(builder, value, view.size());
+}
+
 func make_chain_of(builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
     const location = compiler::get_raw_location();
     const value = builder.make_string_value(builder.allocate_view(str.view()), location)
@@ -81,6 +90,13 @@ func put_link_wrap_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuild
 func put_char_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, value : char) {
     const chain = make_char_chain(builder, value);
     put_link_wrap_chain(resolver, builder, vec, parent, chain);
+}
+
+func put_view_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, view : &std::string_view) {
+    const chain = make_chain_of_view(builder, view);
+    var wrapped = builder.make_value_wrapper(chain, parent)
+    wrapped.declare_and_link(&wrapped, resolver);
+    vec.push(wrapped);
 }
 
 func put_chain_in(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
@@ -311,6 +327,15 @@ func convertDeclaration(resolver : *mut SymbolResolver, builder : *mut ASTBuilde
 
 }
 
+const BASE64_CHARS : char[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+func base64_encode_32bit(hash : uint32_t, out : *mut char) {
+    for (var i = 0; i < 6; i++) {
+        out[5 - i] = BASE64_CHARS[hash & 0x3F]; // Extract 6 bits
+        hash >>= 6;
+    }
+}
+
 func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om : *mut CSSOM, vec : *mut VecRef<ASTNode>, str : &mut std::string) {
     var size = om.declarations.size()
     var i = 0
@@ -320,6 +345,19 @@ func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om 
         i++;
     }
     if(!str.empty()) {
+        if(!om.has_dynamic_values) {
+            var className : char[10] = {};
+            className[0] = '.'
+            className[1] = 'h'
+            const hash = fnv1a_hash_32(str.data());
+            base64_encode_32bit(hash, &className[2])
+            className[8] = '{'
+            className[9] = '\0'
+            var ptr : *char = &className[0]
+            const total_size : size_t = 9
+            put_view_chain(resolver, builder, vec, om.parent, std::string_view(ptr, total_size))
+            str.append('}')
+        }
         put_chain_in(resolver, builder, vec, om.parent, str);
     }
 }

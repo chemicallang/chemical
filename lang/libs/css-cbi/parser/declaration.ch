@@ -109,7 +109,7 @@ func parseValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CS
     }
 }
 
-func parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder) : *mut CSSDeclaration {
+func parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder, has_dynamic_values : &mut bool) : *mut CSSDeclaration {
 
     const token = parser.getToken();
     if(token.type == TokenType.Identifier) {

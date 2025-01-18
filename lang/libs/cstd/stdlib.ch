@@ -600,6 +600,7 @@ public func wcstombs_s(retval : *size_t, dst : *char, dstsz : rsize_t, src : *wc
  * rand() is not guaranteed to be thread-safe.
  * @return Pseudo-random integer value between 0 and RAND_MAX, inclusive.
  * @note There are no guarantees as to the quality of the random sequence produced. In the past, some implementations of rand() have had serious shortcomings in the randomness, distribution and period of the sequence produced (in one well-known example, the low-order bit simply alternated between 1 and 0 between calls). rand() is not recommended for serious random-number generation needs, like cryptography.
+ * @see https://en.cppreference.com/w/c/numeric/random/rand
  */
 public func rand() : int
 
@@ -611,5 +612,13 @@ public func rand() : int
  * @param seed	-	the seed value
  * @note Generally speaking, the pseudo-random number generator should only be seeded once, before any calls to rand(), and the start of the program. It should not be repeatedly seeded, or reseeded every time you wish to generate a new batch of pseudo-random numbers.
  *       Standard practice is to use the result of a call to time(0) as the seed. However, time() returns a time_t value, and time_t is not guaranteed to be an integral type. In practice, though, every major implementation defines time_t to be an integral type, and this is also what POSIX requires.
+ * @see https://en.cppreference.com/w/c/numeric/random/srand
  */
 public func srand(seed : uint)
+
+/**
+ * TODO constant
+ * define RAND_MAX // implementation defined
+ * Expands to an integer constant expression equal to the maximum value returned by the function rand(). This value is implementation dependent. It's guaranteed that this value is at least 32767.
+ * @see https://en.cppreference.com/w/c/numeric/random/RAND_MAX
+ */

@@ -593,3 +593,23 @@ public func wcstombs_s(retval : *size_t, dst : *char, dstsz : rsize_t, src : *wc
  * maximum number of bytes in a multibyte character, in the current locale
  * @see https://en.cppreference.com/w/c/string/multibyte
  */
+
+/**
+ * Returns a pseudo-random integer value between 0 and RAND_MAX (0 and RAND_MAX included).
+ * srand() seeds the pseudo-random number generator used by rand(). If rand() is used before any calls to srand(), rand() behaves as if it was seeded with srand(1). Each time rand() is seeded with srand(), it must produce the same sequence of values.
+ * rand() is not guaranteed to be thread-safe.
+ * @return Pseudo-random integer value between 0 and RAND_MAX, inclusive.
+ * @note There are no guarantees as to the quality of the random sequence produced. In the past, some implementations of rand() have had serious shortcomings in the randomness, distribution and period of the sequence produced (in one well-known example, the low-order bit simply alternated between 1 and 0 between calls). rand() is not recommended for serious random-number generation needs, like cryptography.
+ */
+public func rand() : int
+
+/**
+ * Seeds the pseudo-random number generator used by rand() with the value seed.
+ * If rand() is used before any calls to srand(), rand() behaves as if it was seeded with srand(1).
+ * Each time rand() is seeded with the same seed, it must produce the same sequence of values.
+ * srand() is not guaranteed to be thread-safe.
+ * @param seed	-	the seed value
+ * @note Generally speaking, the pseudo-random number generator should only be seeded once, before any calls to rand(), and the start of the program. It should not be repeatedly seeded, or reseeded every time you wish to generate a new batch of pseudo-random numbers.
+ *       Standard practice is to use the result of a call to time(0) as the seed. However, time() returns a time_t value, and time_t is not guaranteed to be an integral type. In practice, though, every major implementation defines time_t to be an integral type, and this is also what POSIX requires.
+ */
+public func srand(seed : uint)

@@ -622,3 +622,8 @@ public func srand(seed : uint)
  * Expands to an integer constant expression equal to the maximum value returned by the function rand(). This value is implementation dependent. It's guaranteed that this value is at least 32767.
  * @see https://en.cppreference.com/w/c/numeric/random/RAND_MAX
  */
+
+/**
+ * TODO Type Generic Math
+ * @see https://en.cppreference.com/w/c/numeric/tgmath
+ */

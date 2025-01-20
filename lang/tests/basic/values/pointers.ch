@@ -103,4 +103,10 @@ func test_pointer_math() {
         *ret_ptr_to_struct22(&p) = PMC22 { a : 32, b : 44 }
         return p.a == 32 && p.b == 44;
     })
+    test("expressions can be de-referenced", () => {
+        var x = '6'
+        const ptr = &x
+        const other_ptr = ptr + 1
+        return *(other_ptr - 1) == '6'
+    })
 }

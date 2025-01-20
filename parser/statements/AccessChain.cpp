@@ -131,8 +131,13 @@ DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
         if (chain) {
             return new(allocator.allocate<DereferenceValue>()) DereferenceValue(chain, loc_single(token2));
         } else {
-            error("expected a value after '*' for dereference");
-            return nullptr;
+            const auto expr = parseParenExpression(allocator);
+            if(expr) {
+                return new(allocator.allocate<DereferenceValue>()) DereferenceValue(expr, loc_single(token2));
+            } else {
+                error("expected a value after '*' for dereference");
+                return nullptr;
+            }
         }
     } else {
         return nullptr;

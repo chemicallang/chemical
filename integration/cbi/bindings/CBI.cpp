@@ -61,7 +61,6 @@ void build_context_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
 void batch_allocator_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
     sym_map = {
         { "BatchAllocatorallocate_size", (void*) BatchAllocatorallocate_size },
-        { "BatchAllocatorallocate_str", (void*) BatchAllocatorallocate_str }
     };
 }
 

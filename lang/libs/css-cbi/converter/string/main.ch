@@ -336,6 +336,33 @@ func base64_encode_32bit(hash : uint32_t, out : *mut char) {
     }
 }
 
+func put_class_name(hash : uint32_t, prefix : char, ptr : *mut char) {
+    *ptr = '.'
+    *(ptr + 1) = prefix
+    base64_encode_32bit(hash, ptr + 2)
+    *(ptr + 8) = '{'
+}
+
+func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::string) : std::string_view {
+    // calculate the hash before making any changes
+    const hash = fnv1a_hash_32(str.data());
+    // append the last '}' into string
+    str.append('}')
+    // 9 characters are : 2 for ".h", then base64 encoded class name is 6 characters, then 1 for '{'
+    const total_size = str.size() + 9;
+    // +1 because we need null terminator at the end
+    const ptr = builder.allocate_str_size(total_size + 1)
+    put_class_name(hash, 'h', ptr)
+    const cssStart = ptr + 9
+    memcpy(cssStart, str.data(), str.size())
+    *(ptr + total_size) = '\0'
+    return std::string_view(ptr, total_size)
+}
+
+func put_hashed_string_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+    put_view_chain(resolver, builder, vec, parent, allocate_view_with_classname(builder, str))
+}
+
 func put_class_name_chain(hash : uint32_t, prefix : char, resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode) {
     var className : char[10] = {};
     className[0] = '.'
@@ -343,9 +370,7 @@ func put_class_name_chain(hash : uint32_t, prefix : char, resolver : *mut Symbol
     base64_encode_32bit(hash, &className[2])
     className[8] = '{'
     className[9] = '\0'
-    var ptr : *char = &className[0]
-    const total_size : size_t = 9
-    put_view_chain(resolver, builder, vec, parent, std::string_view(ptr, total_size))
+    put_view_chain(resolver, builder, vec, parent, std::string_view(&className[0], 9u))
 }
 
 func rand() : int;
@@ -370,12 +395,13 @@ func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om 
         if(str.empty()) {
             put_char_chain(resolver, builder, vec, om.parent, '}')
         } else {
+            // end the string here
             if(!om.has_dynamic_values) {
-                const hash = fnv1a_hash_32(str.data());
-                put_class_name_chain(hash, 'h', resolver, builder, vec, om.parent);
+                put_hashed_string_chain(resolver, builder, vec, om.parent, str)
+            } else {
+                str.append('}')
+                put_chain_in(resolver, builder, vec, om.parent, str);
             }
-            str.append('}')
-            put_chain_in(resolver, builder, vec, om.parent, str);
         }
     }
 }

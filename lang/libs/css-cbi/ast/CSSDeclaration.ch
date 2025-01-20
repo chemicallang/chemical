@@ -1,4 +1,5 @@
 import "@std/string_view.ch"
+import "./CSSValueKind.ch"
 
 enum CSSPropertyKind {
 
@@ -11,34 +12,6 @@ struct CSSProperty {
     var kind : CSSPropertyKind
 
     var name : std::string_view;
-
-}
-
-enum CSSValueKind {
-
-    LengthPX,
-    LengthEM,
-    LengthREM,
-    LengthVH,
-    LengthVW,
-    LengthVMIN,
-    LengthVMAX,
-    LengthPERCENTAGE,
-    LengthCM,
-    LengthMM,
-    LengthIN,
-    LengthPT,
-    LengthPC,
-    LengthCH,
-    LengthEX,
-    LengthS,
-    LengthMS,
-    LengthHZ,
-    LengthKHZ,
-    LengthDEG,
-    LengthRAD,
-    LengthGRAD,
-    LengthTURN
 
 }
 

@@ -190,10 +190,10 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
 }
 
 bool VarInitStatement::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
-    if (value) {
-        return value->add_child_index(gen, indexes, name);
-    } else if (type) {
+    if (type) {
         return type->linked_node()->add_child_index(gen, indexes, name);
+    } else if (value) {
+        return value->add_child_index(gen, indexes, name);
     }
     return false;
 }

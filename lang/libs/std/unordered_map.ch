@@ -10,6 +10,7 @@ const DELETED_KEY = -2
 struct unordered_map_node<Key, Value> {
     var key : Key;
     var value : Value;
+    var next : *mut unordered_map_node<Key, Value>; // Pointer to next node in the chain
 };
 
 @comptime
@@ -17,7 +18,7 @@ const LOAD_FACTOR_THRESHOLD : float = 0.75f
 
 struct unordered_map<Key, Value> {
 
-    var table : *mut unordered_map_node<Key, Value>;
+    var table : *mut *mut unordered_map_node<Key, Value>; // Array of buckets (pointers to linked lists)
     var capacity : size_t;
     var size : size_t;
 
@@ -28,20 +29,27 @@ struct unordered_map<Key, Value> {
     // Resize and rehash
     func resize(&self) : void {
         var newCapacity = capacity * 2;
-        var newTable = malloc(newCapacity * #sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
-        memset(newTable, EMPTY_KEY, newCapacity * #sizeof(unordered_map_node<Key, Value>));
+        var newTable = malloc(newCapacity * #sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+
+        // Initialize new table to nullptr (empty buckets)
+        memset(newTable, 0, newCapacity * #sizeof(*mut unordered_map_node<Key, Value>));
 
         // Rehash all elements into the new table
         for (var i = 0; i < capacity; i++) {
-            if (table[i].key != EMPTY_KEY && table[i].key != DELETED_KEY) {
-                var index = table[i].key & (newCapacity - 1);
-                while (newTable[index].key != EMPTY_KEY) {
-                    index = (index + 1) & (newCapacity - 1); // Quadratic probing
-                }
-                newTable[index] = table[i];
+            var currentNode = table[i];
+            while (currentNode != null) {
+                var index = hash_now(currentNode.key) & (newCapacity - 1);
+                var newNode = malloc(#sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
+                newNode.key = currentNode.key;
+                newNode.value = currentNode.value;
+                newNode.next = newTable[index];
+                newTable[index] = newNode;
+
+                currentNode = currentNode.next;
             }
         }
 
+        // Free old table
         free(table);
         table = newTable;
         capacity = newCapacity;
@@ -50,13 +58,22 @@ struct unordered_map<Key, Value> {
     @make
     func make() {
         capacity = 16;
-        size = 0
-        table = malloc(capacity * #sizeof(unordered_map_node<Key, Value>)) as *unordered_map_node<Key, Value>;
-        memset(table, EMPTY_KEY, capacity * #sizeof(unordered_map_node<Key, Value>));
+        size = 0;
+        table = malloc(capacity * #sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+        memset(table, 0, capacity * #sizeof(*mut unordered_map_node<Key, Value>));
     }
 
     @delete
     func delete(&self) {
+        // Free all nodes in the chains
+        for (var i = 0; i < capacity; i++) {
+            var currentNode = table[i];
+            while (currentNode != null) {
+                var nextNode = currentNode.next;
+                free(currentNode);
+                currentNode = nextNode;
+            }
+        }
         free(table);
     }
 
@@ -68,34 +85,37 @@ struct unordered_map<Key, Value> {
         }
 
         var index = hash_now(key);
-        var attempt : size_t = 0;
+        var currentNode = table[index];
 
-        while (table[index].key != EMPTY_KEY && table[index].key != DELETED_KEY) {
-            if (table[index].key == key) {
-                table[index].value = value; // Update value
+        // Check if the key already exists in the chain, and update if so
+        while (currentNode != null) {
+            if (currentNode.key == key) {
+                currentNode.value = value; // Update value
                 return;
             }
-            index = (index + (attempt * attempt)) & (capacity - 1); // Quadratic probing
-            attempt++;
+            currentNode = currentNode.next;
         }
 
-        table[index].key = key;
-        table[index].value = value;
+        // Insert the new node at the front of the chain
+        var newNode = malloc(#sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
+        newNode.key = key;
+        newNode.value = value;
+        newNode.next = table[index];
+        table[index] = newNode;
         size++;
     }
 
     // Find a value by key
     func find(&self, key : &Key, value : &mut Value) : bool {
         var index : size_t = hash_now(key);
-        var attempt : size_t = 0;
+        var currentNode = table[index];
 
-        while (table[index].key != EMPTY_KEY) {
-            if (table[index].key != DELETED_KEY && table[index].key == key) {
-                value = table[index].value;
+        while (currentNode != null) {
+            if (currentNode.key == key) {
+                value = currentNode.value;
                 return true;
             }
-            index = (index + (attempt * attempt)) & (capacity - 1); // Quadratic probing
-            attempt++;
+            currentNode = currentNode.next;
         }
         return false;
     }
@@ -103,16 +123,22 @@ struct unordered_map<Key, Value> {
     // Remove a key-value pair
     func erase(&self, key : &Key) : bool {
         var index : size_t = hash_now(key);
-        var attempt : size_t = 0;
+        var currentNode = table[index];
+        var previousNode : *mut unordered_map_node<Key, Value> = null;
 
-        while (table[index].key != EMPTY_KEY) {
-            if (table[index].key != DELETED_KEY && table[index].key == key) {
-                table[index].key = DELETED_KEY; // Mark as deleted
+        while (currentNode != null) {
+            if (currentNode.key == key) {
+                if (previousNode != null) {
+                    previousNode.next = currentNode.next; // Unlink the node
+                } else {
+                    table[index] = currentNode.next; // Remove from the front of the chain
+                }
+                free(currentNode);
                 size--;
                 return true;
             }
-            index = (index + (attempt * attempt)) & (capacity - 1); // Quadratic probing
-            attempt++;
+            previousNode = currentNode;
+            currentNode = currentNode.next;
         }
         return false;
     }

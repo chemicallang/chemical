@@ -2,90 +2,22 @@ import "../ast/CSSDeclaration.ch"
 import "@compiler/Token.ch"
 import "../lexer/TokenType.ch"
 import "@std/hashing/fnv1.ch"
+import "./value/length.ch"
 
-func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSValueKind {
-    const token = parser.getToken();
-    if(token.type == TokenType.Percentage) {
-        parser.increment();
-        return CSSValueKind.LengthPERCENTAGE
-    } else if(token.type == TokenType.Identifier) {
-        parser.increment();
-        switch(fnv1_hash(token.value.data())) {
-            comptime_fnv1_hash("px") => {
-                return CSSValueKind.LengthPX
-            }
-            comptime_fnv1_hash("em") => {
-                return CSSValueKind.LengthEM
-            }
-            comptime_fnv1_hash("rem") => {
-                return CSSValueKind.LengthREM
-            }
-            comptime_fnv1_hash("vh") => {
-                return CSSValueKind.LengthVH
-            }
-            comptime_fnv1_hash("vw") => {
-                return CSSValueKind.LengthVW
-            }
-            comptime_fnv1_hash("vmin") => {
-                return CSSValueKind.LengthVMIN
-            }
-            comptime_fnv1_hash("vmax") => {
-                return CSSValueKind.LengthVMAX
-            }
-            comptime_fnv1_hash("cm") => {
-                return CSSValueKind.LengthCM
-            }
-            comptime_fnv1_hash("mm") => {
-                return CSSValueKind.LengthMM
-            }
-            comptime_fnv1_hash("in") => {
-                return CSSValueKind.LengthIN
-            }
-            comptime_fnv1_hash("pt") => {
-                return CSSValueKind.LengthPT
-            }
-            comptime_fnv1_hash("pc") => {
-                return CSSValueKind.LengthPC
-            }
-            comptime_fnv1_hash("ch") => {
-                return CSSValueKind.LengthCH
-            }
-            comptime_fnv1_hash("ex") => {
-                return CSSValueKind.LengthEX
-            }
-            comptime_fnv1_hash("s") => {
-                return CSSValueKind.LengthS
-            }
-            comptime_fnv1_hash("ms") => {
-                return CSSValueKind.LengthMS
-            }
-            comptime_fnv1_hash("Hz") => {
-                return CSSValueKind.LengthHZ
-            }
-            comptime_fnv1_hash("kHz") => {
-                return CSSValueKind.LengthKHZ
-            }
-            comptime_fnv1_hash("deg") => {
-                return CSSValueKind.LengthDEG
-            }
-            comptime_fnv1_hash("rad") => {
-                return CSSValueKind.LengthRAD
-            }
-            comptime_fnv1_hash("grad") => {
-                return CSSValueKind.LengthGRAD
-            }
-            comptime_fnv1_hash("turn") => {
-                return CSSValueKind.LengthTURN
-            }
-            default => {
-                parser.error("unknown unit found");
-                return CSSValueKind.LengthPX
-            }
+func getCSSGlobalValueKind(ptr : *char) : CSSValueKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("inherit") => {
+            return CSSValueKind.Inherit;
         }
-    } else {
-        parser.error("unknown unit token found");
-        parser.increment()
-        return CSSValueKind.LengthPX
+        comptime_fnv1_hash("initial") => {
+            return CSSValueKind.Initial
+        }
+        comptime_fnv1_hash("unset") => {
+            return CSSValueKind.Unset
+        }
+        default => {
+            return CSSValueKind.Unknown
+        }
     }
 }
 
@@ -102,6 +34,16 @@ func parseValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CS
             value.kind = parseLengthKind(parser, builder);
             value.data = number_value
             return
+        }
+        TokenType.Identifier => {
+            const global = getCSSGlobalValueKind(token.value.data());
+            if(global != CSSValueKind.Unknown) {
+                parser.increment();
+                value.kind = global;
+                return;
+            } else {
+                parser.error("unknown value given");
+            }
         }
         default => {
             parser.error("unknown value token with data");

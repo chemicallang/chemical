@@ -210,8 +210,7 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSValueKind) : bool {
             str.append_with_len(view.data(), view.size())
         }
         CSSValueKind.LengthPERCENTAGE => {
-            var view = std::string_view("percentage")
-            str.append_with_len(view.data(), view.size())
+            str.append('%')
         }
         CSSValueKind.LengthCM => {
             var view = std::string_view("cm")
@@ -242,8 +241,7 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSValueKind) : bool {
             str.append_with_len(view.data(), view.size())
         }
         CSSValueKind.LengthS => {
-            var view = std::string_view("s")
-            str.append_with_len(view.data(), view.size())
+            str.append('s')
         }
         CSSValueKind.LengthMS => {
             var view = std::string_view("ms")
@@ -281,6 +279,27 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSValueKind) : bool {
 }
 
 func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, value : &mut CSSValue, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+
+    switch(value.kind) {
+        CSSValueKind.Inherit => {
+            var view = std::string_view("inherit")
+            str.append_with_len(view.data(), view.size())
+            return;
+        }
+        CSSValueKind.Initial => {
+            var view = std::string_view("initial")
+            str.append_with_len(view.data(), view.size())
+            return;
+        }
+        CSSValueKind.Unset => {
+            var view = std::string_view("unset")
+            str.append_with_len(view.data(), view.size())
+            return;
+        }
+        default => {
+            break;
+        }
+    }
 
     if(value.kind >= CSSValueKind.LengthPX && value.kind <= CSSValueKind.LengthTURN) {
 

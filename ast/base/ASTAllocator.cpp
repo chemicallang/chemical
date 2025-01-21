@@ -138,7 +138,7 @@ char* BatchAllocator::object_heap_pointer(std::size_t obj_size, std::size_t alig
 char* ASTAllocator::allocate_size(std::size_t obj_size, std::size_t alignment) {
     std::lock_guard<std::mutex> lock(*allocator_mutex);
     const auto ptr = object_heap_pointer(obj_size, alignment);
-    store_ptr(ptr);
+    store_ptr((ASTAny*) (void*) ptr);
     return ptr;
 }
 

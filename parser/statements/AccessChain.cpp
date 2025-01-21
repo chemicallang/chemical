@@ -17,6 +17,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
+#include "ast/values/ComptimeValue.h"
 
 bool Parser::consumeToken(enum TokenType type) {
     if(token->type == type) {
@@ -144,6 +145,33 @@ DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
     }
 }
 
+Value* parseComptimeValue(Parser* parser, ASTAllocator* allocator_ptr) {
+    auto tok = parser->token;
+    const auto first_type = tok->type;
+    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
+        parser->token++;
+    } else {
+        parser->error("expected '{' or '(' when parsing comptime value");
+        return nullptr;
+    }
+    auto& allocator = *allocator_ptr;
+    auto expr = parser->parseExpression(allocator);
+    if(expr) {
+        auto last = parser->token;
+        auto evaluated = new (allocator.allocate<ComptimeValue>()) ComptimeValue(allocator_ptr, expr);
+        const auto last_type = last->type;
+        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
+            parser->token++;
+        } else {
+            parser->error("expected '}' or '}' after the type when parsing comptime value");
+        }
+        return evaluated;
+    } else {
+        parser->error("expected a value in #eval");
+        return nullptr;
+    }
+}
+
 Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruct) {
     switch (token->type) {
         case TokenType::AmpersandSym:
@@ -168,6 +196,10 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
             const auto t = token;
             token++;
             return new(allocator.allocate<BoolValue>()) BoolValue(false, loc_single(t));
+        }
+        case TokenType::ComptimeKw: {
+            token++;
+            return parseComptimeValue(this, &allocator);
         }
         default:
             return (Value*) parseAccessChain(allocator, parseStruct);

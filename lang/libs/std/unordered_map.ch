@@ -1,12 +1,6 @@
 import "@std/std.ch"
 import "hashing/hash.ch"
 
-@comptime
-const EMPTY_KEY = -1
-
-@comptime
-const DELETED_KEY = -2
-
 struct unordered_map_node<Key, Value> {
     var key : Key;
     var value : Value;

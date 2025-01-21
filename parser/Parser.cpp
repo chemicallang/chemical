@@ -7,7 +7,6 @@
 #include "Parser.h"
 #include "ast/types/LinkedType.h"
 #include "cst/LocationManager.h"
-#include "CBI.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 #include "ast/base/AnnotableNode.h"
@@ -108,31 +107,4 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
 void Parser::parse(std::vector<ASTNode*>& nodes) {
     parseTopLevelMultipleImportStatements(mod_allocator, nodes);
     parseTopLevelMultipleStatements(mod_allocator, nodes);
-}
-
-Value* parseEvalValue(Parser* parser, ASTAllocator* allocator_ptr) {
-    auto tok = parser->token;
-    const auto first_type = tok->type;
-    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
-        parser->token++;
-    } else {
-        parser->error("expected '{' or '(' when parsing sizeof");
-        return nullptr;
-    }
-    auto& allocator = *allocator_ptr;
-    auto expr = parser->parseExpression(allocator);
-    if(expr) {
-        auto last = parser->token;
-        auto evaluated = expr->evaluated_value((InterpretScope&) parser->comptime_scope);
-        const auto last_type = last->type;
-        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
-            parser->token++;
-        } else {
-            parser->error("expected '}' or '}' after the type when parsing sizeof");
-        }
-        return evaluated;
-    } else {
-        parser->error("expected a value in #eval");
-        return nullptr;
-    }
 }

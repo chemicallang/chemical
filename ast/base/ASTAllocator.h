@@ -68,6 +68,13 @@ public:
     char* allocate_with_cleanup(std::size_t obj_size, std::size_t alignment, void* cleanup_fn);
 
     /**
+     * will store the given pointer to destruct when the allocator dies
+     */
+    inline void store_ptr(ASTAny* ptr) {
+        ptr_storage.emplace_back(ptr);
+    }
+
+    /**
      * when called, will free everything, and make this allocator available
      * for more allocations, basically reusing previously allocated memory
      */
@@ -114,13 +121,6 @@ protected:
      */
     inline void store_cleanup_fn(void* instance, void* cleanup_fn) {
         cleanup_fns.emplace_back(instance, (void(*)(void*)) cleanup_fn);
-    }
-
-    /**
-     * will store the given pointer to destruct later
-     */
-    inline void store_ptr(char* ptr) {
-        ptr_storage.emplace_back((ASTAny*) (void*) ptr);
     }
 
 };

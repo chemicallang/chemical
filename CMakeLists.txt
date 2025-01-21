@@ -503,6 +503,7 @@ set(COMMON_SOURCES
         integration/cbi/bindings/SymbolResolverCBI.h
         integration/cbi/bindings/SymbolResolverCBI.cpp
         ast/values/IncDecValue.h
+        ast/values/ComptimeValue.h
 )
 
 # Chemical LSP Executable Target

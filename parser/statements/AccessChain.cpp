@@ -124,14 +124,6 @@ Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
     }
 }
 
-Value* parseSizeOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
-    return parser->parseSizeOfValue(*allocator_ptr);
-}
-
-Value* parseAlignOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
-    return parser->parseAlignOfValue(*allocator_ptr);
-}
-
 Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
     auto id = consumeIdentifierOrKeyword();

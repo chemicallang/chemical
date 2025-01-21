@@ -481,7 +481,6 @@ set(COMMON_SOURCES
         lexer/LexUnit.h
         std/alloc/SerialStrAllocator.h
         compiler/cbi/Model.h
-        parser/CBI.h
         std/chem_span.h
         std/chem_string_view.h
         std/small_vector.h

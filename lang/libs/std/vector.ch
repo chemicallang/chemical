@@ -10,20 +10,20 @@ public struct vector<T> {
 
     @constructor
     func make() {
-        data_ptr = malloc(#sizeof { T } * 2) as *mut T
+        data_ptr = malloc(sizeof(T) * 2) as *mut T
         data_size = 0
         data_cap = 2
     }
 
     @constructor
     func make_with_capacity(init_cap : size_t) {
-        data_ptr = malloc(#sizeof { T } * init_cap) as *mut T
+        data_ptr = malloc(sizeof(T) * init_cap) as *mut T
         data_size = 0
         data_cap = init_cap
     }
 
     func resize(&mut self, new_cap : size_t) {
-        var new_data = realloc(data_ptr, (#sizeof { T } * new_cap)) as *mut T;
+        var new_data = realloc(data_ptr, (sizeof(T) * new_cap)) as *mut T;
         unsafe {
             if (new_data != null) {
                 data_ptr = new_data;
@@ -43,7 +43,7 @@ public struct vector<T> {
             // Double the capacity if needed
             resize(data_cap * 2);
         }
-        memcpy(&data_ptr[s], &value, #sizeof(T))
+        memcpy(&data_ptr[s], &value, sizeof(T))
         data_size = s + 1
     }
 
@@ -78,7 +78,7 @@ public struct vector<T> {
         if(index == last) {
             data_size = last;
         } else {
-            memmove(&data_ptr[index], &data_ptr[index + 1], #sizeof(T) * (last - index));
+            memmove(&data_ptr[index], &data_ptr[index + 1], sizeof(T) * (last - index));
             data_size = last;
         }
     }

@@ -52,10 +52,6 @@ public:
         link(linker, expected_type);
     }
 
-    bool computed() final {
-        return true;
-    }
-
     unsigned int get_num_bits() final;
 
     [[nodiscard]]

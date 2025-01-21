@@ -54,6 +54,8 @@ enum ChemicalTokenType {
     Uint128Kw,
     Float128Kw,
     VoidKw,
+    SizeOfKw,
+    AlignOfKw,
     ImportKw,
     FuncKw,
     TypealiasKw,
@@ -106,9 +108,6 @@ enum ChemicalTokenType {
     HashMacro,
     // @annotation
     Annotation,
-
-    // escape sequence inside quotes
-    EscapeSeq,
 
     // when this text is part of a single line comment
     SingleLineComment,

@@ -124,8 +124,6 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) final;
 
-    Value* evaluated_chain_value(InterpretScope &scope, Value *parent) final;
-
     FunctionCall *copy(ASTAllocator& allocator) final;
 
     void interpret(InterpretScope &scope) final;

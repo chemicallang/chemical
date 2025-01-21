@@ -149,8 +149,10 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         return lamb;
     }
 
-    auto identifier = consumeIdentifierOrKeyword();
-    if (!identifier) {
+    const auto identifier = token;
+    if(identifier->type == TokenType::Identifier || identifier->type == TokenType::SelfKw) {
+        token++;
+    } else {
         return nullptr;
     }
 

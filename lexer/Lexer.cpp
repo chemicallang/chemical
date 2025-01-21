@@ -82,6 +82,8 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 { "true", TokenType::TrueKw },
                 { "false", TokenType::FalseKw },
                 { "null", TokenType::NullKw },
+                { "sizeof", TokenType::SizeOfKw },
+                { "alignof", TokenType::AlignOfKw },
 
                 // Access Specifiers
                 { "public", TokenType::PublicKw },

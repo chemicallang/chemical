@@ -23,17 +23,17 @@ struct unordered_map<Key, Value> {
     // Resize and rehash
     func resize(&self) : void {
         var newCapacity = capacity * 2;
-        var newTable = malloc(newCapacity * #sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+        var newTable = malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
 
         // Initialize new table to nullptr (empty buckets)
-        memset(newTable, 0, newCapacity * #sizeof(*mut unordered_map_node<Key, Value>));
+        memset(newTable, 0, newCapacity * sizeof(*mut unordered_map_node<Key, Value>));
 
         // Rehash all elements into the new table
         for (var i = 0; i < capacity; i++) {
             var currentNode = table[i];
             while (currentNode != null) {
                 var index = hash_now(currentNode.key) & (newCapacity - 1);
-                var newNode = malloc(#sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
+                var newNode = malloc(sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
                 newNode.key = currentNode.key;
                 newNode.value = currentNode.value;
                 newNode.next = newTable[index];
@@ -53,8 +53,8 @@ struct unordered_map<Key, Value> {
     func make() {
         capacity = 16;
         size = 0;
-        table = malloc(capacity * #sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
-        memset(table, 0, capacity * #sizeof(*mut unordered_map_node<Key, Value>));
+        table = malloc(capacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+        memset(table, 0, capacity * sizeof(*mut unordered_map_node<Key, Value>));
     }
 
     @delete
@@ -91,7 +91,7 @@ struct unordered_map<Key, Value> {
         }
 
         // Insert the new node at the front of the chain
-        var newNode = malloc(#sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
+        var newNode = malloc(sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
         newNode.key = key;
         newNode.value = value;
         newNode.next = table[index];

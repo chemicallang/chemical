@@ -15,11 +15,11 @@ struct BatchAllocator {
 // adds +1 to size to accomodate for the last null terminator \0 in string
 // allocates string with size
 func (allocator : &mut BatchAllocator) allocate_str_size(size : size_t) : *mut char {
-    return allocator.allocate_size(#sizeof(char) * size + 1, #alignof(char))
+    return allocator.allocate_size(sizeof(char) * size + 1, alignof(char))
 }
 
 func (allocator : &mut BatchAllocator) allocate_str(data : *mut char, size : size_t) : *mut char {
-    const ptr = allocator.allocate_size(#sizeof(char) * (size + 1), #alignof(char))
+    const ptr = allocator.allocate_size(sizeof(char) * (size + 1), alignof(char))
     memcpy(ptr, data, size)
     *(ptr + size) = '\0'
     return ptr;

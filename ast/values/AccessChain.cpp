@@ -243,11 +243,21 @@ void copy_from(ASTAllocator& allocator, std::vector<ChainValue*>& destination, s
     }
 }
 
+Value* evaluate_it(ChainValue* value, InterpretScope& scope, Value* evaluated) {
+    const auto kind = value->val_kind();
+    if(kind == ValueKind::Identifier) {
+        const auto id = value->as_identifier_unsafe();
+        return evaluated ? evaluated->child(scope, id->value) : nullptr;
+    } else {
+        return value->evaluated_value(scope);
+    }
+}
+
 // evaluate the chain partially if you have evaluated the chain till given index i
 // or receive a copy of the chain with values that could be evaluated
 Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Value* evaluated, unsigned i) {
     while(i < values.size()) {
-        auto next = values[i]->evaluated_chain_value(scope, evaluated);
+        const auto next = evaluate_it(values[i], scope, evaluated);
         // suppose we can't evaluate next value, in chain a.b.c we could evaluate a
         // but b.c we couldn't evaluate, what we do is we create a new chain a.b.c (a is evaluated) (b.c are copies)
         // we relink the parent of b.c so they know the parent has changed to a

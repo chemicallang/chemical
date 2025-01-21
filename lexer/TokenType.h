@@ -58,6 +58,8 @@ enum class TokenType {
     Uint128Kw,
     Float128Kw,
     VoidKw,
+    SizeOfKw,
+    AlignOfKw,
     ImportKw,
     FuncKw,
     TypealiasKw,
@@ -110,9 +112,6 @@ enum class TokenType {
     HashMacro,
     // @annotation
     Annotation,
-
-    // escape sequence inside quotes
-    EscapeSeq,
 
     // when this text is part of a single line comment
     SingleLineComment,

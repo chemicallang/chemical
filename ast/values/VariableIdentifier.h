@@ -121,8 +121,6 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) final;
 
-    Value *evaluated_chain_value(InterpretScope &scope, Value *parent) final;
-
     VariableIdentifier *copy(ASTAllocator& allocator) final;
 
     BaseType* create_type(ASTAllocator &allocator) final;

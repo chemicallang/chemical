@@ -988,15 +988,15 @@ void RepresentationVisitor::visit(DynamicType *type) {
 }
 
 void RepresentationVisitor::visit(SizeOfValue *size_of) {
-    write("#sizeof {");
+    write("sizeof(");
     size_of->for_type->accept(this);
-    write('}');
+    write(')');
 }
 
 void RepresentationVisitor::visit(AlignOfValue *align_of) {
-    write("#alignof {");
+    write("alignof(");
     align_of->for_type->accept(this);
-    write('}');
+    write(')');
 }
 
 void RepresentationVisitor::visit(RetStructParamValue *paramVal) {

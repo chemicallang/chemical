@@ -486,14 +486,6 @@ public:
     Value* scope_value(InterpretScope& scope);
 
     /**
-     * does this value compute the value, in other words (is it an expression -> e.g a + b)
-     * @return
-     */
-    virtual bool computed() {
-        return false;
-    }
-
-    /**
      * is value computable at compile time
      */
     virtual bool compile_time_computable() {
@@ -509,11 +501,6 @@ public:
     virtual Value* evaluated_value(InterpretScope& scope) {
         return this;
     }
-
-    /**
-     * called by access chain, to evaluate this value, in the parent
-     */
-    virtual Value* evaluated_chain_value(InterpretScope& scope, Value* parent);
 
     /**
      * just a helper method, to evaluate a value as a boolean

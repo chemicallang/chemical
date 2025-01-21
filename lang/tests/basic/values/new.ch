@@ -81,7 +81,7 @@ func test_new() {
     })
 
     test("placement new works with struct values", () => {
-        var ptr = malloc(#sizeof(PointNew12));
+        var ptr = malloc(sizeof(PointNew12));
         var x = new (ptr) PointNew12 {
             a : 87,
             b : 33
@@ -92,7 +92,7 @@ func test_new() {
     })
 
     test("placement new works with access chains", () => {
-        var ptr = malloc(#sizeof(PointNew12));
+        var ptr = malloc(sizeof(PointNew12));
         var x = new (ptr) PointNew13(20, 13)
         var result = x.a == 20 && x.b == 13;
         free(ptr);
@@ -100,7 +100,7 @@ func test_new() {
     })
 
     test("placement new works without a variable", () => {
-        var ptr = malloc(#sizeof(PointNew12)) as *mut PointNew12
+        var ptr = malloc(sizeof(PointNew12)) as *mut PointNew12
         new (ptr) PointNew12 { a : 12, b : 43 }
         var result = ptr.a == 12 && ptr.b == 43
         free(ptr)

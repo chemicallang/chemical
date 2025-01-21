@@ -117,10 +117,6 @@ bool Expression::primitive() {
     return false;
 }
 
-bool Expression::computed() {
-    return true;
-}
-
 bool operate(Operation op, bool first, bool second) {
     switch(op) {
         case Operation::LogicalAND:

@@ -44,7 +44,7 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
             printf("THE Tag %s is self closing\n", id.value.data())
         }
 
-        printf("size of HtmlElement is %d\n", #sizeof(HtmlElement))
+        printf("size of HtmlElement is %d\n", sizeof(HtmlElement))
         fflush(null)
 
         var element : *mut HtmlElement = builder.allocate<HtmlElement>();

@@ -672,10 +672,6 @@ BaseType* Value::create_type(ASTAllocator& allocator) {
 #endif
 }
 
-Value* Value::evaluated_chain_value(InterpretScope& scope, Value* parent) {
-    throw std::runtime_error("evaluated chain value called on base value");
-}
-
 Value* Value::copy(ASTAllocator& allocator) {
 #ifdef DEBUG
     std::cerr << "copy called on base Value, representation : " << representation();

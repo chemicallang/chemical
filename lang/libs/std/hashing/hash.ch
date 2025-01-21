@@ -13,7 +13,7 @@ func hash_ushort(key : ushort) : uint {
 }
 
 func <T> __wrap_murmur_hash(value : T) : uint {
-    return murmurhash(&value, #sizeof(T), 0)
+    return murmurhash(&value, sizeof(T), 0)
 }
 
 @comptime
@@ -28,7 +28,7 @@ func <T> hash(value : T) : uint {
     } else if(T is int || T is uint || T is long || T is ulong || T is bigint || T is ubigint || T is float || T is double || compiler::satisfies(ref_any, T)) {
         return compiler::wrap(__wrap_murmur_hash(value))
     } else if(compiler::satisfies(ptr_any, T) && !compiler::satisfies(ptr, T)) {
-        return compiler::wrap(murmurhash(value, #sizeof(T), 0))
+        return compiler::wrap(murmurhash(value, sizeof(T), 0))
     } else if(compiler::satisfies(ptr, T)) {
         return compiler::wrap(murmurhash(value, strlen(value), 0))
     } else {

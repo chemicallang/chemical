@@ -94,8 +94,6 @@ public:
 
     bool primitive() final;
 
-    bool computed() final;
-
     ASTNode* linked_node() final;
 
     /**

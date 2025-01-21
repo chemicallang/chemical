@@ -219,10 +219,6 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
 //    }
 //}
 
-Value* VariableIdentifier::evaluated_chain_value(InterpretScope &scope, Value* parent) {
-    return parent ? parent->child(scope, value) : nullptr;
-}
-
 BaseTypeKind VariableIdentifier::type_kind() const {
     return linked->type_kind();
 }

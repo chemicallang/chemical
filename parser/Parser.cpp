@@ -110,60 +110,6 @@ void Parser::parse(std::vector<ASTNode*>& nodes) {
     parseTopLevelMultipleStatements(mod_allocator, nodes);
 }
 
-Value* parseSizeOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
-    auto tok = parser->token;
-    const auto first_type = tok->type;
-    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
-        parser->token++;
-    } else {
-        parser->error("expected '{' or '(' when parsing sizeof");
-        return nullptr;
-    }
-    auto& allocator = *allocator_ptr;
-    auto type = parser->parseType(allocator);
-    if(type) {
-        auto last = parser->token;
-        auto value = new (allocator.allocate<SizeOfValue>()) SizeOfValue(type, parser->loc(tok, last));
-        const auto last_type = last->type;
-        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
-            parser->token++;
-        } else {
-            parser->error("expected '}' or '}' after the type when parsing sizeof");
-        }
-        return value;
-    } else {
-        parser->error("expected a type in #sizeof");
-        return nullptr;
-    }
-}
-
-Value* parseAlignOfValue(Parser* parser, ASTAllocator* allocator_ptr) {
-    auto tok = parser->token;
-    const auto first_type = tok->type;
-    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
-        parser->token++;
-    } else {
-        parser->error("expected '{' or '(' when parsing alignof");
-        return nullptr;
-    }
-    auto& allocator = *allocator_ptr;
-    auto type = parser->parseType(allocator);
-    if(type) {
-        auto last = parser->token;
-        auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, parser->loc(tok, last));
-        const auto last_type = last->type;
-        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
-            parser->token++;
-        } else {
-            parser->error("expected '}' or '}' after the type when parsing sizeof");
-        }
-        return value;
-    } else {
-        parser->error("expected a type in #alignof");
-        return nullptr;
-    }
-}
-
 Value* parseEvalValue(Parser* parser, ASTAllocator* allocator_ptr) {
     auto tok = parser->token;
     const auto first_type = tok->type;

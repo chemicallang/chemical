@@ -703,6 +703,16 @@ public:
     Value* parseNewValue(ASTAllocator& allocator);
 
     /**
+     * parses the sizeof value
+     */
+    Value* parseSizeOfValue(ASTAllocator& allocator);
+
+    /**
+     * parses the align of value
+     */
+    Value* parseAlignOfValue(ASTAllocator& allocator);
+
+    /**
      * parses a new value as a node
      */
     ASTNode* parseNewValueAsNode(ASTAllocator& allocator);

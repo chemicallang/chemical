@@ -82,7 +82,7 @@ public func getNextToken(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
 
 public func initializeLexer(lexer : *mut Lexer) {
     const file_allocator = lexer.getFileAllocator();
-    const ptr = file_allocator.allocate_size(#sizeof(CSSLexer), #alignof(CSSLexer)) as *mut CSSLexer;
+    const ptr = file_allocator.allocate_size(sizeof(CSSLexer), alignof(CSSLexer)) as *mut CSSLexer;
     new (ptr) CSSLexer {
         other_mode : false,
         chemical_mode : false,

@@ -183,7 +183,7 @@ func create_server_socket(port : *mut char) : SOCKET {
     var hints : addrinfo
     var ListenSocket : SOCKET = INVALID_SOCKET;
 
-    const addrinfo_size = #sizeof { addrinfo }
+    const addrinfo_size = sizeof(addrinfo)
     // if(addrinfo_size != 32) {
     //    printf("size of addr info is actually %d\n", addrinfo_size);
     //}

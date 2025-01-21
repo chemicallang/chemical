@@ -1206,10 +1206,6 @@ Value* FunctionCall::evaluated_value(InterpretScope &scope) {
     return interpret_value(this, scope, evaluated_parent);
 }
 
-Value* FunctionCall::evaluated_chain_value(InterpretScope &scope, Value* parent) {
-    return interpret_value(this, scope, parent);
-}
-
 FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
     auto call = new (allocator.allocate<FunctionCall>()) FunctionCall((ChainValue*) parent_val->copy(allocator), {}, location);
     for(const auto value : values) {

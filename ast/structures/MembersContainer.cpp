@@ -540,7 +540,7 @@ FunctionDeclaration* MembersContainer::destructor_func() {
 
 FunctionDeclaration* MembersContainer::clear_func() {
     for (const auto function : std::ranges::reverse_view(functions())) {
-        if(function->is_clear_fn()) {
+        if(function->is_post_move_fn()) {
             return function;
         }
     }

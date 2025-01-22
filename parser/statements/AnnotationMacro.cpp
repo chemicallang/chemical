@@ -197,6 +197,14 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make the function a clear function");
             }
         }},
+        { "postmove", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_post_move_fn(true);
+            } else {
+                parser->error("couldn't make the function a postmove function");
+            }
+        }},
         { "copy", [](Parser* parser, AnnotableNode* node) -> void {
             const auto func = node->as_function();
             if(func) {

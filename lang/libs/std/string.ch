@@ -279,7 +279,6 @@ public struct string {
         }
     }
 
-    @clear
     func clear(&mut self) {
         switch(state) {
             '0' => {
@@ -299,6 +298,13 @@ public struct string {
             default => {
 
             }
+        }
+    }
+
+    @postmove
+    func postmove(&mut self) {
+        if(state == '2') {
+            state = '0'
         }
     }
 

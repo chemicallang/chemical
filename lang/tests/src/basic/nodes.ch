@@ -1,4 +1,4 @@
-import "../test.ch"
+import "/test.ch"
 import "./switch/basic.ch"
 
 interface UnInheritedInterface {

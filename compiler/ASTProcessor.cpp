@@ -76,6 +76,7 @@ void ASTProcessor::determine_mod_imports(
         std::vector<ASTFileResultNew*>& out_files,
         LabModule* module
 ) {
+    path_handler.module_src_dir_path = "";
     switch(module->type) {
         case LabModuleType::Files: {
             std::vector<ASTFileMetaData> files;
@@ -97,6 +98,7 @@ void ASTProcessor::determine_mod_imports(
             return;
         case LabModuleType::Directory:
             const auto& dir_path = module->paths[0];
+            path_handler.module_src_dir_path = dir_path.to_view();
             if (!std::filesystem::exists(dir_path.data()) || !std::filesystem::is_directory(dir_path.data())) {
                 std::cerr << "error: directory doesn't exist '" << dir_path << "' for module '" << module->name.data() << '\'' << std::endl;
                 return;

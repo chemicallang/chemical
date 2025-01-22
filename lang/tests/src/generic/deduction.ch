@@ -1,4 +1,4 @@
-import "../test.ch"
+import "/test.ch"
 
 func <T> deduce_gen_sum(a : T, b : T) : T {
     return a + b;

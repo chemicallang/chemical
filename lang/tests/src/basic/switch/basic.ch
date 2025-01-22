@@ -1,4 +1,4 @@
-import "../../test.ch"
+import "/test.ch"
 
 func test_switch_statement() {
     test("switch statement", () => {

@@ -1,4 +1,4 @@
-import "../test.ch"
+import "/test.ch"
 
 func test_is_value() {
     test("char types are same", () => {

@@ -1,5 +1,5 @@
 import "@std/std.ch"
-import "../../test.ch"
+import "/test.ch"
 
 func take_int(i : int) : int {
     return i;

@@ -1,4 +1,4 @@
-import "../test.ch"
+import "/test.ch"
 
 func test_comptime_expressions() {
     test("comptime: 4 + 2 / 2 == 5", () => {

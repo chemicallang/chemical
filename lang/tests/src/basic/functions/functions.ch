@@ -1,4 +1,4 @@
-import "../../test.ch"
+import "/test.ch"
 import "./parameters.ch"
 
 struct TestStruct1 {

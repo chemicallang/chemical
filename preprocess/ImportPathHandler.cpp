@@ -23,34 +23,38 @@ AtReplaceResult lib_path_resolver(
     unsigned int slash
 ) {
     auto filePath = importPath.substr(slash + 1);
-    std::string stdLib;
-    if(!handler.std_lib_path.empty()) {
-        stdLib = handler.std_lib_path;
-    } else {
+    std::string libPath;
+//    auto found = handler.cached_lib_paths.find(lib_name);
+//    const auto is_cached = found != handler.cached_lib_paths.end();
+//    if(is_cached) {
+//        libPath = found->second;
+//    } else {
         const auto lib_path = "libs/" + lib_name;
 #ifdef DEBUG
         const auto libsStd = resolve_sibling(handler.exe_path, lib_path);
-        if(std::filesystem::exists(libsStd)) {
+        if (std::filesystem::exists(libsStd)) {
             // debug executable launched in a folder that contains libs/std
-            stdLib = libsStd;
+            libPath = libsStd;
         } else {
             // debug executable launched in a sub folder of this project
-            stdLib = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/" + lib_path);
+            libPath = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/" + lib_path);
         }
 #else
-        stdLib = resolve_rel_parent_path_str(handler.compiler_exe_path, lib_path);
-        handler.std_lib_path = stdLib;
+        libPath = resolve_rel_parent_path_str(handler.compiler_exe_path, lib_path);
 #endif
-    }
-    if(stdLib.empty()) {
+//    }
+    if(libPath.empty()) {
 #ifndef DEBUG
         std::string stdLib = "libs/" + lib_name;
 #endif
-        return AtReplaceResult { "", "couldn't find " + lib_name + " library at path '" + stdLib + "' relative to '" + handler.exe_path + "'" };
+        return AtReplaceResult { "", "couldn't find " + lib_name + " library at path '" + libPath + "' relative to '" + handler.exe_path + "'" };
     } else {
-        auto replaced = resolve_rel_child_path_str(stdLib, filePath);
+//        if(!is_cached) {
+//            handler.cached_lib_paths[lib_name] = libPath;
+//        }
+        auto replaced = resolve_rel_child_path_str(libPath, filePath);
         if(replaced.empty()) {
-            return AtReplaceResult { "", "couldn't find file '" + filePath + "' in " + lib_name + " library at path '" + stdLib + "'" };
+            return AtReplaceResult { "", "couldn't find file '" + filePath + "' in " + lib_name + " library at path '" + libPath + "'" };
         } else {
             return AtReplaceResult { replaced, "" };
         }
@@ -95,40 +99,40 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string &filePat
     return {filePath, "unknown '@' directive " + atDirective + " in import statement"};
 }
 
-AtReplaceResult relative_to_base(const std::string& base_path, const std::string& abs_path) {
-    if(abs_path[0] == '@') {
-        return { absolute_path(abs_path) };
-    } else {
-        auto resolved = resolve_rel_parent_path_str(base_path, abs_path);
-        if (resolved.empty()) {
-            return { "", "couldn't find the file to import " + abs_path + " relative to base path " + resolve_parent_path(base_path) };
-        } else {
-            return { resolved };
-        }
-    }
-}
+//AtReplaceResult relative_to_base(const std::string& base_path, const std::string& abs_path) {
+//    if(abs_path[0] == '@') {
+//        return { absolute_path(abs_path) };
+//    } else {
+//        auto resolved = resolve_rel_parent_path_str(base_path, abs_path);
+//        if (resolved.empty()) {
+//            return { "", "couldn't find the file to import " + abs_path + " relative to base path " + resolve_parent_path(base_path) };
+//        } else {
+//            return { resolved };
+//        }
+//    }
+//}
 
 AtReplaceResult ImportPathHandler::resolve_import_path(const std::string& base_path, const std::string& import_path) {
-    std::string abs_path = import_path;
-    if(!abs_path.empty() && abs_path[0] == '@') {
-        auto result = replace_at_in_path(abs_path);
+    const auto first_char = import_path[0];
+    if(first_char == '@') {
+        auto result = replace_at_in_path(import_path);
         if(result.error.empty()) {
-            abs_path = result.replaced;
+            return { absolute_path(result.replaced), "" };
         } else {
-            return {"", result.error};
+            return { "", result.error };
+        }
+    } else if(first_char == '/') {
+        if(module_src_dir_path.empty()) {
+            return { "", "cannot resolve path without the module root directory" };
+        } else {
+            const auto child_path = resolve_rel_child_path_str(std::string(module_src_dir_path), std::string(import_path.data() + 1, import_path.size()));
+            return {absolute_path(child_path), ""};
         }
     }
-    if(!abs_path.empty()) {
-        if(import_path[0] == '@') {
-            abs_path = absolute_path(abs_path);
-        } else {
-            auto resolved = resolve_rel_parent_path_str(base_path, abs_path);
-            if (resolved.empty()) {
-                return { "", "couldn't find the file to import " + abs_path + " relative to base path " + resolve_parent_path(base_path) };
-            } else {
-                abs_path = resolved;
-            }
-        }
+    auto resolved = resolve_rel_parent_path_str(base_path, import_path);
+    if (resolved.empty()) {
+        return { "", "couldn't find the file to import " + import_path + " relative to base path " + resolve_parent_path(base_path) };
+    } else {
+        return { std::move(resolved), "" };
     }
-    return { std::move(abs_path), "" };
 }

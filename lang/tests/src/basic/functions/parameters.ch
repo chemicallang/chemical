@@ -1,4 +1,4 @@
-import "../../test.ch"
+import "/test.ch"
 
 func assign_to_addr(value : *int) {
     *value = 25

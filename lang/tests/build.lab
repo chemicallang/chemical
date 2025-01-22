@@ -97,10 +97,10 @@ func build(ctx : *mut BuildContext) {
         string("stdio.h"),
         string("stdlib.h")
     })
-    const submod = ctx.chemical_dir_module(string("submod"), relative_path(string("basic/submod")), { })
+    const submod = ctx.chemical_dir_module(string("submod"), relative_path(string("submod")), { })
     // currently the last dependency becomes null if we don't take it out like this
     var dependencies = { ext_module, ext_cpp_module, submod, std_module }
-    const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), dependencies);
+    const module = ctx.chemical_dir_module(exe_name, relative_path(string("src")), dependencies);
 
     // cbi integration
     // const cbi_name = string("html");

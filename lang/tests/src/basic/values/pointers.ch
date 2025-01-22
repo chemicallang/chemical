@@ -1,4 +1,4 @@
-import "../../test.ch"
+import "/test.ch"
 
 struct PMC22 {
     var a : int

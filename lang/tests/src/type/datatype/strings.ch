@@ -1,4 +1,4 @@
-import "../../test.ch"
+import "/test.ch"
 import "@std/string.ch"
 import "@std/hashing/fnv1.ch"
 

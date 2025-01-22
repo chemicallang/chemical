@@ -1,4 +1,4 @@
-import "../../test.ch"
+import "/test.ch"
 
 struct ReferencableStruct {
     var i : int

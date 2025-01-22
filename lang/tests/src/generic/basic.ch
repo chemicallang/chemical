@@ -1,4 +1,4 @@
-import "../test.ch"
+import "/test.ch"
 import "./other.ch"
 
 func <T = int, K = int, R = int> gen_sum(a : T, b : K) : R {

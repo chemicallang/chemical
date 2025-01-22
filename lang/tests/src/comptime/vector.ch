@@ -1,4 +1,4 @@
-import "../test.ch"
+import "/test.ch"
 
 @comptime
 func compiler_vector_sum(a : int) : int {

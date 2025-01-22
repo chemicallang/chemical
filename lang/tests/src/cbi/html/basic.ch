@@ -1,4 +1,4 @@
-import "../../test.ch"
+import "/test.ch"
 
 func test_html() {
     /** TODO fix #html not integrated

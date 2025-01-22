@@ -1,4 +1,4 @@
-import "../test.ch"
+import "/test.ch"
 
 @deprecated
 func add(a : int, b : int) : int {

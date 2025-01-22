@@ -1,4 +1,4 @@
-import "../../test.ch"
+import "/test.ch"
 
 func implicit_cast_ret_test() : bigint {
     var i : int = 55 as int;

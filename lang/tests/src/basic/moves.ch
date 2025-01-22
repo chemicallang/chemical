@@ -1,4 +1,4 @@
-import "../test.ch"
+import "/test.ch"
 
 var clear_called = 0;
 var move_called = 0;

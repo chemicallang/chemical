@@ -1,4 +1,4 @@
-import "../test.ch"
+import "/test.ch"
 
 variant OptVariant {
     Some(a : int)

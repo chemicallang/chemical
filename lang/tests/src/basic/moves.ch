@@ -9,8 +9,8 @@ struct ClearObj {
 
     var i : int
 
-    @clear
-    func clear(&self) {
+    @postmove
+    func post_move(&self) {
         clear_called++;
     }
 

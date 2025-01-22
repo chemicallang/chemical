@@ -106,7 +106,7 @@ struct FuncDeclAttributes {
     /**
      * is this a clear function
      */
-    bool is_clear_fn;
+    bool is_post_move_fn;
     /**
      * is this a move function
      */
@@ -352,12 +352,22 @@ public:
         attrs.is_copy_fn = value;
     }
 
+    [[deprecated]]
     inline bool is_clear_fn() {
-        return attrs.is_clear_fn;
+        return attrs.is_post_move_fn;
     }
 
+    [[deprecated]]
     inline void set_clear_fn(bool value) {
-        attrs.is_clear_fn = value;
+        attrs.is_post_move_fn = value;
+    }
+
+    inline bool is_post_move_fn() {
+        return attrs.is_post_move_fn;
+    }
+
+    inline void set_post_move_fn(bool value) {
+        attrs.is_post_move_fn = value;
     }
 
     inline bool is_move_fn() {

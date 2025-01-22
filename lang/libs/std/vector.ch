@@ -96,10 +96,17 @@ public struct vector<T> {
         data_size = 0;
     }
 
+    @postmove
+    func postmove(&mut self) {
+        data_ptr = null
+    }
+
     @delete
     func delete(&mut self) {
-        destruct[data_size] data_ptr;
-        free(data_ptr);
+        if(data_ptr != null) {
+            destruct[data_size] data_ptr;
+            free(data_ptr);
+        }
     }
 
 }

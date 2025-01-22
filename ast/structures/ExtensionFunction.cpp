@@ -6,6 +6,7 @@
 #include "ast/base/ExtendableBase.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/GenericType.h"
+#include "ast/structures/InterfaceDefinition.h"
 
 #ifdef COMPILER_BUILD
 
@@ -86,6 +87,14 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker, ASTNode*& node
     if(!linked) {
         linker.error("couldn't find container in extension function ith receiver type \"" + type->representation() + "\"", (AnnotableNode*) this);
         return;
+    }
+    const auto linked_kind = linked->kind();
+    if(linked_kind == ASTNodeKind::InterfaceDecl) {
+        const auto interface = linked->as_interface_def_unsafe();
+        if(!interface->is_static()) {
+            linker.error("extension functions are only supported on static interfaces, either make the interface static or move the function inside the interface", receiver.type);
+            return;
+        }
     }
     auto container = linked->as_extendable_members_container();
     if(!container) {

@@ -87,6 +87,9 @@ void ImplDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_pt
     if(linked) {
         const auto interface_def = linked->as_interface_def();
         if(interface_def) {
+            if(interface_def->is_static() && interface_def->has_implementation()) {
+                linker.error("static interface must have only a single implementation", interface_type);
+            }
             interface_def->register_impl(this);
         } else {
             linker.error("expected type to be an interface", interface_type);
@@ -137,5 +140,5 @@ void InterfaceDefinition::register_impl(ImplDefinition* definition) {
         register_use(struct_linked);
         register_use_to_inherited_interfaces(struct_linked);
     }
-    data.has_implementation = true;
+    attrs.has_implementation = true;
 }

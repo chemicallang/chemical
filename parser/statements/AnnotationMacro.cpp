@@ -8,6 +8,7 @@
 #include "parser/model/CompilerBinder.h"
 #include "parser/Parser.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/InterfaceDefinition.h"
 #include "ast/statements/UsingStmt.h"
 
 const std::unordered_map<chem::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
@@ -211,6 +212,14 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 func->set_copy_fn(true);
             } else {
                 parser->error("couldn't make the function a copy function");
+            }
+        }},
+        { "static", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto interface = node->as_interface_def();
+            if(interface) {
+                interface->set_is_static(true);
+            } else {
+                parser->error("couldn't make the interface static");
             }
         }},
         { "deprecated", [](Parser* parser, AnnotableNode* node) -> void {

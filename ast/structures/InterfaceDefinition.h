@@ -14,7 +14,7 @@
 #include "MembersContainer.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
 
-struct InterfaceDefinitionExtData {
+struct InterfaceDefinitionAttrs {
 
     /**
      * the access specifier
@@ -24,16 +24,21 @@ struct InterfaceDefinitionExtData {
     /**
      * this is set to true when even a single implementation is detected
      */
-    bool has_implementation = false;
+    bool has_implementation;
 
     /**
      * is this interface deprecated
      */
-    bool deprecated = false;
+    bool deprecated;
+
+    /**
+     * is the interface a static interface (only one implementation allowed)
+     */
+    bool is_static;
 
 };
 
-static_assert(sizeof(InterfaceDefinitionExtData) <= 8);
+static_assert(sizeof(InterfaceDefinitionAttrs) <= 8);
 
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
@@ -71,7 +76,7 @@ public:
     /**
      * some data is stored in this struct to make it occupy less size
      */
-    InterfaceDefinitionExtData data;
+    InterfaceDefinitionAttrs attrs;
 
     /**
      * constructor
@@ -81,7 +86,10 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : ExtendableMembersContainerNode(identifier), parent_node(parent_node), location(location),
+        attrs(specifier, false, false, false) {
+
+    }
 
     /**
      * get the name of node
@@ -92,19 +100,31 @@ public:
 
     [[nodiscard]]
     inline AccessSpecifier specifier() const {
-        return data.specifier;
+        return attrs.specifier;
     }
 
     inline void set_specifier_fast(AccessSpecifier specifier) {
-        data.specifier = specifier;
+        attrs.specifier = specifier;
     }
 
     inline bool deprecated() {
-        return data.deprecated;
+        return attrs.deprecated;
     }
 
     inline void set_deprecated(bool value) {
-        data.deprecated = value;
+        attrs.deprecated = value;
+    }
+
+    inline bool is_static() {
+        return attrs.is_static;
+    }
+
+    inline void set_is_static(bool value) {
+        attrs.is_static = value;
+    }
+
+    inline bool has_implementation() {
+        return attrs.has_implementation;
     }
 
     SourceLocation encoded_location() final {
@@ -134,7 +154,7 @@ public:
 #else
         users[definition] = true;
 #endif
-        data.has_implementation = true;
+        attrs.has_implementation = true;
     }
 
     void register_impl(ImplDefinition* definition);

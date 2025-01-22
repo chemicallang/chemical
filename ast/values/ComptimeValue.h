@@ -37,7 +37,7 @@ public:
     }
 
     ValueKind val_kind() override {
-        return ValueKind::SymResValue;
+        return ValueKind::ComptimeValue;
     }
 
     void accept(Visitor *visitor) override {

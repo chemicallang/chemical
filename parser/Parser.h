@@ -703,6 +703,16 @@ public:
     Value* parseNewValue(ASTAllocator& allocator);
 
     /**
+     * parses a single unsafe value
+     */
+    Value* parseUnsafeValue(ASTAllocator& allocator);
+
+    /**
+     * parses a single comptime value
+     */
+    Value* parseComptimeValue(ASTAllocator& allocator);
+
+    /**
      * parses the sizeof value
      */
     Value* parseSizeOfValue(ASTAllocator& allocator);

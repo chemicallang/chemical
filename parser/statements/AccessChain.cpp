@@ -72,58 +72,6 @@ Value* Parser::parseAccessChainOrKwValue(ASTAllocator& allocator, bool parseStru
     }
 }
 
-Value* Parser::parseSizeOfValue(ASTAllocator& allocator) {
-    const auto tok = token;
-    const auto first_type = tok->type;
-    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
-        token++;
-    } else {
-        error("expected '{' or '(' when parsing sizeof");
-        return nullptr;
-    }
-    auto type = parseType(allocator);
-    if(type) {
-        auto last = token;
-        auto value = new (allocator.allocate<SizeOfValue>()) SizeOfValue(type, loc(tok, last));
-        const auto last_type = last->type;
-        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
-            token++;
-        } else {
-            error("expected '}' or '}' after the type when parsing sizeof");
-        }
-        return value;
-    } else {
-        error("expected a type in #sizeof");
-        return nullptr;
-    }
-}
-
-Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
-    auto tok = token;
-    const auto first_type = tok->type;
-    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
-        token++;
-    } else {
-        error("expected '{' or '(' when parsing alignof");
-        return nullptr;
-    }
-    auto type = parseType(allocator);
-    if(type) {
-        auto last = token;
-        auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, loc(tok, last));
-        const auto last_type = last->type;
-        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
-            token++;
-        } else {
-            error("expected '}' or '}' after the type when parsing sizeof");
-        }
-        return value;
-    } else {
-        error("expected a type in #alignof");
-        return nullptr;
-    }
-}
-
 Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
     auto id = consumeIdentifierOrKeyword();
@@ -199,33 +147,6 @@ DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
     }
 }
 
-Value* parseComptimeValue(Parser* parser, ASTAllocator* allocator_ptr) {
-    auto tok = parser->token;
-    const auto first_type = tok->type;
-    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
-        parser->token++;
-    } else {
-        parser->error("expected '{' or '(' when parsing comptime value");
-        return nullptr;
-    }
-    auto& allocator = *allocator_ptr;
-    auto expr = parser->parseExpression(allocator);
-    if(expr) {
-        auto last = parser->token;
-        auto evaluated = new (allocator.allocate<ComptimeValue>()) ComptimeValue(allocator_ptr, expr);
-        const auto last_type = last->type;
-        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
-            parser->token++;
-        } else {
-            parser->error("expected '}' or '}' after the type when parsing comptime value");
-        }
-        return evaluated;
-    } else {
-        parser->error("expected a value in #eval");
-        return nullptr;
-    }
-}
-
 Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruct) {
     switch (token->type) {
         case TokenType::AmpersandSym:
@@ -251,9 +172,13 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
             token++;
             return new(allocator.allocate<BoolValue>()) BoolValue(false, loc_single(t));
         }
+        case TokenType::UnsafeKw: {
+            token++;
+            return parseUnsafeValue(allocator);
+        }
         case TokenType::ComptimeKw: {
             token++;
-            return parseComptimeValue(this, &allocator);
+            return parseComptimeValue(allocator);
         }
         case TokenType::SizeOfKw: {
             token++;

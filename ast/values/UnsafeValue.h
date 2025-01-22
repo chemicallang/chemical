@@ -6,10 +6,9 @@
 #include "compiler/SymbolResolver.h"
 
 /**
- * comptime value value replaces itself during symbol resolution by evaluating
- * the contained value
+ * unsafe values replace themselves during symbol resolution
  */
-class ComptimeValue : public Value {
+class UnsafeValue : public Value {
 public:
 
     /**
@@ -25,7 +24,7 @@ public:
     /**
      * constructor
      */
-    inline ComptimeValue(
+    inline UnsafeValue(
         ASTAllocator* allocator,
         Value* value
     ) : allocator(allocator), value(value) {
@@ -37,7 +36,7 @@ public:
     }
 
     ValueKind val_kind() override {
-        return ValueKind::ComptimeValue;
+        return ValueKind::UnsafeValue;
     }
 
     void accept(Visitor *visitor) override {
@@ -45,22 +44,12 @@ public:
     }
 
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
-        InterpretScope scope(nullptr, *allocator, &linker.comptime_scope);
-        // replacing
-        const auto eval = value->evaluated_value(scope);
-        if(eval) {
-            // move the allocated values from interpret scope to the allocator
-            // so they are destroyed when the allocator is destroyed
-            for(const auto val : scope.allocated) {
-                allocator->store_ptr(val);
-            }
-            scope.allocated.clear();
-            // replace value
-            value_ptr = eval;
-            return true;
-        } else {
-            return false;
-        }
+        const auto prev = linker.safe_context;
+        linker.safe_context = false;
+        const auto linked = value->link(linker, value, expected_type);
+        linker.safe_context = prev;
+        value_ptr = value;
+        return linked;
     }
 
 };

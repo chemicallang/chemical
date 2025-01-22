@@ -47,6 +47,7 @@ enum ValueKind {
     NullValue,
     SizeOfValue,
     SymResValue,
+    UnsafeValue,
     ComptimeValue,
     AlignOfValue,
     VariantCall,

@@ -40,6 +40,10 @@
 #include "ast/structures/LoopBlock.h"
 #include "parse_num.h"
 #include "ast/statements/ValueWrapperNode.h"
+#include "ast/values/ComptimeValue.h"
+#include "ast/values/UnsafeValue.h"
+#include "ast/values/SizeOfValue.h"
+#include "ast/values/AlignOfValue.h"
 
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
     auto& t = *token;
@@ -298,6 +302,111 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
             if(ac) {
                 return parseAfterValue(allocator, ac, start_token);
             }
+    }
+}
+
+
+Value* Parser::parseSizeOfValue(ASTAllocator& allocator) {
+    const auto tok = token;
+    const auto first_type = tok->type;
+    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
+        token++;
+    } else {
+        error("expected '{' or '(' when parsing sizeof");
+        return nullptr;
+    }
+    auto type = parseType(allocator);
+    if(type) {
+        auto last = token;
+        auto value = new (allocator.allocate<SizeOfValue>()) SizeOfValue(type, loc(tok, last));
+        const auto last_type = last->type;
+        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
+            token++;
+        } else {
+            error("expected '}' or '}' after the type when parsing sizeof");
+        }
+        return value;
+    } else {
+        error("expected a type in #sizeof");
+        return nullptr;
+    }
+}
+
+Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
+    auto tok = token;
+    const auto first_type = tok->type;
+    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
+        token++;
+    } else {
+        error("expected '{' or '(' when parsing alignof");
+        return nullptr;
+    }
+    auto type = parseType(allocator);
+    if(type) {
+        auto last = token;
+        auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, loc(tok, last));
+        const auto last_type = last->type;
+        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
+            token++;
+        } else {
+            error("expected '}' or '}' after the type when parsing sizeof");
+        }
+        return value;
+    } else {
+        error("expected a type in #alignof");
+        return nullptr;
+    }
+}
+
+Value* Parser::parseUnsafeValue(ASTAllocator& allocator) {
+    auto tok = token;
+    const auto first_type = tok->type;
+    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
+        token++;
+    } else {
+        error("expected '{' or '(' when parsing comptime value");
+        return nullptr;
+    }
+    auto expr = parseExpression(allocator);
+    if(expr) {
+        auto last = token;
+        auto evaluated = new (allocator.allocate<UnsafeValue>()) UnsafeValue(&allocator, expr);
+        const auto last_type = last->type;
+        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
+            token++;
+        } else {
+            error("expected '}' or '}' after the type when parsing comptime value");
+        }
+        return evaluated;
+    } else {
+        error("expected a value in #eval");
+        return nullptr;
+    }
+}
+
+Value* Parser::parseComptimeValue(ASTAllocator& allocator) {
+    auto tok = token;
+    const auto first_type = tok->type;
+    if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
+        token++;
+    } else {
+        error("expected '{' or '(' when parsing comptime value");
+        return nullptr;
+    }
+    auto expr = parseExpression(allocator);
+    if(expr) {
+        auto last = token;
+        auto evaluated = new (allocator.allocate<ComptimeValue>()) ComptimeValue(&allocator, expr);
+        const auto last_type = last->type;
+        if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
+            token++;
+        } else {
+            error("expected '}' or '}' after the type when parsing comptime value");
+        }
+        return evaluated;
+    } else {
+        error("expected a value in #eval");
+        return nullptr;
     }
 }
 

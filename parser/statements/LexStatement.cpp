@@ -236,6 +236,22 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
             token++;
             return new(allocator.allocate<BoolValue>()) BoolValue(false, loc_single(t));
         }
+        case TokenType::UnsafeKw: {
+            token++;
+            return parseUnsafeValue(allocator);
+        }
+        case TokenType::ComptimeKw: {
+            token++;
+            return parseComptimeValue(allocator);
+        }
+        case TokenType::SizeOfKw: {
+            token++;
+            return parseSizeOfValue(allocator);
+        }
+        case TokenType::AlignOfKw: {
+            token++;
+            return parseAlignOfValue(allocator);
+        }
         default:
             return (Value*) parseAccessChain(allocator, false);
     }

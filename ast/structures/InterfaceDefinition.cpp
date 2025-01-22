@@ -26,7 +26,7 @@ void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* 
 }
 
 void InterfaceDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl) {
-    if(!decl->has_self_param() && (data.has_implementation || !users.empty())) {
+    if(!decl->has_self_param() && (attrs.has_implementation || !users.empty())) {
         decl->code_gen_declare(gen, this);
         decl->code_gen_body(gen, this);
         return;
@@ -40,7 +40,7 @@ void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclarati
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
     for (auto& func: functions()) {
-        if(!func->has_self_param() && (data.has_implementation || !users.empty())) {
+        if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
             func->code_gen_declare(gen, this);
             func->code_gen_body(gen, this);
         }
@@ -126,16 +126,6 @@ llvm::Value* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinit
 }
 
 #endif
-
-InterfaceDefinition::InterfaceDefinition(
-        LocatedIdentifier identifier,
-        ASTNode* parent_node,
-        SourceLocation location,
-        AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), location(location),
-    data(specifier, false, false) {
-
-}
 
 BaseType* InterfaceDefinition::create_value_type(ASTAllocator& allocator) {
     return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), this, location);

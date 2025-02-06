@@ -62,8 +62,10 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
     if(info.first) {
         const auto interface = info.first->as_interface_def();
         if(interface->is_static()) {
-            function->code_gen_override_declare(gen, info.second);
-            function->code_gen_override(gen, info.second->llvm_func());
+            const auto func = info.second->llvm_func();
+            function->set_llvm_data(func);
+            gen.createFunctionBlock(func);
+            function->code_gen_override(gen, func);
         } else {
             auto& user = interface->users[this];
             auto llvm_data = user.find(info.second);

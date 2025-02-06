@@ -35,9 +35,11 @@ jobs:
       # Step : Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
         id: get-sha
+        shell: pwsh
         run: |
-          SHA=$(curl -s https://api.github.com/repos/chemicallang/chemical-bootstrap/commits | jq -r '.[0].sha')
-          echo "CBSHA=$SHA" >> $GITHUB_ENV
+          $response = Invoke-RestMethod -Uri "https://api.github.com/repos/chemicallang/chemical-bootstrap/commits"
+          $sha = $response[0].sha
+          echo "SHA=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       # Step: Setup Cache for out-win folder
       - uses: actions/cache@v2

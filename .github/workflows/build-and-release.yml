@@ -32,12 +32,19 @@ jobs:
         with:
           arch: x86_64
 
+      # Step : Get the SHA of the chemical-bootstrap repository
+      - name: Get SHA of chemical-bootstrap repository
+        id: get-sha
+        run: |
+          SHA=$(curl -s https://api.github.com/repos/chemicallang/chemical-bootstrap/commits | jq -r '.[0].sha')
+          echo "CBSHA=$SHA" >> $GITHUB_ENV
+
       # Step: Setup Cache for out-win folder
       - uses: actions/cache@v2
         id: bootstrap-cache
         with:
           path: ./chemical-bootstrap/out-win/
-          key: ${{ runner.os }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ env.CBSHA }}
 
       # Step 3: Build the chemical-bootstrap project (only if not cached)
       - name: Build chemical-bootstrap (Windows)
@@ -108,12 +115,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git libboost-all-dev
 
+      # Step : Get the SHA of the chemical-bootstrap repository
+      - name: Get SHA of chemical-bootstrap repository
+        id: get-sha
+        run: |
+          SHA=$(curl -s https://api.github.com/repos/chemicallang/chemical-bootstrap/commits | jq -r '.[0].sha')
+          echo "CBSHA=$SHA" >> $GITHUB_ENV
+
       # Step: Setup Cache for out folder
       - uses: actions/cache@v2
         id: bootstrap-cache
         with:
           path: ./chemical-bootstrap/out/
-          key: ${{ runner.os }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ env.CBSHA }}
 
       # Step 4: Build the chemical-bootstrap project (Linux) (only if not cached)
       - name: Build chemical-bootstrap (Linux)

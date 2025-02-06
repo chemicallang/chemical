@@ -34,10 +34,10 @@ jobs:
 
       # Step: Setup Cache for out-win folder
       - uses: actions/cache@v2
-          id: bootstrap-cache
-          with:
-            path: ./chemical-bootstrap/out-win/
-            key: ${{ runner.os }}-${{ github.sha }}
+        id: bootstrap-cache
+        with:
+          path: ./chemical-bootstrap/out-win/
+          key: ${{ runner.os }}-${{ github.sha }}
 
       # Step 3: Build the chemical-bootstrap project (only if not cached)
       - name: Build chemical-bootstrap (Windows)
@@ -110,10 +110,10 @@ jobs:
 
       # Step: Setup Cache for out folder
       - uses: actions/cache@v2
-          id: bootstrap-cache
-          with:
-            path: ./chemical-bootstrap/out/
-            key: ${{ runner.os }}-${{ github.sha }}
+        id: bootstrap-cache
+        with:
+          path: ./chemical-bootstrap/out/
+          key: ${{ runner.os }}-${{ github.sha }}
 
       # Step 4: Build the chemical-bootstrap project (Linux) (only if not cached)
       - name: Build chemical-bootstrap (Linux)

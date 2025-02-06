@@ -76,7 +76,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake git libboost-all
+          sudo apt-get install -y build-essential cmake git libboost-all-dev
 
       # Step 3: Clone the chemical-bootstrap repo
       - name: Clone chemical-bootstrap repository

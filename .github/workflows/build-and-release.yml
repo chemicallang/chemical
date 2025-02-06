@@ -32,10 +32,18 @@ jobs:
         with:
           arch: x86_64
 
-      # Step 3: Build the chemical-bootstrap project
+      # Step: Setup Cache for out-win folder
+      - uses: actions/cache@v2
+          id: bootstrap-cache
+          with:
+            path: ./chemical-bootstrap/out-win/
+            key: ${{ runner.os }}-${{ github.sha }}
+
+      # Step 3: Build the chemical-bootstrap project (only if not cached)
       - name: Build chemical-bootstrap (Windows)
         working-directory: chemical-bootstrap
         run: .\build.bat native-windows-gnu native
+        if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
       # Step 4: Build the chemical project executables via CMake
       - name: Build chemical project (Windows)
@@ -100,12 +108,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git libboost-all-dev
 
-      # Step 4: Build the chemical-bootstrap project (Linux)
+      # Step: Setup Cache for out folder
+      - uses: actions/cache@v2
+          id: bootstrap-cache
+          with:
+            path: ./chemical-bootstrap/out/
+            key: ${{ runner.os }}-${{ github.sha }}
+
+      # Step 4: Build the chemical-bootstrap project (Linux) (only if not cached)
       - name: Build chemical-bootstrap (Linux)
         working-directory: chemical-bootstrap
         run: |
           chmod +x build
           ./build native-linux-gnu native
+        if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
       # Step 5: Build the chemical project executables via CMake
       - name: Build chemical project (Linux)

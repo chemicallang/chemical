@@ -85,7 +85,9 @@ if (CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
 endif ()
 
 # Add the LspCpp library directory
-add_subdirectory(LspCpp)
+if(TARGET ChemicalLsp)
+    add_subdirectory(LspCpp EXCLUDE_FROM_ALL)
+endif()
 
 # Include directories for libtcc
 set(LIBTCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/libtcc)

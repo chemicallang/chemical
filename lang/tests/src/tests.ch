@@ -19,6 +19,7 @@ import "basic/functions/implicit.ch"
 import "basic/references/basic.ch"
 import "basic/references/auto_deref.ch"
 import "basic/destructors.ch"
+import "basic/interface/static.ch"
 import "nodes/union.ch"
 import "nodes/namespaces.ch"
 import "comptime/basic.ch"
@@ -84,6 +85,7 @@ public func main() : int {
     test_extension_functions();
     test_typealias();
     test_inc_dec();
+    test_static_interfaces();
     print_test_stats();
     return 0;
 }

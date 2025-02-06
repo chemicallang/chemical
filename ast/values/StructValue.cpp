@@ -197,11 +197,10 @@ llvm::Value* StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, V
         }
     } else {
         if(!lhs->is_ref_moved()) {
-            llvm::FunctionType* func_type;
-            llvm::Value* func_callee;
-            auto destr = gen.determine_destructor_for(definition->known_type(), func_type, func_callee);
+            llvm::Function* func_data;
+            auto destr = gen.determine_destructor_for(definition->known_type(), func_data);
             if(destr) {
-                gen.builder->CreateCall(func_type, func_callee, { lhsPtr });
+                gen.builder->CreateCall(func_data, { lhsPtr });
             }
         }
         initialize_alloca(lhsPtr, gen, nullptr);

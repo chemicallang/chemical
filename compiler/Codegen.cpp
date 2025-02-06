@@ -148,8 +148,14 @@ llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::F
 
 }
 
-llvm::FunctionCallee Codegen::declare_function(const std::string &name, llvm::FunctionType *type) {
-    return module->getOrInsertFunction(name, type);
+llvm::Function* Codegen::declare_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier) {
+    const auto previousFunc = module->getFunction(name);
+    if(previousFunc != nullptr) {
+        return previousFunc;
+    } else {
+        const auto func = create_function_proto(name, type, specifier);
+        return func;
+    }
 }
 
 llvm::Function *
@@ -239,8 +245,7 @@ void Codegen::destruct(
 
 void Codegen::destruct(
         llvm::Value* allocaInst,
-        llvm::FunctionType* destructor_func_type,
-        llvm::Value* destructor_func_callee,
+        llvm::Function* destr_func_data,
         bool pass_self,
         llvm::Value* array_size,
         BaseType* elem_type,
@@ -258,7 +263,7 @@ void Codegen::destruct(
             if(pass_self) {
                 args.emplace_back(struct_pointer);
             }
-            builder->CreateCall(destructor_func_type, destructor_func_callee, args, "");
+            builder->CreateCall(destr_func_data, args, "");
             after_destruct(struct_pointer);
         }
     );
@@ -266,8 +271,7 @@ void Codegen::destruct(
 
 FunctionDeclaration* determine_func_data(
         BaseType* elem_type,
-        llvm::FunctionType*& func_type,
-        llvm::Value*& func_callee,
+        llvm::Function*& func_data,
         FunctionDeclaration*(*choose_func)(MembersContainer* container)
 ) {
 
@@ -282,9 +286,7 @@ FunctionDeclaration* determine_func_data(
     }
 
     // determine the function type and callee
-    auto data = structDef->llvm_func_data(chosenFunc);
-    func_type = data.second;
-    func_callee = data.first;
+    func_data = structDef->llvm_func_data(chosenFunc);
 
     return chosenFunc;
 
@@ -292,20 +294,18 @@ FunctionDeclaration* determine_func_data(
 
 FunctionDeclaration* Codegen::determine_clear_fn_for(
         BaseType* elem_type,
-        llvm::FunctionType*& func_type,
-        llvm::Value*& func_callee
+        llvm::Function*& func_data
 ) {
-    return determine_func_data(elem_type, func_type, func_callee, [](MembersContainer* def) -> FunctionDeclaration* {
+    return determine_func_data(elem_type, func_data, [](MembersContainer* def) -> FunctionDeclaration* {
         return def->clear_func();
     });
 }
 
 FunctionDeclaration* Codegen::determine_destructor_for(
         BaseType* elem_type,
-        llvm::FunctionType*& func_type,
-        llvm::Value*& func_callee
+        llvm::Function*& func_data
 ) {
-    return determine_func_data(elem_type, func_type, func_callee, [](MembersContainer* def) -> FunctionDeclaration* {
+    return determine_func_data(elem_type, func_data, [](MembersContainer* def) -> FunctionDeclaration* {
         return def->destructor_func();
     });
 }
@@ -318,15 +318,13 @@ void Codegen::destruct(
         const std::function<void(llvm::Value*)>& after_destruct
 ) {
     // determining destructor
-    llvm::FunctionType* func_type;
-    llvm::Value* func_callee;
-    auto destructorFunc = determine_destructor_for(elem_type, func_type, func_callee);
+    llvm::Function* func_data;
+    auto destructorFunc = determine_destructor_for(elem_type, func_data);
     if(!destructorFunc) return;
     // calling destruct
     destruct(
             allocaInst,
-            func_type,
-            func_callee,
+            func_data,
             destructorFunc->has_self_param(),
             array_size,
             elem_type,

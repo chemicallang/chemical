@@ -226,7 +226,7 @@ public:
      * the llvm data
      */
 #ifdef COMPILER_BUILD
-    std::vector<std::pair<llvm::Value*, llvm::FunctionType*>> llvm_data;
+    std::vector<llvm::Function*> llvm_data;
 #endif
 
     /**
@@ -519,17 +519,21 @@ public:
 
     void llvm_attributes(llvm::Function* func);
 
-    std::pair<llvm::Value*, llvm::FunctionType*>& get_llvm_data();
+    llvm::Function*& get_llvm_data();
 
-    llvm::Function *llvm_func();
-
-    llvm::Value* llvm_callee();
+    inline llvm::Function* llvm_func() {
+        return get_llvm_data();
+    }
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value *llvm_load(Codegen &gen) final;
+    inline llvm::Value* llvm_load(Codegen &gen) final {
+        return (llvm::Value*) get_llvm_data();
+    }
 
-    llvm::Value *llvm_pointer(Codegen &gen) final;
+    inline llvm::Value* llvm_pointer(Codegen &gen) final {
+        return (llvm::Value*) get_llvm_data();
+    }
 
     std::vector<llvm::Type *> param_types(Codegen &gen);
 
@@ -539,6 +543,11 @@ public:
      * this function will take into account @cpp annotation
      */
     std::string runtime_name_fast(Codegen& gen);
+
+    /**
+     * get the known func or nullptr
+     */
+    llvm::Function* known_func();
 
     /**
      * this function returns known llvm function type, this means
@@ -556,7 +565,7 @@ public:
     /**
      * given llvm data will be set for active iteration
      */
-    void set_llvm_data(llvm::Value* func_callee, llvm::FunctionType* func_type);
+    void set_llvm_data(llvm::Function* func);
 
     /**
      * declare a function that is present inside struct definition

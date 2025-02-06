@@ -295,7 +295,7 @@ llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
     return create_type(gen.allocator)->llvm_chain_type(gen, values, index);
 }
 
-std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_data(ASTAllocator& allocator) {
+llvm::Function** FunctionCall::llvm_generic_func_data(ASTAllocator& allocator) {
     auto gen_str = get_grandpa_generic_struct(allocator, parent_val);
     if(gen_str.first) {
         const auto func = safe_linked_func();
@@ -311,7 +311,7 @@ std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_da
 llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen) {
     const auto generic_data = llvm_generic_func_data(gen.allocator);
     if(generic_data) {
-        return generic_data->second;
+        return (*generic_data)->getFunctionType();
     }
     const auto func_type = function_type(gen.allocator);
     return func_type->llvm_func_type(gen);
@@ -393,7 +393,7 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
 llvm::Value *FunctionCall::llvm_linked_func_callee(Codegen& gen) {
     const auto generic_data = llvm_generic_func_data(gen.allocator);
     if(generic_data) {
-        return generic_data->first;
+        return *generic_data;
     }
     const auto linked = parent_val->linked_node();
     if(linked != nullptr) {
@@ -644,7 +644,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
         auto data = def->llvm_func_data(decl);
         args.emplace_back(grandparent);
-        gen.builder->CreateCall(data.second, data.first, args);
+        gen.builder->CreateCall(data, args);
         return returnedValue;
     }
 

@@ -101,12 +101,17 @@ llvm::FunctionType *FunctionDeclaration::create_llvm_func_type(Codegen &gen) {
     }
 }
 
-llvm::FunctionType *FunctionDeclaration::known_func_type() {
+llvm::Function* FunctionDeclaration::known_func() {
     if(!llvm_data.empty() && active_iteration < llvm_data.size()) {
-        return llvm_data[active_iteration].second;
+        return llvm_data[active_iteration];
     } else {
         return nullptr;
     }
+}
+
+llvm::FunctionType *FunctionDeclaration::known_func_type() {
+    const auto func = known_func();
+    return func ? func->getFunctionType() : nullptr;
 }
 
 llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
@@ -115,7 +120,7 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
     return create_llvm_func_type(gen);
 }
 
-std::pair<llvm::Value*, llvm::FunctionType*>& FunctionDeclaration::get_llvm_data() {
+llvm::Function*& FunctionDeclaration::get_llvm_data() {
     if(active_iteration == llvm_data.size() && is_override()) {
         const auto struct_def = parent_node->as_struct_def();
         if(struct_def) {
@@ -126,7 +131,7 @@ std::pair<llvm::Value*, llvm::FunctionType*>& FunctionDeclaration::get_llvm_data
                     auto& use = interface->users[struct_def];
                     const auto& found = use.find(overriding.second);
                     if(found != use.end()) {
-                        llvm_data.emplace_back(found->second, found->second->getFunctionType());
+                        llvm_data.emplace_back(found->second);
                         return llvm_data.back();
                     }
                 } else {
@@ -148,14 +153,6 @@ std::pair<llvm::Value*, llvm::FunctionType*>& FunctionDeclaration::get_llvm_data
         }
     }
     return llvm_data[active_iteration];
-}
-
-llvm::Value* FunctionDeclaration::llvm_callee() {
-    return get_llvm_data().first;
-}
-
-llvm::Function* FunctionDeclaration::llvm_func() {
-    return (llvm::Function*)  llvm_callee();
 }
 
 void FunctionType::queue_destruct_params(Codegen& gen) {
@@ -327,17 +324,16 @@ void llvm_func_def_attr(llvm::Function* func) {
     func->addFnAttr(llvm::Attribute::NoUnwind);
 }
 
-void FunctionDeclaration::set_llvm_data(llvm::Value* func_callee, llvm::FunctionType* func_type) {
+void FunctionDeclaration::set_llvm_data(llvm::Function* func) {
 #ifdef DEBUG
     if(active_iteration > (int) llvm_data.size()) {
         throw std::runtime_error("decl's generic active iteration is greater than total llvm_data size");
     }
 #endif
     if(active_iteration == llvm_data.size()) {
-        llvm_data.emplace_back(func_callee, func_type);
+        llvm_data.emplace_back(func);
     } else {
-        llvm_data[active_iteration].first = func_callee;
-        llvm_data[active_iteration].second = func_type;
+        llvm_data[active_iteration] = func;
     }
 }
 
@@ -352,7 +348,7 @@ std::string FunctionDeclaration::runtime_name_fast(Codegen& gen) {
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
 #ifdef DEBUG
     auto existing_func = gen.module->getFunction(name);
-    if(existing_func) {
+    if(existing_func && !existing_func->isDeclaration()) {
         gen.error("function with name '" + name + "' already exists in the module", (ASTNode*) decl);
     }
 #endif
@@ -360,7 +356,7 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     auto func = gen.create_function(name, func_type, decl->specifier());
     llvm_func_def_attr(func);
     decl->llvm_attributes(func);
-    decl->set_llvm_data(func, func->getFunctionType());
+    decl->set_llvm_data(func);
     gen.di.add(decl, func);
 }
 
@@ -383,9 +379,9 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl) {
 }
 
 void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
-    auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen));
-    decl->set_llvm_data(callee.getCallee(), callee.getFunctionType());
-    gen.di.add(decl, (llvm::Function*) callee.getCallee());
+    auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl->specifier());
+    decl->set_llvm_data(callee);
+    gen.di.add(decl, callee);
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
@@ -502,11 +498,15 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, VariantDefinition* def)
 }
 
 void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl) {
-    set_llvm_data(decl->llvm_pointer(gen), decl->llvm_func_type(gen));
+    set_llvm_data(decl->llvm_func());
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, InterfaceDefinition* def) {
-    create_fn(gen, this);
+    if(def->is_static()) {
+        declare_fn(gen, this);
+    } else {
+        create_fn(gen, this);
+    }
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, UnionDef* def) {
@@ -846,20 +846,19 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def
     process_members_calling_fns(gen, def, allocaInst, func, [](VariantMember* mem)-> bool {
         return mem->requires_clear_fn();
     }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func) {
-        llvm::FunctionType* dtr_func_type = nullptr;
-        llvm::Value* dtr_func_callee = nullptr;
+        llvm::Function* dtr_func_data = nullptr;
         int i = 0;
         for(auto& value : mem->values) {
             auto ref_node = value.second->type->get_direct_linked_node();
             if(ref_node) { // <-- the node is directly referenced
-                auto clearFn = gen.determine_clear_fn_for(value.second->type, dtr_func_type, dtr_func_callee);
+                auto clearFn = gen.determine_clear_fn_for(value.second->type, dtr_func_data);
                 if(clearFn) {
                     std::vector<llvm::Value*> args;
                     if(clearFn->has_self_param()) {
                         auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
                         args.emplace_back(gep3);
                     }
-                    gen.builder->CreateCall(dtr_func_type, dtr_func_callee, args, "");
+                    gen.builder->CreateCall(dtr_func_data, args, "");
                 }
             }
             i++;
@@ -885,20 +884,19 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
     process_members_calling_fns(gen, def, allocaInst, func, [](VariantMember* mem) -> bool {
         return mem->requires_destructor();
     }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func) {
-        llvm::FunctionType* dtr_func_type = nullptr;
-        llvm::Value* dtr_func_callee = nullptr;
+        llvm::Function* dtr_func_data = nullptr;
         int i = 0;
         for(auto& value : mem->values) {
             auto ref_node = value.second->type->get_direct_linked_node();
             if(ref_node) { // <-- the node is directly referenced
-                auto destructorFunc = gen.determine_destructor_for(value.second->type, dtr_func_type, dtr_func_callee);
+                auto destructorFunc = gen.determine_destructor_for(value.second->type, dtr_func_data);
                 if(destructorFunc) {
                     std::vector<llvm::Value*> args;
                     if(destructorFunc->has_self_param()) {
                         auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
                         args.emplace_back(gep3);
                     }
-                    gen.builder->CreateCall(dtr_func_type, dtr_func_callee, args, "");
+                    gen.builder->CreateCall(dtr_func_data, args, "");
                 }
             }
             i++;
@@ -914,14 +912,6 @@ std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
 
 llvm::Type *FunctionDeclaration::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
-}
-
-llvm::Value *FunctionDeclaration::llvm_load(Codegen &gen) {
-    return llvm_callee();
-}
-
-llvm::Value *FunctionDeclaration::llvm_pointer(Codegen &gen) {
-    return llvm_callee();
 }
 
 llvm::Value *CapturedVariable::llvm_load(Codegen &gen) {
@@ -1109,15 +1099,23 @@ void FunctionDeclaration::runtime_name(std::ostream &stream) {
         switch(k) {
             case ASTNodeKind::InterfaceDecl: {
                 const auto interface = parent_node->as_interface_def_unsafe();
-                ExtendableMembersContainerNode* container = (interface->active_user && has_self_param()) ? (ExtendableMembersContainerNode*) interface->active_user : interface;
-                container->runtime_name(stream);
+                if(interface->is_static()) {
+                    interface->runtime_name(stream);
+                } else {
+                    ExtendableMembersContainerNode* container = (interface->active_user && has_self_param()) ? (ExtendableMembersContainerNode*) interface->active_user : interface;
+                    container->runtime_name(stream);
+                };
                 break;
             }
             case ASTNodeKind::StructDecl:{
                 const auto def = parent_node->as_struct_def_unsafe();
                 const auto interface = def->get_overriding_interface(this);
-                ExtendableMembersContainerNode* container = has_self_param() ? def : (interface ? (ExtendableMembersContainerNode*) interface : def);
-                container->runtime_name(stream);
+                if(interface && interface->is_static()) {
+                    interface->runtime_name(stream);
+                } else {
+                    ExtendableMembersContainerNode* container = has_self_param() ? def : (interface ? (ExtendableMembersContainerNode*) interface : def);
+                    container->runtime_name(stream);
+                }
                 break;
             }
             case ASTNodeKind::ImplDecl: {

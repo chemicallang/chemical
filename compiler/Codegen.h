@@ -234,7 +234,7 @@ public:
     /**
      * gets or inserts a function, similar to declaration
      */
-    llvm::FunctionCallee declare_function(const std::string &name, llvm::FunctionType *type);
+    llvm::Function* declare_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier);
 
     /**
      * create a function prototype
@@ -450,8 +450,7 @@ public:
      */
     FunctionDeclaration* determine_destructor_for(
             BaseType* elem_type,
-            llvm::FunctionType*& func_type,
-            llvm::Value*& func_callee
+            llvm::Function*& func_data
     );
 
     /**
@@ -459,8 +458,7 @@ public:
      */
     FunctionDeclaration* determine_clear_fn_for(
             BaseType* elem_type,
-            llvm::FunctionType*& func_type,
-            llvm::Value*& func_callee
+            llvm::Function*& func_data
     );
 
     /**
@@ -483,8 +481,7 @@ public:
      */
     void destruct(
             llvm::Value* allocaInst,
-            llvm::FunctionType* destructor_func_type,
-            llvm::Value* destructor_func_callee,
+            llvm::Function* func_data,
             bool pass_self,
             llvm::Value* array_size,
             BaseType* elem_type,

@@ -104,7 +104,7 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
     return vec;
 }
 
-std::pair<llvm::Value*, llvm::FunctionType*>& MembersContainer::llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr) {
+llvm::Function*& MembersContainer::llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr) {
     return generic_llvm_data.at(decl).at(struct_itr).at(func_itr);
 }
 
@@ -132,17 +132,12 @@ void MembersContainer::early_declare_structural_generic_args(Codegen& gen) {
     }
 }
 
-std::pair<llvm::Value*, llvm::FunctionType*> MembersContainer::llvm_func_data(FunctionDeclaration* decl) {
-    std::pair<llvm::Value*, llvm::FunctionType*> data;
+llvm::Function* MembersContainer::llvm_func_data(FunctionDeclaration* decl) {
     if(!generic_params.empty()) {
-        const auto llvm_data = llvm_generic_func_data(decl, active_iteration, decl->active_iteration);
-        data.second = llvm_data.second;
-        data.first = llvm_data.first;
+        return llvm_generic_func_data(decl, active_iteration, decl->active_iteration);
     } else {
-        data.second = decl->known_func_type();
-        data.first = decl->llvm_callee();
+        return decl->llvm_func();
     }
-    return data;
 }
 
 void MembersContainer::llvm_build_inherited_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types) {

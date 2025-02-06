@@ -39,7 +39,7 @@ jobs:
         run: |
           $response = Invoke-RestMethod -Uri "https://api.github.com/repos/chemicallang/chemical-bootstrap/commits"
           $sha = $response[0].sha
-          echo "SHA=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CBSHA=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       # Step: Setup Cache for out-win folder
       - uses: actions/cache@v2

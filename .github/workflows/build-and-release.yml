@@ -10,29 +10,28 @@ jobs:
     name: Build on Windows
     runs-on: windows-latest
     steps:
-      # Step 1: Checkout this repository (this workflow file)
-      - name: Checkout repository
+      # Step 1: Checkout the chemical bootstrap repository
+      - name: Checkout chemical-bootstrap repository
         uses: actions/checkout@v3
+        with:
+          repository: chemicallang/chemical-bootstrap
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical-bootstrap
 
-      # Step 2: Disable git credential helper (asking for credential then fails on github)
-      - name: Disable Git credential helper
-        run: git config --global --unset credential.helper
+      # Step 2: Checkout chemical repository inside the chemical-bootstrap
+      - name: Checkout chemical repository inside chemical-bootstrap
+        uses: actions/checkout@v3
+        with:
+          repository: chemicallang/chemical
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical-bootstrap/chemical
 
-      # Step 3: Clone the chemical-bootstrap repo
-      - name: Clone chemical-bootstrap repository
-        run: git clone https://github.com/chemicallang/chemical-bootstrap.git
-
-      # Step 4: Inside chemical-bootstrap, clone the chemical repository
-      - name: Clone chemical repository inside chemical-bootstrap
-        working-directory: chemical-bootstrap
-        run: git clone https://github.com/chemicallang/chemical.git
-
-      # Step 5: Build the chemical-bootstrap project
+      # Step 3: Build the chemical-bootstrap project
       - name: Build chemical-bootstrap (Windows)
         working-directory: chemical-bootstrap
         run: .\build.bat
 
-      # Step 6: Build the chemical project executables via CMake
+      # Step 4: Build the chemical project executables via CMake
       - name: Build chemical project (Windows)
         working-directory: chemical-bootstrap/chemical
         run: |
@@ -43,13 +42,13 @@ jobs:
           cmake --build out\build\x64-release --config Release --target TCCCompiler
           cmake --build out\build\x64-release --config Release --target ChemicalLsp || true
 
-      # Step 7: Run the release script to create ZIP files
+      # Step 5: Run the release script to create ZIP files
       - name: Run release packaging script (Windows)
         working-directory: chemical-bootstrap/chemical
         # Assuming Git Bash is available on windows-latest (if not, you might need to install/setup MSYS2)
         run: bash release.sh
 
-      # Step 8: Upload the Windows ZIP files to the GitHub Release
+      # Step 6: Upload the Windows ZIP files to the GitHub Release
       - name: Upload windows-x64.zip to release
         uses: softprops/action-gh-release@v1
         with:
@@ -72,33 +71,38 @@ jobs:
     name: Build on Linux
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout this repository
-      - name: Checkout repository
-        uses: actions/checkout@v3
 
-      # Step 2: Install required dependencies (cmake, build tools, Boost, git, etc.)
+      # Step 1: Checkout the chemical bootstrap repository
+      - name: Checkout chemical-bootstrap repository
+        uses: actions/checkout@v3
+        with:
+          repository: chemicallang/chemical-bootstrap
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical-bootstrap
+
+      # Step 2: Checkout chemical repository inside the chemical-bootstrap
+      - name: Checkout chemical repository inside chemical-bootstrap
+        uses: actions/checkout@v3
+        with:
+          repository: chemicallang/chemical
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical-bootstrap/chemical
+
+
+      # Step 3: Install required dependencies (cmake, build tools, Boost, git, etc.)
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git libboost-all-dev
 
-      # Step 3: Clone the chemical-bootstrap repo
-      - name: Clone chemical-bootstrap repository
-        run: git clone https://github.com/chemicallang/chemical-bootstrap.git
-
-      # Step 4: Inside chemical-bootstrap, clone the chemical repo
-      - name: Clone chemical repository inside chemical-bootstrap
-        working-directory: chemical-bootstrap
-        run: git clone https://github.com/chemicallang/chemical.git
-
-      # Step 5: Build the chemical-bootstrap project (Linux)
+      # Step 4: Build the chemical-bootstrap project (Linux)
       - name: Build chemical-bootstrap (Linux)
         working-directory: chemical-bootstrap
         run: |
           chmod +x build
           ./build
 
-      # Step 6: Build the chemical project executables via CMake
+      # Step 5: Build the chemical project executables via CMake
       - name: Build chemical project (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
@@ -108,14 +112,14 @@ jobs:
           cmake --build out/build/x64-release --config Release --target TCCCompiler
           cmake --build out/build/x64-release --config Release --target ChemicalLsp || true
 
-      # Step 7: Run the release packaging script to create ZIP files
+      # Step 6: Run the release packaging script to create ZIP files
       - name: Run release packaging script (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
           chmod +x release.sh
           ./release.sh
 
-      # Step 8: Upload the Linux ZIP files to the GitHub Release
+      # Step 7: Upload the Linux ZIP files to the GitHub Release
       - name: Upload linux-x86-64.zip to release
         uses: softprops/action-gh-release@v1
         with:

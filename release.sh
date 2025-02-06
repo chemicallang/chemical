@@ -10,11 +10,35 @@
 
 version=v1.0.4
 
-# Targets to build
-linux_x86_64=true
-windows_x64=true
-linux_x86_64_tcc=true
-windows_x64_tcc=true
+# Determine the operating system using uname -s
+os_type="$(uname -s)"
+
+case "$os_type" in
+  Linux*)
+    echo "Detected Linux environment."
+    linux_x86_64=true
+    linux_x86_64_tcc=true
+    windows_x64=false
+    windows_x64_tcc=false
+    ;;
+  MINGW*|MSYS*|CYGWIN*)
+    echo "Detected Windows environment."
+    linux_x86_64=false
+    linux_x86_64_tcc=false
+    windows_x64=true
+    windows_x64_tcc=true
+    ;;
+  *)
+    echo "Error: Unknown operating system: $os_type" >&2
+    exit 1
+    ;;
+esac
+
+# Debug output for the packaging target variables
+echo "linux_x86_64: $linux_x86_64"
+echo "linux_x86_64_tcc: $linux_x86_64_tcc"
+echo "windows_x64: $windows_x64"
+echo "windows_x64_tcc: $windows_x64_tcc"
 
 # Command line parameter variables
 zip_all_at_end=true

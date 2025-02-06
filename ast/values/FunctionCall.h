@@ -188,7 +188,7 @@ public:
 
     llvm::FunctionType *llvm_linked_func_type(Codegen& gen);
 
-    std::pair<llvm::Value*, llvm::FunctionType*>* llvm_generic_func_data(ASTAllocator& allocator);
+    llvm::Function** llvm_generic_func_data(ASTAllocator& allocator);
 
     llvm::Value *llvm_linked_func_callee(Codegen& gen);
 

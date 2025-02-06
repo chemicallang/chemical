@@ -40,13 +40,17 @@ void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclarati
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
     for (auto& func: functions()) {
-        if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
+        if(is_static()) {
+            func->code_gen_declare(gen, this);
+        } else if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
             func->code_gen_declare(gen, this);
             func->code_gen_body(gen, this);
         }
     }
-    for (const auto& function: functions()) {
-        code_gen_for_users(gen, function);
+    if(!is_static()) {
+        for (const auto& function: functions()) {
+            code_gen_for_users(gen, function);
+        }
     }
 }
 

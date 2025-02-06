@@ -61,13 +61,18 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
     const auto info = get_overriding_info(function);
     if(info.first) {
         const auto interface = info.first->as_interface_def();
-        auto& user = interface->users[this];
-        auto llvm_data = user.find(info.second);
-        if(llvm_data == user.end()) {
-            return false;
+        if(interface->is_static()) {
+            function->code_gen_override_declare(gen, info.second);
+            function->code_gen_override(gen, info.second->llvm_func());
+        } else {
+            auto& user = interface->users[this];
+            auto llvm_data = user.find(info.second);
+            if (llvm_data == user.end()) {
+                return false;
+            }
+            function->set_llvm_data(llvm_data->second);
+            function->code_gen_override(gen, llvm_data->second);
         }
-        function->set_llvm_data(llvm_data->second, llvm_data->second->getFunctionType());
-        function->code_gen_override(gen, llvm_data->second);
         return true;
     } else {
         return false;
@@ -102,7 +107,7 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
             if (!declare) {
                 for (auto& inherits: inherited) {
                     const auto interface = inherits->type->linked_interface_def();
-                    if (interface) {
+                    if (interface && !interface->is_static()) {
                         interface->llvm_global_vtable(gen, this);
                     }
                 }
@@ -225,17 +230,13 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
         if(func->has_self_param()) {
             args.emplace_back(allocaInst);
         }
-        llvm::FunctionType* func_type;
-        llvm::Value* func_callee;
+        llvm::Function* func_data;
         if(is_generic()) {
-            const auto data = llvm_generic_func_data(func, active_iteration, func->active_iteration);
-            func_type = data.second;
-            func_callee = data.first;
+            func_data = llvm_generic_func_data(func, active_iteration, func->active_iteration);
         } else {
-            func_type = func->llvm_func_type(gen);
-            func_callee = func->llvm_pointer(gen);
+            func_data = func->llvm_func();
         }
-        gen.builder->CreateCall(func_type, func_callee, args);
+        gen.builder->CreateCall(func_data, args);
     }
 }
 

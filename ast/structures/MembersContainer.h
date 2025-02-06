@@ -52,7 +52,7 @@ public:
      * here the vector contains another vector, the contained corresponds to generic iterations of the
      * functions, so that generic functions can be stored inside generic structs
      */
-    std::unordered_map<FunctionDeclaration*, std::vector<std::vector<std::pair<llvm::Value*, llvm::FunctionType*>>>> generic_llvm_data;
+    std::unordered_map<FunctionDeclaration*, std::vector<std::vector<llvm::Function*>>> generic_llvm_data;
 #endif
 
     const std::vector<FunctionDeclaration*>& functions() {
@@ -371,14 +371,14 @@ public:
      * if function is not generic, just use 0 as func_itr, here if struct is generic, function will not be generic, unless
      * function has other generic parameters that are not present in struct
      */
-    std::pair<llvm::Value*, llvm::FunctionType*>& llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr);
+    llvm::Function*& llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr);
 
     /**
      * this uses active iteration of both the current members container and given function declaration
      * to get the function's data, works for both even if function is generic or this members container is generic
      * it'll always get the correct func callee and func type
      */
-    std::pair<llvm::Value*, llvm::FunctionType*> llvm_func_data(FunctionDeclaration* decl);
+    llvm::Function* llvm_func_data(FunctionDeclaration* decl);
 
     /**
      * add child index

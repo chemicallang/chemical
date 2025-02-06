@@ -171,6 +171,7 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
 }
 
 #define struct_passed_param_name "__chx_struct_ret_param_xx"
+#define static_interface_passed_param_name "__chx_interface_self"
 #define fn_call_struct_var_name "chx_fn_cl_struct"
 
 // without the parent node name
@@ -2786,24 +2787,27 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
         node_name(visitor, use.first);
         write(';');
     }
+    const auto is_static = def->is_static();
     for (auto& func: def->functions()) {
-        if(!func->has_self_param()) {
+        if(is_static || !func->has_self_param()) {
             declare_contained_func(this, func, false);
         }
     }
-    for(auto& use : def->users) {
-        def->active_user = use.first;
-        for (auto& func: def->functions()) {
-            if(func->has_self_param()) {
-                declare_contained_func(this, func, false, use.first);
+    if(!is_static) {
+        for (auto& use: def->users) {
+            def->active_user = use.first;
+            for (auto& func: def->functions()) {
+                if (func->has_self_param()) {
+                    declare_contained_func(this, func, false, use.first);
+                }
             }
         }
-    }
-    def->active_user = nullptr;
-    for(auto& user : def->users) {
-        const auto linked_struct = user.first;
-        if(linked_struct) {
-            create_v_table(visitor, def, linked_struct);
+        def->active_user = nullptr;
+        for(auto& user : def->users) {
+            const auto linked_struct = user.first;
+            if(linked_struct) {
+                create_v_table(visitor, def, linked_struct);
+            }
         }
     }
 }
@@ -3510,15 +3514,21 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
 //    std::string self_pointer_name;
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     unsigned i = 0;
-    auto write_self_param_now = [decl, &visitor, param, &i, overrides, def]() {
+    const auto interface = def && overrides ? def->get_overriding_interface(decl) : nullptr;
+    auto write_self_param_now = [decl, &visitor, param, &i, overrides, def, interface]() {
         if(param && should_void_pointer_to_self(param->type, param->name, 0, overrides)) {
 //            self_pointer_name = "__ch_self_pointer_329283";
 //            visitor->write("void* ");
-            visitor.write("struct ");
-            node_name(visitor, def);
-            visitor.write('*');
-            visitor.space();
-            visitor.write(param->name);
+            if(interface && interface->is_static()) {
+                visitor.write("void* ");
+                visitor.write(static_interface_passed_param_name);
+            } else {
+                visitor.write("struct ");
+                node_name(visitor, def);
+                visitor.write('*');
+                visitor.space();
+                visitor.write(param->name);
+            }
 //            visitor->write(self_pointer_name);
             if(decl->params.size() > 1) {
                 visitor.write(", ");
@@ -3541,16 +3551,16 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     }
     visitor.write('{');
     visitor.indentation_level+=1;
-//    if(!self_pointer_name.empty() && def) {
-//        visitor->new_line_and_indent();
-//        visitor->write("struct ");
-//        struct_name(visitor, def);
-//        visitor->write('*');
-//        visitor->space();
-//        visitor->write("self = ");
-//        visitor->write(self_pointer_name);
-//        visitor->write(';');
-//    }
+    if(interface && interface->is_static()) {
+        visitor.new_line_and_indent();
+        visitor.write("struct ");
+        struct_name(visitor, def);
+        visitor.write('*');
+        visitor.space();
+        visitor.write("self = ");
+        visitor.write(static_interface_passed_param_name);
+        visitor.write(';');
+    }
     const auto is_destructor = decl->is_delete_fn();
     const auto is_clear_fn = decl->is_clear_fn();
     const auto is_copy_fn = decl->is_copy_fn();

@@ -1044,11 +1044,10 @@ void AssignStatement::code_gen(Codegen &gen) {
             if(!is_ref_moved) {
                 // we must destruct the previous value before we memcpy this value into the pointer, because lhs ref is moved
                 // this is set by symbol resolver, to indicate that this value should be destructed before assigning new moved value
-                llvm::FunctionType* llvm_func_type;
-                llvm::Value* llvm_func_callee;
-                auto destr_fn = gen.determine_destructor_for(lhs_type, llvm_func_type, llvm_func_callee);
+                llvm::Function* llvm_func_data;
+                auto destr_fn = gen.determine_destructor_for(lhs_type, llvm_func_data);
                 if(destr_fn) {
-                    gen.builder->CreateCall(llvm_func_type, llvm_func_callee, { pointer });
+                    gen.builder->CreateCall(llvm_func_data, { pointer });
                 }
             }
             if(gen.move_by_memcpy(lhs_type, value, pointer, value->llvm_value(gen))) {

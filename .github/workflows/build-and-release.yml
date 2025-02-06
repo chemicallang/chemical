@@ -14,21 +14,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Clone the chemical-bootstrap repo
+      # Step 2: Disable git credential helper (asking for credential then fails on github)
+      - name: Disable Git credential helper
+        run: git config --global --unset credential.helper
+
+      # Step 3: Clone the chemical-bootstrap repo
       - name: Clone chemical-bootstrap repository
         run: git clone https://github.com/chemicallang/chemical-bootstrap.git
 
-      # Step 3: Inside chemical-bootstrap, clone the chemical repository
+      # Step 4: Inside chemical-bootstrap, clone the chemical repository
       - name: Clone chemical repository inside chemical-bootstrap
         working-directory: chemical-bootstrap
         run: git clone https://github.com/chemicallang/chemical.git
 
-      # Step 4: Build the chemical-bootstrap project
+      # Step 5: Build the chemical-bootstrap project
       - name: Build chemical-bootstrap (Windows)
         working-directory: chemical-bootstrap
         run: .\build.bat
 
-      # Step 5: Build the chemical project executables via CMake
+      # Step 6: Build the chemical project executables via CMake
       - name: Build chemical project (Windows)
         working-directory: chemical-bootstrap/chemical
         run: |
@@ -39,13 +43,13 @@ jobs:
           cmake --build out\build\x64-release --config Release --target TCCCompiler
           cmake --build out\build\x64-release --config Release --target ChemicalLsp || true
 
-      # Step 6: Run the release script to create ZIP files
+      # Step 7: Run the release script to create ZIP files
       - name: Run release packaging script (Windows)
         working-directory: chemical-bootstrap/chemical
         # Assuming Git Bash is available on windows-latest (if not, you might need to install/setup MSYS2)
         run: bash release.sh
 
-      # Step 7: Upload the Windows ZIP files to the GitHub Release
+      # Step 8: Upload the Windows ZIP files to the GitHub Release
       - name: Upload windows-x64.zip to release
         uses: softprops/action-gh-release@v1
         with:

@@ -26,10 +26,16 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap/chemical
 
+      # Step 2: Setup developer command prompt (as build.bat requires it)
+      - name: Set up Visual Studio Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86_64
+
       # Step 3: Build the chemical-bootstrap project
       - name: Build chemical-bootstrap (Windows)
         working-directory: chemical-bootstrap
-        run: .\build.bat
+        run: .\build.bat native-windows-gnu native
 
       # Step 4: Build the chemical project executables via CMake
       - name: Build chemical project (Windows)
@@ -88,7 +94,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap/chemical
 
-
       # Step 3: Install required dependencies (cmake, build tools, Boost, git, etc.)
       - name: Install Dependencies
         run: |
@@ -100,7 +105,7 @@ jobs:
         working-directory: chemical-bootstrap
         run: |
           chmod +x build
-          ./build
+          ./build native-linux-gnu native
 
       # Step 5: Build the chemical project executables via CMake
       - name: Build chemical project (Linux)

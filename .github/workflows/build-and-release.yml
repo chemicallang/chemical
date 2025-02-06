@@ -34,8 +34,10 @@ jobs:
         run: |
           mkdir out\release
           rem Configure using CMake (using a Visual Studio generator; adjust if needed)
-          cmake -S . -B out\release -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release
-          cmake --build out\release --config Release
+          cmake -S . -B out\build\x64-release -A x64 -DCMAKE_BUILD_TYPE=Release
+          cmake --build out\build\x64-release --config Release --target Compiler
+          cmake --build out\build\x64-release --config Release --target TCCCompiler
+          cmake --build out\build\x64-release --config Release --target ChemicalLsp || true
 
       # Step 6: Run the release script to create ZIP files
       - name: Run release packaging script (Windows)
@@ -74,7 +76,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake git libboost-all-dev
+          sudo apt-get install -y build-essential cmake git libboost-all
 
       # Step 3: Clone the chemical-bootstrap repo
       - name: Clone chemical-bootstrap repository
@@ -97,8 +99,10 @@ jobs:
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir -p out/release
-          cmake -S . -B out/release -DCMAKE_BUILD_TYPE=Release
-          cmake --build out/release
+          cmake -S . -B out/build/x64-release -DCMAKE_BUILD_TYPE=Release
+          cmake --build out/build/x64-release --config Release --target Compiler
+          cmake --build out/build/x64-release --config Release --target TCCCompiler
+          cmake --build out/build/x64-release --config Release --target ChemicalLsp || true
 
       # Step 7: Run the release packaging script to create ZIP files
       - name: Run release packaging script (Linux)

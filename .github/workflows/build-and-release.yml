@@ -124,7 +124,7 @@ jobs:
 
       - name: Save windows-x64.zip as artifact if already exists
         if: steps.check_windows_x64.outputs.exists == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-x64.zip
           path: chemical-bootstrap/chemical/out/release/windows-x64.zip
@@ -156,7 +156,7 @@ jobs:
 
       - name: Save windows-x64-tcc.zip as artifact if already exists
         if: steps.check_windows_x64_tcc.outputs.exists == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-x64-tcc.zip
           path: chemical-bootstrap/chemical/out/release/windows-x64-tcc.zip
@@ -281,7 +281,7 @@ jobs:
 
       - name: Save linux-x86-64.zip as artifact if already exists
         if: steps.check_linux_x64.outputs.exists == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-x86-64.zip
           path: chemical-bootstrap/chemical/out/release/linux-x86-64.zip
@@ -312,7 +312,7 @@ jobs:
 
       - name: Save linux-x86-64-tcc.zip as artifact if already exists
         if: steps.check_linux_x64_tcc.outputs.exists == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-x86-64-tcc.zip
           path: chemical-bootstrap/chemical/out/release/linux-x86-64-tcc.zip

@@ -39,14 +39,14 @@ jobs:
         run: |
           $response = Invoke-RestMethod -Uri "https://api.github.com/repos/chemicallang/chemical-bootstrap/commits"
           $sha = $response[0].sha
-          echo "CBSHA=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "::set-output name=sha::$sha"
 
       # Setup Cache for out-win folder
       - uses: actions/cache@v2
         id: bootstrap-cache
         with:
           path: ./chemical-bootstrap/out-win/
-          key: ${{ runner.os }}-${{ env.CBSHA }}
+          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
       # Build the chemical-bootstrap project (only if not cached)
       - name: Build chemical-bootstrap (Windows)
@@ -132,14 +132,14 @@ jobs:
         id: get-sha
         run: |
           SHA=$(curl -s https://api.github.com/repos/chemicallang/chemical-bootstrap/commits | jq -r '.[0].sha')
-          echo "CBSHA=$SHA" >> $GITHUB_ENV
+          echo "::set-output name=sha::$SHA"
 
       # Setup Cache for out folder
       - uses: actions/cache@v2
         id: bootstrap-cache
         with:
           path: ./chemical-bootstrap/out/
-          key: ${{ runner.os }}-${{ env.CBSHA }}
+          key: ${{ runner.os }}--${{ steps.get-sha.outputs.sha }}
 
       # Build the chemical-bootstrap project (Linux) (only if not cached)
       - name: Build chemical-bootstrap (Linux)

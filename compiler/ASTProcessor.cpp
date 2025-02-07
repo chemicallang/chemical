@@ -318,7 +318,6 @@ void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int f
             resolver->comptime_scope.loc_man,
             job_allocator,
             mod_allocator,
-            resolver->comptime_scope,
             resolver->is64Bit,
             &binder
     );

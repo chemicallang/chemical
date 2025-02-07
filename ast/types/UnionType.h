@@ -39,10 +39,6 @@ public:
         return ASTNodeKind::UnionType;
     }
 
-    ValueType value_type() const {
-        return ValueType::Union;
-    }
-
     uint64_t byte_size(bool is64Bit) {
         return largest_member_byte_size(is64Bit);
     }

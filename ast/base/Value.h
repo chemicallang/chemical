@@ -7,8 +7,7 @@
 #pragma once
 
 #include "ASTAny.h"
-#include "ASTAllocator.h"
-#include "ValueType.h"
+#include "ASTAllocator.h""
 #include "ast/utils/Operation.h"
 #include <vector>
 #include <memory>

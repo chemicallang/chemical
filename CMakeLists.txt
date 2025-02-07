@@ -168,8 +168,6 @@ set(COMMON_SOURCES
         ast/values/VariableIdentifier.h
         ast/values/Negative.h
         ast/base/InterpretScope.h
-        ast/base/ValueType.h
-        ast/utils/ValueType.cpp
         ast/base/GlobalInterpretScope.h
         ast/base/InterpretScope.cpp
         ast/base/GlobalInterpretScope.cpp

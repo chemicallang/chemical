@@ -153,11 +153,6 @@ public:
         return BaseTypeKind::Function;
     }
 
-    [[nodiscard]]
-    ValueType value_type() const {
-        return ValueType::Lambda;
-    }
-
     bool isInVarArgs(unsigned index) const;
 
     unsigned int expectedArgsSize();

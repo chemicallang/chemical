@@ -39,11 +39,6 @@ public:
         return ASTNodeKind::StructType;
     }
 
-    [[nodiscard]]
-    ValueType value_type() const {
-        return ValueType::Struct;
-    }
-
     BaseType* copy(ASTAllocator &allocator) const override {
         return new (allocator.allocate<StructType>()) StructType(name, parent_node, location);
     }

@@ -18,12 +18,11 @@ Parser::Parser(
         LocationManager& loc_man,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
-        GlobalInterpretScope& comptime_scope,
         bool is64Bit,
         CompilerBinder* binder
 ) : file_id(file_id), stored_file_path(file_path), token(start_token),
     loc_man(loc_man), global_allocator(global_allocator),
-    mod_allocator(mod_allocator), is64Bit(is64Bit), binder(binder), comptime_scope(comptime_scope)
+    mod_allocator(mod_allocator), is64Bit(is64Bit), binder(binder)
 {
 
 }

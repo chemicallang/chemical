@@ -1,38 +1,59 @@
-#!/bin/sh
-
-# Scripts required to build the project are broken at the moment
-
-#"D:/Software/JetBrains/CLion 2023.3.4/bin/cmake/win/x64/bin/cmake.exe" -DCMAKE_C_COMPILER="cl.exe" -DCMAKE_CXX_COMPILER="cl.exe" -DCMAKE_BUILD_TYPE=Release -S D:/chemical -B D:/chemical/out/build/x64-release --fresh
-
-#"D:/Software/JetBrains/CLion 2023.3.4/bin/cmake/win/x64/bin/cmake.exe" --build D:/chemical/out/build/x64-release
-
-# Assembling Release from already built package
+#!/bin/bash
 
 version=v1.0.4
 
 # Determine the operating system using uname -s
 os_type="$(uname -s)"
-
 case "$os_type" in
   Linux*)
     echo "Detected Linux environment."
-    linux_x86_64=true
-    linux_x86_64_tcc=true
-    windows_x64=false
-    windows_x64_tcc=false
+    IS_WINDOWS=false
     ;;
   MINGW*|MSYS*|CYGWIN*)
     echo "Detected Windows environment."
-    linux_x86_64=false
-    linux_x86_64_tcc=false
-    windows_x64=true
-    windows_x64_tcc=true
+    IS_WINDOWS=true
     ;;
   *)
     echo "Error: Unknown operating system: $os_type" >&2
     exit 1
     ;;
 esac
+
+# Functions
+
+zip_folder() {
+    local folder_name=$1
+    local output_name=$2
+    if [ "$IS_WINDOWS" = true ]; then
+        powershell.exe -Command "Compress-Archive -Path '${folder_name}/*' -DestinationPath '${output_name}'"
+    else
+        zip -r "$output_name" "$folder_name"/*
+    fi
+}
+
+## Unzip function
+unzip_folder() {
+    local archive_name=$1
+    local destination_folder=$2
+    if [ "$IS_WINDOWS" = true ]; then
+        powershell.exe -Command "Expand-Archive -Path '${archive_name}' -DestinationPath '${destination_folder}' -Force"
+    else
+        unzip "$archive_name" -d "$destination_folder"
+    fi
+}
+
+# Use IS_WINDOWS to set platform-specific variables
+if [ "$IS_WINDOWS" = true ]; then
+    windows_x64=true
+    windows_x64_tcc=true
+    linux_x86_64=false
+    linux_x86_64_tcc=false
+else
+    windows_x64=false
+    windows_x64_tcc=false
+    linux_x86_64=true
+    linux_x86_64_tcc=true
+fi
 
 # Debug output for the packaging target variables
 echo "linux_x86_64: $linux_x86_64"
@@ -97,7 +118,7 @@ if [ "$windows_x64" = true ]; then
   # copy the libs directory
   cp -r lang/libs $windows64dir/libs/
   # unzip the tinycc package
-  unzip lib/libtcc/win-x64/package.zip -d $windows64dir/packages/tcc
+  unzip_folder lib/libtcc/win-x64/package.zip $windows64dir/packages/tcc
 fi
 
 # -------------------------- linux x86-64
@@ -114,7 +135,7 @@ if [ "$linux_x86_64" = true ]; then
   # copy the libs directory
   cp -r lang/libs $linux64dir/libs
   # unzip the tinycc package
-  unzip lib/libtcc/lin-x64/package.zip -d $linux64dir/packages/tcc
+  unzip_folder lib/libtcc/lin-x64/package.zip $linux64dir/packages/tcc
 fi
 
 # -------------------------- windows x64 tcc
@@ -131,7 +152,7 @@ if [ "$windows_x64_tcc" = true ]; then
   # copy the libs directory
   cp -r lang/libs $Win64TccDir/libs
   # unzip the tinycc package
-  unzip lib/libtcc/win-x64/package.zip -d $Win64TccDir/packages/tcc
+  unzip_folder lib/libtcc/win-x64/package.zip $Win64TccDir/packages/tcc
 fi
 
 # -------------------------- linux x86-64 tcc
@@ -148,7 +169,7 @@ if [ "$linux_x86_64_tcc" = true ]; then
   # copy the libs directory
   cp -r lang/libs $Lin64TccDir/libs
   # unzip the tinycc package
-  unzip lib/libtcc/lin-x64/package.zip -d $Lin64TccDir/packages/tcc
+  unzip_folder lib/libtcc/lin-x64/package.zip $Lin64TccDir/packages/tcc
 fi
 
 # ------------------------- done
@@ -157,16 +178,16 @@ if [ "$zip_all_at_end" = true ]; then
     echo "Zipping all";
     cd out/release || return
     if [ "$windows_x64" = true ]; then
-      zip -r windows-x64.zip $win64dirname/*
+      zip_folder $win64dirname windows-x64.zip
     fi
     if [ "$linux_x86_64" = true ]; then
-      zip -r linux-x86-64.zip $lin64dirname/*
+      zip_folder $lin64dirname linux-x86-64.zip
     fi
     if [ "$windows_x64_tcc" = true ]; then
-     zip -r windows-x64-tcc.zip $Win64TccDirName/*
+     zip_folder $Win64TccDirName windows-x64-tcc.zip
     fi
     if [ "$linux_x86_64_tcc" = true ]; then
-      zip -r linux-x86-64-tcc.zip $Lin64TccDirName/*
+      zip_folder $Lin64TccDirName linux-x86-64-tcc.zip
     fi
     cd ../../
 fi

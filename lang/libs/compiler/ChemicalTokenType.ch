@@ -58,7 +58,7 @@ enum ChemicalTokenType {
     AlignOfKw,
     ImportKw,
     FuncKw,
-    TypealiasKw,
+    TypeKw,
     StructKw,
     UnionKw,
     VariantKw,

@@ -11,7 +11,6 @@
 #include "std/common.h"
 #include "ASTAny.h"
 #include "BaseTypeKind.h"
-#include "ValueType.h"
 #include "std/hybrid_ptr.h"
 #include "ASTNodeKind.h"
 #include "AccessSpecifier.h"

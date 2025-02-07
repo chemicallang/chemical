@@ -3,7 +3,6 @@
 #pragma once
 
 #include "BaseTypeKind.h"
-#include "ValueType.h"
 #include <string>
 #include <memory>
 #include "Visitor.h"

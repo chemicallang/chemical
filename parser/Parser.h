@@ -81,11 +81,6 @@ public:
     ASTAllocator& mod_allocator;
 
     /**
-     * interpret scope can be used to evaluate expressions during parsing
-     */
-    GlobalInterpretScope& comptime_scope;
-
-    /**
      * the ast we're generating, is it for a 64 bit target
      */
     bool is64Bit;
@@ -120,7 +115,6 @@ public:
         LocationManager& loc_man,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
-        GlobalInterpretScope& scope,
         bool is64Bit,
         CompilerBinder* binder = nullptr
     );

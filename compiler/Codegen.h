@@ -12,7 +12,6 @@
 #include "llvmfwd.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/BaseTypeKind.h"
-#include "ast/base/ValueType.h"
 #include "ASTDiagnoser.h"
 #include "OutputMode.h"
 #include <unordered_map>

@@ -47,6 +47,8 @@ jobs:
         with:
           path: ./chemical-bootstrap/out-win/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
       # Build the chemical-bootstrap project (only if not cached)
       - name: Build chemical-bootstrap (Windows)
@@ -141,6 +143,8 @@ jobs:
         with:
           path: ./chemical-bootstrap/out/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
       # Build the chemical-bootstrap project (Linux) (only if not cached)
       - name: Build chemical-bootstrap (Linux)

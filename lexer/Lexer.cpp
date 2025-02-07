@@ -569,9 +569,6 @@ Token Lexer::getNextToken() {
         str.append(current);
         read_id(str, provider);
         auto view = str.current_view();
-        if(view == "typealias") {
-            return Token(TokenType::Unexpected, { nullptr, 0 }, pos);
-        }
         auto found = keywords.find(view);
         if(found != keywords.end()) {
             str.deallocate();

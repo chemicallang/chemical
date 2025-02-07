@@ -72,6 +72,8 @@ jobs:
           cmake --build out\build\x64-release --config Release --target Compiler
           cmake --build out\build\x64-release --config Release --target TCCCompiler
           cmake --build out\build\x64-release --config Release --target ChemicalLsp || true
+        env:
+          BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
 
       # Run the release script to create ZIP files
       - name: Run release packaging script (Windows)
@@ -166,6 +168,8 @@ jobs:
           cmake --build out/build/x64-release --config Release --target Compiler
           cmake --build out/build/x64-release --config Release --target TCCCompiler
           cmake --build out/build/x64-release --config Release --target ChemicalLsp || true
+        env:
+          BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
 
       # Run the release packaging script to create ZIP files
       - name: Run release packaging script (Linux)

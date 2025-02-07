@@ -1,6 +1,6 @@
 import "/test.ch"
 
-typealias direct_int = int
+type direct_int = int
 
 func check_direct_implicit_arg(&direct_int) : int {
     return direct_int

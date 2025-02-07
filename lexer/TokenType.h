@@ -62,7 +62,7 @@ enum class TokenType {
     AlignOfKw,
     ImportKw,
     FuncKw,
-    TypealiasKw,
+    TypeKw,
     StructKw,
     UnionKw,
     VariantKw,

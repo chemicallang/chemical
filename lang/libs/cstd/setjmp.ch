@@ -9,7 +9,7 @@
  * TODO jmp_bug type not defined as it's implementation is unknown
  * @see https://en.cppreference.com/w/c/program/jmp_buf
  */
-public typealias jmp_buf = int
+public type jmp_buf = int
 
 /**
  * Loads the execution context env saved by a previous call to setjmp. This function does not return. Control is transferred to the call site of the macro setjmp that set up env. That setjmp then returns the value, passed as the status.

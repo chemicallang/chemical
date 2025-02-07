@@ -37,7 +37,7 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator
             return (ASTNode*) parseVarInitializationTokens(allocator, spec);
         case TokenType::InterfaceKw:
             return (ASTNode*) parseInterfaceStructureTokens(allocator, spec);
-        case TokenType::TypealiasKw:
+        case TokenType::TypeKw:
             return (ASTNode*) parseTypealiasStatement(allocator, spec);
         case TokenType::NamespaceKw:
             return (ASTNode*) parseNamespace(allocator, spec);
@@ -81,7 +81,7 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
             return (ASTNode*) parseUnionStructureTokens(allocator, AccessSpecifier::Internal);
         case TokenType::VariantKw:
             return (ASTNode*) parseVariantStructureTokens(allocator, AccessSpecifier::Internal);
-        case TokenType::TypealiasKw:
+        case TokenType::TypeKw:
             return (ASTNode*) parseTypealiasStatement(allocator, AccessSpecifier::Internal);
         case TokenType::InterfaceKw:
             return (ASTNode*) parseInterfaceStructureTokens(allocator, AccessSpecifier::Internal);
@@ -144,7 +144,7 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             return (ASTNode*) parseIfStatement(allocator, is_value, parse_value_node, false);
         case TokenType::TryKw:
             return (ASTNode*) parseTryCatch(allocator);
-        case TokenType::TypealiasKw:
+        case TokenType::TypeKw:
             return (ASTNode*) parseTypealiasStatement(allocator, AccessSpecifier::Internal);
         case TokenType::SwitchKw:
             return (ASTNode*) parseSwitchStatementBlock(allocator, is_value, parse_value_node);

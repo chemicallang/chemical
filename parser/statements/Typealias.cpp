@@ -5,7 +5,7 @@
 
 TypealiasStatement* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifier specifier) {
     auto& tok = *token;
-    if(tok.type == TokenType::TypealiasKw) {
+    if(tok.type == TokenType::TypeKw) {
         token++;
         auto id = consumeIdentifierOrKeyword();
         if(!id) {

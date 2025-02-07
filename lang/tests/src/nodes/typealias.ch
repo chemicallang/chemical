@@ -1,12 +1,12 @@
 import "/test.ch"
 
-typealias SimpleFunc = () => int;
+type SimpleFunc = () => int;
 
 func take_simple_func(simple : SimpleFunc) : int {
     return simple();
 }
 
-typealias SimpleFunc2 = () => void;
+type SimpleFunc2 = () => void;
 
 func take_simple_func2(simple : SimpleFunc2) {
     simple();

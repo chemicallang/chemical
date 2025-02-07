@@ -13,7 +13,7 @@ namespace cool {
     func pair2_sum(p : *Pair2) : int {
         return p.a + p.b;
     }
-    typealias kinda_int = int
+    type kinda_int = int
 }
 
 namespace cool {

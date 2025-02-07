@@ -1,5 +1,5 @@
-typealias uint32_t = uint
-typealias uint8_t = uchar
+type uint32_t = uint
+type uint8_t = uchar
 
 if(def.is_big_endian) {
     func htole32(value : uint32_t) : uint32_t {

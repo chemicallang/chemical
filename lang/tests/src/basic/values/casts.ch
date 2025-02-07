@@ -1,6 +1,6 @@
 import "/test.ch"
 
-typealias ubigint_typealias = ubigint;
+type ubigint_typealias = ubigint;
 
 func can_cast_to_intN_typealias(value : ushort) : ubigint_typealias {
     return value as ubigint_typealias

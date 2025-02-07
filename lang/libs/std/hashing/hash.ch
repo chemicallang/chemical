@@ -18,9 +18,9 @@ func <T> __wrap_murmur_hash(value : T) : uint {
 
 @comptime
 func <T> hash(value : T) : uint {
-     typealias ptr = *char
-     typealias ptr_any = *any
-     typealias ref_any = &any
+     type ptr = *char
+     type ptr_any = *any
+     type ref_any = &any
     if(T is char || T is uchar) {
         return compiler::wrap(value as uint)
     } else if(T is short || T is ushort) {

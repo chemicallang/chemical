@@ -393,6 +393,11 @@ public:
     UnionType* parseUnionType(ASTAllocator& allocator);
 
     /**
+     * expression type only works with logical && and || operators
+     */
+    BaseType* parseBracketedType(ASTAllocator& allocator, BaseType* firstType, SourceLocation start);
+
+    /**
      * parse a single type
      */
     BaseType* parseType(ASTAllocator& allocator);

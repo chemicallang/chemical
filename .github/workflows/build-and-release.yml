@@ -39,7 +39,7 @@ jobs:
         working-directory: chemical-bootstrap
         run: |
           $sha = (git rev-parse HEAD).Trim()
-          echo "::set-output name=sha::$sha"
+          echo "sha=$sha" >> $env:GITHUB_OUTPUT
 
       # Setup Cache for out-win folder
       - uses: actions/cache@v2
@@ -133,7 +133,7 @@ jobs:
         working-directory: chemical-bootstrap
         run: |
           SHA=$(git rev-parse HEAD | xargs)
-          echo "::set-output name=sha::$SHA"
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
 
       # Setup Cache for out folder
       - uses: actions/cache@v2

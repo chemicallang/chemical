@@ -6,7 +6,7 @@
 // TODO these functions should be tested
 
 // float complex is being passed as i64 in @crealf(i64)
-public typealias float_complex = bigint;
+public type float_complex = bigint;
 
 // double complex is being passed as pointer to struct
 public struct double_complex {

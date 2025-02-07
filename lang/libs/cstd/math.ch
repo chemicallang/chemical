@@ -25,9 +25,9 @@ public func fabsl(arg : longdouble) : longdouble
 /**
  * TODO
  */
-public typealias _Decimal32 = float
-public typealias _Decimal64 = double
-public typealias _Decimal128 = longdouble
+public type _Decimal32 = float
+public type _Decimal64 = double
+public type _Decimal128 = longdouble
 
 /**
  * Computes the absolute value of a floating-point value arg.
@@ -2066,12 +2066,12 @@ func copysignl(x : float128, y : float128) : float128
 /**
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
-public typealias float_t = float
+public type float_t = float
 
 /**
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
-public typealias double_t = double
+public type double_t = double
 
 /**
  * @see https://en.cppreference.com/w/c/types/limits/FLT_EVAL_METHOD

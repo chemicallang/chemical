@@ -9,9 +9,9 @@ const WSADESCRIPTION_LEN = 256
 @comptime
 const WSASYS_STATUS_LEN = 128
 
-typealias SOCKET = uint
+type SOCKET = uint
 
-typealias ADDRESS_FAMILY = ushort
+type ADDRESS_FAMILY = ushort
 
 struct sockaddr {
     // TODO this sa_family field exists in windows nt only
@@ -62,8 +62,8 @@ const MSG_PEEK = 0x2
 /** send without using routing tables */
 const MSG_DONTROUTE = 0x4
 
-typealias BYTE = char
-typealias WORD = ushort
+type BYTE = char
+type WORD = ushort
 
 @comptime
 func MAKEWORD(low : BYTE , high : BYTE) : WORD {

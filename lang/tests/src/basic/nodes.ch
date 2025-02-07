@@ -232,7 +232,7 @@ func test_nodes() {
         return arr[0][0] == 1 && arr[0][1] == 2 && arr[1][0] == 3 && arr[1][1] == 4;
     })
     test("typealias statement", () => {
-        typealias myint = int;
+        type myint = int;
         var y : myint = 5;
         return y == 5;
     })

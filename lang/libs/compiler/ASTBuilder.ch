@@ -350,11 +350,11 @@ struct SymResNode : ASTNode {}
 
 struct SymResValue : Value {}
 
-typealias SymResNodeDeclarationFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data_ptr : **mut void) => void;
+type SymResNodeDeclarationFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data_ptr : **mut void) => void;
 
-typealias SymResNodeReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut ASTNode
+type SymResNodeReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut ASTNode
 
-typealias SymResValueReplacementFn= (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut Value
+type SymResValueReplacementFn= (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut Value
 
 @compiler.interface
 public struct ASTBuilder : BatchAllocator {

@@ -1,16 +1,18 @@
-name: Build and Deploy on Release
+name: Build and Deploy
 
-# Trigger when a release is published
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - main  # adjust as needed
 
 jobs:
   build-windows:
     name: Build on Windows
     runs-on: windows-latest
+    # Only run when the commit message contains "releaseIt"
+    if: contains(github.event.head_commit.message, 'releaseIt')
     steps:
-      # Checkout the chemical bootstrap repository
+      # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
         uses: actions/checkout@v3
         with:
@@ -26,7 +28,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap/chemical
 
-      # Setup developer command prompt (as build.bat requires it)
+      # ––– Setup build environment –––
       - name: Set up Visual Studio Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -81,31 +83,91 @@ jobs:
         # Assuming Git Bash is available on windows-latest (if not, you might need to install/setup MSYS2)
         run: bash release.sh
 
-      # Upload the Windows ZIP files to the GitHub Release
-      - name: Upload windows-x64.zip to release
+      # ––– Get information about the latest release –––
+      - name: Get latest release info
+        id: get_latest_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const release = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            core.setOutput("tag", release.data.tag_name);
+            core.setOutput("id", release.data.id);
+
+      # ––– For each archive we check whether it is already attached –––
+      # Example for windows-x64.zip:
+      - name: Check if windows-x64.zip exists in latest release
+        id: check_windows_x64
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+            const exists = release.assets.some(asset => asset.name === 'windows-x64.zip');
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload windows-x64.zip to release if not exists
+        if: steps.check_windows_x64.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
           name: windows-x64.zip
           files: chemical-bootstrap/chemical/out/release/windows-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload windows-x64-tcc.zip to release
+      - name: Save windows-x64.zip as artifact if already exists
+        if: steps.check_windows_x64.outputs.exists == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-x64.zip
+          path: chemical-bootstrap/chemical/out/release/windows-x64.zip
+
+      # Repeat similar steps for the second Windows archive:
+      - name: Check if windows-x64-tcc.zip exists in latest release
+        id: check_windows_x64_tcc
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+            const exists = release.assets.some(asset => asset.name === 'windows-x64-tcc.zip');
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload windows-x64-tcc.zip to release if not exists
+        if: steps.check_windows_x64_tcc.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
           name: windows-x64-tcc.zip
           files: chemical-bootstrap/chemical/out/release/windows-x64-tcc.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Save windows-x64-tcc.zip as artifact if already exists
+        if: steps.check_windows_x64_tcc.outputs.exists == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-x64-tcc.zip
+          path: chemical-bootstrap/chemical/out/release/windows-x64-tcc.zip
+
   build-linux:
     name: Build on Linux
     runs-on: ubuntu-latest
+    # Only run when the commit message contains "releaseIt"
+    if: contains(github.event.head_commit.message, 'releaseIt')
     steps:
-
-      # Checkout the chemical bootstrap repository
+      # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
         uses: actions/checkout@v3
         with:
@@ -121,7 +183,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap/chemical
 
-      # Install required dependencies (cmake, build tools, Boost, git, etc.)
+      # ––– Install dependencies –––
       - name: Install Dependencies
         run: |
           sudo apt-get update
@@ -179,21 +241,78 @@ jobs:
           chmod +x release.sh
           ./release.sh
 
-      # Upload the Linux ZIP files to the GitHub Release
-      - name: Upload linux-x86-64.zip to release
+      # ––– Get latest release info –––
+      - name: Get latest release info
+        id: get_latest_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const release = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            core.setOutput("tag", release.data.tag_name);
+            core.setOutput("id", release.data.id);
+
+      # ––– Check and (conditionally) upload Linux archives –––
+      - name: Check if linux-x86-64.zip exists in latest release
+        id: check_linux_x64
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
+            });
+            const exists = release.assets.some(asset => asset.name === 'linux-x86-64.zip');
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload linux-x86-64.zip to release if not exists
+        if: steps.check_linux_x64.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
           name: linux-x86-64.zip
           files: chemical-bootstrap/chemical/out/release/linux-x86-64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload linux-x86-64-tcc.zip to release
+      - name: Save linux-x86-64.zip as artifact if already exists
+        if: steps.check_linux_x64.outputs.exists == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-x86-64.zip
+          path: chemical-bootstrap/chemical/out/release/linux-x86-64.zip
+
+      - name: Check if linux-x86-64-tcc.zip exists in latest release
+        id: check_linux_x64_tcc
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
+            });
+            const exists = release.assets.some(asset => asset.name === 'linux-x86-64-tcc.zip');
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload linux-x86-64-tcc.zip to release if not exists
+        if: steps.check_linux_x64_tcc.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
           name: linux-x86-64-tcc.zip
           files: chemical-bootstrap/chemical/out/release/linux-x86-64-tcc.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save linux-x86-64-tcc.zip as artifact if already exists
+        if: steps.check_linux_x64_tcc.outputs.exists == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-x86-64-tcc.zip
+          path: chemical-bootstrap/chemical/out/release/linux-x86-64-tcc.zip

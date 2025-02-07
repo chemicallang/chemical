@@ -10,6 +10,7 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/AccessChain.h"
 #include "ast/types/LinkedValueType.h"
+#include "ast/types/ExpressionType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
@@ -276,6 +277,33 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
     }
 }
 
+BaseType* Parser::parseBracketedType(ASTAllocator& allocator, BaseType* firstType, SourceLocation loc) {
+    const auto type = token->type;
+    if(type == TokenType::RBracket) {
+        token++;
+        return firstType;
+    }
+    const auto isLogicalAnd = type == TokenType::LogicalAndSym;
+    if(isLogicalAnd || type == TokenType::LogicalOrSym) {
+        token++;
+    } else {
+        error("expected a right parenthesis or expression type in parenthesized type");
+        return firstType;
+    }
+    const auto secondType = parseType(allocator);
+    if(!secondType) {
+        error("expected a second type for expression type");
+        return firstType;
+    }
+    const auto expr = new (allocator.allocate<ExpressionType>()) ExpressionType(firstType, secondType, isLogicalAnd, loc);
+    if(token->type == TokenType::RBracket) {
+        token++;
+    } else {
+        error("expected a right parenthesis or expression type in parenthesized type");
+    }
+    return expr;
+}
+
 /**
  * here's how mutable, dynamic and pointer types work
  * *mut Phone <-- direct linked type made mutable, ptr before type finds the linked type, makes itself mutable \n
@@ -290,24 +318,37 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
 BaseType* Parser::parseType(ASTAllocator& allocator) {
 
     switch(token->type) {
-        case TokenType::StructKw: {
+        case TokenType::StructKw:
             return parseStructType(allocator);
-        }
-        case TokenType::UnionKw: {
+        case TokenType::UnionKw:
             return parseUnionType(allocator);
-        }
         case TokenType::LBracket:{
             token++;
-            if(!consumeToken(TokenType::RBracket)) {
+            const auto has_number = token->type == TokenType::Number;
+            if(has_number) {
+                // max number of parameters in capture list for lambda
+                token++;
+            }
+            if(consumeToken(TokenType::RBracket)) {
+                auto lambdaType = parseLambdaType(allocator, true);
+                if(lambdaType) {
+                    return lambdaType;
+                } else {
+                    error("expected a lambda type after '[]'");
+                    return nullptr;
+                }
+            } else if(has_number) {
                 error("expected ']' after '[' for lambda type");
                 return nullptr;
-            }
-            auto lambdaType = parseLambdaType(allocator, true);
-            if(lambdaType) {
-                return lambdaType;
             } else {
-                error("expected a lambda type after '[]'");
-                return nullptr;
+                const auto loc = loc_single(token);
+                const auto firstType = parseType(allocator);
+                if(firstType) {
+                    parseBracketedType(allocator, firstType, loc);
+                } else {
+                    error("expected ']' after '[' for lambda type");
+                    return nullptr;
+                }
             }
         }
         case TokenType::LParen:

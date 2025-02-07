@@ -46,12 +46,10 @@ bool StringType::satisfies(BaseType *type) {
 }
 
 bool ExpressionType::satisfies(BaseType *type) {
-    if(op == Operation::BitwiseOR || op == Operation::LogicalOR) {
-        return firstType->satisfies(type) || secondType->satisfies(type);
-    } else if (op == Operation::BitwiseAND || op == Operation::LogicalAND) {
+    if(isLogicalAnd) {
         return firstType->satisfies(type) && secondType->satisfies(type);
     } else {
-        return false;
+        return firstType->satisfies(type) || secondType->satisfies(type);
     }
 }
 

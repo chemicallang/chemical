@@ -10,9 +10,9 @@ public:
 
     BaseType* firstType;
     BaseType* secondType;
-    Operation op;
+    bool isLogicalAnd;
 
-    explicit ExpressionType(BaseType* firstType, BaseType* secondType, Operation op, SourceLocation location) : TokenizedBaseType(location) {
+    explicit ExpressionType(BaseType* firstType, BaseType* secondType, bool isLogicalAnd, SourceLocation location) : TokenizedBaseType(location) {
         // do nothing
     }
 
@@ -33,7 +33,7 @@ public:
 
     bool is_same(BaseType *type) override {
         return type->kind() == BaseTypeKind::ExpressionType &&
-            op == type->as_expr_type_unsafe()->op &&
+            isLogicalAnd == type->as_expr_type_unsafe()->isLogicalAnd &&
             firstType->is_same(type->as_expr_type_unsafe()->firstType) &&
             secondType->is_same(type->as_expr_type_unsafe()->secondType);
     }
@@ -42,7 +42,7 @@ public:
         return new (allocator.allocate<ExpressionType>()) ExpressionType(
                 firstType->copy(allocator),
                 secondType->copy(allocator),
-                op,
+                isLogicalAnd,
                 location
         );
     }

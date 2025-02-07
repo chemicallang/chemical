@@ -62,6 +62,34 @@ InterfaceDefinition* BaseType::linked_dyn_interface() {
     return nullptr;
 }
 
+bool BaseType::isStructLikeType() {
+    switch(kind()) {
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Dynamic:
+        case BaseTypeKind::Union:
+            return true;
+        case BaseTypeKind::Generic:
+            return as_generic_type_unsafe()->referenced->isStructLikeType();
+        case BaseTypeKind::Linked: {
+            const auto linked = as_linked_type_unsafe()->linked;
+            switch (linked->kind()) {
+                case ASTNodeKind::VariantMember:
+                case ASTNodeKind::StructDecl:
+                case ASTNodeKind::UnnamedStruct:
+                case ASTNodeKind::UnnamedUnion:
+                case ASTNodeKind::VariantDecl:
+                    return true;
+                case ASTNodeKind::TypealiasStmt:
+                    return linked->as_typealias_unsafe()->actual_type->isStructLikeType();
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
 chem::string_view& BaseType::linked_name() {
     const auto k = kind();
     if(k == BaseTypeKind::Linked) {

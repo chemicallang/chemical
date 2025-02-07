@@ -45,18 +45,9 @@ public:
         visitor->visit(this);
     }
 
-    bool satisfies(ValueType value_type) final {
-        return type->satisfies(value_type);
-    }
-
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::Pointer;
-    }
-
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Pointer;
     }
 
     bool satisfies(BaseType *type) final;

@@ -564,14 +564,6 @@ public:
     double get_the_double();
 
     /**
-     * returns the type of value
-     * @return
-     */
-    virtual ValueType value_type() const {
-        return ValueType::Unknown;
-    };
-
-    /**
      * get the type kind for this value
      */
     virtual BaseTypeKind type_kind() const {

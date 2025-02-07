@@ -286,11 +286,6 @@ BaseType* VariantDefinition::known_type() {
     return &ref_type;
 }
 
-[[nodiscard]]
-ValueType VariantDefinition::value_type() const {
-    return ValueType::Struct;
-}
-
 bool VariantDefinition::requires_destructor() {
     for(auto& var : variables) {
         auto member = var.second->as_variant_member();
@@ -499,10 +494,6 @@ BaseType* VariantMember::create_value_type(ASTAllocator& allocator) {
 //hybrid_ptr<BaseType> VariantMember::get_value_type() {
 //    return hybrid_ptr<BaseType> { &ref_type, false };
 //}
-
-ValueType VariantMember::value_type() const {
-    return ValueType::Struct;
-}
 
 BaseTypeKind VariantMember::type_kind() const {
     return BaseTypeKind::Struct;

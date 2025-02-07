@@ -66,11 +66,6 @@ public:
     }
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Float;
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::Float;
     }

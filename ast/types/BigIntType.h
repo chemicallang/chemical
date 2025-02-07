@@ -30,11 +30,6 @@ public:
 
     Value *create(ASTAllocator& allocator, uint64_t value) final;
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::BigInt;
-    }
-
     BigIntType *copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<BigIntType>()) BigIntType(location);
     }

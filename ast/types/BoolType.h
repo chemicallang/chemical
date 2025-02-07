@@ -15,10 +15,6 @@ public:
         return 1;
     }
 
-    bool satisfies(ValueType type) final {
-        return type == ValueType::Bool;
-    }
-
     void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
@@ -26,11 +22,6 @@ public:
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::Bool;
-    }
-
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Bool;
     }
 
     bool satisfies(BaseType *type) final {

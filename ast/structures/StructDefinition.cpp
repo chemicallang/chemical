@@ -343,10 +343,6 @@ ASTNode *StructMember::child(const chem::string_view &childName) {
     return linked->child(childName);
 }
 
-ValueType StructMember::value_type() const {
-    return type->value_type();
-}
-
 BaseTypeKind StructMember::type_kind() const {
     return type->kind();
 }

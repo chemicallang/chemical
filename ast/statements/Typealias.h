@@ -127,9 +127,6 @@ public:
     [[nodiscard]]
     BaseTypeKind type_kind() const final;
 
-    [[nodiscard]]
-    ValueType value_type() const final;
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;

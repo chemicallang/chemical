@@ -234,11 +234,6 @@ public:
 
     BaseType* known_type() final;
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Struct;
-    }
-
     uint64_t byte_size(bool is64Bit) final {
         return total_byte_size(is64Bit);
     }

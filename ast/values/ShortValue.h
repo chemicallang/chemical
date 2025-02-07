@@ -58,8 +58,4 @@ public:
         return false;
     }
 
-    [[nodiscard]] ValueType value_type() const final {
-        return ValueType::Short;
-    }
-
 };

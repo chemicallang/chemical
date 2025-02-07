@@ -36,6 +36,7 @@
 #include "ast/values/DereferenceValue.h"
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/values/VariantCase.h"
+#include "ast/values/CastedValue.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/structures/If.h"
 #include <ranges>
@@ -118,7 +119,7 @@ void Value::destruct(Codegen& gen, std::vector<std::pair<Value*, llvm::Value*>>&
 }
 
 llvm::Value* Value::load_value(Codegen& gen, BaseType* known_t, llvm::Type* type, llvm::Value* ptr) {
-    if(known_t->value_type() == ValueType::Struct) {
+    if(known_t->isStructLikeType()) {
         return ptr;
     }
     return gen.builder->CreateLoad(type, ptr);
@@ -311,11 +312,11 @@ void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, 
 }
 
 llvm::Value* Value::llvm_pointer(Codegen& gen) {
-    throw std::runtime_error("llvm_pointer called on bare Value of type " + std::to_string((int) value_type()));
+    throw std::runtime_error("llvm_pointer called on bare Value");
 }
 
 llvm::Value* Value::llvm_value(Codegen& gen, BaseType* type) {
-    throw std::runtime_error("Value::llvm_value called on bare Value " + representation() + " , type " + std::to_string((int) value_type()));
+    throw std::runtime_error("Value::llvm_value called on bare Value " + representation());
 }
 
 bool Value::add_member_index(Codegen& gen, Value* parent, std::vector<llvm::Value*>& indexes) {

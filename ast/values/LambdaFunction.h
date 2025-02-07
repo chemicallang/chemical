@@ -97,7 +97,4 @@ public:
 
     bool link(SymbolResolver &linker, FunctionType* func_type);
 
-    [[nodiscard]]
-    ValueType value_type() const final;
-
 };

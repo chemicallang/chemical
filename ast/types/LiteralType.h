@@ -17,10 +17,6 @@ public:
         return underlying->byte_size(is64Bit);
     }
 
-    bool satisfies(ValueType type) final {
-        return underlying->satisfies(type);
-    }
-
     bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final;
 
     void accept(Visitor *visitor) final {
@@ -34,11 +30,6 @@ public:
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::Literal;
-    }
-
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return underlying->value_type();
     }
 
     bool is_same(BaseType *type) final {

@@ -142,11 +142,6 @@ public:
 //        return this;
 //    }
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Union;
-    }
-
 #ifdef COMPILER_BUILD
 
     /**

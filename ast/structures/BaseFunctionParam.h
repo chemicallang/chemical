@@ -86,9 +86,6 @@ public:
     void redeclare_top_level(SymbolResolver &linker) final;
 
     [[nodiscard]]
-    ValueType value_type() const final;
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final;
 
 };

@@ -28,18 +28,9 @@ public:
         visitor->visit(this);
     }
 
-    bool satisfies(ValueType type) final {
-        return type == ValueType::UChar;
-    }
-
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::IntN;
-    }
-
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::UChar;
     }
 
     Value *create(ASTAllocator& allocator, uint64_t value) final;

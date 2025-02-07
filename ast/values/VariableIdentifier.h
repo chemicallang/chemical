@@ -128,7 +128,4 @@ public:
     [[nodiscard]]
     BaseTypeKind type_kind() const final;
 
-    [[nodiscard]]
-    ValueType value_type() const final;
-
 };

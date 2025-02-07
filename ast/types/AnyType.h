@@ -11,10 +11,6 @@ public:
 
     using TokenizedBaseType::TokenizedBaseType;
 
-    bool satisfies(ValueType type) final {
-        return true;
-    }
-
     void accept(Visitor *visitor) final {
         visitor->visit(this);
     }

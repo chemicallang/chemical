@@ -85,11 +85,6 @@ public:
     BaseType* create_type(ASTAllocator& allocator) final;
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::String;
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::String;
     }

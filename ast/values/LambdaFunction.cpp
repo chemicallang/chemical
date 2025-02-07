@@ -223,7 +223,3 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     setIsCapturing(func_type->isCapturing());
     return true;
 }
-
-ValueType LambdaFunction::value_type() const {
-    return ValueType::Lambda;
-}

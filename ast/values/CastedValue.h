@@ -61,11 +61,6 @@ public:
 #endif
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return type->value_type();
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return type->kind();
     }

@@ -196,8 +196,6 @@ public:
         return other->kind() == kind() && equal_type(static_cast<FunctionType *>(other));
     }
 
-    bool satisfies(ValueType type) final;
-
     [[nodiscard]]
     FunctionType* copy(ASTAllocator& allocator) const final;
 

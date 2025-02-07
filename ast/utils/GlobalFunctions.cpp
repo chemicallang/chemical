@@ -375,8 +375,10 @@ public:
             return nullptr;
         }
         const auto val = call->values[0];
-        const auto val_type = val->value_type();
-        if(val_type != ValueType::String && val_type != ValueType::Array) {
+        const auto val_type = val->create_type(allocator);
+        const auto val_type_pure = val_type->pure_type();
+        const auto val_type_kind = val_type_pure->kind();
+        if(val_type_kind != BaseTypeKind::String && val_type_kind != BaseTypeKind::Array) {
             call_scope->error("compiler::size called with invalid arguments", call);
             return nullptr;
         }
@@ -385,10 +387,10 @@ public:
             call_scope->error("couldn't get value for compiler::size", call);
             return nullptr;
         }
-        switch(val_type) {
-            case ValueType::String:
+        switch(val_type_kind) {
+            case BaseTypeKind::String:
                 return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value->get_the_string().size(), ZERO_LOC);
-            case ValueType::Array:
+            case BaseTypeKind::Array:
                 return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value->as_array_value()->array_size(), ZERO_LOC);
             default:
                 return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);

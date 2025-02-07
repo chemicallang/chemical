@@ -178,9 +178,6 @@ public:
     ASTNode *linked_node() final;
 
     [[nodiscard]]
-    ValueType value_type() const final;
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final;
 
 };

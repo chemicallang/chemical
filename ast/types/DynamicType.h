@@ -27,16 +27,7 @@ public:
         return BaseTypeKind::Dynamic;
     }
 
-    bool satisfies(ValueType type) final {
-        return type == ValueType::Struct;
-    }
-
     bool satisfies(BaseType *type) final;
-
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Struct;
-    }
 
     [[nodiscard]]
     DynamicType* copy(ASTAllocator& allocator) const final {

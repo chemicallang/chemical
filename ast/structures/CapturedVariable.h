@@ -76,9 +76,6 @@ public:
     BaseType* known_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const final;
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final;
 
 };

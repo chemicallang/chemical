@@ -54,10 +54,6 @@ public:
         return BaseType::kind() == type->kind() && equals(static_cast<StructType *>(type));
     }
 
-    bool satisfies(ValueType type) final {
-        return type == ValueType::Struct;
-    }
-
     bool link(SymbolResolver &linker) override;
 
     ASTNode* child(const chem::string_view &name) override {

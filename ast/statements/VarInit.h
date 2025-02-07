@@ -279,9 +279,6 @@ public:
     void declare(Value *new_value);
 
     [[nodiscard]]
-    ValueType value_type() const final;
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final;
 
 };

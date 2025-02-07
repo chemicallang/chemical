@@ -13,10 +13,6 @@ uint64_t LinkedType::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-ValueType LinkedType::value_type() const {
-    return linked->value_type();
-}
-
 BaseType* LinkedType::pure_type() {
     if(linked) {
         const auto known = linked->known_type();
@@ -24,14 +20,6 @@ BaseType* LinkedType::pure_type() {
     } else {
         return this;
     }
-}
-
-bool LinkedType::satisfies(ValueType value_type) {
-    if(linked->as_typealias() != nullptr) {
-        return ((TypealiasStatement*) linked)->actual_type->satisfies(value_type);
-    } else {
-        return linked->value_type() == value_type;
-    };
 }
 
 bool LinkedType::satisfies(BaseType *other) {

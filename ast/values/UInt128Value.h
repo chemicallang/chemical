@@ -67,8 +67,4 @@ public:
         return low;
     }
 
-    [[nodiscard]] ValueType value_type() const final {
-        return ValueType::UInt128;
-    }
-
 };

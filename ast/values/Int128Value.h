@@ -76,8 +76,4 @@ public:
         }
     }
 
-    [[nodiscard]] ValueType value_type() const final {
-        return ValueType::Int128;
-    }
-
 };

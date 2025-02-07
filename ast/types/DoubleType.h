@@ -19,18 +19,9 @@ public:
         visitor->visit(this);
     }
 
-    bool satisfies(ValueType type) final {
-        return type == ValueType::Double;
-    }
-
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::Double;
-    }
-
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Double;
     }
 
     bool satisfies(BaseType *type) final {

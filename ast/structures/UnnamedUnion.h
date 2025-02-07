@@ -85,11 +85,6 @@ public:
     BaseType* create_value_type(ASTAllocator &allocator) final;
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Union;
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::Union;
     }

@@ -81,11 +81,6 @@ public:
         return BaseTypeKind::Array;
     }
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Array;
-    }
-
     bool equals(ArrayType *type) const {
         return type->array_size == array_size && elem_type->is_same(type->elem_type);
     }
@@ -99,10 +94,6 @@ public:
         const auto t = new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size_value, location);
         t->array_size = array_size;
         return t;
-    }
-
-    bool satisfies(ValueType type) final {
-        return type == ValueType::Array;
     }
 
 #ifdef COMPILER_BUILD

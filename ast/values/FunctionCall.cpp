@@ -332,7 +332,7 @@ llvm::Value* struct_return_in_args(
         FunctionType* func_type,
         llvm::Value* returnedValue
 ) {
-    if(func_type->returnType->value_type() == ValueType::Struct) {
+    if(func_type->returnType->isStructLikeType()) {
         if(!returnedValue) {
             returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
         }
@@ -576,7 +576,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         decl->set_active_iteration(generic_iteration);
     }
     llvm::Value* returnedValue = returnedStruct;
-    auto returnsStruct = func_type->returnType->value_type() == ValueType::Struct;
+    auto returnsStruct = func_type->returnType->isStructLikeType();
 
     if(decl && decl->is_comptime()) {
         auto val = gen.eval_comptime(this, decl);
@@ -672,7 +672,7 @@ bool FunctionCall::store_in_parent(
     }
     {
         auto func_type = function_type(gen.allocator);
-        if (func_type && func_type->returnType->value_type() == ValueType::Struct) {
+        if (func_type && func_type->returnType->isStructLikeType()) {
             goto store_func_call;
         }
     }
@@ -732,7 +732,7 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         return allocated;
     }
     auto func_type = function_type(gen.allocator);
-    if(func_type->returnType->value_type() == ValueType::Struct) {
+    if(func_type->returnType->isStructLikeType()) {
         // we allocate the returned struct, llvm_chain_value function
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
@@ -755,7 +755,7 @@ llvm::Value* FunctionCall::access_chain_assign_value(
         BaseType *expected_type
 ) {
     auto func = safe_linked_func();
-    if(func && func->returnType->value_type() == ValueType::Struct) {
+    if(func && func->returnType->isStructLikeType()) {
         // we allocate the returned struct, llvm_chain_value function
         std::vector<llvm::Value *> args;
         // TODO very dirty way of doing this, the function returns struct and that's why the pointer is being used to assign to it
@@ -1280,10 +1280,6 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
 
 BaseTypeKind FunctionCall::type_kind() const {
     return const_cast<FunctionCall*>(this)->known_type()->kind();
-}
-
-ValueType FunctionCall::value_type() const {
-    return const_cast<FunctionCall*>(this)->known_type()->value_type();
 }
 
 void FunctionCall::interpret(InterpretScope &scope) {

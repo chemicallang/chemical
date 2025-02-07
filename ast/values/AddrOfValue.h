@@ -60,10 +60,6 @@ public:
 
 #endif
 
-    ValueType value_type() const final {
-        return ValueType::Pointer;
-    }
-
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::Pointer;
     }

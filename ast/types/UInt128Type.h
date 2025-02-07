@@ -31,11 +31,6 @@ public:
     Value *create(ASTAllocator& allocator, uint64_t value) final;
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::UInt128;
-    }
-
-    [[nodiscard]]
     UInt128Type *copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<UInt128Type>()) UInt128Type(location);
     }

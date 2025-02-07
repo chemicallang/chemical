@@ -622,9 +622,13 @@ void code_gen_member_calls(
         index++;
     }
     for(auto& var : def->variables) {
-        if(var.second->value_type() == ValueType::Struct) {
-            auto mem_type = var.second->get_value_type(gen.allocator);
+        auto mem_type = var.second->get_value_type(gen.allocator);
+        if(mem_type->isStructLikeType()) {
             auto mem_def = mem_type->linked_node()->as_members_container();
+            if(!mem_def) {
+                index++;
+                continue;
+            }
             auto destructor = choose_func(mem_def);
             if(!destructor) {
                 index++;
@@ -944,10 +948,6 @@ unsigned FunctionParam::calculate_c_or_llvm_index() {
 
 void FunctionParam::accept(Visitor *visitor) {
     visitor->visit(this);
-}
-
-ValueType BaseFunctionParam::value_type() const {
-    return type->value_type();
 }
 
 BaseTypeKind BaseFunctionParam::type_kind() const {
@@ -1525,13 +1525,5 @@ BaseTypeKind CapturedVariable::type_kind() const {
         return BaseTypeKind::Pointer;
     } else {
         return linked->type_kind();
-    }
-}
-
-ValueType CapturedVariable::value_type() const {
-    if(capture_by_ref) {
-        return ValueType::Pointer;
-    } else {
-        return linked->value_type();
     }
 }

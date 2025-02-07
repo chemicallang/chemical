@@ -36,11 +36,6 @@ public:
     Value *create(ASTAllocator& allocator, uint64_t value) final;
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Long;
-    }
-
-    [[nodiscard]]
     LongType *copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<LongType>()) LongType(is64Bit, location);
     }

@@ -50,9 +50,4 @@ public:
         return BaseTypeKind::Pointer;
     }
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Pointer;
-    }
-
 };

@@ -100,14 +100,9 @@ public:
         return BaseTypeKind::Generic;
     }
 
-    [[nodiscard]]
-    ValueType value_type() const final;
-
     bool is_same(BaseType *other) final {
         return other->kind() == kind();
     }
-
-    bool satisfies(ValueType value_type) final;
 
     bool satisfies(BaseType *type) final;
 

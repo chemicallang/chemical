@@ -66,9 +66,4 @@ public:
         return value;
     }
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::ULong;
-    }
-
 };

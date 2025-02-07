@@ -60,11 +60,6 @@ public:
 //    std::unique_ptr<BaseType> create_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return value->value_type();
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return value->type_kind();
     }

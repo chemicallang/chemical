@@ -222,7 +222,3 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
 BaseTypeKind VariableIdentifier::type_kind() const {
     return linked->type_kind();
 }
-
-ValueType VariableIdentifier::value_type() const {
-    return linked->value_type();
-}

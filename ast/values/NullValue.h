@@ -60,11 +60,6 @@ public:
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) final;
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Pointer;
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::Pointer;
     }

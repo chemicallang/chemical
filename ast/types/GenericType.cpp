@@ -99,14 +99,6 @@ GenericType* GenericType::copy(ASTAllocator& allocator) const {
     return gen;
 }
 
-ValueType GenericType::value_type() const {
-    return referenced->value_type();
-}
-
-bool GenericType::satisfies(ValueType value_type) {
-    return referenced->satisfies(value_type);
-}
-
 bool GenericType::satisfies(BaseType *pure_type) {
     if(pure_type->kind() == BaseTypeKind::Generic) {
         const auto gen_type = (GenericType*) pure_type;

@@ -24,14 +24,14 @@ public:
      * check if this is character type
      */
     bool is_char_type() {
-        return num_bits() == 8 && value_type() == ValueType::Char;
+        return num_bits() == 8 && !is_unsigned();
     }
 
     /**
      * check if this is character type
      */
     bool is_uchar_type() {
-        return num_bits() == 8 && value_type() == ValueType::UChar;
+        return num_bits() == 8 && is_unsigned();
     }
 
     /**
@@ -45,10 +45,6 @@ public:
      * creates a Value of this type, but with the given value
      */
     virtual Value* create(ASTAllocator& allocator, uint64_t value) = 0;
-
-    bool satisfies(ValueType type) {
-        return type == value_type();
-    }
 
     bool satisfies(BaseType *type);
 

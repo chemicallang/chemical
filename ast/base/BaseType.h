@@ -139,11 +139,11 @@ public:
     }
 
     /**
-     * return type of value
+     * check if this is a struct like type
+     * any type stored internally as a struct in llvm / c backends, for example dynamic type is a struct like type
+     * similarly generic and union are also struct like
      */
-    virtual ValueType value_type() const {
-        return ValueType::Unknown;
-    }
+    bool isStructLikeType();
 
     /**
      * check if given base type is of same type
@@ -156,12 +156,6 @@ public:
     virtual bool satisfies(BaseType* type) {
         return is_same(type);
     }
-
-    /**
-     * this basically tells whether the given value type would satisfy this type
-     * @deprecated
-     */
-    virtual bool satisfies(ValueType type) = 0;
 
     /**
      * will get the generic iteration or -1 if this type can't provide one
@@ -538,6 +532,10 @@ public:
         return k == BaseTypeKind::Linked;
     }
 
+    static inline constexpr bool isExprType(BaseTypeKind k) {
+        return k == BaseTypeKind::ExpressionType;
+    }
+
     static inline constexpr bool isStringType(BaseTypeKind k) {
         return k == BaseTypeKind::String;
     }
@@ -620,6 +618,10 @@ public:
 
     inline LinkedType* as_linked_type() {
         return isLinkedType(kind()) ? (LinkedType*) this : nullptr;
+    }
+
+    inline ExpressionType* as_expr_type() {
+        return isExprType(kind()) ? (ExpressionType*) this : nullptr;
     }
 
     inline StringType* as_string_type() {
@@ -712,6 +714,10 @@ public:
 
     inline LinkedType* as_linked_type_unsafe() {
         return (LinkedType*) this;
+    }
+
+    inline ExpressionType* as_expr_type_unsafe() {
+        return (ExpressionType*) this;
     }
 
     inline StringType* as_string_type_unsafe() {

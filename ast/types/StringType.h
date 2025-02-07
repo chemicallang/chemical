@@ -22,18 +22,9 @@ public:
         visitor->visit(this);
     }
 
-    bool satisfies(ValueType type) final {
-        return type == ValueType::String;
-    }
-
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::String;
-    }
-
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::String;
     }
 
     bool satisfies(BaseType *type) final;

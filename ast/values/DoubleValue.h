@@ -70,11 +70,6 @@ public:
     }
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Double;
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::Double;
     }

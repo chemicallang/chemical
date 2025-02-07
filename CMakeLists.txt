@@ -506,6 +506,7 @@ set(COMMON_SOURCES
         ast/values/IncDecValue.h
         ast/values/ComptimeValue.h
         ast/values/UnsafeValue.h
+        ast/types/ExpressionType.h
 )
 
 # Chemical LSP Executable Target

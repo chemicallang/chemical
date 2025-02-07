@@ -57,15 +57,6 @@ public:
     }
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        if(active_iteration == -1) {
-            return ValueType::Unknown;
-        } else {
-            return usage[active_iteration]->value_type();
-        }
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         if(active_iteration == -1) {
             return BaseTypeKind::Unknown;

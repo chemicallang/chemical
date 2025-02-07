@@ -107,9 +107,6 @@ public:
 //    hybrid_ptr<BaseType> get_value_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const final;
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final;
 
 };

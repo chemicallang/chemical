@@ -70,9 +70,6 @@ public:
 
     BaseType* known_type() final;
 
-    [[nodiscard]]
-    ValueType value_type() const final;
-
 #ifdef COMPILER_BUILD
 
     llvm::Value *elem_pointer(Codegen &gen, llvm::Type *, llvm::Value *ptr);

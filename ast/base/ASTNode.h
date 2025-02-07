@@ -440,14 +440,6 @@ public:
     }
 
     /**
-     * get the value type represented by this node
-     */
-    [[nodiscard]]
-    virtual ValueType value_type() const {
-        return ValueType::Unknown;
-    }
-
-    /**
      * virtual destructor for the ASTNode
      */
     virtual ~ASTNode();

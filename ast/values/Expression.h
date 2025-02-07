@@ -113,11 +113,6 @@ public:
 
     bool compile_time_computable() final;
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Expression;
-    }
-
     /**
      * evaluates the current expression and also interprets the evaluated value
      * @param scope

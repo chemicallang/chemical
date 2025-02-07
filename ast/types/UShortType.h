@@ -31,11 +31,6 @@ public:
     Value *create(ASTAllocator& allocator, uint64_t value) final;
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::UShort;
-    }
-
-    [[nodiscard]]
     UShortType *copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<UShortType>()) UShortType(location);
     }

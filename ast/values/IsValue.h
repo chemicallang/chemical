@@ -68,11 +68,6 @@ public:
 #endif
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Bool;
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::Bool;
     }

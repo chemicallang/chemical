@@ -59,8 +59,6 @@ public:
         return new (allocator.allocate<UnionType>()) UnionType(name, parent_node, location);
     }
 
-    bool satisfies(ValueType type) final;
-
     bool link(SymbolResolver &linker) override;
 
     ASTNode* child(const chem::string_view &name) override {

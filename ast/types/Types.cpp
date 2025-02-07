@@ -14,6 +14,7 @@
 #include "StringType.h"
 #include "LiteralType.h"
 #include "VoidType.h"
+#include "ExpressionType.h"
 #include "ast/statements/Typealias.h"
 
 const AnyType AnyType::instance(ZERO_LOC);
@@ -42,6 +43,16 @@ bool ArrayType::satisfies(BaseType *pure_type) {
 
 bool StringType::satisfies(BaseType *type) {
     return type->kind() == BaseTypeKind::String;
+}
+
+bool ExpressionType::satisfies(BaseType *type) {
+    if(op == Operation::BitwiseOR || op == Operation::LogicalOR) {
+        return firstType->satisfies(type) || secondType->satisfies(type);
+    } else if (op == Operation::BitwiseAND || op == Operation::LogicalAND) {
+        return firstType->satisfies(type) && secondType->satisfies(type);
+    } else {
+        return false;
+    }
 }
 
 bool LiteralType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {

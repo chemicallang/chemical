@@ -95,10 +95,6 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
             return builder->CreateSDiv(final, sdivRhs, "", true);
         }
     }
-
-    auto is_floating = [&firstType, &secondType] () -> bool {
-        return firstType->satisfies(ValueType::Float) || firstType->satisfies(ValueType::Double) || secondType->satisfies(ValueType::Float) || secondType->satisfies(ValueType::Double);
-    };
     auto is_unsigned = [&firstType, &secondType, this, first] () -> bool {
         auto firstKind = firstType->kind();
         auto secondKind = secondType->kind();
@@ -131,16 +127,20 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         }
     }
 
+    const auto firstTypeFloating = firstTypeKind == BaseTypeKind::Float || firstTypeKind == BaseTypeKind::Double;
+    const auto secondTypeFloating = secondTypeKind == BaseTypeKind::Float || secondTypeKind == BaseTypeKind::Double;
+    const auto is_floating = firstTypeFloating || secondTypeFloating;
+
     // operation between integer and float values
     // promoting integer values to floats to perform the operation
-    if(firstTypeKind == BaseTypeKind::IntN && (secondTypeKind == BaseTypeKind::Float || secondTypeKind == BaseTypeKind::Double)) {
+    if(firstTypeKind == BaseTypeKind::IntN && secondTypeFloating) {
         const auto firstIntN = firstType->as_intn_type_unsafe();
         if(firstIntN->is_unsigned()) {
             lhs = builder->CreateUIToFP(lhs, secondType->llvm_type(*this));
         } else {
             lhs = builder->CreateSIToFP(lhs, secondType->llvm_type(*this));
         }
-    } else if(secondTypeKind == BaseTypeKind::IntN && (firstTypeKind == BaseTypeKind::Float || firstTypeKind == BaseTypeKind::Double)) {
+    } else if(secondTypeKind == BaseTypeKind::IntN && firstTypeFloating) {
         const auto secondIntN = secondType->as_intn_type_unsafe();
         if(secondIntN->is_unsigned()) {
             rhs = builder->CreateUIToFP(rhs, firstType->llvm_type(*this));
@@ -148,6 +148,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
             rhs = builder->CreateSIToFP(rhs, firstType->llvm_type(*this));
         }
     }
+
 
     switch (op) {
 //        case Operation::Grouping:
@@ -189,13 +190,13 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
 //        case Operation::TypeConversion:
 //            break;
         case Operation::Multiplication:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFMul(lhs, rhs);
             } else {
                 return builder->CreateMul(lhs, rhs);
             }
         case Operation::Division:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFDiv(lhs, rhs);
             } else {
                 if(is_unsigned()) {
@@ -207,13 +208,13 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         case Operation::Modulus:
             return builder->CreateSRem(lhs, rhs); // Signed remainder
         case Operation::Addition:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFAdd(lhs, rhs);
             } else {
                 return builder->CreateAdd(lhs, rhs);
             }
         case Operation::Subtraction:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFSub(lhs, rhs);
             } else {
                 return builder->CreateSub(lhs, rhs);
@@ -227,7 +228,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
                 return builder->CreateAShr(lhs, rhs);
             }
         case Operation::GreaterThan:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFCmpOGT(lhs, rhs); // Floating greater than
             } else {
                 if(is_unsigned()) {
@@ -237,7 +238,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
                 }
             }
         case Operation::GreaterThanOrEqual:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFCmpOGE(lhs, rhs); // Floating greater than or equal
             } else {
                 if(is_unsigned()) {
@@ -247,7 +248,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
                 }
             }
         case Operation::LessThan:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFCmpOLT(lhs, rhs); // Floating less than
             } else {
                 if(is_unsigned()) {
@@ -257,7 +258,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
                 }
             }
         case Operation::LessThanOrEqual:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFCmpOLE(lhs, rhs); // Floating less than or equal
             } else {
                 if(is_unsigned()) {
@@ -267,13 +268,13 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
                 }
             }
         case Operation::IsEqual:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFCmpOEQ(lhs, rhs); // Floating Equal to
             } else {
                 return builder->CreateICmpEQ(lhs, rhs); // Equal to
             }
         case Operation::IsNotEqual:
-            if(is_floating()) {
+            if(is_floating) {
                 return builder->CreateFCmpONE(lhs, rhs); // Floating Not equal to
             } else {
                 return builder->CreateICmpNE(lhs, rhs); // Not equal to

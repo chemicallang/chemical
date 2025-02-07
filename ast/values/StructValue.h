@@ -198,9 +198,4 @@ public:
 
 //    hybrid_ptr<BaseType> get_base_type() final;
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Struct;
-    }
-
 };

@@ -190,6 +190,8 @@ class DoubleType;
 
 class FloatType;
 
+class ExpressionType;
+
 class ComplexType;
 
 class Float128Type;
@@ -662,6 +664,10 @@ public:
     }
 
     virtual void visit(FunctionType* type) {
+        visitCommonType((BaseType*) type);
+    }
+
+    virtual void visit(ExpressionType* type) {
         visitCommonType((BaseType*) type);
     }
 

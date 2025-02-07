@@ -94,9 +94,6 @@ public:
     }
 
     [[nodiscard]]
-    ValueType value_type() const final;
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::IntN;
     }

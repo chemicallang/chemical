@@ -142,9 +142,6 @@ public:
     [[nodiscard]]
     BaseTypeKind type_kind() const final;
 
-    [[nodiscard]]
-    ValueType value_type() const final;
-
     /**
      * will set given generic iteration of function declaration
      * if function is a constructor, will set the iteration on the struct instead

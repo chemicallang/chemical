@@ -79,7 +79,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
                 llvm::Value* dyn_obj_impl = nullptr;
 
-                if(type && value->value_type() == ValueType::Struct && value->as_struct_value() == nullptr) {
+                if(type && type->isStructLikeType() && value->as_struct_value() == nullptr) {
                     // get it's dynamic object implementation based on expected type
                     dyn_obj_impl = gen.get_dyn_obj_impl(value, type_ptr_fast());
                 }
@@ -169,12 +169,12 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
         } else if(value) {
             return llvm_pointer(gen);
         }
-        if(value && value->value_type() == ValueType::String) {
+        if(value && value->val_kind() == ValueKind::String) {
             return llvm_pointer(gen);
         }
     } else {
         const auto k_type = create_value_type(gen.allocator);
-        if(k_type->value_type() == ValueType::Struct) {
+        if(k_type->isStructLikeType()) {
             return llvm_pointer(gen);
         }
 //        const auto pure = k_type->pure_type();
@@ -310,14 +310,6 @@ void VarInitStatement::interpret(InterpretScope &scope) {
  */
 void VarInitStatement::declare(Value *new_value) {
     decl_scope->declare(name_view(), new_value);
-}
-
-ValueType VarInitStatement::value_type() const {
-    if(type) {
-        return type->value_type();
-    } else {
-        return value->value_type();
-    }
 }
 
 BaseTypeKind VarInitStatement::type_kind() const {

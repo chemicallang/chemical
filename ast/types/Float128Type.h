@@ -19,18 +19,9 @@ public:
         visitor->visit(this);
     }
 
-    bool satisfies(ValueType type) final {
-        return type == ValueType::Float;
-    }
-
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::Float128;
-    }
-
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Float;
     }
 
     bool satisfies(BaseType *type) final {

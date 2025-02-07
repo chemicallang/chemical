@@ -34,14 +34,9 @@ public:
         visitor->visit(this);
     }
 
-    [[nodiscard]]
-    ValueType value_type() const final;
-
     bool link(SymbolResolver &linker);
 
     ASTNode *linked_node() final;
-
-    bool satisfies(ValueType value_type) final;
 
     [[nodiscard]]
     BaseTypeKind kind() const final {

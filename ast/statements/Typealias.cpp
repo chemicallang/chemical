@@ -49,7 +49,3 @@ void TypealiasStatement::accept(Visitor *visitor) {
 BaseTypeKind TypealiasStatement::type_kind() const {
     return actual_type->kind();
 }
-
-ValueType TypealiasStatement::value_type() const {
-    return actual_type->value_type();
-}

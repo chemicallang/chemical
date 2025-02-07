@@ -118,11 +118,6 @@ public:
     BaseType* known_type() final;
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Array;
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::Array;
     }

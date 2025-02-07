@@ -36,11 +36,6 @@ public:
     }
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Char;
-    }
-
-    [[nodiscard]]
     CharType* copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<CharType>()) CharType(location);
     }

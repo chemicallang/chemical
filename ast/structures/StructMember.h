@@ -119,9 +119,6 @@ public:
     BaseType* create_value_type(ASTAllocator& allocator) final;
 
     [[nodiscard]]
-    ValueType value_type() const final;
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final;
 
 };

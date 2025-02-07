@@ -287,10 +287,6 @@ ASTNode *AccessChain::linked_node() {
     return values[values.size() - 1]->linked_node();
 }
 
-ValueType AccessChain::value_type() const {
-    return values[values.size() - 1]->value_type();
-}
-
 BaseTypeKind AccessChain::type_kind() const {
     return values[values.size() - 1]->type_kind();
 }

@@ -380,7 +380,8 @@ llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *VariableIdentifier::llvm_value(Codegen &gen, BaseType* expected_type) {
-    if(linked->value_type() == ValueType::Array) {
+    const auto linked_type = linked->create_value_type(gen.allocator)->pure_type();
+    if(linked_type->kind() == BaseTypeKind::Array) {
         return gen.builder->CreateGEP(llvm_type(gen), llvm_pointer(gen), {gen.builder->getInt32(0), gen.builder->getInt32(0)}, "", gen.inbounds);;
     }
     return linked->llvm_load(gen);
@@ -687,7 +688,7 @@ bool AddrOfValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& inde
 }
 
 llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    if(gen.current_func_type->returnType->value_type() != ValueType::Struct) {
+    if(!gen.current_func_type->returnType->isStructLikeType()) {
         gen.error("expected current function to have a struct return type for compiler::return_struct", this);
         return nullptr;
     }
@@ -854,7 +855,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     // before destruction, get the return value
     llvm::Value* return_value = nullptr;
     if(value) {
-        if(value->reference() && value->value_type() == ValueType::Struct) {
+        if(value->reference() && value->create_type(gen.allocator)->isStructLikeType()) {
             // TODO hardcoded the function implicit struct return argument at index 0
             auto dest = gen.current_function->getArg(0);
             auto value_ptr = value->llvm_pointer(gen);

@@ -49,11 +49,6 @@ public:
 
     BaseType* known_type() final;
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Struct;
-    }
-
     VariantMember* get_member();
 
     VariantDefinition* get_definition();

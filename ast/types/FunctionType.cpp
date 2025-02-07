@@ -15,7 +15,7 @@
 #include "compiler/llvmimpl.h"
 
 llvm::Type* llvm_func_return(Codegen &gen, BaseType* type) {
-    if(type->value_type() == ValueType::Struct) {
+    if(type->isStructLikeType()) {
         return gen.builder->getVoidTy();
     } else{
         return type->llvm_type(gen);
@@ -41,7 +41,7 @@ void llvm_func_param_types_into(
 ) {
     // functions that return struct take a pointer to struct and actually return void
     // so allocation takes place outside function
-    if(returnType->value_type() == ValueType::Struct) {
+    if(returnType->isStructLikeType()) {
         if(!decl || (!decl->is_copy_fn() && !decl->is_move_fn())) {
             paramTypes.emplace_back(gen.builder->getPtrTy());
         }
@@ -184,8 +184,7 @@ BaseFunctionParam* FunctionType::get_self_param() {
 }
 
 unsigned FunctionType::c_or_llvm_arg_start_index() {
-    const auto is_struct_return = returnType->value_type() == ValueType::Struct;
-    if(is_struct_return) {
+    if(returnType->isStructLikeType()) {
         auto func = as_function();
         if(func && (func->is_copy_fn() || func->is_move_fn())) {
             return 0;
@@ -212,10 +211,6 @@ bool FunctionType::equal(FunctionType *other) const {
         i++;
     }
     return true;
-}
-
-bool FunctionType::satisfies(ValueType type) {
-    return type == ValueType::Lambda;
 }
 
 FunctionType *FunctionType::copy(ASTAllocator& allocator) const {

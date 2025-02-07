@@ -45,15 +45,6 @@ public:
         return BaseTypeKind::Reference;
     }
 
-    [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Pointer;
-    }
-
-    bool satisfies(ValueType value_type) final {
-        return type->satisfies(value_type);
-    }
-
     bool satisfies(BaseType* given, Value* value, bool assignment);
 
     bool satisfies(BaseType *given) final {

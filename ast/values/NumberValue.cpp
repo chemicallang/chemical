@@ -43,11 +43,6 @@ Value* NumberValue::evaluated_value(InterpretScope &scope) {
     }
 }
 
-ValueType NumberValue::value_type() const {
-    const auto t = get_int_n_type(linked_type);
-    return t ? t->value_type() : ValueType::Int;
-}
-
 BaseType* NumberValue::known_type() {
     const auto t = get_int_n_type(linked_type);
     return t ? t : (BaseType*) &IntType::instance;

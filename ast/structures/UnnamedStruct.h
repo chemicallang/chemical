@@ -145,11 +145,6 @@ public:
 #endif
 
     [[nodiscard]]
-    ValueType value_type() const final {
-        return ValueType::Struct;
-    }
-
-    [[nodiscard]]
     BaseTypeKind type_kind() const final {
         return BaseTypeKind::Struct;
     }

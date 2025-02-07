@@ -106,9 +106,6 @@ public:
 
     BaseType* known_type() final;
 
-    [[nodiscard]]
-    ValueType value_type() const final;
-
     ASTNode* child(const chem::string_view &child_name) final;
 
     uint64_t byte_size(bool is64Bit) final;

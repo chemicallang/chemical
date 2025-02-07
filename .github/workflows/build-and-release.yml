@@ -36,9 +36,9 @@ jobs:
       - name: Get SHA of chemical-bootstrap repository
         id: get-sha
         shell: pwsh
+        working-directory: chemical-bootstrap
         run: |
-          $response = Invoke-RestMethod -Uri "https://api.github.com/repos/chemicallang/chemical-bootstrap/commits"
-          $sha = $response[0].sha
+          $sha = (git rev-parse HEAD).Trim()
           echo "::set-output name=sha::$sha"
 
       # Setup Cache for out-win folder
@@ -130,8 +130,9 @@ jobs:
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
         id: get-sha
+        working-directory: chemical-bootstrap
         run: |
-          SHA=$(curl -s https://api.github.com/repos/chemicallang/chemical-bootstrap/commits | jq -r '.[0].sha')
+          SHA=$(git rev-parse HEAD)
           echo "::set-output name=sha::$SHA"
 
       # Setup Cache for out folder
@@ -139,7 +140,7 @@ jobs:
         id: bootstrap-cache
         with:
           path: ./chemical-bootstrap/out/
-          key: ${{ runner.os }}--${{ steps.get-sha.outputs.sha }}
+          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
       # Build the chemical-bootstrap project (Linux) (only if not cached)
       - name: Build chemical-bootstrap (Linux)

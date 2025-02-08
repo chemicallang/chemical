@@ -3,7 +3,7 @@ name: Build and Deploy on Commit
 on:
   push:
     branches:
-      - main  # adjust as needed
+      - main
 
 jobs:
   build-windows:

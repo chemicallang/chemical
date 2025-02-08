@@ -90,19 +90,15 @@ Lin64TccDir="out/release/$Lin64TccDirName"
 # Make directories required for each target
 if [ "$windows_x64" = true ]; then
     mkdir -p "$windows64dir/packages/tcc"
-    mkdir "$windows64dir/libs"
 fi
 if [ "$linux_x86_64" = true ]; then
     mkdir -p "$linux64dir/packages/tcc"
-    mkdir "$linux64dir/libs"
 fi
 if [ "$windows_x64_tcc" = true ]; then
     mkdir -p "$Win64TccDir/packages/tcc"
-    mkdir "$Win64TccDir/libs"
 fi
 if [ "$linux_x86_64_tcc" = true ]; then
     mkdir -p "$Lin64TccDir/packages/tcc"
-    mkdir "$Lin64TccDir/libs"
 fi
 
 # -------------------------- windows x64
@@ -117,7 +113,7 @@ if [ "$windows_x64" = true ]; then
   # copy tiny cc dll
   cp lib/libtcc/win-x64/libtcc.dll "$windows64dir/libtcc.dll"
   # copy the libs directory
-  cp -r lang/libs "$windows64dir/libs/"
+  cp -r lang/libs "$windows64dir/"
   # unzip the tinycc package
   unzip_folder "lib/libtcc/win-x64/package.zip" "$windows64dir/packages/tcc"
 fi
@@ -134,7 +130,7 @@ if [ "$linux_x86_64" = true ]; then
   # copy tiny cc dll
   cp lib/libtcc/lin-x64/libtcc.so "$linux64dir/libtcc.so"
   # copy the libs directory
-  cp -r lang/libs "$linux64dir/libs"
+  cp -r lang/libs "$linux64dir/"
   # unzip the tinycc package
   unzip_folder "lib/libtcc/lin-x64/package.zip" "$linux64dir/packages/tcc"
 fi
@@ -151,7 +147,7 @@ if [ "$windows_x64_tcc" = true ]; then
   # copy tiny cc dll
   cp lib/libtcc/win-x64/libtcc.dll "$Win64TccDir/libtcc.dll"
   # copy the libs directory
-  cp -r lang/libs "$Win64TccDir/libs"
+  cp -r lang/libs "$Win64TccDir/"
   # unzip the tinycc package
   unzip_folder "lib/libtcc/win-x64/package.zip" "$Win64TccDir/packages/tcc"
 fi
@@ -168,7 +164,7 @@ if [ "$linux_x86_64_tcc" = true ]; then
   # copy tiny cc dll
   cp lib/libtcc/lin-x64/libtcc.so "$Lin64TccDir/libtcc.so"
   # copy the libs directory
-  cp -r lang/libs "$Lin64TccDir/libs"
+  cp -r lang/libs "$Lin64TccDir/"
   # unzip the tinycc package
   unzip_folder "lib/libtcc/lin-x64/package.zip" "$Lin64TccDir/packages/tcc"
 fi

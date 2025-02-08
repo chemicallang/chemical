@@ -1,5 +1,9 @@
 name: Build and Deploy on Commit
 
+permissions:
+  contents: write
+  releases: write
+
 on:
   push:
     branches:

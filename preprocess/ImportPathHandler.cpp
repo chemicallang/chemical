@@ -1,6 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
-#include "ImportPathhandler.h"
+#include "ImportPathHandler.h"
 #include <filesystem>
 #include "compiler/SelfInvocation.h"
 #include "utils/PathUtils.h"

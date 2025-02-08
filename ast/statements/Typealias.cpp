@@ -2,20 +2,39 @@
 
 #include "Typealias.h"
 #include "compiler/SymbolResolver.h"
-
-TypealiasStatement::TypealiasStatement(
-        LocatedIdentifier identifier,
-        BaseType* actual_type,
-        ASTNode* parent_node,
-        SourceLocation location,
-        AccessSpecifier specifier
-) : located_id(std::move(identifier)), actual_type(actual_type), parent_node(parent_node), location(location),
-    attrs(specifier, false, false) {
-
-}
+#include "ast/types/TypeContainingValue.h"
+#include "ast/values/ValueContainingType.h"
+#include "ast/base/InterpretScope.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/FunctionCall.h"
 
 void TypealiasStatement::interpret(InterpretScope &scope) {
 
+}
+
+//FunctionCall* get_call(Value* value) {
+//    switch(value->val_kind()) {
+//        case ValueKind::FunctionCall:
+//            return value->as_func_call_unsafe();
+//        default:
+//            return nullptr;
+//        case ValueKind::AccessChain:
+//            return get_call(value->as_access_chain_unsafe()->values.front());
+//    }
+//}
+
+void ValueTypealiasStmt::interpret(InterpretScope& scope) {
+    const auto eval = value->evaluated_value(scope);
+    if(!eval) {
+        scope.error("comptime value didn't return anything", actual_type);
+        return;
+    }
+    if(eval->val_kind() != ValueKind::ValueContainingType) {
+        scope.error("comptime value didn't return a type containing value", actual_type);
+        return;
+    }
+    const auto value_type = (ValueContainingType*) eval;
+    actual_type = value_type->type->copy(scope.allocator);
 }
 
 void TypealiasStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {

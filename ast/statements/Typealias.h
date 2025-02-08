@@ -7,6 +7,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/ExtendableAnnotableNode.h"
 #include "ast/base/LocatedIdentifier.h"
+#include "ast/types/TypeType.h"
 
 struct TypealiasDeclAttributes {
 
@@ -47,7 +48,10 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : located_id(identifier), actual_type(actual_type), parent_node(parent_node), location(location),
+        attrs(specifier, false, false) {
+
+    }
 
     /**
      * get the name of node
@@ -116,7 +120,7 @@ public:
 
     BaseType* known_type() final;
 
-    void interpret(InterpretScope &scope) final;
+    void interpret(InterpretScope &scope);
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
@@ -134,5 +138,25 @@ public:
     void code_gen(Codegen &gen) final;
 
 #endif
+
+};
+
+class ValueTypealiasStmt : public TypealiasStatement {
+public:
+
+    Value* value;
+    TypeType type_type;
+
+    ValueTypealiasStmt(
+        LocatedIdentifier identifier,
+        Value* value,
+        ASTNode* parent_node,
+        SourceLocation location,
+        AccessSpecifier specifier = AccessSpecifier::Internal
+    ) : value(value), TypealiasStatement(identifier, &type_type, parent_node, location, specifier), type_type(location) {
+
+    }
+
+    void interpret(InterpretScope& scope) final;
 
 };

@@ -12,19 +12,33 @@ TypealiasStatement* Parser::parseTypealiasStatement(ASTAllocator& allocator, Acc
             error("expected a type for typealias statement");
             return nullptr;
         }
-        auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(allocator, id), nullptr, parent_node, loc_single(tok), specifier);
-        annotate(alias);
+        const auto hasPipe = consumeToken(TokenType::PipeSym);
         if(!consumeToken(TokenType::EqualSym)) {
             error("expected '=' after the type tokens");
         }
-        auto type = parseType(allocator);
-        if(type) {
-            alias->actual_type = type;
+        if(hasPipe) {
+            auto alias = new (allocator.allocate<ValueTypealiasStmt>()) ValueTypealiasStmt(loc_id(allocator, id), nullptr, parent_node, loc_single(tok), specifier);
+            annotate(alias);
+            auto expr = parseExpression(allocator);
+            if(expr) {
+                alias->value = expr;
+            } else {
+                error("expected a expression after '|='");
+                return alias;
+            }
+            return alias;
         } else {
-            error("expected a type after '='");
+            auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(allocator, id), nullptr, parent_node, loc_single(tok), specifier);
+            annotate(alias);
+            auto type = parseType(allocator);
+            if(type) {
+                alias->actual_type = type;
+            } else {
+                error("expected a type after '='");
+                return alias;
+            }
             return alias;
         }
-        return alias;
     } else {
         return nullptr;
     }

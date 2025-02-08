@@ -245,9 +245,28 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             std::optional<Scope> body = std::nullopt,
-            AccessSpecifier = AccessSpecifier::Internal,
+            AccessSpecifier specifier = AccessSpecifier::Internal,
             bool signature_resolved = false
-    );
+    )  : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
+         identifier(identifier), body(std::move(body)), location(location),
+         attrs(specifier, false, 0, false, false, false, false, false, false, false, false, false, false) {
+    }
+
+    /**
+     * constructor
+     */
+    FunctionDeclaration(
+            LocatedIdentifier identifier,
+            BaseType* returnType,
+            bool isVariadic,
+            ASTNode* parent_node,
+            SourceLocation location,
+            AccessSpecifier specifier = AccessSpecifier::Internal,
+            bool signature_resolved = false
+    )  : FunctionType(returnType, isVariadic, false, parent_node, location, signature_resolved),
+         identifier(identifier), location(location),
+         attrs(specifier, false, 0, false, false, false, false, false, false, false, false, false, false) {
+    }
 
     /**
      * get the name of node

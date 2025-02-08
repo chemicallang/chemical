@@ -226,7 +226,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
     FunctionDeclaration* decl;
 
     if(allow_extensions && consumeToken(TokenType::LParen)) {
-        auto ext_func = new (allocator.allocate<ExtensionFunction>()) ExtensionFunction(loc_id(allocator, "", {0, 0}), { "", nullptr, nullptr, 0 }, {}, nullptr, false, parent_node, 0, std::nullopt, specifier);;
+        auto ext_func = new (allocator.allocate<ExtensionFunction>()) ExtensionFunction(loc_id(allocator, "", {0, 0}), { "", nullptr, nullptr, 0 }, nullptr, false, parent_node, 0, specifier);;
         decl = ext_func;
         auto id = consumeIdentifierOrKeyword();
         if(id) {
@@ -251,7 +251,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocato
             return decl;
         }
     } else {
-        decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id(allocator, "", {0, 0}), {}, nullptr, false, parent_node, 0, std::nullopt, specifier, false);
+        decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id(allocator, "", {0, 0}), nullptr, false, parent_node, 0, specifier, false);
     }
 
     for(auto param : gen_params) {

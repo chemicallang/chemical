@@ -72,19 +72,6 @@ llvm::Type *FunctionType::llvm_type(Codegen &gen) {
 
 #endif
 
-FunctionType::FunctionType(
-    std::vector<FunctionParam*> params,
-    BaseType* returnType,
-    bool isVariadic,
-    bool isCapturing,
-    ASTNode* parent_node,
-    SourceLocation location,
-    bool signature_resolved
-) : data(isVariadic, isCapturing, signature_resolved), params(std::move(params)), returnType(returnType),
-    parent_node(parent_node), TokenizedBaseType(location) {
-
-}
-
 bool FunctionType::isInVarArgs(unsigned index) const {
     return isVariadic() && index >= (params.size() - 1);
 }

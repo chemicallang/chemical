@@ -89,7 +89,25 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         bool signature_resolved = false
-    );
+    ) : data(isVariadic, isCapturing, signature_resolved), params(std::move(params)), returnType(returnType),
+        parent_node(parent_node), TokenizedBaseType(location) {
+
+    }
+
+    /**
+     * constructor
+     */
+    FunctionType(
+            BaseType* returnType,
+            bool isVariadic,
+            bool isCapturing,
+            ASTNode* parent_node,
+            SourceLocation location,
+            bool signature_resolved = false
+    ) : data(isVariadic, isCapturing, signature_resolved), returnType(returnType),
+        parent_node(parent_node), TokenizedBaseType(location) {
+
+    }
 
     [[nodiscard]]
     inline bool isCapturing() const {

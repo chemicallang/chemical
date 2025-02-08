@@ -111,29 +111,6 @@ void ExtensionFuncReceiver::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-ExtensionFunction::ExtensionFunction(
-        LocatedIdentifier identifier,
-        ExtensionFuncReceiver receiver,
-        std::vector<FunctionParam*> params,
-        BaseType* returnType,
-        bool isVariadic,
-        ASTNode* parent_node,
-        SourceLocation location,
-        std::optional<Scope> body,
-        AccessSpecifier specifier
-) : FunctionDeclaration(
-    std::move(identifier),
-    std::move(params),
-    returnType,
-    isVariadic,
-    parent_node,
-    location,
-    std::move(body),
-    specifier
-), receiver(std::move(receiver)) {
-
-}
-
 void ExtensionFunction::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
 
     auto linked = receiver.type->linked_node();

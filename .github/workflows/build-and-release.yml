@@ -76,11 +76,9 @@ jobs:
           Write-Host "Downloaded boost_1_74_0.zip, size:" (Get-Item boost_1_74_0.zip).Length
           Write-Host "Extracting Boost..."
           Expand-Archive -Path boost_1_74_0.zip -DestinationPath .
-        # Assumes the extracted folder is named "boost_1_74_0"
           Write-Host "Bootstrapping and building Boost..."
           cd boost_1_74_0
           .\bootstrap.bat
-        # Build static libraries for 64-bit; adjust flags as needed.
           .\b2.exe --build-type=complete --link=static --runtime-link=static --variant=release address-model=64 install --prefix=../boost_install
           cd ..
           Write-Host "Boost built and installed to $(Resolve-Path boost_install)"

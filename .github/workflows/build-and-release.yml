@@ -118,7 +118,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
-          name: windows-x64.zip
           files: chemical-bootstrap/chemical/out/release/windows-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -150,7 +149,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
-          name: windows-x64-tcc.zip
           files: chemical-bootstrap/chemical/out/release/windows-x64-tcc.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -272,7 +270,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
-          name: linux-x86-64.zip
           files: chemical-bootstrap/chemical/out/release/linux-x86-64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -303,7 +300,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
-          name: linux-x86-64-tcc.zip
           files: chemical-bootstrap/chemical/out/release/linux-x86-64-tcc.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

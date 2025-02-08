@@ -5,7 +5,7 @@
 //
 
 #include "parser/Parser.h"
-#include "ast/structures/Variantdefinition.h"
+#include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantMemberParam.h"
 

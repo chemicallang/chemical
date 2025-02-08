@@ -231,18 +231,26 @@ jobs:
           chmod +x release.sh
           ./release.sh
 
-      # ––– Get latest release info –––
+      # ––– Get information about the latest release –––
       - name: Get latest release info
         id: get_latest_release
         uses: actions/github-script@v6
         with:
           script: |
-            const release = await github.rest.repos.getLatestRelease({
+            const releasesResponse = await github.rest.repos.listReleases({
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
-            core.setOutput("tag", release.data.tag_name);
-            core.setOutput("id", release.data.id);
+            
+            const validReleases = releasesResponse.data.filter(release => !release.draft);
+            
+            if (validReleases.length === 0) {
+              throw new Error("No published or pre-releases found.");
+            }
+            
+            const latestRelease = validReleases[0];
+            core.setOutput("tag", latestRelease.tag_name);
+            core.setOutput("id", latestRelease.id);
 
       # ––– Check and (conditionally) upload Linux archives –––
       - name: Check if linux-x86-64.zip exists in latest release

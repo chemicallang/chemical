@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 version=v1.0.4
 
 # Determine the operating system using uname -s

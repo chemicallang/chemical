@@ -1,7 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "AccessChain.h"
-#include "Variableidentifier.h"
+#include "VariableIdentifier.h"
 #include "FunctionCall.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/FunctionDeclaration.h"

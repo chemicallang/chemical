@@ -4,7 +4,7 @@
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/ProcessUtils.h"
 #include "utils/PathUtils.h"
-#include "compiler/Lab/Utils.h"
+#include "compiler/lab/Utils.h"
 #include "compiler/InvokeUtils.h"
 
 #ifdef COMPILER_BUILD

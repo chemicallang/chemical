@@ -26,6 +26,10 @@ enum BaseTypeKind {
     Literal,
     Dynamic,
     Void,
+
+    ExpressionType,
+    TypeReturningValue,
+
     Unknown
 
 }

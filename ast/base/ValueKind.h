@@ -64,10 +64,8 @@ enum class ValueKind : uint8_t {
     AddrOfValue,
     WrapValue,
 
-    SignedIntNStart = Char,
-    SignedIntNEnd = Int128,
-    UnsignedIntNStart = UChar,
-    UnsignedIntNEnd = UInt128,
+    ValueContainingType,
+
     IntNStart = Char,
     IntNEnd = NumberValue,
 

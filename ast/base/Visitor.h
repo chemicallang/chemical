@@ -134,9 +134,9 @@ class UnnamedStructValue;
 
 class VariableIdentifier;
 
-class NamespaceIdentifier;
-
 class Expression;
+
+class ValueContainingType;
 
 class AccessChain;
 
@@ -242,6 +242,10 @@ class ULongType;
 
 class UShortType;
 
+class TypeType;
+
+class TypeContainingValue;
+
 class VoidType;
 
 class DynamicType;
@@ -249,8 +253,6 @@ class DynamicType;
 class ExtensionFunction;
 
 class ExtensionFuncReceiver;
-
-class MalformedInput;
 
 class ThrowStatement;
 
@@ -547,6 +549,10 @@ public:
         visitCommonValue((Value*) expr);
     }
 
+    virtual void visit(ValueContainingType* value) {
+        visitCommonValue((Value*) value);
+    }
+
     virtual void visit(CastedValue* casted) {
         visitCommonValue((Value*) casted);
     }
@@ -561,10 +567,6 @@ public:
 
     virtual void visit(DereferenceValue* casted) {
         visitCommonValue((Value*) casted);
-    }
-
-    virtual void visit(MalformedInput* malformed) {
-        // do nothing malformed input needs to be handled explicitly
     }
 
     virtual void visit(FunctionCall* call) {
@@ -701,6 +703,14 @@ public:
 
     virtual void visit(LinkedValueType* ref_type) {
         visitCommonType((BaseType*) ref_type);
+    }
+
+    virtual void visit(TypeType* type) {
+        visitCommonType((BaseType*) type);
+    }
+
+    virtual void visit(TypeContainingValue* type) {
+        visitCommonType((BaseType*) type);
     }
 
     virtual void visit(ShortType* type) {

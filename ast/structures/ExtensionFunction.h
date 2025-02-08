@@ -20,7 +20,37 @@ public:
             SourceLocation location,
             std::optional<Scope> body = std::nullopt,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : FunctionDeclaration(
+            identifier,
+            std::move(params),
+            returnType,
+            isVariadic,
+            parent_node,
+            location,
+            std::move(body),
+            specifier
+    ), receiver(std::move(receiver)) {
+
+    }
+
+    ExtensionFunction(
+            LocatedIdentifier identifier,
+            ExtensionFuncReceiver receiver,
+            BaseType* returnType,
+            bool isVariadic,
+            ASTNode* parent_node,
+            SourceLocation location,
+            AccessSpecifier specifier = AccessSpecifier::Internal
+    ) : FunctionDeclaration(
+            identifier,
+            returnType,
+            isVariadic,
+            parent_node,
+            location,
+            specifier
+    ), receiver(std::move(receiver)) {
+
+    }
 
 #ifdef COMPILER_BUILD
 

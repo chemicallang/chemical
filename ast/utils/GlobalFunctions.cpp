@@ -9,9 +9,11 @@
 #include "ast/types/VoidType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/BoolType.h"
+#include "ast/types/TypeType.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
+#include "ast/values/ValueContainingType.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/RetStructParamValue.h"
@@ -1098,6 +1100,36 @@ public:
 
 };
 
+// only direct child functions are supported at the moment
+class InterpretGetChildType : public FunctionDeclaration {
+public:
+
+    TypeType returnType;
+    GenericTypeParameter parameter;
+
+    explicit InterpretGetChildType(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("get_child_type"),
+            &returnType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), parameter("T", nullptr, nullptr, this, 0, ZERO_LOC), returnType(ZERO_LOC) {
+        set_comptime(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->generic_list.empty()) {
+            call_scope->error("get_child_type expects a single type parameter", call);
+            return nullptr;
+        }
+        const auto childType = call->generic_list.front()->create_child_type(allocator);
+        return new (allocator.allocate<ValueContainingType>()) ValueContainingType(childType);
+    }
+
+};
+
 //class InterpretGetDeleteFnPtr : public FunctionDeclaration {
 //public:
 //
@@ -1167,6 +1199,7 @@ public:
     InterpretGetTarget get_target_fn;
     InterpretGetCurrentFilePath get_current_file_path;
     InterpretGetChildFunction get_child_fn;
+    InterpretGetChildType get_child_type;
     InterpretError error_fn;
 
     CompilerNamespace(
@@ -1174,14 +1207,14 @@ public:
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
         printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this), satisfiesFn(this),
-        get_target_fn(this), get_current_file_path(this), get_child_fn(this), error_fn(this)
+        get_target_fn(this), get_current_file_path(this), get_child_fn(this), get_child_type(this), error_fn(this)
     {
 
         set_comptime(true);
         nodes = {
             &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
             &satisfiesFn, &get_raw_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
-            &get_target_fn, &get_current_file_path, &get_child_fn, &error_fn
+            &get_target_fn, &get_current_file_path, &get_child_fn, &get_child_type, &error_fn
         };
 
     }

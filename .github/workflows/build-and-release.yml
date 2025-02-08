@@ -20,7 +20,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap
 
-      # Checkout chemical repository inside the chemical-bootstrap
+      # Checkout chemical repository inside chemical-bootstrap
       - name: Checkout chemical repository inside chemical-bootstrap
         uses: actions/checkout@v3
         with:
@@ -56,14 +56,33 @@ jobs:
         run: .\build.bat native-windows-gnu native
         if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
-      # Install required boost installation for chemical lsp
-      - name: Install Boost
-        uses: MarkusJx/install-boost@v2
-        id: install-boost
+      # ––– Cache Boost Libraries –––
+      - name: Cache Boost Libraries (Windows)
+        id: boost-cache
+        uses: actions/cache@v2
         with:
-          boost_version: 1.74.0
-          platform_version: 2019
-          toolset: msvc
+          path: boost_install
+          key: ${{ runner.os }}-boost-1.74.0
+
+      # ––– Download and Build Boost if Cache Miss –––
+      - name: Build Boost 1.74.0 (Windows)
+        if: steps.boost-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          Write-Host "Downloading Boost 1.74.0 from SourceForge..."
+          $boostUrl = "https://sourceforge.net/projects/boost/files/boost/1.74.0/boost_1_74_0.zip/download?use_mirror=autoselect"
+          Invoke-WebRequest -Uri $boostUrl -OutFile boost_1_74_0.zip
+          Write-Host "Extracting Boost..."
+          Expand-Archive -Path boost_1_74_0.zip -DestinationPath .
+          # Assumes the zip creates a folder named "boost_1_74_0"
+          Write-Host "Bootstrapping and building Boost..."
+          cd boost_1_74_0
+          .\bootstrap.bat
+          # Build static libraries; adjust options (like toolset or address-model) as needed.
+          .\b2.exe --build-type=complete --link=static --runtime-link=static --variant=release address-model=64 install --prefix=../boost_install
+          cd ..
+          Write-Host "Boost built and installed to $(Resolve-Path boost_install)"
 
       # Build the chemical project executables via CMake
       - name: Build chemical project (Windows)
@@ -97,7 +116,6 @@ jobs:
             core.setOutput("id", release.data.id);
 
       # ––– For each archive we check whether it is already attached –––
-      # Example for windows-x64.zip:
       - name: Check if windows-x64.zip exists in latest release
         id: check_windows_x64
         uses: actions/github-script@v6
@@ -175,7 +193,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap
 
-      # Checkout chemical repository inside the chemical-bootstrap
+      # Checkout chemical repository inside chemical-bootstrap
       - name: Checkout chemical repository inside chemical-bootstrap
         uses: actions/checkout@v3
         with:
@@ -187,7 +205,8 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake git libboost-all-dev
+          sudo apt-get install -y build-essential cmake git
+      # (Do not install libboost-all-dev since we want Boost 1.74.0)
 
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
@@ -212,15 +231,30 @@ jobs:
           ./build native-linux-gnu native
         if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
-      # Install boost for Chemical LSP
-      - name: Install Boost
-        uses: MarkusJx/install-boost@v2
-        id: install-boost
+      # ––– Cache Boost Libraries –––
+      - name: Cache Boost Libraries (Linux)
+        id: boost-cache
+        uses: actions/cache@v2
         with:
-          boost_version: 1.74.0
-          platform_version: 20.04
-          toolset: gcc
-          arch: x86
+          path: boost_install
+          key: ${{ runner.os }}-boost-1.74.0
+
+      # ––– Download and Build Boost if Cache Miss –––
+      - name: Build Boost 1.74.0 (Linux)
+        if: steps.boost-cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          echo "Downloading Boost 1.74.0 from SourceForge..."
+          curl -L "https://sourceforge.net/projects/boost/files/boost/1.74.0/boost_1_74_0.zip/download?use_mirror=autoselect" -o boost_1_74_0.zip
+          echo "Extracting Boost..."
+          unzip boost_1_74_0.zip
+          cd boost_1_74_0
+          echo "Bootstrapping Boost..."
+          ./bootstrap.sh
+          echo "Building Boost (static libraries)..."
+          ./b2 --build-type=complete link=static runtime-link=static variant=release address-model=64 install --prefix=../boost_install
+          cd ..
+          echo "Boost built and installed to $(pwd)/boost_install"
 
       # Build the chemical project executables via CMake
       - name: Build chemical project (Linux)

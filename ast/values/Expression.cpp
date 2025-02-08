@@ -9,7 +9,7 @@
 #include "ast/types/LongType.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/NumberValue.h"
-#include "ast/values/NullVAlue.h"
+#include "ast/values/NullValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/StringValue.h"

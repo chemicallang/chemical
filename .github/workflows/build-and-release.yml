@@ -47,7 +47,7 @@ jobs:
           echo "sha=$sha" >> $env:GITHUB_OUTPUT
 
       # Setup Cache for out-win folder
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         id: bootstrap-cache
         with:
           path: ./chemical-bootstrap/out-win/
@@ -198,7 +198,7 @@ jobs:
           echo "sha=$SHA" >> $GITHUB_OUTPUT
 
       # Setup Cache for out folder
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         id: bootstrap-cache
         with:
           path: ./chemical-bootstrap/out/

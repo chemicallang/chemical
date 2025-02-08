@@ -258,20 +258,14 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const releasesResponse = await github.rest.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
             });
-            
-            const validReleases = releasesResponse.data.filter(release => !release.draft);
-            
-            if (validReleases.length === 0) {
-              throw new Error("No published or pre-releases found.");
-            }
-            
-            const latestRelease = validReleases[0];
-            core.setOutput("tag", latestRelease.tag_name);
-            core.setOutput("id", latestRelease.id);
+            const exists = release.assets.some(asset => asset.name === 'linux-x86-64.zip');
+            core.setOutput("exists", exists.toString());
 
       - name: Upload linux-x86-64.zip to release if not exists
         if: steps.check_linux_x64.outputs.exists == 'false'

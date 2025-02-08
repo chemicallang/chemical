@@ -373,6 +373,7 @@ uint64_t Value::byte_size(bool is64Bit) {
     throw std::runtime_error("byte_size called on base Value " + representation());
 #else
     std::cerr << "Value::byte_size called on value " << representation() << std::endl;
+    return 0;
 #endif
 }
 

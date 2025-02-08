@@ -70,10 +70,15 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          Write-Host "Downloading Boost 1.74.0 from SourceForge..."
-          $boostUrl = "https://sourceforge.net/projects/boost/files/boost/1.74.0/boost_1_74_0.zip/download?use_mirror=autoselect"
-          Invoke-WebRequest -Uri $boostUrl -OutFile boost_1_74_0.zip -UseBasicParsing
-          Write-Host "Downloaded boost_1_74_0.zip, size:" (Get-Item boost_1_74_0.zip).Length
+          Write-Host "Downloading Boost 1.74.0 using the direct URL..."
+          $url = "https://phoenixnap.dl.sourceforge.net/project/boost/boost/1.74.0/boost_1_74_0.zip?viasf=1"
+          curl.exe -L $url -o boost_1_74_0.zip
+          $fileSize = (Get-Item boost_1_74_0.zip).Length
+          Write-Host "Downloaded boost_1_74_0.zip, size: $fileSize bytes"
+          if ($fileSize -lt 1000000) {
+            Write-Error "Downloaded file appears too small; likely not the full archive."
+            exit 1
+          }
           Write-Host "Extracting Boost..."
           Expand-Archive -Path boost_1_74_0.zip -DestinationPath .
           Write-Host "Bootstrapping and building Boost..."
@@ -246,7 +251,7 @@ jobs:
           echo "Downloading Boost 1.74.0 from SourceForge..."
           curl -L "https://sourceforge.net/projects/boost/files/boost/1.74.0/boost_1_74_0.zip/download?use_mirror=autoselect" -o boost_1_74_0.zip
           echo "Extracting Boost..."
-          unzip boost_1_74_0.zip
+          unzip -q boost_1_74_0.zip
           cd boost_1_74_0
           echo "Bootstrapping Boost..."
           ./bootstrap.sh

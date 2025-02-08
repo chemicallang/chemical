@@ -40,7 +40,7 @@ AtReplaceResult lib_path_resolver(
             libPath = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/" + lib_path);
         }
 #else
-        libPath = resolve_rel_parent_path_str(handler.compiler_exe_path, lib_path);
+        libPath = resolve_rel_parent_path_str(handler.exe_path, lib_path);
 #endif
 //    }
     if(libPath.empty()) {

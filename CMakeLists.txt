@@ -5,6 +5,10 @@ cmake_minimum_required(VERSION 3.12)
 message("CMake version: ${CMAKE_VERSION}")
 project("chemical" VERSION 1.0.5)
 
+# Set C++ standard 20
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # use default out/host or out-win/host folder if cmake prefix path is not given
 if (NOT DEFINED CMAKE_PREFIX_PATH)
     if (WIN32)
@@ -71,7 +75,7 @@ if (POLICY CMP0074)
 endif ()
 
 # Find Boost
-find_package(Boost 1.74 COMPONENTS program_options filesystem REQUIRED)
+find_package(Boost 1.74 COMPONENTS program_options filesystem QUIET)
 
 # find these packages
 find_package(llvm 17)
@@ -511,6 +515,7 @@ set(COMMON_SOURCES
 )
 
 # Chemical LSP Executable Target
+if(Boost_FOUND)
 add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/WorkspaceManager.h
         server/WorkspaceManager.cpp
@@ -541,6 +546,9 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/CaretPositionAnalyzer.h
         server/analyzers/CaretPositionAnalyzer.cpp
 )
+else()
+    message(WARNING "Boost 1.74 with program_options and filesystem not found. Skipping Lsp target.")
+endif()
 
 # Add an executable target for the second executable
 add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
@@ -590,7 +598,9 @@ target_compile_definitions(Compiler PRIVATE COMPILER_BUILD CLANG_LIBS LLD_LIBS $
 target_compile_definitions(TCCCompiler PRIVATE TCC_BUILD)
 
 # Lsp uses boost library
+if(Boost_FOUND)
 target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
+endif()
 
 # Define common include directories
 set(COMMON_INCLUDE_DIRS
@@ -602,11 +612,13 @@ set(COMMON_INCLUDE_DIRS
 )
 
 # Add include directories for LspCpp
+if(Boost_FOUND)
 target_include_directories(ChemicalLsp PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
         ${LIBTCC_DIR}/include
         ${COMMON_INCLUDE_DIRS}
 )
+endif()
 
 # Add include directories for LspCpp
 target_include_directories(Interpreter PRIVATE
@@ -645,8 +657,10 @@ if (MSVC)
     target_compile_options(Compiler PRIVATE /wd4267)
     target_compile_options(TCCCompiler PRIVATE /wd4267)
     target_compile_options(Interpreter PRIVATE /wd4267)
-    target_compile_options(ChemicalLsp PRIVATE /wd4267)
-endif ()
+    if(Boost_FOUND)
+        target_compile_options(ChemicalLsp PRIVATE /wd4267)
+    endif()
+endif()
 
 # https://discourse.llvm.org/t/undefined-reference-to-typeinfo-for-llvm-genericoptionvalue/71526/3
 set(NO_RTTI "-fno-rtti")
@@ -666,11 +680,6 @@ target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRAR
 target_link_libraries(TCCCompiler ${LIBTCC_LIB})
 
 # Link Lsp with Boost Library
+if(Boost_FOUND)
 target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp ${LIBTCC_LIB})
-
-# Set to C++ 20
-message(STATUS "Setting Standard C++ 20")
-set_property(TARGET ChemicalLsp PROPERTY CXX_STANDARD 20)
-set_property(TARGET Interpreter PROPERTY CXX_STANDARD 20)
-set_property(TARGET Compiler PROPERTY CXX_STANDARD 20)
-set_property(TARGET TCCCompiler PROPERTY CXX_STANDARD 20)
+endif()

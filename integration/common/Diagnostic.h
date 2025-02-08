@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <cinttypes>
 #include "Range.h"
 #include "DiagSeverity.h"
 

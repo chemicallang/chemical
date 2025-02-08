@@ -3,6 +3,7 @@
 #pragma once
 
 #include <string>
+#include <cinttypes>
 
 struct BenchmarkResults {
 

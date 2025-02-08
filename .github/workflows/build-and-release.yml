@@ -61,7 +61,7 @@ jobs:
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir out\release
-          cmake -S . -B out\build\x64-release -G Ninja -A x64 -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build out\build\x64-release --config Release --target Compiler
           cmake --build out\build\x64-release --config Release --target TCCCompiler
           cmake --build out\build\x64-release --config Release --target ChemicalLsp || true

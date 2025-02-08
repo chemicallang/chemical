@@ -56,27 +56,6 @@ jobs:
         run: .\build.bat native-windows-gnu native
         if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
-      # ––– Cache Boost Libraries –––
-      - name: Cache Boost Libraries (Windows)
-        id: boost-cache
-        uses: actions/cache@v2
-        with:
-          path: boost_install
-          key: ${{ runner.os }}-boost-1.74.0
-
-      - name: Set BOOST_ROOT global environment variable (Windows)
-        shell: pwsh
-        if: steps.boost-cache.outputs.cache-hit == 'true'
-        run: |
-          if (Test-Path "boost_install") {
-            $boostPath = (Resolve-Path "boost_install").Path
-            echo "BOOST_ROOT=$boostPath" >> $env:GITHUB_ENV
-            Write-Host "Set BOOST_ROOT to $boostPath"
-          } else {
-            Write-Error "Boost installation directory not found!"
-            exit 1
-          }
-
       # Build the chemical project executables via CMake
       - name: Build chemical project (Windows)
         working-directory: chemical-bootstrap/chemical
@@ -223,27 +202,6 @@ jobs:
           chmod +x build
           ./build native-linux-gnu native
         if: steps.bootstrap-cache.outputs.cache-hit != 'true'
-
-      # ––– Cache Boost Libraries –––
-      - name: Cache Boost Libraries (Linux)
-        id: boost-cache
-        uses: actions/cache@v2
-        with:
-          path: boost_install
-          key: ${{ runner.os }}-boost-1.74.0
-
-      - name: Set BOOST_ROOT global environment variable (Linux)
-        shell: bash
-        if: steps.boost-cache.outputs.cache-hit == 'true'
-        run: |
-          if [ -d "boost_install" ]; then
-            boost_path="$(pwd)/boost_install"
-            echo "BOOST_ROOT=$boost_path" >> $GITHUB_ENV
-            echo "Set BOOST_ROOT to $boost_path"
-          else
-            echo "Boost installation directory not found!" >&2
-            exit 1
-          fi
 
       # Build the chemical project executables via CMake
       - name: Build chemical project (Linux)

@@ -61,7 +61,7 @@ jobs:
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir out\release
-          cmake -S . -B out\build\x64-release -A x64 -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B out\build\x64-release -G Ninja -A x64 -DCMAKE_BUILD_TYPE=Release
           cmake --build out\build\x64-release --config Release --target Compiler
           cmake --build out\build\x64-release --config Release --target TCCCompiler
           cmake --build out\build\x64-release --config Release --target ChemicalLsp || true
@@ -80,12 +80,20 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const release = await github.rest.repos.getLatestRelease({
+            const releasesResponse = await github.rest.repos.listReleases({
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
-            core.setOutput("tag", release.data.tag_name);
-            core.setOutput("id", release.data.id);
+            
+            const validReleases = releasesResponse.data.filter(release => !release.draft);
+            
+            if (validReleases.length === 0) {
+              throw new Error("No published or pre-releases found.");
+            }
+            
+            const latestRelease = validReleases[0];
+            core.setOutput("tag", latestRelease.tag_name);
+            core.setOutput("id", latestRelease.id);
 
       # ––– For each archive we check whether it is already attached –––
       - name: Check if windows-x64.zip exists in latest release
@@ -241,14 +249,20 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const tag = '${{ steps.get_latest_release.outputs.tag }}';
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag: tag
+            const releasesResponse = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
             });
-            const exists = release.assets.some(asset => asset.name === 'linux-x86-64.zip');
-            core.setOutput("exists", exists.toString());
+            
+            const validReleases = releasesResponse.data.filter(release => !release.draft);
+            
+            if (validReleases.length === 0) {
+              throw new Error("No published or pre-releases found.");
+            }
+            
+            const latestRelease = validReleases[0];
+            core.setOutput("tag", latestRelease.tag_name);
+            core.setOutput("id", latestRelease.id);
 
       - name: Upload linux-x86-64.zip to release if not exists
         if: steps.check_linux_x64.outputs.exists == 'false'

@@ -386,7 +386,7 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
             func->ensure_destructor(linker, this);
             has_destructor = true;
         }
-        if(func->is_clear_fn()) {
+        if(func->is_post_move_fn()) {
             func->ensure_clear_fn(linker, this);
             has_clear_fn = true;
         }

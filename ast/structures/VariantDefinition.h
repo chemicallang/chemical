@@ -9,6 +9,10 @@ struct VariantDeclAttributes {
 
     AccessSpecifier specifier;
 
+    bool is_comptime;
+
+    bool is_compiler_decl;
+
     bool deprecated;
 
     bool anonymous;
@@ -39,7 +43,9 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : ExtendableMembersContainerNode(identifier), parent_node(parent_node), ref_type(name_view(), this, location),
+        location(location), attrs(specifier, false, false, false, false) {
+    }
 
     /**
      * get the name of node
@@ -62,6 +68,23 @@ public:
 
     void set_specifier(AccessSpecifier specifier) {
         attrs.specifier = specifier;
+    }
+
+    inline bool is_comptime() {
+        return attrs.is_comptime;
+    }
+
+    inline void set_is_comptime(bool value) {
+        attrs.is_comptime = value;
+    }
+
+    inline bool is_compiler_decl() {
+        return attrs.is_compiler_decl;
+    }
+
+    inline void set_compiler_decl(bool value) {
+        attrs.is_comptime = value;
+        attrs.is_compiler_decl = value;
     }
 
     inline bool is_deprecated() {

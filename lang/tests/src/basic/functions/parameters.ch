@@ -9,7 +9,7 @@ func take_addr_of(value : int) : int {
     return value;
 }
 
-func <T> gen_assign_to_addr(value : *T) {
+func <T> gen_assign_to_addr(value : *mut T) {
     if(T is short) {
         *value = 2
     } else if(T is int) {
@@ -17,7 +17,7 @@ func <T> gen_assign_to_addr(value : *T) {
     } else if(T is bigint) {
         *value = 8
     } else {
-        value = 99
+        *value = 99
     }
 }
 

@@ -5,7 +5,7 @@ func take_int(i : int) : int {
     return i;
 }
 
-func give_ref(i : &int) : &int {
+func give_ref(i : &mut int) : &mut int {
     return i;
 }
 

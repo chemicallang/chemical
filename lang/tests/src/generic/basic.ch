@@ -162,6 +162,29 @@ struct gen_struct_calls_gen<T> {
     }
 }
 
+@comptime
+func <T> comptime_func_call_gen1() : int {
+    if(T is short) {
+        return 2
+    } else if(T is int) {
+        return 4
+    } else if(T is bigint) {
+        return 8
+    } else {
+        return 0;
+    }
+}
+
+func <T> gen_wrap_comptime_func_call() : int {
+    return comptime_func_call_gen1<T>();
+}
+
+struct wrap_gen_comptime_func_call<T> {
+    func do_call() : int {
+        return comptime_func_call_gen1<T>();
+    }
+}
+
 func test_basic_generics() {
     test("test that basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -404,5 +427,33 @@ func test_basic_generics() {
         var i = gen_struct_calls_gen<bigint> {};
         var u = gen_struct_calls_gen<ubigint> {};
         return i.call_it(60) == 68 && u.call_it(60) == 68
+    })
+    test("comptime function calls in generic functions are reevaluated between different types - 1", () => {
+        return gen_wrap_comptime_func_call<short>() == 2;
+    })
+    test("comptime function calls in generic functions are reevaluated between different types - 2", () => {
+        return gen_wrap_comptime_func_call<int>() == 4;
+    })
+    test("comptime function calls in generic functions are reevaluated between different types - 3", () => {
+        return gen_wrap_comptime_func_call<bigint>() == 8;
+    })
+    test("comptime function calls in generic functions are reevaluated between different types - 4", () => {
+        return gen_wrap_comptime_func_call<ushort>() == 0;
+    })
+    test("comptime function calls in generic structs are reevaluated between different types - 1", () => {
+        var p1 = wrap_gen_comptime_func_call<short> {}
+        return p1.do_call() == 2;
+    })
+    test("comptime function calls in generic structs are reevaluated between different types - 2", () => {
+        var p1 = wrap_gen_comptime_func_call<int> {}
+        return p1.do_call() == 4;
+    })
+    test("comptime function calls in generic structs are reevaluated between different types - 3", () => {
+        var p1 = wrap_gen_comptime_func_call<bigint> {}
+        return p1.do_call() == 8;
+    })
+    test("comptime function calls in generic structs are reevaluated between different types - 4", () => {
+        var p1 = wrap_gen_comptime_func_call<ushort> {}
+        return p1.do_call() == 0;
     })
 }

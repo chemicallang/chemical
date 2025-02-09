@@ -87,7 +87,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 if(!dyn_obj_impl) {
                     auto llvmType = llvm_type(gen);
                     // is referencing another struct, that is non movable and must be mem copied into the pointer
-                    llvm_ptr = gen.memcpy_ref_struct(known_type(), value, nullptr, llvmType);
+                    llvm_ptr = gen.memcpy_ref_struct(create_value_type(gen.allocator), value, nullptr, llvmType);
                     if (llvm_ptr) {
                         return;
                     }

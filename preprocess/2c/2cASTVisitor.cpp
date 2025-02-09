@@ -3199,6 +3199,9 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
     } else {
         declare_func_with_return(visitor, decl, name);
     }
+    // before generating function's body, it's very important we clear the cached comptime calls
+    // because multiple generic functions must re-evaluate the comptime function call
+    visitor.evaluated_func_calls.clear();
     scope(visitor, decl->body.value(), decl);
     visitor.current_func_type = prev_func_decl;
 }
@@ -3611,6 +3614,9 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
         }
     }
     initialize_def_struct_values_constructor(visitor, decl);
+    // before generating function's body, it's very important we clear the cached comptime calls
+    // because multiple generic functions must re-evaluate the comptime function call
+    visitor.evaluated_func_calls.clear();
     visitor.visit_scope(&decl->body.value(), (int) begin);
     if(has_cleanup_block) {
         visitor.new_line_and_indent();

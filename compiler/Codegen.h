@@ -445,6 +445,12 @@ public:
     Value*& eval_comptime(FunctionCall* call, FunctionDeclaration* decl);
 
     /**
+     * stores the value, into the pointer, it's an assignment, it takes care of auto dereferences during
+     * assignment
+     */
+    void assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value);
+
+    /**
      * determines destructor function for given element type
      */
     FunctionDeclaration* determine_destructor_for(

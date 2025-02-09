@@ -151,9 +151,9 @@ public:
      *
      * this takes a vector destructibles which allows you to append objects to the destructibles, that will be destructed
      */
-    virtual llvm::Value* access_chain_assign_value(
+    virtual void access_chain_assign_value(
             Codegen &gen,
-            std::vector<ChainValue*>& values,
+            AccessChain* chain,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             llvm::Value* lhsPtr,

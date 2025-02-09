@@ -85,7 +85,7 @@ public:
 
     llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) final;
 
-    llvm::Value * llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
+    void llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
 
     bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final {
         const auto linked = linked_node();

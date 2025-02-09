@@ -180,7 +180,7 @@ public:
 
     llvm::Value *llvm_arg_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::Value * llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
+    void llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
 
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) final;
 

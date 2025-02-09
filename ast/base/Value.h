@@ -416,7 +416,7 @@ public:
     /**
      * called by assignment, to assign the current value to left hand side
      */
-    virtual llvm::Value* llvm_assign_value(Codegen& gen, llvm::Value* lhsPtr, Value* lhs);
+    virtual void llvm_assign_value(Codegen& gen, llvm::Value* lhsPtr, Value* lhs);
 
     /**
      * destruct the given destructibles

@@ -128,7 +128,7 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::Value* llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
+    void llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
 

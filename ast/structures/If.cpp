@@ -29,12 +29,11 @@ llvm::Value* IfStatement::llvm_value(Codegen &gen, BaseType *type) {
     return nullptr;
 }
 
-llvm::Value* IfStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void IfStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { lhs, lhsPtr };
     code_gen(gen);
     gen.current_assignable = prev_assignable;
-    return nullptr;
 }
 
 void IfStatement::code_gen(Codegen &gen) {

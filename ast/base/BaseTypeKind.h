@@ -40,9 +40,7 @@ enum class BaseTypeKind : uint8_t {
     Dynamic,
     Void,
 
-    TypeType,
     ExpressionType,
-    WrapperType,
 
     Unknown
 

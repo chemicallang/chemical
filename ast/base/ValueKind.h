@@ -64,7 +64,6 @@ enum class ValueKind : uint8_t {
     AddrOfValue,
     WrapValue,
 
-    ValueContainingType,
     DestructValue,
 
     IntNStart = Char,

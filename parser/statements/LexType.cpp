@@ -15,7 +15,6 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/DynamicType.h"
-#include "ast/types/TypeType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/FunctionType.h"
 #include "ast/types/LiteralType.h"

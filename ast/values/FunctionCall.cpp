@@ -1130,7 +1130,9 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
     } else if(func_decl && !func_decl->generic_params.empty()) {
         const auto func_type = resolver.current_func_type;
         const auto curr_func = func_type->as_function();
-        if(curr_func) {
+        // curr_func == func_decl when this function call is calling current function (recursion)
+        // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle
+        if(curr_func && curr_func != func_decl) {
             if(curr_func->is_generic()) {
                 // current function is generic, do not register generic iterations of the call
                 curr_func->call_subscribers.emplace_back(this, expected_type ? expected_type->copy(*resolver.ast_allocator) : nullptr);

@@ -15,7 +15,6 @@
 #include "LiteralType.h"
 #include "VoidType.h"
 #include "ExpressionType.h"
-#include "WrapperType.h"
 #include "ast/statements/Typealias.h"
 
 const AnyType AnyType::instance(ZERO_LOC);

@@ -740,10 +740,6 @@ public:
         return (VoidType*) this;
     }
 
-    inline WrapperType* as_wrapper_type_unsafe() {
-        return (WrapperType*) this;
-    }
-
 
 };
 

@@ -1054,10 +1054,6 @@ public:
         return ((WrapValue*) this);
     }
 
-    inline ValueContainingType* as_value_containing_type_unsafe() {
-        return ((ValueContainingType*) this);
-    }
-
 };
 
 static_assert(sizeof(Value) <= 8, "Value must always be equal or less than 8 bytes");

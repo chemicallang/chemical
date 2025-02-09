@@ -2,7 +2,6 @@
 
 #include "parser/Parser.h"
 #include "ast/statements/Typealias.h"
-#include "ast/types/WrapperType.h"
 
 TypealiasStatement* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifier specifier) {
     auto& tok = *token;
@@ -13,32 +12,16 @@ TypealiasStatement* Parser::parseTypealiasStatement(ASTAllocator& allocator, Acc
             error("expected a type for typealias statement");
             return nullptr;
         }
-        const auto hasPipe = consumeToken(TokenType::PipeSym);
         if(!consumeToken(TokenType::EqualSym)) {
             error("expected '=' after the type tokens");
         }
-        if(hasPipe) {
-            const auto wrapperType = new (allocator.allocate<WrapperType>()) WrapperType(nullptr);
-            auto alias = new (allocator.allocate<ValueTypealiasStmt>()) ValueTypealiasStmt(loc_id(allocator, id), nullptr, wrapperType, parent_node, loc_single(tok), specifier);
-            annotate(alias);
-            auto expr = parseExpression(allocator);
-            if(expr) {
-                alias->provider = expr;
-            } else {
-                error("expected a expression after '|='");
-            }
-            return alias;
-        } else {
-            auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(allocator, id), nullptr, parent_node, loc_single(tok), specifier);
-            annotate(alias);
-            auto type = parseType(allocator);
-            if (type) {
-                alias->actual_type = type;
-            } else {
-                error("expected a type after '='");
-            }
-            return alias;
+        auto type = parseType(allocator);
+        if (!type) {
+            error("expected a type after '='");
         }
+        auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(allocator, id), type, parent_node, loc_single(tok), specifier);
+        annotate(alias);
+        return alias;
     } else {
         return nullptr;
     }

@@ -21,7 +21,7 @@ public:
 
     [[nodiscard]]
     BaseType* create_child_type(ASTAllocator& allocator) const final {
-        return type->create_child_type(allocator);
+        return type->copy(allocator);
     }
 
 //    hybrid_ptr<BaseType> get_child_type() final {

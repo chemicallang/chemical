@@ -347,17 +347,6 @@ BaseTypeKind StructMember::type_kind() const {
     return type->kind();
 }
 
-StructDefinition::StructDefinition(
-        LocatedIdentifier identifier,
-        ASTNode* parent_node,
-        SourceLocation location,
-        AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node),
-    location(location), attrs(specifier, false, false, false, false, false, false, false),
-    linked_type(identifier.identifier, this, location) {
-
-}
-
 //BaseType *StructDefinition::copy(ASTAllocator& allocator) const {
 //    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode *) this, location);
 //}

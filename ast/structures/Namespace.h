@@ -20,6 +20,11 @@ struct NamespaceDeclAttributes {
     bool is_comptime;
 
     /**
+     * compiler declarations are present inside the compiler, no need to import
+     */
+    bool is_compiler_decl;
+
+    /**
      * is namespace deprecated
      */
     bool deprecated;
@@ -51,7 +56,9 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : identifier(identifier), parent_node(parent_node), location(location), attrs(specifier, false, false) {
+
+    }
 
     /**
      * get the name of node
@@ -81,6 +88,15 @@ public:
 
     inline void set_comptime(bool value) {
         attrs.is_comptime = value;
+    }
+
+    inline bool is_compiler_decl() {
+        return attrs.is_compiler_decl;
+    }
+
+    inline void set_compiler_decl(bool value) {
+        attrs.is_comptime = value;
+        attrs.is_compiler_decl = value;
     }
 
     inline bool deprecated() {

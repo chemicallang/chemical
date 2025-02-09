@@ -28,6 +28,11 @@ struct VarInitAttributes {
     bool is_comptime;
 
     /**
+     * compiler declarations are present inside the compiler, no need to import
+     */
+    bool is_compiler_decl;
+
+    /**
      * has moved is used to indicate that an object at this location has moved
      * destructor is not called on moved objects, once moved, any attempt to access
      * this variable causes an error
@@ -88,7 +93,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : attrs(specifier, false, false, false, is_const, is_reference, false), located_id(identifier), type(type), value(value), parent_node(parent_node), location(location) {
+    ) : attrs(specifier, false, false, false, false, is_const, is_reference, false), located_id(identifier), type(type), value(value), parent_node(parent_node), location(location) {
 
     }
 
@@ -134,6 +139,15 @@ public:
 
     inline void set_comptime(bool value) {
         attrs.is_comptime = value;
+    }
+
+    inline bool is_compiler_decl() {
+        return attrs.is_compiler_decl;
+    }
+
+    inline void set_compiler_decl(bool value) {
+        attrs.is_comptime = value;
+        attrs.is_compiler_decl = value;
     }
 
     /**

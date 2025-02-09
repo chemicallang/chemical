@@ -269,7 +269,7 @@ namespace InterpretVector {
         typeParam("T", nullptr, nullptr, this, 0, ZERO_LOC),
         selfType("vector", this, ZERO_LOC), selfReference(&selfType, ZERO_LOC)
     {
-        set_comptime(true);
+        set_compiler_decl(true);
         generic_params.emplace_back(&typeParam);
         insert_func(&constructorFn);
         insert_func(&sizeFn);
@@ -406,7 +406,7 @@ public:
             AccessSpecifier::Public,
             true
     ), returnType(ZERO_LOC), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -543,7 +543,7 @@ public:
     ), anyType(ZERO_LOC),
         valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC)
     {
-        set_comptime(true);
+        set_compiler_decl(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
 //        generic_params.emplace_back(new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
@@ -572,7 +572,7 @@ public:
             AccessSpecifier::Public,
             true
     ), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
 //        generic_params.emplace_back(new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
@@ -600,7 +600,7 @@ public:
             AccessSpecifier::Public,
             true
     ), voidType(ZERO_LOC), ptrType(&voidType, ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         return new (allocator.allocate<RetStructParamValue>()) RetStructParamValue(ZERO_LOC);
@@ -621,7 +621,7 @@ public:
             AccessSpecifier::Public,
             true
     ), stringType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         return new (allocator.allocate<StringValue>()) StringValue(VERSION_STRING, ZERO_LOC);
@@ -642,7 +642,7 @@ public:
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 #ifdef TCC_BUILD
@@ -667,7 +667,7 @@ public:
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 #ifdef COMPILER_BUILD
@@ -692,7 +692,7 @@ public:
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         return new (allocator.allocate<UBigIntValue>()) UBigIntValue(call->location.encoded, call->location);
@@ -714,7 +714,7 @@ public:
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto loc = call_scope->global->loc_man.getLocation(call->location);
@@ -737,7 +737,7 @@ public:
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto loc = call_scope->global->loc_man.getLocation(call->location);
@@ -769,7 +769,7 @@ public:
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto global = call_scope->global;;
@@ -798,7 +798,7 @@ public:
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *self_call, Value *parent_val, bool evaluate_refs) final {
         const auto global = call_scope->global;;
@@ -829,7 +829,7 @@ public:
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -859,7 +859,7 @@ public:
             AccessSpecifier::Public,
             true
     ), voidType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -889,7 +889,7 @@ public:
     ), returnType(ZERO_LOC), anyType(ZERO_LOC),
     valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC),
     valueParam2("value2", &anyType, 1, nullptr, false, this, ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
         params.emplace_back(&valueParam);
         params.emplace_back(&valueParam2);
     }
@@ -934,7 +934,7 @@ public:
     ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
         valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
     {
-        set_comptime(true);
+        set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -963,7 +963,7 @@ public:
     ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
         valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
     {
-        set_comptime(true);
+        set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -989,7 +989,7 @@ public:
             true
     ), boolType(ZERO_LOC), stringType(ZERO_LOC), destValueParam("dest_value", &stringType, 0, nullptr, false, this, ZERO_LOC),
       sourceValueParam("source_value", &stringType, 1, nullptr, false, this, ZERO_LOC){
-        set_comptime(true);
+        set_compiler_decl(true);
         params.emplace_back(&destValueParam);
         params.emplace_back(&sourceValueParam);
     }
@@ -1017,7 +1017,7 @@ public:
             AccessSpecifier::Public,
             true
     ), stringType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto& triple = call_scope->global->target_triple;
@@ -1040,7 +1040,7 @@ public:
             AccessSpecifier::Public,
             true
     ), stringType(ZERO_LOC) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto& loc_man = call_scope->global->loc_man;
@@ -1071,7 +1071,7 @@ public:
             true
     ), param("value", &anyType, 0, nullptr, false, this, 0),
         methodParam("method", &strType, 1, nullptr, false, this, 0), anyType(0), strType(0) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1148,7 +1148,7 @@ public:
 //            AccessSpecifier::Public,
 //            true
 //    ), stringType(ZERO_LOC) {
-//        set_comptime(true);
+//        set_compiler_decl(true);
 //    }
 //    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
 //        auto& loc_man = call_scope->global->loc_man;
@@ -1168,7 +1168,7 @@ public:
 //            parent_node,
 //            AccessSpecifier::Public
 //    ) {
-//        set_comptime(true);
+//        set_compiler_decl(true);
 //        params.emplace_back(std::make_unique<FunctionParam>("ptr", std::make_unique<PointerType>(std::make_unique<VoidType>()), 0, std::nullopt, this));
 //        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 1, std::nullopt, this));
 //    }
@@ -1211,7 +1211,7 @@ public:
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this), satisfiesFn(this),
         get_target_fn(this), get_current_file_path(this), get_child_fn(this), error_fn(this)
     {
-        set_comptime(true);
+        set_compiler_decl(true);
         nodes = {
             &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
             &satisfiesFn, &get_raw_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
@@ -1229,7 +1229,7 @@ public:
     explicit MemNamespace(
         ASTNode* parent_node
     ) : Namespace(ZERO_LOC_ID("mem"), parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(this) {
-        set_comptime(true);
+        set_compiler_decl(true);
         nodes = { &memCopyFn };
     }
 
@@ -1246,7 +1246,7 @@ public:
     ) : Namespace(ZERO_LOC_ID("ptr"), parent_node, ZERO_LOC, AccessSpecifier::Public),
         isNullFn(this), isNotNullFn(this)
     {
-        set_comptime(true);
+        set_compiler_decl(true);
         nodes = { &isNullFn, &isNotNullFn };
     }
 
@@ -1264,7 +1264,7 @@ public:
     ) : Namespace(ZERO_LOC_ID("std"), nullptr, ZERO_LOC, AccessSpecifier::Public),
         memNamespace(this), ptrNamespace(this)
     {
-        set_comptime(true);
+        set_compiler_decl(true);
         nodes = { &memNamespace, &ptrNamespace };
     }
 
@@ -1276,7 +1276,7 @@ public:
     DefDecl() : StructDefinition(
             ZERO_LOC_ID("Def"), nullptr, ZERO_LOC, AccessSpecifier::Public
     ) {
-        set_comptime(true);
+        set_compiler_decl(true);
     }
 
 };
@@ -1303,7 +1303,7 @@ struct DefThing {
     VarInitStatement defStmt;
 
     DefThing() : defValue(&decl), defStmt(true, false, ZERO_LOC_ID("def"), defValue.refType, &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
-        defStmt.set_comptime(true);
+        defStmt.set_compiler_decl(true);
     }
 
     void declare_value(ASTAllocator& allocator, const chem::string_view& name, BaseType* type, Value* value) {

@@ -1018,7 +1018,7 @@ bool Codegen::requires_memcpy_ref_struct(BaseType* known_type, Value* value) {
 
 llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* llvm_ptr, llvm::Type* type) {
 //    const auto pure = known_type->pure_type();
-    if(requires_memcpy_ref_struct(known_type, value)) {
+    if(requires_memcpy_ref_struct(known_type->pure_type(allocator), value)) {
         if(!llvm_ptr) {
             llvm_ptr = builder->CreateAlloca(type, nullptr);
         }

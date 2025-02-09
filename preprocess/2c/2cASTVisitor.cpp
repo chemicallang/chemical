@@ -208,8 +208,7 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_vie
 }
 
 void param_type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_view& id) {
-    const auto node = type->get_direct_linked_node();
-    if(node && (node->as_struct_def() || node->as_variant_def())) {
+    if(type->isStructLikeType() && type->kind() != BaseTypeKind::Dynamic) {
         PointerType ptr_type(type, ZERO_LOC, true);
         type_with_id(visitor, &ptr_type, id);
     } else {
@@ -432,6 +431,10 @@ bool isAstNodeDirectStruct(ASTNode* node) {
             case ASTNodeKind::VariantDecl:
             case ASTNodeKind::UnionDecl:
                 return true;
+            case ASTNodeKind::GenericTypeParam:
+                return isAstNodeDirectStruct(node->known_type()->get_direct_linked_node());
+            default:
+                return false;
         }
     }
     return false;
@@ -1655,7 +1658,7 @@ public:
 
 void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     auto type = assign->lhs->create_type(visitor.allocator)->pure_type();
-    // assignment to a reference, automatic de-referencing
+    // assignment to a reference, automatic dereferencing
     if(type->kind() == BaseTypeKind::Reference) {
         visitor.write('*');
     }
@@ -2350,6 +2353,49 @@ void CTopLevelDeclarationVisitor::visit(VarInitStatement *init) {
     var_init(visitor, init, !is_exported, !redefining, is_exported && redefining);
 }
 
+void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
+    const auto node_kind = node->kind();
+    if (node_kind == ASTNodeKind::StructDecl) {
+        const auto def = node->as_struct_def_unsafe();
+        if(visitor.redefining || def->iterations_declared == 0) {
+            // declare inherited types
+            for(auto& inherit : def->inherited) {
+                auto in_node = inherit->type->get_direct_linked_node();
+                if(in_node) {
+                    early_declare_node(visitor, in_node);
+                }
+            }
+            // declare sub variables
+            for(auto& var : def->variables) {
+                auto sub_node = var.second->known_type()->get_direct_linked_node();
+                if(sub_node) {
+                    early_declare_node(visitor, sub_node);
+                }
+            }
+            visitor.declare_struct(def);
+            def->iterations_declared++;
+        }
+    } else if (node_kind == ASTNodeKind::VariantDecl) {
+        const auto def = node->as_variant_def_unsafe();
+        if(visitor.redefining || def->iterations_declared == 0) {
+            visitor.declare_variant(def);
+            def->iterations_declared++;
+        }
+    } else if (node_kind == ASTNodeKind::UnionDecl) {
+        // TODO this
+    }
+}
+
+void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::vector<GenericTypeParameter*>& gen_params) {
+    for(auto& param : gen_params) {
+        auto t = param->known_type();
+        const auto node = t->get_direct_linked_node();
+        if(node) {
+            early_declare_node(visitor, node);
+        }
+    }
+}
+
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, const chem::string_view& name);
 
 // just generates the remaining functions
@@ -2378,6 +2424,7 @@ void CTopLevelDeclarationVisitor::declare_func(FunctionDeclaration* decl) {
         int16_t i = 0;
         while(i < size) {
             decl->set_active_iteration(i);
+            early_declare_gen_arg_structs(*this, decl->generic_params);
             declare_by_name(this, decl, decl->name_view());
             i++;
         }
@@ -2519,49 +2566,6 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     for(auto& func : def->functions()) {
         if(def->get_overriding_interface(func) == nullptr) {
             declare_contained_func(this, func, false);
-        }
-    }
-}
-
-void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
-    const auto node_kind = node->kind();
-    if (node_kind == ASTNodeKind::StructDecl) {
-        const auto def = node->as_struct_def_unsafe();
-        if(visitor.redefining || def->iterations_declared == 0) {
-            // declare inherited types
-            for(auto& inherit : def->inherited) {
-                auto in_node = inherit->type->get_direct_linked_node();
-                if(in_node) {
-                    early_declare_node(visitor, in_node);
-                }
-            }
-            // declare sub variables
-            for(auto& var : def->variables) {
-                auto sub_node = var.second->known_type()->get_direct_linked_node();
-                if(sub_node) {
-                    early_declare_node(visitor, sub_node);
-                }
-            }
-            visitor.declare_struct(def);
-            def->iterations_declared++;
-        }
-    } else if (node_kind == ASTNodeKind::VariantDecl) {
-        const auto def = node->as_variant_def_unsafe();
-        if(visitor.redefining || def->iterations_declared == 0) {
-            visitor.declare_variant(def);
-            def->iterations_declared++;
-        }
-    } else if (node_kind == ASTNodeKind::UnionDecl) {
-        // TODO this
-    }
-}
-
-void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::vector<GenericTypeParameter*>& gen_params) {
-    for(auto& param : gen_params) {
-        auto t = param->known_type();
-        const auto node = t->get_direct_linked_node();
-        if(node) {
-            early_declare_node(visitor, node);
         }
     }
 }

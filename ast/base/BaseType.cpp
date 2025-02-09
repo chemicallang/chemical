@@ -78,9 +78,18 @@ bool BaseType::isStructLikeType() {
                 case ASTNodeKind::UnnamedStruct:
                 case ASTNodeKind::UnnamedUnion:
                 case ASTNodeKind::VariantDecl:
+                case ASTNodeKind::UnionDecl:
                     return true;
                 case ASTNodeKind::TypealiasStmt:
                     return linked->as_typealias_unsafe()->actual_type->isStructLikeType();
+                case ASTNodeKind::GenericTypeParam: {
+                    const auto known = linked->as_generic_type_param_unsafe()->known_type();
+                    if(known) {
+                        return known->isStructLikeType();
+                    } else {
+                        return false;
+                    }
+                }
                 default:
                     return false;
             }

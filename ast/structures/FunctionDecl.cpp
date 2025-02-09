@@ -221,6 +221,9 @@ void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<Scope>& bo
         for(auto& param : func_type->params) {
             param->code_gen(gen);
         }
+        // It's very important that we clear the evaluated function calls, before generating body
+        // because different bodies of generic functions must reevaluate comptime functions
+        gen.evaluated_func_calls.clear();
         body->code_gen(gen, destruct_begin);
         gen.end_function_block();
         gen.destruct_nodes = std::move(prev_destruct_nodes);

@@ -230,15 +230,6 @@ bool VariantCaseVariable::add_child_index(Codegen& gen, std::vector<llvm::Value 
 
 #endif
 
-VariantDefinition::VariantDefinition(
-    LocatedIdentifier identifier,
-    ASTNode* parent_node,
-    SourceLocation location,
-    AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), ref_type(name_view(), this, location),
-    location(location), attrs(specifier, false) {
-}
-
 ASTNode* VariantDefinition::child(const chem::string_view &child_name) {
     return ExtendableMembersContainerNode::child(child_name);
 }

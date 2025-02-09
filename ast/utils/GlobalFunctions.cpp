@@ -168,7 +168,6 @@ namespace InterpretVector {
             return nullptr;
         }
         const auto node = (InterpretVectorNode*) parent_node;
-//        node->typeParam.usage.emplace_back(call->generic_list[0]);
         return new (allocator.allocate<InterpretVectorVal>()) InterpretVectorVal(node);
     }
 

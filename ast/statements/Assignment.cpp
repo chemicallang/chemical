@@ -40,6 +40,8 @@ void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
                         linker.unsatisfied_type_err(value, value_type);
                     }
                     break;
+                default:
+                    break;
             }
         }
         auto id = lhs->as_identifier();

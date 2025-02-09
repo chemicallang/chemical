@@ -1036,7 +1036,11 @@ llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm
 }
 
 void AssignStatement::code_gen(Codegen &gen) {
+
     const auto pointer = lhs->llvm_pointer(gen);
+    const auto lhsType = lhs->create_type(gen.allocator);
+    const auto value_pure = value->create_type(gen.allocator);
+
     if(assOp == Operation::Assignment) {
         auto& func_type = *gen.current_func_type;
         if(value->is_ref_moved()) {
@@ -1067,7 +1071,8 @@ void AssignStatement::code_gen(Codegen &gen) {
     }
     if(llvm_value) {
         if (!gen.assign_dyn_obj(value, lhs->known_type(), pointer, llvm_value)) {
-            gen.builder->CreateStore(llvm_value, pointer);
+            const auto derefType = value_pure->getAutoDerefType(lhsType);
+            gen.builder->CreateStore(derefType ? gen.builder->CreateLoad(derefType->llvm_type(gen), llvm_value) : llvm_value, pointer);
         }
     }
 }

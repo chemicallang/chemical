@@ -9,6 +9,9 @@ struct Str {
 }
 
 enum HashingResult {
+    First,
+    Second,
+    Third,
     Hello,
     Wello,
     Dello,
@@ -20,6 +23,15 @@ enum HashingResult {
 
 func check_str_hash(s : *char) : HashingResult {
     switch(fnv1_hash(s)) {
+        comptime_fnv1_hash("first") => {
+            return HashingResult.First
+        }
+        comptime_fnv1_hash("second") => {
+            return HashingResult.Second
+        }
+        comptime_fnv1_hash("third") => {
+            return HashingResult.Third
+        }
         comptime_fnv1_hash("hello") => {
             return HashingResult.Hello
         }
@@ -46,6 +58,15 @@ func check_str_hash(s : *char) : HashingResult {
 
 func check_str_hash32(s : *char) : HashingResult {
     switch(fnv1a_hash_32(s)) {
+        comptime_fnv1a_hash_32("first") => {
+            return HashingResult.First
+        }
+        comptime_fnv1a_hash_32("second") => {
+            return HashingResult.Second
+        }
+        comptime_fnv1a_hash_32("third") => {
+            return HashingResult.Third
+        }
         comptime_fnv1a_hash_32("hello") => {
             return HashingResult.Hello
         }
@@ -169,6 +190,15 @@ klmnopqrstuvwxyz"
     test("hashing algorithm fnv1 works in both runtime and comptime - 7", () => {
         return check_str_hash("xcvcx") == HashingResult.Unknown;
     })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 8", () => {
+        return check_str_hash("first") == HashingResult.First;
+    })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 9", () => {
+        return check_str_hash("second") == HashingResult.Second;
+    })
+    test("hashing algorithm fnv1 works in both runtime and comptime - 10", () => {
+        return check_str_hash("third") == HashingResult.Third;
+    })
     test("hashing algorithm fnv1a-32 works in both runtime and comptime - 1", () => {
         return check_str_hash32("hello") == HashingResult.Hello;
     })
@@ -189,5 +219,14 @@ klmnopqrstuvwxyz"
     })
     test("hashing algorithm fnv1a-32 works in both runtime and comptime - 7", () => {
         return check_str_hash32("xcvcx") == HashingResult.Unknown;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 8", () => {
+        return check_str_hash32("first") == HashingResult.First;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 9", () => {
+        return check_str_hash32("second") == HashingResult.Second;
+    })
+    test("hashing algorithm fnv1a-32 works in both runtime and comptime - 10", () => {
+        return check_str_hash32("third") == HashingResult.Third;
     })
 }

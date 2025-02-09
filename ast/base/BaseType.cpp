@@ -14,6 +14,7 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/LiteralType.h"
+#include "ast/types/WrapperType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/PointerType.h"
 #include <sstream>
@@ -206,6 +207,80 @@ bool BaseType::requires_copy_fn() {
             default:
                 return false;
         }
+    }
+}
+
+BaseType* BaseType::pure_type() {
+    switch(kind()) {
+        case BaseTypeKind::Literal: {
+            const auto type = as_literal_type_unsafe();
+            return type->underlying;
+        }
+        case BaseTypeKind::Linked: {
+            const auto linked = as_linked_type_unsafe()->linked;
+            if (linked) {
+                const auto known = linked->known_type();
+                return known ? known : this;
+            } else {
+                return this;
+            }
+        }
+        case BaseTypeKind::Pointer: {
+            const auto ptr_type = as_pointer_type_unsafe();
+            const auto pure_child = ptr_type->type->pure_type();
+            if(pure_child && pure_child != ptr_type->type) {
+                // TODO pointer type allocated without an allocator
+                auto ptr = new PointerType(pure_child, ptr_type->location, ptr_type->is_mutable);
+                ptr_type->pures.emplace_back(ptr);
+                return ptr;
+            } else {
+                return this;
+            }
+        }
+        case BaseTypeKind::WrapperType:
+            return as_wrapper_type_unsafe()->actual_type ? as_wrapper_type_unsafe()->actual_type : this;
+        default:
+            return this;
+    }
+}
+
+BaseType* BaseType::pure_type(ASTAllocator& allocator) {
+    switch(kind()) {
+        case BaseTypeKind::Literal: {
+            const auto type = as_literal_type_unsafe();
+            return type->underlying;
+        }
+        case BaseTypeKind::Linked: {
+            const auto linked = as_linked_type_unsafe()->linked;
+            if (linked) {
+                const auto known = linked->known_type();
+                return known ? known : this;
+            } else {
+                return this;
+            }
+        }
+        case BaseTypeKind::Pointer: {
+            const auto ptr_type = as_pointer_type_unsafe();
+            const auto pure_child = ptr_type->type->pure_type(allocator);
+            if(pure_child && pure_child != ptr_type->type) {
+                return new (allocator.allocate<PointerType>()) PointerType(pure_child, ptr_type->location, ptr_type->is_mutable);
+            } else {
+                return this;
+            }
+        }
+        case BaseTypeKind::Reference: {
+            const auto ref_type = as_reference_type_unsafe();
+            const auto pure_child = ref_type->type->pure_type(allocator);
+            if(pure_child && pure_child != ref_type->type) {
+                return new (allocator.allocate<ReferenceType>()) ReferenceType(pure_child, ref_type->location, ref_type->is_mutable);
+            } else {
+                return this;
+            }
+        }
+        case BaseTypeKind::WrapperType:
+            return as_wrapper_type_unsafe()->actual_type ? as_wrapper_type_unsafe()->actual_type : this;
+        default:
+            return this;
     }
 }
 

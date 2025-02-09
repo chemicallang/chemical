@@ -22,7 +22,7 @@ public:
     }
 
     bool satisfies(BaseType *type) override {
-        return type->kind() == BaseTypeKind::TypeContainingValue;
+        return true;
     }
 
     bool is_same(BaseType *type) override {

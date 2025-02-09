@@ -13,15 +13,6 @@ uint64_t LinkedType::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-BaseType* LinkedType::pure_type() {
-    if(linked) {
-        const auto known = linked->known_type();
-        return known ? known : this;
-    } else {
-        return this;
-    }
-}
-
 bool LinkedType::satisfies(BaseType *other) {
     const auto other_kind = other->kind();
     if(!linked) {

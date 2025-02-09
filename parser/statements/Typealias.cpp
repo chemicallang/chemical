@@ -2,6 +2,7 @@
 
 #include "parser/Parser.h"
 #include "ast/statements/Typealias.h"
+#include "ast/types/WrapperType.h"
 
 TypealiasStatement* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifier specifier) {
     auto& tok = *token;
@@ -17,25 +18,24 @@ TypealiasStatement* Parser::parseTypealiasStatement(ASTAllocator& allocator, Acc
             error("expected '=' after the type tokens");
         }
         if(hasPipe) {
-            auto alias = new (allocator.allocate<ValueTypealiasStmt>()) ValueTypealiasStmt(loc_id(allocator, id), nullptr, parent_node, loc_single(tok), specifier);
+            const auto wrapperType = new (allocator.allocate<WrapperType>()) WrapperType(nullptr);
+            auto alias = new (allocator.allocate<ValueTypealiasStmt>()) ValueTypealiasStmt(loc_id(allocator, id), nullptr, wrapperType, parent_node, loc_single(tok), specifier);
             annotate(alias);
             auto expr = parseExpression(allocator);
             if(expr) {
-                alias->value = expr;
+                alias->provider = expr;
             } else {
                 error("expected a expression after '|='");
-                return alias;
             }
             return alias;
         } else {
             auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(allocator, id), nullptr, parent_node, loc_single(tok), specifier);
             annotate(alias);
             auto type = parseType(allocator);
-            if(type) {
+            if (type) {
                 alias->actual_type = type;
             } else {
                 error("expected a type after '='");
-                return alias;
             }
             return alias;
         }

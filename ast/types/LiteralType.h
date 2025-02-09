@@ -23,10 +23,6 @@ public:
         visitor->visit(this);
     }
 
-    BaseType* pure_type() final {
-        return underlying;
-    }
-
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::Literal;

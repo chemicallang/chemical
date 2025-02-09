@@ -28,8 +28,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final;
 
-    BaseType* pure_type() final;
-
     void accept(Visitor *visitor) final {
         visitor->visit(this);
     }

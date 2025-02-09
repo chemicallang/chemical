@@ -302,6 +302,8 @@ public:
 
     void visit(UShortType* func) final;
 
+    void visit(WrapperType *type) override;
+
     void visit(VoidType* func) final;
 
     void visit(LoopBlock *scope) final;

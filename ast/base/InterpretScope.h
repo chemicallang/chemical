@@ -69,7 +69,9 @@ public:
         InterpretScope* parent,
         ASTAllocator& allocator,
         GlobalInterpretScope* global
-    );
+    ) : parent(parent), allocator(allocator), global(global) {
+
+    }
 
     /**
      * use default move constructor
@@ -91,6 +93,11 @@ public:
         static_assert(std::is_base_of<ASTAny, T>::value, "T must derived from ASTAny");
         return (T*) allocate_released(sizeof(T), alignof(T));
     }
+
+    /**
+     * this function is called when this scope is destructed
+     */
+    void add_destructor(void* data, void(*destruct)(void* data));
 
     /**
      * declares a value with this name in current scope

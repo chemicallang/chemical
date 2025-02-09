@@ -144,16 +144,16 @@ public:
 class ValueTypealiasStmt : public TypealiasStatement {
 public:
 
-    Value* value;
-    TypeType type_type;
+    Value* provider;
 
     ValueTypealiasStmt(
-        LocatedIdentifier identifier,
-        Value* value,
-        ASTNode* parent_node,
-        SourceLocation location,
-        AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : value(value), TypealiasStatement(identifier, &type_type, parent_node, location, specifier), type_type(location) {
+            LocatedIdentifier identifier,
+            Value* provider,
+            WrapperType* wrapperType,
+            ASTNode* parent_node,
+            SourceLocation location,
+            AccessSpecifier specifier
+    ) : TypealiasStatement(identifier, (BaseType*) wrapperType, parent_node, location, specifier), provider(provider) {
 
     }
 

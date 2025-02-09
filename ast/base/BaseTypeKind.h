@@ -42,7 +42,7 @@ enum class BaseTypeKind : uint8_t {
 
     TypeType,
     ExpressionType,
-    TypeContainingValue,
+    WrapperType,
 
     Unknown
 

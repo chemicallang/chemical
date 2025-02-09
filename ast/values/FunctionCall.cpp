@@ -1193,7 +1193,16 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
 Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent) {
     auto func = call->safe_linked_func();
     if (func) {
-        return func->call(&scope, scope.allocator, call, parent);
+        const auto is_gen = func->is_generic();
+        int16_t prev_itr;
+        if(is_gen) {
+            prev_itr = call->set_curr_itr_on_decl();
+        }
+        const auto retVal = func->call(&scope, scope.allocator, call, parent);
+        if(is_gen) {
+            call->set_gen_itr_on_decl(prev_itr);
+        }
+        return retVal;
     } else {
         scope.error("(function call) calling a function that is not found or has no body", call);
     }

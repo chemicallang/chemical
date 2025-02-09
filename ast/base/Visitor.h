@@ -244,7 +244,7 @@ class UShortType;
 
 class TypeType;
 
-class TypeContainingValue;
+class WrapperType;
 
 class VoidType;
 
@@ -709,7 +709,7 @@ public:
         visitCommonType((BaseType*) type);
     }
 
-    virtual void visit(TypeContainingValue* type) {
+    virtual void visit(WrapperType* type) {
         visitCommonType((BaseType*) type);
     }
 

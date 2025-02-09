@@ -57,19 +57,6 @@ bool PointerType::satisfies(BaseType *given) {
     return false;
 }
 
-BaseType* PointerType::pure_type() {
-    const auto pure_child = type->pure_type();
-    if(pure_child && pure_child != type) {
-        // TODO pointer type allocated without an allocator
-        auto ptr = new PointerType(pure_child, location, is_mutable);
-        pures.emplace_back(ptr);
-        return ptr;
-//        pures.emplace_back(std::make_unique<PointerType>(hybrid_ptr<BaseType>{ pure_child, false }, token));
-//        return pures.back().get();
-    }
-    return this;
-}
-
 bool ReferenceType::satisfies(BaseType* given, Value* value, bool assignment) {
     const auto givenKind = given->kind();
     if(givenKind == BaseTypeKind::Reference) {

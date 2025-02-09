@@ -69,6 +69,8 @@
 #include "ast/types/ULongType.h"
 #include "ast/types/UShortType.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/WrapperType.h"
+#include "ast/values/ValueContainingType.h"
 #include "ast/values/UShortValue.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/IntValue.h"
@@ -905,6 +907,14 @@ void RepresentationVisitor::visit(ULongType *func) {
 
 void RepresentationVisitor::visit(UShortType *func) {
     write("ushort");
+}
+
+void RepresentationVisitor::visit(WrapperType *type) {
+    if(type->actual_type) {
+        type->actual_type->accept(this);
+    } else {
+        write("nothing");
+    }
 }
 
 void RepresentationVisitor::visit(VoidType *func) {

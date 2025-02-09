@@ -154,12 +154,10 @@ namespace InterpretVector {
 
     InterpretVectorConstructor::InterpretVectorConstructor(InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("constructor"),
-            std::vector<FunctionParam*> {},
             &node->selfType,
             false,
             node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ) {
@@ -178,13 +176,11 @@ namespace InterpretVector {
 
     InterpretVectorSize::InterpretVectorSize(InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("size"),
-        std::vector<FunctionParam*> {},
-        &retType,
-        false,
-        node,
-        ZERO_LOC,
-        std::nullopt,
-        AccessSpecifier::Public,
+            &retType,
+            false,
+            node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
             true
     ), retType(ZERO_LOC), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC) {
         params.emplace_back(&selfParam);
@@ -198,12 +194,10 @@ namespace InterpretVector {
     // TODO interpret vector get should return a reference to T
     InterpretVectorGet::InterpretVectorGet(InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("get"),
-            std::vector<FunctionParam*> {},
             &returnLinkedType,
             false,
             node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), returnLinkedType("T", &node->typeParam, ZERO_LOC),
@@ -227,12 +221,10 @@ namespace InterpretVector {
 
     InterpretVectorPush::InterpretVectorPush(InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("push"),
-            std::vector<FunctionParam*> {},
             &returnVoidType,
             false,
             node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
@@ -249,12 +241,10 @@ namespace InterpretVector {
 
     InterpretVectorRemove::InterpretVectorRemove(InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("remove"),
-            std::vector<FunctionParam*> {},
             &returnVoidType,
             false,
             node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
@@ -300,22 +290,23 @@ public:
     VoidType returnType;
 
 
-    explicit InterpretPrint(ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("print"),
-            std::vector<FunctionParam*> {},
+    explicit InterpretPrint(ASTNode* parent_node, LocatedIdentifier identifier) : FunctionDeclaration(
+            identifier,
             &returnType,
             true,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), visitor(ostring),  returnType(ZERO_LOC) {
         visitor.interpret_representation = true;
     }
-    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        ostring.str("");
-        ostring.clear();
+
+    inline explicit InterpretPrint(ASTNode* parent_node) : InterpretPrint(parent_node, ZERO_LOC_ID("print")) {
+
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         for (auto const &value: call->values) {
             auto paramValue = value->evaluated_value(*call_scope);
             if(paramValue == nullptr) {
@@ -325,8 +316,59 @@ public:
             }
         }
         std::cout << ostring.str();
+        ostring.str("");
+        ostring.clear();
         return nullptr;
     }
+};
+
+class InterpretPrintLn : public InterpretPrint {
+public:
+    inline explicit InterpretPrintLn(ASTNode* parent_node) : InterpretPrint(parent_node, ZERO_LOC_ID("println")) {
+
+    }
+    Value* call(InterpretScope *call_scope, ASTAllocator &allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        InterpretPrint::call(call_scope, allocator, call, parent_val, evaluate_refs);
+        std::cout << std::endl;
+        return nullptr;
+    }
+};
+
+class InterpretToString : public FunctionDeclaration {
+public:
+
+    std::ostringstream ostring;
+    RepresentationVisitor visitor;
+    StringType returnType;
+
+    explicit InterpretToString(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("to_string"),
+            &returnType,
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), visitor(ostring),  returnType(ZERO_LOC) {
+        visitor.interpret_representation = true;
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(!call->values.empty()) {
+            const auto paramValue = call->values.front()->evaluated_value(*call_scope);
+            if(paramValue == nullptr) {
+                ostring.write("null", 4);
+            } else {
+                paramValue->accept(&visitor);
+            }
+        }
+        const auto& str = ostring.str();
+        const auto returnValue = new (allocator.allocate<StringValue>()) StringValue(chem::string_view(allocator.allocate_str(str.data(), str.size()), str.size()), call->encoded_location());
+        ostring.str("");
+        ostring.clear();
+        return returnValue;
+    }
+
 };
 
 Value* resolve_ref(Value* val, InterpretScope *call_scope) {
@@ -359,12 +401,10 @@ public:
 
     explicit InterpretSize(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("size"),
-            std::vector<FunctionParam*> {},
             &returnType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), returnType(ZERO_LOC), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
@@ -496,12 +536,10 @@ public:
 
     explicit InterpretWrap(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("wrap"),
-            std::vector<FunctionParam*> {},
             &anyType,
             true,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), anyType(ZERO_LOC),
@@ -529,12 +567,10 @@ public:
 
     explicit InterpretUnwrap(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("unwrap"),
-            std::vector<FunctionParam*> {},
             &anyType,
             true,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
@@ -559,12 +595,10 @@ public:
 
     explicit InterpretRetStructPtr(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("return_struct"),
-            std::vector<FunctionParam*> {},
             &ptrType,
             true,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), voidType(ZERO_LOC), ptrType(&voidType, ZERO_LOC) {
@@ -582,12 +616,10 @@ public:
 
     explicit InterpretCompilerVersion(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("version"),
-            std::vector<FunctionParam*> {},
             &stringType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), stringType(ZERO_LOC) {
@@ -605,12 +637,10 @@ public:
 
     explicit InterpretIsTcc(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("is_tcc_based"),
-            std::vector<FunctionParam*> {},
             &boolType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC) {
@@ -632,12 +662,10 @@ public:
 
     explicit InterpretIsClang(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("is_clang"),
-            std::vector<FunctionParam*> {},
             &boolType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC) {
@@ -659,12 +687,10 @@ public:
 
     explicit InterpretGetRawLocation() : FunctionDeclaration(
             ZERO_LOC_ID("get_raw_location"),
-            std::vector<FunctionParam*> {},
             &uIntType,
             false,
             nullptr,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
@@ -683,12 +709,10 @@ public:
 
     explicit InterpretGetLineNo() : FunctionDeclaration(
             ZERO_LOC_ID("get_line_no"),
-            std::vector<FunctionParam*> {},
             &uIntType,
             false,
             nullptr,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
@@ -708,12 +732,10 @@ public:
 
     explicit InterpretGetCharacterNo() : FunctionDeclaration(
             ZERO_LOC_ID("get_char_no"),
-            std::vector<FunctionParam*> {},
             &uIntType,
             false,
             nullptr,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
@@ -742,12 +764,10 @@ public:
 
     explicit InterpretGetCallerLineNo() : FunctionDeclaration(
             ZERO_LOC_ID("get_caller_line_no"),
-            std::vector<FunctionParam*> {},
             &uIntType,
             false,
             nullptr,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
@@ -773,12 +793,10 @@ public:
 
     explicit InterpretGetCallerCharacterNo() : FunctionDeclaration(
             ZERO_LOC_ID("get_caller_char_no"),
-            std::vector<FunctionParam*> {},
             &uIntType,
             false,
             nullptr,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), uIntType(ZERO_LOC) {
@@ -806,12 +824,10 @@ public:
 
     explicit InterpretDefined() : FunctionDeclaration(
             ZERO_LOC_ID("defined"),
-            std::vector<FunctionParam*> {},
             &boolType,
             false,
             nullptr,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
@@ -838,12 +854,10 @@ public:
 
     explicit InterpretError(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("error"),
-            std::vector<FunctionParam*> {},
             &voidType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), voidType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
@@ -868,12 +882,10 @@ public:
 
     explicit InterpretSatisfies(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("satisfies"),
-            std::vector<FunctionParam*> {},
             &returnType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), returnType(ZERO_LOC), anyType(ZERO_LOC),
@@ -915,12 +927,10 @@ public:
 
     explicit InterpretIsPtrNull(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("isNull"),
-            std::vector<FunctionParam*> {},
             &boolType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
@@ -946,12 +956,10 @@ public:
 
     explicit InterpretIsPtrNotNull(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("isNotNull"),
-            std::vector<FunctionParam*> {},
             &boolType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
@@ -975,12 +983,10 @@ public:
 
     explicit InterpretMemCopy(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("copy"),
-            std::vector<FunctionParam*> {},
             &boolType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC), stringType(ZERO_LOC), destValueParam("dest_value", &stringType, 0, nullptr, false, this, ZERO_LOC),
@@ -1006,12 +1012,10 @@ public:
 
     explicit InterpretGetTarget(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_target"),
-            std::vector<FunctionParam*> {},
             &stringType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), stringType(ZERO_LOC) {
@@ -1031,12 +1035,10 @@ public:
 
     explicit InterpretGetCurrentFilePath(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_current_file_path"),
-            std::vector<FunctionParam*> {},
             &stringType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), stringType(ZERO_LOC) {
@@ -1130,6 +1132,40 @@ public:
 
 };
 
+class InterpretTypeToString : public FunctionDeclaration {
+public:
+
+    std::ostringstream ostring;
+    RepresentationVisitor visitor;
+    StringType returnType;
+
+    explicit InterpretTypeToString(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("type_to_string"),
+            &returnType,
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), visitor(ostring),  returnType(ZERO_LOC) {
+        visitor.interpret_representation = true;
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->generic_list.empty()) {
+            call_scope->error("type_to_string expects a single type parameter", call);
+            return nullptr;
+        }
+        const auto childType = call->generic_list.front()->pure_type(allocator);
+        childType->accept(&visitor);
+        const auto& str = ostring.str();
+        const auto returnValue = new (allocator.allocate<StringValue>()) StringValue(chem::string_view(allocator.allocate_str(str.data(), str.size()), str.size()), call->encoded_location());
+        ostring.str("");
+        ostring.clear();
+        return returnValue;
+    }
+};
+
 //class InterpretGetDeleteFnPtr : public FunctionDeclaration {
 //public:
 //
@@ -1137,12 +1173,10 @@ public:
 //
 //    explicit InterpretGetCurrentFilePath(ASTNode* parent_node) : FunctionDeclaration(
 //            ZERO_LOC_ID("get_current_file_path"),
-//            std::vector<FunctionParam*> {},
 //            &stringType,
 //            false,
 //            parent_node,
 //            ZERO_LOC,
-//            std::nullopt,
 //            AccessSpecifier::Public,
 //            true
 //    ), stringType(ZERO_LOC) {
@@ -1161,12 +1195,10 @@ public:
 //public:
 //    explicit InterpretConstruct(ASTNode* parent_node) : FunctionDeclaration(
 //            "construct",
-//            std::vector<FunctionParam*> {},
 //            std::make_unique<VoidType>(),
 //            false,
 //            parent_node,
-//            std::nullopt,
-//              AccessSpecifier::Public
+//            AccessSpecifier::Public
 //    ) {
 //        set_comptime(true);
 //        params.emplace_back(std::make_unique<FunctionParam>("ptr", std::make_unique<PointerType>(std::make_unique<VoidType>()), 0, std::nullopt, this));
@@ -1181,6 +1213,9 @@ class CompilerNamespace : public Namespace {
 public:
 
     InterpretPrint printFn;
+    InterpretPrintLn printlnFn;
+    InterpretToString to_stringFn;
+    InterpretTypeToString type_to_stringFn;
     InterpretWrap wrapFn;
     InterpretUnwrap unwrapFn;
     InterpretRetStructPtr retStructPtr;
@@ -1205,18 +1240,16 @@ public:
     CompilerNamespace(
 
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
-        printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
+        printFn(this), printlnFn(this), to_stringFn(this), type_to_stringFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this), satisfiesFn(this),
         get_target_fn(this), get_current_file_path(this), get_child_fn(this), get_child_type(this), error_fn(this)
     {
-
         set_comptime(true);
         nodes = {
-            &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
+            &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
             &satisfiesFn, &get_raw_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
             &get_target_fn, &get_current_file_path, &get_child_fn, &get_child_type, &error_fn
         };
-
     }
 
 };

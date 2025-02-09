@@ -96,10 +96,15 @@ public:
 
     /**
      * get pure type from this type, if referenced, it will resolve it
+     * @deprecated
      */
-    virtual BaseType* pure_type() {
-        return this;
-    }
+    [[deprecated]]
+    BaseType* pure_type();
+
+    /**
+     * get pure type, this is the method to use
+     */
+    BaseType* pure_type(ASTAllocator& allocator);
 
     /**
      * copy the type, along with linked node
@@ -733,6 +738,10 @@ public:
 
     inline VoidType* as_void_type_unsafe() {
         return (VoidType*) this;
+    }
+
+    inline WrapperType* as_wrapper_type_unsafe() {
+        return (WrapperType*) this;
     }
 
 

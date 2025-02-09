@@ -13,14 +13,6 @@
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-InterpretScope::InterpretScope(
-        InterpretScope *parent,
-        ASTAllocator& allocator,
-        GlobalInterpretScope *global
-) : parent(parent), allocator(allocator), global(global) {
-
-}
-
 ASTAny* InterpretScope::allocate_released(std::size_t obj_size, std::size_t alignment) {
     const auto ptr = (ASTAny*) (void*) allocator.allocate_released_size(obj_size, alignment);
     allocated.emplace_back(ptr);
@@ -85,6 +77,36 @@ void InterpretScope::print_values() {
         std::cout << "Parent ";
         parent->print_values();
     }
+}
+
+// a dummy value, which will call a lambda upon destruction
+class DestructValue : public Value {
+public:
+    void* data;
+    void(*destruct)(void* data);
+    DestructValue(void* data, void(*destruct)(void* data)) : data(data), destruct(destruct) {
+
+    }
+    ValueKind val_kind() override {
+        return ValueKind::DestructValue;
+    }
+    void accept(Visitor *visitor) override {
+        // cannot be visited
+    }
+    SourceLocation encoded_location() override {
+        // has no location
+        return ZERO_LOC;
+    }
+    Value* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<DestructValue>()) DestructValue(data, destruct);
+    }
+    ~DestructValue() {
+        destruct(data);
+    }
+};
+
+void InterpretScope::add_destructor(void* data, void(*destruct)(void* data)) {
+    new (allocate<DestructValue>()) DestructValue(data, destruct);
 }
 
 InterpretScope::~InterpretScope() {

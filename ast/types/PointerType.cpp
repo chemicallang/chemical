@@ -65,7 +65,11 @@ bool ReferenceType::satisfies(BaseType* given, Value* value, bool assignment) {
     }
     // when assigning to a ref, we don't require l value
     if(!assignment && givenKind == BaseTypeKind::IntN) {
-        return value->is_ref_l_value();
+        if(value) {
+            return value->is_ref_l_value();
+        } else {
+            return false;
+        }
     }
     if(!assignment && is_mutable && !given->is_mutable(givenKind)) {
         return false;

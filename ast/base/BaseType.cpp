@@ -14,7 +14,6 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/LiteralType.h"
-#include "ast/types/WrapperType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/PointerType.h"
 #include <sstream>
@@ -237,8 +236,6 @@ BaseType* BaseType::pure_type() {
                 return this;
             }
         }
-        case BaseTypeKind::WrapperType:
-            return as_wrapper_type_unsafe()->actual_type ? as_wrapper_type_unsafe()->actual_type : this;
         default:
             return this;
     }
@@ -277,8 +274,6 @@ BaseType* BaseType::pure_type(ASTAllocator& allocator) {
                 return this;
             }
         }
-        case BaseTypeKind::WrapperType:
-            return as_wrapper_type_unsafe()->actual_type ? as_wrapper_type_unsafe()->actual_type : this;
         default:
             return this;
     }

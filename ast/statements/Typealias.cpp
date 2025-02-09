@@ -2,8 +2,6 @@
 
 #include "Typealias.h"
 #include "compiler/SymbolResolver.h"
-#include "ast/types/WrapperType.h"
-#include "ast/values/ValueContainingType.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
@@ -22,29 +20,6 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 //            return get_call(value->as_access_chain_unsafe()->values.front());
 //    }
 //}
-
-void ValueTypealiasStmt::interpret(InterpretScope& scope) {
-    const auto evalVal = provider->evaluated_value(scope);
-    if(!evalVal) {
-        scope.error("expected value to return a value containing type", provider);
-        return;
-    }
-    if(evalVal->val_kind() != ValueKind::ValueContainingType) {
-        scope.error("expected value to return a value containing type", provider);
-        return;
-    }
-    // get the type from the evaluated value
-    const auto evaluated_type = evalVal->as_value_containing_type_unsafe()->type;
-    // set the current evaluated type to wrapper type
-    const auto type = actual_type->as_wrapper_type_unsafe();
-    type->actual_type = evaluated_type;
-    // when the scope dies, we reset scope of the type containing value back to null pointer
-    // this way type containing value can check, whether the scope lives
-    scope.add_destructor(type, [](void* data) {
-        const auto type = ((WrapperType*) data);
-        type->actual_type = nullptr;
-    });
-}
 
 void TypealiasStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_node(name_view(), this, specifier(), false);

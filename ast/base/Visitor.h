@@ -136,8 +136,6 @@ class VariableIdentifier;
 
 class Expression;
 
-class ValueContainingType;
-
 class AccessChain;
 
 class CastedValue;
@@ -243,8 +241,6 @@ class ULongType;
 class UShortType;
 
 class TypeType;
-
-class WrapperType;
 
 class VoidType;
 
@@ -549,10 +545,6 @@ public:
         visitCommonValue((Value*) expr);
     }
 
-    virtual void visit(ValueContainingType* value) {
-        visitCommonValue((Value*) value);
-    }
-
     virtual void visit(CastedValue* casted) {
         visitCommonValue((Value*) casted);
     }
@@ -706,10 +698,6 @@ public:
     }
 
     virtual void visit(TypeType* type) {
-        visitCommonType((BaseType*) type);
-    }
-
-    virtual void visit(WrapperType* type) {
         visitCommonType((BaseType*) type);
     }
 

@@ -1309,10 +1309,6 @@ int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagno
         }
         const auto parent_itr = get_parent_iteration();
         for(auto call_sub : call_subscribers) {
-            if(call_sub.first == call) {
-                // generic call to self (recursion in generic function), we are avoiding to register this call at the moment
-                continue;
-            }
             const auto call_itr = call_sub.first->register_indirect_generic_iteration(astAllocator, diagnoser, call_sub.second);
             // saving the call iteration into the map
             gen_call_iterations[pack_gen_itr(parent_itr, itr.first)] = call_itr;

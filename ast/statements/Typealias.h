@@ -7,7 +7,6 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/ExtendableAnnotableNode.h"
 #include "ast/base/LocatedIdentifier.h"
-#include "ast/types/TypeType.h"
 
 struct TypealiasDeclAttributes {
 
@@ -138,25 +137,5 @@ public:
     void code_gen(Codegen &gen) final;
 
 #endif
-
-};
-
-class ValueTypealiasStmt : public TypealiasStatement {
-public:
-
-    Value* provider;
-
-    ValueTypealiasStmt(
-            LocatedIdentifier identifier,
-            Value* provider,
-            WrapperType* wrapperType,
-            ASTNode* parent_node,
-            SourceLocation location,
-            AccessSpecifier specifier
-    ) : TypealiasStatement(identifier, (BaseType*) wrapperType, parent_node, location, specifier), provider(provider) {
-
-    }
-
-    void interpret(InterpretScope& scope) final;
 
 };

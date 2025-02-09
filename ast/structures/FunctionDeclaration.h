@@ -37,6 +37,11 @@ struct FuncDeclAttributes {
      */
     bool is_comptime;
     /**
+     * compiler functions are present inside the compiler
+     * like compiler::println
+     */
+    bool is_compiler_decl;
+    /**
      * when involved in multi function node (due to same name, different parameters)
      */
     uint8_t multi_func_index = 0;
@@ -249,7 +254,7 @@ public:
             bool signature_resolved = false
     )  : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
          identifier(identifier), body(std::move(body)), location(location),
-         attrs(specifier, false, 0, false, false, false, false, false, false, false, false, false, false) {
+         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
     }
 
     /**
@@ -265,7 +270,7 @@ public:
             bool signature_resolved = false
     )  : FunctionType(returnType, isVariadic, false, parent_node, location, signature_resolved),
          identifier(identifier), location(location),
-         attrs(specifier, false, 0, false, false, false, false, false, false, false, false, false, false) {
+         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
     }
 
     /**
@@ -285,6 +290,15 @@ public:
 
     inline void set_comptime(bool value) {
         attrs.is_comptime = value;
+    }
+
+    inline bool is_compiler_decl() {
+        return attrs.is_compiler_decl;
+    }
+
+    inline void set_compiler_decl(bool value) {
+        attrs.is_comptime = value;
+        attrs.is_compiler_decl = value;
     }
 
     inline void set_specifier_fast(AccessSpecifier specifier) {

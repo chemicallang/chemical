@@ -29,6 +29,11 @@ struct StructDeclAttributes {
     bool is_comptime;
 
     /**
+     * is a compiler declaration (present inside the compiler, no need to import)
+     */
+    bool is_compiler_decl;
+
+    /**
      * is direct initialization
      * constructor or de constructor allow functions to be called automatically
      */
@@ -90,7 +95,11 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    );
+    ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node),
+        location(location), attrs(specifier, false, false, false, false, false, false, false, false),
+        linked_type(identifier.identifier, this, location) {
+
+    }
 
     /**
      * get the name of node
@@ -117,6 +126,15 @@ public:
 
     inline void set_comptime(bool value) {
         attrs.is_comptime = value;
+    }
+
+    inline bool is_compiler_decl() {
+        return attrs.is_compiler_decl;
+    }
+
+    inline void set_compiler_decl(bool value) {
+        attrs.is_comptime = value;
+        attrs.is_compiler_decl = value;
     }
 
     inline bool is_direct_init() {

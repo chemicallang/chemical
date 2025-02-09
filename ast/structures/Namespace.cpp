@@ -3,15 +3,6 @@
 #include "Namespace.h"
 #include "compiler/SymbolResolver.h"
 
-Namespace::Namespace(
-    LocatedIdentifier identifier,
-    ASTNode* parent_node,
-    SourceLocation location,
-    AccessSpecifier specifier
-) : identifier(identifier), parent_node(parent_node), location(location), attrs(specifier, false) {
-
-}
-
 void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const chem::string_view& node_id) {
     auto found = extended.find(node_id);
     if(found == extended.end()) {

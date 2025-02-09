@@ -35,6 +35,12 @@ func test_auto_deref() {
         var i = 38
         return take_int(give_ref(i)) == 38
     })
+    test("auto dereference in assignment works", () => {
+        var i = 33
+        var j = 0
+        j = give_ref(i)
+        return j == 33
+    })
     test("auto derefeences when a value is being returned", () => {
         var i = 323
         return ret_auto_deref(i) == 323

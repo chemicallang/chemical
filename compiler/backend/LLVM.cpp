@@ -735,16 +735,15 @@ llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type) {
     return value;
 }
 
-llvm::Value* AccessChain::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void AccessChain::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     std::vector<int16_t> active;
     set_generic_iteration(active, gen.allocator);
     const auto last_ind = values.size() - 1;
     auto& last = values[last_ind];
-    const auto value = last->access_chain_assign_value(gen, values, last_ind, destructibles, lhsPtr, lhs, nullptr);
+    last->access_chain_assign_value(gen, this, last_ind, destructibles, lhsPtr, lhs, nullptr);
     restore_generic_iteration(active, gen.allocator);
     Value::destruct(gen, destructibles);
-    return value;
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
@@ -908,10 +907,7 @@ void TypealiasStatement::code_gen(Codegen &gen) {
 
 void ValueNode::code_gen(Codegen& gen) {
     if(gen.current_assignable.second) {
-        const auto llvm_val = value->llvm_assign_value(gen, gen.current_assignable.second, gen.current_assignable.first);
-        if(llvm_val) {
-            gen.builder->CreateStore(llvm_val, gen.current_assignable.second);
-        }
+        value->llvm_assign_value(gen, gen.current_assignable.second, gen.current_assignable.first);
     } else {
         gen.error("couldn't assign value node to current assignable", this);
     }
@@ -925,10 +921,7 @@ void BreakStatement::code_gen(Codegen &gen) {
     if(value) {
         auto& assignable = gen.current_assignable;
         if(assignable.second) {
-            const auto llvm_value = value->llvm_assign_value(gen, assignable.second, assignable.first);
-            if(llvm_value) {
-                gen.builder->CreateStore(llvm_value, assignable.second);
-            }
+            value->llvm_assign_value(gen, assignable.second, assignable.first);
         } else {
             gen.error("couldn't assign value in break statement", this);
         }
@@ -1038,8 +1031,6 @@ llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm
 void AssignStatement::code_gen(Codegen &gen) {
 
     const auto pointer = lhs->llvm_pointer(gen);
-    const auto lhsType = lhs->create_type(gen.allocator);
-    const auto value_pure = value->create_type(gen.allocator);
 
     if(assOp == Operation::Assignment) {
         auto& func_type = *gen.current_func_type;
@@ -1063,17 +1054,11 @@ void AssignStatement::code_gen(Codegen &gen) {
             return;
         }
     }
-    llvm::Value* llvm_value;
     if (assOp == Operation::Assignment) {
-        llvm_value = value->llvm_assign_value(gen, pointer, lhs);
+        value->llvm_assign_value(gen, pointer, lhs);
     } else {
-        llvm_value = gen.operate(assOp, lhs, value);
-    }
-    if(llvm_value) {
-        if (!gen.assign_dyn_obj(value, lhs->known_type(), pointer, llvm_value)) {
-            const auto derefType = value_pure->getAutoDerefType(lhsType);
-            gen.builder->CreateStore(derefType ? gen.builder->CreateLoad(derefType->llvm_type(gen), llvm_value) : llvm_value, pointer);
-        }
+        llvm::Value* llvm_value = gen.operate(assOp, lhs, value);
+        gen.assign_store(lhs, pointer, value, llvm_value);
     }
 }
 
@@ -1187,12 +1172,11 @@ llvm::Value* LoopBlock::llvm_value(Codegen &gen, BaseType *type) {
     return nullptr;
 }
 
-llvm::Value* LoopBlock::llvm_assign_value(Codegen &gen, llvm::Value* lhsPtr, Value *lhs) {
+void LoopBlock::llvm_assign_value(Codegen &gen, llvm::Value* lhsPtr, Value *lhs) {
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { lhs, lhsPtr };
     code_gen(gen);
     gen.current_assignable = prev_assignable;
-    return nullptr;
 }
 
 llvm::AllocaInst* LoopBlock::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {

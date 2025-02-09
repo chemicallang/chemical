@@ -182,10 +182,12 @@ llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     throw std::runtime_error("cannot allocate a struct without an identifier");
 }
 
-llvm::Value* StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
     const auto known_type = lhs->known_type();
     if(known_type->kind() == BaseTypeKind::Dynamic && known_type->linked_node()->as_interface_def()) {
-        return llvm_allocate(gen, "", nullptr);
+        const auto value = llvm_allocate(gen, "", nullptr);
+        gen.assign_store(lhs, lhsPtr, this, value);
+        return;
     } else if(lhs->as_deref_value()) {
         if(!definition->destructor_func() && !definition->clear_func() && allows_direct_init()) {
             const auto deref = lhs->as_deref_value();
@@ -193,7 +195,7 @@ llvm::Value* StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, V
             if (deref_type->pure_type()->is_pointer()) {
                 auto allocated = deref->llvm_pointer(gen);
                 initialize_alloca(allocated, gen, nullptr);
-                return nullptr;
+                return;
             }
         }
     } else {
@@ -205,12 +207,12 @@ llvm::Value* StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, V
             }
         }
         initialize_alloca(lhsPtr, gen, nullptr);
-        return nullptr;
+        return;
     }
 #ifdef DEBUG
     throw std::runtime_error("cannot allocate a struct without an identifier");
 #endif
-    return nullptr;
+    return;
 }
 
 llvm::Value *StructValue::llvm_arg_value(Codegen &gen, BaseType* expected_type) {

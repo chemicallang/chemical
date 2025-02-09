@@ -260,9 +260,9 @@ public:
             BaseType* expected_type
     ) final;
 
-    llvm::Value* access_chain_assign_value(
+    void access_chain_assign_value(
             Codegen &gen,
-            std::vector<ChainValue*> &values,
+            AccessChain* chain,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>> &destructibles,
             llvm::Value* lhsPtr,

@@ -36,12 +36,11 @@ llvm::Value* SwitchStatement::llvm_value(Codegen &gen, BaseType *type) {
     return nullptr;
 }
 
-llvm::Value * SwitchStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void SwitchStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { lhs, lhsPtr };
     code_gen(gen);
     gen.current_assignable = prev_assignable;
-    return nullptr;
 }
 
 llvm::ConstantInt* write_variant_call_id_index(Codegen& gen, VariantDefinition* variant, VariableIdentifier* value) {

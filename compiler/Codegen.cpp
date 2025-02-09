@@ -195,6 +195,19 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
     }
 }
 
+void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value) {
+    if(lhs) {
+        const auto lhsType = lhs->create_type(allocator);
+        const auto value_pure = rhs->create_type(allocator);
+        const auto derefType = value_pure->getAutoDerefType(lhsType);
+        if (!assign_dyn_obj(rhs, lhsType, pointer, value)) {
+            builder->CreateStore(derefType ? builder->CreateLoad(derefType->llvm_type(*this), value) : value, pointer);
+        }
+    } else {
+        builder->CreateStore(value, pointer);
+    }
+}
+
 void Codegen::destruct(
         llvm::Value* allocaInst,
         llvm::Value* array_size,

@@ -21,6 +21,13 @@ static bool read_type_involving_token(Parser& parser) {
     }
     if(type == TokenType::Identifier || Token::isKeyword(type)) {
         parser.token++;
+        while(parser.token->type == TokenType::DoubleColonSym) {
+            parser.token++;
+            const auto next = parser.token->type;
+            if(next == TokenType::Identifier || Token::isKeyword(next)) {
+                parser.token++;
+            }
+        }
         read_gen_type_token(parser) || read_arr_type_token(parser) || read_pointer_type(parser);
         return true;
     } else {

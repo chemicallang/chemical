@@ -1,4 +1,5 @@
 import "./std.ch"
+import "./hashing/fnv1.ch"
 
 public namespace std {
 
@@ -26,6 +27,14 @@ public namespace std {
 
         func size(&self) : size_t {
             return _size;
+        }
+
+        func unordered_map_compare(view1 : &string_view, view2 : &string_view) : bool {
+            return strcmp(view1.data(), view2.data()) == 0;
+        }
+
+        func unordered_map_hash(view : &string_view) : uint {
+            return fnv1a_hash_32(view.data());
         }
 
     }

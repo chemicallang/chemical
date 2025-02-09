@@ -20,6 +20,10 @@ struct unordered_map<Key, Value> {
         return (hash<Key>(key) & (capacity - 1));
     }
 
+    func compare_now(key : &Key, key2 : &Key) : bool {
+        return compare<Key>(key, key2);
+    }
+
     // Resize and rehash
     func resize(&self) : void {
         var newCapacity = capacity * 2;
@@ -83,7 +87,7 @@ struct unordered_map<Key, Value> {
 
         // Check if the key already exists in the chain, and update if so
         while (currentNode != null) {
-            if (currentNode.key == key) {
+            if (compare_now(currentNode.key, key)) {
                 currentNode.value = value; // Update value
                 return;
             }
@@ -105,7 +109,7 @@ struct unordered_map<Key, Value> {
         var currentNode = table[index];
 
         while (currentNode != null) {
-            if (currentNode.key == key) {
+            if (compare_now(currentNode.key, key)) {
                 value = currentNode.value;
                 return true;
             }
@@ -121,7 +125,7 @@ struct unordered_map<Key, Value> {
         var previousNode : *mut unordered_map_node<Key, Value> = null;
 
         while (currentNode != null) {
-            if (currentNode.key == key) {
+            if (compare_now(currentNode.key, key)) {
                 if (previousNode != null) {
                     previousNode.next = currentNode.next; // Unlink the node
                 } else {

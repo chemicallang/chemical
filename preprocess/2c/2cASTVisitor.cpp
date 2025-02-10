@@ -423,23 +423,6 @@ std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* ty
     return {nullptr, nullptr};
 }
 
-bool isAstNodeDirectStruct(ASTNode* node) {
-    if(node) {
-        const auto k = node->kind();
-        switch(k) {
-            case ASTNodeKind::StructDecl:
-            case ASTNodeKind::VariantDecl:
-            case ASTNodeKind::UnionDecl:
-                return true;
-            case ASTNodeKind::GenericTypeParam:
-                return isAstNodeDirectStruct(node->known_type()->get_direct_linked_node());
-            default:
-                return false;
-        }
-    }
-    return false;
-}
-
 // structs, or variants or references to them are passed in functions as pointers
 // if you took address of using '&' of the parameter that is already reference or pointer
 // we must not write '&' in the output C
@@ -453,7 +436,7 @@ bool is_value_passed_pointer_like(Value* value) {
                 if(type->is_pointer_or_ref()) {
                     return true;
                 }
-                return isAstNodeDirectStruct(type->get_direct_linked_node());
+                return type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType();
             }
             default:
                 return false;
@@ -578,10 +561,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         auto param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
         const auto param_type_kind = param->type->kind();
-        const auto param_ref_node = param->type->get_direct_linked_node(param_type_kind);
-        const auto val_ref_node = get_func_param_ref_node(val->linked_node());
-        const auto is_struct_param = (param_ref_node && param_ref_node->as_struct_def());
-        const auto is_variant_param = (param_ref_node && param_ref_node->as_variant_def());
+        const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param->type->isStructLikeType();
         if (has_value_before) {
             visitor.write(", ");
         } else {
@@ -589,7 +569,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         }
         bool is_memcpy_ref_str = val->requires_memcpy_ref_struct(param->type);
         if(is_memcpy_ref_str) {
-            const auto linked = param_ref_node;
+            const auto linked = param->type->get_direct_linked_node(param_type_kind);;
             visitor.write("({ ");
             temp_struct_name = visitor.get_local_temp_var_name();
             auto t = val->create_type(visitor.allocator);
@@ -603,13 +583,13 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         }
         const auto is_param_type_ref = param_type_kind == BaseTypeKind::Reference;
         bool accept_value = true;
-        if((is_struct_param || is_variant_param) && !is_memcpy_ref_str) {
+        if(isStructLikeTypePtr && !is_memcpy_ref_str) {
             visitor.write('&');
         } else if(is_param_type_ref && !val->is_ptr_or_ref(visitor.allocator)) {
             accept_value = !write_value_for_ref_type(visitor, val, param->type->as_reference_type_unsafe());
         }
         auto base_type = val->create_type(visitor.allocator);
-        if(is_struct_param || is_variant_param || (is_param_type_ref && !val->is_stored_ptr_or_ref(visitor.allocator))) {
+        if(isStructLikeTypePtr || (is_param_type_ref && !val->is_stored_ptr_or_ref(visitor.allocator))) {
             auto allocated = visitor.local_allocated.find(val);
             if(allocated != visitor.local_allocated.end()) {
                 visitor.write(allocated->second);
@@ -5236,7 +5216,11 @@ void ToCAstVisitor::visit(PointerType *func) {
 
 void ToCAstVisitor::visit(ReferenceType* func) {
     func->type->accept(this);
-    write("*const ");
+    if(func->is_mutable) {
+        write('*');
+    } else {
+        write("*const");
+    }
 }
 
 void ToCAstVisitor::visit(LinkedType *type) {

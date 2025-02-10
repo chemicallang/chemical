@@ -576,7 +576,7 @@ bool Value::requires_memcpy_ref_struct(BaseType* known_type) {
     const auto chain = as_access_chain_unsafe();
     const auto id = as_identifier_unsafe();
     if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && chain->values.back()->as_func_call() == nullptr)) {
-        auto linked = known_type->get_ref_or_linked_node(known_type->kind());
+        auto linked = known_type->get_direct_linked_node(known_type->kind());
         if (linked) {
             auto k = linked->kind();
             if(k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion) {

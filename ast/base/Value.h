@@ -446,13 +446,6 @@ public:
     }
 
     /**
-     * return a var init statement that this value corresponds to
-     */
-    virtual VarInitStatement* declaration() {
-        return nullptr;
-    }
-
-    /**
      * return true if this value is a reference (VariableIdentifier)
      */
     bool reference();

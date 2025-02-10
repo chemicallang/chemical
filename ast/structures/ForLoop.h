@@ -31,7 +31,12 @@ public:
             Scope body,
             ASTNode* parent_node,
             SourceLocation location
-    );
+    ) : initializer(initializer),
+        conditionExpr(conditionExpr),
+        incrementerExpr(incrementerExpr),
+        LoopASTNode(std::move(body)), parent_node(parent_node), location(location) {
+
+    }
 
     ASTNodeKind kind() final {
         return ASTNodeKind::ForLoopStmt;

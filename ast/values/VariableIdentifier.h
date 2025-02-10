@@ -117,8 +117,6 @@ public:
 
 #endif
 
-    VarInitStatement *declaration() final;
-
     Value* evaluated_value(InterpretScope &scope) final;
 
     VariableIdentifier *copy(ASTAllocator& allocator) final;

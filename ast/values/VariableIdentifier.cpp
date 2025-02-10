@@ -7,6 +7,15 @@
 #include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
 
+VarInitStatement* declaration(Value* value) {
+    if(value->val_kind() == ValueKind::Identifier) {
+        const auto linked = value->as_identifier_unsafe()->linked;
+        return linked ? linked->as_var_init() : nullptr;
+    } else {
+        return nullptr;
+    }
+}
+
 uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
@@ -118,8 +127,6 @@ void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Valu
     parent->set_child_value(scope, value, next_value, op);
 }
 
-Value* evaluate(InterpretScope& scope, Operation operation, Value* fEvl, Value* sEvl, SourceLocation location);
-
 void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation passed_loc) {
 
     // iterator for previous value
@@ -140,22 +147,22 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
     }
 
     // var init statement of current value, being assigned var x (<--- this one) = y
-    auto var_init = declaration();
-    if (var_init == nullptr) {
-        scope.error("couldn't find declaration for identifier " + value.str(), this);
-        return;
-    }
+//    auto var_init = declaration(this);
+//    if (var_init == nullptr) {
+//        scope.error("couldn't find declaration for identifier " + value.str(), this);
+//        return;
+//    }
 
     // making one statement a reference
-    if (rawValue->reference() && !newValue->primitive()) {
-        // var init statement of value that owns the value var x = y (<---- this one)
-        auto value_var_init = rawValue->declaration();
-        if (value_var_init == nullptr) {
-            scope.error("couldn't find declaration of the identifier " + rawValue->representation() +
-                        " to assign to " + value.str(), this);
-            return;
-        }
-    }
+//    if (rawValue->reference() && !newValue->primitive()) {
+//        // var init statement of value that owns the value var x = y (<---- this one)
+//        const auto value_var_init = declaration(rawValue);
+//        if (value_var_init == nullptr) {
+//            scope.error("couldn't find declaration of the identifier " + rawValue->representation() +
+//                        " to assign to " + value.str(), this);
+//            return;
+//        }
+//    }
 
     auto nextValue = newValue;
 
@@ -165,17 +172,12 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
 
         // get the previous value, perform operation on it
         auto prevValue = itr.first->second;
-        nextValue = evaluate(itr.second, op, prevValue, newValue, passed_loc);
+        nextValue = itr.second.evaluate(op, prevValue, newValue, passed_loc);
 
     }
 
     itr.first->second = nextValue;
 
-}
-
-VarInitStatement *VariableIdentifier::declaration() {
-    if(!linked) return nullptr;
-    return linked->as_var_init();
 }
 
 VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {

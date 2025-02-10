@@ -45,22 +45,24 @@ public:
     }
 
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
+        if(!value->link(linker, value, expected_type)) {
+            return false;
+        }
         InterpretScope scope(nullptr, *allocator, &linker.comptime_scope);
         // replacing
         const auto eval = value->evaluated_value(scope);
-        if(eval) {
-            // move the allocated values from interpret scope to the allocator
-            // so they are destroyed when the allocator is destroyed
-            for(const auto val : scope.allocated) {
-                allocator->store_ptr(val);
-            }
-            scope.allocated.clear();
-            // replace value
-            value_ptr = eval;
-            return true;
-        } else {
+        if(!eval) {
             return false;
         }
+        // move the allocated values from interpret scope to the allocator
+        // so they are destroyed when the allocator is destroyed
+        for(const auto val : scope.allocated) {
+            allocator->store_ptr(val);
+        }
+        scope.allocated.clear();
+        // replace value
+        value_ptr = eval;
+        return true;
     }
 
 };

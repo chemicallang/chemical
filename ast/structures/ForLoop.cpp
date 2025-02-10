@@ -55,23 +55,6 @@ void ForLoop::code_gen(Codegen &gen) {
 //
 //}
 
-/**
- * @brief Construct a new ForLoop object.
- */
-ForLoop::ForLoop(
-        VarInitStatement* initializer,
-        Value* conditionExpr,
-        ASTNode* incrementerExpr,
-        Scope body,
-        ASTNode* parent_node,
-        SourceLocation location
-) : initializer(initializer),
-    conditionExpr(conditionExpr),
-    incrementerExpr(incrementerExpr),
-    LoopASTNode(std::move(body)), parent_node(parent_node), location(location) {
-
-}
-
 void ForLoop::accept(Visitor *visitor) {
     visitor->visit(this);
 }

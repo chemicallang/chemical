@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include "ast/base/ASTAllocator.h"
 #include "std/chem_string_view.h"
+#include "ast/utils/Operation.h"
 
 class Value;
 
@@ -125,6 +126,11 @@ public:
      * @return iterator for found value, the map that it was found in
      */
     std::pair<value_iterator, InterpretScope&> find_value_iterator(const std::string& name);
+
+    /**
+     * perform an operation between two values
+     */
+    Value* evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location);
 
     /**
      * print all values

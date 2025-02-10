@@ -25,13 +25,11 @@ public:
     /**
      * constructor
      */
-    SerialStrAllocator(std::size_t heapBatchSize) : allocator(heapBatchSize), data(heapBatchSize > 0 ? allocator.object_heap_pointer(3, 1) : nullptr),
-        length(0), capacity(3) {}
-
-    void init_new() {
-        data = allocator.object_heap_pointer(3, 1);
-        length = 0;
-        capacity = 3;
+    SerialStrAllocator(std::size_t heapBatchSize) : allocator(heapBatchSize),
+        data(heapBatchSize > 0 ? allocator.object_heap_pointer(3, 1) : nullptr),
+        length(0), capacity(3)
+    {
+        *data = '\0';
     }
 
     void adjust_ptr(char*& ptr, const size_t old_size, const size_t new_size) {
@@ -57,17 +55,34 @@ public:
         capacity = new_capacity;
     }
 
+private:
+
+    void consume(const size_t size) {
+#ifdef DEBUG
+        if(capacity < size) {
+            // this will only happen, if logic of append functions is incorrect
+            throw std::runtime_error("cannot consume when capacity is smaller than size");
+        }
+#endif
+        data = data + size;
+        capacity = capacity - size;
+        length = 0;
+    }
+
+public:
+
     char* finalize() {
-        // length + 1 because length doesn't include the last \0
-        adjust_ptr(data, capacity, length + 1);
+        // save the string (char pointer) before changing it
         const auto d = data;
-        init_new();
+        // consume length of the current string (data) including last \0
+        consume(length + 1);
+        // return the saved string (char pointer)
         return d;
     }
 
     void deallocate() {
-        adjust_ptr(data, capacity, 0);
-        init_new();
+        length = 0;
+        *data = '\0';
     }
 
     [[nodiscard]] chem::string_view current_view() const {
@@ -75,17 +90,21 @@ public:
     }
 
     chem::string_view finalize_view() {
-        // length + 1 because length doesn't include the last \0
-        adjust_ptr(data, capacity, length + 1);
+        // save the string (char pointer) & length before changing it
         const auto d = data;
         const auto l = length;
-        init_new();
+        // length + 1 because length doesn't include the last \0
+        consume(length + 1);
         return { d, l };
     }
 
     void append(char value) {
-        if((capacity <= (length + 2))){
-            resize((capacity * 2));
+        if(capacity <= (length + 2)){
+            if((capacity * 2) <= length + 2) {
+                resize(length + 2);
+            } else {
+                resize(capacity * 2);
+            }
         }
         data[length] = value;
         data[(length + 1)] = '\0';

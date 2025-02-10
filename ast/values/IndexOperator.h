@@ -37,6 +37,8 @@ public:
         visitor->visit(this);
     }
 
+    Value* evaluated_value(InterpretScope &scope) override;
+
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     ASTNode *linked_node() final;
@@ -65,8 +67,6 @@ public:
     IndexOperator* copy(ASTAllocator& allocator) final;
 
     BaseType* create_type(ASTAllocator &allocator) final;
-
-//    hybrid_ptr<BaseType> get_base_type() final;
 
     BaseType* known_type() final;
 

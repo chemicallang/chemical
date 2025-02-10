@@ -5,6 +5,8 @@
 #include "ast/base/ASTNode.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
+#include "ast/values/StringValue.h"
+#include "ast/values/ArrayValue.h"
 #include "ast/base/InterpretScope.h"
 
 #ifdef COMPILER_BUILD
@@ -99,6 +101,40 @@ ASTNode *IndexOperator::linked_node() {
     auto value_type = parent_val->known_type();
     const auto child_type = value_type->known_child_type();
     return child_type->linked_node();
+}
+
+Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, SourceLocation location) {
+    const auto evalIndex = indexVal->evaluated_value(scope);
+    const auto index = evalIndex->get_number();
+    if(!index.has_value()) {
+        scope.error("index value doesn't evaluate to a number", indexVal);
+        return nullptr;
+    }
+    switch(value->val_kind()) {
+        case ValueKind::String: {
+            const auto str = value->as_string_unsafe();
+            return new (scope.allocate<CharValue>()) CharValue(str->value[index.value()], location);
+        }
+        case ValueKind::ArrayValue: {
+            const auto arr = value->as_array_value_unsafe();
+            return arr->values[index.value()]->copy(scope.allocator);
+        }
+        default:
+            scope.error("indexing on unknown value", value);
+            return nullptr;
+    }
+}
+
+Value* IndexOperator::evaluated_value(InterpretScope &scope) {
+    unsigned i = 0;
+    const auto total = values.size();
+    Value* eval = parent_val->evaluated_value(scope);
+    if(!eval) return nullptr;
+    while(i < total) {
+        eval = index_inside(scope, eval, values[i], values[i]->encoded_location());
+        i++;
+    }
+    return eval;
 }
 
 Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {

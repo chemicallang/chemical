@@ -1,5 +1,5 @@
-type uint32_t = uint
-type uint8_t = uchar
+public type uint32_t = uint
+public type uint8_t = uchar
 
 if(def.is_big_endian) {
     func htole32(value : uint32_t) : uint32_t {
@@ -7,7 +7,7 @@ if(def.is_big_endian) {
     }
 }
 
-func murmurhash (key : *char, len : uint32_t, seed : uint32_t) : uint32_t {
+public func murmurhash (key : *char, len : uint32_t, seed : uint32_t) : uint32_t {
     const c1 : uint32_t = 0xcc9e2d51;
     const c2 : uint32_t = 0x1b873593;
     const r1 : uint32_t = 15;

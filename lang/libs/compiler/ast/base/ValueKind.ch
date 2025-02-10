@@ -53,6 +53,7 @@ enum ValueKind {
     VariantCall,
     VariantCase,
     AddrOfValue,
+    PointerValue,
     WrapValue,
 
     TypeContainingValue

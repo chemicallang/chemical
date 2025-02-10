@@ -74,16 +74,14 @@ Value *UBigIntType::create(ASTAllocator& allocator, uint64_t value) {
 }
 
 Value *Int128Type::create(ASTAllocator& allocator, uint64_t value) {
+    // TODO is_neg
     bool is_neg = value < 0;
     return new (allocator.allocate<Int128Value>()) Int128Value(is_neg ? -value : value, is_neg, location);
 }
 
 Value *UInt128Type::create(ASTAllocator& allocator, uint64_t value) {
+    // TODO is_neg
     return new (allocator.allocate<UInt128Value>()) UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, location);
-}
-
-constexpr inline bool isExe64Bit() {
-    return sizeof(void*) == 8;
 }
 
 double get_double_value(Value* value, ValueKind k) {
@@ -120,7 +118,7 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, uint64_t value, Sourc
         case ValueKind::Int:
             return new (scope.allocate<IntValue>()) IntValue((int) value, location);
         case ValueKind::Long:
-            return new (scope.allocate<LongValue>()) LongValue((long) value, isExe64Bit(), location);
+            return new (scope.allocate<LongValue>()) LongValue((long) value, scope.isInterpret64Bit(), location);
         case ValueKind::BigInt:
             return new (scope.allocate<BigIntValue>()) BigIntValue((long long) value, location);
         case ValueKind::Int128:
@@ -133,7 +131,7 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, uint64_t value, Sourc
         case ValueKind::UInt:
             return new (scope.allocate<UIntValue>()) UIntValue((unsigned int) value, location);
         case ValueKind::ULong:
-            return new (scope.allocate<ULongValue>()) ULongValue((unsigned long) value, isExe64Bit(), location);
+            return new (scope.allocate<ULongValue>()) ULongValue((unsigned long) value, scope.isInterpret64Bit(), location);
         case ValueKind::UBigInt:
             return new (scope.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, location);
         case ValueKind::UInt128:

@@ -89,17 +89,6 @@ BaseType* LambdaFunction::create_type(ASTAllocator& allocator) {
 //    return hybrid_ptr<BaseType> { func_type, true };
 //}
 
-LambdaFunction::LambdaFunction(
-        std::vector<CapturedVariable*> captureList,
-        std::vector<FunctionParam*> params,
-        bool isVariadic,
-        Scope scope,
-        ASTNode* parent_node,
-        SourceLocation location
-) : captureList(std::move(captureList)), FunctionType(std::move(params), nullptr, isVariadic, !captureList.empty(), parent_node, location), scope(std::move(scope)) {
-
-}
-
 BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
         if(node->as_return() != nullptr) {

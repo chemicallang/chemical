@@ -131,7 +131,7 @@ struct FuncDeclAttributes {
 
 };
 
-class FunctionDeclaration : public AnnotableNode, public FunctionType {
+class FunctionDeclaration : public AnnotableNode, public FunctionTypeBody {
 private:
     /**
      * TODO avoid storing the interpret return here
@@ -252,7 +252,7 @@ public:
             std::optional<Scope> body = std::nullopt,
             AccessSpecifier specifier = AccessSpecifier::Internal,
             bool signature_resolved = false
-    )  : FunctionType(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
+    )  : FunctionTypeBody(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
          identifier(identifier), body(std::move(body)), location(location),
          attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
     }
@@ -268,7 +268,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal,
             bool signature_resolved = false
-    )  : FunctionType(returnType, isVariadic, false, parent_node, location, signature_resolved),
+    )  : FunctionTypeBody(returnType, isVariadic, false, parent_node, location, signature_resolved),
          identifier(identifier), location(location),
          attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
     }
@@ -784,7 +784,7 @@ public:
     BaseType* create_value_type(ASTAllocator& allocator);
 
     // called by the return statement
-    void set_return(InterpretScope& func_scope, Value *value);
+    void set_return(InterpretScope& func_scope, Value *value) final;
 
     FunctionDeclaration *as_function() final;
 

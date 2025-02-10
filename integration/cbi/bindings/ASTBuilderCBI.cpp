@@ -405,7 +405,7 @@ DestructStmt* ASTBuildermake_destruct_stmt(ASTAllocator* allocator, Value* array
     return new (allocator->allocate<DestructStmt>()) DestructStmt(array_value, ptr_value, is_array, parent_node, location);
 }
 
-ReturnStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location) {
+ReturnStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* value, FunctionTypeBody* decl, ASTNode* parent_node, uint64_t location) {
     return new (allocator->allocate<ReturnStatement>()) ReturnStatement(value, decl, parent_node, location);
 }
 

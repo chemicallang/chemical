@@ -16,7 +16,12 @@ public:
     Value* value;
     SourceLocation location;
 
-    explicit DereferenceValue(Value* value, SourceLocation location);
+    explicit DereferenceValue(
+        Value* value,
+        SourceLocation location
+    ) : value(value), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;

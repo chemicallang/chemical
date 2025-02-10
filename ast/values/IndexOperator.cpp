@@ -8,6 +8,7 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/base/InterpretScope.h"
+#include "PointerValue.h"
 
 #ifdef COMPILER_BUILD
 
@@ -118,6 +119,11 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
         case ValueKind::ArrayValue: {
             const auto arr = value->as_array_value_unsafe();
             return arr->values[index.value()]->copy(scope.allocator);
+        }
+        case ValueKind::PointerValue: {
+            const auto ptrVal = (PointerValue*) value;
+            const auto incremented = ptrVal->increment(scope, index.value(), location, indexVal);
+            return incremented->deref(scope, location, indexVal);
         }
         default:
             scope.error("indexing on unknown value", value);

@@ -13,6 +13,7 @@
 #include "ast/values/IntNumValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
+#include "ast/values/PointerValue.h"
 
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
@@ -159,7 +160,7 @@ inline BoolValue* pack_bool(InterpretScope& scope, bool value, SourceLocation lo
     return new (scope.allocate<BoolValue>()) BoolValue(value, location);
 }
 
-Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location) {
+Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location, Value* debugValue) {
     auto& scope = *this;
     const auto fKind = fEvl->val_kind();
     const auto sKind = sEvl->val_kind();
@@ -198,10 +199,33 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
         const auto numVal = (IntNumValue*) fEvl;
         const auto num = numVal->get_num_value();
         return new (scope.allocate<StringValue>()) StringValue(chem::string_view(strVal->value.data() + num, strVal->value.size() - num), location);
+    } else if((fKind == ValueKind::PointerValue && is_int_n(sKind))) {
+        const auto ptrVal = (PointerValue*) fEvl;
+        switch(operation) {
+            case Operation::Addition:
+                return ptrVal->increment(scope, sEvl->as_int_num_value_unsafe()->get_num_value(), location, debugValue);
+            case Operation::Subtraction:
+                return ptrVal->decrement(scope, sEvl->as_int_num_value_unsafe()->get_num_value(), location, debugValue);
+            default:
+                scope.error("unknown operation performed on a pointer value", debugValue);
+                return nullptr;
+        }
+    } else if((sKind == ValueKind::PointerValue && is_int_n(fKind))) {
+        const auto ptrVal = (PointerValue*) sEvl;
+        switch(operation) {
+            case Operation::Addition:
+                return ptrVal->increment(scope, fEvl->as_int_num_value_unsafe()->get_num_value(), location, debugValue);
+            case Operation::Subtraction:
+                return ptrVal->decrement(scope, fEvl->as_int_num_value_unsafe()->get_num_value(), location, debugValue);
+            default:
+                scope.error("unknown operation performed on a pointer value", debugValue);
+                return nullptr;
+        }
     } else {
 #ifdef DEBUG
         throw std::runtime_error("OPERATION BETWEEN VALUES OF UNKNOWN KIND");
 #endif
+        scope.error("Operation between values of unknown kind", debugValue);
         return nullptr;
     }
 }
@@ -225,6 +249,10 @@ void InterpretScope::error(std::string& err, ASTAny* any) {
 
 void InterpretScope::error(std::string_view err, ASTAny* any) {
     global->interpret_error(err, any);
+}
+
+bool InterpretScope::isTarget64Bit() {
+    return global->target_data.is_64Bit;
 }
 
 void InterpretScope::print_values() {

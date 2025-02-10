@@ -124,7 +124,7 @@ bool Expression::primitive() {
 Value *Expression::evaluate(InterpretScope &scope) {
     auto fEvl = firstValue->evaluated_value(scope);
     auto sEvl = secondValue->evaluated_value(scope);
-    return scope.evaluate(operation, fEvl, sEvl, location);
+    return scope.evaluate(operation, fEvl, sEvl, location, this);
 }
 
 Expression *Expression::copy(ASTAllocator& allocator) {

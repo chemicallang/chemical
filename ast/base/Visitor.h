@@ -198,6 +198,8 @@ class LongDoubleType;
 
 class FunctionType;
 
+class FunctionTypeBody;
+
 class GenericType;
 
 class UnionType;

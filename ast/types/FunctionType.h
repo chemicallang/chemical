@@ -398,6 +398,23 @@ public:
 
 };
 
+/**
+ * this should only be inherited by functions or lambdas
+ * those that have bodies
+ */
+class FunctionTypeBody : public FunctionType {
+public:
+
+    using FunctionType::FunctionType;
+
+    /**
+     * called by return statement to set the return value and stop
+     * interpretation of function body
+     */
+    virtual void set_return(InterpretScope& scope, Value* value) = 0;
+
+};
+
 #ifdef COMPILER_BUILD
 
 /**

@@ -27,6 +27,7 @@ class DoubleType;
 class DynamicType;
 class FloatType;
 class FunctionType;
+class FunctionTypeBody;
 class GenericType;
 class Int128Type;
 class IntType;
@@ -275,7 +276,7 @@ extern "C" {
 
     DestructStmt* ASTBuildermake_destruct_stmt(ASTAllocator* allocator, Value* array_value, Value* ptr_value, bool is_array, ASTNode* parent_node, uint64_t location);
 
-    ReturnStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location);
+    ReturnStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* value, FunctionTypeBody* decl, ASTNode* parent_node, uint64_t location);
 
     //SwitchStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location);
 

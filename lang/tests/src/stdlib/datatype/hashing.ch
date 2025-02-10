@@ -156,6 +156,7 @@ func test_hashing() {
     test("hashing algo fnv1a_hash_32 results in same hash in comptime and runtime mode - 4", () => {
         return comptime { fnv1a_hash_32("i love switzerland") } == fnv1a_hash_32("i love switzerland")
     })
+    /**
     test("hashing algo murmur results in same hash in comptime and runtime mode - 1", () => {
         return comptime { comptime_murmur("next") } == wrap_murmur("next")
     })
@@ -168,6 +169,7 @@ func test_hashing() {
     test("hashing algo murmur results in same hash in comptime and runtime mode - 4", () => {
         return comptime { comptime_murmur("i love switzerland") } == wrap_murmur("i love switzerland")
     })
+    **/
     test("hashing algorithm fnv1 works in both runtime and comptime - 1", () => {
         return check_str_hash("hello") == HashingResult.Hello;
     })

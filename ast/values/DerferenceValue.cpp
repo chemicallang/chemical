@@ -3,14 +3,8 @@
 #include "DereferenceValue.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/values/StringValue.h"
+#include "ast/values/PointerValue.h"
 #include "ast/base/InterpretScope.h"
-
-DereferenceValue::DereferenceValue(
-        Value* value,
-        SourceLocation location
-) : value(value), location(location) {
-
-}
 
 bool DereferenceValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     return value->link(linker, value);
@@ -36,6 +30,10 @@ Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
         case ValueKind::String:{
             const auto val = eval->as_string_unsafe();
             return new (scope.allocate<CharValue>()) CharValue(val->value[0], location);
+        }
+        case ValueKind::PointerValue: {
+            const auto val = (PointerValue*) eval;
+            return val->deref(scope, location, this);
         }
         default:
             scope.error("couldn't dereference value in comptime", this);

@@ -11,6 +11,7 @@
 #include "ast/base/ASTAllocator.h"
 #include "std/chem_string_view.h"
 #include "ast/utils/Operation.h"
+#include "ast/base/ValueKind.h"
 
 class Value;
 
@@ -130,12 +131,24 @@ public:
     /**
      * perform an operation between two values
      */
-    Value* evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location);
+    Value* evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location, Value* debugValue);
 
     /**
      * print all values
      */
     void print_values();
+
+    /**
+     * get if it's 64bit
+     */
+    bool isTarget64Bit();
+
+    /**
+     * get if it's 64bit
+     */
+    inline constexpr bool isInterpret64Bit() {
+        return sizeof(void*) == 8;
+    }
 
     /**
      * The errors are stored in global scope only

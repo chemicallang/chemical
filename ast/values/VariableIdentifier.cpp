@@ -146,33 +146,14 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
         return;
     }
 
-    // var init statement of current value, being assigned var x (<--- this one) = y
-//    auto var_init = declaration(this);
-//    if (var_init == nullptr) {
-//        scope.error("couldn't find declaration for identifier " + value.str(), this);
-//        return;
-//    }
-
-    // making one statement a reference
-//    if (rawValue->reference() && !newValue->primitive()) {
-//        // var init statement of value that owns the value var x = y (<---- this one)
-//        const auto value_var_init = declaration(rawValue);
-//        if (value_var_init == nullptr) {
-//            scope.error("couldn't find declaration of the identifier " + rawValue->representation() +
-//                        " to assign to " + value.str(), this);
-//            return;
-//        }
-//    }
-
     auto nextValue = newValue;
 
-    // previous value doesn't exist, so it must only be a declaration above that is being assigned
-    // preventing x += 1 (requires previous value)
     if (op != Operation::Assignment) {
 
         // get the previous value, perform operation on it
         auto prevValue = itr.first->second;
-        nextValue = itr.second.evaluate(op, prevValue, newValue, passed_loc);
+        // TODO debug value being passed as this, it should be taken as a parameter
+        nextValue = itr.second.evaluate(op, prevValue, newValue, passed_loc, this);
 
     }
 

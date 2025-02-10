@@ -15,7 +15,7 @@ class ReturnStatement : public ASTNode {
 public:
 
     ASTNode* parent_node;
-    FunctionType* func_type = nullptr;
+    FunctionTypeBody* func_type = nullptr;
     Value* value;
     SourceLocation location;
 
@@ -24,10 +24,12 @@ public:
      */
     ReturnStatement(
             Value* value,
-            FunctionType *declaration,
+            FunctionTypeBody* declaration,
             ASTNode* parent_node,
             SourceLocation location
-    );
+    ) : value(value), func_type(declaration), parent_node(parent_node), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;

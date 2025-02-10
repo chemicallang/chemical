@@ -17,7 +17,7 @@ class CapturedVariable;
 /**
  * @brief Class representing an integer value.
  */
-class LambdaFunction : public Value, public FunctionType {
+class LambdaFunction : public Value, public FunctionTypeBody {
 public:
 
     std::vector<CapturedVariable*> captureList;
@@ -42,7 +42,9 @@ public:
             Scope scope,
             ASTNode* parent_node,
             SourceLocation location
-    );
+    ) : captureList(std::move(captureList)), FunctionTypeBody(std::move(params), nullptr, isVariadic, !captureList.empty(), parent_node, location), scope(std::move(scope)) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -96,5 +98,11 @@ public:
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     bool link(SymbolResolver &linker, FunctionType* func_type);
+
+    void set_return(InterpretScope &scope, Value *value) override {
+#ifdef DEBUG
+      throw std::runtime_error("NOT YET IMPLEMENTED");
+#endif
+    }
 
 };

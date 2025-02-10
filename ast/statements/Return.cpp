@@ -6,15 +6,6 @@
 #include "ast/utils/ASTUtils.h"
 #include "ast/base/LoopASTNode.h"
 
-ReturnStatement::ReturnStatement(
-        Value* value,
-        FunctionType *declaration,
-        ASTNode* parent_node,
-        SourceLocation location
-) : value(value), func_type(declaration), parent_node(parent_node), location(location) {
-
-}
-
 bool isLoopNode(ASTNodeKind k) {
     switch(k) {
         case ASTNodeKind::WhileLoopStmt:
@@ -35,21 +26,15 @@ void stop_interpretation_above(ASTNode* node) {
     const auto p = asLoopNode(node);
     if(p) {
         p->stopInterpretation();
-        const auto parent = node->parent();
-        if(parent) {
-            stop_interpretation_above(parent);
-        }
+    }
+    const auto parent = node->parent();
+    if(parent) {
+        stop_interpretation_above(parent);
     }
 }
 
 void ReturnStatement::interpret(InterpretScope &scope) {
-    auto decl = func_type->as_function();
-    if(!decl) return;
-    if (value) {
-        decl->set_return(scope, value);
-    } else {
-        decl->set_return(scope, nullptr);
-    }
+    func_type->set_return(scope, value);
     stop_interpretation_above(parent_node);
 }
 

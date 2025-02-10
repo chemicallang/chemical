@@ -16,7 +16,13 @@ public:
     BaseType* type;
     SourceLocation location;
 
-    CastedValue(Value* value, BaseType* type, SourceLocation location);
+    CastedValue(
+        Value* value,
+        BaseType* type,
+        SourceLocation location
+    ) : value(value), type(type), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;

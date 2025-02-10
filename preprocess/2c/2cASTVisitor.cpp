@@ -3918,10 +3918,10 @@ void ToCAstVisitor::visit(IncDecValue *value) {
     }
     const auto type = value->value->create_type(allocator);
     if(type && isLoadableReference(type)) {
-        write('*');
         if(value->post) {
             write('(');
         }
+        write('*');
         value->value->accept(this);
         if(value->post) {
             write(')');

@@ -477,38 +477,13 @@ bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value
     });
 }
 
-bool isValueRValue(ValueKind k) {
-    switch(k) {
-        case ValueKind::NumberValue:
-        case ValueKind::Char:
-        case ValueKind::UChar:
-        case ValueKind::Short:
-        case ValueKind::UShort:
-        case ValueKind::Int:
-        case ValueKind::UInt:
-        case ValueKind::Long:
-        case ValueKind::ULong:
-        case ValueKind::BigInt:
-        case ValueKind::UBigInt:
-        case ValueKind::Double:
-        case ValueKind::Float:
-        case ValueKind::String:
-        case ValueKind::NegativeValue:
-        case ValueKind::SizeOfValue:
-        case ValueKind::NullValue:
-            return true;
-        default:
-            return false;
-    }
-}
-
 // when a value is being stored or passed as a reference we must write address of it
 // even if it means storing it in a temporary variable
 // for example my_func(3) <-- here parameter takes a constant reference, which means r values are allowed
 // so we must store 3 in a temporary variable and pass address of it
 // this returns whether the value has already been written, should not be re-written
 bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, ReferenceType* ref_type) {
-    if(isValueRValue(val->val_kind())) {
+    if(Value::isValueKindRValue(val->val_kind())) {
         const auto temp_var = visitor.get_local_temp_var_name();
         visitor.write("({ ");
         ref_type->type->accept(&visitor);

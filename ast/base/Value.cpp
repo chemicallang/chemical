@@ -370,6 +370,30 @@ void ChainValue::access_chain_assign_value(
 
 #endif
 
+bool Value::isValueKindRValue(ValueKind kind) {
+    switch(kind) {
+        case ValueKind::NumberValue:
+        case ValueKind::Char:
+        case ValueKind::UChar:
+        case ValueKind::Short:
+        case ValueKind::UShort:
+        case ValueKind::Int:
+        case ValueKind::UInt:
+        case ValueKind::Long:
+        case ValueKind::ULong:
+        case ValueKind::BigInt:
+        case ValueKind::UBigInt:
+        case ValueKind::Double:
+        case ValueKind::Float:
+        case ValueKind::NegativeValue:
+        case ValueKind::SizeOfValue:
+        case ValueKind::AlignOfValue:
+            return true;
+        default:
+            return false;
+    }
+}
+
 uint64_t Value::byte_size(bool is64Bit) {
 #ifdef DEBUG
     throw std::runtime_error("byte_size called on base Value " + representation());

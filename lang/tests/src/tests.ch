@@ -7,8 +7,8 @@ import "nodes/varinit.ch"
 import "nodes/struct.ch"
 import "nodes/typealias.ch"
 import "nodes/enum.ch"
-import "type/datatype/numbers.ch"
-import "type/datatype/strings.ch"
+import "stdlib/datatype/strings.ch"
+import "basic/values/numbers.ch"
 import "basic/macros/macros.ch"
 import "basic/values/arrays.ch"
 import "basic/values/pointers.ch"
@@ -29,10 +29,11 @@ import "basic/external.ch"
 import "generic/basic.ch"
 import "generic/generic_moves.ch"
 import "generic/deduction.ch"
-import "type/datatype/vectors.ch"
-import "type/datatype/array_refs.ch"
-import "type/datatype/optional.ch"
-import "type/datatype/result.ch"
+import "stdlib/datatype/hashing.ch"
+import "stdlib/datatype/vectors.ch"
+import "stdlib/datatype/array_refs.ch"
+import "stdlib/datatype/optional.ch"
+import "stdlib/datatype/result.ch"
 import "basic/dynamic.ch"
 import "basic/variants.ch"
 import "basic/modules1.ch"
@@ -68,6 +69,7 @@ public func main() : int {
     test_external_functions();
     test_basic_generics();
     test_generic_type_deduction();
+    test_hashing();
     test_vectors();
     test_array_refs();
     test_dynamic_dispatch();

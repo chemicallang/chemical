@@ -23,6 +23,7 @@ import "basic/interface/static.ch"
 import "nodes/union.ch"
 import "nodes/namespaces.ch"
 import "comptime/basic.ch"
+import "comptime/pointers.ch"
 import "comptime/expressions.ch"
 import "comptime/vector.ch"
 import "basic/external.ch"
@@ -90,6 +91,7 @@ public func main() : int {
     test_typealias();
     test_inc_dec();
     test_static_interfaces();
+    test_pointers_in_comptime();
     print_test_stats();
     return 0;
 }

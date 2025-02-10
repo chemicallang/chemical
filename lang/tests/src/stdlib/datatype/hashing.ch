@@ -90,6 +90,10 @@ func comptime_murmur(s : *char) : uint32_t {
     return murmurhash(s, compiler::size(s), 0)
 }
 
+func wrap_murmur(s : *char) : uint32_t {
+    return murmurhash(s, strlen(s), 0)
+}
+
 /**
 func check_murmur_hash(s : *char) : HashingResult {
     switch(murmurhash(s, strlen(s), 0)) {
@@ -128,8 +132,41 @@ func check_murmur_hash(s : *char) : HashingResult {
 **/
 
 func test_hashing() {
-    test("hashing algorithm fnv1 results in same hash in comptime and runtime mode", () => {
-        return comptime_fnv1_hash("next") == fnv1_hash("next")
+    test("hashing algo fnv1 results in same hash in comptime and runtime mode - 1", () => {
+        return comptime { fnv1_hash("next") } == fnv1_hash("next")
+    })
+    test("hashing algo fnv1 results in same hash in comptime and runtime mode - 2", () => {
+        return comptime { fnv1_hash("mango") } == fnv1_hash("mango")
+    })
+    test("hashing algo fnv1 results in same hash in comptime and runtime mode - 3", () => {
+        return comptime { fnv1_hash("my first day in paris") } == fnv1_hash("my first day in paris")
+    })
+    test("hashing algo fnv1 results in same hash in comptime and runtime mode - 4", () => {
+        return comptime { fnv1_hash("i love switzerland") } == fnv1_hash("i love switzerland")
+    })
+    test("hashing algo fnv1a_hash_32 results in same hash in comptime and runtime mode - 1", () => {
+        return comptime { fnv1a_hash_32("next") } == fnv1a_hash_32("next")
+    })
+    test("hashing algo fnv1a_hash_32 results in same hash in comptime and runtime mode - 2", () => {
+        return comptime { fnv1a_hash_32("mango") } == fnv1a_hash_32("mango")
+    })
+    test("hashing algo fnv1a_hash_32 results in same hash in comptime and runtime mode - 3", () => {
+        return comptime { fnv1a_hash_32("my first day in paris") } == fnv1a_hash_32("my first day in paris")
+    })
+    test("hashing algo fnv1a_hash_32 results in same hash in comptime and runtime mode - 4", () => {
+        return comptime { fnv1a_hash_32("i love switzerland") } == fnv1a_hash_32("i love switzerland")
+    })
+    test("hashing algo murmur results in same hash in comptime and runtime mode - 1", () => {
+        return comptime { comptime_murmur("next") } == wrap_murmur("next")
+    })
+    test("hashing algo murmur results in same hash in comptime and runtime mode - 2", () => {
+        return comptime { comptime_murmur("mango") } == wrap_murmur("mango")
+    })
+    test("hashing algo murmur results in same hash in comptime and runtime mode - 3", () => {
+        return comptime { comptime_murmur("my first day in paris") } == wrap_murmur("my first day in paris")
+    })
+    test("hashing algo murmur results in same hash in comptime and runtime mode - 4", () => {
+        return comptime { comptime_murmur("i love switzerland") } == wrap_murmur("i love switzerland")
     })
     test("hashing algorithm fnv1 works in both runtime and comptime - 1", () => {
         return check_str_hash("hello") == HashingResult.Hello;

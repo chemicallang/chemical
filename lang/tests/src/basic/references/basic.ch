@@ -121,4 +121,7 @@ func test_references() {
         assign_to_passed_ref(i)
         return i == 434;
     })
+    test("integer r value can be passed to constant reference function", () => {
+        return take_int_ref(789) == 789
+    })
 }

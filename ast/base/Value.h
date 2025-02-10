@@ -45,6 +45,11 @@ class Value : public ASTAny {
 public:
 
     /**
+     * check if given kind is a r value
+     */
+    static bool isValueKindRValue(ValueKind kind);
+
+    /**
      * default constructor
      */
     Value() = default;

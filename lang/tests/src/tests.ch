@@ -27,6 +27,7 @@ import "comptime/expressions.ch"
 import "comptime/vector.ch"
 import "basic/external.ch"
 import "generic/basic.ch"
+import "generic/generic_moves.ch"
 import "generic/deduction.ch"
 import "type/datatype/vectors.ch"
 import "type/datatype/array_refs.ch"
@@ -77,6 +78,7 @@ public func main() : int {
     test_imported_modules();
     test_modules_import();
     test_moves();
+    test_generic_moves();
     test_html();
     test_references();
     test_auto_deref();

@@ -382,6 +382,11 @@ public:
     }
 
     /**
+     * does function has explicit parameters
+     */
+    bool has_explicit_params();
+
+    /**
      * start index of c or llvm functions for this type
      */
     virtual unsigned c_or_llvm_arg_start_index();

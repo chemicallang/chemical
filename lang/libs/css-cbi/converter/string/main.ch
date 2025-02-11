@@ -5,6 +5,7 @@ import "../../utils/comptime_utils.ch"
 import "@compiler/ASTBuilder.ch"
 import "@std/hashing/fnv1.ch"
 import "@cstd/common/integer_types.ch"
+import "/ast/CSSLengthKind.ch"
 
 func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());
@@ -179,95 +180,95 @@ func put_chemical_value_in(resolver : *mut SymbolResolver, builder : *mut ASTBui
     }
 }
 
-func writeUnitOfKind(str : &mut std::string, kind : CSSValueKind) : bool {
+func writeUnitOfKind(str : &mut std::string, kind : CSSLengthKind) : bool {
     switch(kind) {
-        CSSValueKind.LengthPX => {
+        CSSLengthKind.LengthPX => {
             var view = std::string_view("px")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthEM => {
+        CSSLengthKind.LengthEM => {
             var view = std::string_view("em")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthREM => {
+        CSSLengthKind.LengthREM => {
             var view = std::string_view("rem")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthVH => {
+        CSSLengthKind.LengthVH => {
             var view = std::string_view("vh")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthVW => {
+        CSSLengthKind.LengthVW => {
             var view = std::string_view("vw")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthVMIN => {
+        CSSLengthKind.LengthVMIN => {
             var view = std::string_view("vmin")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthVMAX => {
+        CSSLengthKind.LengthVMAX => {
             var view = std::string_view("vmax")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthPERCENTAGE => {
+        CSSLengthKind.LengthPERCENTAGE => {
             str.append('%')
         }
-        CSSValueKind.LengthCM => {
+        CSSLengthKind.LengthCM => {
             var view = std::string_view("cm")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthMM => {
+        CSSLengthKind.LengthMM => {
             var view = std::string_view("mm")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthIN => {
+        CSSLengthKind.LengthIN => {
             var view = std::string_view("in")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthPT => {
+        CSSLengthKind.LengthPT => {
             var view = std::string_view("pt")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthPC => {
+        CSSLengthKind.LengthPC => {
             var view = std::string_view("pc")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthCH => {
+        CSSLengthKind.LengthCH => {
             var view = std::string_view("ch")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthEX => {
+        CSSLengthKind.LengthEX => {
             var view = std::string_view("ex")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthS => {
+        CSSLengthKind.LengthS => {
             str.append('s')
         }
-        CSSValueKind.LengthMS => {
+        CSSLengthKind.LengthMS => {
             var view = std::string_view("ms")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthHZ => {
+        CSSLengthKind.LengthHZ => {
             var view = std::string_view("hz")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthKHZ => {
+        CSSLengthKind.LengthKHZ => {
             var view = std::string_view("khz")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthDEG => {
+        CSSLengthKind.LengthDEG => {
             var view = std::string_view("deg")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthRAD => {
+        CSSLengthKind.LengthRAD => {
             var view = std::string_view("rad")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthGRAD => {
+        CSSLengthKind.LengthGRAD => {
             var view = std::string_view("grad")
             str.append_with_len(view.data(), view.size())
         }
-        CSSValueKind.LengthTURN => {
+        CSSLengthKind.LengthTURN => {
             var view = std::string_view("turn")
             str.append_with_len(view.data(), view.size())
         }
@@ -296,33 +297,28 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
             str.append_with_len(view.data(), view.size())
             return;
         }
-        default => {
-            break;
+        CSSValueKind.Length => {
+            // writing the length
+            var ptr = value.data as *mut CSSLengthValueData
+            str.append_with_len(ptr.value.data(), ptr.value.size())
+
+            // writing the unit
+            if(!writeUnitOfKind(str, ptr.kind)) {
+                printf("unknown unit")
+                fflush(null)
+            }
+
         }
-    }
+        CSSValueKind.NamedColor => {
 
-    if(value.kind >= CSSValueKind.LengthPX && value.kind <= CSSValueKind.LengthTURN) {
+            var ptr = value.data as *mut CSSIdentifierData
+            str.append_with_len(ptr.value.data(), ptr.value.size())
 
-        if(value.data == null) {
+        }
+        default => {
             printf("error no value found")
             fflush(null)
         }
-
-        // length value
-
-        // writing the length
-        var ptr = value.data as *mut CSSNumberValueData
-        str.append_with_len(ptr.value.data(), ptr.value.size())
-
-        // writing the unit
-        if(!writeUnitOfKind(str, value.kind)) {
-            // TODO error out here
-        }
-
-    } else {
-
-        // TODO handle other values
-
     }
 
 }

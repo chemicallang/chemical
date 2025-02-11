@@ -3,6 +3,7 @@ import "@compiler/Token.ch"
 import "../lexer/TokenType.ch"
 import "@std/hashing/fnv1.ch"
 import "./value/length.ch"
+import "./CSSParser.ch"
 
 func getCSSGlobalValueKind(ptr : *char) : CSSValueKind {
     switch(fnv1_hash(ptr)) {
@@ -21,17 +22,17 @@ func getCSSGlobalValueKind(ptr : *char) : CSSValueKind {
     }
 }
 
-func parseValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) {
+func (cssParser : &mut CSSParser) parseValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) {
     const token = parser.getToken();
     switch(token.type) {
         TokenType.Number => {
-            var number_value = builder.allocate<CSSNumberValueData>()
-            new (number_value) CSSNumberValueData {
-                CSSValueData : CSSValueData { },
+            parser.increment();
+            var number_value = builder.allocate<CSSLengthValueData>()
+            new (number_value) CSSLengthValueData {
+                kind : CSSLengthKind.Unknown,
                 value : builder.allocate_view(token.value)
             }
-            parser.increment();
-            value.kind = parseLengthKind(parser, builder);
+            number_value.kind = parseLengthKind(parser, builder);
             value.data = number_value
             return
         }
@@ -40,6 +41,15 @@ func parseValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CS
             if(global != CSSValueKind.Unknown) {
                 parser.increment();
                 value.kind = global;
+                return;
+            } else if(cssParser.isColor(token.value)) {
+                parser.increment();
+                var id_value = builder.allocate<CSSIdentifierData>();
+                new (id_value) CSSIdentifierData {
+                    value : builder.allocate_view(token.value)
+                }
+                value.kind = CSSValueKind.NamedColor;
+                value.data = id_value
                 return;
             } else {
                 parser.error("unknown value given");
@@ -51,7 +61,7 @@ func parseValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CS
     }
 }
 
-func parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder, has_dynamic_values : &mut bool) : *mut CSSDeclaration {
+func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder) : *mut CSSDeclaration {
 
     const token = parser.getToken();
     if(token.type == TokenType.Identifier) {
@@ -67,7 +77,7 @@ func parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder, has_dynam
             name : builder.allocate_view(token.value)
         },
         value : CSSValue {
-            kind : CSSValueKind.LengthPX,
+            kind : CSSValueKind.Length,
             data : null
         }
     }
@@ -79,7 +89,7 @@ func parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder, has_dynam
         parser.error("expected colon after the css property name");
     }
 
-    parseValue(parser, builder, decl.value);
+    cssParser.parseValue(parser, builder, decl.value);
 
     const sc = parser.getToken();
     if(sc.type == TokenType.Semicolon) {
@@ -87,6 +97,9 @@ func parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder, has_dynam
     } else {
         parser.error("expected a semicolon after the property's value");
     }
+
+    printf("parsed a declaration with key '%s'\n", token.value.data());
+    fflush(null)
 
     return decl;
 

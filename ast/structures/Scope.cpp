@@ -162,10 +162,6 @@ BaseType* LoopBlock::known_type() {
     return get_first_broken()->known_type();
 }
 
-InitBlock::InitBlock(Scope scope, ASTNode* parent_node, SourceLocation location) : scope(std::move(scope)), parent_node(parent_node), location(location) {
-
-}
-
 bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     const auto definition = container;
     const auto linked_kind = definition->kind();

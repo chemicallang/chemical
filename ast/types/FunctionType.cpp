@@ -170,6 +170,13 @@ BaseFunctionParam* FunctionType::get_self_param() {
     return nullptr;
 }
 
+bool FunctionType::has_explicit_params() {
+    for(auto& param : params) {
+        if(!param->is_implicit) return true;
+    }
+    return false;
+}
+
 unsigned FunctionType::c_or_llvm_arg_start_index() {
     if(returnType->isStructLikeType()) {
         auto func = as_function();

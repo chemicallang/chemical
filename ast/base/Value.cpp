@@ -372,6 +372,7 @@ void ChainValue::access_chain_assign_value(
 
 bool Value::isValueKindRValue(ValueKind kind) {
     switch(kind) {
+        case ValueKind::Bool:
         case ValueKind::NumberValue:
         case ValueKind::Char:
         case ValueKind::UChar:

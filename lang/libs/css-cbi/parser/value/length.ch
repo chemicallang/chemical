@@ -3,97 +3,97 @@ import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 import "../ast/CSSValueKind.ch"
 
-func getLengthKind(str : *char) : CSSValueKind {
+func getLengthKind(str : *char) : CSSLengthKind {
     switch(fnv1_hash(str)) {
         comptime_fnv1_hash("px") => {
-            return CSSValueKind.LengthPX
+            return CSSLengthKind.LengthPX
         }
         comptime_fnv1_hash("em") => {
-            return CSSValueKind.LengthEM
+            return CSSLengthKind.LengthEM
         }
         comptime_fnv1_hash("rem") => {
-            return CSSValueKind.LengthREM
+            return CSSLengthKind.LengthREM
         }
         comptime_fnv1_hash("vh") => {
-            return CSSValueKind.LengthVH
+            return CSSLengthKind.LengthVH
         }
         comptime_fnv1_hash("vw") => {
-            return CSSValueKind.LengthVW
+            return CSSLengthKind.LengthVW
         }
         comptime_fnv1_hash("vmin") => {
-            return CSSValueKind.LengthVMIN
+            return CSSLengthKind.LengthVMIN
         }
         comptime_fnv1_hash("vmax") => {
-            return CSSValueKind.LengthVMAX
+            return CSSLengthKind.LengthVMAX
         }
         comptime_fnv1_hash("cm") => {
-            return CSSValueKind.LengthCM
+            return CSSLengthKind.LengthCM
         }
         comptime_fnv1_hash("mm") => {
-            return CSSValueKind.LengthMM
+            return CSSLengthKind.LengthMM
         }
         comptime_fnv1_hash("in") => {
-            return CSSValueKind.LengthIN
+            return CSSLengthKind.LengthIN
         }
         comptime_fnv1_hash("pt") => {
-            return CSSValueKind.LengthPT
+            return CSSLengthKind.LengthPT
         }
         comptime_fnv1_hash("pc") => {
-            return CSSValueKind.LengthPC
+            return CSSLengthKind.LengthPC
         }
         comptime_fnv1_hash("ch") => {
-            return CSSValueKind.LengthCH
+            return CSSLengthKind.LengthCH
         }
         comptime_fnv1_hash("ex") => {
-            return CSSValueKind.LengthEX
+            return CSSLengthKind.LengthEX
         }
         comptime_fnv1_hash("s") => {
-            return CSSValueKind.LengthS
+            return CSSLengthKind.LengthS
         }
         comptime_fnv1_hash("ms") => {
-            return CSSValueKind.LengthMS
+            return CSSLengthKind.LengthMS
         }
         comptime_fnv1_hash("Hz") => {
-            return CSSValueKind.LengthHZ
+            return CSSLengthKind.LengthHZ
         }
         comptime_fnv1_hash("kHz") => {
-            return CSSValueKind.LengthKHZ
+            return CSSLengthKind.LengthKHZ
         }
         comptime_fnv1_hash("deg") => {
-            return CSSValueKind.LengthDEG
+            return CSSLengthKind.LengthDEG
         }
         comptime_fnv1_hash("rad") => {
-            return CSSValueKind.LengthRAD
+            return CSSLengthKind.LengthRAD
         }
         comptime_fnv1_hash("grad") => {
-            return CSSValueKind.LengthGRAD
+            return CSSLengthKind.LengthGRAD
         }
         comptime_fnv1_hash("turn") => {
-            return CSSValueKind.LengthTURN
+            return CSSLengthKind.LengthTURN
         }
         default => {
-            return CSSValueKind.Unknown
+            return CSSLengthKind.Unknown
         }
     }
 }
 
-func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSValueKind {
+func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengthKind {
     const token = parser.getToken();
     if(token.type == TokenType.Percentage) {
         parser.increment();
-        return CSSValueKind.LengthPERCENTAGE
+        return CSSLengthKind.LengthPERCENTAGE
     } else if(token.type == TokenType.Identifier) {
         parser.increment();
         const kind = getLengthKind(token.value.data())
-        if(kind != CSSValueKind.Unknown) {
+        if(kind != CSSLengthKind.Unknown) {
             return kind;
         } else {
             parser.error("unknown length unit");
-            return CSSValueKind.LengthPX
+            return CSSLengthKind.LengthPX
         }
     } else {
         parser.error("unknown unit token found");
         parser.increment()
-        return CSSValueKind.LengthPX
+        return CSSLengthKind.LengthPX
     }
 }

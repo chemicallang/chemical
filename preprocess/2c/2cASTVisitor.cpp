@@ -3463,7 +3463,31 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
     }
     for(auto& var : struct_def->variables) {
         const auto defValue = var.second->default_value();
-        if(!defValue) continue;
+        if(!defValue) {
+            // since default value doesn't exist, however the variable maybe of type struct and have a default constructor
+            // we must call the default non argument constructor automatically
+            const auto mem_type = var.second->create_value_type(visitor.allocator);
+            const auto mem_pure = mem_type->pure_type(visitor.allocator);
+            const auto def = mem_pure->linked_struct_def();
+            if(def) {
+                const auto defConstructor = def->default_constructor_func();
+                if(defConstructor) {
+                    visitor.new_line_and_indent();
+                    defConstructor->runtime_name(*visitor.output);
+                    visitor.write("(this);");
+                } else {
+                    // struct has no default value
+                    // struct has no default constructor
+                    // if struct doesn't have an initializer block, we should generate an error
+                    auto has_not_been_initialized = !initializers || initializers->find(var.first) == initializers->end();
+                    if(has_not_been_initialized) {
+                        // TODO cannot generate an error, as some members are being initialized via equal, as the initializer block is not good enough
+                        // visitor.error("member doesn't have a default constructor, default value or initializer", var.second);
+                    }
+                }
+            }
+            continue;
+        }
         auto has_not_been_initialized = !initializers || initializers->find(var.first) == initializers->end();
         if(has_not_been_initialized) {
             visitor.new_line_and_indent();

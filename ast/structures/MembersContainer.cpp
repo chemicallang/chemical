@@ -560,8 +560,17 @@ FunctionDeclaration* MembersContainer::copy_func() {
     return nullptr;
 }
 
+FunctionDeclaration* MembersContainer::default_constructor_func() {
+    for(const auto function : functions()) {
+        if(function->is_constructor_fn() && !function->has_explicit_params()) {
+            return function;
+        }
+    }
+    return nullptr;
+}
+
 FunctionDeclaration* MembersContainer::constructor_func(ASTAllocator& allocator, std::vector<Value*>& forArgs) {
-    for (const auto & function : functions()) {
+    for (const auto function : functions()) {
         if(function->is_constructor_fn() && function->satisfy_args(allocator, forArgs)) {
             return function;
         }

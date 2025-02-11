@@ -1,7 +1,9 @@
 import "@std/std.ch"
 import "hashing/hash.ch"
 
-struct unordered_map_node<Key, Value> {
+public namespace std {
+
+public struct unordered_map_node<Key, Value> {
     var key : Key;
     var value : Value;
     var next : *mut unordered_map_node<Key, Value>; // Pointer to next node in the chain
@@ -10,7 +12,7 @@ struct unordered_map_node<Key, Value> {
 @comptime
 const LOAD_FACTOR_THRESHOLD : float = 0.75f
 
-struct unordered_map<Key, Value> {
+public struct unordered_map<Key, Value> {
 
     var table : *mut *mut unordered_map_node<Key, Value>; // Array of buckets (pointers to linked lists)
     var capacity : size_t;
@@ -152,3 +154,5 @@ struct unordered_map<Key, Value> {
     }
 
 };
+
+}

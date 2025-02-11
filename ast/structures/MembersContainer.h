@@ -151,6 +151,11 @@ public:
     }
 
     /**
+     * default constructor function is the first function without any explicit arguments
+     */
+    FunctionDeclaration* default_constructor_func();
+
+    /**
      * will provide a constructor function if there's one
      */
     FunctionDeclaration* constructor_func(ASTAllocator& allocator, std::vector<Value*>& forArgs);

@@ -374,12 +374,16 @@ void StructDefinition::redeclare_top_level(SymbolResolver &linker) {
 
 void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    bool has_def_constructor = false;
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_copy_fn = false;
     bool has_move_fn = false;
     for(auto& func : functions()) {
         if(func->is_constructor_fn()) {
+            if(!func->has_explicit_params()) {
+                has_def_constructor = true;
+            }
             func->ensure_constructor(linker, this);
         }
         if(func->is_delete_fn()) {
@@ -401,6 +405,9 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
     }
     MembersContainer::declare_and_link(linker, node_ptr);
     register_use_to_inherited_interfaces(this);
+    if(!has_def_constructor && any_member_has_def_constructor()) {
+        create_def_constructor_checking(allocator, linker, name_view());
+    }
     if(!has_copy_fn && any_member_has_copy_func()) {
         create_def_copy_fn(allocator, linker);
     }

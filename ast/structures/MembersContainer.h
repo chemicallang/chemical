@@ -174,6 +174,11 @@ public:
     FunctionDeclaration* pre_move_func();
 
     /**
+     * checks if any member has a default constructor
+     */
+    bool any_member_has_def_constructor();
+
+    /**
      * checks if this struct type requires a destructor
      * or has one
      */
@@ -257,6 +262,11 @@ public:
     /**
      * create a destructor function and put it into functions
      */
+    FunctionDeclaration* create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name);
+
+    /**
+     * create a destructor function and put it into functions
+     */
     FunctionDeclaration* create_destructor(ASTAllocator& allocator);
 
     /**
@@ -273,6 +283,12 @@ public:
      * create the copy function and put it into functions
      */
     FunctionDeclaration* create_move_fn(ASTAllocator& allocator);
+
+    /**
+     * creates a default constructor, report errors in given diagnoser, this is a helper function
+     * the container name here is the name of the struct and not the function
+     */
+    FunctionDeclaration* create_def_constructor_checking(ASTAllocator& allocator, ASTDiagnoser& diagnoser, const chem::string_view& container_name);
 
     /**
      * create default destructor, report errors in given diagnoser, this is a helper function

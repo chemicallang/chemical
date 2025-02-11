@@ -3474,7 +3474,9 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
             if(defConstructor) {
                 visitor.new_line_and_indent();
                 defConstructor->runtime_name(*visitor.output);
-                visitor.write("(this);");
+                visitor.write("(&this->");
+                visitor.write(def->name_view());
+                visitor.write(");");
             }
         }
     }
@@ -3497,7 +3499,9 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
                 if(defConstructor) {
                     visitor.new_line_and_indent();
                     defConstructor->runtime_name(*visitor.output);
-                    visitor.write("(this);");
+                    visitor.write("(&this->");
+                    visitor.write(var.first);
+                    visitor.write(");");
                 } else {
                     // struct has no default value
                     // struct has no default constructor

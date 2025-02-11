@@ -12,7 +12,12 @@ public:
     BaseType* secondType;
     bool isLogicalAnd;
 
-    explicit ExpressionType(BaseType* firstType, BaseType* secondType, bool isLogicalAnd, SourceLocation location) : TokenizedBaseType(location) {
+    ExpressionType(
+        BaseType* firstType,
+        BaseType* secondType,
+        bool isLogicalAnd,
+        SourceLocation location
+    ) : TokenizedBaseType(location), firstType(firstType), secondType(secondType), isLogicalAnd(isLogicalAnd) {
         // do nothing
     }
 

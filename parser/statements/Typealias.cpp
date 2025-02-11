@@ -19,7 +19,13 @@ TypealiasStatement* Parser::parseTypealiasStatement(ASTAllocator& allocator, Acc
         if (!type) {
             error("expected a type after '='");
         }
-        auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(loc_id(allocator, id), type, parent_node, loc_single(tok), specifier);
+        auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(
+                loc_id(allocator, id),
+                parseExpressionType(allocator, type),
+                parent_node,
+                loc_single(tok),
+                specifier
+        );
         annotate(alias);
         return alias;
     } else {

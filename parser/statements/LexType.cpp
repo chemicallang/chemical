@@ -277,31 +277,57 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
     }
 }
 
-BaseType* Parser::parseBracketedType(ASTAllocator& allocator, BaseType* firstType, SourceLocation loc) {
-    const auto type = token->type;
-    if(type == TokenType::RBracket) {
+// (First & Second) & Third = First & (Second & Third)
+// (First & Second) | Third = (First & Second) | Third
+// (First | Second) & Third = First | (Second & Third)
+// (First | Second) | Third = First | (Second | Third)
+// (First & (Second & Third)) & Fourth = First & ((Second & Third) & Fourth)
+// (First & (Second & Third)) | Fourth = (First & (Second & Third)) | Fourth
+// ((First & Second) | Third) | Fourth = ((First & Second) | (Third | Fourth)
+// (First | (Second & Third)) & Fourth = (First | ((Second & Third) & Fourth))
+// (First | (Second | Third)) | Fourth = (First | ((Second | Third) | Fourth)
+BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstType) {
+    const auto tok_type = token->type;
+    const auto isLogicalAnd = tok_type == TokenType::LogicalAndSym;
+    if(isLogicalAnd || tok_type == TokenType::LogicalOrSym) {
         token++;
-        return firstType;
-    }
-    const auto isLogicalAnd = type == TokenType::LogicalAndSym;
-    if(isLogicalAnd || type == TokenType::LogicalOrSym) {
-        token++;
+        const auto loc_first = loc_single(token);
+        const auto secondType = parseType(allocator);
+        if(!secondType) {
+            error("expected second type in expression type");
+            return firstType;
+        }
+        auto rootExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(firstType, secondType, isLogicalAnd, loc_first);
+        auto currentExpr = rootExpr;
+        while(true) {
+            const auto type = token->type;
+            const auto isNextLogicalAnd = type == TokenType::LogicalAndSym;
+            if(isNextLogicalAnd || type == TokenType::LogicalOrSym) {
+                token++;
+                const auto loc = loc_single(token);
+                const auto nextType = parseType(allocator);
+                if(!nextType) {
+                    error("expected second type in expression type");
+                    return rootExpr;
+                }
+                if(!isNextLogicalAnd && currentExpr->isLogicalAnd) {
+                    const auto isCurrentRoot = currentExpr == rootExpr;
+                    currentExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(currentExpr, nextType, false, loc);
+                    if(isCurrentRoot) {
+                        rootExpr = currentExpr;
+                    }
+                } else {
+                    const auto newExpr = new(allocator.allocate<ExpressionType>()) ExpressionType(currentExpr->secondType, nextType, isNextLogicalAnd, loc);
+                    currentExpr->secondType = newExpr;
+                    currentExpr = newExpr;
+                }
+            } else {
+                return rootExpr;
+            }
+        }
     } else {
-        error("expected a right parenthesis or expression type in parenthesized type");
         return firstType;
     }
-    const auto secondType = parseType(allocator);
-    if(!secondType) {
-        error("expected a second type for expression type");
-        return firstType;
-    }
-    const auto expr = new (allocator.allocate<ExpressionType>()) ExpressionType(firstType, secondType, isLogicalAnd, loc);
-    if(token->type == TokenType::RBracket) {
-        token++;
-    } else {
-        error("expected a right parenthesis or expression type in parenthesized type");
-    }
-    return expr;
 }
 
 /**
@@ -337,18 +363,9 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
                     error("expected a lambda type after '[]'");
                     return nullptr;
                 }
-            } else if(has_number) {
+            } else {
                 error("expected ']' after '[' for lambda type");
                 return nullptr;
-            } else {
-                const auto loc = loc_single(token);
-                const auto firstType = parseType(allocator);
-                if(firstType) {
-                    parseBracketedType(allocator, firstType, loc);
-                } else {
-                    error("expected ']' after '[' for lambda type");
-                    return nullptr;
-                }
             }
         }
         case TokenType::LParen:

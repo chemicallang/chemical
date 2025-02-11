@@ -389,7 +389,7 @@ public:
     /**
      * expression type only works with logical && and || operators
      */
-    BaseType* parseBracketedType(ASTAllocator& allocator, BaseType* firstType, SourceLocation start);
+    BaseType* parseExpressionType(ASTAllocator& allocator, BaseType* firstType);
 
     /**
      * parse a single type

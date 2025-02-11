@@ -3463,6 +3463,10 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
     }
     for(auto& var : struct_def->variables) {
         const auto defValue = var.second->default_value();
+        auto has_initializer = initializers && initializers->find(var.first) == initializers->end();
+        if(has_initializer) {
+            continue;
+        }
         if(!defValue) {
             // since default value doesn't exist, however the variable maybe of type struct and have a default constructor
             // we must call the default non argument constructor automatically
@@ -3479,24 +3483,18 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
                     // struct has no default value
                     // struct has no default constructor
                     // if struct doesn't have an initializer block, we should generate an error
-                    auto has_not_been_initialized = !initializers || initializers->find(var.first) == initializers->end();
-                    if(has_not_been_initialized) {
-                        // TODO cannot generate an error, as some members are being initialized via equal, as the initializer block is not good enough
-                        // visitor.error("member doesn't have a default constructor, default value or initializer", var.second);
-                    }
+                    // TODO cannot generate an error, as some members are being initialized via equal, as the initializer block is not good enough
+                    // visitor.error("member doesn't have a default constructor, default value or initializer", var.second);
                 }
             }
             continue;
         }
-        auto has_not_been_initialized = !initializers || initializers->find(var.first) == initializers->end();
-        if(has_not_been_initialized) {
-            visitor.new_line_and_indent();
-            visitor.write("this->");
-            visitor.write(var.first);
-            visitor.write(" = ");
-            defValue->accept(&visitor);
-            visitor.write(';');
-        }
+        visitor.new_line_and_indent();
+        visitor.write("this->");
+        visitor.write(var.first);
+        visitor.write(" = ");
+        defValue->accept(&visitor);
+        visitor.write(';');
     }
 }
 

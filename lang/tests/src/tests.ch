@@ -44,6 +44,7 @@ import "comptime/is_value.ch"
 import "comptime/satisfies.ch"
 import "cbi/html/basic.ch"
 import "basic/values/new.ch"
+import "basic/functions/constructors.ch"
 
 public func main() : int {
     test_var_init();
@@ -92,6 +93,7 @@ public func main() : int {
     test_inc_dec();
     test_static_interfaces();
     test_pointers_in_comptime();
+    test_constructors();
     print_test_stats();
     return 0;
 }

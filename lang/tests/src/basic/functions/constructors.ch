@@ -32,9 +32,12 @@ struct Derived78 : Base89 {
 
     var f : Field88
 
+    var k : int = 98
+
     @make
     func make() {
         // manually generated default constructor
+        k = 30
     }
 
 }
@@ -56,5 +59,9 @@ func test_constructors() {
     test("manual default constructor makes a call to the field's default constructor", () => {
         var d = Derived78()
         return d.f.j == 20
+    })
+    test("manual default constructor also runs the code inside", () => {
+        var d = Derived78()
+        return d.k == 30
     })
 }

@@ -11,7 +11,7 @@ func arr_index(arr : int[2], index : int) : int {
 }
 
 func test_arrays() {
-    test("test arrays can be passed to functions", () => {
+    test("arrays can be passed to functions", () => {
         var arr = {}int(2);
         arr[0] = 2;
         arr[1] = 4;

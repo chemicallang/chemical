@@ -69,27 +69,27 @@ func test_enum() {
         var a = Thing.Fruit
         return take_my_enum_dawg(a)
     })
-    test("test enums can be returned from functions", () => {
+    test("enums can be returned from functions", () => {
         return take_my_thing() == Thing.Veg;
     })
-    test("test enums with underlying type work with uchar", () => {
+    test("enums with underlying type work with uchar", () => {
         const one = 0 as uchar
         const two = 1 as uchar
         const three = 2 as uchar
         const four = 3 as uchar
         return Thing22.Fruit == one && Thing22.Veg == two && Thing22.OtherStuff == three && Thing22.MoreOtherStuff == four
     })
-    test("test enums with underlying type work with ushort", () => {
+    test("enums with underlying type work with ushort", () => {
         const one = 0 as ushort
         const two = 1 as ushort
         const three = 2 as ushort
         const four = 3 as ushort
         return Thing33.Fruit == one && Thing33.Veg == two && Thing33.OtherStuff == three && Thing33.MoreOtherStuff == four
     })
-    test("test enums with underlying type work with number values", () => {
+    test("enums with underlying type work with number values", () => {
         return Thing33.Fruit == 0 && Thing33.Veg == 1 && Thing33.OtherStuff == 2 && Thing33.MoreOtherStuff == 3
     })
-    test("test enums automatically cast according to underlying type", () => {
+    test("enums automatically cast according to underlying type", () => {
         const one = 0
         const two = 1
         const three = 2

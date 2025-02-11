@@ -201,18 +201,18 @@ func test_nodes() {
          };
         return p.sumP() == 13;
     });
-    test("test array", () => {
+    test("array", () => {
         var arr = {2,4,6,8,10};
         return arr[0] == 2 && arr[1] == 4 && arr[2] == 6;
     })
-    test("test uninitialized array", () => {
+    test("uninitialized array", () => {
         var arr = {}int(5);
         arr[0] = 2;
         arr[1] = 4;
         arr[2] = 6;
         return arr[0] == 2 && arr[1] == 4 && arr[2] == 6;
     })
-    test("test multidimensional uninitialized array", () => {
+    test("multidimensional uninitialized array", () => {
         var arr = {}int(2, 2);
         arr[0][0] = 2;
         arr[0][1] = 4;
@@ -227,7 +227,7 @@ func test_nodes() {
         }
         return ct.is_cool && ct.point[0] == 10 && ct.point[1] == 20;
     })
-    test("test multi dimensional array", () => {
+    test("multi dimensional array", () => {
         var arr = {{1, 2}, {3, 4}};
         return arr[0][0] == 1 && arr[0][1] == 2 && arr[1][0] == 3 && arr[1][1] == 4;
     })

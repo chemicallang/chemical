@@ -35,10 +35,10 @@ func compiler_vector_sum_l(a : long) : long {
 }
 
 func test_compiler_vector() {
-    test("test that compiler vector works", () => {
+    test("compiler vector works", () => {
         return compiler_vector_sum(20) == 50;
     })
-    test("test that compiler vector works with longs", () => {
+    test("compiler vector works with longs", () => {
         return compiler_vector_sum_l(20) == 50;
     })
 }

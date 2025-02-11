@@ -165,33 +165,33 @@ func give_caller_line_no() : ubigint {
 }
 
 func test_comptime() {
-    test("test comptime sum works", () => {
+    test("comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
     })
-    test("test comptime function can return struct", () => {
+    test("comptime function can return struct", () => {
         var pair = pair_66();
         return pair.a == 33 && pair.b == 11;
     })
-    test("test comptime function can return struct from a reference", () => {
+    test("comptime function can return struct from a reference", () => {
         var pair = pair_66_ref();
         return pair.a == 33 && pair.b == 11;
     })
-    test("test comptime function can call struct functions", () => {
+    test("comptime function can call struct functions", () => {
         return call_struct_func() == 44;
     })
-    test("test comptime constructor function can be called", () => {
+    test("comptime constructor function can be called", () => {
         var p = Pair66();
         return p.a == 10 && p.b == 10;
     })
-    test("test that appropriate comptime constructor function is selected", () => {
+    test("appropriate comptime constructor function is selected", () => {
         var p = Pair66(10);
         return p.a == 5 && p.b == 5;
     })
-    test("test comptime constructor can delegate to actual constructor - 1", () => {
+    test("comptime constructor can delegate to actual constructor - 1", () => {
         var p = Pair66(true)
         return p.a == 15 && p.b == 15;
     })
-    test("test comptime constructor can delegate to actual constructor - 2", () => {
+    test("comptime constructor can delegate to actual constructor - 2", () => {
         var p = Pair66(false)
         return p.a == 20 && p.b == 20;
     })
@@ -205,14 +205,14 @@ func test_comptime() {
         var p = ret_struct_boi()
         return p.a == 343 && p.b == 979;
     })
-    test("test comptime functions returning primitive work", () => {
+    test("comptime functions returning primitive work", () => {
         return comptime_primitive() == 10;
     })
-    test("test comptime functions returning primitive can be stored", () => {
+    test("comptime functions returning primitive can be stored", () => {
         const prim = comptime_primitive();
         return prim == 10;
     })
-    test("test comptime delegated constructor get's called once", () => {
+    test("comptime delegated constructor get's called once", () => {
         var i = 0;
         var c = CompTimeCounter(&i);
         return i == 1;

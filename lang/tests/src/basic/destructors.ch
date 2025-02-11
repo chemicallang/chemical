@@ -248,7 +248,7 @@ func test_variant_conditional_destruction(count : *mut int, condition : bool) {
 }
 
 func test_destructors() {
-    test("test that var init struct value destructs", () => {
+    test("var init struct value destructs", () => {
         var count = 0;
         var data_usable = false;
         if(count == 0){
@@ -263,7 +263,7 @@ func test_destructors() {
         }
         return count == 1 && data_usable;
     })
-    test("test that functions returning struct don't destruct the struct", () => {
+    test("functions returning struct don't destruct the struct", () => {
         var count = 0;
         var data_usable = false;
         if(count == 0){
@@ -272,7 +272,7 @@ func test_destructors() {
         }
         return count == 1 && data_usable;
     })
-    test("test that var init struct without values get destructed", () => {
+    test("var init struct without values get destructed", () => {
         var count = 0;
         var data_usable = false;
         if(count == 0){
@@ -286,38 +286,38 @@ func test_destructors() {
         }
         return count == 1 && data_usable;
     })
-    test("test destruction at early return : true", () => {
+    test("destruction at early return : true", () => {
          var count = 0;
          test_destruction_at_early_return(&count, true);
          return count == 1;
     })
-    test("test destruction at early return : false", () => {
+    test("destruction at early return : false", () => {
          var count = 0;
          test_destruction_at_early_return(&count, false);
          return count == 2;
     })
-    test("test conditional destruction : true", () => {
+    test("conditional destruction : true", () => {
          var count = 0;
          test_conditional_destruction(&count, true);
          return count == 2;
     })
-    test("test conditional destruction : false", () => {
+    test("conditional destruction : false", () => {
          var count = 0;
          test_conditional_destruction(&count, false);
          return count == 1;
     })
-    test("test destruct struct accessed via function call", () => {
+    test("destruct struct accessed via function call", () => {
         var count = 0;
         var data = create_destructible(&count, 858).data;
         return count == 1 && data == 858;
     })
-    test("test destructor is called when access chain is inside a function", () => {
+    test("destructor is called when access chain is inside a function", () => {
         var count = 0;
         var get_int = (thing : int) => thing;
         var data = get_int(create_destructible(&count, 363).data);
         return count == 1 && data == 363;
     })
-    test("test destructor is not called on pointer types", () => {
+    test("destructor is not called on pointer types", () => {
         var count = 0;
         if(count == 0) {
             var d : Destructible
@@ -331,7 +331,7 @@ func test_destructors() {
         }
         return count == 1;
     })
-    test("test array values are destructed", () => {
+    test("array values are destructed", () => {
         var count = 0;
         if(count == 0) {
             var arr = {}Destructible(10);
@@ -348,7 +348,7 @@ func test_destructors() {
         }
         return count == 10;
     })
-    test("test array types are destructed", () => {
+    test("array types are destructed", () => {
         var count = 0;
         if(count == 0) {
             var arr : Destructible[10];
@@ -365,7 +365,7 @@ func test_destructors() {
         }
         return count == 10;
     })
-    test("test that destructible struct present inside struct values is destructed", () => {
+    test("destructible struct present inside struct values is destructed", () => {
         var count = 0
         if(count == 0) {
             var holder = Holder1 {
@@ -374,17 +374,17 @@ func test_destructors() {
         }
         return count == 1
     })
-    test("test that destructor works, when last if don't return", () => {
+    test("destructor works, when last if don't return", () => {
         var count = 0
         destructible_but_last_if(&count, 454);
         return count == 1;
     })
-    test("test that destructor works, when last if returns completely", () => {
+    test("destructor works, when last if returns completely", () => {
         var count = 0
         destructible_but_last_if_returns(&count, 655);
         return count == 1;
     })
-    test("test structs passed to functions as parameters are automatically destructed - 1", () => {
+    test("structs passed to functions as parameters are automatically destructed - 1", () => {
         var count = 0;
         if(count == 0) {
             test_struct_param_destructor(
@@ -399,7 +399,7 @@ func test_destructors() {
         }
         return count == 1;
     })
-    test("test structs passed to functions as arguments are automatically destructed - 2", () => {
+    test("structs passed to functions as arguments are automatically destructed - 2", () => {
         var count = 0;
         if(count == 0) {
             test_struct_param_destructor(create_destructible(&count, 223))
@@ -533,7 +533,7 @@ func test_destructors() {
         }
         return count == 1 && data_usable;
     })
-    test("test variants passed to functions as parameters are automatically destructed - 1", () => {
+    test("variants passed to functions as parameters are automatically destructed - 1", () => {
         var count = 0;
         if(count == 0) {
             test_variant_param_destructor(
@@ -550,7 +550,7 @@ func test_destructors() {
         }
         return count == 1;
     })
-    test("test variants passed to functions as parameters are automatically destructed - 2", () => {
+    test("variants passed to functions as parameters are automatically destructed - 2", () => {
         var count = 0;
         if(count == 0) {
             test_variant_param_destructor(OptDestructible.Some(create_destructible(&count, 223)))

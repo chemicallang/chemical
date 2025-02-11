@@ -510,6 +510,15 @@ BaseType* BaseType::getAutoDerefType(BaseType* expected_type) {
     }
 }
 
+BaseType* BaseType::removeReferenceFromType(ASTAllocator& allocator) {
+    const auto pure_t = pure_type(allocator);
+    if(pure_t->kind() == BaseTypeKind::Reference) {
+        return pure_t->as_reference_type_unsafe()->type;
+    } else {
+        return this;
+    }
+}
+
 bool BaseType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
     const auto val_type = value->create_type(allocator);
     return val_type != nullptr && satisfies(val_type->pure_type());

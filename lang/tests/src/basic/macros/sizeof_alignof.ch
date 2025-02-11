@@ -60,11 +60,11 @@ struct SOT8 {
 };
 
 func test_sizeof_alignof() {
-    test("test sizeof int", () => {
+    test("sizeof int", () => {
         var i = sizeof(int)
         return i == 4;
     })
-    test("test sizeof long", () => {
+    test("sizeof long", () => {
         var i = sizeof(long)
         if(def.is64Bit) {
             return i == 8;
@@ -72,15 +72,15 @@ func test_sizeof_alignof() {
             return i == 4;
         }
     })
-    test("test sizeof struct", () => {
+    test("sizeof struct", () => {
         var i = sizeof(SizeOfStrT1)
         return i == 12;
     })
-    test("test alignof struct", () => {
+    test("alignof struct", () => {
         var i = alignof(SizeOfStrT1)
         return i == 4;
     })
-    test("test sizeof and align of struct SOT1", () => {
+    test("sizeof and align of struct SOT1", () => {
         var s = sizeof(SOT1)
         var a = alignof(SOT1)
         var cs = comptime_size_of<SOT1>();
@@ -90,7 +90,7 @@ func test_sizeof_alignof() {
         }
         return s == cs && a == ca
     })
-    test("test sizeof and align of struct SOT2", () => {
+    test("sizeof and align of struct SOT2", () => {
         var s = sizeof(SOT2)
         var a = alignof(SOT2)
         var cs = comptime_size_of<SOT2>();
@@ -100,7 +100,7 @@ func test_sizeof_alignof() {
         }
         return s == cs && a == ca
     })
-    test("test sizeof and align of struct SOT3", () => {
+    test("sizeof and align of struct SOT3", () => {
         var s = sizeof(SOT3)
         var a = alignof(SOT3)
         var cs = comptime_size_of<SOT3>();
@@ -110,7 +110,7 @@ func test_sizeof_alignof() {
         }
         return s == cs && a == ca
     })
-    test("test sizeof and align of struct SOT3", () => {
+    test("sizeof and align of struct SOT3", () => {
         var s = sizeof(SOT3)
         var a = alignof(SOT3)
         var cs = comptime_size_of<SOT3>();
@@ -120,7 +120,7 @@ func test_sizeof_alignof() {
         }
         return s == cs && a == ca
     })
-    test("test sizeof and align of struct SOT4", () => {
+    test("sizeof and align of struct SOT4", () => {
         var s = sizeof(SOT4)
         var a = alignof(SOT4)
         var cs = comptime_size_of<SOT4>();
@@ -130,7 +130,7 @@ func test_sizeof_alignof() {
         }
         return s == cs && a == ca
     })
-    test("test sizeof and align of struct SOT5", () => {
+    test("sizeof and align of struct SOT5", () => {
         var s = sizeof(SOT5)
         var a = alignof(SOT5)
         var cs = comptime_size_of<SOT5>();
@@ -140,7 +140,7 @@ func test_sizeof_alignof() {
         }
         return s == cs && a == ca
     })
-    test("test sizeof and align of struct SOT6", () => {
+    test("sizeof and align of struct SOT6", () => {
         var s = sizeof(SOT6)
         var a = alignof(SOT6)
         var cs = comptime_size_of<SOT6>();
@@ -150,7 +150,7 @@ func test_sizeof_alignof() {
         }
         return s == cs && a == ca
     })
-    test("test sizeof and align of struct SOT7", () => {
+    test("sizeof and align of struct SOT7", () => {
         var s = sizeof(SOT7)
         var a = alignof(SOT7)
         var cs = comptime_size_of<SOT7>();
@@ -160,7 +160,7 @@ func test_sizeof_alignof() {
         }
         return s == cs && a == ca
     })
-    test("test sizeof and align of struct SOT8", () => {
+    test("sizeof and align of struct SOT8", () => {
         var s = sizeof(SOT8)
         var a = alignof(SOT8)
         var cs = comptime_size_of<SOT8>();
@@ -169,5 +169,41 @@ func test_sizeof_alignof() {
             printf("difference in runtime and comptime SOT8 sizeof and alignof %d, %d and %d, %d\n", s, a, cs, ca)
         }
         return s == cs && a == ca
+    })
+    test("sizeof on references returns sizeof underlying type - 1", () => {
+        return sizeof(&char) == sizeof(char) && sizeof(&uchar) == sizeof(uchar)
+    })
+    test("sizeof on references returns sizeof underlying type - 2", () => {
+        return sizeof(&short) == sizeof(short) && sizeof(&ushort) == sizeof(ushort)
+    })
+    test("sizeof on references returns sizeof underlying type - 3", () => {
+        return sizeof(&int) == sizeof(int) && sizeof(&uint) == sizeof(uint)
+    })
+    test("sizeof on references returns sizeof underlying type - 4", () => {
+        return sizeof(&long) == sizeof(long) && sizeof(&ulong) == sizeof(ulong)
+    })
+    test("sizeof on references returns sizeof underlying type - 5", () => {
+        return sizeof(&bigint) == sizeof(bigint) && sizeof(&ubigint) == sizeof(ubigint)
+    })
+    test("sizeof on references returns sizeof underlying type - 6", () => {
+        return sizeof(&SizeOfStrT1) == sizeof(SizeOfStrT1)
+    })
+    test("alignof on references returns alignof underlying type - 1", () => {
+        return alignof(&char) == alignof(char) && alignof(&uchar) == alignof(uchar)
+    })
+    test("alignof on references returns alignof underlying type - 2", () => {
+        return alignof(&short) == alignof(short) && alignof(&ushort) == alignof(ushort)
+    })
+    test("alignof on references returns alignof underlying type - 3", () => {
+        return alignof(&int) == alignof(int) && alignof(&uint) == alignof(uint)
+    })
+    test("alignof on references returns alignof underlying type - 4", () => {
+        return alignof(&long) == alignof(long) && alignof(&ulong) == alignof(ulong)
+    })
+    test("alignof on references returns alignof underlying type - 5", () => {
+        return alignof(&bigint) == alignof(bigint) && alignof(&ubigint) == alignof(ubigint)
+    })
+    test("alignof on references returns alignof underlying type - 6", () => {
+        return alignof(&SizeOfStrT1) == alignof(SizeOfStrT1)
     })
 }

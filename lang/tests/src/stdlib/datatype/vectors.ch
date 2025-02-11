@@ -66,7 +66,7 @@ func test_vectors() {
         }
         return sum == act_sum;
     })
-    test("test can change vector elements at index", () => {
+    test("can change vector elements at index", () => {
         var v = vector<int>();
         v.push(10);
         v.push(20);

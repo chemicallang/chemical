@@ -701,7 +701,7 @@ llvm::Type* SizeOfValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* SizeOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    auto type = for_type->llvm_type(gen);
+    auto type = for_type->removeReferenceFromType(gen.allocator)->llvm_type(gen);
     return gen.builder->getInt64(gen.module->getDataLayout().getTypeAllocSize(type));
 }
 
@@ -710,7 +710,7 @@ llvm::Type* AlignOfValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* AlignOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    auto type = for_type->llvm_type(gen);
+    auto type = for_type->removeReferenceFromType(gen.allocator)->llvm_type(gen);
     auto align = gen.module->getDataLayout().getABITypeAlign(type);
     return gen.builder->getInt64(align.value());
 }

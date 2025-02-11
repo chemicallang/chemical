@@ -12,11 +12,11 @@ if(compiler::is_clang()) {
 }
 
 func test_external_functions() {
-    test("test external sum function is available", () => {
+    test("external sum function is available", () => {
         return check_external_sum(80, 20) == 100;
     })
     if(compiler::is_clang()) {
-        test("test can call function from C++", () => {
+        test("can call function from C++", () => {
             // C++ adds dummy 3 to confuse you
             return check_external_cpp_sum(80, 20) == 103;
         })

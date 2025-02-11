@@ -829,7 +829,12 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def
     }
 }
 
-void initialize_def_struct_values(Codegen &gen, StructDefinition* struct_def, FunctionDeclaration* decl) {
+void initialize_def_struct_values(
+    Codegen &gen,
+    StructDefinition* struct_def,
+    FunctionDeclaration* decl,
+    llvm::Function* func
+) {
     std::unordered_map<chem::string_view, InitBlockInitializerValue>* initializers = nullptr;
     if(decl->body.has_value() && !decl->body->nodes.empty()) {
         auto block = decl->body->nodes.front()->as_init_block();
@@ -837,7 +842,7 @@ void initialize_def_struct_values(Codegen &gen, StructDefinition* struct_def, Fu
             initializers = &block->initializers;
         }
     }
-    auto self_arg = gen.current_function->getArg(0);
+    auto self_arg = func->getArg(0);
     auto parent_type = struct_def->llvm_type(gen);
     for(auto& var : struct_def->variables) {
         const auto defValue = var.second->default_value();
@@ -854,9 +859,8 @@ void initialize_def_struct_values(Codegen &gen, StructDefinition* struct_def, Fu
 
 void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
-    gen.current_function = func;
     gen.SetInsertPoint(&func->getEntryBlock());
-    initialize_def_struct_values(gen, def, this);
+    initialize_def_struct_values(gen, def, this, func);
     code_gen_process_members(gen, def, func, [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index) {
         const auto decl = mem_def->default_constructor_func();
         if(!decl) {

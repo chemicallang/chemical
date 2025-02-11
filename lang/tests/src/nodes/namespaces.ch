@@ -44,56 +44,56 @@ using closed_bro::bring_me_in;
 using namespace all_closed;
 
 func test_namespaces() {
-    test("test that namespace structs work", () => {
+    test("namespace structs work", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
         return p.a == 1 && p.b == 2;
     })
-    test("test that namespace structs work without values", () => {
+    test("namespace structs work without values", () => {
         var p : cool::Pair2
         p.a = 1;
         p.b = 2;
         return p.a == 1 && p.b == 2;
     })
-    test("test that namespace functions can call each other", () => {
+    test("namespace functions can call each other", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
         return cool::pair2_sum(&p) == 3;
     })
-    test("test that namespace extended functions work - 1", () => {
+    test("namespace extended functions work - 1", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
         return cool::pair2_mul(&p) == 2;
     })
-    test("test that namespace extended functions work - 2", () => {
+    test("namespace extended functions work - 2", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
         return cool::pair2_indirect_mul(&p) == 2;
     })
-    test("test that namespace extended functions work - 3", () => {
+    test("namespace extended functions work - 3", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
         return cool::pair2_ext_sum(&p) == 3;
     })
-    test("test typealias from namespace works", () => {
+    test("typealias from namespace works", () => {
         var t : cool::kinda_int
         t = 5;
         return t == 5;
     })
-    test("test using statement can bring identifier into current scope - 2", () => {
+    test("using statement can bring identifier into current scope - 2", () => {
         return check_im_closed() == 22;
     })
-    test("test using statement can bring identifier into current scope - 2", () => {
+    test("using statement can bring identifier into current scope - 2", () => {
         return bring_me_in() == 11;
     })
 }

@@ -132,26 +132,26 @@ func test_name_overriding_in_struct() {
 }
 
 func test_functions() {
-    test("test struct member access in chain, tld function return", () => {
+    test("struct member access in chain, tld function return", () => {
         return test_struct().x == 100;
     })
-    test("test struct member access in chain, lambda function return", () => {
+    test("struct member access in chain, lambda function return", () => {
         var lamb : () => TestStruct1 = test_struct;
         return lamb().x == 100;
     })
-    test("test struct member access in chain, member lambda return", () => {
+    test("struct member access in chain, member lambda return", () => {
         var mem = MemLamb {
             lamb : test_struct
         }
         return mem.lamb().x == 100;
     })
-    test("test struct member access in chain, member function return", () => {
+    test("struct member access in chain, member function return", () => {
         unsafe {
            var mem = MemLamb { lamb : null }
         }
         return mem.mem_func_test().x == 200;
     })
-    test("test struct member access in chain, extension function return", () => {
+    test("struct member access in chain, extension function return", () => {
         unsafe {
             var mem = MemLamb { lamb : null }
         }

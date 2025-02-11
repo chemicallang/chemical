@@ -4933,14 +4933,19 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
 void ToCAstVisitor::visit(SizeOfValue *size_of) {
     write("sizeof");
     write('(');
-    size_of->for_type->accept(this);
+    const auto pure_t = size_of->for_type->pure_type(allocator);
+    if(pure_t->kind() == BaseTypeKind::Reference) {
+        pure_t->as_reference_type_unsafe()->type->accept(this);
+    } else {
+        size_of->for_type->accept(this);
+    }
     write(')');
 }
 
 void ToCAstVisitor::visit(AlignOfValue *align_of) {
     write("_Alignof");
     write('(');
-    align_of->for_type->accept(this);
+    align_of->for_type->removeReferenceFromType(allocator)->accept(this);
     write(')');
 }
 

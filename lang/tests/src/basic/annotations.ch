@@ -6,7 +6,7 @@ func add(a : int, b : int) : int {
 }
 
 func test_annotations() {
-    test("test annotations work", () => {
+    test("annotations work", () => {
         return add(1, 2) == 3;
     })
 }

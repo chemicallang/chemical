@@ -135,7 +135,7 @@ func test_variants() {
     test("generic variants work - 2", () => {
         return get_sum(GenVar.Second(20, 30, 2)) == 52;
     })
-    test("test implicit args in variant calls", () => {
+    test("implicit args in variant calls", () => {
         var v = ImpVar22.Some(99)
         return get_value_iv22(v) == 99;
     })

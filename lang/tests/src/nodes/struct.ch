@@ -172,22 +172,22 @@ func test_structs() {
         }
         return p.check_outside_call() == 20;
     })
-    test("test struct constructor can be called", () => {
+    test("struct constructor can be called", () => {
         var p = Pair(4)
         return p.a == 2 && p.b == 2;
     })
-    test("test direct struct values can be passed as args", () => {
+    test("direct struct values can be passed as args", () => {
         const p = Pair { a : 99, b : 98 }
         return test_pair(p);
     })
-    test("test const function calls returning struct values can be passed as args", () => {
+    test("const function calls returning struct values can be passed as args", () => {
         const p = give_pair();
         return test_pair(p);
     })
-    test("test const struct values can be passed as args", () => {
+    test("const struct values can be passed as args", () => {
         return test_pair(Pair { a : 99, b : 98 })
     })
-    test("test that function calls that return struct, can be passed as args", () => {
+    test("function calls that return struct, can be passed as args", () => {
         return test_pair(give_pair())
     })
     test("implicit constructors work in function parameters - 1", () => {

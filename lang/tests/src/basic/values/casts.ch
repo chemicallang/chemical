@@ -19,27 +19,27 @@ func can_implicit_cast_from_intN_typealias(value : ubigint_typealias) : ushort {
 }
 
 func test_casts() {
-    test("test long value can be truncated", () => {
+    test("long value can be truncated", () => {
         var num1 = 30;
         var num2 : long = 16;
         return (num1 > (num2 as int));
     })
-    test("test int value can be extended", () => {
+    test("int value can be extended", () => {
         var num1 : int = 30;
         var num2 : long = 16;
         return ((num1 as long) > num2);
     })
-    test("test cast without parenthesis works - 1", () => {
+    test("cast without parenthesis works - 1", () => {
         var num1 = 30;
         var num2 : long = 16;
         return (num1 > num2 as int);
     })
-    test("test cast without parenthesis works - 2", () => {
+    test("cast without parenthesis works - 2", () => {
         var num1 : int = 30;
         var num2 : long = 16;
         return (num1 as long > num2);
     })
-    test("test cast without parenthesis works - 3", () => {
+    test("cast without parenthesis works - 3", () => {
         var d = 1.0 as double
         var fl = d as float
         var i = (fl as int) == 1

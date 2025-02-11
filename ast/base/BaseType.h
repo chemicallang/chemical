@@ -193,6 +193,11 @@ public:
     BaseType* getAutoDerefType(BaseType* expected_type);
 
     /**
+     * get de-referenced type, &int -> int
+     */
+    BaseType* removeReferenceFromType(ASTAllocator& allocator);
+
+    /**
      * function type returns function type
      */
     FunctionType *function_type(BaseTypeKind k);

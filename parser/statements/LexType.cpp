@@ -353,6 +353,7 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             const auto has_number = token->type == TokenType::Number;
             if(has_number) {
                 // max number of parameters in capture list for lambda
+                // TODO this
                 token++;
             }
             if(consumeToken(TokenType::RBracket)) {

@@ -278,6 +278,11 @@ public:
     MembersContainer* get_members_container();
 
     /**
+     * get the default constructor for the type, if it exists
+     */
+    FunctionDeclaration* get_def_constructor();
+
+    /**
      * does this type has a destructor
      */
     FunctionDeclaration* get_destructor();

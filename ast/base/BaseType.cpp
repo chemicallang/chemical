@@ -121,6 +121,11 @@ MembersContainer* BaseType::get_members_container() {
     return direct_node ? direct_node->get_members_container(direct_node->kind()) : nullptr;
 }
 
+FunctionDeclaration* BaseType::get_def_constructor() {
+    auto container = get_members_container();
+    return container ? container->default_constructor_func() : nullptr;
+}
+
 FunctionDeclaration* BaseType::get_destructor() {
     auto container = get_members_container();
     return container ? container->destructor_func() : nullptr;

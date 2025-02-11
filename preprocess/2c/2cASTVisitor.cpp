@@ -3461,9 +3461,28 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
             initializers = &block->initializers;
         }
     }
+    for(auto& inh : struct_def->inherited) {
+        const auto var = inh.get();
+        const auto var_type = var->type->pure_type(visitor.allocator);
+        const auto def = var_type->get_direct_linked_struct();
+        if(def) {
+            auto has_initializer = initializers && initializers->find(def->name_view()) != initializers->end();
+            if(has_initializer) {
+                continue;
+            }
+            const auto defConstructor = def->default_constructor_func();
+            if(defConstructor) {
+                visitor.new_line_and_indent();
+                defConstructor->runtime_name(*visitor.output);
+                visitor.write("(this);");
+            }
+        }
+    }
     for(auto& var : struct_def->variables) {
         const auto defValue = var.second->default_value();
-        auto has_initializer = initializers && initializers->find(var.first) == initializers->end();
+        auto has_initializer = initializers && initializers->find(var.first) != initializers->end();
+        // TODO currently we check if the value has a initializer in the init block
+        // TODO we should check whether the value has an assignment in the function as well (or use that to initialize it)
         if(has_initializer) {
             continue;
         }
@@ -3472,7 +3491,7 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
             // we must call the default non argument constructor automatically
             const auto mem_type = var.second->create_value_type(visitor.allocator);
             const auto mem_pure = mem_type->pure_type(visitor.allocator);
-            const auto def = mem_pure->linked_struct_def();
+            const auto def = mem_pure->get_direct_linked_struct();
             if(def) {
                 const auto defConstructor = def->default_constructor_func();
                 if(defConstructor) {

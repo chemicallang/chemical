@@ -634,6 +634,12 @@ inline bool members_type_require(MembersContainer& container, bool(*requirement)
     return variables_type_require(container, requirement, ASTNode::isVariantDecl(container.kind()));
 }
 
+bool MembersContainer::any_member_has_def_constructor() {
+    return members_type_require(*this, [](BaseType* type)-> bool {
+        return type->get_def_constructor() != nullptr;
+    });
+}
+
 bool MembersContainer::any_member_has_destructor() {
     return members_type_require(*this, [](BaseType* type)-> bool {
         return type->get_destructor() != nullptr;
@@ -681,6 +687,15 @@ void MembersContainer::insert_func(FunctionDeclaration* decl) {
     functions_container.emplace_back(decl);
 }
 
+FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name) {
+    const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(parent_name, this, ZERO_LOC);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), returnType, false, this, ZERO_LOC);
+    decl->body.emplace(Scope{nullptr, ZERO_LOC});
+    decl->set_constructor_fn(true);
+    insert_func(decl);
+    return decl;
+}
+
 FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
@@ -719,10 +734,19 @@ FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
     return decl;
 }
 
+FunctionDeclaration* MembersContainer::create_def_constructor_checking(ASTAllocator& allocator, ASTDiagnoser& diagnoser, const chem::string_view& container_name) {
+    auto delFunc = direct_child_function("make");
+    if(delFunc) {
+        diagnoser.error("default constructor is created by name 'make' , a function by name 'make' already exists, please create a manual constructor to avoid this", (AnnotableNode*) delFunc);
+        return nullptr;
+    }
+    return create_def_constructor(allocator, container_name);
+}
+
 FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto delFunc = direct_child_function("delete");
     if(delFunc) {
-        diagnoser.error("default destructor is created by name 'delete' , a function by name 'delete' already exists, please create a manual function to avoid this", (AnnotableNode*) delFunc);
+        diagnoser.error("default destructor is created by name 'delete', a function by name 'delete' already exists, please create a manual destructor to avoid this", (AnnotableNode*) delFunc);
         return nullptr;
     }
     return create_destructor(allocator);
@@ -731,7 +755,7 @@ FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& alloc
 FunctionDeclaration* MembersContainer::create_def_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto moveFn = direct_child_function("clear");
     if(moveFn) {
-        diagnoser.error("default move function is created by name 'move', a function by name 'move' already exists, please create a manual function to avoid this", (AnnotableNode*) moveFn);
+        diagnoser.error("default post move function is created by name 'postmove', a function by name 'postmove' already exists, please create a manual postmove function to avoid this", (AnnotableNode*) moveFn);
         return nullptr;
     }
     return create_clear_fn(allocator);
@@ -740,7 +764,7 @@ FunctionDeclaration* MembersContainer::create_def_clear_fn(ASTAllocator& allocat
 FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto copyFn = direct_child_function("copy");
     if(copyFn) {
-        diagnoser.error("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual function to avoid this", (AnnotableNode*) copyFn);
+        diagnoser.error("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual copy function to avoid this", (AnnotableNode*) copyFn);
         return nullptr;
     }
     return create_copy_fn(allocator);
@@ -749,7 +773,7 @@ FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocato
 FunctionDeclaration* MembersContainer::create_def_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto copyFn = direct_child_function("move");
     if(copyFn) {
-        diagnoser.error("default move function is created by name 'move', a function by name 'move' already exists, please create a manual function to avoid this", (AnnotableNode*) copyFn);
+        diagnoser.error("default move function is created by name 'move', a function by name 'move' already exists, please create a manual move function to avoid this", (AnnotableNode*) copyFn);
         return nullptr;
     }
     return create_move_fn(allocator);

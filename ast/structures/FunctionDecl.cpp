@@ -171,42 +171,6 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
     }
 }
 
-void initialize_def_struct_values(Codegen &gen, StructDefinition* struct_def, FunctionDeclaration* decl) {
-    std::unordered_map<chem::string_view, InitBlockInitializerValue>* initializers = nullptr;
-    if(decl->body.has_value() && !decl->body->nodes.empty()) {
-        auto block = decl->body->nodes.front()->as_init_block();
-        if(block) {
-            initializers = &block->initializers;
-        }
-    }
-    auto self_arg = gen.current_function->getArg(0);
-    auto parent_type = struct_def->llvm_type(gen);
-    for(auto& var : struct_def->variables) {
-        const auto defValue = var.second->default_value();
-        if(!defValue) continue;
-        auto has_not_been_initialized = !initializers || initializers->find(var.first) == initializers->end();
-        if(has_not_been_initialized) {
-            // couldn't move struct
-            auto variable = struct_def->variable_type_index(var.first, false);
-            std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
-            defValue->store_in_struct(gen, nullptr, self_arg, parent_type, idx, variable.first, variable.second);
-        }
-    }
-}
-
-void initialize_constructor_def_values(Codegen &gen, FunctionDeclaration* decl) {
-    auto parent = decl->parent_node;
-    if(parent) {
-        if(!decl->is_constructor_fn()) {
-            return;
-        }
-        const auto struct_def = parent->as_struct_def();
-        if(struct_def) {
-            initialize_def_struct_values(gen, struct_def, decl);
-        }
-    }
-}
-
 void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<Scope>& body, FunctionDeclaration* func_type) {
     if(body.has_value()) {
         auto prev_func_type = gen.current_func_type;
@@ -217,7 +181,6 @@ void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<Scope>& bo
         const auto destruct_begin = 0;
         func_type->queue_destruct_params(gen);
         gen.SetInsertPoint(&funcCallee->getEntryBlock());
-        initialize_constructor_def_values(gen, func_type);
         for(auto& param : func_type->params) {
             param->code_gen(gen);
         }
@@ -523,6 +486,10 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
     if(is_comptime()) {
         return;
     }
+    if(is_constructor_fn()) {
+        code_gen_constructor(gen, def);
+        return;
+    }
     if(is_copy_fn()) {
         code_gen_copy_fn(gen, def);
         return;
@@ -595,32 +562,28 @@ void FunctionDeclaration::setup_cleanup_block(Codegen &gen, llvm::Function* func
     }
 }
 
-void create_call_member_func(Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index) {
+void create_call_member_func(Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index, bool force_pass_self) {
     auto arg = func->getArg(0);
     std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
     std::vector<llvm::Value*> args;
     auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), arg, idxList, index);
-    if(decl->has_self_param()) {
+    if(force_pass_self || decl->has_self_param()) {
         args.emplace_back(element_ptr);
     }
     gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
 }
 
-void code_gen_member_calls(
+void code_gen_process_members(
         Codegen& gen,
         StructDefinition* def,
         llvm::Function* func,
-        FunctionDeclaration*(*choose_func)(MembersContainer*),
-        void(*member_func_call)(Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index)
+        void(*member_func_call)(Codegen& gen, MembersContainer* member_container, StructDefinition* def, llvm::Function* func, unsigned index)
 ) {
     unsigned index = 0;
     for(auto& inherited : def->inherited) {
         const auto base_def = inherited->type->get_direct_linked_struct();
         if(base_def) {
-            auto chosen_func = choose_func(base_def);
-            if(chosen_func) {
-                member_func_call(gen, chosen_func, def, func, index);
-            }
+            member_func_call(gen, base_def, def, func, index);
         }
         index++;
     }
@@ -632,37 +595,20 @@ void code_gen_member_calls(
                 index++;
                 continue;
             }
-            auto destructor = choose_func(mem_def);
-            if(!destructor) {
-                index++;
-                continue;
-            }
-            member_func_call(gen, destructor, def, func, index);
+            member_func_call(gen, mem_def, def, func, index);
         }
         index++;
     }
 }
 
-void code_gen_calling_member_functions(
-        FunctionDeclaration& decl,
-        Codegen& gen,
-        StructDefinition* def,
-        FunctionDeclaration*(*choose_func)(MembersContainer*),
-        void(*member_func_call)(Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index)
-) {
-    auto func = decl.llvm_func();
-    decl.setup_cleanup_block(gen, func);
-    code_gen_member_calls(gen, def, func, choose_func, member_func_call);
-    gen.CreateRet(nullptr);
-    gen.redirect_return = nullptr;
-}
-
 void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
-    code_gen_member_calls(gen, def, func, [](MembersContainer* mem_def)->FunctionDeclaration* {
-        return mem_def->copy_func();
-    }, [](Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index) {
+    code_gen_process_members(gen, def, func, [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index) {
+        const auto decl = mem_def->copy_func();
+        if(!decl) {
+            return;
+        }
         auto selfArg = func->getArg(0);
         auto otherArg = func->getArg(1);
         std::vector<llvm::Value*> args;
@@ -680,9 +626,11 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) 
 void FunctionDeclaration::code_gen_move_fn(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
-    code_gen_member_calls(gen, def, func, [](MembersContainer* mem_def)->FunctionDeclaration* {
-        return mem_def->pre_move_func();
-    }, [](Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index) {
+    code_gen_process_members(gen, def, func, [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index) {
+        const auto decl = mem_def->pre_move_func();
+        if(!decl) {
+            return;
+        }
         auto selfArg = func->getArg(0);
         auto otherArg = func->getArg(1);
         std::vector<llvm::Value*> args;
@@ -700,9 +648,13 @@ void FunctionDeclaration::code_gen_move_fn(Codegen& gen, StructDefinition* def) 
 void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
-    code_gen_member_calls(gen, def, func, [](MembersContainer* mem_def)->FunctionDeclaration* {
-        return mem_def->clear_func();
-    }, create_call_member_func);
+    code_gen_process_members(gen, def, func, [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index) {
+        const auto decl = mem_def->clear_func();
+        if(!decl) {
+            return;
+        }
+        create_call_member_func(gen, decl, def, func, index, false);
+    });
     code_gen_body(gen);
 }
 
@@ -877,10 +829,59 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def
     }
 }
 
+void initialize_def_struct_values(Codegen &gen, StructDefinition* struct_def, FunctionDeclaration* decl) {
+    std::unordered_map<chem::string_view, InitBlockInitializerValue>* initializers = nullptr;
+    if(decl->body.has_value() && !decl->body->nodes.empty()) {
+        auto block = decl->body->nodes.front()->as_init_block();
+        if(block) {
+            initializers = &block->initializers;
+        }
+    }
+    auto self_arg = gen.current_function->getArg(0);
+    auto parent_type = struct_def->llvm_type(gen);
+    for(auto& var : struct_def->variables) {
+        const auto defValue = var.second->default_value();
+        if(!defValue) continue;
+        auto has_not_been_initialized = !initializers || initializers->find(var.first) == initializers->end();
+        if(has_not_been_initialized) {
+            // couldn't move struct
+            auto variable = struct_def->variable_type_index(var.first, false);
+            std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
+            defValue->store_in_struct(gen, nullptr, self_arg, parent_type, idx, variable.first, variable.second);
+        }
+    }
+}
+
+void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
+    auto func = llvm_func();
+    gen.current_function = func;
+    gen.SetInsertPoint(&func->getEntryBlock());
+    initialize_def_struct_values(gen, def, this);
+    code_gen_process_members(gen, def, func, [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index) {
+        const auto decl = mem_def->default_constructor_func();
+        if(!decl) {
+            return;
+        }
+        create_call_member_func(gen, decl, def, func, index, true);
+    });
+    if(body.has_value() && !body->nodes.empty()) {
+        code_gen_body(gen);
+    }
+    gen.CreateRet(nullptr);
+}
+
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
-    code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
-        return mem_def->destructor_func();
-    }, create_call_member_func);
+    auto func = llvm_func();
+    setup_cleanup_block(gen, func);
+    code_gen_process_members(gen, def, func, [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index) {
+        const auto decl = mem_def->destructor_func();
+        if(!decl) {
+            return;
+        }
+        create_call_member_func(gen, decl, def, func, index, false);
+    });
+    gen.CreateRet(nullptr);
+    gen.redirect_return = nullptr;
 }
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* def) {

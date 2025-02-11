@@ -647,6 +647,12 @@ public:
     void setup_cleanup_block(Codegen& gen, llvm::Function* func);
 
     /**
+     * codegen constructor is called by function declaration itself
+     * when a constructor's body is to be generated
+     */
+    void code_gen_constructor(Codegen& gen, StructDefinition* def);
+
+    /**
      * codegen destructor is called by function declaration itself
      * when a destructor's body is to be generated, mustn't be called
      * by outside functions

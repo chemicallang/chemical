@@ -477,7 +477,6 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
     diagnose_missing_members_for_init(linker);
     if(!allows_direct_init()) {
         linker.error("struct value with a constructor cannot be initialized, name '" + definition->name_str() + "' has a constructor", this);
-        return false;
     }
     auto refTypeKind = refType->kind();
     if(refTypeKind == BaseTypeKind::Generic) {

@@ -1212,7 +1212,7 @@ llvm::Value *EnumMember::llvm_load(Codegen &gen) {
     if(init_value) {
         return init_value->llvm_value(gen, nullptr);
     } else {
-        return parent_node->underlying_type->create(gen.allocator, index)->llvm_value(gen);
+        return parent_node->get_underlying_integer_type()->create(gen.allocator, get_default_index())->llvm_value(gen);
     }
 }
 
@@ -1220,7 +1220,7 @@ llvm::Type *EnumMember::llvm_type(Codegen &gen) {
     if(init_value) {
         return init_value->llvm_type(gen);
     } else {
-        return parent_node->underlying_type->llvm_type(gen);
+        return parent_node->get_underlying_integer_type()->llvm_type(gen);
     }
 }
 

@@ -36,6 +36,14 @@ struct CSSLengthValueData {
 
 }
 
+struct CSSColorValueData {
+
+    var kind : CSSColorKind
+
+    var value : std::string_view
+
+}
+
 struct CSSValue {
 
     var kind : CSSValueKind

@@ -2425,7 +2425,7 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
         write("#define ");
         visitor.write_str(value);
         write(' ');
-        *visitor.output << mem.second->index;
+        *visitor.output << mem.second->get_default_index();
         aliases[mem.second] = value;
         i++;
     }
@@ -4332,7 +4332,7 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, 
                         if(member->init_value) {
                             member->init_value->accept(&visitor);
                         } else {
-                            *visitor.output << member->index;
+                            *visitor.output << member->get_default_index();
                         }
                         start++;
                     } else {

@@ -7,6 +7,6 @@ enum CSSValueKind {
     Unset,
 
     Length,
-    NamedColor,
+    Color,
 
 }

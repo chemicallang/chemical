@@ -309,9 +309,9 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
             }
 
         }
-        CSSValueKind.NamedColor => {
+        CSSValueKind.Color => {
 
-            var ptr = value.data as *mut CSSIdentifierData
+            var ptr = value.data as *mut CSSColorValueData
             str.append_with_len(ptr.value.data(), ptr.value.size())
 
         }

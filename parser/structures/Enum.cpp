@@ -8,6 +8,7 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/values/IntValue.h"
+#include "ast/values/NumberValue.h"
 #include "ast/types/IntType.h"
 #include "parser/utils/parse_num.h"
 
@@ -29,12 +30,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
         if(consumeToken(TokenType::ColonSym)) {
             auto type = parseType(allocator);
             if(type) {
-                const auto k = type->kind();
-                if(k == BaseTypeKind::IntN) {
-                    decl->underlying_type = (IntNType*) type;
-                } else {
-                    error("expected a integer type after ':' in enum declaration");
-                };
+                decl->underlying_type = type;
             } else {
                 error("expected a type after ':' in enum declaration");
                 return decl;
@@ -60,7 +56,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
                         auto& value = token->value;
                         auto expr = parse_num(value.data(), value.size(), strtol);
                         if(expr.error.empty()) {
-                            member->init_value = decl->underlying_type->create(allocator, expr.result);
+                            member->init_value = new (allocator.allocate<NumberValue>()) NumberValue(expr.result, loc_single(token));
                         } else {
                             error("error parsing the number in enum member '" + std::string(expr.error) + "'");
                             return decl;

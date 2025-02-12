@@ -39,14 +39,14 @@ void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstT
     if(first) {
         const auto second = secondValue->as_number_value();
         if(second) {
-            secondValue = first->underlying_type->create(allocator, second->value);
+            secondValue = first->get_underlying_integer_type()->create(allocator, second->value);
         }
     } else {
         const auto second = getEnumDecl(secondType);
         if(second) {
             const auto firstVal = firstValue->as_number_value();
             if(firstVal) {
-                firstValue = second->underlying_type->create(allocator, firstVal->value);
+                firstValue = second->get_underlying_integer_type()->create(allocator, firstVal->value);
             }
         }
     }

@@ -32,6 +32,7 @@ func (cssParser : &mut CSSParser) parseValue(parser : *mut Parser, builder : *mu
                 kind : CSSLengthKind.Unknown,
                 value : builder.allocate_view(token.value)
             }
+            value.kind = CSSValueKind.Length
             number_value.kind = parseLengthKind(parser, builder);
             value.data = number_value
             return
@@ -44,12 +45,13 @@ func (cssParser : &mut CSSParser) parseValue(parser : *mut Parser, builder : *mu
                 return;
             } else if(cssParser.isColor(token.value)) {
                 parser.increment();
-                var id_value = builder.allocate<CSSIdentifierData>();
-                new (id_value) CSSIdentifierData {
+                var col_value = builder.allocate<CSSColorValueData>();
+                new (col_value) CSSColorValueData {
+                    kind : CSSColorKind.NamedColor,
                     value : builder.allocate_view(token.value)
                 }
-                value.kind = CSSValueKind.NamedColor;
-                value.data = id_value
+                value.kind = CSSValueKind.Color
+                value.data = col_value
                 return;
             } else {
                 parser.error("unknown value given");

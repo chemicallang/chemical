@@ -109,7 +109,7 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
             name : builder.allocate_view(token.value)
         },
         value : CSSValue {
-            kind : CSSValueKind.Length,
+            kind : CSSValueKind.Unknown,
             data : null
         }
     }
@@ -121,7 +121,17 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
         parser.error("expected colon after the css property name");
     }
 
-    cssParser.parseValue(parser, builder, decl.value);
+    const parserFn = cssParser.getParserFor(token.value);
+
+    if(parserFn == null) {
+
+        cssParser.parseValue(parser, builder, decl.value);
+
+    } else {
+
+        parserFn(cssParser, parser, builder, decl.value);
+
+    }
 
     const sc = parser.getToken();
     if(sc.type == TokenType.Semicolon) {

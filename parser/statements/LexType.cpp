@@ -51,6 +51,7 @@ BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
         current_func_type = func_type;
         const auto isVariadic = parseParameterList(allocator, func_type->params);
         func_type->setIsVariadic(isVariadic);
+        consumeNewLines();
         if(!consumeToken(TokenType::RParen)) {
             error("expected a ')' after the ')' in lambda function type");
         }

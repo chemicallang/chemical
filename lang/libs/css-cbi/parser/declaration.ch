@@ -5,21 +5,22 @@ import "@std/hashing/fnv1.ch"
 import "./value/length.ch"
 import "./CSSParser.ch"
 import "/ast/CSSColorKind.ch"
+import "/ast/CSSKeywordKind.ch"
 import "/utils/color_utils.ch"
 
-func getCSSGlobalValueKind(ptr : *char) : CSSValueKind {
+func getCSSGlobalKeywordKind(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {
         comptime_fnv1_hash("inherit") => {
-            return CSSValueKind.Inherit;
+            return CSSKeywordKind.Inherit;
         }
         comptime_fnv1_hash("initial") => {
-            return CSSValueKind.Initial
+            return CSSKeywordKind.Initial
         }
         comptime_fnv1_hash("unset") => {
-            return CSSValueKind.Unset
+            return CSSKeywordKind.Unset
         }
         default => {
-            return CSSValueKind.Unknown
+            return CSSKeywordKind.Unknown
         }
     }
 }
@@ -40,10 +41,16 @@ func (cssParser : &mut CSSParser) parseValue(parser : *mut Parser, builder : *mu
             return
         }
         TokenType.Identifier => {
-            const global = getCSSGlobalValueKind(token.value.data());
-            if(global != CSSValueKind.Unknown) {
+            const global = getCSSGlobalKeywordKind(token.value.data());
+            if(global != CSSKeywordKind.Unknown) {
                 parser.increment();
-                value.kind = global;
+                var kw_value = builder.allocate<CSSKeywordValueData>();
+                new (kw_value) CSSKeywordValueData {
+                    kind : global,
+                    value : builder.allocate_view(token.value)
+                }
+                value.kind = CSSValueKind.Keyword;
+                value.data = kw_value;
                 return;
             } else if(cssParser.isColor(token.value)) {
                 parser.increment();

@@ -2,10 +2,8 @@ enum CSSValueKind {
 
     Unknown,
 
-    Inherit,
-    Initial,
-    Unset,
-
+    // keywords like auto
+    Keyword,
     Length,
     Color,
 

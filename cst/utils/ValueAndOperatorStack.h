@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "parser/Parser.h"
 #include "ast/values/Expression.h"
 #include "ast/values/CharValue.h"
 
@@ -133,7 +134,7 @@ public:
         return c;
     }
 
-    Expression* toExpressionRaw(ValueAndOperatorStack& stack, ASTAllocator& allocator, bool is64Bit, SourceLocation location) {
+    Expression* toExpressionRaw(Parser& parser, ValueAndOperatorStack& stack, ASTAllocator& allocator, bool is64Bit, SourceLocation location) {
         int i = 0;
         while(i < container.size()) {
             auto item = container[i];
@@ -146,6 +147,9 @@ public:
                 case ItemType::Operation:
                     auto second = stack.container.back();
                     stack.container.pop_back();
+                    if(stack.container.empty()) {
+                        parser.ASTDiagnoser::error("couldn't find second value for making expression", second.item.value);
+                    }
                     auto first = stack.container.back();
                     stack.container.pop_back();
                     stack.putValue(new (allocator.allocate<Expression>()) Expression(first.item.value,
@@ -162,9 +166,9 @@ public:
         return (Expression *) stack.peakValue();
     }
 
-    Expression* toExpressionRaw(ASTAllocator& allocator, bool is64Bit, SourceLocation location) {
+    Expression* toExpressionRaw(Parser& parser, ASTAllocator& allocator, bool is64Bit, SourceLocation location) {
         ValueAndOperatorStack stack;
-        return toExpressionRaw(stack, allocator, is64Bit, location);
+        return toExpressionRaw(parser, stack, allocator, is64Bit, location);
     }
 
 };

@@ -21,6 +21,8 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
         return std::nullopt;
     }
 
+    consumeNewLines();
+
     if (!consumeToken(TokenType::RParen)) {
         error("expected a ending parenthesis ) when lexing a if block");
         return std::pair { expr, Scope { parent_node, loc_single(lp) } };

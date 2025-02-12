@@ -14,6 +14,7 @@
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionParam.h"
+#include "cst/utils/ValueAndOperatorStack.h"
 
 void shunting_yard_on_operator(ValueAndOperatorStack& stack, ValueAndOperatorStack& final, Operation o1) {
     auto o1_precedence = to_precedence(o1);
@@ -48,6 +49,7 @@ void Parser::parseExpressionWith(ASTAllocator& allocator, ValueAndOperatorStack&
     bool value_first = true;
     while (token->type != TokenType::EndOfFile) {
         if(value_first) {
+            consumeNewLines();
             auto valueOrAc = parseAccessChainOrValue(allocator);
             if(valueOrAc) {
                 final.putValue(valueOrAc);
@@ -122,7 +124,7 @@ Value* Parser::parseRemainingExpression(ASTAllocator& allocator, Value* first_va
 
     parseExpressionWith(allocator, stack, final);
 
-    return final.toExpressionRaw(allocator, is64Bit, loc_single(start_tok));
+    return final.toExpressionRaw(*this, allocator, is64Bit, loc_single(start_tok));
 
 }
 
@@ -211,7 +213,11 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 }
 
 Value* Parser::parseParenExpression(ASTAllocator& allocator) {
-    if(consumeToken(TokenType::LParen)) {
+    auto& tok = *token;
+
+    if(tok.type == TokenType::LParen) {
+
+        token++;
 
         auto expression = parseExpression(allocator, false, false);
         if(!expression) {
@@ -224,7 +230,7 @@ Value* Parser::parseParenExpression(ASTAllocator& allocator) {
             return nullptr;
         }
 
-        return expression;
+        return parseAfterValue(allocator, expression, &tok);
 
     } else {
         return nullptr;

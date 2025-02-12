@@ -55,7 +55,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '!' => {
-            var alpha = provider.read_alpha(str);
+            var alpha = provider.read_alpha(*str);
             if(strncmp(alpha.data(), "important", alpha.size()) == 0) {
                 return Token {
                     type : TokenType.Important,
@@ -68,6 +68,14 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                     value : view(""),
                     position : position
                 }
+            }
+        }
+        '#' => {
+            str.append('#');
+            return Token {
+                type : TokenType.HexColor,
+                value : provider.read_alpha_num(*str),
+                position : position
             }
         }
         '%' => {

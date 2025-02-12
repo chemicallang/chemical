@@ -29,6 +29,10 @@ public namespace std {
             return _size;
         }
 
+        func empty(&self) : bool {
+            return _size == 0;
+        }
+
         func unordered_map_compare(view1 : &string_view, view2 : &string_view) : bool {
             return strcmp(view1.data(), view2.data()) == 0;
         }

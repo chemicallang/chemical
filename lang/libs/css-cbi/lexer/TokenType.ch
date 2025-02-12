@@ -27,6 +27,8 @@ enum TokenType {
     LParen,
     // )
     RParen,
+    // #e3e3e3
+    HexColor,
     // %
     Percentage,
     // ,

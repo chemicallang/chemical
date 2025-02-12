@@ -394,7 +394,7 @@ Token win_new_line(SourceProvider& provider, const Position& pos) {
 Token Lexer::getNextToken() {
     auto pos = provider.position();
     if(provider.peek() == -1) {
-        return Token(TokenType::EndOfFile, { nullptr, 0 }, pos);
+        return Token(TokenType::EndOfFile, { "", 0 }, pos);
     }
     if(other_mode) {
         if(user_mode) {

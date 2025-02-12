@@ -1,6 +1,7 @@
 import "@std/string_view.ch"
 import "./CSSValueKind.ch"
 import "./CSSLengthKind.ch"
+import "./CSSColorKind.ch"
 
 enum CSSPropertyKind {
 

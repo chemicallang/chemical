@@ -26,6 +26,18 @@ func (provider : &SourceProvider) read_alpha(str : &SerialStrAllocator) : std::s
     return str.finalize_view();
 }
 
+func (provider : &SourceProvider) read_alpha_num(str : &SerialStrAllocator) : std::string_view {
+    while(true) {
+        const c = provider.peek();
+        if(c != -1 && (isalnum(c as int))) {
+            str.append(provider.readCharacter());
+        } else {
+            break;
+        }
+    }
+    return str.finalize_view();
+}
+
 func (provider : &SourceProvider) read_css_id(str : &SerialStrAllocator) : std::string_view {
     while(true) {
         const c = provider.peek();

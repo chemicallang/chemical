@@ -16,7 +16,7 @@
 #include "utils/fwd/functional.h"
 #include "model/CompilerBinder.h"
 #include "integration/cbi/bindings/CBI.h"
-#include "cst/base/CSTDiagnoser.h"
+#include "compiler/ASTDiagnoser.h"
 #include "lexer/Token.h"
 #include "ast/base/ASTAllocator.h"
 #include "ast/base/Value.h"
@@ -24,13 +24,14 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/Annotation.h"
 #include "ast/base/LocatedIdentifier.h"
-#include "cst/utils/ValueAndOperatorStack.h"
 
 class CompilerBinder;
 
 class Parser;
 
 class GlobalInterpretScope;
+
+class ValueAndOperatorStack;
 
 /**
  * A function that is called upon encountering an annotation
@@ -40,7 +41,7 @@ typedef void(*AnnotationModifierFunc)(Parser *parser, AnnotableNode* node);
 /**
  * the parser that is used to parse
  */
-class Parser : public CSTDiagnoser {
+class Parser : public ASTDiagnoser {
 public:
 
     /**
@@ -58,11 +59,6 @@ public:
      * the current token
      */
     Token* token;
-
-    /**
-     * the location manager is used to encode locations
-     */
-    LocationManager& loc_man;
 
     /**
      * the binder that will be used to compile binding code
@@ -850,17 +846,31 @@ public:
     }
 
     /**
+     * create a diagnostic with given position
+     */
+    inline void diagnostic(std::string& message, const Position& start, const Position& end, DiagSeverity severity) {
+        CSTDiagnoser::diagnostic(message, file_path(), start, end, severity);
+    }
+
+    /**
+     * create a diagnostic with given position
+     */
+    inline void diagnostic(std::string_view& message, const Position& start, const Position& end, DiagSeverity severity) {
+        CSTDiagnoser::diagnostic(message, file_path(), start, end, severity);
+    }
+
+    /**
      * a helper function
      */
     inline void diagnostic(std::string& message, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, file_path(), token->position, token->position, severity);
+        diagnostic(message, token->position, token->position, severity);
     }
 
     /**
      * a helper function
      */
     inline void diagnostic(std::string_view& message, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, file_path(), token->position, token->position, severity);
+        diagnostic(message, token->position, token->position, severity);
     }
 
     /**

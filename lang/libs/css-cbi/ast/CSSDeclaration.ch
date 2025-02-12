@@ -2,6 +2,7 @@ import "@std/string_view.ch"
 import "./CSSValueKind.ch"
 import "./CSSLengthKind.ch"
 import "./CSSColorKind.ch"
+import "./CSSKeywordKind.ch"
 
 enum CSSPropertyKind {
 
@@ -17,10 +18,10 @@ struct CSSProperty {
 
 }
 
-// any identifier that is being stored as a value
-// that points to a single string view, like a named css color
-// can be stored using this data struct
-struct CSSIdentifierData {
+// any keyword that is being stored as a value like 'auto'
+struct CSSKeywordValueData {
+
+    var kind : CSSKeywordKind
 
     var value : std::string_view
 

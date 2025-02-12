@@ -10,11 +10,22 @@ struct EnumMemberAttributes {
 };
 
 class EnumMember : public ASTNode {
+private:
+
+    /**
+     * this index means index inside the parent enum, it is not the value
+     * for this enum member
+     */
+    unsigned int index;
+
 public:
 
     chem::string_view name;
-    unsigned int index;
     EnumDeclaration* parent_node;
+    /**
+     * this init_value may be nullptr, if user didn't specify an explicit value for
+     * this enum member
+     */
     Value* init_value;
     SourceLocation location;
     EnumMemberAttributes attrs;
@@ -52,8 +63,16 @@ public:
     }
 
     void accept(Visitor *visitor) final {
-
+        // TODO should enum members be visited or not ?
     }
+
+    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) final;
+
+    /**
+     * the default index we'll use for this enum member, if user didn't specify an
+     * explicit index for it
+     */
+    unsigned int get_default_index();
 
 #ifdef COMPILER_BUILD
 

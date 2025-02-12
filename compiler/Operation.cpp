@@ -117,12 +117,12 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         if(secondTypeKind == BaseTypeKind::IntN) {
             const auto firstEnum = getEnumDecl(firstType, firstTypeKind);
             if(firstEnum) {
-                perform_implicit_cast_on_integers(firstEnum->underlying_type, ((IntNType*) secondType), lhs, rhs, *this);
+                perform_implicit_cast_on_integers(firstEnum->get_underlying_integer_type(), ((IntNType*) secondType), lhs, rhs, *this);
             }
         } else if(firstTypeKind == BaseTypeKind::IntN) {
             const auto secondEnum = getEnumDecl(secondType, secondTypeKind);
             if(secondEnum) {
-                perform_implicit_cast_on_integers(((IntNType*) firstType), secondEnum->underlying_type, lhs, rhs, *this);
+                perform_implicit_cast_on_integers(((IntNType*) firstType), secondEnum->get_underlying_integer_type(), lhs, rhs, *this);
             }
         }
     }

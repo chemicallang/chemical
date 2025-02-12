@@ -28,6 +28,12 @@ enum Thing22 : uchar {
     MoreOtherStuff
 }
 
+enum Anything : Thing {
+    Space,
+    Universe,
+    Garbage
+}
+
 enum Thing33 : ushort {
     Fruit,
     Veg,
@@ -95,5 +101,8 @@ func test_enum() {
         const three = 2
         const four = 3
         return Thing33.Fruit == one && Thing33.Veg == two && Thing33.OtherStuff == three && Thing33.MoreOtherStuff == four
+    })
+    test("enum inheritance works - 1", () => {
+        return Anything.Fruit == 0 && Anything.Veg == 1 && Anything.Space == 2 && Anything.Universe == 3 && Anything.Garbage == 4
     })
 }

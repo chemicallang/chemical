@@ -24,6 +24,11 @@ struct EnumDeclAttributes {
 };
 
 class EnumDeclaration : public ExtendableAnnotableNode {
+private:
+
+    // this is calculated during symbol resolution
+    IntNType* underlying_integer_type;
+
 public:
 
     EnumDeclAttributes attrs;
@@ -31,7 +36,14 @@ public:
     std::unordered_map<chem::string_view, EnumMember*> members; ///< The values of the enum.
     ASTNode* parent_node;
     SourceLocation location;
-    IntNType* underlying_type;
+    BaseType* underlying_type;
+
+    /**
+     * by default this index starts at zero, however if enum extends another enum
+     * we set this to the count of members of that enum + default_starting_index of that index
+     * during symbol resolution
+     */
+    unsigned int default_starting_index = 0;
 
     // TODO remove this linked_type, we don't want to store stuff, that's not required
     LinkedType linked_type;
@@ -44,7 +56,7 @@ public:
      */
     EnumDeclaration(
             LocatedIdentifier name_id,
-            IntNType* underlying_type,
+            BaseType* underlying_type,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
@@ -80,6 +92,33 @@ public:
         attrs.specifier = specifier;
     }
 
+    /**
+     * this gives the underlying integer type for the enum, it will not return
+     * nullptr, because we initialize enum with int type if no type is given by user
+     */
+    [[nodiscard]]
+    inline IntNType* get_underlying_integer_type() const {
+        return underlying_integer_type;
+    }
+
+    /**
+     * this will only return a enum decl if this enum inherits one, otherwise
+     * nullptr is returned
+     */
+    EnumDeclaration* get_inherited_enum_decl();
+
+    /**
+     * this would give starting index for the members of this enum
+     * please keep in mind, this index doesn't mean the first member will have this value
+     * this is the default index given by us if user doesn't explicitly specify the value for the first member
+     *
+     * this method should only be called after symbol resolution
+     */
+    [[nodiscard]]
+    inline unsigned int get_default_starting_index() const {
+        return default_starting_index;
+    }
+
     SourceLocation encoded_location() final {
         return location;
     }
@@ -101,6 +140,8 @@ public:
     }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
+
+    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
 
     BaseType* create_value_type(ASTAllocator& allocator) final;
 

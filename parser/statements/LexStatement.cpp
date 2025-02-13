@@ -88,7 +88,9 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
         case TokenType::ImplKw:
             return (ASTNode*) parseImplTokens(allocator, AccessSpecifier::Internal);
         case TokenType::IfKw:
-            return (ASTNode*) parseIfStatement(allocator, false, false, true);
+            // top level if can contain public declarations, which is why it needs to be allocated
+            // on global allocator, so other modules can import nodes inside the if
+            return (ASTNode*) parseIfStatement(global_allocator, false, false, true);
         case TokenType::FuncKw:
             return (ASTNode*) parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, true, true);
         case TokenType::NamespaceKw:

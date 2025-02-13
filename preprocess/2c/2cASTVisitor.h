@@ -305,16 +305,29 @@ public:
     void reset();
 
     /**
-     * will translate given nodes
+     * declare nodes before translating them
+     * suppose to work along with function translate_after_declaration
      */
-    template <typename NodesVec>
-    void translate(NodesVec& nodes);
+    void declare_before_translation(std::vector<ASTNode*>& nodes);
 
     /**
-     * will only declare these nodes
+     * translate nodes after declaring them
+     * suppose to work along with function declare_before_translation
      */
-    template <typename NodesVec>
-    void declare(NodesVec& nodes);
+    void translate_after_declaration(std::vector<ASTNode*>& nodes);
+
+    /**
+     * will translate given nodes
+     */
+    inline void declare_and_translate(std::vector<ASTNode*>& nodes) {
+        declare_before_translation(nodes);
+        translate_after_declaration(nodes);
+    }
+
+    /**
+     * will only declare these external (from another module) nodes
+     */
+    void external_declare(std::vector<ASTNode*>& nodes);
 
     //------------------------------
     //----------Visitors------------
@@ -567,38 +580,6 @@ public:
     ~ToCAstVisitor();
 
 };
-
-template <typename NodesVec>
-void ToCAstVisitor::translate(NodesVec& nodes) {
-
-    // declare the top level things with this visitor
-    for(auto& node : nodes) {
-        node->accept((Visitor*) &tld);
-    }
-
-    // take out values like lambda from within functions
-    for(auto& node : nodes) {
-        node->accept((Visitor*) declarer.get());
-    }
-
-    // writing
-    for(auto& node : nodes) {
-        node->accept(this);
-    }
-
-}
-
-template <typename NodesVec>
-void ToCAstVisitor::declare(NodesVec& nodes) {
-    auto& vis = tld;
-    auto prev = vis.redefining;
-    vis.redefining = true;
-    // declare the top level things with this visitor
-    for(auto& node : nodes) {
-        node->accept(&vis);
-    }
-    vis.redefining = prev;
-}
 
 inline void SubVisitor::space() const {
     visitor.space();

@@ -18,6 +18,7 @@
 #include "ast/statements/Typealias.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/If.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "preprocess/RepresentationVisitor.h"

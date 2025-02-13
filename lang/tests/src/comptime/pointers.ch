@@ -1,4 +1,4 @@
-import "./test.ch"
+import "../test.ch"
 
 func give_char_by_offset(str : *char, offset : int) : char {
     return *(str + offset);

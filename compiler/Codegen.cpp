@@ -93,6 +93,27 @@ Codegen::Codegen(
     }
 }
 
+void Codegen::declare_nodes(std::vector<ASTNode*>& nodes) {
+    auto& gen = *this;
+    for(const auto node : nodes) {
+        node->code_gen_declare(gen);
+    }
+}
+
+void Codegen::compile_nodes(std::vector<ASTNode*>& nodes) {
+    auto& gen = *this;
+    for (const auto node: nodes) {
+        node->code_gen(gen);
+    }
+}
+
+void Codegen::external_declare_nodes(std::vector<ASTNode*>& nodes_vec) {
+    auto& gen = *this;
+    for(const auto node : nodes_vec) {
+        node->code_gen_external_declare(gen);
+    }
+}
+
 bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
     // Parse the target triple string
     llvm::Triple triple(target_triple);

@@ -202,14 +202,26 @@ public:
      * everytime nodes are switched this method must be called, typically
      * when compiling different modules, nodes are changed
      */
-    template<typename NodesVec>
-    void compile_nodes(NodesVec& nodes);
+    void declare_nodes(std::vector<ASTNode*>& nodes);
+
+    /**
+     * compile these nodes after declaring them
+     */
+    void compile_nodes(std::vector<ASTNode*>& nodes);
+
+    /**
+     * everytime nodes are switched this method must be called, typically
+     * when compiling different modules, nodes are changed
+     */
+    void declare_and_compile(std::vector<ASTNode*>& nodes) {
+        declare_nodes(nodes);
+        compile_nodes(nodes);
+    }
 
     /**
      * this will only declare these nodes
      */
-    template<typename NodesVec>
-    void declare_nodes(NodesVec& nodes);
+    void external_declare_nodes(std::vector<ASTNode*>& nodes);
 
     /**
      * when a function ends, this method is called to basically end the block
@@ -610,22 +622,5 @@ public:
     ~Codegen();
 
 };
-
-template<typename NodesVec>
-void Codegen::compile_nodes(NodesVec& nodes_vec) {
-    for(const auto& node : nodes_vec) {
-        node->code_gen_declare(*this);
-    }
-    for (const auto &node: nodes_vec) {
-        node->code_gen(*this);
-    }
-}
-
-template<typename NodesVec>
-void Codegen::declare_nodes(NodesVec& nodes_vec) {
-    for(const auto& node : nodes_vec) {
-        node->code_gen_external_declare(*this);
-    }
-}
 
 #endif

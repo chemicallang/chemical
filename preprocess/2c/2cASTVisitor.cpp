@@ -136,6 +136,35 @@ ToCAstVisitor::ToCAstVisitor(
     destructor = std::make_unique<CDestructionVisitor>(*this);
 }
 
+void ToCAstVisitor::declare_before_translation(std::vector<ASTNode*>& nodes) {
+    // declare the top level things with this visitor
+    for(const auto node : nodes) {
+        node->accept((Visitor*) &tld);
+    }
+    // take out values like lambda from within functions
+    for(const auto node : nodes) {
+        node->accept((Visitor*) declarer.get());
+    }
+}
+
+void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
+    // writing
+    for(const auto node : nodes) {
+        node->accept(this);
+    }
+}
+
+void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
+    auto& vis = tld;
+    auto prev = vis.redefining;
+    vis.redefining = true;
+    // declare the top level things with this visitor
+    for(auto& node : nodes) {
+        node->accept(&vis);
+    }
+    vis.redefining = prev;
+}
+
 class ToCAstVisitor;
 
 // will write a scope to visitor

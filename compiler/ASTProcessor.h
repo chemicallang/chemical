@@ -218,6 +218,16 @@ public:
     ASTAllocator& file_allocator;
 
     /**
+     * check if the result has empty diagnostics
+     */
+    static bool empty_diags(ASTFileResultNew& result);
+
+    /**
+     * print results for the given result
+     */
+    static void print_results(ASTFileResultNew& result, const std::string& abs_path, bool benchmark);
+
+    /**
      * constructor
      */
     ASTProcessor(
@@ -232,6 +242,18 @@ public:
             ASTAllocator& mod_allocator,
             ASTAllocator& file_allocator
     );
+
+    /**
+     * the reason we clear the file allocator like this is because maybe a single allocator
+     * is being used for file, module and job, this would mean clearing the file allocator
+     * would clear things allocated for module or job
+     * for example when building the build.lab we use a single allocator
+     */
+    inline void safe_clear_file_allocator() {
+        if(&file_allocator != &mod_allocator && &file_allocator != &job_allocator) {
+            file_allocator.clear();
+        }
+    }
 
     /**
      * this imports the given files in parallel using the given thread pool
@@ -302,6 +324,26 @@ public:
      * translates given import result to c using visitor
      * doesn't perform symbol resolution
      */
+    void declare_before_translation(
+            ToCAstVisitor& visitor,
+            std::vector<ASTNode*>& import_res,
+            const std::string& file
+    );
+
+    /**
+     * translates given import result to c using visitor
+     * doesn't perform symbol resolution
+     */
+    void translate_after_declaration(
+            ToCAstVisitor& visitor,
+            std::vector<ASTNode*>& import_res,
+            const std::string& file
+    );
+
+    /**
+     * translates given import result to c using visitor
+     * doesn't perform symbol resolution
+     */
     void translate_to_c(
         ToCAstVisitor& visitor,
         std::vector<ASTNode*>& import_res,
@@ -313,18 +355,36 @@ public:
      * when the file has been translated in another module
      * and is being imported in this module for the first time
      */
-    void declare_in_c(
+    void external_declare_in_c(
         ToCAstVisitor& visitor,
         Scope& import_res,
         const std::string& file
     );
 
+    /**
+     * translates the given module to C
+     */
+    int translate_module(
+        ToCAstVisitor& visitor,
+        LabModule* module,
+        std::vector<ASTFileResult*>& files
+    );
+
 #ifdef COMPILER_BUILD
 
     /**
-     * compile nodes using code generator
+     * declare nodes using code generator
      */
-    void compile_nodes(
+    void code_gen_declare(
+            Codegen& gen,
+            std::vector<ASTNode*>& nodes,
+            const std::string_view& abs_path
+    );
+
+    /**
+     * declare nodes using code generator
+     */
+    void code_gen_compile(
             Codegen& gen,
             std::vector<ASTNode*>& nodes,
             const std::string_view& abs_path
@@ -333,10 +393,29 @@ public:
     /**
      * compile nodes using code generator
      */
-    void declare_nodes(
+    void declare_and_compile(
+            Codegen& gen,
+            std::vector<ASTNode*>& nodes,
+            const std::string_view& abs_path
+    );
+
+    /**
+     * compile nodes using code generator
+     */
+    void external_declare_nodes(
         Codegen& gen,
         Scope& import_res,
         const std::string& file
+    );
+
+    /**
+     * will compile given files for the module, by first declaring all the files and then compiling
+     * allowing symbols from files to be referenced in other files above or below
+     */
+    int compile_module(
+        Codegen& gen,
+        LabModule* module,
+        std::vector<ASTFileResult*>& files
     );
 
 #endif

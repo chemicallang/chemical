@@ -55,6 +55,9 @@ ASTNode *SymbolResolver::find_in_current_file(const chem::string_view& name) {
 }
 
 ASTNode *SymbolResolver::find(const chem::string_view &name) {
+    // TODO find method always finds every symbol (even private symbols of other files)
+    // we declare private symbols as well with the top level symbols (of different files)
+    // this allows symbols in files above to link with private symbols of files below
     int i = (int) current.size() - 1;
     while (i >= 0) {
         auto& last = current[i];
@@ -73,23 +76,15 @@ void SymbolResolver::declare_quietly(const chem::string_view& name, ASTNode* nod
         return;
     }
     auto& last = current.back();
-    if(override_symbols) {
+    auto found = last.symbols.find(name);
+    if(found == last.symbols.end()) {
         last.symbols[name] = node;
-        // since this is a file scope, we must undeclare a duplicate symbol in file scopes above
+        // since this is a file scope, we must check for duplicate symbols in file scopes above
         if(last.kind == SymResScopeKind::File) {
-            undeclare_in_scopes_above(name, (int) current.size() - 2);
+            dup_check_in_scopes_above(name, node, (int) current.size() - 2);
         }
     } else {
-        auto found = last.symbols.find(name);
-        if(found == last.symbols.end()) {
-            last.symbols[name] = node;
-            // since this is a file scope, we must check for duplicate symbols in file scopes above
-            if(last.kind == SymResScopeKind::File) {
-                dup_check_in_scopes_above(name, node, (int) current.size() - 2);
-            }
-        } else {
-            dup_sym_error(name, found->second, node);
-        }
+        dup_sym_error(name, found->second, node);
     }
 }
 
@@ -228,14 +223,37 @@ bool SymbolResolver::declare_function_quietly(const chem::string_view& name, Fun
     }
 }
 
-void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
-    declare_quietly(name, node);
-    auto& scope = current.back();
+void SymbolResolver::declare_overriding(const chem::string_view &name, ASTNode* node) {
 #ifdef DEBUG
     if(name.empty()) {
         std::cerr << rang::fg::red << "empty symbol being declared" << rang::fg::reset << std::endl;
+        return;
     }
 #endif
+    if(name == "_") {
+        // symbols with name '_' aren't declared
+        return;
+    }
+    auto& scope = current.back();
+    scope.symbols[name] = node;
+    // since this is a file scope, we must undeclare a duplicate symbol in file scopes above
+    if(scope.kind == SymResScopeKind::File) {
+        undeclare_in_scopes_above(name, (int) current.size() - 2);
+    }
+    if(scope.kind == SymResScopeKind::File) { // only top level scope symbols are disposed at module's end
+        dispose_module_symbols.emplace_back(current.size() - 1, name);
+    }
+}
+
+void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
+#ifdef DEBUG
+    if(name.empty()) {
+        std::cerr << rang::fg::red << "empty symbol being declared" << rang::fg::reset << std::endl;
+        return;
+    }
+#endif
+    declare_quietly(name, node);
+    auto& scope = current.back();
     if(scope.kind == SymResScopeKind::File) { // only top level scope symbols are disposed at module's end
         dispose_module_symbols.emplace_back(current.size() - 1, name);
     }
@@ -245,7 +263,7 @@ void SymbolResolver::declare_file_disposable(const chem::string_view &name, ASTN
     declare_quietly(name, node);
     auto& scope = current.back();
     if(scope.kind == SymResScopeKind::File) {
-        dispose_file_symbols.emplace_back(current.size() - 1, name);
+        dispose_file_symbols.emplace_back(SymbolRef { current.size() - 1, name }, node);
     }
 }
 
@@ -266,7 +284,7 @@ void SymbolResolver::declare_private_function(const chem::string_view& name, Fun
     const auto new_sym = declare_function_quietly(name, declaration);
     auto& scope = current.back();
     if(new_sym && scope.kind == SymResScopeKind::File) {
-        dispose_file_symbols.emplace_back(current.size() - 1, name);
+        dispose_file_symbols.emplace_back(SymbolRef { current.size() - 1, name }, declaration);
     }
 }
 
@@ -312,6 +330,33 @@ void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {
     file_scope_start();
     scope.link_asynchronously(*this);
     dispose_file_symbols_now(abs_path);
+}
+
+long long SymbolResolver::tld_declare_file(Scope& scope, const std::string& abs_path) {
+    const auto index = file_scope_start();
+    scope.tld_declare(*this);
+    return index;
+}
+
+void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, long long scope_index) {
+    // enabling private symbols for the scope_index
+    // TODO we're checking all the private symbols in the current module, which maybe a lot
+    for(auto& sym : dispose_file_symbols) {
+        if((long long) sym.scope_index == scope_index) {
+            auto& scope = current[sym.scope_index];
+            scope.symbols[sym.symbol] = sym.node;
+        }
+    }
+    nodes_scope.declare_and_link(*this);
+    // TODO we're checking all the private symbols in the current module, which maybe a lot
+    for(auto& sym : dispose_file_symbols) {
+        if((long long) sym.scope_index == scope_index) {
+            auto& scope = current[sym.scope_index];
+            if(scope.symbols.erase(sym.symbol) <= 0) {
+                std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym.symbol << " in file " << abs_path  << rang::fg::reset << std::endl;
+            }
+        }
+    }
 }
 
 void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string_view& path, bool restrict_public) {

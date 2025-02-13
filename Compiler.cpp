@@ -434,6 +434,8 @@ int main(int argc, char *argv[]) {
     auto& res = options.option_new("resources", "res");
     auto& dash_c = options.option_new("", "c");
 
+#ifdef COMPILER_BUILD
+
     auto get_resources_path = [&res, &argv]() -> std::string {
         auto resources_path = res.has_value() ? std::string(res.value()) : resources_path_rel_to_exe(std::string(argv[0]));
         if(resources_path.empty()) {
@@ -442,13 +444,17 @@ int main(int argc, char *argv[]) {
         return resources_path;
     };
 
+#endif
+
     auto prepare_options = [&](LabBuildCompilerOptions* opts) -> void {
         opts->benchmark = options.has_value("benchmark", "bm");
         opts->print_representation = options.has_value("print-ast", "pr-ast");
         opts->print_cst = options.has_value("print-cst", "pr-cst");
         opts->print_ig = options.has_value("print-ig", "pr-ig");
         opts->verbose = verbose;
+#ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();
+#endif
         opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
         if(options.has_value("no-caching")) {
             opts->is_caching_enabled = false;

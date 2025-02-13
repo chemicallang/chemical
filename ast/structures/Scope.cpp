@@ -69,13 +69,13 @@ void Scope::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void Scope::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+void Scope::tld_declare(SymbolResolver &linker) {
     for (auto &node: nodes) {
         node->declare_top_level(linker, node);
     }
 }
 
-void Scope::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void Scope::declare_and_link(SymbolResolver &linker) {
     for (auto &node: nodes) {
         node->declare_and_link(linker, node);
     }

@@ -60,6 +60,11 @@ struct ASTFileMetaData {
     unsigned int file_id;
 
     /**
+     * the scope index is the index of scope where symbols in symbol resolver exist
+     */
+    long long scope_index;
+
+    /**
      * the path used when user imported the file
      */
     std::string import_path;
@@ -267,9 +272,20 @@ public:
     void import_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& absolute_path);
 
     /**
-     * function that performs symbol resolution
+     * the function to use, if the file is a c file
      */
-    void sym_res_file(Scope& scope, bool is_c_file, const std::string& abs_path);
+    void sym_res_c_file(Scope& scope, const std::string& abs_path);
+
+    /**
+     * it declares all the symbols inside the file and returns a scope index for the file
+     */
+    long long sym_res_tld_declare_file(Scope& scope, const std::string& abs_path);
+
+    /**
+     * this function is used to resolve symbols inside the file, the scope_index is used to enable
+     * the file's private symbols
+     */
+    void sym_res_link_file(Scope& scope, const std::string& abs_path, long long scope_index);
 
     /**
      * print given benchmark results

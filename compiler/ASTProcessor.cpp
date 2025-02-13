@@ -87,7 +87,7 @@ void ASTProcessor::determine_mod_imports(
                               << module->name << '\'' << std::endl;
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, abs_path, abs_path);
+                files.emplace_back(fileId, -1, abs_path, abs_path);
             }
             import_chemical_files(pool, out_files, files);
             return;
@@ -108,41 +108,33 @@ void ASTProcessor::determine_mod_imports(
             std::vector<ASTFileMetaData> files;
             for (auto& abs_path: filePaths) {
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, abs_path, abs_path);
+                files.emplace_back(fileId, -1, abs_path, abs_path);
             }
             import_chemical_files(pool, out_files, files);
             return;
     }
 }
 
-void ASTProcessor::sym_res_file(Scope& scope, bool is_c_file, const std::string& abs_path) {
+void ASTProcessor::sym_res_c_file(Scope& scope, const std::string& abs_path) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
-    if (is_c_file) {
-        previous = std::move(resolver->diagnostics);
-    }
+    previous = std::move(resolver->diagnostics);
     std::unique_ptr<BenchmarkResults> bm_results;
     if(options->benchmark) {
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    if(is_c_file) {
-        resolver->override_symbols = true;
-        for(const auto node : scope.nodes) {
-            auto id = node->get_located_id();
-            if(id) {
-                if (id->identifier.empty()) {
-                    // TODO handle empty declarations, for example C contains
-                    // empty enum declarations, where members can be linked directly
-                    // enum {  Mem1, Mem2 }
-                } else {
-                    resolver->declare(id->identifier, node);
-                }
+    for(const auto node : scope.nodes) {
+        auto id = node->get_located_id();
+        if(id) {
+            if (id->identifier.empty()) {
+                // TODO handle empty declarations, for example C contains
+                // empty enum declarations, where members can be linked directly
+                // enum {  Mem1, Mem2 }
+            } else {
+                resolver->declare_overriding(id->identifier, node);
             }
         }
-        resolver->override_symbols = false;
-    } else {
-        resolver->resolve_file(scope, abs_path);
     }
     if(options->benchmark) {
         bm_results->benchmark_end();
@@ -151,11 +143,86 @@ void ASTProcessor::sym_res_file(Scope& scope, bool is_c_file, const std::string&
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(abs_path, "SymRes");
     }
-    if (is_c_file) {
-        resolver->diagnostics = std::move(previous);
-        resolver->has_errors = prev_has_errors;
+    resolver->diagnostics = std::move(previous);
+    resolver->has_errors = prev_has_errors;
+}
+
+long long ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string& abs_path) {
+    // doing stuff
+    auto prev_has_errors = resolver->has_errors;
+    std::unique_ptr<BenchmarkResults> bm_results;
+    if(options->benchmark) {
+        bm_results = std::make_unique<BenchmarkResults>();
+        bm_results->benchmark_begin();
+    }
+    const auto scope_ind = resolver->tld_declare_file(scope, abs_path);
+    if(options->benchmark) {
+        bm_results->benchmark_end();
+        print_benchmarks(std::cout, "SymResDeclare:" + abs_path, bm_results.get());
+    }
+    if(!resolver->diagnostics.empty()) {
+        resolver->print_diagnostics(abs_path, "SymRes");
+    }
+    return scope_ind;
+}
+
+void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, long long scope_index) {
+    // doing stuff
+    auto prev_has_errors = resolver->has_errors;
+    std::unique_ptr<BenchmarkResults> bm_results;
+    if(options->benchmark) {
+        bm_results = std::make_unique<BenchmarkResults>();
+        bm_results->benchmark_begin();
+    }
+    resolver->link_file(scope, abs_path, scope_index);
+    if(options->benchmark) {
+        bm_results->benchmark_end();
+        print_benchmarks(std::cout, "SymResLink:" + abs_path, bm_results.get());
+    }
+    if(!resolver->diagnostics.empty()) {
+        resolver->print_diagnostics(abs_path, "SymRes");
     }
 }
+
+//void ASTProcessor::sym_res_file(Scope& scope, bool is_c_file, const std::string& abs_path) {
+//    // doing stuff
+//    auto prev_has_errors = resolver->has_errors;
+//    if (is_c_file) {
+//        previous = std::move(resolver->diagnostics);
+//    }
+//    std::unique_ptr<BenchmarkResults> bm_results;
+//    if(options->benchmark) {
+//        bm_results = std::make_unique<BenchmarkResults>();
+//        bm_results->benchmark_begin();
+//    }
+//    if(is_c_file) {
+//        for(const auto node : scope.nodes) {
+//            auto id = node->get_located_id();
+//            if(id) {
+//                if (id->identifier.empty()) {
+//                    // TODO handle empty declarations, for example C contains
+//                    // empty enum declarations, where members can be linked directly
+//                    // enum {  Mem1, Mem2 }
+//                } else {
+//                    resolver->declare_overriding(id->identifier, node);
+//                }
+//            }
+//        }
+//    } else {
+//        resolver->resolve_file(scope, abs_path);
+//    }
+//    if(options->benchmark) {
+//        bm_results->benchmark_end();
+//        print_benchmarks(std::cout, "SymRes:" + abs_path, bm_results.get());
+//    }
+//    if(!resolver->diagnostics.empty()) {
+//        resolver->print_diagnostics(abs_path, "SymRes");
+//    }
+//    if (is_c_file) {
+//        resolver->diagnostics = std::move(previous);
+//        resolver->has_errors = prev_has_errors;
+//    }
+//}
 
 void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG, BenchmarkResults* bm_results) {
     const auto mil = bm_results->millis();
@@ -264,7 +331,7 @@ void ASTProcessor::import_chemical_file(
             auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, stmt->filePath.str());
             if(replaceResult.error.empty()) {
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
-                imports.emplace_back(fileId, stmt->filePath.str(), std::move(replaceResult.replaced));
+                imports.emplace_back(fileId, -1, stmt->filePath.str(), std::move(replaceResult.replaced));
             } else {
                 std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
             }
@@ -360,6 +427,7 @@ void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, co
     result.is_c_file = is_c_file;
     result.abs_path = abs_path;
     result.file_id = fileId;
+    result.scope_index = -1;
     result.continue_processing = true;
 
     if (is_c_file) {

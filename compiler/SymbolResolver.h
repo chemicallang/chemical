@@ -86,6 +86,15 @@ struct SymbolRef {
 
 };
 
+struct SymbolRefValue : SymbolRef {
+
+    /**
+     * the node symbol is pointing to
+     */
+    ASTNode* node;
+
+};
+
 class CTranslator;
 
 /**
@@ -167,11 +176,68 @@ public:
     std::unordered_map<chem::string_view, Value*> implicit_args;
 
     /**
+     * is the codegen for arch 64bit
+     */
+    bool is64Bit;
+
+    /**
+     * is everything linking inside a safe context
+     */
+    bool safe_context = true;
+
+    /**
+     * is the current context comptime, which means we're inside
+     * a comptime function or a comptime block
+     */
+    bool comptime_context = false;
+
+    /**
+     * current function type, for which code is being linked
+     */
+    FunctionType* current_func_type = nullptr;
+
+    /**
+     * nodes that are created during symbol resolution, that must be retained
+     * during symbol resolution, for example when a function with two names
+     * exists, the second function creates a MultiFunctionNode and put's it on this
+     * vector, which is declared on the symbol map, when function calls link with it
+     * they are re-linked with correct function, based on arguments
+     */
+    std::vector<std::unique_ptr<ASTNode>> helper_nodes;
+
+    /**
+     * stores symbols that will be disposed after this file has been completely symbol resolved
+     * for example using namespace some; this will always be disposed unless propagate annotation exists
+     * above it
+     */
+    std::vector<SymbolRefValue> dispose_file_symbols;
+
+    /**
+     * stores symbols that will be disposed after this module has been completely symbol resolved
+     * for example symbols that are internal in module are stored on this vector for disposing
+     * at the end of module, struct without a public keyword (internal by default)
+     */
+    std::vector<SymbolRef> dispose_module_symbols;
+
+    /**
+     * constructor
+     */
+    SymbolResolver(
+        GlobalInterpretScope& global,
+        bool is64Bit,
+        ASTAllocator& allocator,
+        ASTAllocator* modAllocator,
+        ASTAllocator* astAllocator
+    );
+
+    /**
      * a file scope begins, a file scope should not be popped, this is because
      * symbols are expected to exist in other files
      */
-    void file_scope_start() {
+    long long file_scope_start() {
+        const auto s = current.size();
         current.emplace_back(SymResScopeKind::File);
+        return (long long) s;
     }
 
     /**
@@ -219,72 +285,6 @@ public:
     }
 
     /**
-     * is the codegen for arch 64bit
-     */
-    bool is64Bit;
-
-    /**
-     * when true, re-declaring same symbol will override it
-     */
-    bool override_symbols = false;
-
-    /**
-     * is everything linking inside a safe context
-     */
-    bool safe_context = true;
-
-    /**
-     * is the current context comptime, which means we're inside
-     * a comptime function or a comptime block
-     */
-    bool comptime_context = false;
-
-    /**
-     * does symbol resolver support function name overloading
-     * we turn this off for c files
-     */
-    bool fn_name_overloading = true;
-
-    /**
-     * current function type, for which code is being linked
-     */
-    FunctionType* current_func_type = nullptr;
-
-    /**
-     * nodes that are created during symbol resolution, that must be retained
-     * during symbol resolution, for example when a function with two names
-     * exists, the second function creates a MultiFunctionNode and put's it on this
-     * vector, which is declared on the symbol map, when function calls link with it
-     * they are re-linked with correct function, based on arguments
-     */
-    std::vector<std::unique_ptr<ASTNode>> helper_nodes;
-
-    /**
-     * stores symbols that will be disposed after this file has been completely symbol resolved
-     * for example using namespace some; this will always be disposed unless propagate annotation exists
-     * above it
-     */
-    std::vector<SymbolRef> dispose_file_symbols;
-
-    /**
-     * stores symbols that will be disposed after this module has been completely symbol resolved
-     * for example symbols that are internal in module are stored on this vector for disposing
-     * at the end of module, struct without a public keyword (internal by default)
-     */
-    std::vector<SymbolRef> dispose_module_symbols;
-
-    /**
-     * constructor
-     */
-    SymbolResolver(
-        GlobalInterpretScope& global,
-        bool is64Bit,
-        ASTAllocator& allocator,
-        ASTAllocator* modAllocator,
-        ASTAllocator* astAllocator
-    );
-
-    /**
      * if the current where the symbols are being declared is a file scope
      */
     bool is_current_file_scope() {
@@ -307,6 +307,11 @@ public:
      * duplicate runtime symbol error
      */
     void dup_runtime_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node);
+
+    /**
+     * declare a symbol that will override the previous symbol if exists
+     */
+    void declare_overriding(const chem::string_view &name, ASTNode* node);
 
     /**
      * declare a symbol that will disposed at the end of this module
@@ -429,6 +434,16 @@ public:
      * symbol resolves a file
      */
     void resolve_file(Scope& scope, const std::string& abs_path);
+
+    /**
+     * top level declare all the symbols in a file
+     */
+    long long tld_declare_file(Scope& scope, const std::string& abs_path);
+
+    /**
+     * should be called, after tld_declare_file, if file's top level symbols have already been declared
+     */
+    void link_file(Scope& scope, const std::string& abs_path, long long scope_index);
 
     /**
      * do not symbol resolve the file, just import it, it will just declare the symbols inside

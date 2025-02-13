@@ -56,14 +56,28 @@ public:
     void accept(Visitor *visitor) final;
 
     /**
-     * throws an error in debug mode, shouldn't be called
+     * top level nodes declaration function
      */
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
+    void tld_declare(SymbolResolver &linker);
 
     /**
-     * throws an error in debug mode, shouldn't be called
+     * links everything in this scope
      */
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
+    void declare_and_link(SymbolResolver &linker);
+
+    /**
+     * declares top level nodes
+     */
+    inline void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final {
+        tld_declare(linker);
+    }
+
+    /**
+     * links nodes
+     */
+    inline void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
+        declare_and_link(linker);
+    }
 
     /**
      * when nodes are to be declared and used sequentially, so node can be referenced

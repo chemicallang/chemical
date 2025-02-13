@@ -628,58 +628,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         // get the files flattened
         auto flattened_files = flatten(module_files);
 
-        // top level declare all files in the module
-        for(auto file_ptr : flattened_files) {
-
-            auto& file = *file_ptr;
-            bool already_imported = processor.shrinked_unit.find(file.abs_path) != processor.shrinked_unit.end();
-
-            if(!already_imported) {
-                if(file.is_c_file) {
-                    processor.sym_res_c_file(file.unit.scope, file.abs_path);
-                } else {
-                    file.scope_index = processor.sym_res_tld_declare_file(file.unit.scope, file.abs_path);
-                }
-                // report and clear diagnostics
-                if (resolver.has_errors && !options->ignore_errors) {
-                    std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-                    compile_result = 1;
-                    break;
-                }
-                resolver.reset_errors();
-            }
-
+        // symbol resolve all the files in the module
+        const auto sym_res_status = processor.sym_res_files(flattened_files);
+        if(sym_res_status == 1) {
+            compile_result = 1;
+            break;
         }
-
-        // sequentially symbol resolve all the files in the module
-        for(auto file_ptr : flattened_files) {
-
-            auto& file = *file_ptr;
-
-            auto imported = processor.shrinked_unit.find(file.abs_path);
-            bool already_imported = imported != processor.shrinked_unit.end();
-
-            // symbol resolution
-            if(!already_imported && !file.is_c_file) {
-#ifdef DEBUG
-                if(file.scope_index == -1) {
-                    throw std::runtime_error("file's scope index is equal to -1");
-                }
-#endif
-                processor.sym_res_link_file(file.unit.scope, file.abs_path, file.scope_index);
-                if (resolver.has_errors && !options->ignore_errors) {
-                    std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-                    compile_result = 1;
-                    break;
-                }
-                resolver.reset_errors();
-            }
-
-            // clear everything allocated during symbol resolution of current file
-            file_allocator->clear();
-
-        }
-
 
         // sequentially compile each file
         i = 0;
@@ -1146,53 +1100,10 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
         auto module_files = flatten(files_to_flatten);
 
-        // top level declare all files in the module
-        for(auto file_ptr : module_files) {
-
-            auto& file = *file_ptr;
-            bool already_imported = lab_processor.shrinked_unit.find(file.abs_path) != lab_processor.shrinked_unit.end();
-
-            if(!already_imported) {
-                if(file.is_c_file) {
-                    lab_processor.sym_res_c_file(file.unit.scope, file.abs_path);
-                } else {
-                    file.scope_index = lab_processor.sym_res_tld_declare_file(file.unit.scope, file.abs_path);
-                }
-                // report and clear diagnostics
-                if (lab_resolver.has_errors && !options->ignore_errors) {
-                    std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-                    compile_result = 1;
-                    break;
-                }
-                lab_resolver.reset_errors();
-            }
-
-        }
-
-        // sequentially symbol resolve all the files in the module
-        for(auto file_ptr : module_files) {
-
-            auto& file = *file_ptr;
-
-            auto imported = lab_processor.shrinked_unit.find(file.abs_path);
-            bool already_imported = imported != lab_processor.shrinked_unit.end();
-
-            // symbol resolution
-            if(!already_imported && !file.is_c_file) {
-#ifdef DEBUG
-                if(file.scope_index == -1) {
-                    throw std::runtime_error("file's scope index is equal to -1");
-                }
-#endif
-                lab_processor.sym_res_link_file(file.unit.scope, file.abs_path, file.scope_index);
-                if (lab_resolver.has_errors && !options->ignore_errors) {
-                    std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-                    compile_result = 1;
-                    break;
-                }
-                lab_resolver.reset_errors();
-            }
-
+        // symbol resolve all the files in the module
+        const auto sym_res_status = lab_processor.sym_res_files(module_files);
+        if(sym_res_status == 1) {
+            return nullptr;
         }
 
         // processing each build.lab file and creating C output

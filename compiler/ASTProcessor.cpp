@@ -184,6 +184,62 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
     }
 }
 
+int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
+    for(auto file_ptr : files) {
+
+        auto& file = *file_ptr;
+        bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
+
+        if(!already_imported) {
+            if(file.is_c_file) {
+                sym_res_c_file(file.unit.scope, file.abs_path);
+            } else {
+                file.scope_index = sym_res_tld_declare_file(file.unit.scope, file.abs_path);
+            }
+            // report and clear diagnostics
+            if (resolver->has_errors && !options->ignore_errors) {
+                std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
+                return 1;
+            }
+            resolver->reset_errors();
+        }
+
+    }
+
+    // sequentially symbol resolve all the files in the module
+    for(auto file_ptr : files) {
+
+        auto& file = *file_ptr;
+
+        auto imported = shrinked_unit.find(file.abs_path);
+        bool already_imported = imported != shrinked_unit.end();
+
+        // symbol resolution
+        if(!already_imported && !file.is_c_file) {
+#ifdef DEBUG
+            if(file.scope_index == -1) {
+                throw std::runtime_error("file's scope index is equal to -1");
+            }
+#endif
+            sym_res_link_file(file.unit.scope, file.abs_path, file.scope_index);
+            if (resolver->has_errors && !options->ignore_errors) {
+                std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
+                return 1;
+            }
+            resolver->reset_errors();
+        }
+
+        // clear everything allocated during symbol resolution of current file
+        if(&file_allocator != &mod_allocator && &file_allocator != &job_allocator) {
+            file_allocator.clear();
+        }
+
+    }
+
+    return 0;
+
+}
+
 //void ASTProcessor::sym_res_file(Scope& scope, bool is_c_file, const std::string& abs_path) {
 //    // doing stuff
 //    auto prev_has_errors = resolver->has_errors;

@@ -288,6 +288,12 @@ public:
     void sym_res_link_file(Scope& scope, const std::string& abs_path, long long scope_index);
 
     /**
+     * all these files would be symbol resolved, 1 is returned in case
+     * errors are encountered during symbol resolution of one file
+     */
+    int sym_res_files(std::vector<ASTFileResult*>& files);
+
+    /**
      * print given benchmark results
      */
     static void print_benchmarks(std::ostream& stream, const std::string& TAG, BenchmarkResults* results);

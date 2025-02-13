@@ -1,5 +1,3 @@
-import "/test.ch"
-
 struct Destructible {
 
     var data : int

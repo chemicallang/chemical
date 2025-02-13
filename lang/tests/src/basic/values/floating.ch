@@ -1,5 +1,3 @@
-import "/test.ch"
-
 func test_floating_expr() {
     test("comparing floats", () => {
         return 5.5f == 5.5f;

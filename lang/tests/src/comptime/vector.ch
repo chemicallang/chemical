@@ -1,5 +1,3 @@
-import "/test.ch"
-
 @comptime
 func compiler_vector_sum(a : int) : int {
     var vec = compiler::vector<int>();

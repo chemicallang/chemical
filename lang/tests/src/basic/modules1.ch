@@ -1,4 +1,3 @@
-import "/test.ch"
 import "@submod/check.ch"
 
 

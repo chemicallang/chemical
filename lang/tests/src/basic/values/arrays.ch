@@ -1,5 +1,3 @@
-import "/test.ch"
-
 struct DataStr1 {
 
     var data : int

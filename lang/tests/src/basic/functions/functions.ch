@@ -1,6 +1,3 @@
-import "/test.ch"
-import "./parameters.ch"
-
 struct TestStruct1 {
     var x : int
     var y : int

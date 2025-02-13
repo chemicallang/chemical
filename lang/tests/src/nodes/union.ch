@@ -1,5 +1,3 @@
-import "/test.ch"
-
 union IntFloatUnion {
     var a : int;
     var b : float;

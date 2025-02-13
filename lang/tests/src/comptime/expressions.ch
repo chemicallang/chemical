@@ -1,5 +1,3 @@
-import "/test.ch"
-
 func test_comptime_expressions() {
     test("comptime: 4 + 2 / 2 == 5", () => {
         return comptime { (4 + 2 / 2) == 5 }

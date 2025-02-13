@@ -1,5 +1,3 @@
-import "/test.ch"
-
 @comptime
 func <T> comptime_size_of() : ubigint {
     return sizeof(T)

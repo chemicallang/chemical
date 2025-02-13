@@ -1,5 +1,3 @@
-import "/test.ch"
-
 @direct_init
 struct Pair66 {
 

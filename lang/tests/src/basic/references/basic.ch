@@ -1,5 +1,3 @@
-import "/test.ch"
-
 struct ReferencableStruct {
     var i : int
 }

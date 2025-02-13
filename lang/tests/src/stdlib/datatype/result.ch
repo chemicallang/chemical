@@ -1,4 +1,3 @@
-import "/test.ch"
 import "@std/result.ch"
 
 using namespace std;

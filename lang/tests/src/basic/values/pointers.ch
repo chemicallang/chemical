@@ -1,5 +1,3 @@
-import "/test.ch"
-
 struct PMC22 {
     var a : int
     var b : int

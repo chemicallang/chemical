@@ -1,4 +1,3 @@
-import "/test.ch"
 import "@std/option.ch"
 
 using namespace std;

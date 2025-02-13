@@ -1,5 +1,3 @@
-import "/test.ch"
-
 type ubigint_typealias = ubigint;
 
 func can_cast_to_intN_typealias(value : ushort) : ubigint_typealias {

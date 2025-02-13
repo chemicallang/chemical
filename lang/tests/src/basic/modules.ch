@@ -1,4 +1,3 @@
-import "/test.ch"
 import "@submod/check.ch"
 
 func test_imported_modules() {

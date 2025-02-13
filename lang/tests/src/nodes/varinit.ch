@@ -1,5 +1,3 @@
-import "/test.ch"
-
 @comptime
 const glob_ct_const = 100 + 300
 

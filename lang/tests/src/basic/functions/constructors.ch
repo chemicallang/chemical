@@ -1,5 +1,3 @@
-import "/test.ch"
-
 struct Base89 {
 
     var i : int

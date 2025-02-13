@@ -1,5 +1,3 @@
-import "/test.ch"
-
 interface Phone {
 
     func call(&self) : int;

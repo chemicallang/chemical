@@ -1,5 +1,3 @@
-import "/test.ch"
-
 @static
 interface StaticSummer {
 

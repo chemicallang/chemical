@@ -1,5 +1,3 @@
-import "/test.ch"
-
 struct LambdaProvider {
     var provide : () => int
 }

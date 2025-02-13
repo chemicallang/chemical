@@ -1,5 +1,3 @@
-import "/test.ch"
-
 enum Thing {
     Fruit,
     Veg

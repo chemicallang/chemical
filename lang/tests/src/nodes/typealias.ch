@@ -1,5 +1,3 @@
-import "/test.ch"
-
 type SimpleFunc = () => int;
 
 func take_simple_func(simple : SimpleFunc) : int {

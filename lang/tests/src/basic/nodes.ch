@@ -1,6 +1,3 @@
-import "/test.ch"
-import "./switch/basic.ch"
-
 interface UnInheritedInterface {
     // this method should be removed from final code_gen
     func check() : int

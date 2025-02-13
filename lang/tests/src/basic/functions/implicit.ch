@@ -1,5 +1,3 @@
-import "/test.ch"
-
 type direct_int = int
 
 func check_direct_implicit_arg(&direct_int) : int {

@@ -1,4 +1,3 @@
-import "/test.ch"
 import "@std/std.ch"
 
 struct PointNew12 {

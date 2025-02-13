@@ -1,5 +1,3 @@
-import "/test.ch"
-
 func test_generic_moves() {
 
     // TESTING WHETHER NON MOVABLE OBJECTS ARE COPIED WHEN PASSED AROUND IN GENERICS

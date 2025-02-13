@@ -1,5 +1,3 @@
-import "/test.ch"
-
 func passed_inc_dec(value : int) : int {
     return value;
 }

@@ -1,5 +1,3 @@
-import "/test.ch"
-
 func test_bodmas() {
     test("4 + 2 / 2 == 5", () => {
         return (4 + 2 / 2) == 5;

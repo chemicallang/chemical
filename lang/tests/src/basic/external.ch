@@ -1,5 +1,3 @@
-import "/test.ch"
-
 @extern
 public func check_external_sum(a : int, b : int) : int
 

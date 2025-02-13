@@ -1,5 +1,3 @@
-import "/test.ch"
-
 using namespace std;
 
 namespace cool {

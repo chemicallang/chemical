@@ -1,5 +1,3 @@
-import "/test.ch"
-
 struct ExtFuncTestPoint {
     var a : int
     var b : int

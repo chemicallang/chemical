@@ -1,5 +1,3 @@
-import "/test.ch"
-
 struct Animal {
 
     var a : long

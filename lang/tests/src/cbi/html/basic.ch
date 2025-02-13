@@ -1,5 +1,3 @@
-import "/test.ch"
-
 func test_html() {
     /** TODO fix #html not integrated
     test("library is integrated", () => {

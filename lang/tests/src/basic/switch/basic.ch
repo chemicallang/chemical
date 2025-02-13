@@ -1,5 +1,3 @@
-import "/test.ch"
-
 func test_switch_statement() {
     test("switch statement", () => {
        var j = 0;

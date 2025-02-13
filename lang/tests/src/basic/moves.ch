@@ -1,5 +1,3 @@
-import "/test.ch"
-
 var clear_called = 0;
 var move_called = 0;
 var copy_called = 0;

@@ -75,6 +75,12 @@ void Scope::tld_declare(SymbolResolver &linker) {
     }
 }
 
+void Scope::link_signature(SymbolResolver& linker)  {
+    for (const auto node : nodes) {
+        node->link_signature(linker);
+    }
+}
+
 void Scope::declare_and_link(SymbolResolver &linker) {
     for (auto &node: nodes) {
         node->declare_and_link(linker, node);
@@ -84,6 +90,7 @@ void Scope::declare_and_link(SymbolResolver &linker) {
 void Scope::link_sequentially(SymbolResolver &linker) {
     for(auto& node : nodes) {
         node->declare_top_level(linker, node);
+        node->link_signature(linker);
         node->declare_and_link(linker, node);
     }
 }
@@ -91,6 +98,9 @@ void Scope::link_sequentially(SymbolResolver &linker) {
 void Scope::link_asynchronously(SymbolResolver &linker) {
     for (auto& node: nodes) {
         node->declare_top_level(linker, node);
+    }
+    for (const auto node : nodes) {
+        node->link_signature(linker);
     }
     for (auto& node: nodes) {
         node->declare_and_link(linker, node);

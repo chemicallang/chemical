@@ -46,35 +46,24 @@ ASTNode *ExtensionFuncReceiver::child(const chem::string_view &name) {
 //}
 
 void ExtensionFunction::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+    // do nothing here
+}
 
-    /**
-     * when a user has a call to function which is declared below current function, that function
-     * has a parameter of type ref struct, the struct has implicit constructor for the value we are passing
-     * we need to know the struct, we require the function's parameters to be linked, however that happens declare_and_link which happens
-     * when function's body is linked, then an error happens, so we must link the types of parameters of all functions before linking bodies
-     * in a single scope
-     *
-     * TODO However this requires that all the types used for parameters of functions must be declared above the function, because it will link
-     *  in declaration stage, If the need arises that types need to be declared below a function, we should refactor this code,
-     *
-     * Here we are not declaring parameters, just declaring generic ones, we are linking parameters
-     */
-    bool resolved = true;
+void ExtensionFunction::link_signature(SymbolResolver &linker) {
+
     linker.scope_start();
-    for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
+
+    link_signature_no_scope(linker);
+
+    if(!FunctionType::data.signature_resolved) {
+        return;
     }
+
     if(!receiver.type->link(linker)) {
-        resolved = false;
+        FunctionType::data.signature_resolved = false;
+        return;
     }
-    for(auto& param : params) {
-        if(!param->link_param_type(linker)) {
-            resolved = false;
-        }
-    }
-    if(!returnType->link(linker)) {
-        resolved = false;
-    }
+
     linker.scope_end();
 
     const auto type = receiver.type;
@@ -101,9 +90,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker, ASTNode*& node
         linker.error("type doesn't support extension functions " + type->representation(), receiver.type);
         return;
     }
-    if(resolved) {
-        FunctionType::data.signature_resolved = true;
-    }
+
     container->extension_functions[name_view()] = this;
 }
 
@@ -122,6 +109,9 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker, ASTNode*& node_
                          receiver.type);
             return;
         }
+    } else {
+        linker.error("couldn't get the node of receiver in extension function", receiver.type);
+        return;
     }
 
     // if has body declare params

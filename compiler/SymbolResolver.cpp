@@ -211,15 +211,14 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode*& 
     return false;
 }
 
-bool SymbolResolver::declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration) {
+ASTNode** SymbolResolver::declare_function_no_overload(const chem::string_view& name, FunctionDeclaration* declaration) {
     auto& last = current.back();
     auto found = last.symbols.find(name);
     if(found == last.symbols.end()) {
         last.symbols[name] = declaration;
-        return true;
+        return nullptr;
     } else {
-        overload_function(name, found->second, declaration);
-        return false;
+        return &found->second;
     }
 }
 
@@ -268,13 +267,14 @@ void SymbolResolver::declare_file_disposable(const chem::string_view &name, ASTN
 }
 
 void SymbolResolver::declare_function(const chem::string_view& name, FunctionDeclaration* declaration) {
-    const auto new_sym = declare_function_quietly(name, declaration);
-    auto& scope = current.back();
 #ifdef DEBUG
     if(name.empty()) {
-        std::cerr << rang::fg::red << "empty symbol being declared" << rang::fg::reset << std::endl;
+        std::cerr << rang::fg::red << "error: empty symbol being declared" << rang::fg::reset << std::endl;
+        return;
     }
 #endif
+    const auto new_sym = declare_function_quietly(name, declaration);
+    auto& scope = current.back();
     if(new_sym && scope.kind == SymResScopeKind::File) { // only top level scope symbols are disposed at module's end
         dispose_module_symbols.emplace_back(current.size() - 1, name);
     }
@@ -334,7 +334,8 @@ void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {
 
 long long SymbolResolver::tld_declare_file(Scope& scope, const std::string& abs_path) {
     const auto index = file_scope_start();
-    scope.tld_declare(*this);
+    auto& linker = *this;
+    scope.tld_declare(linker);
     return index;
 }
 
@@ -347,7 +348,8 @@ void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, 
             scope.symbols[sym.symbol] = sym.node;
         }
     }
-    nodes_scope.declare_and_link(*this);
+    auto& linker = *this;
+    nodes_scope.declare_and_link(linker);
     // TODO we're checking all the private symbols in the current module, which maybe a lot
     for(auto& sym : dispose_file_symbols) {
         if((long long) sym.scope_index == scope_index) {

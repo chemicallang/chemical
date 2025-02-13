@@ -310,6 +310,9 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& func : functions()) {
         func->declare_top_level(linker, (ASTNode*&) func);
     }
+    for(auto& func : functions()) {
+        func->link_signature(linker);
+    }
     for (auto& func: functions()) {
         func->declare_and_link(linker, (ASTNode*&) func);
     }

@@ -135,7 +135,15 @@ private:
      * multiple methods with same names
      * @return true if a new symbol was declared
      */
-    bool declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration);
+    inline bool declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration) {
+        auto found = declare_function_no_overload(name, declaration);
+        if(found == nullptr) {
+            return true;
+        } else {
+            overload_function(name, *found, declaration);
+            return false;
+        }
+    }
 
 public:
 
@@ -396,6 +404,12 @@ public:
      * if a single symbol exists in other files, an dup sym error is created
      */
     bool dup_check_in_scopes_above(const chem::string_view& name, ASTNode* new_node, int until);
+
+    /**
+     * declare the function, without overloading, will NOT declare the function if a symbol already exists
+     * @return the symbol that already exists, if no declaration took place
+     */
+    ASTNode** declare_function_no_overload(const chem::string_view& name, FunctionDeclaration* declaration);
 
     /**
      * helper method that should be used to declare functions that takes into account

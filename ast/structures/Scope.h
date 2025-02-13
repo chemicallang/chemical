@@ -61,6 +61,11 @@ public:
     void tld_declare(SymbolResolver &linker);
 
     /**
+     * links the signatures of all nodes
+     */
+    void link_signature(SymbolResolver& linker) final;
+
+    /**
      * links everything in this scope
      */
     void declare_and_link(SymbolResolver &linker);

@@ -55,6 +55,9 @@ void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
             node->declare_top_level(linker, node);
         }
     }
+    for(const auto node : nodes) {
+        node->link_signature(linker);
+    }
     for(auto& node : nodes) {
         node->declare_and_link(linker, node);
     }

@@ -203,7 +203,9 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
 }
 
 int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
+    int i = -1;
     for(auto file_ptr : files) {
+        i++;
 
         auto& file = *file_ptr;
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
@@ -222,6 +224,20 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
             resolver->reset_errors();
         }
 
+    }
+
+    for(auto file_ptr : files) {
+        auto& file = *file_ptr;
+        bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
+        if(!already_imported && !file.is_c_file) {
+            file.unit.scope.link_signature(*resolver);
+            // report and clear diagnostics
+            if (resolver->has_errors && !options->ignore_errors) {
+                std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
+                return 1;
+            }
+            resolver->reset_errors();
+        }
     }
 
     // sequentially symbol resolve all the files in the module

@@ -753,11 +753,15 @@ public:
 
 #endif
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr);
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
+
+    void link_signature_no_scope(SymbolResolver& linker);
+
+    void link_signature(SymbolResolver &linker) override;
 
     void redeclare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     /**
      * ensure that function body has an init block (required in constructors)

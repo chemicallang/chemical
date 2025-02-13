@@ -2168,6 +2168,7 @@ void CValueDeclarationVisitor::visit(FunctionCall *call) {
         while (i < size) {
             auto& value = call->values[i];
             auto func_param = func_type->func_param_for_arg_at(i);
+            // TODO the func_param is nullptr sometimes, for which the arg is given
             auto constructor = func_param->type->implicit_constructor_for(visitor.allocator, value);
             if (constructor) {
                 value = call_with_arg(constructor, value, func_param->type, visitor.allocator, visitor);

@@ -1346,21 +1346,11 @@ void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    /**
-     * when a user has a call to function which is declared below current function, that function
-     * has a parameter of type ref struct, the struct has implicit constructor for the value we are passing
-     * we need to know the struct, we require the function's parameters to be linked, however that happens declare_and_link which happens
-     * when function's body is linked, then an error happens, so we must link the types of parameters of all functions before linking bodies
-     * in a single scope
-     *
-     * TODO However this requires that all the types used for parameters of functions must be declared above the function, because it will link
-     *  in declaration stage, If the need arises that types need to be declared below a function, we should refactor this code,
-     *
-     * Here we are not declaring parameters, just declaring generic ones, we are linking parameters
-     */
+    linker.declare_function(name_view(), this, specifier());
+}
 
+void FunctionDeclaration::link_signature_no_scope(SymbolResolver &linker) {
     bool resolved = true;
-    linker.scope_start();
     if(is_generic()) {
         for (auto& gen_param: generic_params) {
             gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
@@ -1380,8 +1370,12 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& no
     if(resolved) {
         FunctionType::data.signature_resolved = true;
     }
+}
+
+void FunctionDeclaration::link_signature(SymbolResolver &linker)  {
+    linker.scope_start();
+    link_signature_no_scope(linker);
     linker.scope_end();
-    linker.declare_function(name_view(), this, specifier());
 }
 
 bool FunctionDeclaration::ensure_has_init_block() {
@@ -1407,12 +1401,16 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& nod
     for (auto& param : params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
-    if (body.has_value() && FunctionType::data.signature_resolved) {
-        if(is_comptime()) {
-            linker.comptime_context = true;
+    if(body.has_value()) {
+        if(FunctionType::data.signature_resolved) {
+            if(is_comptime()) {
+                linker.comptime_context = true;
+            }
+            body->link_sequentially(linker);
+            linker.comptime_context = false;
+        } else {
+            linker.warn("couldn't resolve signature of function", (ASTNode*) this);
         }
-        body->link_sequentially(linker);
-        linker.comptime_context = false;
     }
     linker.scope_end();
     linker.current_func_type = prev_func_type;

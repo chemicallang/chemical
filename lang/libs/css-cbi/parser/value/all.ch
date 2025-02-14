@@ -16,4 +16,5 @@ func putAllCSSValueParsers(
     map.insert(std::string_view("display"), CSSParser::parseDisplay)
     map.insert(std::string_view("position"), CSSParser::parsePosition)
     map.insert(std::string_view("overflow"), CSSParser::parseOverflow)
+    map.insert(std::string_view("z-index"), CSSParser::parseZIndex)
 }

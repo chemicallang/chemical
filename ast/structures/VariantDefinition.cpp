@@ -238,6 +238,10 @@ void VariantDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node
     linker.declare_node(name_view(), this, specifier(), true);
 }
 
+void VariantDefinition::link_signature(SymbolResolver &linker) {
+    MembersContainer::link_signature(linker);
+}
+
 void VariantDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     bool has_destructor = false;

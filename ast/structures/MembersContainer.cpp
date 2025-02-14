@@ -293,6 +293,20 @@ unsigned int MembersContainer::init_values_req_size() {
     return i;
 }
 
+void MembersContainer::link_signature(SymbolResolver &linker) {
+    linker.scope_start();
+    for(auto& gen_param : generic_params) {
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
+    }
+    for(auto& inherits : inherited) {
+        inherits->type->link(linker);
+    }
+    for (auto &var: variables) {
+        var.second->declare_and_link(linker, (ASTNode*&) var.second);
+    }
+    linker.scope_end();
+}
+
 void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& gen_param : generic_params) {
         gen_param->declare_and_link(linker, (ASTNode*&) gen_param);

@@ -22,6 +22,42 @@ func getFontWeightKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
+func getFontSizeKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("xx-small") => {
+            return CSSKeywordKind.XXSmall;
+        }
+        comptime_fnv1_hash("x-small") => {
+            return CSSKeywordKind.XSmall
+        }
+        comptime_fnv1_hash("small") => {
+            return CSSKeywordKind.Small
+        }
+        comptime_fnv1_hash("medium") => {
+            return CSSKeywordKind.Medium
+        }
+        comptime_fnv1_hash("large") => {
+            return CSSKeywordKind.Large
+        }
+        comptime_fnv1_hash("x-large") => {
+            return CSSKeywordKind.XLarge
+        }
+        comptime_fnv1_hash("xx-large") => {
+            return CSSKeywordKind.XXLarge
+        }
+        comptime_fnv1_hash("smaller") => {
+            return CSSKeywordKind.Smaller
+        }
+        comptime_fnv1_hash("larger") => {
+            return CSSKeywordKind.Larger
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+
 func getTextAlignKeywordKind(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {
         comptime_fnv1_hash("left") => {
@@ -112,6 +148,7 @@ func getOverflowKeywordKind(ptr : *char) : CSSKeywordKind {
 }
 
 const fontWeightValueErr = "unknown value for font weight"
+const fontSizeValueErr = "unknown value for font size"
 const textAlignValueErr = "unknown value for text align"
 const displayValueErr = "unknown value for display"
 const positionValueErr = "unknown value for position"
@@ -135,6 +172,28 @@ func (cssParser : &mut CSSParser) parseFontWeight(
         alloc_value_number(builder, value, token.value);
     } else {
         parser.error(fontWeightValueErr);
+        return;
+    }
+}
+
+func (cssParser : &mut CSSParser) parseFontSize(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type == TokenType.Identifier) {
+        const kind = getFontSizeKeywordKind(token.value.data())
+        if(kind == CSSKeywordKind.Unknown) {
+            parser.error(fontSizeValueErr);
+        }
+        parser.increment();
+        alloc_value_keyword(builder, value, kind, token.value)
+    } else if(token.type == TokenType.Number) {
+        parser.increment();
+        alloc_value_length(parser, builder, value, token.value);
+    } else {
+        parser.error(fontSizeValueErr);
         return;
     }
 }

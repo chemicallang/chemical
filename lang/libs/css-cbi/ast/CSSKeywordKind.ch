@@ -16,6 +16,17 @@ enum CSSKeywordKind {
     Bolder,
     Lighter,
 
+    // Font Sizes
+    XXSmall,
+    XSmall,
+    Small,
+    Medium,
+    Large,
+    XLarge,
+    XXLarge,
+    Smaller,
+    Larger,
+
     // Text Alignment
     Left,
     Right,

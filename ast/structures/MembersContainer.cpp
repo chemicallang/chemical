@@ -565,7 +565,7 @@ FunctionDeclaration* MembersContainer::copy_func() {
 
 FunctionDeclaration* MembersContainer::default_constructor_func() {
     for(const auto function : functions()) {
-        if(function->is_constructor_fn() && !function->has_explicit_params()) {
+        if(function->is_constructor_fn() && function->params.empty()) {
             return function;
         }
     }

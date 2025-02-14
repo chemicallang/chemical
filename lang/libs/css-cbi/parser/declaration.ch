@@ -30,14 +30,7 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            var number_value = builder.allocate<CSSLengthValueData>()
-            new (number_value) CSSLengthValueData {
-                kind : CSSLengthKind.Unknown,
-                value : builder.allocate_view(token.value)
-            }
-            value.kind = CSSValueKind.Length
-            number_value.kind = parseLengthKind(parser, builder);
-            value.data = number_value
+            alloc_value_length(parser, builder, value, token.value);
             return
         }
         TokenType.Identifier => {

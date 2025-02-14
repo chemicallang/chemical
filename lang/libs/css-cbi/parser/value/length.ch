@@ -98,22 +98,6 @@ func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengt
     }
 }
 
-func allocate_length(
-    parser : *mut Parser,
-    builder : *mut ASTBuilder,
-    value : &mut CSSValue,
-    view : &std::string_view
-) {
-    var number_value = builder.allocate<CSSLengthValueData>()
-    new (number_value) CSSLengthValueData {
-        kind : CSSLengthKind.Unknown,
-        value : builder.allocate_view(view)
-    }
-    number_value.kind = parseLengthKind(parser, builder);
-    value.kind = CSSValueKind.Length
-    value.data = number_value
-}
-
 func (cssParser : &mut CSSParser) parseLength(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
@@ -124,7 +108,7 @@ func (cssParser : &mut CSSParser) parseLength(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            allocate_length(parser, builder, value, token.value)
+            alloc_value_length(parser, builder, value, token.value)
             return true;
         }
         default => {
@@ -134,29 +118,22 @@ func (cssParser : &mut CSSParser) parseLength(
 
 }
 
-func (cssParser : &mut CSSParser) parseLengthOrAuto(
+func (cssParser : &mut CSSParser) parseNumberOrAuto(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) : bool {
-
     const token = parser.getToken();
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            allocate_length(parser, builder, value, token.value)
+            alloc_value_number(builder, value, token.value)
             return true;
         }
         TokenType.Identifier => {
             if(token.value.equals("auto")) {
                 parser.increment();
-                var kw_value = builder.allocate<CSSKeywordValueData>()
-                new (kw_value) CSSKeywordValueData {
-                    kind : CSSKeywordKind.Auto,
-                    value : builder.allocate_view(token.value)
-                }
-                value.kind = CSSValueKind.Keyword
-                value.data = kw_value
+                alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value);
                 return true;
             } else {
                 return false;
@@ -166,7 +143,33 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
             return false;
         }
     }
+}
 
+func (cssParser : &mut CSSParser) parseLengthOrAuto(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) : bool {
+    const token = parser.getToken();
+    switch(token.type) {
+        TokenType.Number => {
+            parser.increment();
+            alloc_value_length(parser, builder, value, token.value)
+            return true;
+        }
+        TokenType.Identifier => {
+            if(token.value.equals("auto")) {
+                parser.increment();
+                alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value);
+                return true;
+            } else {
+                return false;
+            }
+        }
+        default => {
+            return false;
+        }
+    }
 }
 
 
@@ -197,5 +200,15 @@ func (cssParser : &mut CSSParser) parseMarginSingle(
 ) {
     if(!cssParser.parseLengthOrAuto(parser, builder, value)) {
         parser.error("unknown value for margin");
+    }
+}
+
+func (cssParser : &mut CSSParser) parseZIndex(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    if(!cssParser.parseNumberOrAuto(parser, builder, value)) {
+        parser.error("unknown value for z-index");
     }
 }

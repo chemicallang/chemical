@@ -4,6 +4,11 @@ func putAllCSSValueParsers(
     map : &mut std::unordered_map<std::string_view, void*>
 ) {
     map.insert(std::string_view("margin"), CSSParser::parseMargin)
+    map.insert(std::string_view("margin-left"), CSSParser::parseMarginSingle)
+    map.insert(std::string_view("margin-right"), CSSParser::parseMarginSingle)
+    map.insert(std::string_view("margin-top"), CSSParser::parseMarginSingle)
+    map.insert(std::string_view("margin-bottom"), CSSParser::parseMarginSingle)
+    map.insert(std::string_view("padding"), CSSParser::parsePadding)
     map.insert(std::string_view("width"), CSSParser::parseWidth)
     map.insert(std::string_view("height"), CSSParser::parseHeight)
     map.insert(std::string_view("font-weight"), CSSParser::parseFontWeight)

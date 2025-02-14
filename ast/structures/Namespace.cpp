@@ -46,7 +46,7 @@ void Namespace::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     }
 }
 
-void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void Namespace::link_signature(SymbolResolver &linker) {
     linker.scope_start();
     if(root) {
         root->declare_extended_in_linker(linker);
@@ -57,6 +57,18 @@ void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     }
     for(const auto node : nodes) {
         node->link_signature(linker);
+    }
+    linker.scope_end();
+}
+
+void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    linker.scope_start();
+    if(root) {
+        root->declare_extended_in_linker(linker);
+    } else {
+        for(auto& node : nodes) {
+            node->declare_top_level(linker, node);
+        }
     }
     for(auto& node : nodes) {
         node->declare_and_link(linker, node);

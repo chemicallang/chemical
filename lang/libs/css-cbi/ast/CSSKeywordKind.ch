@@ -27,11 +27,12 @@ enum CSSKeywordKind {
     Smaller,
     Larger,
 
-    // Text Alignment
+    // Text Alignment, Float or Clear
     Left,
     Right,
     Center,
     Justify,
+    Both,
 
     // Display Keywords
     None,
@@ -52,6 +53,70 @@ enum CSSKeywordKind {
     Visible,
     Hidden,
     Scroll,
-    Auto,
+
+    // Vertical Align
+    Baseline,
+    Sub,
+    Super,
+    TextTop,
+    TextBottom,
+    Middle,
+    Top,
+    Bottom,
+
+    // Whitespace
+    Nowrap,
+    Pre,
+    PreWrap,
+    PreLine,
+
+    // Text Transform
+    Capitalize,
+    Uppercase,
+    Lowercase,
+
+    // Visibility
+    Collapse,
+
+    // Cursor
+    Default,
+    Pointer,
+    Move,
+    Text,
+    Wait,
+    Help,
+    NotAllowed,
+
+    // Direction
+    Ltr,
+    Rtl,
+
+    // Resize
+    Horizontal,
+    Vertical,
+
+    // Border Collapse
+    Separate,
+
+    // Text Overflow
+    Clip,
+    Ellipsis,
+
+    // Overflow Wrap
+    BreakWord,
+
+    // Word Break
+    BreakAll,
+    KeepAll,
+
+    // Object Fit
+    Fill,
+    Contain,
+    Cover,
+    ScaleDown,
+
+    // Image Rendering
+    CrispEdges,
+    Pixelated
 
 }

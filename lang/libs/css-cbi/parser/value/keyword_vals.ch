@@ -147,12 +147,195 @@ func getOverflowKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-const fontWeightValueErr = "unknown value for font weight"
-const fontSizeValueErr = "unknown value for font size"
-const textAlignValueErr = "unknown value for text align"
+func getFloatKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("left") => {
+            return CSSKeywordKind.Left;
+        }
+        comptime_fnv1_hash("right") => {
+            return CSSKeywordKind.Right
+        }
+        comptime_fnv1_hash("none") => {
+            return CSSKeywordKind.None
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getClearKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("none") => {
+            return CSSKeywordKind.None;
+        }
+        comptime_fnv1_hash("left") => {
+            return CSSKeywordKind.Left
+        }
+        comptime_fnv1_hash("right") => {
+            return CSSKeywordKind.Right
+        }
+        comptime_fnv1_hash("both") => {
+            return CSSKeywordKind.Both
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getVerticalAlignKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("baseline") => {
+            return CSSKeywordKind.Baseline;
+        }
+        comptime_fnv1_hash("sub") => {
+            return CSSKeywordKind.Sub
+        }
+        comptime_fnv1_hash("super") => {
+            return CSSKeywordKind.Super
+        }
+        comptime_fnv1_hash("text-top") => {
+            return CSSKeywordKind.TextTop
+        }
+        comptime_fnv1_hash("text-bottom") => {
+            return CSSKeywordKind.TextBottom
+        }
+        comptime_fnv1_hash("middle") => {
+            return CSSKeywordKind.Middle
+        }
+        comptime_fnv1_hash("top") => {
+            return CSSKeywordKind.Top
+        }
+        comptime_fnv1_hash("bottom") => {
+            return CSSKeywordKind.Bottom
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getWhitespaceKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("normal") => {
+            return CSSKeywordKind.Normal;
+        }
+        comptime_fnv1_hash("nowrap") => {
+            return CSSKeywordKind.Nowrap
+        }
+        comptime_fnv1_hash("pre") => {
+            return CSSKeywordKind.Pre
+        }
+        comptime_fnv1_hash("pre-wrap") => {
+            return CSSKeywordKind.PreWrap
+        }
+        comptime_fnv1_hash("pre-line") => {
+            return CSSKeywordKind.PreLine
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getTextTransformKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("none") => {
+            return CSSKeywordKind.None;
+        }
+        comptime_fnv1_hash("capitalize") => {
+            return CSSKeywordKind.Capitalize
+        }
+        comptime_fnv1_hash("uppercase") => {
+            return CSSKeywordKind.Uppercase
+        }
+        comptime_fnv1_hash("lowercase") => {
+            return CSSKeywordKind.Lowercase
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getVisibilityKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("visible") => {
+            return CSSKeywordKind.Visible;
+        }
+        comptime_fnv1_hash("hidden") => {
+            return CSSKeywordKind.Hidden
+        }
+        comptime_fnv1_hash("collapse") => {
+            return CSSKeywordKind.Collapse
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getCursorKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("auto") => {
+            return CSSKeywordKind.Auto;
+        }
+        comptime_fnv1_hash("default") => {
+            return CSSKeywordKind.Default
+        }
+        comptime_fnv1_hash("pointer") => {
+            return CSSKeywordKind.Pointer
+        }
+        comptime_fnv1_hash("move") => {
+            return CSSKeywordKind.Move
+        }
+        comptime_fnv1_hash("text") => {
+            return CSSKeywordKind.Text
+        }
+        comptime_fnv1_hash("wait") => {
+            return CSSKeywordKind.Wait
+        }
+        comptime_fnv1_hash("help") => {
+            return CSSKeywordKind.Help
+        }
+        comptime_fnv1_hash("not-allowed") => {
+            return CSSKeywordKind.NotAllowed
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getDirectionKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("ltr") => {
+            return CSSKeywordKind.Ltr;
+        }
+        comptime_fnv1_hash("rtl") => {
+            return CSSKeywordKind.Rtl
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+const fontWeightValueErr = "unknown value for font-weight"
+const fontSizeValueErr = "unknown value for font-size"
+const textAlignValueErr = "unknown value for text-align"
 const displayValueErr = "unknown value for display"
 const positionValueErr = "unknown value for position"
 const overflowValueErr = "unknown value for overflow"
+const floatValueErr = "unknown value for float"
+const clearValueErr = "unknown value for clear"
+const verticalAlignValueErr = "unknown value for vertical-align"
+const whitespaceValueErr = "unknown value for white-space"
+const textTransformValueErr = "unknown value for text-transform"
+const visibilityValueErr = "unknown value for visibility"
+const cursorValueErr = "unknown value for cursor"
+const directionValueErr = "unknown value for direction"
 
 func (cssParser : &mut CSSParser) parseFontWeight(
     parser : *mut Parser,
@@ -265,6 +448,150 @@ func (cssParser : &mut CSSParser) parseOverflow(
     const kind = getOverflowKeywordKind(token.value.data())
     if(kind == CSSKeywordKind.Unknown) {
         parser.error(overflowValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseFloat(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(floatValueErr);
+        return;
+    }
+    const kind = getFloatKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(floatValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseClear(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(clearValueErr);
+        return;
+    }
+    const kind = getClearKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(clearValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseVerticalAlign(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(verticalAlignValueErr);
+        return;
+    }
+    const kind = getVerticalAlignKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(verticalAlignValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseWhitespace(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(whitespaceValueErr);
+        return;
+    }
+    const kind = getWhitespaceKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(whitespaceValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseTextTransform(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(textTransformValueErr);
+        return;
+    }
+    const kind = getTextTransformKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(textTransformValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseVisibility(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(visibilityValueErr);
+        return;
+    }
+    const kind = getVisibilityKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(visibilityValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseCursor(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(cursorValueErr);
+        return;
+    }
+    const kind = getCursorKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(cursorValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseDirection(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(directionValueErr);
+        return;
+    }
+    const kind = getDirectionKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(directionValueErr);
     }
     parser.increment();
     alloc_value_keyword(builder, value, kind, token.value)

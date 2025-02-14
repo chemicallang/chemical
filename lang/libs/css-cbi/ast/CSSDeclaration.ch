@@ -46,6 +46,12 @@ struct CSSColorValueData {
 
 }
 
+struct CSSMultipleValues {
+
+    var values : std::vector<CSSValue>
+
+}
+
 struct CSSValue {
 
     var kind : CSSValueKind

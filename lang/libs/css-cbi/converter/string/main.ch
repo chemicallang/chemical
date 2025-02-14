@@ -282,6 +282,21 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSLengthKind) : bool {
 func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, value : &mut CSSValue, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
 
     switch(value.kind) {
+
+        CSSValueKind.Multiple => {
+            const ptr = value.data as *mut CSSMultipleValues
+            var i = 0;
+            const size = ptr.values.size();
+            const last = size - 1;
+            while(i < size) {
+                const value_ptr = ptr.values.get_ptr(i);
+                convertValue(resolver, builder, *value_ptr, vec, parent, str)
+                if(i < last) {
+                    str.append(' ');
+                }
+                i++;
+            }
+        }
         CSSValueKind.Keyword => {
             var ptr = value.data as *mut CSSKeywordValueData
             str.append_with_len(ptr.value.data(), ptr.value.size())

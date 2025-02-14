@@ -2,6 +2,8 @@ enum CSSValueKind {
 
     Unknown,
 
+    Multiple,
+
     // keywords like auto
     Keyword,
     Length,

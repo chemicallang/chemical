@@ -4678,6 +4678,8 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
                 variant = linked->as_variant_member_unsafe()->parent_node;
             }
             if (variant) {
+                // turn on the active iteration of the variant
+                variant->set_active_iteration(known_t->get_generic_iteration());
                 statement->expression->accept(this);
                 write_accessor(*this, statement->expression, nullptr);
                 write(variant_type_variant_name);

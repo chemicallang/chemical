@@ -43,7 +43,7 @@ void ASTProcessor::code_gen_compile(
     gen.compile_nodes(nodes_vec);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        print_benchmarks(std::cout, "Compile:compile", bm_results.get());
+        print_benchmarks(std::cout, "Compile:compile", abs_path, bm_results.get());
     }
     if(!gen.diagnostics.empty()) {
         gen.print_diagnostics(abs_path, "Compile");

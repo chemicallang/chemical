@@ -98,6 +98,42 @@ func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengt
     }
 }
 
+func allocate_length(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    view : &std::string_view
+) {
+    var number_value = builder.allocate<CSSLengthValueData>()
+    new (number_value) CSSLengthValueData {
+        kind : CSSLengthKind.Unknown,
+        value : builder.allocate_view(view)
+    }
+    number_value.kind = parseLengthKind(parser, builder);
+    value.kind = CSSValueKind.Length
+    value.data = number_value
+}
+
+func (cssParser : &mut CSSParser) parseLength(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) : bool {
+
+    const token = parser.getToken();
+    switch(token.type) {
+        TokenType.Number => {
+            parser.increment();
+            allocate_length(parser, builder, value, token.value)
+            return true;
+        }
+        default => {
+            return false;
+        }
+    }
+
+}
+
 func (cssParser : &mut CSSParser) parseLengthOrAuto(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
@@ -108,14 +144,7 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            var number_value = builder.allocate<CSSLengthValueData>()
-            new (number_value) CSSLengthValueData {
-                kind : CSSLengthKind.Unknown,
-                value : builder.allocate_view(token.value)
-            }
-            value.kind = CSSValueKind.Length
-            number_value.kind = parseLengthKind(parser, builder);
-            value.data = number_value
+            allocate_length(parser, builder, value, token.value)
             return true;
         }
         TokenType.Identifier => {
@@ -158,5 +187,15 @@ func (cssParser : &mut CSSParser) parseHeight(
 ) {
     if(!cssParser.parseLengthOrAuto(parser, builder, value)) {
         parser.error("unknown value given for height");
+    }
+}
+
+func (cssParser : &mut CSSParser) parseMarginSingle(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    if(!cssParser.parseLengthOrAuto(parser, builder, value)) {
+        parser.error("unknown value for margin");
     }
 }

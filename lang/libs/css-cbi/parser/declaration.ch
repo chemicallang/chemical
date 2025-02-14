@@ -25,7 +25,7 @@ func getCSSGlobalKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func (cssParser : &mut CSSParser) parseValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) {
+func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) {
     const token = parser.getToken();
     switch(token.type) {
         TokenType.Number => {
@@ -41,18 +41,7 @@ func (cssParser : &mut CSSParser) parseValue(parser : *mut Parser, builder : *mu
             return
         }
         TokenType.Identifier => {
-            const global = getCSSGlobalKeywordKind(token.value.data());
-            if(global != CSSKeywordKind.Unknown) {
-                parser.increment();
-                var kw_value = builder.allocate<CSSKeywordValueData>();
-                new (kw_value) CSSKeywordValueData {
-                    kind : global,
-                    value : builder.allocate_view(token.value)
-                }
-                value.kind = CSSValueKind.Keyword;
-                value.data = kw_value;
-                return;
-            } else if(cssParser.isColor(token.value)) {
+            if(cssParser.isColor(token.value)) {
                 parser.increment();
                 var col_value = builder.allocate<CSSColorValueData>();
                 new (col_value) CSSColorValueData {
@@ -93,6 +82,43 @@ func (cssParser : &mut CSSParser) parseValue(parser : *mut Parser, builder : *mu
     }
 }
 
+func (cssParser : &mut CSSParser) parseValue(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    propertyName : &std::string_view
+) {
+
+    const valueTok = parser.getToken();
+    if(valueTok.type == TokenType.Identifier) {
+        const globalKind = getCSSGlobalKeywordKind(valueTok.value.data());
+        if(globalKind != CSSKeywordKind.Unknown) {
+            parser.increment();
+            var kw_value = builder.allocate<CSSKeywordValueData>();
+            new (kw_value) CSSKeywordValueData {
+                kind : globalKind,
+                value : builder.allocate_view(valueTok.value)
+            }
+            value.kind = CSSValueKind.Keyword;
+            value.data = kw_value;
+            return;
+        }
+    }
+
+    const parserFn = cssParser.getParserFor(propertyName);
+
+    if(parserFn == null) {
+
+        cssParser.parseRandomValue(parser, builder, value);
+
+    } else {
+
+        parserFn(cssParser, parser, builder, value);
+
+    }
+
+}
+
 func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder) : *mut CSSDeclaration {
 
     const token = parser.getToken();
@@ -121,17 +147,7 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
         parser.error("expected colon after the css property name");
     }
 
-    const parserFn = cssParser.getParserFor(token.value);
-
-    if(parserFn == null) {
-
-        cssParser.parseValue(parser, builder, decl.value);
-
-    } else {
-
-        parserFn(cssParser, parser, builder, decl.value);
-
-    }
+    cssParser.parseValue(parser, builder, decl.value, token.value);
 
     const sc = parser.getToken();
     if(sc.type == TokenType.Semicolon) {

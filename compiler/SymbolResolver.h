@@ -121,7 +121,7 @@ private:
      * declares a node with string : name
      * DO NOT USE THIS FUNCTION TO DECLARE SYMBOLS
      */
-    void declare_quietly(const chem::string_view &name, ASTNode *node);
+    bool declare_quietly(const chem::string_view &name, ASTNode *node);
 
     /**
      * will try to override this function, notice the '&' in the previous pointer
@@ -455,6 +455,11 @@ public:
     long long tld_declare_file(Scope& scope, const std::string& abs_path);
 
     /**
+     * link the signatures in the file
+     */
+    void link_signature_file(Scope& scope, const std::string& abs_path, long long scope_index);
+
+    /**
      * should be called, after tld_declare_file, if file's top level symbols have already been declared
      */
     void link_file(Scope& scope, const std::string& abs_path, long long scope_index);
@@ -465,10 +470,20 @@ public:
     void import_file(std::vector<ASTNode*>& nodes, const std::string_view& path, bool restrict_public);
 
     /**
+     * enable file symbols for given scope index
+     */
+    void enable_file_symbols(long long scope_index);
+
+    /**
      * should be called after symbol resolving a single file
      * the passed absolute path is used to provide diagnostics only
      */
-    void dispose_file_symbols_now(const std::string_view& abs_path);
+    void dispose_all_file_symbols(const std::string_view& abs_path);
+
+    /**
+     * dispose file symbols for given scope index
+     */
+    void dispose_file_symbols_now(const std::string_view& abs_path, long long scope_index);
 
     /**
      * should be called after symbol resolving a single module

@@ -10,6 +10,7 @@
 #include "FunctionDeclaration.h"
 #include "VariablesContainer.h"
 #include "MultiFunctionNode.h"
+#include <span>
 
 class MembersContainer : public AnnotableNode, public VariablesContainer {
 private:
@@ -260,6 +261,11 @@ public:
      * insert the given function into this members container
      */
     void insert_func(FunctionDeclaration* decl);
+
+    /**
+     * will insert all the given functions
+     */
+    void insert_functions(const std::initializer_list<FunctionDeclaration*>& decls);
 
     /**
      * create a destructor function and put it into functions

@@ -100,7 +100,14 @@ public:
      * func sum_twice() = sum() * 2;
      * func sum(); <--- sum is declared below (or after) sum_twice however still referencable
      */
-    void link_asynchronously(SymbolResolver &linker);
+    void link_asynchronously(SymbolResolver &linker) {
+        // declare all the top level symbols
+        tld_declare(linker);
+        // link the signatures of functions and structs
+        link_signature(linker);
+        // link the bodies
+        declare_and_link(linker);
+    }
 
 #ifdef COMPILER_BUILD
 

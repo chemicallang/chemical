@@ -322,6 +322,156 @@ func getDirectionKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
+func getResizeKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("none") => {
+            return CSSKeywordKind.None;
+        }
+        comptime_fnv1_hash("both") => {
+            return CSSKeywordKind.Both
+        }
+        comptime_fnv1_hash("horizontal") => {
+            return CSSKeywordKind.Horizontal
+        }
+        comptime_fnv1_hash("vertical") => {
+            return CSSKeywordKind.Vertical
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getTableLayoutKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("auto") => {
+            return CSSKeywordKind.Auto;
+        }
+        comptime_fnv1_hash("fixed") => {
+            return CSSKeywordKind.Fixed
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getBorderCollapseKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("collapse") => {
+            return CSSKeywordKind.Collapse;
+        }
+        comptime_fnv1_hash("separate") => {
+            return CSSKeywordKind.Separate
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getTextOverflowKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("clip") => {
+            return CSSKeywordKind.Clip;
+        }
+        comptime_fnv1_hash("ellipsis") => {
+            return CSSKeywordKind.Ellipsis
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getOverflowWrapKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("normal") => {
+            return CSSKeywordKind.Normal;
+        }
+        comptime_fnv1_hash("break-word") => {
+            return CSSKeywordKind.BreakWord
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getWordBreakKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("normal") => {
+            return CSSKeywordKind.Normal;
+        }
+        comptime_fnv1_hash("break-all") => {
+            return CSSKeywordKind.BreakAll;
+        }
+        comptime_fnv1_hash("keep-all") => {
+            return CSSKeywordKind.KeepAll;
+        }
+        comptime_fnv1_hash("break-word") => {
+            return CSSKeywordKind.BreakWord
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getObjectFitKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("fill") => {
+            return CSSKeywordKind.Fill;
+        }
+        comptime_fnv1_hash("contain") => {
+            return CSSKeywordKind.Contain;
+        }
+        comptime_fnv1_hash("cover") => {
+            return CSSKeywordKind.Cover;
+        }
+        comptime_fnv1_hash("none") => {
+            return CSSKeywordKind.None
+        }
+        comptime_fnv1_hash("scale-down") => {
+            return CSSKeywordKind.ScaleDown
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getImageRenderingKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("auto") => {
+            return CSSKeywordKind.Auto;
+        }
+        comptime_fnv1_hash("crisp-edges") => {
+            return CSSKeywordKind.CrispEdges;
+        }
+        comptime_fnv1_hash("pixelated") => {
+            return CSSKeywordKind.Pixelated;
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getBackFaceVisibilityKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("visible") => {
+            return CSSKeywordKind.Visible;
+        }
+        comptime_fnv1_hash("hidden") => {
+            return CSSKeywordKind.Hidden;
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
 const fontWeightValueErr = "unknown value for font-weight"
 const fontSizeValueErr = "unknown value for font-size"
 const textAlignValueErr = "unknown value for text-align"
@@ -336,6 +486,15 @@ const textTransformValueErr = "unknown value for text-transform"
 const visibilityValueErr = "unknown value for visibility"
 const cursorValueErr = "unknown value for cursor"
 const directionValueErr = "unknown value for direction"
+const resizeValueErr = "unknown value for resize"
+const tableLayoutValueErr = "unknown value for table-layout"
+const borderCollapseValueErr = "unknown value for border-collapse"
+const textOverflowValueErr = "unknown value for text-overflow"
+const overflowWrapValueErr = "unknown value for overflow-wrap"
+const wordBreakValueErr = "unknown value for word-break"
+const objectFitValueErr = "unknown value for object-fit"
+const imageRenderingValueErr = "unknown value for image-rendering"
+const backFaceVisibilityValueErr = "unknown value for backface-visibility"
 
 func (cssParser : &mut CSSParser) parseFontWeight(
     parser : *mut Parser,
@@ -592,6 +751,168 @@ func (cssParser : &mut CSSParser) parseDirection(
     const kind = getDirectionKeywordKind(token.value.data())
     if(kind == CSSKeywordKind.Unknown) {
         parser.error(directionValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseResize(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(resizeValueErr);
+        return;
+    }
+    const kind = getResizeKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(resizeValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseTableLayout(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(tableLayoutValueErr);
+        return;
+    }
+    const kind = getTableLayoutKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(tableLayoutValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseBorderCollapse(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(borderCollapseValueErr);
+        return;
+    }
+    const kind = getBorderCollapseKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(borderCollapseValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseTextOverflow(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(textOverflowValueErr);
+        return;
+    }
+    const kind = getTextOverflowKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(textOverflowValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseOverflowWrap(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(textOverflowValueErr);
+        return;
+    }
+    const kind = getOverflowWrapKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(overflowWrapValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseWordBreak(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(wordBreakValueErr);
+        return;
+    }
+    const kind = getWordBreakKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(wordBreakValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseObjectFit(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(objectFitValueErr);
+        return;
+    }
+    const kind = getObjectFitKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(objectFitValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseImageRendering(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(imageRenderingValueErr);
+        return;
+    }
+    const kind = getImageRenderingKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(imageRenderingValueErr);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseBackFaceVisibilityValueErr(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.error(backFaceVisibilityValueErr);
+        return;
+    }
+    const kind = getBackFaceVisibilityKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.error(backFaceVisibilityValueErr);
     }
     parser.increment();
     alloc_value_keyword(builder, value, kind, token.value)

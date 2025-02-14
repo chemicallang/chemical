@@ -26,4 +26,13 @@ func putAllCSSValueParsers(
     map.insert(std::string_view("visibility"), CSSParser::parseVisibility)
     map.insert(std::string_view("cursor"), CSSParser::parseCursor)
     map.insert(std::string_view("direction"), CSSParser::parseDirection)
+    map.insert(std::string_view("resize"), CSSParser::parseResize)
+    map.insert(std::string_view("table-layout"), CSSParser::parseTableLayout)
+    map.insert(std::string_view("border-collapse"), CSSParser::parseBorderCollapse)
+    map.insert(std::string_view("text-overflow"), CSSParser::parseTextOverflow)
+    map.insert(std::string_view("overflow-wrap"), CSSParser::parseOverflowWrap)
+    map.insert(std::string_view("word-break"), CSSParser::parseWordBreak)
+    map.insert(std::string_view("object-fit"), CSSParser::parseObjectFit)
+    map.insert(std::string_view("image-rendering"), CSSParser::parseImageRendering)
+    map.insert(std::string_view("backface-visibility"), CSSParser::parseBackFaceVisibilityValueErr)
 }

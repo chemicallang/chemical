@@ -168,21 +168,6 @@ public:
     // --------- Configuration Variables ------------------
 
     /**
-     * when false, function types in struct members (lambdas) are typedef at top level
-     */
-    bool inline_struct_members_fn_types = true;
-
-    /**
-     * when false, function types in function parameters aren typedef at top level
-     */
-    bool inline_fn_types_in_params = true;
-
-    /**
-     * when false, function types in function returns aren typedef at top level
-     */
-    bool inline_fn_types_in_returns = true;
-
-    /**
      * by default it takes out enum values for debugging purposes
      */
     bool inline_enum_member_access = true;

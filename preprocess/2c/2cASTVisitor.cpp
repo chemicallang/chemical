@@ -224,7 +224,7 @@ void node_parent_name(ToCAstVisitor& visitor, ASTNode* node, bool take_parent = 
 void func_type_with_id(ToCAstVisitor& visitor, FunctionType* type, const chem::string_view& id);
 
 void type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_view& id) {
-    if(visitor.inline_fn_types_in_params && type->function_type() != nullptr && !type->function_type()->isCapturing()) {
+    if(type->function_type() != nullptr && !type->function_type()->isCapturing()) {
         func_type_with_id(visitor, type->function_type(), id);
     } else {
         type->accept(&visitor);
@@ -2232,7 +2232,7 @@ void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<Functio
             // do not declare capturing function types
             continue;
         }
-        if(!value_visitor->visitor.inline_fn_types_in_params || param->type->kind() != BaseTypeKind::Function) {
+        if(param->type->kind() != BaseTypeKind::Function) {
             param->accept(value_visitor);
         }
     }
@@ -2261,7 +2261,7 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl,
     if(decl->is_comptime()) {
         return;
     }
-    if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing()) {
+    if(decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing()) {
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
         const auto ret_kind = decl->returnType->kind();
@@ -2277,7 +2277,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
         return;
     }
     declare_params(tld->value_visitor, decl->params);
-    if(!tld->visitor.inline_fn_types_in_returns || decl->returnType->function_type() == nullptr) {
+    if(decl->returnType->function_type() == nullptr) {
         decl->returnType->accept(tld->value_visitor);
     }
     tld->visitor.new_line_and_indent();
@@ -2291,7 +2291,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         return;
     }
     declare_params(tld->value_visitor, decl->params);
-    if(!tld->visitor.inline_fn_types_in_returns || decl->returnType->function_type() == nullptr) {
+    if(decl->returnType->function_type() == nullptr) {
         decl->returnType->accept(tld->value_visitor);
     }
     tld->visitor.new_line_and_indent();
@@ -2314,7 +2314,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
             i = 1;
         }
     };
-    if(tld->visitor.inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing()) {
+    if(decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing()) {
         tld->value_visitor->write("static ");
         accept_func_return(tld->visitor, decl->returnType->function_type()->returnType);
         tld->write('(');
@@ -2374,6 +2374,16 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
 void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::vector<GenericTypeParameter*>& gen_params) {
     for(auto& param : gen_params) {
         auto t = param->known_type();
+        const auto node = t->get_direct_linked_node();
+        if(node) {
+            early_declare_node(visitor, node);
+        }
+    }
+}
+
+void early_declare_composed_variables(CTopLevelDeclarationVisitor& visitor, VariablesContainer& container) {
+    for(auto& variable : container.variables) {
+        auto t = variable.second->create_value_type(visitor.visitor.allocator);
         const auto node = t->get_direct_linked_node();
         if(node) {
             early_declare_node(visitor, node);
@@ -2507,6 +2517,10 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
     for(auto& mem : def->variables) {
         mem.second->accept(value_visitor);
     }
+    // before we declare this struct, we must early declare any direct struct type variables
+    // inside this struct, because some structs get used inside which are present in other modules
+    // will be declared later, so C responds with incomplete type
+    early_declare_composed_variables(*this, *def);
     visitor.new_line_and_indent();
     write("struct ");
     node_parent_name(visitor, def);
@@ -2534,19 +2548,6 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
 }
 
 void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
-    // no need to forward declare struct when inlining function types
-    if(!visitor.inline_struct_members_fn_types) {
-        // forward declaring struct for function types that take a pointer to it
-        // typedefing struct before usage
-        //    visitor->new_line_and_indent();
-        //    write("typedef struct ");
-        //    node_parent_name(visitor, def);
-        //    struct_name(visitor, def);
-        //    write(' ');
-        //    node_parent_name(visitor, def);
-        //    struct_name(visitor, def);
-        //    write(';');
-    }
     declare_struct_def_only(def);
     for(auto& func : def->functions()) {
         if(def->get_overriding_interface(func) == nullptr) {
@@ -2605,19 +2606,6 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
-    // no need to forward declare struct when inlining function types
-    if(!visitor.inline_struct_members_fn_types) {
-        // forward declaring struct for function types that take a pointer to it
-        // typedefing struct before usage
-        //    visitor->new_line_and_indent();
-        //    write("typedef struct ");
-        //    node_parent_name(visitor, def);
-        //    struct_name(visitor, def);
-        //    write(' ');
-        //    node_parent_name(visitor, def);
-        //    struct_name(visitor, def);
-        //    write(';');
-    }
     for(auto& mem : def->variables) {
         mem.second->accept(value_visitor);
     }
@@ -2836,7 +2824,7 @@ void CValueDeclarationVisitor::visit(FunctionType *type) {
 }
 
 void CValueDeclarationVisitor::visit(StructMember *member) {
-    if(!visitor.inline_struct_members_fn_types || member->type->kind() != BaseTypeKind::Function) {
+    if(member->type->kind() != BaseTypeKind::Function) {
         CommonVisitor::visit(member);
     }
 }
@@ -3181,7 +3169,7 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
     auto prev_func_decl = visitor.current_func_type;
     visitor.current_func_type = decl;
     visitor.new_line_and_indent();
-    if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing()) {
+    if(decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing()) {
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
         declare_func_with_return(visitor, decl, name);
@@ -3585,7 +3573,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
             i = 1;
         }
     };
-    if(visitor.inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing()) {
+    if(decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing()) {
         visitor.write("static ");
         accept_func_return(visitor, decl->returnType->function_type()->returnType);
         visitor.write('(');
@@ -4587,7 +4575,7 @@ void ToCAstVisitor::visit(MacroValueStatement *statement) {
 }
 
 void ToCAstVisitor::visit(StructMember *member) {
-    if(inline_struct_members_fn_types && member->type->kind() == BaseTypeKind::Function) {
+    if(member->type->kind() == BaseTypeKind::Function) {
         if(member->type->function_type()->isCapturing()) {
             write(fat_pointer_type);
             write('*');

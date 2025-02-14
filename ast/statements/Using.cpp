@@ -17,7 +17,9 @@ UsingStmt::UsingStmt(
 }
 
 void UsingStmt::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    chain->link(linker, nullptr, nullptr, 0, true, false);
+    if(!chain->link(linker, nullptr, nullptr, 0, true, false)) {
+        return;
+    }
     auto linked = chain->linked_node();
     if(!linked) {
         linker.error("couldn't find linked node", this);

@@ -270,11 +270,7 @@ namespace InterpretVector {
     {
         set_compiler_decl(true);
         generic_params.emplace_back(&typeParam);
-        insert_func(&constructorFn);
-        insert_func(&sizeFn);
-        insert_func(&getFn);
-        insert_func(&pushFn);
-        insert_func(&removeFn);
+        insert_functions({ &constructorFn, &sizeFn, &getFn, &pushFn, &removeFn });
     }
 
 }

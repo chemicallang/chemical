@@ -704,6 +704,13 @@ void MembersContainer::insert_func(FunctionDeclaration* decl) {
     functions_container.emplace_back(decl);
 }
 
+void MembersContainer::insert_functions(const std::initializer_list<FunctionDeclaration*>& decls) {
+    for(const auto d : decls) {
+        indexes[d->name_view()] = d;
+        functions_container.emplace_back(d);
+    }
+}
+
 FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name) {
     const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(parent_name, this, ZERO_LOC);
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), returnType, false, this, ZERO_LOC);

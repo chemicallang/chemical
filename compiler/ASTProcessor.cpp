@@ -230,7 +230,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         auto& file = *file_ptr;
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
         if(!already_imported && !file.is_c_file) {
-            file.unit.scope.link_signature(*resolver);
+            resolver->link_signature_file(file.unit.scope, file.abs_path, file.scope_index);
             // report and clear diagnostics
             if (resolver->has_errors && !options->ignore_errors) {
                 std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;

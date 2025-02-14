@@ -1603,6 +1603,8 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     container.compiler_namespace.declare_top_level(resolver, (ASTNode*&) container.compiler_namespace);
     container.std_namespace.declare_top_level(resolver, (ASTNode*&) container.std_namespace);
 
+    // TODO these symbols will be removed when module ends
+    // TODO use exported declare or rename function to convey meaning better
     resolver.declare(container.defined.name_view(), &container.defined);
     resolver.declare(container.defThing.decl.name_view(), &container.defThing.decl);
     resolver.declare(container.defThing.defStmt.id_view(), &container.defThing.defStmt);

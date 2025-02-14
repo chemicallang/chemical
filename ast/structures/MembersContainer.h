@@ -106,6 +106,13 @@ public:
     int16_t total_generic_iterations();
 
     /**
+     * this function reports the given iteration (of this container) to it's subscribers
+     * basically if this container is used with new generic arguments, we notify subscribers
+     * to generate implementations
+     */
+    void report_iteration_to_subs(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t itr);
+
+    /**
      * register generic args, but with already existing generic iteration (iteration is returned)
      */
     int16_t register_with_existing(ASTDiagnoser& diagnoser, std::vector<BaseType*>& types);

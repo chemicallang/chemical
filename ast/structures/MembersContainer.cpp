@@ -312,6 +312,7 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
         gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     for(auto& inherits : inherited) {
+        // TODO remove this type linking, since we do this in link_signature
         inherits->type->link(linker);
         const auto def = inherits->type->get_members_container();
         if(def) {
@@ -329,6 +330,18 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     }
     for (auto& func: functions()) {
         func->declare_and_link(linker, (ASTNode*&) func);
+    }
+    if(is_generic()) {
+        // reporting iterations to subscribers
+        // WHY ? well, this container may have been used before it was linked (only signature linked)
+        // in files above, when functions inside the container aren't linked, meaning we
+        // have zero subscribers that are present inside the body of the functions that are in this container
+        const auto t = total_generic_iterations();
+        int16_t i = 0;
+        while (i < t) {
+            report_iteration_to_subs(*linker.ast_allocator, linker, i);
+            i++;
+        }
     }
 }
 
@@ -467,6 +480,15 @@ int16_t MembersContainer::register_with_existing(ASTDiagnoser& diagnoser, std::v
     return itr;
 }
 
+void MembersContainer::report_iteration_to_subs(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t itr) {
+    for (auto sub: subscribers) {
+        sub->report_parent_usage(astAllocator, diagnoser, itr);
+    }
+    for(const auto func : functions()) {
+        func->register_parent_iteration(astAllocator, diagnoser, itr);
+    }
+}
+
 int16_t MembersContainer::register_generic_args(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, std::vector<BaseType*>& types) {
     const auto types_size = types.size();
     std::vector<BaseType*> generic_args(types_size);
@@ -478,12 +500,7 @@ int16_t MembersContainer::register_generic_args(ASTAllocator& astAllocator, ASTD
     const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
     set_active_iteration_no_subs(itr.first);
     if(itr.second) {
-        for (auto sub: subscribers) {
-            sub->report_parent_usage(astAllocator, diagnoser, itr.first);
-        }
-        for(const auto func : functions()) {
-            func->register_parent_iteration(astAllocator, diagnoser, itr.first);
-        }
+        report_iteration_to_subs(astAllocator, diagnoser, itr.first);
     }
     return itr.first;
 }

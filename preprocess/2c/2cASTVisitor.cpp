@@ -2598,7 +2598,9 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
         def->iterations_declared = total;
         def->set_active_iteration(-1);
         // generate any remaining functions that haven't been generated
-        gen_generic_struct_functions(visitor, def);
+        if(redefining) {
+            gen_generic_struct_functions(visitor, def);
+        }
     }
 }
 

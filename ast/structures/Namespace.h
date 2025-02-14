@@ -129,6 +129,8 @@ public:
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
+    void link_signature(SymbolResolver &linker) override;
+
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     ASTNode *child(const chem::string_view &name) final;

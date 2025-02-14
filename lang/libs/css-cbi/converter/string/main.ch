@@ -308,7 +308,7 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
             str.append_with_len(ptr.value.data(), ptr.value.size())
 
             // writing the unit
-            if(!writeUnitOfKind(str, ptr.kind)) {
+            if(ptr.kind != CSSLengthKind.None && !writeUnitOfKind(str, ptr.kind)) {
                 printf("unknown unit")
                 fflush(null)
             }

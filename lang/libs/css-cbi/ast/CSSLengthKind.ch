@@ -2,6 +2,9 @@ enum CSSLengthKind {
 
     Unknown,
 
+    // used by font-weight, no px value is written
+    None,
+
     LengthPX,
     LengthEM,
     LengthREM,

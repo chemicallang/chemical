@@ -111,21 +111,6 @@ func getOverflowKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func allocate_keyword(
-    builder : *mut ASTBuilder,
-    value : &mut CSSValue,
-    kind : CSSKeywordKind,
-    view : &std::string_view
-) {
-    var kw_value = builder.allocate<CSSKeywordValueData>();
-    new (kw_value) CSSKeywordValueData {
-        kind : kind,
-        value : builder.allocate_view(view)
-    }
-    value.kind = CSSValueKind.Keyword;
-    value.data = kw_value;
-}
-
 const fontWeightValueErr = "unknown value for font weight"
 const textAlignValueErr = "unknown value for text align"
 const displayValueErr = "unknown value for display"
@@ -138,16 +123,20 @@ func (cssParser : &mut CSSParser) parseFontWeight(
     value : &mut CSSValue
 ) {
     const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
+    if(token.type == TokenType.Identifier) {
+        const kind = getFontWeightKeywordKind(token.value.data())
+        if(kind == CSSKeywordKind.Unknown) {
+            parser.error(fontWeightValueErr);
+        }
+        parser.increment();
+        alloc_value_keyword(builder, value, kind, token.value)
+    } else if(token.type == TokenType.Number) {
+        parser.increment();
+        alloc_value_number(builder, value, token.value);
+    } else {
         parser.error(fontWeightValueErr);
         return;
     }
-    const kind = getFontWeightKeywordKind(token.value.data())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.error(fontWeightValueErr);
-    }
-    parser.increment();
-    allocate_keyword(builder, value, kind, token.value)
 }
 
 func (cssParser : &mut CSSParser) parseTextAlign(
@@ -165,7 +154,7 @@ func (cssParser : &mut CSSParser) parseTextAlign(
         parser.error(textAlignValueErr);
     }
     parser.increment();
-    allocate_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, token.value)
 }
 
 func (cssParser : &mut CSSParser) parseDisplay(
@@ -183,7 +172,7 @@ func (cssParser : &mut CSSParser) parseDisplay(
         parser.error(displayValueErr);
     }
     parser.increment();
-    allocate_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, token.value)
 }
 
 func (cssParser : &mut CSSParser) parsePosition(
@@ -201,7 +190,7 @@ func (cssParser : &mut CSSParser) parsePosition(
         parser.error(positionValueErr);
     }
     parser.increment();
-    allocate_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, token.value)
 }
 
 func (cssParser : &mut CSSParser) parseOverflow(
@@ -219,5 +208,5 @@ func (cssParser : &mut CSSParser) parseOverflow(
         parser.error(overflowValueErr);
     }
     parser.increment();
-    allocate_keyword(builder, value, kind, token.value)
+    alloc_value_keyword(builder, value, kind, token.value)
 }

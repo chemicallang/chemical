@@ -372,6 +372,10 @@ void StructDefinition::redeclare_top_level(SymbolResolver &linker) {
     linker.declare(name_view(), this);
 }
 
+void StructDefinition::link_signature(SymbolResolver &linker) {
+    MembersContainer::link_signature(linker);
+}
+
 void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     bool has_def_constructor = false;

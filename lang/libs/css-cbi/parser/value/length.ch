@@ -97,3 +97,66 @@ func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengt
         return CSSLengthKind.LengthPX
     }
 }
+
+func (cssParser : &mut CSSParser) parseLengthOrAuto(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) : bool {
+
+    const token = parser.getToken();
+    switch(token.type) {
+        TokenType.Number => {
+            parser.increment();
+            var number_value = builder.allocate<CSSLengthValueData>()
+            new (number_value) CSSLengthValueData {
+                kind : CSSLengthKind.Unknown,
+                value : builder.allocate_view(token.value)
+            }
+            value.kind = CSSValueKind.Length
+            number_value.kind = parseLengthKind(parser, builder);
+            value.data = number_value
+            return true;
+        }
+        TokenType.Identifier => {
+            if(token.value.equals("auto")) {
+                parser.increment();
+                var kw_value = builder.allocate<CSSKeywordValueData>()
+                new (kw_value) CSSKeywordValueData {
+                    kind : CSSKeywordKind.Auto,
+                    value : builder.allocate_view(token.value)
+                }
+                value.kind = CSSValueKind.Keyword
+                value.data = kw_value
+                return true;
+            } else {
+                return false;
+            }
+        }
+        default => {
+            return false;
+        }
+    }
+
+}
+
+
+func (cssParser : &mut CSSParser) parseWidth(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    if(!cssParser.parseLengthOrAuto(parser, builder, value)) {
+        parser.error("unknown value given for width");
+    }
+}
+
+func (cssParser : &mut CSSParser) parseHeight(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    if(!cssParser.parseLengthOrAuto(parser, builder, value)) {
+        parser.error("unknown value given for height");
+    }
+}

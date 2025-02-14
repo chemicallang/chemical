@@ -176,7 +176,7 @@ long long ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string
     const auto scope_ind = resolver->tld_declare_file(scope, abs_path);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        print_benchmarks(std::cout, "SymResDeclare:" + abs_path, bm_results.get());
+        print_benchmarks(std::cout, "SymRes:declare", abs_path, bm_results.get());
     }
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(abs_path, "SymRes");
@@ -195,7 +195,7 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
     resolver->link_file(scope, abs_path, scope_index);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        print_benchmarks(std::cout, "SymResLink:" + abs_path, bm_results.get());
+        print_benchmarks(std::cout, "SymRes:link", abs_path, bm_results.get());
     }
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(abs_path, "SymRes");
@@ -312,7 +312,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
 //    }
 //}
 
-void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG, BenchmarkResults* bm_results) {
+void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view& TAG, BenchmarkResults* bm_results) {
     const auto mil = bm_results->millis();
     bool reset = false;
     if(mil > 1) {
@@ -320,6 +320,19 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
         reset = true;
     }
     stream << '[' << TAG << ']' << " Completed " << bm_results->representation() << std::endl;
+    if(reset) {
+        stream << rang::fg::reset;
+    }
+}
+
+void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view& TAG, const std::string_view& ABS_PATH, BenchmarkResults* bm_results) {
+    const auto mil = bm_results->millis();
+    bool reset = false;
+    if(mil > 1) {
+        stream << (mil > 3 ? rang::fg::red : rang::fg::yellow);
+        reset = true;
+    }
+    stream << '[' << TAG << ']' << ' ' << ABS_PATH << " Completed " << bm_results->representation() << std::endl;
     if(reset) {
         stream << rang::fg::reset;
     }
@@ -573,7 +586,7 @@ void ASTProcessor::declare_before_translation(
     visitor.declare_before_translation(nodes);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << "[2cTranslation:declare] " << " Completed " << bm_results->representation() << std::endl;
+        print_benchmarks(std::cout, "2cTranslation:declare", bm_results.get());
     }
     if(!visitor.diagnostics.empty()) {
         visitor.print_diagnostics(abs_path, "2cTranslation");
@@ -596,7 +609,7 @@ void ASTProcessor::translate_after_declaration(
     visitor.translate_after_declaration(nodes);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << "[2cTranslation:translate] " << " Completed " << bm_results->representation() << std::endl;
+        print_benchmarks(std::cout, "2cTranslation:translate", abs_path, bm_results.get());
     }
     if(!visitor.diagnostics.empty()) {
         visitor.print_diagnostics(abs_path, "2cTranslation");
@@ -619,7 +632,7 @@ void ASTProcessor::translate_to_c(
     visitor.declare_and_translate(nodes);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << "[2cTranslation] " << " Completed " << bm_results->representation() << std::endl;
+        print_benchmarks(std::cout, "2cTranslation", bm_results.get());
     }
     if(!visitor.diagnostics.empty()) {
         visitor.print_diagnostics(abs_path, "2cTranslation");

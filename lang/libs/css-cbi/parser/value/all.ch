@@ -18,4 +18,12 @@ func putAllCSSValueParsers(
     map.insert(std::string_view("position"), CSSParser::parsePosition)
     map.insert(std::string_view("overflow"), CSSParser::parseOverflow)
     map.insert(std::string_view("z-index"), CSSParser::parseZIndex)
+    map.insert(std::string_view("float"), CSSParser::parseFloat)
+    map.insert(std::string_view("clear"), CSSParser::parseClear)
+    map.insert(std::string_view("vertical-align"), CSSParser::parseVerticalAlign)
+    map.insert(std::string_view("white-space"), CSSParser::parseWhitespace)
+    map.insert(std::string_view("text-transform"), CSSParser::parseTextTransform)
+    map.insert(std::string_view("visibility"), CSSParser::parseVisibility)
+    map.insert(std::string_view("cursor"), CSSParser::parseCursor)
+    map.insert(std::string_view("direction"), CSSParser::parseDirection)
 }

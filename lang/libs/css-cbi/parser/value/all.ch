@@ -4,4 +4,6 @@ func putAllCSSValueParsers(
     map : &mut std::unordered_map<std::string_view, void*>
 ) {
     map.insert(std::string_view("margin"), CSSParser::parseMargin)
+    map.insert(std::string_view("width"), CSSParser::parseWidth)
+    map.insert(std::string_view("height"), CSSParser::parseHeight)
 }

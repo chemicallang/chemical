@@ -19,7 +19,11 @@ public struct unordered_map<Key, Value> {
     var size : size_t;
 
     func hash_now(&self, key : &Key) : size_t {
-        return (hash<Key>(key) & (capacity - 1));
+        return hash<Key>(key);
+    }
+
+    func hash_with_capacity(&self, key : &Key) : size_t {
+        return (hash_now(key) & (capacity - 1));
     }
 
     func compare_now(key : &Key, key2 : &Key) : bool {
@@ -84,7 +88,7 @@ public struct unordered_map<Key, Value> {
             resize();
         }
 
-        var index = hash_now(key);
+        var index = hash_with_capacity(key);
         var currentNode = table[index];
 
         // Check if the key already exists in the chain, and update if so
@@ -107,7 +111,7 @@ public struct unordered_map<Key, Value> {
 
     // Find a value by key
     func find(&self, key : &Key, value : &mut Value) : bool {
-        var index : size_t = hash_now(key);
+        var index : size_t = hash_with_capacity(key);
         var currentNode = table[index];
 
         while (currentNode != null) {
@@ -122,7 +126,7 @@ public struct unordered_map<Key, Value> {
 
     // Remove a key-value pair
     func erase(&self, key : &Key) : bool {
-        var index : size_t = hash_now(key);
+        var index : size_t = hash_with_capacity(key);
         var currentNode = table[index];
         var previousNode : *mut unordered_map_node<Key, Value> = null;
 

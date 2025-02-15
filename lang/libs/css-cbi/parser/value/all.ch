@@ -142,6 +142,7 @@ func putAllCSSValueParsers(
     map.put(std::string_view("text-decoration-skip-ink"), CSSParser::parseTextDecorationSkipInk)
     map.put(std::string_view("text-underline-position"), CSSParser::parseTextUnderlinePosition)
     map.put(std::string_view("font-optical-sizing"), CSSParser::parseFontOpticalSizing)
+    map.put(std::string_view("scrollbar-gutter"), CSSParser::parseScrollbarGutter)
 
 
 }

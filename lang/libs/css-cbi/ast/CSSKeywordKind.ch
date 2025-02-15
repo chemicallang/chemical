@@ -391,6 +391,10 @@ enum CSSKeywordKind {
     Exact,
 
     // TextUnderlinePosition
-    FromFont
+    FromFont,
+
+    // Scrollbar Gutter
+    Stable,
+    BothEdges
 
 }

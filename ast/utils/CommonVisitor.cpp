@@ -174,6 +174,7 @@ void CommonVisitor::visit(IfStatement *stmt) {
     stmt->condition->accept(this);
     stmt->ifBody.accept(this);
     for (auto& elif : stmt->elseIfs) {
+        elif.first->accept(this);
         elif.second.accept(this);
     }
     if(stmt->elseBody.has_value()) {

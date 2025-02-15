@@ -915,26 +915,6 @@ func getBoxSizingKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getOverflowXKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
-        comptime_fnv1_hash("visible") => { return CSSKeywordKind.Visible }
-        comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
-        comptime_fnv1_hash("scroll") => { return CSSKeywordKind.Scroll }
-        comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
-        default => { return CSSKeywordKind.Unknown }
-    }
-}
-
-func getOverflowYKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
-        comptime_fnv1_hash("visible") => { return CSSKeywordKind.Visible }
-        comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
-        comptime_fnv1_hash("scroll") => { return CSSKeywordKind.Scroll }
-        comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
-        default => { return CSSKeywordKind.Unknown }
-    }
-}
-
 func getPointerEventsKeywordKind(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
@@ -2404,44 +2384,6 @@ func (cssParser : &mut CSSParser) parseBoxSizing(
     const kind = getBoxSizingKeywordKind(token.value.data())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("box-sizing")
-    }
-    parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
-}
-
-
-func (cssParser : &mut CSSParser) parseOverflowX(
-        parser : *mut Parser,
-        builder : *mut ASTBuilder,
-        value : &mut CSSValue
-) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("overflow-x")
-        return;
-    }
-    const kind = getOverflowXKeywordKind(token.value.data())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("overflow-x")
-    }
-    parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
-}
-
-
-func (cssParser : &mut CSSParser) parseOverflowY(
-        parser : *mut Parser,
-        builder : *mut ASTBuilder,
-        value : &mut CSSValue
-) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("overflow-y")
-        return;
-    }
-    const kind = getOverflowYKeywordKind(token.value.data())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("overflow-y")
     }
     parser.increment()
     alloc_value_keyword(builder, value, kind, token.value)

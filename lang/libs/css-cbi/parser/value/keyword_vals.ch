@@ -2,6 +2,51 @@ import "@std/hashing/fnv1.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 
+func getTransitionTimingFunctionKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("ease") => { return CSSKeywordKind.Ease }
+        comptime_fnv1_hash("linear") => { return CSSKeywordKind.Linear }
+        comptime_fnv1_hash("ease-in") => { return CSSKeywordKind.EaseIn }
+        comptime_fnv1_hash("ease-out") => { return CSSKeywordKind.EaseOut }
+        comptime_fnv1_hash("ease-in-out") => { return CSSKeywordKind.EaseInOut }
+        comptime_fnv1_hash("step-start") => { return CSSKeywordKind.StepStart }
+        comptime_fnv1_hash("step-end") => { return CSSKeywordKind.StepEnd }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getVectorEffectKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        comptime_fnv1_hash("non-scaling-stroke") => { return CSSKeywordKind.NonScalingStroke }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getForcedColorAdjustKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getColorSchemeKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("light") => { return CSSKeywordKind.Light }
+        comptime_fnv1_hash("dark") => { return CSSKeywordKind.Dark }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getPrintColorAdjustKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("economy") => { return CSSKeywordKind.Economy }
+        comptime_fnv1_hash("exact") => { return CSSKeywordKind.Exact }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
 func getOverscrollBehaviorKeywordKind(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
@@ -3047,6 +3092,100 @@ func (cssParser : &mut CSSParser) parseImageOrientation(
     const kind = getImageOrientationKeywordKind(token.value.data())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("image-orientation")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseTransitionTimingFunction(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("transition-timing-function")
+        return;
+    }
+    const kind = getTransitionTimingFunctionKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("transition-timing-function")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseVectorEffect(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("vector-effect")
+        return;
+    }
+    const kind = getVectorEffectKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("vector-effect")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseForcedColorAdjust(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("forced-color-adjust")
+        return;
+    }
+    const kind = getForcedColorAdjustKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("forced-color-adjust")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseColorScheme(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("color-scheme")
+        return;
+    }
+    const kind = getColorSchemeKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("color-scheme")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parsePrintColorAdjust(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("print-color-adjust")
+        return;
+    }
+    const kind = getPrintColorAdjustKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("print-color-adjust")
     }
     parser.increment()
     alloc_value_keyword(builder, value, kind, token.value)

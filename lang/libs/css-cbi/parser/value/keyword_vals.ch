@@ -3396,3 +3396,30 @@ func (cssParser : &mut CSSParser) parseFontOpticalSizing(
     parser.increment()
     alloc_value_keyword(builder, value, kind, token.value)
 }
+
+func (cssParser : &mut CSSParser) parseScrollbarGutter(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("scrollbar-gutter")
+        return;
+    }
+    if(token.value.equals(std::string_view("auto"))) {
+        parser.increment();
+        alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value)
+    } else if(token.value.equals(std::string_view("stable"))) {
+        parser.increment();
+        const next = parser.getToken();
+        if(next.value.equals(std::string_view("both-edges"))) {
+            parser.increment();
+            alloc_two_value_keywords(builder, value, CSSKeywordKind.Stable, CSSKeywordKind.BothEdges, token.value, next.value);
+            return;
+        }
+        alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value)
+    } else {
+        parser.wrong_val_kw_err("scrollbar-gutter")
+    }
+}

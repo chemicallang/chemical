@@ -131,6 +131,13 @@ enum CSSKeywordKind {
     SelfStart,
     SelfEnd,
 
+    // Align Content
+    SpaceBetween,
+    SpaceAround,
+
+    /// Justify Content
+    SpaceEvenly,
+
     // Overflow Wrap
     BreakWord,
 

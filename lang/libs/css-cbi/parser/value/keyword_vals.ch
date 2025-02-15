@@ -134,6 +134,70 @@ func getAlignItemsKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
+func getAlignContentKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("stretch") => {
+            return CSSKeywordKind.Stretch;
+        }
+        comptime_fnv1_hash("flex-start") => {
+            return CSSKeywordKind.FlexStart
+        }
+        comptime_fnv1_hash("flex-end") => {
+            return CSSKeywordKind.FlexEnd
+        }
+        comptime_fnv1_hash("center") => {
+            return CSSKeywordKind.Center
+        }
+        comptime_fnv1_hash("space-between") => {
+            return CSSKeywordKind.SpaceBetween
+        }
+        comptime_fnv1_hash("space-around") => {
+            return CSSKeywordKind.SpaceAround
+        }
+        comptime_fnv1_hash("start") => {
+            return CSSKeywordKind.Start
+        }
+        comptime_fnv1_hash("end") => {
+            return CSSKeywordKind.End
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
+func getJustifyContentKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("flex-start") => {
+            return CSSKeywordKind.FlexStart
+        }
+        comptime_fnv1_hash("flex-end") => {
+            return CSSKeywordKind.FlexEnd
+        }
+        comptime_fnv1_hash("center") => {
+            return CSSKeywordKind.Center
+        }
+        comptime_fnv1_hash("space-between") => {
+            return CSSKeywordKind.SpaceBetween
+        }
+        comptime_fnv1_hash("space-around") => {
+            return CSSKeywordKind.SpaceAround
+        }
+        comptime_fnv1_hash("space-evenly") => {
+            return CSSKeywordKind.SpaceEvenly
+        }
+        comptime_fnv1_hash("start") => {
+            return CSSKeywordKind.Start
+        }
+        comptime_fnv1_hash("end") => {
+            return CSSKeywordKind.End
+        }
+        default => {
+            return CSSKeywordKind.Unknown
+        }
+    }
+}
+
 func getFontSizeKeywordKind(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {
         comptime_fnv1_hash("xx-small") => {
@@ -1107,6 +1171,42 @@ func (cssParser : &mut CSSParser) parseAlignItems(
     const kind = getAlignItemsKeywordKind(token.value.data())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("align-items");
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseAlignContent(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("align-content");
+        return;
+    }
+    const kind = getAlignContentKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("align-content");
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseJustifyContent(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("justify-content");
+        return;
+    }
+    const kind = getJustifyContentKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("align-content");
     }
     parser.increment();
     alloc_value_keyword(builder, value, kind, token.value)

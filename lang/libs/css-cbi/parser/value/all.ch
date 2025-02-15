@@ -40,4 +40,6 @@ func putAllCSSValueParsers(
     map.insert(std::string_view("list-style-type"), CSSParser::parseListStyleType)
     map.insert(std::string_view("list-style-position"), CSSParser::parseListStylePosition)
     map.insert(std::string_view("align-items"), CSSParser::parseAlignItems)
+    map.insert(std::string_view("align-content"), CSSParser::parseAlignContent)
+    map.insert(std::string_view("justify-content"), CSSParser::parseJustifyContent)
 }

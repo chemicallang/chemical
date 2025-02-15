@@ -135,5 +135,13 @@ func putAllCSSValueParsers(
     map.put(std::string_view("forced-color-adjust"), CSSParser::parseForcedColorAdjust)
     map.put(std::string_view("color-scheme"), CSSParser::parseColorScheme)
     map.put(std::string_view("print-color-adjust"), CSSParser::parsePrintColorAdjust)
+    map.put(std::string_view("border-style"), CSSParser::parseBorderStyle)
+    map.put(std::string_view("animation-timing-function"), CSSParser::parseAnimationTimingFunction)
+    map.put(std::string_view("mask-border-mode"), CSSParser::parseMaskBorderMode)
+    map.put(std::string_view("mask-border-repeat"), CSSParser::parseMaskBorderRepeat)
+    map.put(std::string_view("text-decoration-skip-ink"), CSSParser::parseTextDecorationSkipInk)
+    map.put(std::string_view("text-underline-position"), CSSParser::parseTextUnderlinePosition)
+    map.put(std::string_view("font-optical-sizing"), CSSParser::parseFontOpticalSizing)
+
 
 }

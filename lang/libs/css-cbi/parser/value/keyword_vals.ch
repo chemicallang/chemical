@@ -2,6 +2,80 @@ import "@std/hashing/fnv1.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 
+func getBorderStyleKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
+        comptime_fnv1_hash("dotted") => { return CSSKeywordKind.Dotted }
+        comptime_fnv1_hash("dashed") => { return CSSKeywordKind.Dashed }
+        comptime_fnv1_hash("solid") => { return CSSKeywordKind.Solid }
+        comptime_fnv1_hash("double") => { return CSSKeywordKind.Double }
+        comptime_fnv1_hash("groove") => { return CSSKeywordKind.Groove }
+        comptime_fnv1_hash("ridge") => { return CSSKeywordKind.Ridge }
+        comptime_fnv1_hash("inset") => { return CSSKeywordKind.Inset }
+        comptime_fnv1_hash("outset") => { return CSSKeywordKind.Outset }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getAnimationTimingFunctionKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("ease") => { return CSSKeywordKind.Ease }
+        comptime_fnv1_hash("linear") => { return CSSKeywordKind.Linear }
+        comptime_fnv1_hash("ease-in") => { return CSSKeywordKind.EaseIn }
+        comptime_fnv1_hash("ease-out") => { return CSSKeywordKind.EaseOut }
+        comptime_fnv1_hash("ease-in-out") => { return CSSKeywordKind.EaseInOut }
+        comptime_fnv1_hash("step-start") => { return CSSKeywordKind.StepStart }
+        comptime_fnv1_hash("step-end") => { return CSSKeywordKind.StepEnd }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getMaskBorderModeKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("alpha") => { return CSSKeywordKind.Alpha }
+        comptime_fnv1_hash("luminance") => { return CSSKeywordKind.Luminance }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getMaskBorderRepeatKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("stretch") => { return CSSKeywordKind.Stretch }
+        comptime_fnv1_hash("repeat") => { return CSSKeywordKind.Repeat }
+        comptime_fnv1_hash("round") => { return CSSKeywordKind.Round }
+        comptime_fnv1_hash("space") => { return CSSKeywordKind.Space }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getTextDecorationSkipInkKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getTextUnderlinePositionKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
+        comptime_fnv1_hash("under") => { return CSSKeywordKind.Under }
+        comptime_fnv1_hash("left") => { return CSSKeywordKind.Left }
+        comptime_fnv1_hash("right") => { return CSSKeywordKind.Right }
+        comptime_fnv1_hash("from-font") => { return CSSKeywordKind.FromFont }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getFontOpticalSizingKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
 func getTransitionTimingFunctionKeywordKind(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {
         comptime_fnv1_hash("ease") => { return CSSKeywordKind.Ease }
@@ -3186,6 +3260,138 @@ func (cssParser : &mut CSSParser) parsePrintColorAdjust(
     const kind = getPrintColorAdjustKeywordKind(token.value.data())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("print-color-adjust")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseBorderStyle(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("border-style")
+        return;
+    }
+    const kind = getBorderStyleKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("border-style")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseAnimationTimingFunction(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("animation-timing-function")
+        return;
+    }
+    const kind = getAnimationTimingFunctionKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("animation-timing-function")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseMaskBorderMode(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("mask-border-mode")
+        return;
+    }
+    const kind = getMaskBorderModeKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("mask-border-mode")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseMaskBorderRepeat(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("mask-border-repeat")
+        return;
+    }
+    const kind = getMaskBorderRepeatKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("mask-border-repeat")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseTextDecorationSkipInk(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("text-decoration-skip-ink")
+        return;
+    }
+    const kind = getTextDecorationSkipInkKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("text-decoration-skip-ink")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseTextUnderlinePosition(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("text-underline-position")
+        return;
+    }
+    const kind = getTextUnderlinePositionKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("text-underline-position")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseFontOpticalSizing(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("font-optical-sizing")
+        return;
+    }
+    const kind = getFontOpticalSizingKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("font-optical-sizing")
     }
     parser.increment()
     alloc_value_keyword(builder, value, kind, token.value)

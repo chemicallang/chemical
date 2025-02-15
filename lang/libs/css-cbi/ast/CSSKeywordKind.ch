@@ -388,6 +388,9 @@ enum CSSKeywordKind {
 
     // PrintColorAdjust
     Economy,
-    Exact
+    Exact,
+
+    // TextUnderlinePosition
+    FromFont
 
 }

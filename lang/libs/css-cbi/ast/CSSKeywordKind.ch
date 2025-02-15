@@ -338,7 +338,37 @@ enum CSSKeywordKind {
     Content,
     Layout,
     Style,
-    Paint
+    Paint,
+
+    // PageOrientation
+    Portrait,
+    Landscape,
+
+    // TransformBox
+    FillBox,
+    ViewBox,
+
+    // FontVariantCaps
+    AllSmallCaps,
+    PetiteCaps,
+    Unicase,
+    TitlingCaps,
+
+    // FontVariantNumeric
+    LiningNums,
+    OldstyleNums,
+    ProportionalNums,
+    TabularNums,
+    DiagonalFractions,
+    StackedFractions,
+
+    // FontVariantEastAsian
+    FullWidth,
+    ProportionalWidth,
+    Ruby,
+
+    // ImageOrientation
+    FromImage
 
 
 }

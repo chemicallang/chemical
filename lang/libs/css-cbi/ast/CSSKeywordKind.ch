@@ -135,6 +135,89 @@ enum CSSKeywordKind {
     SpaceBetween,
     SpaceAround,
 
+    // Flex Direction
+    Row,
+    RowReverse,
+    Column,
+    ColumnReverse,
+
+    // Flex Wrap
+    Wrap,
+    WrapReverse,
+
+    // Empty Cells
+    Show,
+    Hide,
+
+    // Page Break before, after
+    Always,
+    Avoid,
+
+    // Isolation
+    Isolate,
+
+    // Mix Blend Mode
+    Multiply,
+    Screen,
+    Overlay,
+    Darken,
+    Lighten,
+    ColorDodge,
+    ColorBurn,
+    HardLight,
+    SoftLight,
+    Difference,
+    Exclusion,
+    Hue,
+    Saturation,
+    Color,
+    Luminosity,
+
+    // User Select
+    All,
+
+    // Scroll Behavior
+    Smooth,
+
+    // Writing Mode
+    HorizontalTB,
+    VerticalRL,
+    VerticalLR,
+
+    // Animation Direction
+    Reverse,
+    Alternate,
+    AlternateReverse,
+
+    // Animation Fill Mode
+    Forwards,
+    Backwards,
+
+    // Animation Play State
+    Running,
+    Paused,
+
+    // Clip Rule
+    NonZero,
+    EvenOdd,
+
+    // Shape Rendering
+    OptimizeSpeed,
+    CrispEdges,
+    GeometricPrecision,
+
+    // Text Rendering
+    OptimizeLegibility,
+
+    // Transform Style
+    Flat,
+    Preserve3d,
+
+    // Unicode Bidi
+    Embed,
+    BidiOverride,
+    IsolateOverride,
+
     /// Justify Content
     SpaceEvenly,
 
@@ -152,7 +235,6 @@ enum CSSKeywordKind {
     ScaleDown,
 
     // Image Rendering
-    CrispEdges,
     Pixelated
 
 }

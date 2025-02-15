@@ -297,11 +297,13 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
                 i++;
             }
         }
+
         CSSValueKind.Keyword => {
             var ptr = value.data as *mut CSSKeywordValueData
             str.append_with_len(ptr.value.data(), ptr.value.size())
             return;
         }
+
         CSSValueKind.Length => {
             // writing the length
             var ptr = value.data as *mut CSSLengthValueData
@@ -314,6 +316,7 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
             }
 
         }
+
         CSSValueKind.Color => {
 
             var ptr = value.data as *mut CSSColorValueData

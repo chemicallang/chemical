@@ -2,6 +2,109 @@ import "@std/hashing/fnv1.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 
+func getOverscrollBehaviorKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
+        comptime_fnv1_hash("contain") => { return CSSKeywordKind.Contain }
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getPageOrientationKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("portrait") => { return CSSKeywordKind.Portrait }
+        comptime_fnv1_hash("landscape") => { return CSSKeywordKind.Landscape }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getTextCombineUprightKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        comptime_fnv1_hash("all") => { return CSSKeywordKind.All }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getFontKerningKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
+        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getOutlineStyleKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
+        comptime_fnv1_hash("dotted") => { return CSSKeywordKind.Dotted }
+        comptime_fnv1_hash("dashed") => { return CSSKeywordKind.Dashed }
+        comptime_fnv1_hash("solid") => { return CSSKeywordKind.Solid }
+        comptime_fnv1_hash("double") => { return CSSKeywordKind.Double }
+        comptime_fnv1_hash("groove") => { return CSSKeywordKind.Groove }
+        comptime_fnv1_hash("ridge") => { return CSSKeywordKind.Ridge }
+        comptime_fnv1_hash("inset") => { return CSSKeywordKind.Inset }
+        comptime_fnv1_hash("outset") => { return CSSKeywordKind.Outset }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getTransformBoxKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("border-box") => { return CSSKeywordKind.BorderBox }
+        comptime_fnv1_hash("fill-box") => { return CSSKeywordKind.FillBox }
+        comptime_fnv1_hash("view-box") => { return CSSKeywordKind.ViewBox }
+        comptime_fnv1_hash("content-box") => { return CSSKeywordKind.ContentBox }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getFontVariantCapsKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
+        comptime_fnv1_hash("small-caps") => { return CSSKeywordKind.SmallCaps }
+        comptime_fnv1_hash("all-small-caps") => { return CSSKeywordKind.AllSmallCaps }
+        comptime_fnv1_hash("petite-caps") => { return CSSKeywordKind.PetiteCaps }
+        comptime_fnv1_hash("unicase") => { return CSSKeywordKind.Unicase }
+        comptime_fnv1_hash("titling-caps") => { return CSSKeywordKind.TitlingCaps }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getFontVariantNumericKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
+        comptime_fnv1_hash("lining-nums") => { return CSSKeywordKind.LiningNums }
+        comptime_fnv1_hash("oldstyle-nums") => { return CSSKeywordKind.OldstyleNums }
+        comptime_fnv1_hash("proportional-nums") => { return CSSKeywordKind.ProportionalNums }
+        comptime_fnv1_hash("tabular-nums") => { return CSSKeywordKind.TabularNums }
+        comptime_fnv1_hash("diagonal-fractions") => { return CSSKeywordKind.DiagonalFractions }
+        comptime_fnv1_hash("stacked-fractions") => { return CSSKeywordKind.StackedFractions }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getFontVariantEastAsianKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
+        comptime_fnv1_hash("full-width") => { return CSSKeywordKind.FullWidth }
+        comptime_fnv1_hash("proportional-width") => { return CSSKeywordKind.ProportionalWidth }
+        comptime_fnv1_hash("ruby") => { return CSSKeywordKind.Ruby }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getImageOrientationKeywordKind(ptr : *char) : CSSKeywordKind {
+    switch(fnv1_hash(ptr)) {
+        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
+        comptime_fnv1_hash("from-image") => { return CSSKeywordKind.FromImage }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
 func getFontWeightKeywordKind(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
@@ -2755,6 +2858,195 @@ func (cssParser : &mut CSSParser) parseContain(
     const kind = getContainKeywordKind(token.value.data())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("contain")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+func (cssParser : &mut CSSParser) parseOverscrollBehavior(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("overscroll-behavior")
+        return;
+    }
+    const kind = getOverscrollBehaviorKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("overscroll-behavior")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parsePageOrientation(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("page-orientation")
+        return;
+    }
+    const kind = getPageOrientationKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("page-orientation")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseTextCombineUpright(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("text-combine-upright")
+        return;
+    }
+    const kind = getTextCombineUprightKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("text-combine-upright")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseFontKerning(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("font-kerning")
+        return;
+    }
+    const kind = getFontKerningKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("font-kerning")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseOutlineStyle(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("outline-style")
+        return;
+    }
+    const kind = getOutlineStyleKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("outline-style")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseTransformBox(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("transform-box")
+        return;
+    }
+    const kind = getTransformBoxKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("transform-box")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseFontVariantCaps(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("font-variant-caps")
+        return;
+    }
+    const kind = getFontVariantCapsKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("font-variant-caps")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseFontVariantNumeric(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("font-variant-numeric")
+        return;
+    }
+    const kind = getFontVariantNumericKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("font-variant-numeric")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseFontVariantEastAsian(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("font-variant-east-asian")
+        return;
+    }
+    const kind = getFontVariantEastAsianKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("font-variant-east-asian")
+    }
+    parser.increment()
+    alloc_value_keyword(builder, value, kind, token.value)
+}
+
+
+func (cssParser : &mut CSSParser) parseImageOrientation(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err("image-orientation")
+        return;
+    }
+    const kind = getImageOrientationKeywordKind(token.value.data())
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err("image-orientation")
     }
     parser.increment()
     alloc_value_keyword(builder, value, kind, token.value)

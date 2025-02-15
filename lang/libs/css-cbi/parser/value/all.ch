@@ -118,5 +118,17 @@ func putAllCSSValueParsers(
     map.put(std::string_view("ruby-position"), CSSParser::parseRubyPosition)
     map.put(std::string_view("justify-self"), CSSParser::parseJustifySelf)
     map.put(std::string_view("contain"), CSSParser::parseContain)
+    map.put(std::string_view("overscroll-behavior"), CSSParser::parseOverscrollBehavior)
+    map.put(std::string_view("overscroll-behavior-x"), CSSParser::parseOverscrollBehavior)
+    map.put(std::string_view("overscroll-behavior-y"), CSSParser::parseOverscrollBehavior)
+    map.put(std::string_view("page-orientation"), CSSParser::parsePageOrientation)
+    map.put(std::string_view("text-combine-upright"), CSSParser::parseTextCombineUpright)
+    map.put(std::string_view("font-kerning"), CSSParser::parseFontKerning)
+    map.put(std::string_view("outline-style"), CSSParser::parseOutlineStyle)
+    map.put(std::string_view("transform-box"), CSSParser::parseTransformBox)
+    map.put(std::string_view("font-variant-caps"), CSSParser::parseFontVariantCaps)
+    map.put(std::string_view("font-variant-numeric"), CSSParser::parseFontVariantNumeric)
+    map.put(std::string_view("font-variant-east-asian"), CSSParser::parseFontVariantEastAsian)
+    map.put(std::string_view("image-orientation"), CSSParser::parseImageOrientation)
 
 }

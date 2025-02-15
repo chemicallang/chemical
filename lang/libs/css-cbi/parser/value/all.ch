@@ -130,5 +130,10 @@ func putAllCSSValueParsers(
     map.put(std::string_view("font-variant-numeric"), CSSParser::parseFontVariantNumeric)
     map.put(std::string_view("font-variant-east-asian"), CSSParser::parseFontVariantEastAsian)
     map.put(std::string_view("image-orientation"), CSSParser::parseImageOrientation)
+    map.put(std::string_view("transition-timing-function"), CSSParser::parseTransitionTimingFunction)
+    map.put(std::string_view("vector-effect"), CSSParser::parseVectorEffect)
+    map.put(std::string_view("forced-color-adjust"), CSSParser::parseForcedColorAdjust)
+    map.put(std::string_view("color-scheme"), CSSParser::parseColorScheme)
+    map.put(std::string_view("print-color-adjust"), CSSParser::parsePrintColorAdjust)
 
 }

@@ -368,7 +368,26 @@ enum CSSKeywordKind {
     Ruby,
 
     // ImageOrientation
-    FromImage
+    FromImage,
 
+    // TransitionTimingFunction
+    Ease,
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+    StepStart,
+    StepEnd,
+
+    // VectorEffect
+    NonScalingStroke,
+
+    // ColorScheme
+    Light,
+    Dark,
+
+    // PrintColorAdjust
+    Economy,
+    Exact
 
 }

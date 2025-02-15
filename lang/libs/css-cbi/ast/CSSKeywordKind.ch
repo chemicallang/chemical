@@ -102,6 +102,35 @@ enum CSSKeywordKind {
     Clip,
     Ellipsis,
 
+    // Font Style Keywords
+    Italic,
+    Oblique,
+
+    // Font Variant
+    SmallCaps,
+
+    // List Style Type
+    Disc,
+    Circle,
+    Square,
+    Decimal,
+    DecimalLeadingZero,
+    LowerRoman,
+    UpperRoman,
+
+    // List Style Position
+    Inside,
+    Outside,
+
+    // Align Items
+    Stretch,
+    FlexStart,
+    FlexEnd,
+    Start,
+    End,
+    SelfStart,
+    SelfEnd,
+
     // Overflow Wrap
     BreakWord,
 

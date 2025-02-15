@@ -34,5 +34,10 @@ func putAllCSSValueParsers(
     map.insert(std::string_view("word-break"), CSSParser::parseWordBreak)
     map.insert(std::string_view("object-fit"), CSSParser::parseObjectFit)
     map.insert(std::string_view("image-rendering"), CSSParser::parseImageRendering)
-    map.insert(std::string_view("backface-visibility"), CSSParser::parseBackFaceVisibilityValueErr)
+    map.insert(std::string_view("backface-visibility"), CSSParser::parseBackFaceVisibilityValue)
+    map.insert(std::string_view("font-style"), CSSParser::parseFontStyleValue)
+    map.insert(std::string_view("font-variant"), CSSParser::parseFontVariantValue)
+    map.insert(std::string_view("list-style-type"), CSSParser::parseListStyleType)
+    map.insert(std::string_view("list-style-position"), CSSParser::parseListStylePosition)
+    map.insert(std::string_view("align-items"), CSSParser::parseAlignItems)
 }

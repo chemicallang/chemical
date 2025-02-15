@@ -320,6 +320,37 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
             str.append_with_len(ptr.value.data(), ptr.value.size())
 
         }
+
+        CSSValueKind.Border => {
+
+            const ptr = value.data as *mut CSSBorderValueData
+
+            const has_style = ptr.style.kind != CSSValueKind.Unknown;
+            const has_color = ptr.color.kind != CSSValueKind.Unknown;
+
+            // width
+            if(ptr.width.kind != CSSValueKind.Unknown) {
+                convertValue(resolver, builder, ptr.width, vec, parent, str)
+                if(has_style) {
+                    str.append(' ')
+                }
+            }
+
+            // style
+            if(has_style) {
+                convertValue(resolver, builder, ptr.style, vec, parent, str)
+                if(has_color) {
+                    str.append(' ')
+                }
+            }
+
+            // color
+            if(has_color) {
+                convertValue(resolver, builder, ptr.color, vec, parent, str)
+            }
+
+        }
+
         default => {
             printf("error no value found")
             fflush(null)

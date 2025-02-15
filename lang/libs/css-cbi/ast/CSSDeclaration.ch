@@ -52,11 +52,31 @@ struct CSSMultipleValues {
 
 }
 
+/**
+ * the struct used for border value
+ * value with kind Unknown is present if a single value (width / style) is NOT given
+ */
+struct CSSBorderValueData {
+
+    var width : CSSValue
+
+    var style : CSSValue
+
+    var color : CSSValue
+
+}
+
 struct CSSValue {
 
     var kind : CSSValueKind
 
     var data : *mut void
+
+    @make
+    func empty() {
+        kind = CSSValueKind.Unknown
+        data = null
+    }
 
 }
 

@@ -9,4 +9,6 @@ enum CSSValueKind {
     Length,
     Color,
 
+    Border,
+
 }

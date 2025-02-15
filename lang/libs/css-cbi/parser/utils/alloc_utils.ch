@@ -84,3 +84,17 @@ func alloc_value_length(
     value.kind = CSSValueKind.Length
     value.data = number_value
 }
+
+func alloc_named_color(
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    view : &std::string_view
+) {
+    var col_value = builder.allocate<CSSColorValueData>();
+    new (col_value) CSSColorValueData {
+        kind : CSSColorKind.NamedColor,
+        value : builder.allocate_view(view)
+    }
+    value.kind = CSSValueKind.Color
+    value.data = col_value
+}

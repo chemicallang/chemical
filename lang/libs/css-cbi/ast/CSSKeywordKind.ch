@@ -235,6 +235,110 @@ enum CSSKeywordKind {
     ScaleDown,
 
     // Image Rendering
-    Pixelated
+    Pixelated,
+
+    // BackgroundRepeat
+    Repeat,
+    RepeatX,
+    RepeatY,
+    NoRepeat,
+
+    // BackgroundAttachment
+    Local,
+
+    // BackgroundClip
+    BorderBox,
+    PaddingBox,
+    ContentBox,
+
+    // TextDecorationLine
+    Underline,
+    Overline,
+    LineThrough,
+    Blink,
+
+    // TextDecorationStyle
+    Solid,
+    Double,
+    Dotted,
+    Dashed,
+    Wavy,
+
+    // TextJustify
+    InterWord,
+    InterIdeograph,
+    Distribute,
+
+    // GridAutoFlow
+    Dense,
+
+    // BorderImageRepeat
+    Round,
+    Space,
+
+    // BreakAfter
+    Page,
+
+    // ColumnRuleStyle
+    Groove,
+    Ridge,
+    Inset,
+    Outset,
+
+    // ColumnFill
+    Balance,
+
+    // BoxDecorationBreak
+    Slice,
+    Clone,
+
+    // MaskMode
+    Alpha,
+    Luminance,
+
+    // MaskComposite
+    Add,
+    Subtract,
+    Intersect,
+    Exclude,
+
+    // ScrollbarWidth
+    Thin,
+
+    // TouchAction
+    Manipulation,
+    PanX,
+    PanY,
+    PinchZoom,
+
+    // Hyphens
+    Manual,
+
+    // LineBreak
+    Loose,
+    Strict,
+
+    // TextEmphasisStyle
+    Dot,
+    DoubleCircle,
+    Triangle,
+    Sesame,
+
+    // TextEmphasisPosition
+    Under,
+    Over,
+
+    // TextOrientation
+    Mixed,
+    Upright,
+    Sideways,
+    SidewaysRight,
+
+    // Contain
+    Content,
+    Layout,
+    Style,
+    Paint
+
 
 }

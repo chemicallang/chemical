@@ -2,8 +2,8 @@ import "@std/hashing/fnv1.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 
-func getBorderStyleKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBorderStyleKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
         comptime_fnv1_hash("dotted") => { return CSSKeywordKind.Dotted }
@@ -18,8 +18,8 @@ func getBorderStyleKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getAnimationTimingFunctionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getAnimationTimingFunctionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("ease") => { return CSSKeywordKind.Ease }
         comptime_fnv1_hash("linear") => { return CSSKeywordKind.Linear }
         comptime_fnv1_hash("ease-in") => { return CSSKeywordKind.EaseIn }
@@ -31,16 +31,16 @@ func getAnimationTimingFunctionKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getMaskBorderModeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getMaskBorderModeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("alpha") => { return CSSKeywordKind.Alpha }
         comptime_fnv1_hash("luminance") => { return CSSKeywordKind.Luminance }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getMaskBorderRepeatKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getMaskBorderRepeatKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("stretch") => { return CSSKeywordKind.Stretch }
         comptime_fnv1_hash("repeat") => { return CSSKeywordKind.Repeat }
         comptime_fnv1_hash("round") => { return CSSKeywordKind.Round }
@@ -49,16 +49,16 @@ func getMaskBorderRepeatKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextDecorationSkipInkKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextDecorationSkipInkKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getTextUnderlinePositionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextUnderlinePositionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("under") => { return CSSKeywordKind.Under }
         comptime_fnv1_hash("left") => { return CSSKeywordKind.Left }
@@ -68,16 +68,16 @@ func getTextUnderlinePositionKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getFontOpticalSizingKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFontOpticalSizingKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getTransitionTimingFunctionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTransitionTimingFunctionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("ease") => { return CSSKeywordKind.Ease }
         comptime_fnv1_hash("linear") => { return CSSKeywordKind.Linear }
         comptime_fnv1_hash("ease-in") => { return CSSKeywordKind.EaseIn }
@@ -89,40 +89,40 @@ func getTransitionTimingFunctionKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getVectorEffectKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getVectorEffectKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("non-scaling-stroke") => { return CSSKeywordKind.NonScalingStroke }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getForcedColorAdjustKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getForcedColorAdjustKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getColorSchemeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getColorSchemeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("light") => { return CSSKeywordKind.Light }
         comptime_fnv1_hash("dark") => { return CSSKeywordKind.Dark }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getPrintColorAdjustKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getPrintColorAdjustKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("economy") => { return CSSKeywordKind.Economy }
         comptime_fnv1_hash("exact") => { return CSSKeywordKind.Exact }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getOverscrollBehaviorKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getOverscrollBehaviorKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("contain") => { return CSSKeywordKind.Contain }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
@@ -130,24 +130,24 @@ func getOverscrollBehaviorKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getPageOrientationKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getPageOrientationKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("portrait") => { return CSSKeywordKind.Portrait }
         comptime_fnv1_hash("landscape") => { return CSSKeywordKind.Landscape }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getTextCombineUprightKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextCombineUprightKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("all") => { return CSSKeywordKind.All }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getFontKerningKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFontKerningKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
@@ -155,8 +155,8 @@ func getFontKerningKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getOutlineStyleKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getOutlineStyleKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
         comptime_fnv1_hash("dotted") => { return CSSKeywordKind.Dotted }
@@ -171,8 +171,8 @@ func getOutlineStyleKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTransformBoxKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTransformBoxKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("border-box") => { return CSSKeywordKind.BorderBox }
         comptime_fnv1_hash("fill-box") => { return CSSKeywordKind.FillBox }
         comptime_fnv1_hash("view-box") => { return CSSKeywordKind.ViewBox }
@@ -181,8 +181,8 @@ func getTransformBoxKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getFontVariantCapsKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFontVariantCapsKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
         comptime_fnv1_hash("small-caps") => { return CSSKeywordKind.SmallCaps }
         comptime_fnv1_hash("all-small-caps") => { return CSSKeywordKind.AllSmallCaps }
@@ -193,8 +193,8 @@ func getFontVariantCapsKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getFontVariantNumericKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFontVariantNumericKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
         comptime_fnv1_hash("lining-nums") => { return CSSKeywordKind.LiningNums }
         comptime_fnv1_hash("oldstyle-nums") => { return CSSKeywordKind.OldstyleNums }
@@ -206,8 +206,8 @@ func getFontVariantNumericKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getFontVariantEastAsianKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFontVariantEastAsianKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
         comptime_fnv1_hash("full-width") => { return CSSKeywordKind.FullWidth }
         comptime_fnv1_hash("proportional-width") => { return CSSKeywordKind.ProportionalWidth }
@@ -216,26 +216,26 @@ func getFontVariantEastAsianKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getImageOrientationKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getImageOrientationKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("from-image") => { return CSSKeywordKind.FromImage }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getFontWeightKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFontWeightKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
         comptime_fnv1_hash("bold") => { return CSSKeywordKind.Bold }
         comptime_fnv1_hash("bolder") => { return CSSKeywordKind.Bolder }
         comptime_fnv1_hash("lighter") => { return CSSKeywordKind.Lighter }
-        default => {  CSSKeywordKind.Unknown }
+        default => {  return CSSKeywordKind.Unknown }
     }
 }
 
-func getFontStyleKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFontStyleKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal; }
         comptime_fnv1_hash("italic") => { return CSSKeywordKind.Italic }
         comptime_fnv1_hash("oblique") => { return CSSKeywordKind.Oblique }
@@ -243,16 +243,16 @@ func getFontStyleKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getFontVariantKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFontVariantKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal; }
         comptime_fnv1_hash("small-caps") => { return CSSKeywordKind.SmallCaps }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getListStyleTypeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getListStyleTypeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("disc") => { return CSSKeywordKind.Disc; }
         comptime_fnv1_hash("circle") => { return CSSKeywordKind.Circle }
         comptime_fnv1_hash("square") => { return CSSKeywordKind.Square }
@@ -265,16 +265,16 @@ func getListStyleTypeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getListStylePositionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getListStylePositionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("inside") => { return CSSKeywordKind.Inside; }
         comptime_fnv1_hash("outside") => { return CSSKeywordKind.Outside }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getAlignItemsKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getAlignItemsKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("stretch") => { return CSSKeywordKind.Stretch; }
         comptime_fnv1_hash("flex-start") => { return CSSKeywordKind.FlexStart }
         comptime_fnv1_hash("flex-end") => { return CSSKeywordKind.FlexEnd }
@@ -288,8 +288,8 @@ func getAlignItemsKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getAlignContentKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getAlignContentKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("stretch") => { return CSSKeywordKind.Stretch; }
         comptime_fnv1_hash("flex-start") => { return CSSKeywordKind.FlexStart }
         comptime_fnv1_hash("flex-end") => { return CSSKeywordKind.FlexEnd }
@@ -302,8 +302,8 @@ func getAlignContentKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getJustifyContentKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getJustifyContentKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("flex-start") => { return CSSKeywordKind.FlexStart }
         comptime_fnv1_hash("flex-end") => { return CSSKeywordKind.FlexEnd }
         comptime_fnv1_hash("center") => { return CSSKeywordKind.Center }
@@ -316,8 +316,8 @@ func getJustifyContentKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getFontSizeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFontSizeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("xx-small") => { return CSSKeywordKind.XXSmall; }
         comptime_fnv1_hash("x-small") => { return CSSKeywordKind.XSmall }
         comptime_fnv1_hash("small") => { return CSSKeywordKind.Small }
@@ -332,8 +332,8 @@ func getFontSizeKeywordKind(ptr : *char) : CSSKeywordKind {
 }
 
 
-func getTextAlignKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextAlignKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("left") => { return CSSKeywordKind.Left; }
         comptime_fnv1_hash("right") => { return CSSKeywordKind.Right }
         comptime_fnv1_hash("center") => { return CSSKeywordKind.Center }
@@ -342,8 +342,8 @@ func getTextAlignKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getDisplayKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getDisplayKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None; }
         comptime_fnv1_hash("inline") => { return CSSKeywordKind.Inline }
         comptime_fnv1_hash("block") => { return CSSKeywordKind.Block }
@@ -354,8 +354,8 @@ func getDisplayKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getPositionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getPositionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("static") => { return CSSKeywordKind.Static; }
         comptime_fnv1_hash("relative") => { return CSSKeywordKind.Relative }
         comptime_fnv1_hash("absolute") => { return CSSKeywordKind.Absolute }
@@ -365,8 +365,8 @@ func getPositionKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getOverflowKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getOverflowKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("visible") => { return CSSKeywordKind.Visible; }
         comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
         comptime_fnv1_hash("scroll") => { return CSSKeywordKind.Scroll }
@@ -375,8 +375,8 @@ func getOverflowKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getFloatKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFloatKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("left") => { return CSSKeywordKind.Left; }
         comptime_fnv1_hash("right") => { return CSSKeywordKind.Right }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
@@ -384,8 +384,8 @@ func getFloatKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getClearKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getClearKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None; }
         comptime_fnv1_hash("left") => { return CSSKeywordKind.Left }
         comptime_fnv1_hash("right") => { return CSSKeywordKind.Right }
@@ -394,8 +394,8 @@ func getClearKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getVerticalAlignKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getVerticalAlignKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("baseline") => { return CSSKeywordKind.Baseline; }
         comptime_fnv1_hash("sub") => { return CSSKeywordKind.Sub }
         comptime_fnv1_hash("super") => { return CSSKeywordKind.Super }
@@ -408,8 +408,8 @@ func getVerticalAlignKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getWhitespaceKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getWhitespaceKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal; }
         comptime_fnv1_hash("nowrap") => { return CSSKeywordKind.Nowrap }
         comptime_fnv1_hash("pre") => { return CSSKeywordKind.Pre }
@@ -419,8 +419,8 @@ func getWhitespaceKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextTransformKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextTransformKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None; }
         comptime_fnv1_hash("capitalize") => { return CSSKeywordKind.Capitalize }
         comptime_fnv1_hash("uppercase") => { return CSSKeywordKind.Uppercase }
@@ -429,8 +429,8 @@ func getTextTransformKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getVisibilityKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getVisibilityKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("visible") => { return CSSKeywordKind.Visible; }
         comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
         comptime_fnv1_hash("collapse") => { return CSSKeywordKind.Collapse }
@@ -438,8 +438,8 @@ func getVisibilityKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getCursorKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getCursorKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("default") => { return CSSKeywordKind.Default }
         comptime_fnv1_hash("pointer") => { return CSSKeywordKind.Pointer }
@@ -452,16 +452,16 @@ func getCursorKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getDirectionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getDirectionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("ltr") => { return CSSKeywordKind.Ltr; }
         comptime_fnv1_hash("rtl") => { return CSSKeywordKind.Rtl }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getResizeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getResizeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None; }
         comptime_fnv1_hash("both") => { return CSSKeywordKind.Both }
         comptime_fnv1_hash("horizontal") => { return CSSKeywordKind.Horizontal }
@@ -470,40 +470,40 @@ func getResizeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTableLayoutKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTableLayoutKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("fixed") => { return CSSKeywordKind.Fixed }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getBorderCollapseKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBorderCollapseKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("collapse") => { return CSSKeywordKind.Collapse; }
         comptime_fnv1_hash("separate") => { return CSSKeywordKind.Separate }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getTextOverflowKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextOverflowKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("clip") => { return CSSKeywordKind.Clip; }
         comptime_fnv1_hash("ellipsis") => { return CSSKeywordKind.Ellipsis }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getOverflowWrapKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getOverflowWrapKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal; }
         comptime_fnv1_hash("break-word") => { return CSSKeywordKind.BreakWord }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getWordBreakKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getWordBreakKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal; }
         comptime_fnv1_hash("break-all") => { return CSSKeywordKind.BreakAll; }
         comptime_fnv1_hash("keep-all") => { return CSSKeywordKind.KeepAll; }
@@ -512,8 +512,8 @@ func getWordBreakKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getObjectFitKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getObjectFitKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("fill") => { return CSSKeywordKind.Fill; }
         comptime_fnv1_hash("contain") => { return CSSKeywordKind.Contain; }
         comptime_fnv1_hash("cover") => { return CSSKeywordKind.Cover; }
@@ -523,8 +523,8 @@ func getObjectFitKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getImageRenderingKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getImageRenderingKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("crisp-edges") => { return CSSKeywordKind.CrispEdges; }
         comptime_fnv1_hash("pixelated") => { return CSSKeywordKind.Pixelated; }
@@ -532,16 +532,16 @@ func getImageRenderingKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBackFaceVisibilityKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBackFaceVisibilityKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("visible") => { return CSSKeywordKind.Visible; }
         comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getFlexDirectionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFlexDirectionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("row") => { return CSSKeywordKind.Row }
         comptime_fnv1_hash("row-reverse") => { return CSSKeywordKind.RowReverse }
         comptime_fnv1_hash("column") => { return CSSKeywordKind.Column }
@@ -550,8 +550,8 @@ func getFlexDirectionKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getFlexWrapKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getFlexWrapKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("nowrap") => { return CSSKeywordKind.Nowrap; }
         comptime_fnv1_hash("wrap") => { return CSSKeywordKind.Wrap; }
         comptime_fnv1_hash("wrap-reverse") => { return CSSKeywordKind.WrapReverse }
@@ -559,8 +559,8 @@ func getFlexWrapKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getAlignSelfKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getAlignSelfKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("stretch") => { return CSSKeywordKind.Stretch; }
         comptime_fnv1_hash("flex-start") => { return CSSKeywordKind.FlexStart }
@@ -575,32 +575,32 @@ func getAlignSelfKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getCaptionSideKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getCaptionSideKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("top") => { return CSSKeywordKind.Top; }
         comptime_fnv1_hash("bottom") => { return CSSKeywordKind.Bottom; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getEmptyCellsKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getEmptyCellsKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("show") => { return CSSKeywordKind.Show; }
         comptime_fnv1_hash("hide") => { return CSSKeywordKind.Hide; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getPageBreakInsideKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getPageBreakInsideKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("avoid") => { return CSSKeywordKind.Avoid; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getPageBreakBeforeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getPageBreakBeforeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("always") => { return CSSKeywordKind.Always; }
         comptime_fnv1_hash("avoid") => { return CSSKeywordKind.Avoid }
@@ -610,8 +610,8 @@ func getPageBreakBeforeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getPageBreakAfterKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getPageBreakAfterKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("always") => { return CSSKeywordKind.Always; }
         comptime_fnv1_hash("avoid") => { return CSSKeywordKind.Avoid }
@@ -621,16 +621,16 @@ func getPageBreakAfterKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getIsolationKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getIsolationKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("isolate") => { return CSSKeywordKind.Isolate; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getMixBlendModeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getMixBlendModeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal; }
         comptime_fnv1_hash("multiply") => { return CSSKeywordKind.Multiply; }
         comptime_fnv1_hash("screen") => { return CSSKeywordKind.Screen }
@@ -651,8 +651,8 @@ func getMixBlendModeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getUserSelectKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getUserSelectKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("text") => { return CSSKeywordKind.Text; }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
@@ -661,16 +661,16 @@ func getUserSelectKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getScrollBehaviorKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getScrollBehaviorKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("smooth") => { return CSSKeywordKind.Smooth; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getScrollSnapAlignKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getScrollSnapAlignKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("start") => { return CSSKeywordKind.Start; }
         comptime_fnv1_hash("end") => { return CSSKeywordKind.End; }
         comptime_fnv1_hash("center") => { return CSSKeywordKind.Center }
@@ -678,8 +678,8 @@ func getScrollSnapAlignKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getJustifyItemsKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getJustifyItemsKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("start") => { return CSSKeywordKind.Start; }
         comptime_fnv1_hash("end") => { return CSSKeywordKind.End; }
         comptime_fnv1_hash("center") => { return CSSKeywordKind.Center }
@@ -688,8 +688,8 @@ func getJustifyItemsKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getWritingModeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getWritingModeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("horizontal-tb") => { return CSSKeywordKind.HorizontalTB; }
         comptime_fnv1_hash("vertical-rl") => { return CSSKeywordKind.VerticalRL; }
         comptime_fnv1_hash("vertical-lr") => { return CSSKeywordKind.VerticalLR }
@@ -697,8 +697,8 @@ func getWritingModeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getAnimationDirectionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getAnimationDirectionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal; }
         comptime_fnv1_hash("reverse") => { return CSSKeywordKind.Reverse; }
         comptime_fnv1_hash("alternate") => { return CSSKeywordKind.Alternate }
@@ -707,8 +707,8 @@ func getAnimationDirectionKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getAnimationFillModeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getAnimationFillModeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None; }
         comptime_fnv1_hash("forwards") => { return CSSKeywordKind.Forwards; }
         comptime_fnv1_hash("backwards") => { return CSSKeywordKind.Backwards }
@@ -717,48 +717,48 @@ func getAnimationFillModeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getAnimationPlayStateKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getAnimationPlayStateKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("running") => { return CSSKeywordKind.Running; }
         comptime_fnv1_hash("paused") => { return CSSKeywordKind.Paused; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getAppearanceKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getAppearanceKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None; }
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getOverflowAnchorKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getOverflowAnchorKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getScrollSnapStopKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getScrollSnapStopKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal; }
         comptime_fnv1_hash("always") => { return CSSKeywordKind.Always; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getClipRuleKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getClipRuleKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("nonzero") => { return CSSKeywordKind.NonZero; }
         comptime_fnv1_hash("evenodd") => { return CSSKeywordKind.EvenOdd; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getShapeRenderingKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getShapeRenderingKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("optimizeSpeed") => { return CSSKeywordKind.OptimizeSpeed; }
         comptime_fnv1_hash("crispEdges") => { return CSSKeywordKind.CrispEdges }
@@ -767,8 +767,8 @@ func getShapeRenderingKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextRenderingKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextRenderingKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto; }
         comptime_fnv1_hash("optimizeSpeed") => { return CSSKeywordKind.OptimizeSpeed; }
         comptime_fnv1_hash("optimizeLegibility") => { return CSSKeywordKind.OptimizeLegibility }
@@ -777,16 +777,16 @@ func getTextRenderingKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTransformStyleKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTransformStyleKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("flat") => { return CSSKeywordKind.Flat; }
         comptime_fnv1_hash("preserve-3d") => { return CSSKeywordKind.Preserve3d; }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getUnicodeBidiKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getUnicodeBidiKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal; }
         comptime_fnv1_hash("embed") => { return CSSKeywordKind.Embed; }
         comptime_fnv1_hash("isolate") => { return CSSKeywordKind.Isolate }
@@ -796,8 +796,8 @@ func getUnicodeBidiKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBackgroundRepeatKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBackgroundRepeatKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("repeat") => { return CSSKeywordKind.Repeat }
         comptime_fnv1_hash("repeat-x") => { return CSSKeywordKind.RepeatX }
         comptime_fnv1_hash("repeat-y") => { return CSSKeywordKind.RepeatY }
@@ -806,8 +806,8 @@ func getBackgroundRepeatKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBackgroundAttachmentKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBackgroundAttachmentKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("scroll") => { return CSSKeywordKind.Scroll }
         comptime_fnv1_hash("fixed") => { return CSSKeywordKind.Fixed }
         comptime_fnv1_hash("local") => { return CSSKeywordKind.Local }
@@ -815,8 +815,8 @@ func getBackgroundAttachmentKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBackgroundClipKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBackgroundClipKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("border-box") => { return CSSKeywordKind.BorderBox }
         comptime_fnv1_hash("padding-box") => { return CSSKeywordKind.PaddingBox }
         comptime_fnv1_hash("content-box") => { return CSSKeywordKind.ContentBox }
@@ -824,8 +824,8 @@ func getBackgroundClipKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBackgroundOriginKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBackgroundOriginKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("border-box") => { return CSSKeywordKind.BorderBox }
         comptime_fnv1_hash("padding-box") => { return CSSKeywordKind.PaddingBox }
         comptime_fnv1_hash("content-box") => { return CSSKeywordKind.ContentBox }
@@ -833,8 +833,8 @@ func getBackgroundOriginKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBackgroundSizeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBackgroundSizeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("cover") => { return CSSKeywordKind.Cover }
         comptime_fnv1_hash("contain") => { return CSSKeywordKind.Contain }
@@ -842,8 +842,8 @@ func getBackgroundSizeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBackgroundBlendModeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBackgroundBlendModeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
         comptime_fnv1_hash("multiply") => { return CSSKeywordKind.Multiply }
         comptime_fnv1_hash("screen") => { return CSSKeywordKind.Screen }
@@ -864,8 +864,8 @@ func getBackgroundBlendModeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextDecorationLineKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextDecorationLineKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("underline") => { return CSSKeywordKind.Underline }
         comptime_fnv1_hash("overline") => { return CSSKeywordKind.Overline }
@@ -875,8 +875,8 @@ func getTextDecorationLineKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextDecorationStyleKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextDecorationStyleKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("solid") => { return CSSKeywordKind.Solid }
         comptime_fnv1_hash("double") => { return CSSKeywordKind.Double }
         comptime_fnv1_hash("dotted") => { return CSSKeywordKind.Dotted }
@@ -886,8 +886,8 @@ func getTextDecorationStyleKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextAlignLastKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextAlignLastKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("left") => { return CSSKeywordKind.Left }
         comptime_fnv1_hash("right") => { return CSSKeywordKind.Right }
@@ -897,8 +897,8 @@ func getTextAlignLastKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextJustifyKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextJustifyKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("inter-word") => { return CSSKeywordKind.InterWord }
         comptime_fnv1_hash("inter-ideograph") => { return CSSKeywordKind.InterIdeograph }
@@ -907,24 +907,24 @@ func getTextJustifyKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBoxSizingKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBoxSizingKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("content-box") => { return CSSKeywordKind.ContentBox }
         comptime_fnv1_hash("border-box") => { return CSSKeywordKind.BorderBox }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getPointerEventsKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getPointerEventsKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getBorderImageRepeatKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBorderImageRepeatKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("stretch") => { return CSSKeywordKind.Stretch }
         comptime_fnv1_hash("repeat") => { return CSSKeywordKind.Repeat }
         comptime_fnv1_hash("round") => { return CSSKeywordKind.Round }
@@ -933,8 +933,8 @@ func getBorderImageRepeatKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBreakAfterKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBreakAfterKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("avoid") => { return CSSKeywordKind.Avoid }
         comptime_fnv1_hash("always") => { return CSSKeywordKind.Always }
@@ -946,8 +946,8 @@ func getBreakAfterKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBreakBeforeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBreakBeforeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("avoid") => { return CSSKeywordKind.Avoid }
         comptime_fnv1_hash("always") => { return CSSKeywordKind.Always }
@@ -959,16 +959,16 @@ func getBreakBeforeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getBreakInsideKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBreakInsideKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("avoid") => { return CSSKeywordKind.Avoid }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getColumnRuleStyleKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getColumnRuleStyleKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
         comptime_fnv1_hash("dotted") => { return CSSKeywordKind.Dotted }
@@ -983,40 +983,40 @@ func getColumnRuleStyleKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getColumnSpanKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getColumnSpanKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("all") => { return CSSKeywordKind.All }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getColumnFillKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getColumnFillKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("balance") => { return CSSKeywordKind.Balance }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getBoxDecorationBreakKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getBoxDecorationBreakKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("slice") => { return CSSKeywordKind.Slice }
         comptime_fnv1_hash("clone") => { return CSSKeywordKind.Clone }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getMaskModeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getMaskModeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("alpha") => { return CSSKeywordKind.Alpha }
         comptime_fnv1_hash("luminance") => { return CSSKeywordKind.Luminance }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getMaskRepeatKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getMaskRepeatKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("repeat") => { return CSSKeywordKind.Repeat }
         comptime_fnv1_hash("repeat-x") => { return CSSKeywordKind.RepeatX }
         comptime_fnv1_hash("repeat-y") => { return CSSKeywordKind.RepeatY }
@@ -1025,8 +1025,8 @@ func getMaskRepeatKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getMaskClipKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getMaskClipKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("border-box") => { return CSSKeywordKind.BorderBox }
         comptime_fnv1_hash("padding-box") => { return CSSKeywordKind.PaddingBox }
         comptime_fnv1_hash("content-box") => { return CSSKeywordKind.ContentBox }
@@ -1035,8 +1035,8 @@ func getMaskClipKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getMaskCompositeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getMaskCompositeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("add") => { return CSSKeywordKind.Add }
         comptime_fnv1_hash("subtract") => { return CSSKeywordKind.Subtract }
         comptime_fnv1_hash("intersect") => { return CSSKeywordKind.Intersect }
@@ -1045,16 +1045,16 @@ func getMaskCompositeKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getMaskTypeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getMaskTypeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("luminance") => { return CSSKeywordKind.Luminance }
         comptime_fnv1_hash("alpha") => { return CSSKeywordKind.Alpha }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getScrollbarWidthKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getScrollbarWidthKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("thin") => { return CSSKeywordKind.Thin }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
@@ -1062,8 +1062,8 @@ func getScrollbarWidthKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTouchActionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTouchActionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("manipulation") => { return CSSKeywordKind.Manipulation }
@@ -1074,8 +1074,8 @@ func getTouchActionKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getHyphensKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getHyphensKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("manual") => { return CSSKeywordKind.Manual }
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
@@ -1083,8 +1083,8 @@ func getHyphensKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getLineBreakKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getLineBreakKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("loose") => { return CSSKeywordKind.Loose }
         comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
@@ -1093,8 +1093,8 @@ func getLineBreakKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextEmphasisStyleKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextEmphasisStyleKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("dot") => { return CSSKeywordKind.Dot }
         comptime_fnv1_hash("circle") => { return CSSKeywordKind.Circle }
@@ -1105,8 +1105,8 @@ func getTextEmphasisStyleKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextEmphasisPositionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextEmphasisPositionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("under") => { return CSSKeywordKind.Under }
         comptime_fnv1_hash("over") => { return CSSKeywordKind.Over }
         comptime_fnv1_hash("right") => { return CSSKeywordKind.Right }
@@ -1115,8 +1115,8 @@ func getTextEmphasisPositionKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getTextOrientationKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getTextOrientationKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("mixed") => { return CSSKeywordKind.Mixed }
         comptime_fnv1_hash("upright") => { return CSSKeywordKind.Upright }
         comptime_fnv1_hash("sideways") => { return CSSKeywordKind.Sideways }
@@ -1125,8 +1125,8 @@ func getTextOrientationKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getRubyAlignKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getRubyAlignKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("start") => { return CSSKeywordKind.Start }
         comptime_fnv1_hash("center") => { return CSSKeywordKind.Center }
         comptime_fnv1_hash("space-between") => { return CSSKeywordKind.SpaceBetween }
@@ -1135,24 +1135,24 @@ func getRubyAlignKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getRubyMergeKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getRubyMergeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("separate") => { return CSSKeywordKind.Separate }
         comptime_fnv1_hash("collapse") => { return CSSKeywordKind.Collapse }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getRubyPositionKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getRubyPositionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("over") => { return CSSKeywordKind.Over }
         comptime_fnv1_hash("under") => { return CSSKeywordKind.Under }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
-func getJustifySelfKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getJustifySelfKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
         comptime_fnv1_hash("start") => { return CSSKeywordKind.Start }
         comptime_fnv1_hash("end") => { return CSSKeywordKind.End }
@@ -1162,8 +1162,8 @@ func getJustifySelfKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func getContainKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getContainKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("strict") => { return CSSKeywordKind.Strict }
         comptime_fnv1_hash("content") => { return CSSKeywordKind.Content }
@@ -1172,6 +1172,37 @@ func getContainKeywordKind(ptr : *char) : CSSKeywordKind {
         comptime_fnv1_hash("paint") => { return CSSKeywordKind.Paint }
         default => { return CSSKeywordKind.Unknown }
     }
+}
+
+func getFontWidthKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
+        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
+        comptime_fnv1_hash("ultra-condensed") => { return CSSKeywordKind.UltraCondensed }
+        comptime_fnv1_hash("extra-condensed") => { return CSSKeywordKind.ExtraCondensed }
+        comptime_fnv1_hash("condensed") => { return CSSKeywordKind.Condensed }
+        comptime_fnv1_hash("semi-condensed") => { return CSSKeywordKind.SemiCondensed }
+        comptime_fnv1_hash("semi-expanded") => { return CSSKeywordKind.SemiExpanded }
+        comptime_fnv1_hash("expanded") => { return CSSKeywordKind.Expanded }
+        comptime_fnv1_hash("extra-expanded") => { return CSSKeywordKind.ExtraExpanded }
+        comptime_fnv1_hash("ultra-expanded") => { return CSSKeywordKind.UltraExpanded }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getSystemFamilyNameKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
+        comptime_fnv1_hash("caption") => { return CSSKeywordKind.Caption }
+        comptime_fnv1_hash("icon") => { return CSSKeywordKind.Icon }
+        comptime_fnv1_hash("menu") => { return CSSKeywordKind.Menu }
+        comptime_fnv1_hash("message-box") => { return CSSKeywordKind.MessageBox }
+        comptime_fnv1_hash("small-caption") => { return CSSKeywordKind.SmallCaption }
+        comptime_fnv1_hash("status-bar") => { return CSSKeywordKind.StatusBar }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getFontStretchKeywordKind(hash : size_t) : CSSKeywordKind {
+    return getFontWidthKeywordKind(hash)
 }
 
 func (parser : &mut Parser) not_id_val_err(prop : &std::string_view) {
@@ -1190,6 +1221,10 @@ func (parser : &mut Parser) wrong_val_kw_err(prop : &std::string_view) {
     parser.error(std::string_view(errStr.data(), errStr.size()))
 }
 
+func (token : &mut Token) fnv1() : size_t {
+    return fnv1_hash(token.value.data())
+}
+
 func (cssParser : &mut CSSParser) parseFontWeight(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
@@ -1197,7 +1232,7 @@ func (cssParser : &mut CSSParser) parseFontWeight(
 ) {
     const token = parser.getToken();
     if(token.type == TokenType.Identifier) {
-        const kind = getFontWeightKeywordKind(token.value.data())
+        const kind = getFontWeightKeywordKind(token.fnv1())
         if(kind == CSSKeywordKind.Unknown) {
             parser.wrong_val_kw_err("font-weight")
         }
@@ -1219,7 +1254,7 @@ func (cssParser : &mut CSSParser) parseFontSize(
 ) {
     const token = parser.getToken();
     if(token.type == TokenType.Identifier) {
-        const kind = getFontSizeKeywordKind(token.value.data())
+        const kind = getFontSizeKeywordKind(token.fnv1())
         if(kind == CSSKeywordKind.Unknown) {
             parser.wrong_val_kw_err("font-size");
         }
@@ -1244,7 +1279,7 @@ func (cssParser : &mut CSSParser) parseTextAlign(
         parser.not_id_val_err("text-align");
         return;
     }
-    const kind = getTextAlignKeywordKind(token.value.data())
+    const kind = getTextAlignKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-align");
     }
@@ -1262,7 +1297,7 @@ func (cssParser : &mut CSSParser) parseDisplay(
         parser.not_id_val_err("display");
         return;
     }
-    const kind = getDisplayKeywordKind(token.value.data())
+    const kind = getDisplayKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("display");
     }
@@ -1280,7 +1315,7 @@ func (cssParser : &mut CSSParser) parsePosition(
         parser.not_id_val_err("position");
         return;
     }
-    const kind = getPositionKeywordKind(token.value.data())
+    const kind = getPositionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("position");
     }
@@ -1298,7 +1333,7 @@ func (cssParser : &mut CSSParser) parseOverflow(
         parser.not_id_val_err("overflow");
         return;
     }
-    const kind = getOverflowKeywordKind(token.value.data())
+    const kind = getOverflowKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("overflow");
     }
@@ -1316,7 +1351,7 @@ func (cssParser : &mut CSSParser) parseFloat(
         parser.not_id_val_err("float");
         return;
     }
-    const kind = getFloatKeywordKind(token.value.data())
+    const kind = getFloatKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("float");
     }
@@ -1334,7 +1369,7 @@ func (cssParser : &mut CSSParser) parseClear(
         parser.not_id_val_err("clear");
         return;
     }
-    const kind = getClearKeywordKind(token.value.data())
+    const kind = getClearKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("clear");
     }
@@ -1352,7 +1387,7 @@ func (cssParser : &mut CSSParser) parseVerticalAlign(
         parser.not_id_val_err("vertical-align");
         return;
     }
-    const kind = getVerticalAlignKeywordKind(token.value.data())
+    const kind = getVerticalAlignKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("vertical-align");
     }
@@ -1370,7 +1405,7 @@ func (cssParser : &mut CSSParser) parseWhitespace(
         parser.not_id_val_err("white-space");
         return;
     }
-    const kind = getWhitespaceKeywordKind(token.value.data())
+    const kind = getWhitespaceKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("white-space");
     }
@@ -1388,7 +1423,7 @@ func (cssParser : &mut CSSParser) parseTextTransform(
         parser.not_id_val_err("text-transform");
         return;
     }
-    const kind = getTextTransformKeywordKind(token.value.data())
+    const kind = getTextTransformKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-transform");
     }
@@ -1406,7 +1441,7 @@ func (cssParser : &mut CSSParser) parseVisibility(
         parser.not_id_val_err("visibility");
         return;
     }
-    const kind = getVisibilityKeywordKind(token.value.data())
+    const kind = getVisibilityKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("visibility");
     }
@@ -1424,7 +1459,7 @@ func (cssParser : &mut CSSParser) parseCursor(
         parser.not_id_val_err("cursor");
         return;
     }
-    const kind = getCursorKeywordKind(token.value.data())
+    const kind = getCursorKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("cursor");
     }
@@ -1442,7 +1477,7 @@ func (cssParser : &mut CSSParser) parseDirection(
         parser.not_id_val_err("direction");
         return;
     }
-    const kind = getDirectionKeywordKind(token.value.data())
+    const kind = getDirectionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("direction");
     }
@@ -1460,7 +1495,7 @@ func (cssParser : &mut CSSParser) parseResize(
         parser.not_id_val_err("resize");
         return;
     }
-    const kind = getResizeKeywordKind(token.value.data())
+    const kind = getResizeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("resize");
     }
@@ -1478,7 +1513,7 @@ func (cssParser : &mut CSSParser) parseTableLayout(
         parser.not_id_val_err("table-layout");
         return;
     }
-    const kind = getTableLayoutKeywordKind(token.value.data())
+    const kind = getTableLayoutKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("table-layout");
     }
@@ -1496,7 +1531,7 @@ func (cssParser : &mut CSSParser) parseBorderCollapse(
         parser.not_id_val_err("border-collapse");
         return;
     }
-    const kind = getBorderCollapseKeywordKind(token.value.data())
+    const kind = getBorderCollapseKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("border-collapse");
     }
@@ -1514,7 +1549,7 @@ func (cssParser : &mut CSSParser) parseTextOverflow(
         parser.not_id_val_err("text-overflow");
         return;
     }
-    const kind = getTextOverflowKeywordKind(token.value.data())
+    const kind = getTextOverflowKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-overflow");
     }
@@ -1532,7 +1567,7 @@ func (cssParser : &mut CSSParser) parseOverflowWrap(
         parser.not_id_val_err("overflow-wrap");
         return;
     }
-    const kind = getOverflowWrapKeywordKind(token.value.data())
+    const kind = getOverflowWrapKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("overflow-wrap");
     }
@@ -1550,7 +1585,7 @@ func (cssParser : &mut CSSParser) parseWordBreak(
         parser.not_id_val_err("word-break");
         return;
     }
-    const kind = getWordBreakKeywordKind(token.value.data())
+    const kind = getWordBreakKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("word-break");
     }
@@ -1568,7 +1603,7 @@ func (cssParser : &mut CSSParser) parseObjectFit(
         parser.not_id_val_err("object-fit");
         return;
     }
-    const kind = getObjectFitKeywordKind(token.value.data())
+    const kind = getObjectFitKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("object-fit");
     }
@@ -1586,7 +1621,7 @@ func (cssParser : &mut CSSParser) parseImageRendering(
         parser.not_id_val_err("image-rendering");
         return;
     }
-    const kind = getImageRenderingKeywordKind(token.value.data())
+    const kind = getImageRenderingKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("image-rendering");
     }
@@ -1604,7 +1639,7 @@ func (cssParser : &mut CSSParser) parseBackFaceVisibilityValue(
         parser.not_id_val_err("backface-visibility");
         return;
     }
-    const kind = getBackFaceVisibilityKeywordKind(token.value.data())
+    const kind = getBackFaceVisibilityKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("backface-visibility");
     }
@@ -1622,7 +1657,7 @@ func (cssParser : &mut CSSParser) parseFontStyleValue(
         parser.not_id_val_err("font-style");
         return;
     }
-    const kind = getFontStyleKeywordKind(token.value.data())
+    const kind = getFontStyleKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("font-style");
     }
@@ -1640,7 +1675,7 @@ func (cssParser : &mut CSSParser) parseFontVariantValue(
         parser.not_id_val_err("font-variant");
         return;
     }
-    const kind = getFontVariantKeywordKind(token.value.data())
+    const kind = getFontVariantKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("font-variant");
     }
@@ -1658,7 +1693,7 @@ func (cssParser : &mut CSSParser) parseListStyleType(
         parser.not_id_val_err("list-style-type");
         return;
     }
-    const kind = getListStyleTypeKeywordKind(token.value.data())
+    const kind = getListStyleTypeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("list-style-type");
     }
@@ -1676,7 +1711,7 @@ func (cssParser : &mut CSSParser) parseListStylePosition(
         parser.not_id_val_err("list-style-position");
         return;
     }
-    const kind = getListStylePositionKeywordKind(token.value.data())
+    const kind = getListStylePositionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("list-style-position");
     }
@@ -1694,7 +1729,7 @@ func (cssParser : &mut CSSParser) parseAlignItems(
         parser.not_id_val_err("align-items");
         return;
     }
-    const kind = getAlignItemsKeywordKind(token.value.data())
+    const kind = getAlignItemsKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("align-items");
     }
@@ -1712,7 +1747,7 @@ func (cssParser : &mut CSSParser) parseAlignContent(
         parser.not_id_val_err("align-content");
         return;
     }
-    const kind = getAlignContentKeywordKind(token.value.data())
+    const kind = getAlignContentKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("align-content");
     }
@@ -1730,7 +1765,7 @@ func (cssParser : &mut CSSParser) parseJustifyContent(
         parser.not_id_val_err("justify-content");
         return;
     }
-    const kind = getJustifyContentKeywordKind(token.value.data())
+    const kind = getJustifyContentKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("align-content");
     }
@@ -1748,7 +1783,7 @@ func (cssParser : &mut CSSParser) parseFlexDirection(
         parser.not_id_val_err("flex-direction")
         return;
     }
-    const kind = getFlexDirectionKeywordKind(token.value.data())
+    const kind = getFlexDirectionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("flex-direction")
     }
@@ -1765,7 +1800,7 @@ func (cssParser : &mut CSSParser) parseFlexWrap(
         parser.not_id_val_err("flex-wrap")
         return;
     }
-    const kind = getFlexWrapKeywordKind(token.value.data())
+    const kind = getFlexWrapKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("flex-wrap")
     }
@@ -1782,7 +1817,7 @@ func (cssParser : &mut CSSParser) parseAlignSelf(
         parser.not_id_val_err("align-self")
         return;
     }
-    const kind = getAlignSelfKeywordKind(token.value.data())
+    const kind = getAlignSelfKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("align-self")
     }
@@ -1799,7 +1834,7 @@ func (cssParser : &mut CSSParser) parseCaptionSide(
         parser.not_id_val_err("caption-side")
         return;
     }
-    const kind = getCaptionSideKeywordKind(token.value.data())
+    const kind = getCaptionSideKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("caption-side")
     }
@@ -1816,7 +1851,7 @@ func (cssParser : &mut CSSParser) parseEmptyCells(
         parser.not_id_val_err("empty-cells")
         return;
     }
-    const kind = getEmptyCellsKeywordKind(token.value.data())
+    const kind = getEmptyCellsKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("empty-cells")
     }
@@ -1833,7 +1868,7 @@ func (cssParser : &mut CSSParser) parsePageBreakInside(
         parser.not_id_val_err("page-break-inside")
         return;
     }
-    const kind = getPageBreakInsideKeywordKind(token.value.data())
+    const kind = getPageBreakInsideKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("page-break-inside")
     }
@@ -1850,7 +1885,7 @@ func (cssParser : &mut CSSParser) parsePageBreakBefore(
         parser.not_id_val_err("page-break-before")
         return;
     }
-    const kind = getPageBreakBeforeKeywordKind(token.value.data())
+    const kind = getPageBreakBeforeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("page-break-before")
     }
@@ -1867,7 +1902,7 @@ func (cssParser : &mut CSSParser) parsePageBreakAfter(
         parser.not_id_val_err("page-break-after")
         return;
     }
-    const kind = getPageBreakAfterKeywordKind(token.value.data())
+    const kind = getPageBreakAfterKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("page-break-after")
     }
@@ -1884,7 +1919,7 @@ func (cssParser : &mut CSSParser) parseIsolation(
         parser.not_id_val_err("isolation")
         return;
     }
-    const kind = getIsolationKeywordKind(token.value.data())
+    const kind = getIsolationKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("isolation")
     }
@@ -1901,7 +1936,7 @@ func (cssParser : &mut CSSParser) parseMixBlendMode(
         parser.not_id_val_err("mix-blend-mode")
         return;
     }
-    const kind = getMixBlendModeKeywordKind(token.value.data())
+    const kind = getMixBlendModeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("mix-blend-mode")
     }
@@ -1918,7 +1953,7 @@ func (cssParser : &mut CSSParser) parseUserSelect(
         parser.not_id_val_err("user-select")
         return;
     }
-    const kind = getUserSelectKeywordKind(token.value.data())
+    const kind = getUserSelectKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("user-select")
     }
@@ -1935,7 +1970,7 @@ func (cssParser : &mut CSSParser) parseScrollBehavior(
         parser.not_id_val_err("scroll-behavior")
         return;
     }
-    const kind = getScrollBehaviorKeywordKind(token.value.data())
+    const kind = getScrollBehaviorKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("scroll-behavior")
     }
@@ -1952,7 +1987,7 @@ func (cssParser : &mut CSSParser) parseScrollSnapAlign(
         parser.not_id_val_err("scroll-snap-align")
         return;
     }
-    const kind = getScrollSnapAlignKeywordKind(token.value.data())
+    const kind = getScrollSnapAlignKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("scroll-snap-align")
     }
@@ -1969,7 +2004,7 @@ func (cssParser : &mut CSSParser) parseJustifyItems(
         parser.not_id_val_err("justify-items")
         return;
     }
-    const kind = getJustifyItemsKeywordKind(token.value.data())
+    const kind = getJustifyItemsKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("justify-items")
     }
@@ -1986,7 +2021,7 @@ func (cssParser : &mut CSSParser) parseWritingMode(
         parser.not_id_val_err("writing-mode")
         return;
     }
-    const kind = getWritingModeKeywordKind(token.value.data())
+    const kind = getWritingModeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("writing-mode")
     }
@@ -2003,7 +2038,7 @@ func (cssParser : &mut CSSParser) parseAnimationDirection(
         parser.not_id_val_err("animation-direction")
         return;
     }
-    const kind = getAnimationDirectionKeywordKind(token.value.data())
+    const kind = getAnimationDirectionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("animation-direction")
     }
@@ -2020,7 +2055,7 @@ func (cssParser : &mut CSSParser) parseAnimationFillMode(
         parser.not_id_val_err("animation-fill-mode")
         return;
     }
-    const kind = getAnimationFillModeKeywordKind(token.value.data())
+    const kind = getAnimationFillModeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("animation-fill-mode")
     }
@@ -2037,7 +2072,7 @@ func (cssParser : &mut CSSParser) parseAnimationPlayState(
         parser.not_id_val_err("animation-play-state")
         return;
     }
-    const kind = getAnimationPlayStateKeywordKind(token.value.data())
+    const kind = getAnimationPlayStateKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("animation-play-state")
     }
@@ -2054,7 +2089,7 @@ func (cssParser : &mut CSSParser) parseAppearance(
         parser.not_id_val_err("appearance")
         return;
     }
-    const kind = getAppearanceKeywordKind(token.value.data())
+    const kind = getAppearanceKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("appearance")
     }
@@ -2071,7 +2106,7 @@ func (cssParser : &mut CSSParser) parseOverflowAnchor(
         parser.not_id_val_err("overflow-anchor")
         return;
     }
-    const kind = getOverflowAnchorKeywordKind(token.value.data())
+    const kind = getOverflowAnchorKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("overflow-anchor")
     }
@@ -2088,7 +2123,7 @@ func (cssParser : &mut CSSParser) parseScrollSnapStop(
         parser.not_id_val_err("scroll-snap-stop")
         return;
     }
-    const kind = getScrollSnapStopKeywordKind(token.value.data())
+    const kind = getScrollSnapStopKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("scroll-snap-stop")
     }
@@ -2105,7 +2140,7 @@ func (cssParser : &mut CSSParser) parseClipRule(
         parser.not_id_val_err("clip-rule")
         return;
     }
-    const kind = getClipRuleKeywordKind(token.value.data())
+    const kind = getClipRuleKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("clip-rule")
     }
@@ -2122,7 +2157,7 @@ func (cssParser : &mut CSSParser) parseShapeRendering(
         parser.not_id_val_err("shape-rendering")
         return;
     }
-    const kind = getShapeRenderingKeywordKind(token.value.data())
+    const kind = getShapeRenderingKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("shape-rendering")
     }
@@ -2139,7 +2174,7 @@ func (cssParser : &mut CSSParser) parseTextRendering(
         parser.not_id_val_err("text-rendering")
         return;
     }
-    const kind = getTextRenderingKeywordKind(token.value.data())
+    const kind = getTextRenderingKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-rendering")
     }
@@ -2156,7 +2191,7 @@ func (cssParser : &mut CSSParser) parseTransformStyle(
         parser.not_id_val_err("transform-style")
         return;
     }
-    const kind = getTransformStyleKeywordKind(token.value.data())
+    const kind = getTransformStyleKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("transform-style")
     }
@@ -2173,7 +2208,7 @@ func (cssParser : &mut CSSParser) parseUnicodeBidi(
         parser.not_id_val_err("unicode-bidi")
         return;
     }
-    const kind = getUnicodeBidiKeywordKind(token.value.data())
+    const kind = getUnicodeBidiKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("unicode-bidi")
     }
@@ -2191,7 +2226,7 @@ func (cssParser : &mut CSSParser) parseBackgroundRepeat(
         parser.not_id_val_err("background-repeat")
         return;
     }
-    const kind = getBackgroundRepeatKeywordKind(token.value.data())
+    const kind = getBackgroundRepeatKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("background-repeat")
     }
@@ -2210,7 +2245,7 @@ func (cssParser : &mut CSSParser) parseBackgroundAttachment(
         parser.not_id_val_err("background-attachment")
         return;
     }
-    const kind = getBackgroundAttachmentKeywordKind(token.value.data())
+    const kind = getBackgroundAttachmentKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("background-attachment")
     }
@@ -2229,7 +2264,7 @@ func (cssParser : &mut CSSParser) parseBackgroundClip(
         parser.not_id_val_err("background-clip")
         return;
     }
-    const kind = getBackgroundClipKeywordKind(token.value.data())
+    const kind = getBackgroundClipKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("background-clip")
     }
@@ -2248,7 +2283,7 @@ func (cssParser : &mut CSSParser) parseBackgroundOrigin(
         parser.not_id_val_err("background-origin")
         return;
     }
-    const kind = getBackgroundOriginKeywordKind(token.value.data())
+    const kind = getBackgroundOriginKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("background-origin")
     }
@@ -2267,7 +2302,7 @@ func (cssParser : &mut CSSParser) parseBackgroundSize(
         parser.not_id_val_err("background-size")
         return;
     }
-    const kind = getBackgroundSizeKeywordKind(token.value.data())
+    const kind = getBackgroundSizeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("background-size")
     }
@@ -2286,7 +2321,7 @@ func (cssParser : &mut CSSParser) parseBackgroundBlendMode(
         parser.not_id_val_err("background-blend-mode")
         return;
     }
-    const kind = getBackgroundBlendModeKeywordKind(token.value.data())
+    const kind = getBackgroundBlendModeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("background-blend-mode")
     }
@@ -2305,7 +2340,7 @@ func (cssParser : &mut CSSParser) parseTextDecorationLine(
         parser.not_id_val_err("text-decoration-line")
         return;
     }
-    const kind = getTextDecorationLineKeywordKind(token.value.data())
+    const kind = getTextDecorationLineKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-decoration-line")
     }
@@ -2324,7 +2359,7 @@ func (cssParser : &mut CSSParser) parseTextDecorationStyle(
         parser.not_id_val_err("text-decoration-style")
         return;
     }
-    const kind = getTextDecorationStyleKeywordKind(token.value.data())
+    const kind = getTextDecorationStyleKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-decoration-style")
     }
@@ -2343,7 +2378,7 @@ func (cssParser : &mut CSSParser) parseTextAlignLast(
         parser.not_id_val_err("text-align-last")
         return;
     }
-    const kind = getTextAlignLastKeywordKind(token.value.data())
+    const kind = getTextAlignLastKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-align-last")
     }
@@ -2362,7 +2397,7 @@ func (cssParser : &mut CSSParser) parseTextJustify(
         parser.not_id_val_err("text-justify")
         return;
     }
-    const kind = getTextJustifyKeywordKind(token.value.data())
+    const kind = getTextJustifyKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-justify")
     }
@@ -2381,7 +2416,7 @@ func (cssParser : &mut CSSParser) parseBoxSizing(
         parser.not_id_val_err("box-sizing")
         return;
     }
-    const kind = getBoxSizingKeywordKind(token.value.data())
+    const kind = getBoxSizingKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("box-sizing")
     }
@@ -2400,7 +2435,7 @@ func (cssParser : &mut CSSParser) parsePointerEvents(
         parser.not_id_val_err("pointer-events")
         return;
     }
-    const kind = getPointerEventsKeywordKind(token.value.data())
+    const kind = getPointerEventsKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("pointer-events")
     }
@@ -2460,7 +2495,7 @@ func (cssParser : &mut CSSParser) parseBorderImageRepeat(
         parser.not_id_val_err("border-image-repeat")
         return;
     }
-    const kind = getBorderImageRepeatKeywordKind(token.value.data())
+    const kind = getBorderImageRepeatKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("border-image-repeat")
     }
@@ -2479,7 +2514,7 @@ func (cssParser : &mut CSSParser) parseBreakAfter(
         parser.not_id_val_err("break-after")
         return;
     }
-    const kind = getBreakAfterKeywordKind(token.value.data())
+    const kind = getBreakAfterKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("break-after")
     }
@@ -2498,7 +2533,7 @@ func (cssParser : &mut CSSParser) parseBreakBefore(
         parser.not_id_val_err("break-before")
         return;
     }
-    const kind = getBreakBeforeKeywordKind(token.value.data())
+    const kind = getBreakBeforeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("break-before")
     }
@@ -2517,7 +2552,7 @@ func (cssParser : &mut CSSParser) parseBreakInside(
         parser.not_id_val_err("break-inside")
         return;
     }
-    const kind = getBreakInsideKeywordKind(token.value.data())
+    const kind = getBreakInsideKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("break-inside")
     }
@@ -2536,7 +2571,7 @@ func (cssParser : &mut CSSParser) parseColumnRuleStyle(
         parser.not_id_val_err("column-rule-style")
         return;
     }
-    const kind = getColumnRuleStyleKeywordKind(token.value.data())
+    const kind = getColumnRuleStyleKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("column-rule-style")
     }
@@ -2555,7 +2590,7 @@ func (cssParser : &mut CSSParser) parseColumnSpan(
         parser.not_id_val_err("column-span")
         return;
     }
-    const kind = getColumnSpanKeywordKind(token.value.data())
+    const kind = getColumnSpanKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("column-span")
     }
@@ -2574,7 +2609,7 @@ func (cssParser : &mut CSSParser) parseColumnFill(
         parser.not_id_val_err("column-fill")
         return;
     }
-    const kind = getColumnFillKeywordKind(token.value.data())
+    const kind = getColumnFillKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("column-fill")
     }
@@ -2593,7 +2628,7 @@ func (cssParser : &mut CSSParser) parseBoxDecorationBreak(
         parser.not_id_val_err("box-decoration-break")
         return;
     }
-    const kind = getBoxDecorationBreakKeywordKind(token.value.data())
+    const kind = getBoxDecorationBreakKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("box-decoration-break")
     }
@@ -2612,7 +2647,7 @@ func (cssParser : &mut CSSParser) parseMaskMode(
         parser.not_id_val_err("mask-mode")
         return;
     }
-    const kind = getMaskModeKeywordKind(token.value.data())
+    const kind = getMaskModeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("mask-mode")
     }
@@ -2631,7 +2666,7 @@ func (cssParser : &mut CSSParser) parseMaskRepeat(
         parser.not_id_val_err("mask-repeat")
         return;
     }
-    const kind = getMaskRepeatKeywordKind(token.value.data())
+    const kind = getMaskRepeatKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("mask-repeat")
     }
@@ -2650,7 +2685,7 @@ func (cssParser : &mut CSSParser) parseMaskClip(
         parser.not_id_val_err("mask-clip")
         return;
     }
-    const kind = getMaskClipKeywordKind(token.value.data())
+    const kind = getMaskClipKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("mask-clip")
     }
@@ -2669,7 +2704,7 @@ func (cssParser : &mut CSSParser) parseMaskComposite(
         parser.not_id_val_err("mask-composite")
         return;
     }
-    const kind = getMaskCompositeKeywordKind(token.value.data())
+    const kind = getMaskCompositeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("mask-composite")
     }
@@ -2688,7 +2723,7 @@ func (cssParser : &mut CSSParser) parseMaskType(
         parser.not_id_val_err("mask-type")
         return;
     }
-    const kind = getMaskTypeKeywordKind(token.value.data())
+    const kind = getMaskTypeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("mask-type")
     }
@@ -2707,7 +2742,7 @@ func (cssParser : &mut CSSParser) parseScrollbarWidth(
         parser.not_id_val_err("scrollbar-width")
         return;
     }
-    const kind = getScrollbarWidthKeywordKind(token.value.data())
+    const kind = getScrollbarWidthKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("scrollbar-width")
     }
@@ -2726,7 +2761,7 @@ func (cssParser : &mut CSSParser) parseTouchAction(
         parser.not_id_val_err("touch-action")
         return;
     }
-    const kind = getTouchActionKeywordKind(token.value.data())
+    const kind = getTouchActionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("touch-action")
     }
@@ -2745,7 +2780,7 @@ func (cssParser : &mut CSSParser) parseHyphens(
         parser.not_id_val_err("hyphens")
         return;
     }
-    const kind = getHyphensKeywordKind(token.value.data())
+    const kind = getHyphensKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("hyphens")
     }
@@ -2764,7 +2799,7 @@ func (cssParser : &mut CSSParser) parseLineBreak(
         parser.not_id_val_err("line-break")
         return;
     }
-    const kind = getLineBreakKeywordKind(token.value.data())
+    const kind = getLineBreakKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("line-break")
     }
@@ -2783,7 +2818,7 @@ func (cssParser : &mut CSSParser) parseTextEmphasisStyle(
         parser.not_id_val_err("text-emphasis-style")
         return;
     }
-    const kind = getTextEmphasisStyleKeywordKind(token.value.data())
+    const kind = getTextEmphasisStyleKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-emphasis-style")
     }
@@ -2802,7 +2837,7 @@ func (cssParser : &mut CSSParser) parseTextEmphasisPosition(
         parser.not_id_val_err("text-emphasis-position")
         return;
     }
-    const kind = getTextEmphasisPositionKeywordKind(token.value.data())
+    const kind = getTextEmphasisPositionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-emphasis-position")
     }
@@ -2821,7 +2856,7 @@ func (cssParser : &mut CSSParser) parseTextOrientation(
         parser.not_id_val_err("text-orientation")
         return;
     }
-    const kind = getTextOrientationKeywordKind(token.value.data())
+    const kind = getTextOrientationKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-orientation")
     }
@@ -2840,7 +2875,7 @@ func (cssParser : &mut CSSParser) parseRubyAlign(
         parser.not_id_val_err("ruby-align")
         return;
     }
-    const kind = getRubyAlignKeywordKind(token.value.data())
+    const kind = getRubyAlignKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("ruby-align")
     }
@@ -2859,7 +2894,7 @@ func (cssParser : &mut CSSParser) parseRubyMerge(
         parser.not_id_val_err("ruby-merge")
         return;
     }
-    const kind = getRubyMergeKeywordKind(token.value.data())
+    const kind = getRubyMergeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("ruby-merge")
     }
@@ -2878,7 +2913,7 @@ func (cssParser : &mut CSSParser) parseRubyPosition(
         parser.not_id_val_err("ruby-position")
         return;
     }
-    const kind = getRubyPositionKeywordKind(token.value.data())
+    const kind = getRubyPositionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("ruby-position")
     }
@@ -2897,7 +2932,7 @@ func (cssParser : &mut CSSParser) parseJustifySelf(
         parser.not_id_val_err("justify-self")
         return;
     }
-    const kind = getJustifySelfKeywordKind(token.value.data())
+    const kind = getJustifySelfKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("justify-self")
     }
@@ -2916,7 +2951,7 @@ func (cssParser : &mut CSSParser) parseContain(
         parser.not_id_val_err("contain")
         return;
     }
-    const kind = getContainKeywordKind(token.value.data())
+    const kind = getContainKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("contain")
     }
@@ -2934,7 +2969,7 @@ func (cssParser : &mut CSSParser) parseOverscrollBehavior(
         parser.not_id_val_err("overscroll-behavior")
         return;
     }
-    const kind = getOverscrollBehaviorKeywordKind(token.value.data())
+    const kind = getOverscrollBehaviorKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("overscroll-behavior")
     }
@@ -2953,7 +2988,7 @@ func (cssParser : &mut CSSParser) parsePageOrientation(
         parser.not_id_val_err("page-orientation")
         return;
     }
-    const kind = getPageOrientationKeywordKind(token.value.data())
+    const kind = getPageOrientationKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("page-orientation")
     }
@@ -2972,7 +3007,7 @@ func (cssParser : &mut CSSParser) parseTextCombineUpright(
         parser.not_id_val_err("text-combine-upright")
         return;
     }
-    const kind = getTextCombineUprightKeywordKind(token.value.data())
+    const kind = getTextCombineUprightKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-combine-upright")
     }
@@ -2991,7 +3026,7 @@ func (cssParser : &mut CSSParser) parseFontKerning(
         parser.not_id_val_err("font-kerning")
         return;
     }
-    const kind = getFontKerningKeywordKind(token.value.data())
+    const kind = getFontKerningKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("font-kerning")
     }
@@ -3010,7 +3045,7 @@ func (cssParser : &mut CSSParser) parseOutlineStyle(
         parser.not_id_val_err("outline-style")
         return;
     }
-    const kind = getOutlineStyleKeywordKind(token.value.data())
+    const kind = getOutlineStyleKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("outline-style")
     }
@@ -3029,7 +3064,7 @@ func (cssParser : &mut CSSParser) parseTransformBox(
         parser.not_id_val_err("transform-box")
         return;
     }
-    const kind = getTransformBoxKeywordKind(token.value.data())
+    const kind = getTransformBoxKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("transform-box")
     }
@@ -3048,7 +3083,7 @@ func (cssParser : &mut CSSParser) parseFontVariantCaps(
         parser.not_id_val_err("font-variant-caps")
         return;
     }
-    const kind = getFontVariantCapsKeywordKind(token.value.data())
+    const kind = getFontVariantCapsKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("font-variant-caps")
     }
@@ -3067,7 +3102,7 @@ func (cssParser : &mut CSSParser) parseFontVariantNumeric(
         parser.not_id_val_err("font-variant-numeric")
         return;
     }
-    const kind = getFontVariantNumericKeywordKind(token.value.data())
+    const kind = getFontVariantNumericKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("font-variant-numeric")
     }
@@ -3086,7 +3121,7 @@ func (cssParser : &mut CSSParser) parseFontVariantEastAsian(
         parser.not_id_val_err("font-variant-east-asian")
         return;
     }
-    const kind = getFontVariantEastAsianKeywordKind(token.value.data())
+    const kind = getFontVariantEastAsianKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("font-variant-east-asian")
     }
@@ -3105,7 +3140,7 @@ func (cssParser : &mut CSSParser) parseImageOrientation(
         parser.not_id_val_err("image-orientation")
         return;
     }
-    const kind = getImageOrientationKeywordKind(token.value.data())
+    const kind = getImageOrientationKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("image-orientation")
     }
@@ -3123,7 +3158,7 @@ func (cssParser : &mut CSSParser) parseTransitionTimingFunction(
         parser.not_id_val_err("transition-timing-function")
         return;
     }
-    const kind = getTransitionTimingFunctionKeywordKind(token.value.data())
+    const kind = getTransitionTimingFunctionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("transition-timing-function")
     }
@@ -3142,7 +3177,7 @@ func (cssParser : &mut CSSParser) parseVectorEffect(
         parser.not_id_val_err("vector-effect")
         return;
     }
-    const kind = getVectorEffectKeywordKind(token.value.data())
+    const kind = getVectorEffectKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("vector-effect")
     }
@@ -3161,7 +3196,7 @@ func (cssParser : &mut CSSParser) parseForcedColorAdjust(
         parser.not_id_val_err("forced-color-adjust")
         return;
     }
-    const kind = getForcedColorAdjustKeywordKind(token.value.data())
+    const kind = getForcedColorAdjustKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("forced-color-adjust")
     }
@@ -3180,7 +3215,7 @@ func (cssParser : &mut CSSParser) parseColorScheme(
         parser.not_id_val_err("color-scheme")
         return;
     }
-    const kind = getColorSchemeKeywordKind(token.value.data())
+    const kind = getColorSchemeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("color-scheme")
     }
@@ -3199,7 +3234,7 @@ func (cssParser : &mut CSSParser) parsePrintColorAdjust(
         parser.not_id_val_err("print-color-adjust")
         return;
     }
-    const kind = getPrintColorAdjustKeywordKind(token.value.data())
+    const kind = getPrintColorAdjustKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("print-color-adjust")
     }
@@ -3217,7 +3252,7 @@ func (cssParser : &mut CSSParser) parseBorderStyle(
         parser.not_id_val_err("border-style")
         return;
     }
-    const kind = getBorderStyleKeywordKind(token.value.data())
+    const kind = getBorderStyleKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("border-style")
     }
@@ -3236,7 +3271,7 @@ func (cssParser : &mut CSSParser) parseAnimationTimingFunction(
         parser.not_id_val_err("animation-timing-function")
         return;
     }
-    const kind = getAnimationTimingFunctionKeywordKind(token.value.data())
+    const kind = getAnimationTimingFunctionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("animation-timing-function")
     }
@@ -3255,7 +3290,7 @@ func (cssParser : &mut CSSParser) parseMaskBorderMode(
         parser.not_id_val_err("mask-border-mode")
         return;
     }
-    const kind = getMaskBorderModeKeywordKind(token.value.data())
+    const kind = getMaskBorderModeKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("mask-border-mode")
     }
@@ -3274,7 +3309,7 @@ func (cssParser : &mut CSSParser) parseMaskBorderRepeat(
         parser.not_id_val_err("mask-border-repeat")
         return;
     }
-    const kind = getMaskBorderRepeatKeywordKind(token.value.data())
+    const kind = getMaskBorderRepeatKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("mask-border-repeat")
     }
@@ -3293,7 +3328,7 @@ func (cssParser : &mut CSSParser) parseTextDecorationSkipInk(
         parser.not_id_val_err("text-decoration-skip-ink")
         return;
     }
-    const kind = getTextDecorationSkipInkKeywordKind(token.value.data())
+    const kind = getTextDecorationSkipInkKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-decoration-skip-ink")
     }
@@ -3312,7 +3347,7 @@ func (cssParser : &mut CSSParser) parseTextUnderlinePosition(
         parser.not_id_val_err("text-underline-position")
         return;
     }
-    const kind = getTextUnderlinePositionKeywordKind(token.value.data())
+    const kind = getTextUnderlinePositionKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("text-underline-position")
     }
@@ -3331,7 +3366,7 @@ func (cssParser : &mut CSSParser) parseFontOpticalSizing(
         parser.not_id_val_err("font-optical-sizing")
         return;
     }
-    const kind = getFontOpticalSizingKeywordKind(token.value.data())
+    const kind = getFontOpticalSizingKeywordKind(token.fnv1())
     if(kind == CSSKeywordKind.Unknown) {
         parser.wrong_val_kw_err("font-optical-sizing")
     }

@@ -120,12 +120,6 @@ struct CSSFontValueData {
 
     var family      : CSSFontFamily
 
-    @make
-    func make() {
-        style = CSSFontStyle.None()
-        weight = CSSFontWeight.None()
-    }
-
 }
 
 struct CSSValue {

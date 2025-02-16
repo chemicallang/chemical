@@ -80,7 +80,16 @@ func alloc_value_length(
         kind : CSSLengthKind.Unknown,
         value : builder.allocate_view(view)
     }
-    number_value.kind = parseLengthKind(parser, builder);
+    const lenKind = parseLengthKindSafe(parser, builder);
+    if(lenKind != CSSLengthKind.Unknown) {
+        number_value.kind = lenKind;
+    } else {
+        if(view.equals("0")) {
+            number_value.kind = CSSLengthKind.None
+        } else {
+            parser.error("expected a unit after the number");
+        }
+    }
     value.kind = CSSValueKind.Length
     value.data = number_value
 }

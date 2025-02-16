@@ -66,6 +66,20 @@ struct CSSBorderValueData {
 
 }
 
+struct CSSBorderRadiusValueData {
+
+    var first : CSSLengthValueData
+
+    var second : CSSLengthValueData
+
+    var third : CSSLengthValueData
+
+    var fourth : CSSLengthValueData
+
+    var next : *mut CSSBorderRadiusValueData
+
+}
+
 struct CSSValue {
 
     var kind : CSSValueKind

@@ -19,6 +19,7 @@ func putAllCSSValueParsers(
     map.put(std::string_view("margin-top"), CSSParser::parseMarginSingle)
     map.put(std::string_view("margin-bottom"), CSSParser::parseMarginSingle)
     map.put(std::string_view("border"), CSSParser::parseBorder)
+    map.put(std::string_view("border-radius"), CSSParser::parseBorderRadius)
     map.put(std::string_view("padding"), CSSParser::parsePadding)
     map.put(std::string_view("width"), CSSParser::parseWidth)
     map.put(std::string_view("height"), CSSParser::parseHeight)

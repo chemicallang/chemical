@@ -1,4 +1,5 @@
 import "@std/string_view.ch"
+import "@std/vector.ch"
 import "./CSSValueKind.ch"
 import "./CSSLengthKind.ch"
 import "./CSSColorKind.ch"
@@ -24,6 +25,11 @@ struct CSSKeywordValueData {
     var kind : CSSKeywordKind
 
     var value : std::string_view
+
+    @make
+    func make() {
+        kind = CSSKeywordKind.Unknown
+    }
 
 }
 
@@ -77,6 +83,48 @@ struct CSSBorderRadiusValueData {
     var fourth : CSSLengthValueData
 
     var next : *mut CSSBorderRadiusValueData
+
+}
+
+variant CSSFontStyle {
+    None()
+    Keyword(keyword : CSSKeywordValueData)
+    Oblique(view : std::string_view)
+}
+
+variant CSSFontWeight {
+    None();
+    Keyword(keyword : CSSKeywordValueData)
+    Absolute(view : std::string_view)
+}
+
+struct CSSFontFamily {
+
+    var families : std::vector<std::string_view>
+
+}
+
+struct CSSFontValueData {
+
+    var style       : CSSFontStyle
+
+    var fontVariant : CSSKeywordValueData
+
+    var weight      : CSSFontWeight
+
+    var stretch     : CSSKeywordValueData
+
+    var size        : CSSValue
+
+    var lineHeight  : CSSValue
+
+    var family      : CSSFontFamily
+
+    @make
+    func make() {
+        style = CSSFontStyle.None()
+        weight = CSSFontWeight.None()
+    }
 
 }
 

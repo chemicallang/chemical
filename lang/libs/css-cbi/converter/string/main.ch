@@ -279,7 +279,7 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSLengthKind) : bool {
     return true;
 }
 
-func convertLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
+func writeLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
     // writing the length
     str.append_with_len(ptr.value.data(), ptr.value.size())
     // writing the unit
@@ -292,22 +292,22 @@ func convertLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
 func writeBorderRadiusValueData(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string) {
 
     if(ptr.first.kind != CSSLengthKind.Unknown) {
-        convertLength(ptr.first, str)
+        writeLength(ptr.first, str)
     }
 
     if(ptr.second.kind != CSSLengthKind.Unknown) {
         str.append(' ')
-        convertLength(ptr.second, str)
+        writeLength(ptr.second, str)
     }
 
     if(ptr.third.kind != CSSLengthKind.Unknown) {
         str.append(' ')
-        convertLength(ptr.third, str)
+        writeLength(ptr.third, str)
     }
 
     if(ptr.fourth.kind != CSSLengthKind.Unknown) {
         str.append(' ')
-        convertLength(ptr.fourth, str)
+        writeLength(ptr.fourth, str)
     }
 
     if(ptr.next != null) {
@@ -317,8 +317,70 @@ func writeBorderRadiusValueData(ptr : &mut CSSBorderRadiusValueData, str : &mut 
 
 }
 
-func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, value : &mut CSSValue, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+func writeFontStyle(ptr : &CSSFontStyle, str : &mut std::string) {
+    switch(ptr) {
+        None => {}
+        Keyword(keyword) => {
+            str.append_with_len(keyword.value.data(), keyword.value.size())
+        }
+        Oblique(view) => {
+            str.append_with_len(view.data(), view.size())
+        }
+    }
+}
 
+func writeFontWeight(ptr : &CSSFontWeight, str : &mut std::string) {
+    switch(ptr) {
+        None => {}
+        Keyword(keyword) => {
+            str.append(' ')
+            str.append_with_len(keyword.value.data(), keyword.value.size())
+        }
+        Absolute(view) => {
+            str.append(' ')
+            str.append_with_len(view.data(), view.size())
+        }
+    }
+}
+
+func writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
+
+    writeFontStyle(ptr.style, str)
+
+    if(ptr.fontVariant.kind != CSSKeywordKind.Unknown) {
+        str.append_with_len(ptr.fontVariant.value.data(), ptr.fontVariant.value.size())
+    }
+
+    writeFontWeight(ptr.weight, str)
+
+    if(ptr.stretch.kind != CSSKeywordKind.Unknown) {
+        str.append(' ')
+        str.append_with_len(ptr.stretch.value.data(), ptr.stretch.value.size())
+    }
+
+    if(ptr.size.kind != CSSValueKind.Unknown) {
+        str.append(' ')
+        writeValue(ptr.size, str)
+    }
+
+    if(ptr.lineHeight.kind != CSSValueKind.Unknown) {
+        str.append('/')
+        writeValue(ptr.lineHeight, str)
+    }
+
+    var fmSize = ptr.family.families.size()
+    var i = 0
+    while(i < fmSize) {
+        const fm = ptr.family.families.get_ptr(i)
+        str.append(',')
+        str.append(' ')
+        str.append_with_len(fm.data(), fm.size())
+        i++;
+    }
+
+}
+
+func writeValue(value : &mut CSSValue, str : &mut std::string) {
     switch(value.kind) {
 
         CSSValueKind.Multiple => {
@@ -328,7 +390,7 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
             const last = size - 1;
             while(i < size) {
                 const value_ptr = ptr.values.get_ptr(i);
-                convertValue(resolver, builder, *value_ptr, vec, parent, str)
+                writeValue(*value_ptr, str)
                 if(i < last) {
                     str.append(' ');
                 }
@@ -344,13 +406,20 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
 
         CSSValueKind.Length => {
             const ptr = value.data as *mut CSSLengthValueData
-            convertLength(*ptr, str)
+            writeLength(*ptr, str)
         }
 
         CSSValueKind.Color => {
 
             var ptr = value.data as *mut CSSColorValueData
             str.append_with_len(ptr.value.data(), ptr.value.size())
+
+        }
+
+        CSSValueKind.Font => {
+
+            var ptr = value.data as *mut CSSFontValueData
+            writeFontValueData(*ptr, str)
 
         }
 
@@ -363,7 +432,7 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
 
             // width
             if(ptr.width.kind != CSSValueKind.Unknown) {
-                convertValue(resolver, builder, ptr.width, vec, parent, str)
+                writeValue(ptr.width, str)
                 if(has_style) {
                     str.append(' ')
                 }
@@ -371,7 +440,7 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
 
             // style
             if(has_style) {
-                convertValue(resolver, builder, ptr.style, vec, parent, str)
+                writeValue(ptr.style, str)
                 if(has_color) {
                     str.append(' ')
                 }
@@ -379,7 +448,7 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
 
             // color
             if(has_color) {
-                convertValue(resolver, builder, ptr.color, vec, parent, str)
+                writeValue(ptr.color, str)
             }
 
         }
@@ -396,7 +465,6 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
             fflush(null)
         }
     }
-
 }
 
 func convertDeclaration(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, decl : *mut CSSDeclaration, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
@@ -413,7 +481,7 @@ func convertDeclaration(resolver : *mut SymbolResolver, builder : *mut ASTBuilde
 
     // put_char_chain(resolver, builder, vec, parent, '\"');
 
-    convertValue(resolver, builder, decl.value, vec, parent, str)
+    writeValue(decl.value, str)
 
     str.append(';')
 

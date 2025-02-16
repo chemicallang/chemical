@@ -395,6 +395,24 @@ enum CSSKeywordKind {
 
     // Scrollbar Gutter
     Stable,
-    BothEdges
+    BothEdges,
+
+    // System Font Keywords
+    Caption,
+    Icon,
+    Menu,
+    MessageBox,
+    SmallCaption,
+    StatusBar,
+
+    // Font Width Keywords
+    UltraCondensed,
+    ExtraCondensed,
+    Condensed,
+    SemiCondensed,
+    SemiExpanded,
+    Expanded,
+    ExtraExpanded,
+    UltraExpanded
 
 }

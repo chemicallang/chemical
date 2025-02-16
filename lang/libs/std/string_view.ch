@@ -16,6 +16,12 @@ public namespace std {
         }
 
         @constructor
+        func empty() {
+            _data = ""
+            _size = 0
+        }
+
+        @constructor
         func constructor(value : *char, length : size_t) {
             _data = value;
             _size = length;

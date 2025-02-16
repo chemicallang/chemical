@@ -94,6 +94,27 @@ func alloc_value_length(
     value.data = number_value
 }
 
+func alloc_value_num_length(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    view : &std::string_view
+) {
+    var number_value = builder.allocate<CSSLengthValueData>()
+    new (number_value) CSSLengthValueData {
+        kind : CSSLengthKind.Unknown,
+        value : builder.allocate_view(view)
+    }
+    const lenKind = parseLengthKindSafe(parser, builder);
+    if(lenKind != CSSLengthKind.Unknown) {
+        number_value.kind = lenKind;
+    } else {
+        number_value.kind = CSSLengthKind.None
+    }
+    value.kind = CSSValueKind.Length
+    value.data = number_value
+}
+
 func alloc_named_color(
     builder : *mut ASTBuilder,
     value : &mut CSSValue,

@@ -1,93 +1,25 @@
-func getHashedFontStyleKeyword(hashed : uint32_t) : CSSKeywordKind {
-    switch(hashed) {
-        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
-        comptime_fnv1_hash("italic") => { return CSSKeywordKind.Italic }
-        comptime_fnv1_hash("oblique") => { return CSSKeywordKind.Oblique }
-        default => { return CSSKeywordKind.Unknown }
-    }
-}
-
-func getHashedFontVariantKeyword(hashed : uint32_t) : CSSKeywordKind {
-    switch(hashed) {
-        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
-        comptime_fnv1_hash("small-caps") => { return CSSKeywordKind.SmallCaps }
-        default => { return CSSKeywordKind.Unknown }
-    }
-}
-
-func getHashedFontWeightKeyword(hashed : uint32_t) : CSSKeywordKind {
-    switch(hashed) {
-        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
-        comptime_fnv1_hash("bold") => { return CSSKeywordKind.Bold }
-        comptime_fnv1_hash("bolder") => { return CSSKeywordKind.Bolder }
-        comptime_fnv1_hash("lighter") => { return CSSKeywordKind.Lighter }
-        default => { return CSSKeywordKind.Unknown }
-    }
-}
-
-func getHashedFontWidthKeyword(hashed : uint32_t) : CSSKeywordKind {
-    switch(hashed) {
-        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
-        comptime_fnv1_hash("ultra-condensed") => { return CSSKeywordKind.UltraCondensed }
-        comptime_fnv1_hash("extra-condensed") => { return CSSKeywordKind.ExtraCondensed }
-        comptime_fnv1_hash("condensed") => { return CSSKeywordKind.Condensed }
-        comptime_fnv1_hash("semi-condensed") => { return CSSKeywordKind.SemiCondensed }
-        comptime_fnv1_hash("semi-expanded") => { return CSSKeywordKind.SemiExpanded }
-        comptime_fnv1_hash("expanded") => { return CSSKeywordKind.Expanded }
-        comptime_fnv1_hash("extra-expanded") => { return CSSKeywordKind.ExtraExpanded }
-        comptime_fnv1_hash("ultra-expanded") => { return CSSKeywordKind.UltraExpanded }
-        default => { return CSSKeywordKind.Unknown }
-    }
-}
-
-func getHashedSystemFamilyNameKeyword(hashed : uint32_t) : CSSKeywordKind {
-    switch(hashed) {
-        comptime_fnv1_hash("caption") => { return CSSKeywordKind.Caption }
-        comptime_fnv1_hash("icon") => { return CSSKeywordKind.Icon }
-        comptime_fnv1_hash("menu") => { return CSSKeywordKind.Menu }
-        comptime_fnv1_hash("message-box") => { return CSSKeywordKind.MessageBox }
-        comptime_fnv1_hash("small-caption") => { return CSSKeywordKind.SmallCaption }
-        comptime_fnv1_hash("status-bar") => { return CSSKeywordKind.StatusBar }
-        default => { return CSSKeywordKind.Unknown }
-    }
-}
-
-func getHashedFontStretchKeyword(hashed : uint32_t) : CSSKeywordKind {
-    return getHashedFontWidthKeyword(hashed)
-}
-
-func parseFontValueKeywordKind(builder : *mut ASTBuilder, font : &mut CSSFontValueData, value : &std::string_view, hash : uint32_t) : CSSKeywordKind {
-    const fontStyleKw = getHashedFontStyleKeyword(hash)
+func parseFontValueKeywordKind(builder : *mut ASTBuilder, font : &mut CSSFontValueData, value : &std::string_view, hash : size_t) : CSSKeywordKind {
+    const fontStyleKw = getFontStyleKeywordKind(hash)
     if(fontStyleKw != CSSKeywordKind.Unknown) {
         font.style = CSSFontStyle.Keyword(CSSKeywordValueData { kind : fontStyleKw, value : builder.allocate_view(value) })
         return fontStyleKw;
     } else {
-        const fontVariantKw = getHashedFontVariantKeyword(hash)
+        const fontVariantKw = getFontVariantKeywordKind(hash)
         if(fontVariantKw != CSSKeywordKind.Unknown) {
             font.fontVariant = CSSKeywordValueData { kind : fontVariantKw, value : builder.allocate_view(value) }
             return fontVariantKw;
         } else {
-            const fontWeightKw = getHashedFontWeightKeyword(hash)
+            const fontWeightKw = getFontWeightKeywordKind(hash)
             if(fontWeightKw != CSSKeywordKind.Unknown) {
                 font.weight = CSSFontWeight.Keyword(CSSKeywordValueData { kind : fontWeightKw, value : builder.allocate_view(value) })
                 return fontWeightKw;
             } else {
-                const stretchKw = getHashedFontStretchKeyword(hash)
+                const stretchKw = getFontStretchKeywordKind(hash)
                 if(stretchKw != CSSKeywordKind.Unknown) {
                     font.stretch = CSSKeywordValueData { kind : stretchKw, value : builder.allocate_view(value) }
                     return stretchKw;
                 } else {
-                    // TODO pass value as hash
-                    // const sizeKw = getFontSizeKeywordKind(value.data())
-                    // if(sizeKw != CSSKeywordKind.Unknown) {
-                    //     font.size.kind = CSSValueKind.Keyword
-                    //     const kw = builder.allocate<CSSKeywordValueData>()
-                    //     new (kw) CSSKeywordValueData { kind : sizeKw, value : builder.allocate_view(value) }
-                    //     font.size.data = kw
-                    //     return sizeKw
-                    // } else {
-                        return CSSKeywordKind.Unknown;
-                    // }
+                    return CSSKeywordKind.Unknown;
                 }
             }
         }
@@ -108,7 +40,7 @@ func parseFontKeywordValues(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     font : &mut CSSFontValueData,
-    first_val_hash : uint32_t
+    first_val_hash : size_t
 ) {
     var i = -1;
     while(true) {
@@ -117,7 +49,7 @@ func parseFontKeywordValues(
         if(token.type != TokenType.Identifier) {
             return;
         }
-        var hash : uint32_t = 0
+        var hash : size_t = 0
         if(i == 0) {
             hash = first_val_hash
         } else {
@@ -190,11 +122,11 @@ func (cssParser : &mut CSSParser) parseFont(
     value.kind = CSSValueKind.Font
     value.data = font
 
-    var first_val_hash = 0;
+    var first_val_hash : size_t = 0;
     const firstTok = parser.getToken()
     if(firstTok.type == TokenType.Identifier) {
         first_val_hash = fnv1_hash(firstTok.value.data())
-        const sysKw = getHashedSystemFamilyNameKeyword(first_val_hash)
+        const sysKw = getSystemFamilyNameKeywordKind(first_val_hash)
         if(sysKw != CSSKeywordKind.Unknown) {
             parser.increment()
             alloc_value_keyword(builder, value, sysKw, firstTok.value)
@@ -211,18 +143,15 @@ func (cssParser : &mut CSSParser) parseFont(
             parser.error("couldn't parse length");
         }
         const next = parser.getToken();
-        switch(next.type) {
-            TokenType.Divide => {
-                parser.increment()
-                // Line Height
-                if(!cssParser.parseNumberOrLength(parser, builder, font.lineHeight)) {
-                    parser.error("expected line height value after the length");
-                }
+        if(next.type == TokenType.Divide) {
+            parser.increment()
+            // Line Height
+            if(!cssParser.parseNumberOrLength(parser, builder, font.lineHeight)) {
+                parser.error("expected line height value after the length");
             }
         }
     } else if(token.type == TokenType.Identifier) {
-        // TODO do not pass the the data pointer, pass the hash
-        const fontSizeKind = getFontSizeKeywordKind(token.value.data())
+        const fontSizeKind = getFontSizeKeywordKind(token.fnv1())
         if(fontSizeKind != CSSKeywordKind.Unknown) {
             parser.increment()
             alloc_value_keyword(builder, font.size, fontSizeKind, token.value)

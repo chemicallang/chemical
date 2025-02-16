@@ -77,6 +77,22 @@ func getLengthKind(str : *char) : CSSLengthKind {
     }
 }
 
+func parseLengthKindSafe(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengthKind {
+    const token = parser.getToken();
+    if(token.type == TokenType.Percentage) {
+        parser.increment();
+        return CSSLengthKind.LengthPERCENTAGE
+    } else if(token.type == TokenType.Identifier) {
+        const k = getLengthKind(token.value.data())
+        if(k != CSSLengthKind.Unknown) {
+            parser.increment();
+        }
+        return k;
+    } else {
+        return CSSLengthKind.Unknown
+    }
+}
+
 func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengthKind {
     const token = parser.getToken();
     if(token.type == TokenType.Percentage) {
@@ -95,6 +111,63 @@ func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengt
         parser.error("unknown unit token found");
         parser.increment()
         return CSSLengthKind.LengthPX
+    }
+}
+
+func (cssParser : &mut CSSParser) parseLengthInto(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    length : &mut CSSLengthValueData
+) : bool {
+    const token = parser.getToken();
+    switch(token.type) {
+        TokenType.Number => {
+            parser.increment();
+            length.value = builder.allocate_view(token.value)
+            const lenKind = parseLengthKindSafe(parser, builder)
+            if(lenKind != CSSLengthKind.Unknown) {
+                length.kind = lenKind
+            } else {
+                if(token.value.equals("0")) {
+                    length.kind = CSSLengthKind.None
+                } else {
+                    parser.error("expected a unit after number");
+                }
+            }
+            return true;
+        }
+        default => {
+            length.value = std::string_view("")
+            length.kind = CSSLengthKind.Unknown
+            return false;
+        }
+    }
+}
+
+func (cssParser : &mut CSSParser) parseNumberOrLengthInto(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    length : &mut CSSLengthValueData
+) : bool {
+    const token = parser.getToken();
+    switch(token.type) {
+        TokenType.Number => {
+            parser.increment();
+            length.value = builder.allocate_view(token.value)
+            const lengthKind = parseLengthKindSafe(parser, builder);
+            if(lengthKind == CSSLengthKind.Unknown) {
+                length.kind = CSSLengthKind.None
+            } else {
+                parser.increment()
+                length.kind = lengthKind
+            }
+            return true;
+        }
+        default => {
+            length.value = std::string_view("")
+            length.kind = CSSLengthKind.Unknown
+            return false;
+        }
     }
 }
 

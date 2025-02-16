@@ -279,6 +279,44 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSLengthKind) : bool {
     return true;
 }
 
+func convertLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
+    // writing the length
+    str.append_with_len(ptr.value.data(), ptr.value.size())
+    // writing the unit
+    if(ptr.kind != CSSLengthKind.None && !writeUnitOfKind(str, ptr.kind)) {
+        printf("unknown unit")
+        fflush(null)
+    }
+}
+
+func writeBorderRadiusValueData(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string) {
+
+    if(ptr.first.kind != CSSLengthKind.Unknown) {
+        convertLength(ptr.first, str)
+    }
+
+    if(ptr.second.kind != CSSLengthKind.Unknown) {
+        str.append(' ')
+        convertLength(ptr.second, str)
+    }
+
+    if(ptr.third.kind != CSSLengthKind.Unknown) {
+        str.append(' ')
+        convertLength(ptr.third, str)
+    }
+
+    if(ptr.fourth.kind != CSSLengthKind.Unknown) {
+        str.append(' ')
+        convertLength(ptr.fourth, str)
+    }
+
+    if(ptr.next != null) {
+        str.append_with_len(" / ", 3)
+        writeBorderRadiusValueData(*ptr.next, str)
+    }
+
+}
+
 func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, value : &mut CSSValue, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
 
     switch(value.kind) {
@@ -305,16 +343,8 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
         }
 
         CSSValueKind.Length => {
-            // writing the length
-            var ptr = value.data as *mut CSSLengthValueData
-            str.append_with_len(ptr.value.data(), ptr.value.size())
-
-            // writing the unit
-            if(ptr.kind != CSSLengthKind.None && !writeUnitOfKind(str, ptr.kind)) {
-                printf("unknown unit")
-                fflush(null)
-            }
-
+            const ptr = value.data as *mut CSSLengthValueData
+            convertLength(*ptr, str)
         }
 
         CSSValueKind.Color => {
@@ -354,6 +384,13 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
 
         }
 
+        CSSValueKind.BorderRadius => {
+
+            const ptr = value.data as *mut CSSBorderRadiusValueData
+            writeBorderRadiusValueData(*ptr, str)
+
+        }
+
         default => {
             printf("error no value found")
             fflush(null)
@@ -364,7 +401,8 @@ func convertValue(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, val
 
 func convertDeclaration(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, decl : *mut CSSDeclaration, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
 
-    str.append_with_len(decl.property.name.data(), decl.property.name.size())
+    const propertyName = decl.property.name.data()
+    str.append_with_len(propertyName, decl.property.name.size())
     str.append(':')
 
     // if(!str.empty()) {
@@ -378,6 +416,9 @@ func convertDeclaration(resolver : *mut SymbolResolver, builder : *mut ASTBuilde
     convertValue(resolver, builder, decl.value, vec, parent, str)
 
     str.append(';')
+
+    printf("written a declaration with key '%s'\n", propertyName)
+    fflush(null)
 
 }
 

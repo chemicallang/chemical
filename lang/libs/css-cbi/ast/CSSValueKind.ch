@@ -10,5 +10,6 @@ enum CSSValueKind {
     Color,
 
     Border,
+    BorderRadius,
 
 }

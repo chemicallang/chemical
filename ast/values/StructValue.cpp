@@ -497,7 +497,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         const auto value = val_ptr;
         auto child_node = container->child_member_or_inherited_struct(val.first);
         if(!child_node) {
-            linker.error("couldn't find child '" + val.first.str() + "' in struct declaration", this);
+            linker.error("unresolved child '" + val.first.str() + "' in struct declaration", this);
             continue;
         }
         auto child_type = child_node->get_value_type(linker.allocator);
@@ -616,7 +616,7 @@ Value *StructValue::call_member(
 void StructValue::set_child_value(InterpretScope& scope, const chem::string_view &name, Value *value, Operation op) {
     auto ptr = values.find(name);
     if (ptr == values.end()) {
-        std::cerr << "couldn't find child by name '" + name.str() + "' in struct";
+        std::cerr << "unresolved child by name '" + name.str() + "' in struct";
         return;
     }
     ptr->second.value = value;

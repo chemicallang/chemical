@@ -191,6 +191,24 @@ func (cssParser : &mut CSSParser) parseLength(
 
 }
 
+func (cssParser : &mut CSSParser) parseNumberOrLength(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) : bool {
+    const token = parser.getToken();
+    switch(token.type) {
+        TokenType.Number => {
+            parser.increment();
+            alloc_value_num_length(parser, builder, value, token.value)
+            return true;
+        }
+        default => {
+            return false;
+        }
+    }
+}
+
 func (cssParser : &mut CSSParser) parseNumberOrAuto(
     parser : *mut Parser,
     builder : *mut ASTBuilder,

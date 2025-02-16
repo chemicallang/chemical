@@ -11,5 +11,6 @@ enum CSSValueKind {
 
     Border,
     BorderRadius,
+    Font,
 
 }

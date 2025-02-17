@@ -122,6 +122,29 @@ struct CSSFontValueData {
 
 }
 
+struct CSSBoxShadowValueData {
+
+    var inset : bool;
+    var offsetX : CSSValue;
+    var offsetY : CSSValue;
+    var blurRadius : CSSValue;   // optional, default to 0 if not provided
+    var spreadRadius : CSSValue; // optional, default to 0 if not provided
+    var color : CSSValue;        // optional, can be left undefined
+
+    var next : *mut CSSBoxShadowValueData
+
+    @make
+    func empty() {
+        inset = false;
+        next = null
+    }
+
+    func isEmpty(&self) : bool {
+        return inset == false && offsetX.isUnknown() && offsetY.isUnknown() && blurRadius.isUnknown() && spreadRadius.isUnknown() && color.isUnknown()
+    }
+
+};
+
 struct CSSValue {
 
     var kind : CSSValueKind
@@ -132,6 +155,10 @@ struct CSSValue {
     func empty() {
         kind = CSSValueKind.Unknown
         data = null
+    }
+
+    func isUnknown(&self) : bool {
+        return kind == CSSValueKind.Unknown;
     }
 
 }

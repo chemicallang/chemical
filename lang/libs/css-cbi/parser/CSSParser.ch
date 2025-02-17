@@ -26,6 +26,10 @@ struct CSSParser {
         return colorMap.isColor(color);
     }
 
+    func isNamedColor(&self, color : &std::string_view) : bool {
+        return colorMap.isColor(color)
+    }
+
     func getParserFor(&self, name : &std::string_view) : ValueParserFn {
         return valueFnMap.getParserFor(name) as ValueParserFn;
     }

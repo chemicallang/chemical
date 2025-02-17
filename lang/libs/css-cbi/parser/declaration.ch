@@ -107,6 +107,9 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
     const token = parser.getToken();
     if(token.type == TokenType.Identifier) {
         parser.increment();
+    } else if(token.type == TokenType.Comment) {
+        parser.increment();
+        return cssParser.parseDeclaration(parser, builder)
     } else {
         return null;
     }

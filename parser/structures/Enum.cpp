@@ -56,17 +56,11 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
                 }
                 decl->members[member_name] = member;
                 if(consumeToken(TokenType::EqualSym)) {
-                    if(token->type == TokenType::Number) {
-                        auto& value = token->value;
-                        auto expr = parse_num(value.data(), value.size(), strtol);
-                        if(expr.error.empty()) {
-                            member->init_value = new (allocator.allocate<NumberValue>()) NumberValue(expr.result, loc_single(token));
-                        } else {
-                            error("error parsing the number in enum member '" + std::string(expr.error) + "'");
-                            return decl;
-                        }
+                    const auto expr = parseExpression(allocator, false, false);
+                    if(expr) {
+                        member->init_value = expr;
                     } else {
-                        error("expected a number value after '=' operator");
+                        error("expected a value after '=' operator");
                         return decl;
                     }
                 }

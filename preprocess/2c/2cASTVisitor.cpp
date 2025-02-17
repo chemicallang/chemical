@@ -4333,6 +4333,25 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
     }
 }
 
+bool write_enum(ToCAstVisitor& visitor, EnumMember* member) {
+    if(visitor.inline_enum_member_access) {
+        if(member->init_value) {
+            member->init_value->accept(&visitor);
+        } else {
+            *visitor.output << member->get_default_index();
+        }
+        return true;
+    } else {
+        auto found = visitor.declarer->aliases.find(member);
+        if (found != visitor.declarer->aliases.end()) {
+            visitor.write(found->second);
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
 void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, const unsigned end, const unsigned total_size) {
     ChainValue* previous = nullptr;
     ChainValue* current = nullptr;
@@ -4346,27 +4365,24 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, 
             if(next_kind == ValueKind::FunctionCall || next_kind == ValueKind::IndexOperator) {
                 chain_value_accept(visitor, previous, current, next);
             } else {
-                if(current->linked_node()->as_enum_decl() != nullptr) {
-                    if(visitor.inline_enum_member_access) {
-                        auto member = next->linked_node()->as_enum_member();
-                        if(member->init_value) {
-                            member->init_value->accept(&visitor);
-                        } else {
-                            *visitor.output << member->get_default_index();
-                        }
-                        start++;
-                    } else {
-                        auto found = visitor.declarer->aliases.find(next->linked_node()->as_enum_member());
-                        if (found != visitor.declarer->aliases.end()) {
-                            visitor.write(found->second);
+                const auto linked = current->linked_node();
+                const auto kind = linked->kind();
+                switch(kind) {
+                    case ASTNodeKind::EnumDecl:
+                        if(write_enum(visitor, next->linked_node()->as_enum_member())) {
                             start++;
                         } else {
                             visitor.write_str("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() +"]");
                         }
-                    }
-                } else {
-                    chain_value_accept(visitor, previous, current, next);
-                    write_accessor(visitor, current, next);
+                        break;
+                    case ASTNodeKind::EnumMember:
+                        if(!write_enum(visitor, linked->as_enum_member_unsafe())) {
+                            visitor.write_str("[EnumAC_NOT_FOUND:" + current->representation() +"]");
+                        }
+                        break;
+                    default:
+                        chain_value_accept(visitor, previous, current, next);
+                        write_accessor(visitor, current, next);
                 }
             }
         } else {
@@ -4933,16 +4949,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
     }
     const auto linked = identifier->linked_node();
     const auto linked_kind = linked->kind();
-    if(linked_kind == ASTNodeKind::FunctionDecl) {
-        linked->as_function_unsafe()->runtime_name(*output);
-        return;
-    } else if(linked_kind == ASTNodeKind::VarInitStmt) {
-        const auto init = linked->as_var_init_unsafe();
-        if(init->is_comptime()) {
-            init->value->accept(this);
-            return;
-        }
-    } else if(ASTNode::isAnyStructMember(linked_kind)) {
+    if(ASTNode::isAnyStructMember(linked_kind)) {
         if(identifier->parent_val == nullptr) {
             const auto func = current_func_type->as_function();
             if (func && func->is_constructor_fn()) {
@@ -4960,23 +4967,47 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
                 }
             }
         }
-    } else if(linked_kind == ASTNodeKind::CapturedVariable) {
-        auto found = declarer->aliases.find(linked->as_captured_var_unsafe());
-        if(found == declarer->aliases.end()) {
-            write("this->");
-        } else {
-            write("((struct ");
-            write(found->second);
-            write("*) this)->");
+    } else {
+        switch(linked_kind) {
+            case ASTNodeKind::FunctionDecl:
+                linked->as_function_unsafe()->runtime_name(*output);
+                return;
+            case ASTNodeKind::VarInitStmt: {
+                const auto init = linked->as_var_init_unsafe();
+                if (init->is_comptime()) {
+                    init->value->accept(this);
+                    return;
+                }
+                break;
+            }
+            case ASTNodeKind::CapturedVariable:{
+                auto found = declarer->aliases.find(linked->as_captured_var_unsafe());
+                if(found == declarer->aliases.end()) {
+                    write("this->");
+                } else {
+                    write("((struct ");
+                    write(found->second);
+                    write("*) this)->");
+                }
+                break;
+            }
+            case ASTNodeKind::VariantCaseVariable:{
+                const auto var = linked->as_variant_case_var_unsafe();
+                Value* expr = var->switch_statement->expression;
+                const auto var_mem = var->parent_val->linked_node()->as_variant_member();
+                expr->accept(this);
+                write_accessor(*this, expr, identifier);
+                write(var_mem->name);
+                write('.');
+                break;
+            }
+            case ASTNodeKind::EnumMember: {
+                if(!write_enum(*this, linked->as_enum_member_unsafe())) {
+                    error("couldn't write the num", identifier);
+                }
+                return;
+            }
         }
-    } else if(linked_kind == ASTNodeKind::VariantCaseVariable) {
-        const auto var = linked->as_variant_case_var_unsafe();
-        Value* expr = var->switch_statement->expression;
-        const auto var_mem = var->parent_val->linked_node()->as_variant_member();
-        expr->accept(this);
-        write_accessor(*this, expr, identifier);
-        write(var_mem->name);
-        write('.');
     }
 //    else if(linked_kind == ASTNodeKind::FunctionParam || linked_kind == ASTNodeKind::ExtensionFuncReceiver) {
 //        auto& type = *linked->as_func_param_unsafe()->type;

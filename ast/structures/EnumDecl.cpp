@@ -9,6 +9,7 @@ void EnumMember::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
     if(init_value) {
         init_value->link(linker, init_value, nullptr);
     }
+    linker.declare(name, this);
 }
 
 unsigned int EnumMember::get_default_index() {
@@ -55,9 +56,11 @@ void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
             underlying_integer_type = new (linker.ast_allocator->allocate<IntType>()) IntType(location);
         }
     }
+    linker.scope_start();
     for(auto& mem : members) {
         mem.second->declare_and_link(linker, (ASTNode*&) mem.second);
     }
+    linker.scope_end();
 }
 
 EnumDeclaration* EnumDeclaration::get_inherited_enum_decl() {

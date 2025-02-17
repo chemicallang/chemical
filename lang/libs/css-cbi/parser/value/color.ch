@@ -43,7 +43,7 @@ func isSystemColor(hash : size_t) : bool {
     }
 }
 
-func getSysColorSmallHash(view : &std::string_view) : size_t {
+func hashSmallColorValue(view : &std::string_view) : size_t {
 
     const size = view.size();
     if(size > 25) {
@@ -66,15 +66,51 @@ func getSysColorSmallHash(view : &std::string_view) : size_t {
 
 }
 
-func getSysColorKind(hash : size_t) : CSSColorKind {
+func getHashColorKind(hash : size_t) : CSSColorKind {
     if(isSystemColor(hash)) {
         return CSSColorKind.SystemColor
-    } else if(hash == comptime_fnv1_hash("transparent")) {
-        return CSSColorKind.Transparent
-    } else if(hash == comptime_fnv1_hash("currentcolor")) {
-        return CSSColorKind.CurrentColor
     } else {
-        return CSSColorKind.Unknown;
+        switch(hash) {
+            comptime_fnv1_hash("transparent") => {
+                return CSSColorKind.Transparent
+            }
+            comptime_fnv1_hash("currentcolor") => {
+                return CSSColorKind.CurrentColor
+            }
+            comptime_fnv1_hash("rgb") => {
+                return CSSColorKind.RGB
+            }
+            comptime_fnv1_hash("rgba") => {
+                return CSSColorKind.RGBA
+            }
+            comptime_fnv1_hash("hsl") => {
+                return CSSColorKind.HSL
+            }
+            comptime_fnv1_hash("hsla") => {
+                return CSSColorKind.HSLA
+            }
+            comptime_fnv1_hash("hwb") => {
+                return CSSColorKind.HWB
+            }
+            comptime_fnv1_hash("lab") => {
+                return CSSColorKind.LAB
+            }
+            comptime_fnv1_hash("lch") => {
+                return CSSColorKind.LCH
+            }
+            comptime_fnv1_hash("oklab") => {
+                return CSSColorKind.OKLAB
+            }
+            comptime_fnv1_hash("oklch") => {
+                return CSSColorKind.OKLCH
+            }
+            comptime_fnv1_hash("color") => {
+                return CSSColorKind.COLOR
+            }
+            default => {
+                return CSSColorKind.Unknown;
+            }
+        }
     }
 }
 
@@ -82,7 +118,7 @@ func (cssParser : &mut CSSParser) getIdentifierColorKind(view : &std::string_vie
     if(cssParser.isNamedColor(view)) {
         return CSSColorKind.NamedColor
     } else {
-        return getSysColorKind(getSysColorSmallHash(view))
+        return getHashColorKind(hashSmallColorValue(view))
     }
 }
 
@@ -91,7 +127,7 @@ func isStrSystemColor(view : &std::string_view) : bool {
     if(view.size() > 25) {
         return false;
     }
-    return isSystemColor(getSysColorSmallHash(view))
+    return isSystemColor(hashSmallColorValue(view))
 }
 
 func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) : bool {

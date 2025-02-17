@@ -39,6 +39,13 @@ enum Thing33 : ushort {
     MoreOtherStuff
 }
 
+enum MultiNum {
+    First,
+    Second,
+    AnotherFirst = First,
+    AnotherSecond = Second
+}
+
 func test_enum() {
     test("enum index works", () => {
         return Thing.Fruit == 0 && Thing.Veg == 1;
@@ -102,5 +109,8 @@ func test_enum() {
     })
     test("enum inheritance works - 1", () => {
         return Anything.Fruit == 0 && Anything.Veg == 1 && Anything.Space == 2 && Anything.Universe == 3 && Anything.Garbage == 4
+    })
+    test("enum members of enum can reference other members as their values", () => {
+        return MultiNum.First == MultiNum.AnotherFirst && MultiNum.Second == MultiNum.AnotherSecond
     })
 }

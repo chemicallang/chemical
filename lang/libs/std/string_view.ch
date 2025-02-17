@@ -16,7 +16,7 @@ public namespace std {
         }
 
         @constructor
-        func empty() {
+        func empty_make() {
             _data = ""
             _size = 0
         }

@@ -45,14 +45,7 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             }
         }
         TokenType.Identifier => {
-            const kind = cssParser.getIdentifierColorKind(token.value)
-            if(kind != CSSColorKind.Unknown) {
-                parser.increment()
-                alloc_color_val_data(builder, value, token.value, kind)
-                return true;
-            } else {
-                parser.error("unknown value given");
-            }
+            return cssParser.parseIdentifierCSSColor(parser, builder, value, token)
         }
         TokenType.HexColor => {
             cssParser.parseHexColor(parser, builder, token.value, value);

@@ -44,11 +44,44 @@ struct CSSLengthValueData {
 
 }
 
+struct CSSNumberOrPercentage {
+
+    // the number in question
+    var number : std::string_view
+
+    // is there a percentage sign after it
+    var is_percentage : bool
+
+    @make
+    func make() {
+        is_percentage = false;
+    }
+
+}
+
+struct CSSRGBColorData {
+
+    var red : CSSNumberOrPercentage
+
+    var green : CSSNumberOrPercentage
+
+    var blue : CSSNumberOrPercentage
+
+    var alpha : CSSNumberOrPercentage
+
+}
+
 struct CSSColorValueData {
 
     var kind : CSSColorKind
 
-    var value : std::string_view
+    union {
+
+        var view : std::string_view
+
+        var rgbData : *CSSRGBColorData
+
+    } value;
 
 }
 

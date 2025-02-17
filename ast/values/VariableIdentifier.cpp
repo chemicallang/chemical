@@ -33,7 +33,7 @@ bool VariableIdentifier::link(SymbolResolver &linker, bool check_access) {
         }
         return true;
     } else {
-        linker.error("variable identifier '" + value.str() + "' not found", this);
+        linker.error("unresolved variable identifier '" + value.str() + "' not found", this);
     }
     return false;
 }

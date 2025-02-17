@@ -45,6 +45,7 @@ func (cssParser : &mut CSSParser) parseHexColor(parser : *mut Parser, builder : 
     }
 }
 
+// TODO support more colors
 func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) : bool {
     const token = parser.getToken();
     switch(token.type) {
@@ -52,6 +53,15 @@ func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : 
             cssParser.parseHexColor(parser, builder, token.value, value);
             parser.increment();
             return true;
+        }
+        TokenType.Identifier => {
+            if(cssParser.isNamedColor(token.value)) {
+                parser.increment();
+                alloc_named_color(builder, value, token.value);
+                return true;
+            } else {
+                return false;
+            }
         }
         default => {
             return false;

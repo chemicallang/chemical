@@ -69,7 +69,16 @@ func alloc_value_number(
     value.data = number_value
 }
 
-func alloc_value_length(
+func (allocator : &mut BatchAllocator) allocate_neg_number(view : &std::string_view) : std::string_view {
+    const size = view.size()
+    const ptr = allocator.allocate_size(sizeof(char) * (size + 2), alignof(char))
+    *ptr = '-';
+    memcpy(ptr + 1, view.data(), size)
+    *(ptr + (1 + size)) = '\0'
+    return std::string_view(ptr, size + 1);
+}
+
+func alloc_value_length_raw(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue,
@@ -78,7 +87,7 @@ func alloc_value_length(
     var number_value = builder.allocate<CSSLengthValueData>()
     new (number_value) CSSLengthValueData {
         kind : CSSLengthKind.Unknown,
-        value : builder.allocate_view(view)
+        value : view
     }
     const lenKind = parseLengthKindSafe(parser, builder);
     if(lenKind != CSSLengthKind.Unknown) {
@@ -94,7 +103,25 @@ func alloc_value_length(
     value.data = number_value
 }
 
-func alloc_value_num_length(
+func alloc_value_length(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    view : &std::string_view
+) {
+    alloc_value_length_raw(parser, builder, value, builder.allocate_view(view))
+}
+
+func alloc_neg_value_length(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    view : &std::string_view
+) {
+    alloc_value_length_raw(parser, builder, value, builder.allocate_neg_number(view))
+}
+
+func alloc_value_num_length_raw(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue,
@@ -103,7 +130,7 @@ func alloc_value_num_length(
     var number_value = builder.allocate<CSSLengthValueData>()
     new (number_value) CSSLengthValueData {
         kind : CSSLengthKind.Unknown,
-        value : builder.allocate_view(view)
+        value : view
     }
     const lenKind = parseLengthKindSafe(parser, builder);
     if(lenKind != CSSLengthKind.Unknown) {
@@ -113,6 +140,24 @@ func alloc_value_num_length(
     }
     value.kind = CSSValueKind.Length
     value.data = number_value
+}
+
+func alloc_value_num_length(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    view : &std::string_view
+) {
+    alloc_value_num_length_raw(parser, builder, value, builder.allocate_view(view))
+}
+
+func alloc_value_neg_num_length(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    view : &std::string_view
+) {
+    alloc_value_num_length_raw(parser, builder, value, builder.allocate_neg_number(view))
 }
 
 func alloc_color_val_data(

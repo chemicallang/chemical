@@ -18,9 +18,9 @@ func (cssParser : &mut CSSParser) parseBoxShadow(
         return;
     }
 
-    var lengths : CSSValue[] = { CSSValue(), CSSValue(), CSSValue(), CSSValue() }
-
     while(true) {
+
+        var lengths : CSSValue[] = { CSSValue(), CSSValue(), CSSValue(), CSSValue() }
 
         var lenInd = 0;
 
@@ -84,12 +84,6 @@ func (cssParser : &mut CSSParser) parseBoxShadow(
         if(nextTok.type == TokenType.Comma) {
 
             parser.increment(); // skip the comma and continue
-
-            // reset length
-            lengths[0] = CSSValue()
-            lengths[1] = CSSValue()
-            lengths[2] = CSSValue()
-            lengths[3] = CSSValue()
 
             // create another shadow
             var nextShadow = builder.allocate<CSSBoxShadowValueData>();

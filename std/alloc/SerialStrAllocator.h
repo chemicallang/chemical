@@ -32,20 +32,73 @@ public:
         *data = '\0';
     }
 
+    void store_heap_ptr(char* ptr) {
+        auto& heap_memory = allocator.heap_memory;
+        const auto current = heap_memory.back();
+        heap_memory.pop_back();
+        // we keep this above current, because heap_offset points to the last pointer which is current
+        heap_memory.emplace_back(ptr);
+        heap_memory.emplace_back(current);
+    }
+
+    void restore_heap_ptr(char* ptr) {
+        auto& heap_memory = allocator.heap_memory;
+        const auto current = heap_memory.back();
+        heap_memory.pop_back();
+        // the last time we stored the heap ptr
+        heap_memory.pop_back();
+        // we keep this above current, because heap_offset points to the last pointer which is current
+        heap_memory.emplace_back(ptr);
+        heap_memory.emplace_back(current);
+    }
+
     void adjust_ptr(char*& ptr, const size_t old_size, const size_t new_size) {
         if(old_size == new_size) {
             return;
         } else if(new_size < old_size) {
-            allocator.heap_offset -= (old_size - new_size);
-            return;
+            // previous size is within batch size
+            if(old_size < allocator.heap_batch_size) {
+                // we adjust the allocated offset
+                allocator.heap_offset -= (old_size - new_size);
+                return;
+            } else {
+                return;
+            }
         } else {
+            // new size is within batch size
             if ((allocator.heap_offset + new_size) < allocator.heap_batch_size) {
+                // we adjust the allocated offset
                 allocator.heap_offset += (new_size - old_size);
                 return;
             } else {
-                auto new_ptr = allocator.object_heap_pointer(new_size, 1);
-                memcpy(new_ptr, ptr, old_size);
-                ptr = new_ptr;
+                // new size within heap batch size, so we allocate a new batch instead
+                if(new_size < allocator.heap_batch_size) {
+                    const auto heap_batch = allocator.reserve_heap_storage();
+                    allocator.heap_offset = new_size;
+                    memcpy(heap_batch, ptr, old_size);
+                    ptr = heap_batch;
+                    return;
+                }
+                // if the pointer is being shifted from batch to being free
+                // we de-allocate previous size of the pointer from batch and malloc it
+                if(old_size < allocator.heap_batch_size && new_size >= allocator.heap_batch_size) {
+                    allocator.heap_offset -= old_size;
+                    const auto heap_ptr = static_cast<char*>(malloc(new_size));
+                    memcpy(heap_ptr, ptr, old_size);
+                    store_heap_ptr(heap_ptr);
+                    ptr = heap_ptr;
+                    return;
+                }
+                if(old_size >= allocator.heap_batch_size) {
+                    // previous pointer was not within batch size, we allocated it on heap, will realloc it
+                    const auto n = static_cast<char*>(realloc(ptr, new_size));
+                    restore_heap_ptr(n);
+                    ptr = n;
+                    return;
+                }
+#ifdef DEBUG
+                throw std::runtime_error("unknown case in serial str allocator");
+#endif
             }
         }
     }

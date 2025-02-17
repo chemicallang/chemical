@@ -380,45 +380,66 @@ func writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
 
 }
 
+func writeTextShadowValueData(value : &mut CSSTextShadowValueData, str : &mut std::string) {
+
+    if(value.offsetX.kind != CSSValueKind.Unknown) {
+        writeValue(value.offsetX, str)
+    }
+
+    if(value.offsetY.kind != CSSValueKind.Unknown) {
+        str.append(' ')
+        writeValue(value.offsetY, str)
+    }
+
+    if(value.blurRadius.kind != CSSValueKind.Unknown) {
+        str.append(' ')
+        writeValue(value.blurRadius, str)
+    }
+
+    if(value.color.kind != CSSValueKind.Unknown) {
+        str.append(' ')
+        writeValue(value.color, str)
+    }
+
+    if(value.next != null) {
+        str.append(',')
+        writeTextShadowValueData(*value.next, str)
+    }
+
+}
+
 func writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std::string) {
 
-    if(value.isEmpty()) {
-        const none = std::string_view("none")
-        str.append_with_len(none.data(), none.size())
-    } else {
+    if(value.inset) {
+        const inset = std::string_view("inset")
+        str.append_with_len(inset.data(), inset.size())
+    }
 
+    if(value.offsetX.kind != CSSValueKind.Unknown) {
         if(value.inset) {
-            const inset = std::string_view("inset")
-            str.append_with_len(inset.data(), inset.size())
-        }
-
-        if(value.offsetX.kind != CSSValueKind.Unknown) {
-            if(value.inset) {
-                str.append(' ')
-            }
-            writeValue(value.offsetX, str)
-        }
-
-        if(value.offsetY.kind != CSSValueKind.Unknown) {
             str.append(' ')
-            writeValue(value.offsetY, str)
         }
+        writeValue(value.offsetX, str)
+    }
 
-        if(value.blurRadius.kind != CSSValueKind.Unknown) {
-            str.append(' ')
-            writeValue(value.blurRadius, str)
-        }
+    if(value.offsetY.kind != CSSValueKind.Unknown) {
+        str.append(' ')
+        writeValue(value.offsetY, str)
+    }
 
-        if(value.spreadRadius.kind != CSSValueKind.Unknown) {
-            str.append(' ')
-            writeValue(value.spreadRadius, str)
-        }
+    if(value.blurRadius.kind != CSSValueKind.Unknown) {
+        str.append(' ')
+        writeValue(value.blurRadius, str)
+    }
 
-        if(value.color.kind != CSSValueKind.Unknown) {
-            str.append(' ')
-            writeValue(value.color, str)
-        }
+    if(value.spreadRadius.kind != CSSValueKind.Unknown) {
+        str.append(' ')
+        writeValue(value.spreadRadius, str)
+    }
 
+    if(value.color.kind != CSSValueKind.Unknown) {
+        str.append(' ')
+        writeValue(value.color, str)
     }
 
     if(value.next != null) {
@@ -504,7 +525,34 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
         CSSValueKind.BoxShadow => {
 
             const ptr = value.data as *mut CSSBoxShadowValueData
-            writeBoxShadowValueData(*ptr, str)
+
+            if(ptr.isEmpty()) {
+
+                const none = std::string_view("none")
+                str.append_with_len(none.data(), none.size())
+
+            } else {
+
+                writeBoxShadowValueData(*ptr, str)
+
+            }
+
+        }
+
+        CSSValueKind.TextShadow => {
+
+            const ptr = value.data as *mut CSSTextShadowValueData
+
+            if(ptr.isEmpty()) {
+
+                const none = std::string_view("none")
+                str.append_with_len(none.data(), none.size())
+
+            } else {
+
+                writeTextShadowValueData(*ptr, str)
+
+            }
 
         }
 

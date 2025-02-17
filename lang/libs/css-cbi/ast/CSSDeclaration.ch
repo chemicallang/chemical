@@ -145,6 +145,26 @@ struct CSSBoxShadowValueData {
 
 };
 
+struct CSSTextShadowValueData {
+
+    var offsetX : CSSValue;
+    var offsetY : CSSValue;
+    var blurRadius : CSSValue; // optional; default to 0 if not provided
+    var color : CSSValue;      // optional; if not provided, use current color
+
+    var next : *mut CSSTextShadowValueData
+
+    @make
+    func empty() {
+        next = null
+    }
+
+    func isEmpty(&self) : bool {
+        return offsetX.isUnknown() && offsetY.isUnknown() && blurRadius.isUnknown() && color.isUnknown()
+    }
+
+};
+
 struct CSSValue {
 
     var kind : CSSValueKind

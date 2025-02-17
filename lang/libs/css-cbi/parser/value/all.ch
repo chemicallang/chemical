@@ -29,6 +29,7 @@ func putAllCSSValueParsers(
     map.put(std::string_view("text-align"), CSSParser::parseTextAlign)
     map.put(std::string_view("display"), CSSParser::parseDisplay)
     map.put(std::string_view("box-shadow"), CSSParser::parseBoxShadow)
+    map.put(std::string_view("text-shadow"), CSSParser::parseTextShadow)
     map.put(std::string_view("position"), CSSParser::parsePosition)
     map.put(std::string_view("overflow"), CSSParser::parseOverflow)
     map.put(std::string_view("z-index"), CSSParser::parseZIndex)

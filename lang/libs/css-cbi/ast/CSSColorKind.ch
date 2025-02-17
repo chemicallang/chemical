@@ -4,6 +4,8 @@ enum CSSColorKind {
 
     NamedColor,
     SystemColor,
+    Transparent,
+    CurrentColor,
     HexColor
 
 }

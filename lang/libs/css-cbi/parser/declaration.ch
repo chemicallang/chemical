@@ -34,14 +34,11 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             return
         }
         TokenType.Identifier => {
-            if(cssParser.isColor(token.value)) {
-                parser.increment();
-                alloc_named_color(builder, value, token.value);
-                return;
-            } else if(isStrSystemColor(token.value)) {
-                parser.increment();
-                alloc_color_val_data(builder, value, token.value, CSSColorKind.SystemColor)
-                return;
+            const kind = cssParser.getIdentifierColorKind(token.value)
+            if(kind != CSSColorKind.Unknown) {
+                parser.increment()
+                alloc_color_val_data(builder, value, token.value, kind)
+                return true;
             } else {
                 parser.error("unknown value given");
             }

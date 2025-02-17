@@ -151,6 +151,7 @@ func (cssParser : &mut CSSParser) parseRGBColor(parser : *mut Parser, builder : 
     } else {
         parser.error("expected a '(' after 'rgb'")
     }
+
     data.red = parser.parseNumberOrPercentage(builder)
     parser.incrementToken(TokenType.Comma)
     data.green = parser.parseNumberOrPercentage(builder)

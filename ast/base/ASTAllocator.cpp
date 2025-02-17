@@ -127,7 +127,9 @@ char* BatchAllocator::object_heap_pointer(std::size_t obj_size, std::size_t alig
                 heap_memory.emplace_back(ptr);
             } else {
                 const auto current = heap_memory.back();
-                heap_memory[heap_memory.size() - 1] = ptr;
+                heap_memory.pop_back();
+                // we keep this above current, because heap_offset points to the last pointer which is current
+                heap_memory.emplace_back(ptr);
                 heap_memory.emplace_back(current);
             }
             return ptr;

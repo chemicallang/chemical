@@ -1207,7 +1207,7 @@ func getFontStretchKeywordKind(hash : size_t) : CSSKeywordKind {
 
 func (parser : &mut Parser) not_id_val_err(prop : &std::string_view) {
     var errStr = std::string("unknown value for '")
-    errStr.append_with_len(prop, prop.size())
+    errStr.append_with_len(prop.data(), prop.size())
     errStr.append('\'')
     const n = std::string_view(", property requires an identifier value")
     errStr.append_with_len(n.data(), n.size())
@@ -1216,7 +1216,7 @@ func (parser : &mut Parser) not_id_val_err(prop : &std::string_view) {
 
 func (parser : &mut Parser) wrong_val_kw_err(prop : &std::string_view) {
     var errStr = std::string("unknown value for '")
-    errStr.append_with_len(prop, prop.size())
+    errStr.append_with_len(prop.data(), prop.size())
     errStr.append('\'');
     parser.error(std::string_view(errStr.data(), errStr.size()))
 }

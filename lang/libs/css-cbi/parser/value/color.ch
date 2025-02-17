@@ -43,12 +43,11 @@ func isSystemColor(hash : size_t) : bool {
     }
 }
 
-func isStrSystemColor(view : &std::string_view) : bool {
+func getSysColorSmallHash(view : &std::string_view) : size_t {
 
     const size = view.size();
-    // all system colors are less than 25 characters in length
     if(size > 25) {
-        return false;
+        return 0;
     }
 
     // copy the token value
@@ -63,9 +62,36 @@ func isStrSystemColor(view : &std::string_view) : bool {
         i++;
     }
 
-    // check if it's a system color
-    return isSystemColor(fnv1_hash(&arr[0]))
+    return fnv1_hash(&arr[0]);
 
+}
+
+func getSysColorKind(hash : size_t) : CSSColorKind {
+    if(isSystemColor(hash)) {
+        return CSSColorKind.SystemColor
+    } else if(hash == comptime_fnv1_hash("transparent")) {
+        return CSSColorKind.Transparent
+    } else if(hash == comptime_fnv1_hash("currentcolor")) {
+        return CSSColorKind.CurrentColor
+    } else {
+        return CSSColorKind.Unknown;
+    }
+}
+
+func (cssParser : &mut CSSParser) getIdentifierColorKind(view : &std::string_view) : CSSColorKind {
+    if(cssParser.isNamedColor(view)) {
+        return CSSColorKind.NamedColor
+    } else {
+        return getSysColorKind(getSysColorSmallHash(view))
+    }
+}
+
+func isStrSystemColor(view : &std::string_view) : bool {
+    // all system colors are less than 25 characters in length
+    if(view.size() > 25) {
+        return false;
+    }
+    return isSystemColor(getSysColorSmallHash(view))
 }
 
 func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) : bool {
@@ -77,21 +103,11 @@ func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : 
             return true;
         }
         TokenType.Identifier => {
-            if(cssParser.isNamedColor(token.value)) {
-                parser.increment();
-                alloc_named_color(builder, value, token.value);
+            const kind = cssParser.getIdentifierColorKind(token.value)
+            if(kind != CSSColorKind.Unknown) {
+                parser.increment()
+                alloc_color_val_data(builder, value, token.value, kind)
                 return true;
-            } else {
-
-                if(isStrSystemColor(token.value)){
-
-                    parser.increment();
-                    alloc_color_val_data(builder, value, token.value, CSSColorKind.SystemColor)
-                    return true;
-
-                }
-
-                return false;
             }
         }
         default => {

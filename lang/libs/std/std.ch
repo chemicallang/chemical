@@ -25,9 +25,15 @@ public func strlen(
     _Str : *char
 ) : size_t;
 
-public func strcmp (str1 : *char, str2 : *char) : int;
+public func strcmp(str1 : *char, str2 : *char) : int;
 
 public func strncmp(str1 : *char, str2 : *char, n : size_t) : int
+
+public func strncpy(dest : *mut char, src : *char, count : size_t) : *mut char
+
+public func tolower(ch : int) : int
+
+public func toupper(ch : int) : int
 
 public func memcmp(ptr1 : *any, ptr2 : *any, num : size_t) : int
 

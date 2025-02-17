@@ -96,10 +96,21 @@ func (provider : &SourceProvider) read_double_quoted_value(str : &SerialStrAlloc
 func (provider : &mut SourceProvider) read_digits(str : &mut SerialStrAllocator) {
     while(true) {
         const next = provider.peek();
-        if(isdigit(next)) {
+        if(next != -1 && isdigit(next)) {
             str.append(provider.readCharacter());
         } else {
             break;
+        }
+    }
+}
+
+func (provider : &mut SourceProvider) read_line(str : &mut SerialStrAllocator) {
+    while(true) {
+        const c = provider.peek()
+        if(c != -1 && c != '\r' && c != '\n') {
+            str.append(provider.readCharacter())
+        } else {
+            return;
         }
     }
 }

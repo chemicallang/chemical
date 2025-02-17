@@ -140,7 +140,12 @@ func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : 
         }
         TokenType.Identifier => {
             const kind = cssParser.getIdentifierColorKind(token.value)
-            if(kind != CSSColorKind.Unknown) {
+            if(kind == CSSColorKind.Unknown) {
+                return false;
+            } else if(kind >= CSSColorKind.FunctionsStart && kind <= CSSColorKind.FunctionsEnd) {
+                // detected a function
+
+            } else {
                 parser.increment()
                 alloc_color_val_data(builder, value, token.value, kind)
                 return true;

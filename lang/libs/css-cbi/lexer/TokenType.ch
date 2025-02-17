@@ -7,6 +7,8 @@ enum TokenType {
     Identifier,
     // floating or non floating number
     Number,
+    // comment begins double forward slash
+    Comment,
     // enclosed in double quotes
     DoubleQuotedValue,
     // enclosed in single quotes

@@ -214,10 +214,20 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '/' => {
-            return Token {
-                type : TokenType.Divide,
-                value : view("/"),
-                position : position
+            if(provider.peek() == '/') {
+                provider.readCharacter()
+                provider.read_line(lexer.str)
+                return Token {
+                    type : TokenType.Comment,
+                    value : str.finalize_view(),
+                    position : position
+                }
+            } else {
+                return Token {
+                    type : TokenType.Divide,
+                    value : view("/"),
+                    position : position
+                }
             }
         }
         '=' => {

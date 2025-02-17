@@ -47,6 +47,20 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 position : position
             }
         }
+        '(' => {
+            return Token {
+                type : TokenType.LParen,
+                value : view("("),
+                position : position
+            }
+        }
+        ')' => {
+            return Token {
+                type : TokenType.RParen,
+                value : view(")"),
+                position : position
+            }
+        }
         '@' => {
             return Token {
                 type : TokenType.At,

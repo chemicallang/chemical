@@ -6,10 +6,8 @@ func (cssParser : &mut CSSParser) parseHexColor(parser : *mut Parser, builder : 
         return;
     }
     var col_value = builder.allocate<CSSColorValueData>();
-    new (col_value) CSSColorValueData {
-        kind : CSSColorKind.HexColor,
-        value : builder.allocate_view(colorView)
-    }
+    col_value.kind = CSSColorKind.HexColor
+    col_value.value.view = builder.allocate_view(colorView)
     value.kind = CSSValueKind.Color
     value.data = col_value
     var out : uint32_t = 0
@@ -130,6 +128,90 @@ func isStrSystemColor(view : &std::string_view) : bool {
     return isSystemColor(hashSmallColorValue(view))
 }
 
+func (parser : &mut Parser) parseNumberOrPercentage(builder : *mut ASTBuilder) : CSSNumberOrPercentage {
+    const token = parser.getToken()
+    if(token.type == TokenType.Number) {
+        parser.increment();
+        const next = parser.getToken()
+        const is_percentage = next.type == TokenType.Percentage;
+        if(is_percentage) {
+            parser.increment();
+        }
+        return CSSNumberOrPercentage { number : builder.allocate_view(token.value), is_percentage : is_percentage }
+    } else {
+        return CSSNumberOrPercentage()
+    }
+}
+
+// this should be called after incrementing the 'rgb' token
+func (cssParser : &mut CSSParser) parseRGBColor(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut CSSRGBColorData) {
+    const next = parser.getToken()
+    if(next.type == TokenType.LParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a '(' after 'rgb'")
+    }
+    data.red = parser.parseNumberOrPercentage(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.green = parser.parseNumberOrPercentage(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.blue = parser.parseNumberOrPercentage(builder)
+    const sep = parser.getToken()
+    if(sep.type == TokenType.Divide || sep.type == TokenType.Comma) {
+        parser.increment()
+    }
+    data.alpha = parser.parseNumberOrPercentage(builder)
+
+    const last = parser.getToken()
+    if(last.type == TokenType.RParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a ')' after 'rgb' arguments")
+    }
+}
+
+func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    token : *mut Token
+) : bool {
+    const kind = cssParser.getIdentifierColorKind(token.value)
+    if(kind == CSSColorKind.Unknown) {
+        return false;
+    } else if(kind >= CSSColorKind.FunctionsStart && kind <= CSSColorKind.FunctionsEnd) {
+        // detected a function
+        switch(kind) {
+            CSSColorKind.RGB, CSSColorKind.RGBA => {
+
+                parser.increment()
+
+                const rgbData = builder.allocate<CSSRGBColorData>()
+                new (rgbData) CSSRGBColorData();
+
+                cssParser.parseRGBColor(parser, builder, *rgbData)
+
+                var col_value = builder.allocate<CSSColorValueData>();
+                col_value.kind = kind;
+                col_value.value.rgbData = rgbData
+
+                value.kind = CSSValueKind.Color
+                value.data = col_value
+
+                return true;
+            }
+            default => {
+                parser.error("color function kind not handled in css color parser");
+                return false;
+            }
+        }
+    } else {
+        parser.increment()
+        alloc_color_val_data(builder, value, token.value, kind)
+        return true;
+    }
+}
+
 func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) : bool {
     const token = parser.getToken();
     switch(token.type) {
@@ -139,17 +221,7 @@ func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : 
             return true;
         }
         TokenType.Identifier => {
-            const kind = cssParser.getIdentifierColorKind(token.value)
-            if(kind == CSSColorKind.Unknown) {
-                return false;
-            } else if(kind >= CSSColorKind.FunctionsStart && kind <= CSSColorKind.FunctionsEnd) {
-                // detected a function
-
-            } else {
-                parser.increment()
-                alloc_color_val_data(builder, value, token.value, kind)
-                return true;
-            }
+            return cssParser.parseIdentifierCSSColor(parser, builder, value, token)
         }
         default => {
             return false;

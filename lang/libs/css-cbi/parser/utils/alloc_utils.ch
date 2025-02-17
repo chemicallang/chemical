@@ -167,10 +167,8 @@ func alloc_color_val_data(
     kind : CSSColorKind
 ) {
     var col_value = builder.allocate<CSSColorValueData>();
-    new (col_value) CSSColorValueData {
-        kind : kind,
-        value : builder.allocate_view(view)
-    }
+    col_value.kind = kind;
+    col_value.value.view = builder.allocate_view(view)
     value.kind = CSSValueKind.Color
     value.data = col_value
 }

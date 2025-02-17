@@ -449,6 +449,84 @@ func writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std:
 
 }
 
+func writeNumberOrPercentage(ptr : &mut CSSNumberOrPercentage, str : &mut std::string) {
+    str.append_with_len(ptr.number.data(), ptr.number.size())
+    if(ptr.is_percentage) {
+        str.append('%');
+    }
+}
+
+func writeRGBData(ptr : &mut CSSRGBColorData, str : &mut std::string) {
+    if(!ptr.red.number.empty()) {
+        writeNumberOrPercentage(ptr.red, str);
+    }
+    if(!ptr.green.number.empty()) {
+        str.append(',')
+        str.append(' ')
+        writeNumberOrPercentage(ptr.green, str);
+    }
+    if(!ptr.blue.number.empty()) {
+        str.append(',')
+        str.append(' ')
+        writeNumberOrPercentage(ptr.blue, str);
+    }
+    if(!ptr.alpha.number.empty()) {
+        str.append(',')
+        str.append(' ')
+        writeNumberOrPercentage(ptr.alpha, str);
+    }
+}
+
+func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
+    switch(ptr.kind) {
+        CSSColorKind.RGB => {
+            const rgbL = std::string_view("rgb(")
+            str.append_with_len(rgbL.data(), rgbL.size())
+            writeRGBData(*ptr.value.rgbData, str)
+            str.append(')')
+        }
+        CSSColorKind.RGBA => {
+           const rgbL = std::string_view("rgba(")
+           str.append_with_len(rgbL.data(), rgbL.size())
+           writeRGBData(*ptr.value.rgbData, str)
+           str.append(')')
+        }
+        CSSColorKind.HSL => {
+
+        }
+        CSSColorKind.HSLA => {
+
+        }
+        CSSColorKind.HWB => {
+
+        }
+        CSSColorKind.LAB => {
+
+        }
+        CSSColorKind.LCH => {
+
+        }
+        CSSColorKind.OKLAB => {
+
+        }
+        CSSColorKind.OKLCH => {
+
+        }
+        CSSColorKind.COLOR => {
+
+        }
+
+        CSSColorKind.Unknown => {
+            return;
+        }
+
+        default => {
+            str.append_with_len(ptr.value.view.data(), ptr.value.view.size())
+        }
+
+    }
+}
+
 func writeValue(value : &mut CSSValue, str : &mut std::string) {
     switch(value.kind) {
 
@@ -481,7 +559,8 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
         CSSValueKind.Color => {
 
             var ptr = value.data as *mut CSSColorValueData
-            str.append_with_len(ptr.value.data(), ptr.value.size())
+
+            writeColor(*ptr, str)
 
         }
 

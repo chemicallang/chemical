@@ -25,50 +25,6 @@ func getCSSGlobalKeywordKind(ptr : *char) : CSSKeywordKind {
     }
 }
 
-func (cssParser : &mut CSSParser) parseHexColor(parser : *mut Parser, builder : *mut ASTBuilder, colorView : &std::string_view, value : &mut CSSValue) {
-    // After the #, only 3, 4, 6, or 8 hexadecimal digits are allowed
-    const hex_size = colorView.size() - 1;
-    if(hex_size != 3 && hex_size != 4 && hex_size != 6 && hex_size != 8) {
-        parser.error("hex color digits length must be 3,4,6 or 8");
-        return;
-    }
-    var col_value = builder.allocate<CSSColorValueData>();
-    new (col_value) CSSColorValueData {
-        kind : CSSColorKind.HexColor,
-        value : builder.allocate_view(colorView)
-    }
-    value.kind = CSSValueKind.Color
-    value.data = col_value
-    var out : uint32_t = 0
-    if(!parse_css_hex_color(colorView.data() + 1, colorView.size() - 1, &out)) {
-        parser.error("hash color is not valid");
-    }
-}
-
-// TODO support more colors
-func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) : bool {
-    const token = parser.getToken();
-    switch(token.type) {
-        TokenType.HexColor => {
-            cssParser.parseHexColor(parser, builder, token.value, value);
-            parser.increment();
-            return true;
-        }
-        TokenType.Identifier => {
-            if(cssParser.isNamedColor(token.value)) {
-                parser.increment();
-                alloc_named_color(builder, value, token.value);
-                return true;
-            } else {
-                return false;
-            }
-        }
-        default => {
-            return false;
-        }
-    }
-}
-
 func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) {
     const token = parser.getToken();
     switch(token.type) {
@@ -81,6 +37,10 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             if(cssParser.isColor(token.value)) {
                 parser.increment();
                 alloc_named_color(builder, value, token.value);
+                return;
+            } else if(isStrSystemColor(token.value)) {
+                parser.increment();
+                alloc_color_val_data(builder, value, token.value, CSSColorKind.SystemColor)
                 return;
             } else {
                 parser.error("unknown value given");

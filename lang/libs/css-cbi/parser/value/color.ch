@@ -167,17 +167,6 @@ func (parser : &mut Parser) parseNumberOrPercentageOrNone(builder : *mut ASTBuil
                 return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(token.value) }
             }
         }
-        TokenType.Minus => {
-            parser.increment();
-            const next = parser.getToken()
-            if(next.type == TokenType.Number) {
-                parser.increment();
-                return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_neg_number(next.value) }
-            } else {
-                parser.error("expected a number after the '-'")
-                break;
-            }
-        }
         TokenType.Identifier => {
             if(token.value.equals("none")) {
                 parser.increment()

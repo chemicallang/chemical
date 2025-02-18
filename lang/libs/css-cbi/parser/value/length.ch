@@ -184,18 +184,6 @@ func (cssParser : &mut CSSParser) parseLength(
             alloc_value_length(parser, builder, value, token.value)
             return true;
         }
-        TokenType.Minus => {
-            parser.increment();
-            const next = parser.getToken()
-            if(next.type == TokenType.Number) {
-                parser.increment();
-                alloc_neg_value_length(parser, builder, value, next.value)
-                return true;
-            } else {
-                parser.setToken(token)
-                return false;
-            }
-        }
         default => {
             return false;
         }
@@ -213,17 +201,6 @@ func (cssParser : &mut CSSParser) parseNumberOrLength(
         TokenType.Number => {
             parser.increment();
             alloc_value_num_length(parser, builder, value, token.value)
-            return true;
-        }
-        TokenType.Minus => {
-            parser.increment();
-            const next = parser.getToken();
-            if(next.type == TokenType.Number) {
-                parser.increment()
-                alloc_neg_value_length(parser, builder, value, next.value)
-            } else {
-                parser.setToken(token)
-            }
             return true;
         }
         default => {
@@ -270,16 +247,6 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
             parser.increment();
             alloc_value_length(parser, builder, value, token.value)
             return true;
-        }
-        TokenType.Minus => {
-            parser.increment();
-            const next = parser.getToken();
-            if(next.type == TokenType.Number) {
-                parser.increment()
-                alloc_neg_value_length(parser, builder, value, next.value)
-            } else {
-                parser.setToken(token)
-            }
         }
         TokenType.Identifier => {
             if(token.value.equals("auto")) {

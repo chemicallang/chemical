@@ -379,6 +379,10 @@ enum CSSKeywordKind {
     StepStart,
     StepEnd,
 
+    // Easing Function
+    CubicBezier,
+    Steps,
+
     // VectorEffect
     NonScalingStroke,
 
@@ -413,6 +417,15 @@ enum CSSKeywordKind {
     SemiExpanded,
     Expanded,
     ExtraExpanded,
-    UltraExpanded
+    UltraExpanded,
+
+    // Steps Function Call Step Position
+    JumpStart,
+    JumpEnd,
+    JumpNone,
+    JumpBoth,
+
+    // Transition Behavior
+    AllowDiscrete,
 
 }

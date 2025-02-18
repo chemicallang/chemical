@@ -604,6 +604,133 @@ func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
     }
 }
 
+func writeLinearEasing(ptr : &mut CSSLinearEasingPoint, str : &mut std::string) {
+    var has_value_before = false;
+    if(ptr.point.kind != CSSLengthKind.Unknown) {
+        writeLength(ptr.point, str)
+        has_value_before = true;
+    }
+    if(ptr.start.kind != CSSLengthKind.Unknown) {
+        if(has_value_before) {
+            str.append(' ');
+        } else {
+            has_value_before = true;
+        }
+        writeLength(ptr.start, str)
+    }
+    if(ptr.stop.kind != CSSLengthKind.Unknown) {
+        if(has_value_before) {
+            str.append(' ');
+        } else {
+            has_value_before = true;
+        }
+        writeLength(ptr.stop, str)
+    }
+    if(ptr.next != null) {
+        str.append(',')
+        str.append(' ')
+        writeLinearEasing(*ptr.next, str)
+    }
+}
+
+func writeCubicBezierEasing(ptr : &mut CSSCubicBezierEasingData, str : &mut std::string) {
+    writeLength(ptr.x1, str)
+    str.append(',')
+    writeLength(ptr.y1, str)
+    str.append(',')
+    writeLength(ptr.x2, str)
+    str.append(',')
+    writeLength(ptr.y2, str)
+}
+
+func writeStepsEasing(ptr : &mut CSSStepsEasingData, str : &mut std::string) {
+    writeLength(ptr.step, str)
+    str.append(' ')
+    str.append_with_len(ptr.position.value.data(), ptr.position.value.size())
+}
+
+func writeEasing(ptr : &mut CSSEasingFunction, str : &mut std::string) {
+    switch(ptr.kind) {
+        CSSKeywordKind.Ease, CSSKeywordKind.EaseIn, CSSKeywordKind.EaseOut,
+        CSSKeywordKind.EaseInOut, CSSKeywordKind.StepStart, CSSKeywordKind.StepEnd => {
+            str.append_with_len(ptr.data.keyword.value.data(), ptr.data.keyword.value.size())
+        }
+        CSSKeywordKind.Linear => {
+            const call = std::string_view("linear")
+            str.append_with_len(call.data(), call.size())
+            if(ptr.data.linear != null) {
+                str.append('(')
+                writeLinearEasing(*ptr.data.linear, str)
+                str.append(')')
+            }
+        }
+        CSSKeywordKind.CubicBezier => {
+            const call = std::string_view("cubic-bezier(")
+            str.append_with_len(call.data(), call.size())
+            writeCubicBezierEasing(*ptr.data.bezier, str)
+            str.append(')')
+        }
+        CSSKeywordKind.Steps => {
+            const call = std::string_view("steps(")
+            str.append_with_len(call.data(), call.size())
+            writeStepsEasing(*ptr.data.steps, str)
+            str.append(')')
+        }
+    }
+}
+
+func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) {
+
+    var has_value_before = false;
+
+    if(!ptr.property.empty()) {
+        str.append_with_len(ptr.property.data(), ptr.property.size())
+        has_value_before = true;
+    }
+
+    if(ptr.duration.kind != CSSLengthKind.Unknown) {
+        if(has_value_before) {
+            str.append(' ')
+        } else {
+            has_value_before = true;
+        }
+        writeLength(ptr.duration, str)
+    }
+
+    if(ptr.easing.kind != CSSKeywordKind.Unknown) {
+        if(has_value_before) {
+            str.append(' ')
+        } else {
+            has_value_before = true;
+        }
+        writeEasing(ptr.easing, str)
+    }
+
+    if(ptr.delay.kind != CSSLengthKind.Unknown) {
+        if(has_value_before) {
+            str.append(' ')
+        } else {
+            has_value_before = true;
+        }
+        writeLength(ptr.delay, str)
+    }
+
+    if(ptr.behavior.kind != CSSLengthKind.Unknown) {
+        if(has_value_before) {
+            str.append(' ')
+        } else {
+            has_value_before = true;
+        }
+        str.append_with_len(ptr.behavior.value.data(), ptr.behavior.value.size())
+    }
+
+    if(ptr.next != null) {
+        str.append(',')
+        writeTransition(*ptr.next, str)
+    }
+
+}
+
 func writeValue(value : &mut CSSValue, str : &mut std::string) {
     switch(value.kind) {
 
@@ -717,6 +844,12 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
             const ptr = value.data as *mut CSSBorderRadiusValueData
             writeBorderRadiusValueData(*ptr, str)
 
+        }
+
+        CSSValueKind.Transition => {
+
+            const ptr = value.data as *mut CSSTransitionValueData
+            writeTransition(*ptr, str)
         }
 
         default => {

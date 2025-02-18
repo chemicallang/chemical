@@ -14,5 +14,6 @@ enum CSSValueKind {
     Font,
     BoxShadow,
     TextShadow,
+    Transition,
 
 }

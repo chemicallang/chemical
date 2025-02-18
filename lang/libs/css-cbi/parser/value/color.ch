@@ -239,6 +239,146 @@ func (cssParser : &mut CSSParser) parseHSLColor(parser : *mut Parser, builder : 
 
 }
 
+func (cssParser : &mut CSSParser) parseHWBColor(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut CSSHWBColorData) {
+    const next = parser.getToken()
+    if(next.type == TokenType.LParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a '(' after 'hwb'")
+    }
+
+    data.hue = parser.parseNumberOrAngleOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.whiteness = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.blackness = parser.parseNumberOrPercentageOrNone(builder)
+    const sep = parser.getToken()
+    if(sep.type == TokenType.Divide || sep.type == TokenType.Comma) {
+        parser.increment()
+    }
+    data.alpha = parser.parseNumberOrPercentageOrNone(builder)
+
+    const last = parser.getToken()
+    if(last.type == TokenType.RParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a ')' after 'hwb' arguments")
+    }
+
+}
+
+// this should be called after incrementing the 'rgb' or 'rgba' token
+func (cssParser : &mut CSSParser) parseLABColor(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut CSSLABColorData) {
+    const next = parser.getToken()
+    if(next.type == TokenType.LParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a '(' after 'lab'")
+    }
+
+    data.lightness = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.rgAxis = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.byAxis = parser.parseNumberOrPercentageOrNone(builder)
+    const sep = parser.getToken()
+    if(sep.type == TokenType.Divide || sep.type == TokenType.Comma) {
+        parser.increment()
+    }
+    data.alpha = parser.parseNumberOrPercentageOrNone(builder)
+
+    const last = parser.getToken()
+    if(last.type == TokenType.RParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a ')' after 'lab' arguments")
+    }
+}
+
+func (cssParser : &mut CSSParser) parseLCHColor(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut CSSLCHColorData) {
+    const next = parser.getToken()
+    if(next.type == TokenType.LParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a '(' after 'lch'")
+    }
+
+    data.lightness = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.chroma = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.hue = parser.parseNumberOrAngleOrNone(builder)
+    const sep = parser.getToken()
+    if(sep.type == TokenType.Divide || sep.type == TokenType.Comma) {
+        parser.increment()
+    }
+    data.alpha = parser.parseNumberOrPercentageOrNone(builder)
+
+    const last = parser.getToken()
+    if(last.type == TokenType.RParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a ')' after 'lch' arguments")
+    }
+
+}
+
+func (cssParser : &mut CSSParser) parseOKLABColor(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut CSSOKLABColorData) {
+    const next = parser.getToken()
+    if(next.type == TokenType.LParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a '(' after 'lch'")
+    }
+
+    data.lightness = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.aAxis = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.bAxis = parser.parseNumberOrPercentageOrNone(builder)
+    const sep = parser.getToken()
+    if(sep.type == TokenType.Divide || sep.type == TokenType.Comma) {
+        parser.increment()
+    }
+    data.alpha = parser.parseNumberOrPercentageOrNone(builder)
+
+    const last = parser.getToken()
+    if(last.type == TokenType.RParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a ')' after 'lch' arguments")
+    }
+
+}
+
+func (cssParser : &mut CSSParser) parseOKLCHColor(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut CSSOKLCHColorData) {
+    const next = parser.getToken()
+    if(next.type == TokenType.LParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a '(' after 'oklch'")
+    }
+
+    data.lightness = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.pChroma = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.hue = parser.parseNumberOrAngleOrNone(builder)
+    const sep = parser.getToken()
+    if(sep.type == TokenType.Divide || sep.type == TokenType.Comma) {
+        parser.increment()
+    }
+    data.alpha = parser.parseNumberOrPercentageOrNone(builder)
+
+    const last = parser.getToken()
+    if(last.type == TokenType.RParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a ')' after 'oklch' arguments")
+    }
+
+}
+
 func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
@@ -281,6 +421,91 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;
                 col_value.value.rgbData = rgbData
+
+                value.kind = CSSValueKind.Color
+                value.data = col_value
+
+                return true;
+            }
+            CSSColorKind.HWB => {
+                parser.increment()
+
+                const rgbData = builder.allocate<CSSHWBColorData>()
+                new (rgbData) CSSHWBColorData();
+
+                cssParser.parseHWBColor(parser, builder, *rgbData)
+
+                var col_value = builder.allocate<CSSColorValueData>();
+                col_value.kind = kind;
+                col_value.value.hwbData = rgbData
+
+                value.kind = CSSValueKind.Color
+                value.data = col_value
+
+                return true;
+            }
+            CSSColorKind.LAB => {
+                parser.increment()
+
+                const rgbData = builder.allocate<CSSLABColorData>()
+                new (rgbData) CSSLABColorData();
+
+                cssParser.parseLABColor(parser, builder, *rgbData)
+
+                var col_value = builder.allocate<CSSColorValueData>();
+                col_value.kind = kind;
+                col_value.value.labData = rgbData
+
+                value.kind = CSSValueKind.Color
+                value.data = col_value
+
+                return true;
+            }
+            CSSColorKind.LCH => {
+                parser.increment()
+
+                const rgbData = builder.allocate<CSSLCHColorData>()
+                new (rgbData) CSSLCHColorData();
+
+                cssParser.parseLCHColor(parser, builder, *rgbData)
+
+                var col_value = builder.allocate<CSSColorValueData>();
+                col_value.kind = kind;
+                col_value.value.lchData = rgbData
+
+                value.kind = CSSValueKind.Color
+                value.data = col_value
+
+                return true;
+            }
+            CSSColorKind.OKLAB => {
+                parser.increment()
+
+                const rgbData = builder.allocate<CSSOKLABColorData>()
+                new (rgbData) CSSOKLABColorData();
+
+                cssParser.parseOKLABColor(parser, builder, *rgbData)
+
+                var col_value = builder.allocate<CSSColorValueData>();
+                col_value.kind = kind;
+                col_value.value.oklabData = rgbData
+
+                value.kind = CSSValueKind.Color
+                value.data = col_value
+
+                return true;
+            }
+            CSSColorKind.OKLCH => {
+                parser.increment()
+
+                const rgbData = builder.allocate<CSSOKLCHColorData>()
+                new (rgbData) CSSOKLCHColorData();
+
+                cssParser.parseOKLCHColor(parser, builder, *rgbData)
+
+                var col_value = builder.allocate<CSSColorValueData>();
+                col_value.kind = kind;
+                col_value.value.oklchData = rgbData
 
                 value.kind = CSSValueKind.Color
                 value.data = col_value

@@ -47,6 +47,15 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 position : position
             }
         }
+        '.' => {
+            str.append('.')
+            provider.read_digits(lexer.str)
+            return Token {
+                type : TokenType.Number,
+                value : str.finalize_view(),
+                position : position
+            }
+        }
         '(' => {
             return Token {
                 type : TokenType.LParen,

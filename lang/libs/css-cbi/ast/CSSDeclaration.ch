@@ -68,6 +68,66 @@ struct CSSHSLColorData {
 
 }
 
+struct CSSHWBColorData {
+
+    var hue : CSSLengthValueData
+
+    var whiteness : CSSLengthValueData
+
+    var blackness : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+struct CSSLABColorData {
+
+    var lightness : CSSLengthValueData
+
+    var rgAxis : CSSLengthValueData
+
+    var byAxis : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+struct CSSLCHColorData {
+
+    var lightness : CSSLengthValueData
+
+    var chroma : CSSLengthValueData
+
+    var hue : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+struct CSSOKLABColorData {
+
+    var lightness : CSSLengthValueData
+
+    var aAxis : CSSLengthValueData
+
+    var bAxis : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
+struct CSSOKLCHColorData {
+
+    var lightness : CSSLengthValueData
+
+    var pChroma : CSSLengthValueData
+
+    var hue : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
 struct CSSColorValueData {
 
     var kind : CSSColorKind
@@ -79,6 +139,16 @@ struct CSSColorValueData {
         var rgbData : *CSSRGBColorData
 
         var hslData : *CSSHSLColorData
+
+        var hwbData : *CSSHWBColorData
+
+        var labData : *CSSLABColorData
+
+        var lchData : *CSSLCHColorData
+
+        var oklabData : *CSSOKLABColorData
+
+        var oklchData : *CSSOKLCHColorData
 
     } value;
 

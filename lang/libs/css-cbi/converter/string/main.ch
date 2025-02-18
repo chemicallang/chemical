@@ -470,7 +470,15 @@ func writeLengthOrNone(len : &mut CSSLengthValueData, str : &mut std::string) {
 
 func writeLengthOrNoneNotFirst(len : &mut CSSLengthValueData, str : &mut std::string) {
     if(len.kind != CSSLengthKind.Unknown) {
-        str.append(',')
+        str.append(' ')
+        writeLengthOrNone(len, str);
+    }
+}
+
+func writeAlphaLengthOrNone(len : &mut CSSLengthValueData, str : &mut std::string) {
+    if(len.kind != CSSLengthKind.Unknown) {
+        str.append(' ')
+        str.append('/')
         str.append(' ')
         writeLengthOrNone(len, str);
     }
@@ -480,14 +488,49 @@ func writeRGBData(ptr : &mut CSSRGBColorData, str : &mut std::string) {
     writeLengthOrNone(ptr.red, str);
     writeLengthOrNoneNotFirst(ptr.green, str);
     writeLengthOrNoneNotFirst(ptr.blue, str);
-    writeLengthOrNoneNotFirst(ptr.alpha, str);
+    writeAlphaLengthOrNone(ptr.alpha, str);
 }
 
 func writeHSLData(ptr : &mut CSSHSLColorData, str : &mut std::string) {
     writeLengthOrNone(ptr.hue, str);
     writeLengthOrNoneNotFirst(ptr.saturation, str);
     writeLengthOrNoneNotFirst(ptr.lightness, str);
-    writeLengthOrNoneNotFirst(ptr.alpha, str);
+    writeAlphaLengthOrNone(ptr.alpha, str);
+}
+
+func writeHWBData(ptr : &mut CSSHWBColorData, str : &mut std::string) {
+    writeLengthOrNone(ptr.hue, str);
+    writeLengthOrNoneNotFirst(ptr.whiteness, str);
+    writeLengthOrNoneNotFirst(ptr.blackness, str);
+    writeAlphaLengthOrNone(ptr.alpha, str);
+}
+
+func writeLABData(ptr : &mut CSSLABColorData, str : &mut std::string) {
+    writeLengthOrNone(ptr.lightness, str);
+    writeLengthOrNoneNotFirst(ptr.rgAxis, str);
+    writeLengthOrNoneNotFirst(ptr.byAxis, str);
+    writeAlphaLengthOrNone(ptr.alpha, str);
+}
+
+func writeLCHData(ptr : &mut CSSLCHColorData, str : &mut std::string) {
+    writeLengthOrNone(ptr.lightness, str);
+    writeLengthOrNoneNotFirst(ptr.chroma, str);
+    writeLengthOrNoneNotFirst(ptr.hue, str);
+    writeAlphaLengthOrNone(ptr.alpha, str);
+}
+
+func writeOKLABData(ptr : &mut CSSOKLABColorData, str : &mut std::string) {
+    writeLengthOrNone(ptr.lightness, str);
+    writeLengthOrNoneNotFirst(ptr.aAxis, str);
+    writeLengthOrNoneNotFirst(ptr.bAxis, str);
+    writeAlphaLengthOrNone(ptr.alpha, str);
+}
+
+func writeOKLCHData(ptr : &mut CSSOKLCHColorData, str : &mut std::string) {
+    writeLengthOrNone(ptr.lightness, str);
+    writeLengthOrNoneNotFirst(ptr.pChroma, str);
+    writeLengthOrNoneNotFirst(ptr.hue, str);
+    writeAlphaLengthOrNone(ptr.alpha, str);
 }
 
 func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
@@ -517,19 +560,34 @@ func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
             str.append(')')
         }
         CSSColorKind.HWB => {
-
+            const rgbL = std::string_view("hwb(")
+            str.append_with_len(rgbL.data(), rgbL.size())
+            writeHWBData(*ptr.value.hwbData, str)
+            str.append(')')
         }
         CSSColorKind.LAB => {
-
+            const rgbL = std::string_view("lab(")
+            str.append_with_len(rgbL.data(), rgbL.size())
+            writeLABData(*ptr.value.labData, str)
+            str.append(')')
         }
         CSSColorKind.LCH => {
-
+            const rgbL = std::string_view("lch(")
+            str.append_with_len(rgbL.data(), rgbL.size())
+            writeLCHData(*ptr.value.lchData, str)
+            str.append(')')
         }
         CSSColorKind.OKLAB => {
-
+            const rgbL = std::string_view("oklab(")
+            str.append_with_len(rgbL.data(), rgbL.size())
+            writeOKLABData(*ptr.value.oklabData, str)
+            str.append(')')
         }
         CSSColorKind.OKLCH => {
-
+            const rgbL = std::string_view("oklch(")
+            str.append_with_len(rgbL.data(), rgbL.size())
+            writeOKLCHData(*ptr.value.oklchData, str)
+            str.append(')')
         }
         CSSColorKind.COLOR => {
 

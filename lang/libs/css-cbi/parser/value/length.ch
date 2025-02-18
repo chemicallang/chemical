@@ -114,8 +114,7 @@ func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengt
     }
 }
 
-func (cssParser : &mut CSSParser) parseLengthInto(
-    parser : *mut Parser,
+func (parser : &mut Parser) parseLengthInto(
     builder : *mut ASTBuilder,
     length : &mut CSSLengthValueData
 ) : bool {
@@ -144,8 +143,26 @@ func (cssParser : &mut CSSParser) parseLengthInto(
     }
 }
 
-func (cssParser : &mut CSSParser) parseNumberOrLengthInto(
-    parser : *mut Parser,
+func (parser : &mut Parser) parseNumberInto(
+    builder : *mut ASTBuilder,
+    length : &mut CSSLengthValueData
+) : bool {
+    const token = parser.getToken();
+    switch(token.type) {
+        TokenType.Number => {
+            parser.increment();
+            length.value = builder.allocate_view(token.value)
+            return true;
+        }
+        default => {
+            length.value = std::string_view("")
+            length.kind = CSSLengthKind.Unknown
+            return false;
+        }
+    }
+}
+
+func (parser : &mut Parser) parseNumberOrLengthInto(
     builder : *mut ASTBuilder,
     length : &mut CSSLengthValueData
 ) : bool {

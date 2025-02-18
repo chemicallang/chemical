@@ -31,6 +31,14 @@ func getAnimationTimingFunctionKeywordKind(hash : size_t) : CSSKeywordKind {
     }
 }
 
+func getTransitionBehaviorKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
+        comptime_fnv1_hash("allow-discrete") => { return CSSKeywordKind.AllowDiscrete }
+        comptime_fnv1_hash("normal") => { return CSSKeywordKind.Normal }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
 func getMaskBorderModeKeywordKind(hash : size_t) : CSSKeywordKind {
     switch(hash) {
         comptime_fnv1_hash("alpha") => { return CSSKeywordKind.Alpha }

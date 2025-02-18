@@ -42,6 +42,11 @@ struct CSSLengthValueData {
     // since we don't need to check the value
     var value : std::string_view
 
+    @make
+    func make() {
+        kind = CSSLengthKind.Unknown
+    }
+
 }
 
 struct CSSRGBColorData {
@@ -221,6 +226,89 @@ struct CSSFontValueData {
     var lineHeight  : CSSValue
 
     var family      : CSSFontFamily
+
+}
+
+struct CSSLinearEasingPoint {
+
+    // the duration point
+    var point : CSSLengthValueData
+
+    var start : CSSLengthValueData
+
+    var stop : CSSLengthValueData
+
+    var next : *CSSLinearEasingPoint
+
+    @make
+    func make() {
+        next = null
+    }
+
+}
+
+struct CSSCubicBezierEasingData {
+
+    var x1 : CSSLengthValueData
+
+    var y1 : CSSLengthValueData
+
+    var x2 : CSSLengthValueData
+
+    var y2 : CSSLengthValueData
+
+}
+
+struct CSSStepsEasingData {
+
+    var step : CSSLengthValueData
+
+    var position : CSSKeywordValueData
+
+}
+
+struct CSSEasingFunction {
+
+    var kind : CSSKeywordKind
+
+    union {
+
+        var keyword : CSSKeywordValueData
+
+        var linear : *CSSLinearEasingPoint
+
+        var bezier : *CSSCubicBezierEasingData
+
+        var steps : *CSSStepsEasingData
+
+    } data;
+
+    @make
+    func make() {
+        kind = CSSKeywordKind.Unknown
+    }
+
+}
+
+struct CSSTransitionValueData {
+
+    // can be 'all', 'none', a css property name or even empty
+    var property : std::string_view
+
+    var duration : CSSLengthValueData
+
+    var easing : CSSEasingFunction
+
+    var delay : CSSLengthValueData
+
+    var behavior : CSSKeywordValueData
+
+    var next : *mut CSSTransitionValueData
+
+    @make
+    func make() {
+        next = null
+    }
 
 }
 

@@ -449,31 +449,24 @@ func writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std:
 
 }
 
-func writeNumberOrPercentage(ptr : &mut CSSNumberOrPercentage, str : &mut std::string) {
-    str.append_with_len(ptr.number.data(), ptr.number.size())
-    if(ptr.is_percentage) {
-        str.append('%');
-    }
-}
-
 func writeRGBData(ptr : &mut CSSRGBColorData, str : &mut std::string) {
-    if(!ptr.red.number.empty()) {
-        writeNumberOrPercentage(ptr.red, str);
+    if(ptr.red.kind != CSSLengthKind.Unknown) {
+        writeLength(ptr.red, str);
     }
-    if(!ptr.green.number.empty()) {
+    if(ptr.green.kind != CSSLengthKind.Unknown) {
         str.append(',')
         str.append(' ')
-        writeNumberOrPercentage(ptr.green, str);
+        writeLength(ptr.green, str);
     }
-    if(!ptr.blue.number.empty()) {
+    if(ptr.blue.kind != CSSLengthKind.Unknown) {
         str.append(',')
         str.append(' ')
-        writeNumberOrPercentage(ptr.blue, str);
+        writeLength(ptr.blue, str);
     }
-    if(!ptr.alpha.number.empty()) {
+    if(ptr.alpha.kind != CSSLengthKind.Unknown) {
         str.append(',')
         str.append(' ')
-        writeNumberOrPercentage(ptr.alpha, str);
+        writeLength(ptr.alpha, str);
     }
 }
 

@@ -41,10 +41,20 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '-' => {
-            return Token {
-                type : TokenType.Minus,
-                value : view("-"),
-                position : position
+            if(isdigit(provider.peek())) {
+                str.append('-');
+                provider.read_floating_digits(lexer.str);
+                return Token {
+                    type : TokenType.Number,
+                    value : str.finalize_view(),
+                    position : position
+                }
+            } else {
+                return Token {
+                    type : TokenType.Minus,
+                    value : view("-"),
+                    position : position
+                }
             }
         }
         '.' => {

@@ -5,7 +5,7 @@ enum TokenType {
     Unexpected,
     // identifier
     Identifier,
-    // floating or non floating number
+    // negative / positive, floating or non floating number
     Number,
     // comment begins double forward slash
     Comment,

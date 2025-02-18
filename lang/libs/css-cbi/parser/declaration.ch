@@ -33,17 +33,6 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             alloc_value_length(parser, builder, value, token.value);
             return
         }
-        TokenType.Minus => {
-            parser.increment()
-            const next = parser.getToken()
-            if(next.type == TokenType.Number) {
-                parser.increment()
-                alloc_neg_value_length(parser, builder, value, next.value)
-                return;
-            } else {
-                parser.error("expected a number after '-'");
-            }
-        }
         TokenType.Identifier => {
             return cssParser.parseIdentifierCSSColor(parser, builder, value, token)
         }

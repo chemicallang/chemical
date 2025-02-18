@@ -128,22 +128,61 @@ func isStrSystemColor(view : &std::string_view) : bool {
     return isSystemColor(hashSmallColorValue(view))
 }
 
-func (parser : &mut Parser) parseNumberOrPercentage(builder : *mut ASTBuilder) : CSSLengthValueData {
+func (parser : &mut Parser) parseNumberOrAngleOrNone(builder : *mut ASTBuilder) : CSSLengthValueData {
     const token = parser.getToken()
-    if(token.type == TokenType.Number) {
-        parser.increment();
-        if(parser.getToken().type == TokenType.Percentage) {
+    switch(token.type) {
+        TokenType.Number => {
             parser.increment();
-            return CSSLengthValueData { kind : CSSLengthKind.LengthPERCENTAGE, value : builder.allocate_view(token.value) }
-        } else {
-            return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(token.value) }
+            const lenKind = parseLengthKindSafe(parser, builder)
+            if(lenKind == CSSLengthKind.Unknown) {
+                return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(token.value) }
+            } else {
+                return CSSLengthValueData { kind : lenKind, value : builder.allocate_view(token.value) }
+            }
         }
-    } else {
-        return CSSLengthValueData { kind : CSSLengthKind.Unknown, value : std::string_view() }
+        TokenType.Identifier => {
+            if(token.value.equals("none")) {
+                parser.increment()
+                return CSSLengthValueData { kind : CSSLengthKind.None, value : "none" }
+            } else {
+                break;
+            }
+        }
+        default => {
+            break;
+        }
     }
+    return CSSLengthValueData { kind : CSSLengthKind.Unknown, value : std::string_view() }
 }
 
-// this should be called after incrementing the 'rgb' token
+func (parser : &mut Parser) parseNumberOrPercentageOrNone(builder : *mut ASTBuilder) : CSSLengthValueData {
+    const token = parser.getToken()
+    switch(token.type) {
+        TokenType.Number => {
+            parser.increment();
+            if(parser.getToken().type == TokenType.Percentage) {
+                parser.increment();
+                return CSSLengthValueData { kind : CSSLengthKind.LengthPERCENTAGE, value : builder.allocate_view(token.value) }
+            } else {
+                return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(token.value) }
+            }
+        }
+        TokenType.Identifier => {
+            if(token.value.equals("none")) {
+                parser.increment()
+                return CSSLengthValueData { kind : CSSLengthKind.None, value : "none" }
+            } else {
+                break;
+            }
+        }
+        default => {
+            break;
+        }
+    }
+    return CSSLengthValueData { kind : CSSLengthKind.Unknown, value : std::string_view() }
+}
+
+// this should be called after incrementing the 'rgb' or 'rgba' token
 func (cssParser : &mut CSSParser) parseRGBColor(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut CSSRGBColorData) {
     const next = parser.getToken()
     if(next.type == TokenType.LParen) {
@@ -152,16 +191,16 @@ func (cssParser : &mut CSSParser) parseRGBColor(parser : *mut Parser, builder : 
         parser.error("expected a '(' after 'rgb'")
     }
 
-    data.red = parser.parseNumberOrPercentage(builder)
+    data.red = parser.parseNumberOrPercentageOrNone(builder)
     parser.incrementToken(TokenType.Comma)
-    data.green = parser.parseNumberOrPercentage(builder)
+    data.green = parser.parseNumberOrPercentageOrNone(builder)
     parser.incrementToken(TokenType.Comma)
-    data.blue = parser.parseNumberOrPercentage(builder)
+    data.blue = parser.parseNumberOrPercentageOrNone(builder)
     const sep = parser.getToken()
     if(sep.type == TokenType.Divide || sep.type == TokenType.Comma) {
         parser.increment()
     }
-    data.alpha = parser.parseNumberOrPercentage(builder)
+    data.alpha = parser.parseNumberOrPercentageOrNone(builder)
 
     const last = parser.getToken()
     if(last.type == TokenType.RParen) {
@@ -169,6 +208,35 @@ func (cssParser : &mut CSSParser) parseRGBColor(parser : *mut Parser, builder : 
     } else {
         parser.error("expected a ')' after 'rgb' arguments")
     }
+}
+
+// this should be called after incrementing the 'hsl' or 'hsla' token
+func (cssParser : &mut CSSParser) parseHSLColor(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut CSSHSLColorData) {
+    const next = parser.getToken()
+    if(next.type == TokenType.LParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a '(' after 'hsl'")
+    }
+
+    data.hue = parser.parseNumberOrAngleOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.saturation = parser.parseNumberOrPercentageOrNone(builder)
+    parser.incrementToken(TokenType.Comma)
+    data.lightness = parser.parseNumberOrPercentageOrNone(builder)
+    const sep = parser.getToken()
+    if(sep.type == TokenType.Divide || sep.type == TokenType.Comma) {
+        parser.increment()
+    }
+    data.alpha = parser.parseNumberOrPercentageOrNone(builder)
+
+    const last = parser.getToken()
+    if(last.type == TokenType.RParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a ')' after 'hsl' arguments")
+    }
+
 }
 
 func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
@@ -191,6 +259,24 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
                 new (rgbData) CSSRGBColorData();
 
                 cssParser.parseRGBColor(parser, builder, *rgbData)
+
+                var col_value = builder.allocate<CSSColorValueData>();
+                col_value.kind = kind;
+                col_value.value.rgbData = rgbData
+
+                value.kind = CSSValueKind.Color
+                value.data = col_value
+
+                return true;
+            }
+            CSSColorKind.HSL, CSSColorKind.HSLA => {
+
+                parser.increment()
+
+                const rgbData = builder.allocate<CSSHSLColorData>()
+                new (rgbData) CSSHSLColorData();
+
+                cssParser.parseHSLColor(parser, builder, *rgbData)
 
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;

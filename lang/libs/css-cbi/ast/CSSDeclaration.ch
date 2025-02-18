@@ -56,6 +56,18 @@ struct CSSRGBColorData {
 
 }
 
+struct CSSHSLColorData {
+
+    var hue : CSSLengthValueData
+
+    var saturation : CSSLengthValueData
+
+    var lightness : CSSLengthValueData
+
+    var alpha : CSSLengthValueData
+
+}
+
 struct CSSColorValueData {
 
     var kind : CSSColorKind
@@ -65,6 +77,8 @@ struct CSSColorValueData {
         var view : std::string_view
 
         var rgbData : *CSSRGBColorData
+
+        var hslData : *CSSHSLColorData
 
     } value;
 

@@ -449,25 +449,45 @@ func writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std:
 
 }
 
+func writeLengthOrNone(len : &mut CSSLengthValueData, str : &mut std::string) {
+    switch(len.kind) {
+        CSSLengthKind.Unknown => {
+
+        }
+        CSSLengthKind.None => {
+            if(len.value.empty()) {
+                const view = std::string_view("none")
+                str.append_with_len(view.data(), view.size())
+            } else {
+                writeLength(len, str);
+            }
+        }
+        default => {
+            writeLength(len, str);
+        }
+    }
+}
+
+func writeLengthOrNoneNotFirst(len : &mut CSSLengthValueData, str : &mut std::string) {
+    if(len.kind != CSSLengthKind.Unknown) {
+        str.append(',')
+        str.append(' ')
+        writeLengthOrNone(len, str);
+    }
+}
+
 func writeRGBData(ptr : &mut CSSRGBColorData, str : &mut std::string) {
-    if(ptr.red.kind != CSSLengthKind.Unknown) {
-        writeLength(ptr.red, str);
-    }
-    if(ptr.green.kind != CSSLengthKind.Unknown) {
-        str.append(',')
-        str.append(' ')
-        writeLength(ptr.green, str);
-    }
-    if(ptr.blue.kind != CSSLengthKind.Unknown) {
-        str.append(',')
-        str.append(' ')
-        writeLength(ptr.blue, str);
-    }
-    if(ptr.alpha.kind != CSSLengthKind.Unknown) {
-        str.append(',')
-        str.append(' ')
-        writeLength(ptr.alpha, str);
-    }
+    writeLengthOrNone(ptr.red, str);
+    writeLengthOrNoneNotFirst(ptr.green, str);
+    writeLengthOrNoneNotFirst(ptr.blue, str);
+    writeLengthOrNoneNotFirst(ptr.alpha, str);
+}
+
+func writeHSLData(ptr : &mut CSSHSLColorData, str : &mut std::string) {
+    writeLengthOrNone(ptr.hue, str);
+    writeLengthOrNoneNotFirst(ptr.saturation, str);
+    writeLengthOrNoneNotFirst(ptr.lightness, str);
+    writeLengthOrNoneNotFirst(ptr.alpha, str);
 }
 
 func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
@@ -485,10 +505,16 @@ func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
            str.append(')')
         }
         CSSColorKind.HSL => {
-
+            const rgbL = std::string_view("hsl(")
+            str.append_with_len(rgbL.data(), rgbL.size())
+            writeHSLData(*ptr.value.hslData, str)
+            str.append(')')
         }
         CSSColorKind.HSLA => {
-
+            const rgbL = std::string_view("hsla(")
+            str.append_with_len(rgbL.data(), rgbL.size())
+            writeHSLData(*ptr.value.hslData, str)
+            str.append(')')
         }
         CSSColorKind.HWB => {
 

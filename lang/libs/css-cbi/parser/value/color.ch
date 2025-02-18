@@ -128,18 +128,18 @@ func isStrSystemColor(view : &std::string_view) : bool {
     return isSystemColor(hashSmallColorValue(view))
 }
 
-func (parser : &mut Parser) parseNumberOrPercentage(builder : *mut ASTBuilder) : CSSNumberOrPercentage {
+func (parser : &mut Parser) parseNumberOrPercentage(builder : *mut ASTBuilder) : CSSLengthValueData {
     const token = parser.getToken()
     if(token.type == TokenType.Number) {
         parser.increment();
-        const next = parser.getToken()
-        const is_percentage = next.type == TokenType.Percentage;
-        if(is_percentage) {
+        if(parser.getToken().type == TokenType.Percentage) {
             parser.increment();
+            return CSSLengthValueData { kind : CSSLengthKind.LengthPERCENTAGE, value : builder.allocate_view(token.value) }
+        } else {
+            return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(token.value) }
         }
-        return CSSNumberOrPercentage { number : builder.allocate_view(token.value), is_percentage : is_percentage }
     } else {
-        return CSSNumberOrPercentage()
+        return CSSLengthValueData { kind : CSSLengthKind.Unknown, value : std::string_view() }
     }
 }
 

@@ -44,30 +44,15 @@ struct CSSLengthValueData {
 
 }
 
-struct CSSNumberOrPercentage {
-
-    // the number in question
-    var number : std::string_view
-
-    // is there a percentage sign after it
-    var is_percentage : bool
-
-    @make
-    func make() {
-        is_percentage = false;
-    }
-
-}
-
 struct CSSRGBColorData {
 
-    var red : CSSNumberOrPercentage
+    var red : CSSLengthValueData
 
-    var green : CSSNumberOrPercentage
+    var green : CSSLengthValueData
 
-    var blue : CSSNumberOrPercentage
+    var blue : CSSLengthValueData
 
-    var alpha : CSSNumberOrPercentage
+    var alpha : CSSLengthValueData
 
 }
 

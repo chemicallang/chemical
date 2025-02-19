@@ -449,6 +449,16 @@ enum CSSKeywordKind {
     Translate3d,
     TranslateX,
     TranslateY,
-    TranslateZ
+    TranslateZ,
+
+    // width or height keywords
+    MinContent,
+    MaxContent,
+    FitContent,
+    CalcSize,
+    Width,
+    Height,
+    SelfBlock,
+    SelfInline,
 
 }

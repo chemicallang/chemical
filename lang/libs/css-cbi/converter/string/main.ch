@@ -799,6 +799,14 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
         }
 
+        CSSValueKind.SingleLengthFunctionCall => {
+            const ptr = value.data as *SingleLengthFuncCall
+            str.append_with_len(ptr.name.value.data(), ptr.name.value.size())
+            str.append('(')
+            writeLength(ptr.length, str)
+            str.append(')')
+        }
+
         CSSValueKind.Font => {
 
             var ptr = value.data as *mut CSSFontValueData

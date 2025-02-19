@@ -279,27 +279,6 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
     }
 }
 
-
-func (cssParser : &mut CSSParser) parseWidth(
-    parser : *mut Parser,
-    builder : *mut ASTBuilder,
-    value : &mut CSSValue
-) {
-    if(!cssParser.parseLengthOrAuto(parser, builder, value)) {
-        parser.error("unknown value given for width");
-    }
-}
-
-func (cssParser : &mut CSSParser) parseHeight(
-    parser : *mut Parser,
-    builder : *mut ASTBuilder,
-    value : &mut CSSValue
-) {
-    if(!cssParser.parseLengthOrAuto(parser, builder, value)) {
-        parser.error("unknown value given for height");
-    }
-}
-
 func (cssParser : &mut CSSParser) parseMarginSingle(
     parser : *mut Parser,
     builder : *mut ASTBuilder,

@@ -428,4 +428,27 @@ enum CSSKeywordKind {
     // Transition Behavior
     AllowDiscrete,
 
+    // Transform Functions
+    Matrix,
+    Matrix3d,
+    Perspective,
+    Rotate,
+    Rotate3d,
+    RotateX,
+    RotateY,
+    RotateZ,
+    Scale,
+    Scale3d,
+    ScaleX,
+    ScaleY,
+    ScaleZ,
+    Skew,
+    SkewX,
+    SkewY,
+    Translate,
+    Translate3d,
+    TranslateX,
+    TranslateY,
+    TranslateZ
+
 }

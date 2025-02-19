@@ -18,6 +18,33 @@ func getBorderStyleKeywordKind(hash : size_t) : CSSKeywordKind {
     }
 }
 
+func getTransformFunctionKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
+        comptime_fnv1_hash("matrix") => { return CSSKeywordKind.Matrix }
+        comptime_fnv1_hash("matrix3d") => { return CSSKeywordKind.Matrix3d }
+        comptime_fnv1_hash("perspective") => { return CSSKeywordKind.Perspective }
+        comptime_fnv1_hash("rotate") => { return CSSKeywordKind.Rotate }
+        comptime_fnv1_hash("rotate3d") => { return CSSKeywordKind.Rotate3d }
+        comptime_fnv1_hash("rotateX") => { return CSSKeywordKind.RotateX }
+        comptime_fnv1_hash("rotateY") => { return CSSKeywordKind.RotateY }
+        comptime_fnv1_hash("rotateZ") => { return CSSKeywordKind.RotateZ }
+        comptime_fnv1_hash("scale") => { return CSSKeywordKind.Scale }
+        comptime_fnv1_hash("scale3d") => { return CSSKeywordKind.Scale3d }
+        comptime_fnv1_hash("scaleX") => { return CSSKeywordKind.ScaleX }
+        comptime_fnv1_hash("scaleY") => { return CSSKeywordKind.ScaleY }
+        comptime_fnv1_hash("scaleZ") => { return CSSKeywordKind.ScaleZ }
+        comptime_fnv1_hash("skew") => { return CSSKeywordKind.Skew }
+        comptime_fnv1_hash("skewX") => { return CSSKeywordKind.SkewX }
+        comptime_fnv1_hash("skewY") => { return CSSKeywordKind.SkewY }
+        comptime_fnv1_hash("translate") => { return CSSKeywordKind.Translate }
+        comptime_fnv1_hash("translate3d") => { return CSSKeywordKind.Translate3d }
+        comptime_fnv1_hash("translateX") => { return CSSKeywordKind.TranslateX }
+        comptime_fnv1_hash("translateY") => { return CSSKeywordKind.TranslateY }
+        comptime_fnv1_hash("translateZ") => { return CSSKeywordKind.TranslateZ }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
 func getAnimationTimingFunctionKeywordKind(hash : size_t) : CSSKeywordKind {
     switch(hash) {
         comptime_fnv1_hash("ease") => { return CSSKeywordKind.Ease }

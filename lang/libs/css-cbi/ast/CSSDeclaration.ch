@@ -312,6 +312,35 @@ struct CSSTransitionValueData {
 
 }
 
+struct CSSTransformLengthNode {
+
+    var length : CSSLengthValueData
+
+    var next : *mut CSSTransformLengthNode
+
+    @make
+    func make() {
+        next = null
+    }
+
+}
+
+struct CSSTransformValueData {
+
+    var transformFunction : CSSKeywordValueData
+
+    var node : *mut CSSTransformLengthNode
+
+    var next : *mut CSSTransformValueData
+
+    @make
+    func make() {
+        node = null
+        next = null
+    }
+
+}
+
 struct CSSBoxShadowValueData {
 
     var inset : bool;

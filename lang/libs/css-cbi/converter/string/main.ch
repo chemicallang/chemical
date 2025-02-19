@@ -747,11 +747,14 @@ func writeTransformValueData(ptr : &mut CSSTransformValueData, str : &mut std::s
 
     const name = &ptr.transformFunction.value
     str.append_with_len(name.data(), name.size())
+    str.append('(')
     if(ptr.node != null) {
-        str.append('(')
         writeTransformNode(*ptr.node, str)
-        str.append(')')
+    } else {
+        const noneKw = std::string_view("none")
+        str.append_with_len(noneKw.data(), noneKw.size())
     }
+    str.append(')')
     if(ptr.next != null) {
         str.append(' ')
         writeTransformValueData(*ptr.next, str)
@@ -870,7 +873,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
         CSSValueKind.Transform => {
 
             const ptr = value.data as *mut CSSTransformValueData
-            if(ptr.node == null) {
+            if(ptr.node == null && ptr.transformFunction.kind != CSSKeywordKind.Perspective) {
                 const noneStr = std::string_view("none")
                 str.append_with_len(noneStr.data(), noneStr.size())
             } else {

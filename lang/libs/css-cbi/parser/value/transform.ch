@@ -39,6 +39,14 @@ func (cssParser : &mut CSSParser) parseTransform(
                 transform.node = node;
 
                 while(true) {
+                    if(kind == CSSKeywordKind.Perspective) {
+                        const t = parser.getToken()
+                        if(t.type == TokenType.Identifier && t.value.equals("none")) {
+                            transform.node = null
+                            parser.increment()
+                            break;
+                        }
+                    }
                     if(parser.parseNumberOrLengthInto(builder, node.length)) {
 
                         if(parser.incrementToken(TokenType.Comma)) {

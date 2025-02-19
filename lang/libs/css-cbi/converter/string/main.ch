@@ -731,6 +731,34 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
 
 }
 
+func writeTransformNode(ptr : &mut CSSTransformLengthNode, str : &mut std::string) {
+
+    writeLength(ptr.length, str)
+
+    if(ptr.next != null) {
+        str.append(',')
+        str.append(' ')
+        writeTransformNode(*ptr.next, str)
+    }
+
+}
+
+func writeTransformValueData(ptr : &mut CSSTransformValueData, str : &mut std::string) {
+
+    const name = &ptr.transformFunction.value
+    str.append_with_len(name.data(), name.size())
+    if(ptr.node != null) {
+        str.append('(')
+        writeTransformNode(*ptr.node, str)
+        str.append(')')
+    }
+    if(ptr.next != null) {
+        str.append(' ')
+        writeTransformValueData(*ptr.next, str)
+    }
+
+}
+
 func writeValue(value : &mut CSSValue, str : &mut std::string) {
     switch(value.kind) {
 
@@ -836,6 +864,13 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
                 writeTextShadowValueData(*ptr, str)
 
             }
+
+        }
+
+        CSSValueKind.Transform => {
+
+            const ptr = value.data as *mut CSSTransformValueData
+            writeTransformValueData(*ptr, str)
 
         }
 

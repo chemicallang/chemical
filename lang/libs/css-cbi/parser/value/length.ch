@@ -175,7 +175,6 @@ func (parser : &mut Parser) parseNumberOrLengthInto(
             if(lengthKind == CSSLengthKind.Unknown) {
                 length.kind = CSSLengthKind.None
             } else {
-                parser.increment()
                 length.kind = lengthKind
             }
             return true;

@@ -482,6 +482,9 @@ int16_t MembersContainer::register_with_existing(ASTDiagnoser& diagnoser, std::v
 
 void MembersContainer::report_iteration_to_subs(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t itr) {
     for (auto sub: subscribers) {
+        if(sub->referenced->linked == this) {
+            continue;
+        }
         sub->report_parent_usage(astAllocator, diagnoser, itr);
     }
     for(const auto func : functions()) {

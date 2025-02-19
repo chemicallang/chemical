@@ -10,9 +10,9 @@ func make_char_chain(builder : *mut ASTBuilder, value : char) : *mut AccessChain
     const location = compiler::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
-    var base = builder.make_identifier(std::string_view("html"), false, location);
+    var base = builder.make_identifier(std::string_view("page"), false, location);
     chain_values.push(base)
-    var name : std::string_view = std::string_view("append")
+    var name : std::string_view = std::string_view("append_html_char")
     var id = builder.make_identifier(name, false, location);
     chain_values.push(id)
     var call = builder.make_function_call_value(chain, location)
@@ -29,13 +29,13 @@ func make_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_
     const location = compiler::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
-    var base = builder.make_identifier(std::string_view("html"), false, location);
+    var base = builder.make_identifier(std::string_view("page"), false, location);
     chain_values.push(base)
     var name : std::string_view
     if(len == 0) {
-        name = std::string_view("append_char_ptr")
+        name = std::string_view("append_html_char_ptr")
     } else {
-        name = std::string_view("append_with_len")
+        name = std::string_view("append_html")
     }
     var id = builder.make_identifier(name, false, location);
     chain_values.push(id)

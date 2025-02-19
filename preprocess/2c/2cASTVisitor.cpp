@@ -2342,7 +2342,7 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
     const auto node_kind = node->kind();
     if (node_kind == ASTNodeKind::StructDecl) {
         const auto def = node->as_struct_def_unsafe();
-        if(visitor.redefining || def->iterations_declared == 0) {
+        if(visitor.redefining || def->iterations_declared < def->total_generic_iterations()) {
             // declare inherited types
             for(auto& inherit : def->inherited) {
                 auto in_node = inherit->type->get_direct_linked_node();
@@ -2357,14 +2357,12 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
                     early_declare_node(visitor, sub_node);
                 }
             }
-            visitor.declare_struct(def);
-            def->iterations_declared++;
+            visitor.declare_struct_iterations(def);
         }
     } else if (node_kind == ASTNodeKind::VariantDecl) {
         const auto def = node->as_variant_def_unsafe();
-        if(visitor.redefining || def->iterations_declared == 0) {
-            visitor.declare_variant(def);
-            def->iterations_declared++;
+        if(visitor.redefining || def->iterations_declared < def->total_generic_iterations()) {
+            visitor.declare_variant_iterations(def);
         }
     } else if (node_kind == ASTNodeKind::UnionDecl) {
         // TODO this
@@ -2563,6 +2561,7 @@ void gen_generic_struct_functions(ToCAstVisitor& visitor, StructDefinition* def)
     const auto total_itr = def->total_generic_iterations();
     if(total_itr == 0) return; // generic type never used (yet)
     int16_t itr = def->iterations_body_done;
+    if(itr >= total_itr) return;
     auto prev = def->active_iteration;
     while (itr < total_itr) {
         def->set_active_iteration(itr);
@@ -2573,18 +2572,14 @@ void gen_generic_struct_functions(ToCAstVisitor& visitor, StructDefinition* def)
     def->set_active_iteration(prev);
 }
 
-void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
-    if(visitor.compiler_interfaces && def->is_compiler_interface()) {
-        auto& interfaces = *visitor.compiler_interfaces;
-        interfaces.emplace_back(def->name_view().str());
-    }
+void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* def) {
     if(def->generic_params.empty()) {
         if(redefining) { // defining struct imported from another module
             declare_struct(def);
         } else if(def->iterations_declared == 0) { // not yet declared, we should declare it
             declare_struct(def);
-            def->iterations_declared = 1;
         }
+        def->iterations_declared = 1;
     } else {
         // when redefining (struct imported from other module), we declare all iterations, otherwise begin where left off
         int16_t itr = redefining ? (int16_t) 0 : def->iterations_declared;
@@ -2603,6 +2598,14 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
             gen_generic_struct_functions(visitor, def);
         }
     }
+}
+
+void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
+    if(visitor.compiler_interfaces && def->is_compiler_interface()) {
+        auto& interfaces = *visitor.compiler_interfaces;
+        interfaces.emplace_back(def->name_view().str());
+    }
+    declare_struct_iterations(def);
 }
 
 void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
@@ -2660,11 +2663,6 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     visitor.indentation_level-=1;
     new_line_and_indent();
     write("};");
-    if(def->requires_destructor() && def->destructor_func() == nullptr) {
-        // TODO create destructor
-//        auto decl = def->create_destructor();
-//        decl->ensure_destructor(def);
-    }
     for(auto& func : def->functions()) {
 //        if(def->get_overriding_interface(func.get()) == nullptr) {
             declare_contained_func(this, func, false);
@@ -2679,6 +2677,7 @@ void gen_variant_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
     const auto total_itr = def->total_generic_iterations();
     if(total_itr == 0) return; // generic type never used (yet)
     int16_t itr = def->iterations_body_done;
+    if(itr >= total_itr) return;
     auto prev = def->active_iteration;
     while (itr < total_itr) {
         def->set_active_iteration(itr);
@@ -2689,14 +2688,14 @@ void gen_variant_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
     def->iterations_body_done = total_itr;
 }
 
-void CTopLevelDeclarationVisitor::visit(VariantDefinition *def) {
+void CTopLevelDeclarationVisitor::declare_variant_iterations(VariantDefinition* def) {
     if(def->generic_params.empty()) {
         if(redefining) {
             declare_variant(def);
         } else if(def->iterations_declared == 0) {
             declare_variant(def);
-            def->iterations_declared = 1;
         }
+        def->iterations_declared = 1;
     } else {
         // when redefining (struct imported from other module), we declare all iterations, otherwise begin where left off
         int16_t itr = redefining ? (int16_t) 0 : def->iterations_declared;
@@ -2712,6 +2711,10 @@ void CTopLevelDeclarationVisitor::visit(VariantDefinition *def) {
         // generating remaining functions of the variant (bodies)
         gen_variant_functions(visitor, def);
     }
+}
+
+void CTopLevelDeclarationVisitor::visit(VariantDefinition *def) {
+    declare_variant_iterations(def);
 }
 
 void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {

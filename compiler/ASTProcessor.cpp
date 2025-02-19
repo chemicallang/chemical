@@ -667,6 +667,8 @@ int ASTProcessor::translate_module(
     std::vector<ASTFileResult*>& files
 ) {
 
+    // The first loop deals with declaring files that have been imported from other modules
+    // declaring means (only prototypes, no function bodies, struct prototypes...)
     for(auto file_ptr : files) {
 
         auto& file = *file_ptr;
@@ -684,24 +686,16 @@ int ASTProcessor::translate_module(
         }
 
         auto imported = shrinked_unit.find(file.abs_path);
-        bool already_imported = imported != shrinked_unit.end();
-        // already imported
-        if(already_imported) {
-            result.continue_processing = true;
-            result.is_c_file = false;
-        } else {
-            // get the processed result
-//                result = std::move(file);
+        if(imported == shrinked_unit.end()) {
+            // not external module file
+            continue;
         }
 
-        ASTUnit& unit = already_imported ? imported->second : file.unit;
+        ASTUnit& unit = imported->second;
 
         // print the benchmark or verbose output received from processing
         if((options->benchmark || options->verbose) && !empty_diags(result)) {
-            std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-            if(!already_imported) {
-                print_results(result, file.abs_path, options->benchmark);
-            }
+            std::cout << rang::style::bold << rang::fg::magenta << "[ExtDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
         }
 
         // do not continue processing
@@ -710,36 +704,73 @@ int ASTProcessor::translate_module(
             return 1;
         }
 
-        if(already_imported) {
-            auto declared_in = unit.declared_in.find(module);
-            if(declared_in == unit.declared_in.end()) {
-                // this is probably a different module, so we'll declare the file (if not declared)
-                external_declare_in_c(c_visitor, unit.scope, file.abs_path);
-                unit.declared_in[module] = true;
-            }
-        } else {
-            // translating to c
-            declare_before_translation(c_visitor, unit.scope.nodes, file.abs_path);
+        auto declared_in = unit.declared_in.find(module);
+        if(declared_in == unit.declared_in.end()) {
+            // this is probably a different module, so we'll declare the file (if not declared)
+            external_declare_in_c(c_visitor, unit.scope, file.abs_path);
+            unit.declared_in[module] = true;
         }
 
     }
 
+    // The second loop deals with declaring files that are present in this module
+    // declaring means (only prototypes, no function bodies, struct prototypes...)
     for(auto file_ptr : files) {
 
         auto& file = *file_ptr;
         auto& result = file;
 
-        const auto not_imported = shrinked_unit.find(file.abs_path) == shrinked_unit.end();
-
-        if(not_imported) {
-
-            ASTUnit& unit = file.unit;
-            // translating to c
-            translate_after_declaration(c_visitor, unit.scope.nodes, file.abs_path);
-            // save the file result, for future retrievals
-            shrinked_unit[file.abs_path] = std::move(result.unit);
-
+        // check file exists
+        if(file.abs_path.empty()) {
+            std::cerr << rang::fg::red << "error: file not found '" << file.import_path << "'" << rang::fg::reset << std::endl;
+            return 1;
         }
+
+        if(!result.read_error.empty()) {
+            std::cerr << rang::fg::red << "error: when reading file '" << file.abs_path << "' with message '" << result.read_error << "'" << rang::fg::reset << std::endl;
+            return 1;
+        }
+
+        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
+            // external module file
+            continue;
+        }
+
+        ASTUnit& unit = file.unit;
+
+        // print the benchmark or verbose output received from processing
+        if((options->benchmark || options->verbose) && !empty_diags(result)) {
+            std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+            print_results(result, file.abs_path, options->benchmark);
+        }
+
+        // do not continue processing
+        if(!result.continue_processing) {
+            std::cerr << rang::fg::red << "couldn't perform job due to errors during lexing or parsing file '" << file.abs_path << '\'' << rang::fg::reset << std::endl;
+            return 1;
+        }
+
+        // translating to c
+        declare_before_translation(c_visitor, unit.scope.nodes, file.abs_path);
+
+    }
+
+    // The third loop deals with generating function bodies present in the current module
+    for(auto file_ptr : files) {
+
+        auto& file = *file_ptr;
+        auto& result = file;
+
+        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
+            // external module file
+            continue;
+        }
+
+        ASTUnit& unit = file.unit;
+        // translating to c
+        translate_after_declaration(c_visitor, unit.scope.nodes, file.abs_path);
+        // save the file result, for future retrievals
+        shrinked_unit[file.abs_path] = std::move(result.unit);
 
     }
 

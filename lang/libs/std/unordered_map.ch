@@ -116,7 +116,6 @@ public struct unordered_map<Key, Value> {
         while (currentNode != null) {
             if (compare_now(currentNode.key, key)) {
                 return &currentNode.value;
-                return true;
             }
             currentNode = currentNode.next;
         }

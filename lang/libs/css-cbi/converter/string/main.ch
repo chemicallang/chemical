@@ -870,7 +870,12 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
         CSSValueKind.Transform => {
 
             const ptr = value.data as *mut CSSTransformValueData
-            writeTransformValueData(*ptr, str)
+            if(ptr.node == null) {
+                const noneStr = std::string_view("none")
+                str.append_with_len(noneStr.data(), noneStr.size())
+            } else {
+                writeTransformValueData(*ptr, str)
+            }
 
         }
 

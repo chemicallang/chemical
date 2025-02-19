@@ -16,6 +16,10 @@ func (cssParser : &mut CSSParser) parseTransform(
         if(token.type == TokenType.Identifier) {
 
             const hash = token.fnv1()
+            if(transform == value.data && hash == comptime_fnv1_hash("none")) {
+                parser.increment()
+                break;
+            }
             const kind = getTransformFunctionKeywordKind(hash)
 
             transform.transformFunction = CSSKeywordValueData { value : builder.allocate_view(token.value), kind : kind }

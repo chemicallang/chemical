@@ -140,6 +140,28 @@ public struct string {
         }
     }
 
+    func reserve(&mut self, new_capacity : size_t) {
+        switch(state) {
+            '0' => {
+                if(new_capacity < STR_BUFF_SIZE) {
+                    move_const_to_buffer();
+                } else {
+                    move_data_to_heap(storage.constant.data, storage.constant.length, new_capacity);
+                }
+            }
+            '1' => {
+                if(new_capacity >= STR_BUFF_SIZE) {
+                    move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, new_capacity);
+                }
+            }
+            '2' => {
+                if(new_capacity > storage.heap.capacity) {
+                    resize(new_capacity);
+                }
+            }
+        }
+    }
+
     func set(&mut self, index : size_t, value : char) {
         switch(state) {
             '0' => {

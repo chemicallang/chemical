@@ -51,9 +51,15 @@ struct HtmlPage {
 
     func toString(&self) : std::string {
         var str = std::string()
+        str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + 80)
         var start = std::string_view("<!DOCTYPE html><html><head>")
         str.append_with_len(start.data(), start.size())
         str.append_with_len(pageHead.data(), pageHead.size())
+        const cssStart = std::string_view("<style>")
+        str.append_with_len(cssStart.data(), cssStart.size())
+        str.append_with_len(pageCss.data(), pageCss.size())
+        const cssEnd = std::string_view("</style>")
+        str.append_with_len(cssEnd.data(), cssEnd.size())
         var bodyStart = std::string_view("</head><body>")
         str.append_with_len(bodyStart.data(), bodyStart.size())
         str.append_with_len(pageHtml.data(), pageHtml.size())

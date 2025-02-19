@@ -109,19 +109,33 @@ public struct unordered_map<Key, Value> {
         size++;
     }
 
-    // Find a value by key
-    func find(&self, key : &Key, value : &mut Value) : bool {
+    // TODO make this private
+    func get_ptr_for_key(&self, key : &Key) : *Value {
         var index : size_t = hash_with_capacity(key);
         var currentNode = table[index];
-
         while (currentNode != null) {
             if (compare_now(currentNode.key, key)) {
-                value = currentNode.value;
+                return &currentNode.value;
                 return true;
             }
             currentNode = currentNode.next;
         }
-        return false;
+        return null;
+    }
+
+    // Find a value by key
+    func find(&self, key : &Key, value : &mut Value) : bool {
+        const ptr = get_ptr_for_key(key)
+        if(ptr != null) {
+            value = *ptr;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    func contains(&self, key : &Key) : bool {
+        return get_ptr_for_key(key) != null
     }
 
     // Remove a key-value pair

@@ -30,6 +30,10 @@ public:
 
     void declare_struct(StructDefinition* structDef);
 
+    void declare_struct_iterations(StructDefinition* def);
+
+    void declare_variant_iterations(VariantDefinition* def);
+
     void declare_variant(VariantDefinition* structDef);
 
     void declare_func(FunctionDeclaration* decl);

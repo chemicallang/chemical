@@ -15,9 +15,9 @@ func make_char_chain(builder : *mut ASTBuilder, value : char) : *mut AccessChain
     const location = compiler::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
-    var base = builder.make_identifier(std::string_view("html"), false, location);
+    var base = builder.make_identifier(std::string_view("page"), false, location);
     chain_values.push(base)
-    var name : std::string_view = std::string_view("append")
+    var name : std::string_view = std::string_view("append_css_char")
     var id = builder.make_identifier(name, false, location);
     chain_values.push(id)
     var call = builder.make_function_call_value(chain, location)
@@ -30,17 +30,36 @@ func make_char_chain(builder : *mut ASTBuilder, value : char) : *mut AccessChain
     return new_chain;
 }
 
+func make_append_css_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_t, hash : size_t) : *mut AccessChain {
+    const location = compiler::get_raw_location();
+    const chain = builder.make_access_chain(false, location)
+    var chain_values = chain.get_values()
+    var base = builder.make_identifier(std::string_view("page"), false, location);
+    chain_values.push(base)
+    var id = builder.make_identifier(std::string_view("append_css"), false, location);
+    chain_values.push(id)
+    var call = builder.make_function_call_value(chain, location)
+    var args = call.get_args();
+    args.push(value)
+    args.push(builder.make_number_value(len, location));
+    args.push(builder.make_number_value(hash, location))
+    const new_chain = builder.make_access_chain(true, location)
+    var new_chain_values = new_chain.get_values();
+    new_chain_values.push(call);
+    return new_chain;
+}
+
 func make_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_t) : *mut AccessChain {
     const location = compiler::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
-    var base = builder.make_identifier(std::string_view("html"), false, location);
+    var base = builder.make_identifier(std::string_view("page"), false, location);
     chain_values.push(base)
     var name : std::string_view
     if(len == 0) {
-        name = std::string_view("append_char_ptr")
+        name = std::string_view("append_css_char_ptr")
     } else {
-        name = std::string_view("append_with_len")
+        name = std::string_view("append_css")
     }
     var id = builder.make_identifier(name, false, location);
     chain_values.push(id)
@@ -95,6 +114,15 @@ func put_char_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, v
 
 func put_view_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, view : &std::string_view) {
     const chain = make_chain_of_view(builder, view);
+    var wrapped = builder.make_value_wrapper(chain, parent)
+    wrapped.declare_and_link(&wrapped, resolver);
+    vec.push(wrapped);
+}
+
+func put_append_css_value_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, view : &std::string_view, hash : size_t) {
+    const location = compiler::get_raw_location();
+    const value = builder.make_string_value(builder.allocate_view(view), location)
+    const chain = make_append_css_value_chain(builder, value, view.size(), hash);
     var wrapped = builder.make_value_wrapper(chain, parent)
     wrapped.declare_and_link(&wrapped, resolver);
     vec.push(wrapped);
@@ -949,9 +977,7 @@ func put_class_name(hash : uint32_t, prefix : char, ptr : *mut char) {
     *(ptr + 8) = '{'
 }
 
-func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::string) : std::string_view {
-    // calculate the hash before making any changes
-    const hash = fnv1a_hash_32(str.data());
+func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::string, hash : size_t) : std::string_view {
     // append the last '}' into string
     str.append('}')
     // 9 characters are : 2 for ".h", then base64 encoded class name is 6 characters, then 1 for '{'
@@ -966,7 +992,9 @@ func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::str
 }
 
 func put_hashed_string_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
-    put_view_chain(resolver, builder, vec, parent, allocate_view_with_classname(builder, str))
+    // calculate the hash before making any changes
+    const hash = fnv1a_hash_32(str.data());
+    put_append_css_value_chain(resolver, builder, vec, parent, allocate_view_with_classname(builder, str, hash), hash)
 }
 
 func put_class_name_chain(hash : uint32_t, prefix : char, resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode) {

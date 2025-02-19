@@ -49,6 +49,14 @@ struct CSSLengthValueData {
 
 }
 
+struct SingleLengthFuncCall {
+
+    var name : CSSKeywordValueData
+
+    var length : CSSLengthValueData
+
+}
+
 struct CSSRGBColorData {
 
     var red : CSSLengthValueData

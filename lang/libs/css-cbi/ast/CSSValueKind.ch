@@ -9,6 +9,9 @@ enum CSSValueKind {
     Length,
     Color,
 
+    // used for width and height (fit-content call)
+    SingleLengthFunctionCall,
+
     Border,
     BorderRadius,
     Font,

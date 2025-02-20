@@ -7,6 +7,14 @@ struct EnumThing {
     var value : Thing
 }
 
+namespace enum_parent_ns {
+    enum favorite {
+        fruit,
+        veges,
+        coke
+    }
+}
+
 func take_my_enum_dawg(numnum : Thing) : bool {
     return numnum == Thing.Fruit
 }
@@ -112,5 +120,8 @@ func test_enum() {
     })
     test("enum members of enum can reference other members as their values", () => {
         return MultiNum.First == MultiNum.AnotherFirst && MultiNum.Second == MultiNum.AnotherSecond
+    })
+    test("enums inside namespace work too", () => {
+        return enum_parent_ns::favorite.fruit == 0 && enum_parent_ns::favorite.veges == 1 && enum_parent_ns::favorite.coke == 2
     })
 }

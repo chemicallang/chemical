@@ -95,6 +95,20 @@ struct ImpPair {
 
 }
 
+var implicit_constructor_called_or_not = false
+
+struct ImpConstructorCallCheck {
+    @implicit
+    @make
+    func make(d : int) {
+        implicit_constructor_called_or_not = true;
+    }
+}
+
+func take_imp_cons_cc(thing : ImpConstructorCallCheck) : bool {
+    return true
+}
+
 func check_implicit(p : ImpPair) : bool {
     return p.data == 55;
 }
@@ -250,6 +264,22 @@ func test_structs() {
             b : 22
         }
         return point.a + point.b == 54
+    })
+    test("implicit constructors are not called before the statement - 1", () => {
+        implicit_constructor_called_or_not = false
+        var call = false
+        if(call && take_imp_cons_cc(333)) {
+            // do nothing here
+        }
+        return implicit_constructor_called_or_not == false
+    })
+    test("implicit constructors are not called before the statement - 2", () => {
+        implicit_constructor_called_or_not = false
+        var call = true
+        if(call && take_imp_cons_cc(333)) {
+            // do nothing here
+        }
+        return implicit_constructor_called_or_not == true
     })
     test_inheritance();
 }

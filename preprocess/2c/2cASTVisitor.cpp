@@ -4433,21 +4433,19 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
     }
 }
 
-bool write_enum(ToCAstVisitor& visitor, EnumMember* member) {
+void write_enum(ToCAstVisitor& visitor, EnumMember* member) {
     if(visitor.inline_enum_member_access) {
         if(member->init_value) {
             member->init_value->accept(&visitor);
         } else {
             *visitor.output << member->get_default_index();
         }
-        return true;
     } else {
         auto found = visitor.declarer->aliases.find(member);
         if (found != visitor.declarer->aliases.end()) {
             visitor.write(found->second);
-            return true;
         } else {
-            return false;
+            visitor.error("couldn't write the enum", member);
         }
     }
 }
@@ -4470,16 +4468,11 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, 
                 const auto kind = linked->kind();
                 switch(kind) {
                     case ASTNodeKind::EnumDecl:
-                        if(write_enum(visitor, next->linked_node()->as_enum_member())) {
-                            start++;
-                        } else {
-                            visitor.write_str("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() +"]");
-                        }
+                        write_enum(visitor, next->linked_node()->as_enum_member());
+                        start++;
                         break;
                     case ASTNodeKind::EnumMember:
-                        if(!write_enum(visitor, linked->as_enum_member_unsafe())) {
-                            visitor.write_str("[EnumAC_NOT_FOUND:" + current->representation() +"]");
-                        }
+                        write_enum(visitor, linked->as_enum_member_unsafe());
                         break;
                     default:
                         chain_value_accept(visitor, previous, current, next);
@@ -5152,9 +5145,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
                 break;
             }
             case ASTNodeKind::EnumMember: {
-                if(!write_enum(*this, linked->as_enum_member_unsafe())) {
-                    error("couldn't write the num", identifier);
-                }
+                write_enum(*this, linked->as_enum_member_unsafe());
                 return;
             }
         }

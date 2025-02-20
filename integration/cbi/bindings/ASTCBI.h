@@ -16,6 +16,8 @@ class CapturedVariable;
 
 class BaseDefMember;
 
+class BlockValue;
+
 class SymbolResolver;
 
 extern "C" {
@@ -103,6 +105,8 @@ extern "C" {
     std::vector<ASTNode*>* Namespaceget_body(Namespace* ns);
 
     std::vector<ASTNode*>* UnsafeBlockget_body(UnsafeBlock* ub);
+
+    std::vector<ASTNode*>* BlockValueget_body(BlockValue* bv);
 
     void UnionDefinitionadd_member(UnionDef* definition, chem::string_view* name, BaseDefMember* member);
 

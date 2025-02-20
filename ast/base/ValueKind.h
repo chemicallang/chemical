@@ -63,6 +63,7 @@ enum class ValueKind : uint8_t {
     VariantCase,
     AddrOfValue,
     PointerValue,
+    BlockValue,
     WrapValue,
 
     DestructValue,

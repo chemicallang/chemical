@@ -486,6 +486,8 @@ public:
 
     void visit(IndexOperator* op) final;
 
+    void visit(BlockValue *blockVal) override;
+
     void visit(NegativeValue* negValue) final;
 
     void visit(NotValue* notValue) final;

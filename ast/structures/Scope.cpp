@@ -61,8 +61,12 @@ void Scope::interpret(InterpretScope &scope) {
     }
 }
 
-Scope::Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : nodes(std::move(nodes)), parent_node(parent_node), location(location) {
-
+Scope Scope::shallow_copy() {
+    Scope copied(parent_node, location);
+    for(const auto node : nodes) {
+        copied.nodes.emplace_back(node);
+    }
+    return copied;
 }
 
 void Scope::accept(Visitor *visitor) {

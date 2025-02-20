@@ -162,6 +162,12 @@ struct StructValue : Value {
 
 }
 
+struct BlockValue : Value {
+
+    func get_body(&self) : *VecRef<ASTNode>;
+
+}
+
 struct UBigIntValue : Value {}
 
 struct UCharValue : Value {}
@@ -494,6 +500,8 @@ public struct ASTBuilder : BatchAllocator {
     func make_ulong_value(&self, value : ulong, is64Bit : bool, location : ubigint) : *mut ULongValue
 
     func make_ushort_value(&self, value : ushort, location : ubigint) : *mut UShortValue
+
+    func make_block_value(&self, parent_node : *ASTNode, location : ubigint) : *mut BlockValue
 
     func make_value_node(&self, value : *Value, parent_node : *ASTNode, location : ubigint) : *mut ValueNode
 

@@ -76,6 +76,7 @@
 #include "ast/values/IntValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/BlockValue.h"
 #include "ast/values/IncDecValue.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/CastedValue.h"
@@ -168,12 +169,17 @@ void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
 class ToCAstVisitor;
 
 // will write a scope to visitor
-void scope(ToCAstVisitor& visitor, Scope& scope) {
-    visitor.write('{');
+void scope_no_parens(ToCAstVisitor& visitor, Scope& scope) {
     visitor.indentation_level+=1;
     scope.accept(&visitor);
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
+}
+
+// will write a scope to visitor
+void scope(ToCAstVisitor& visitor, Scope& scope) {
+    visitor.write('{');
+    scope_no_parens(visitor, scope);
     visitor.write('}');
 }
 
@@ -2040,14 +2046,19 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
 }
 
 // this will also destruct given function type's params at the end of scope
-void scope(ToCAstVisitor& visitor, Scope& scope, FunctionType* decl) {
+void scope_no_parens(ToCAstVisitor& visitor, Scope& scope, FunctionType* decl) {
     unsigned begin = visitor.destructor->destruct_jobs.size();
     visitor.destructor->queue_destruct_decl_params(decl);
-    visitor.write('{');
     visitor.indentation_level+=1;
     visitor.visit_scope(&scope, (int) begin);
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
+}
+
+// this will also destruct given function type's params at the end of scope
+void scope(ToCAstVisitor& visitor, Scope& scope, FunctionType* decl) {
+    visitor.write('{');
+    scope_no_parens(visitor, scope, decl);
     visitor.write('}');
 }
 
@@ -5121,6 +5132,14 @@ void ToCAstVisitor::visit(IndexOperator *op) {
         write(']');
         i++;
     }
+}
+
+void ToCAstVisitor::visit(BlockValue *blockVal) {
+    write("({");
+    new_line_and_indent();
+    scope_no_parens(*this, blockVal->scope);
+    new_line_and_indent();
+    write(")}");
 }
 
 void ToCAstVisitor::visit(NegativeValue *negValue) {

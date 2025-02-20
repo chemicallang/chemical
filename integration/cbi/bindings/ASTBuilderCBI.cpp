@@ -32,6 +32,7 @@
 #include "ast/values/LongValue.h"
 #include "ast/values/ULongValue.h"
 #include "ast/values/Negative.h"
+#include "ast/values/BlockValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/VariantCaseVariable.h"
@@ -363,6 +364,10 @@ ULongValue* ASTBuildermake_ulong_value(ASTAllocator* allocator, unsigned long va
 
 UShortValue* ASTBuildermake_ushort_value(ASTAllocator* allocator, unsigned short value, uint64_t location) {
     return new (allocator->allocate<UShortValue>()) UShortValue(value, location);
+}
+
+BlockValue* ASTBuildermake_block_value(ASTAllocator* allocator, ASTNode* parent_node, uint64_t location) {
+    return new (allocator->allocate<BlockValue>()) BlockValue(Scope(parent_node, location));
 }
 
 ValueNode* ASTBuildermake_value_node(ASTAllocator* allocator, Value* value, ASTNode* parent_node, uint64_t location) {
@@ -701,6 +706,10 @@ std::vector<ASTNode*>* Namespaceget_body(Namespace* ns) {
 
 std::vector<ASTNode*>* UnsafeBlockget_body(UnsafeBlock* ub) {
     return &ub->scope.nodes;
+}
+
+std::vector<ASTNode*>* BlockValueget_body(BlockValue* bv) {
+    return &bv->scope.nodes;
 }
 
 void UnionDefinitionadd_member(UnionDef* definition, chem::string_view* name, BaseDefMember* member) {

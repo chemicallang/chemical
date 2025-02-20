@@ -895,6 +895,13 @@ public:
     }
 
     /**
+     * as value node unsafe
+     */
+    inline ValueNode* as_value_node_unsafe() {
+        return (ValueNode*) this;
+    }
+
+    /**
      * as loop node unsafe
      */
     inline LoopASTNode* as_loop_node_unsafe() {

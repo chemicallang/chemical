@@ -108,6 +108,7 @@ class CapturedVariable;
 class GenericTypeParameter;
 class IfStatement;
 class ImplDefinition;
+class BlockValue;
 class InitBlock;
 class InterfaceDefinition;
 class Namespace;
@@ -255,6 +256,8 @@ extern "C" {
     ULongValue* ASTBuildermake_ulong_value(ASTAllocator* allocator, unsigned long value, bool is64Bit, uint64_t location);
 
     UShortValue* ASTBuildermake_ushort_value(ASTAllocator* allocator, unsigned short value, uint64_t location);
+
+    BlockValue* ASTBuildermake_block_value(ASTAllocator* allocator, ASTNode* parent_node, uint64_t location);
 
     ValueNode* ASTBuildermake_value_node(ASTAllocator* allocator, Value* value, ASTNode* parent_node, uint64_t location);
 

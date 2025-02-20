@@ -511,6 +511,8 @@ set(COMMON_SOURCES
         ast/types/ExpressionType.h
         ast/values/PointerValue.h
         ast/values/PointerValue.cpp
+        ast/values/BlockValue.h
+        ast/values/BlockValue.cpp
 )
 
 # Chemical LSP Executable Target

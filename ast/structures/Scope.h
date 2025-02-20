@@ -26,7 +26,9 @@ public:
     /**
      * constructor
      */
-    Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location);
+    Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : nodes(std::move(nodes)), parent_node(parent_node), location(location) {
+
+    }
 
     /**
      * deleted copy constructor
@@ -36,6 +38,8 @@ public:
     Scope(Scope&& other) = default;
 
     Scope& operator=(Scope&&) = default;
+
+    Scope shallow_copy();
 
     SourceLocation encoded_location() final {
         return location;

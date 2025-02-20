@@ -74,6 +74,7 @@
 #include "ast/statements/DestructStmt.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/BlockValue.h"
 #include "ast/types/FunctionType.h"
 #include "ast/utils/ASTUtils.h"
 #include "compiler/lab/TargetData.h"
@@ -827,6 +828,63 @@ unsigned int AccessChain::store_in_array(
     }
     return Value::store_in_array(gen, parent, allocated, allocated_type, idxList, index, expected_type);
 };
+
+void gen_BlockValue_scope(Codegen& gen, BlockValue* blockVal) {
+    const auto lastNode = blockVal->scope.nodes.back();
+    blockVal->scope.nodes.pop_back();
+    blockVal->scope.code_gen(gen);
+    blockVal->scope.nodes.push_back(lastNode);
+}
+
+llvm::AllocaInst* BlockValue::llvm_allocate(
+        Codegen& gen,
+        const std::string& identifier,
+        BaseType* expected_type
+) {
+    gen_BlockValue_scope(gen, this);
+    return calculated_value->llvm_allocate(gen, identifier, expected_type);
+}
+
+unsigned int BlockValue::store_in_struct(
+        Codegen& gen,
+        Value* parent,
+        llvm::Value* allocated,
+        llvm::Type* allocated_type,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index,
+        BaseType* expected_type
+) {
+    gen_BlockValue_scope(gen, this);
+    return calculated_value->store_in_struct(gen, parent, allocated, allocated_type, idxList, index, expected_type);
+}
+
+unsigned int BlockValue::store_in_array(
+        Codegen& gen,
+        Value* parent,
+        llvm::Value* allocated,
+        llvm::Type* allocated_type,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index,
+        BaseType* expected_type
+) {
+    gen_BlockValue_scope(gen, this);
+    return calculated_value->store_in_array(gen, parent, allocated, allocated_type, idxList, index, expected_type);
+}
+
+llvm::Value* BlockValue::llvm_pointer(Codegen& gen) {
+    gen_BlockValue_scope(gen, this);
+    return calculated_value->llvm_pointer(gen);
+}
+
+llvm::Value* BlockValue::llvm_value(Codegen& gen, BaseType* type) {
+    gen_BlockValue_scope(gen, this);
+    return calculated_value->llvm_value(gen);
+}
+
+void BlockValue::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
+    gen_BlockValue_scope(gen, this);
+    calculated_value->llvm_conditional_branch(gen, then_block, otherwise_block);
+}
 
 // --------------------------------------- Statements
 

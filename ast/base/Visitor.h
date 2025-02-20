@@ -152,6 +152,8 @@ class FunctionCall;
 
 class VariantCall;
 
+class BlockValue;
+
 class IndexOperator;
 
 class NewTypedValue;
@@ -549,6 +551,10 @@ public:
 
     virtual void visit(CastedValue* casted) {
         visitCommonValue((Value*) casted);
+    }
+
+    virtual void visit(BlockValue* blockVal) {
+        visitCommonValue((Value*) blockVal);
     }
 
     virtual void visit(IsValue* casted) {

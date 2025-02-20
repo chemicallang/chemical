@@ -154,12 +154,13 @@ llvm::Value* arg_value(
     const auto linked = param_type->get_direct_linked_node();
 
     const auto is_param_ref = param_type_kind == BaseTypeKind::Reference;
+    const auto is_direct_value = value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue || value_kind == ValueKind::VariantCall;
 
-    if(
-        (is_param_ref && !is_val_stored_ptr) || (
+    if(!is_direct_value &&
+            ((is_param_ref && !is_val_stored_ptr) || (
             linked && ASTNode::isStoredStructDecl(linked->kind()) &&
-            (isReferenceValue(value_kind) && pure_type->is_linked_struct()) && !(value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue || value_kind == ValueKind::VariantCall)
-    )) {
+            (isReferenceValue(value_kind) && pure_type->is_linked_struct())
+    ))) {
         // passing r values as pointers by allocating them
         if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && Value::isValueKindRValue(value->val_kind())) {
             const auto allocated = gen.builder->CreateAlloca(value->llvm_type(gen));

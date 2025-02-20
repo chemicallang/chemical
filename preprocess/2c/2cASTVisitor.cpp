@@ -4563,6 +4563,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
         const auto lastKind = linked->kind();
         if(lastKind == ASTNodeKind::FunctionDecl || lastKind == ASTNodeKind::ExtensionFunctionDecl) {
             if(!linked->as_function_unsafe()->has_self_param()) {
+                // TODO calling functions above without destructing the structs
                 call_any_function_above(visitor, values, (int) start, (int) end - 1);
             }
             linked->runtime_name(*visitor.output);
@@ -5345,7 +5346,13 @@ void ToCAstVisitor::visit(ValueNode *node) {
     }
     auto prev = nested_value;
     nested_value = true;
-    node->value->accept(this);
+//    if(val_kind == ValueKind::AccessChain) {
+//
+//    } else if(val_kind == ValueKind::FunctionCall) {
+//
+//    } else {
+        node->value->accept(this);
+//    }
     nested_value = prev;
     write(';');
 }

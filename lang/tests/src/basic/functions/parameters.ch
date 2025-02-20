@@ -1,4 +1,4 @@
-func assign_to_addr(value : *int) {
+func assign_to_addr(value : *mut int) {
     *value = 25
 }
 

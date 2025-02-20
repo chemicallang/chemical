@@ -195,11 +195,11 @@ func test_functions() {
     test("function can take literal type", () => {
         return can_take_literal_type(2) == 5
     })
-    test("functions on returned structs do not result in multiple calls", () => {
+    test("functions on returned structs do not result in multiple calls - 1", () => {
         total_func_ret_calls = 0;
         return check_multiple_calls().give_calls() == 2;
     })
-    test("functions on returned structs do not result in multiple calls", () => {
+    test("functions on returned structs do not result in multiple calls - 2", () => {
         total_func_ret_calls = 0;
         return check_multiple_calls().self_ref_give_calls() == 2;
     })

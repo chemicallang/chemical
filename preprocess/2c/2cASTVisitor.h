@@ -270,6 +270,11 @@ public:
     }
 
     /**
+     * this function mutates the value based on type, however it doesn't check for implicit constructors
+     */
+    void accept_mutating_value_explicit(BaseType* type, Value* value, bool assigning_value);
+
+    /**
      * when a value is implicitly mutable, for example var x : dyn Phone = SmartPhone {}
      * here SmartPhone struct is initialized and put inside a fat pointer represented by dyn Phone
      * implicitly, this can be called, this will account for mutating values

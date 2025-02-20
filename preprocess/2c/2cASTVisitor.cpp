@@ -4383,10 +4383,22 @@ void write_path_to_member(ToCAstVisitor& visitor, ExtendableMembersContainerNode
     }
 }
 
+void accept_opt_nestable(ToCAstVisitor& visitor, ChainValue* value, bool is_nested) {
+    if(is_nested) {
+        const auto prev_nested = visitor.nested_value;
+        visitor.nested_value = true;
+        value->accept(&visitor);
+        visitor.nested_value = prev_nested;
+    } else {
+        value->accept(&visitor);
+    }
+}
+
 void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue* value, ChainValue* next) {
-    const auto linked = value->linked_node();
-    const auto id = value->as_identifier();
-    if (id) {
+//    const auto linked = value->linked_node();
+    const auto value_kind = value->val_kind();
+    if (value_kind == ValueKind::Identifier) {
+        const auto id = value->as_identifier_unsafe();
         const auto member = id->linked_node()->as_base_def_member();
         if (member) {
             if(previous) {
@@ -4414,23 +4426,16 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
             }
         }
     }
-    if(previous != nullptr && linked && linked->as_variant_case_var()) {
-        const auto var = linked->as_variant_case_var();
-        Value* expr = var->switch_statement->expression;
-        const auto var_mem = var->parent_val->linked_node()->as_variant_member();
-        expr->accept(&visitor);
-        write_accessor(visitor, expr, nullptr);
-        visitor.write(var_mem->name);
-        visitor.write('.');
-    }
-    const auto prev_nested = visitor.nested_value;
-    if(next) {
-        visitor.nested_value = true;
-    }
-    value->accept(&visitor);
-    if(next) {
-        visitor.nested_value = prev_nested;
-    }
+//    if(previous != nullptr && linked && linked->as_variant_case_var()) {
+//        const auto var = linked->as_variant_case_var();
+//        Value* expr = var->switch_statement->expression;
+//        const auto var_mem = var->parent_val->linked_node()->as_variant_member();
+//        expr->accept(&visitor);
+//        write_accessor(visitor, expr, nullptr);
+//        visitor.write(var_mem->name);
+//        visitor.write('.');
+//    }
+    accept_opt_nestable(visitor, value, next != nullptr);
 }
 
 void write_enum(ToCAstVisitor& visitor, EnumMember* member) {
@@ -4450,47 +4455,86 @@ void write_enum(ToCAstVisitor& visitor, EnumMember* member) {
     }
 }
 
-void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const unsigned end, const unsigned total_size) {
-    ChainValue* previous = nullptr;
-    ChainValue* current = nullptr;
-    ChainValue* next = nullptr;
-    unsigned start = 0;
-    while(start < end) {
-        previous = current;
-        current = values[start];
-        if(start + 1 < total_size) {
-            next = values[start + 1];
-            const auto next_kind = next->val_kind();
-            if(next_kind == ValueKind::FunctionCall || next_kind == ValueKind::IndexOperator) {
-                chain_value_accept(visitor, previous, current, next);
-            } else {
-                const auto linked = current->linked_node();
-                const auto kind = linked->kind();
-                switch(kind) {
-                    case ASTNodeKind::EnumDecl:
-                        write_enum(visitor, next->linked_node()->as_enum_member());
-                        start++;
-                        break;
-                    case ASTNodeKind::EnumMember:
-                        write_enum(visitor, linked->as_enum_member_unsafe());
-                        break;
-                    default:
-                        chain_value_accept(visitor, previous, current, next);
-                        write_accessor(visitor, current, next);
+void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const unsigned start, const unsigned end);
+
+// this function is called, with start index to the chain value which is definitely a function call
+// we check if it's a function call to a struct which has a destructor
+// if it does have a destructor, we store the accessed value and destruct the struct afterwards
+bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned int start, unsigned int end) {
+    // user is making a function call
+    // and there's a next value meaning call().next <-- next identifier is accessed from returned struct of the function call
+    // we need to check if the function returns a struct that has a destructor so we can generate code to destruct it properly
+    const auto func_call = values[start]->as_func_call_unsafe();
+    const auto func_type = func_call->function_type(visitor.allocator);
+    if(func_type) {
+        const auto pure_return = func_type->returnType->pure_type(visitor.allocator);
+        const auto memContainer = pure_return->get_members_container();
+        if(memContainer) {
+            const auto destructorFn = memContainer->destructor_func();
+            if (destructorFn) {
+
+                visitor.write("({ ");
+                memContainer->known_type()->accept(&visitor);
+                visitor.write("* ");
+
+                // the pointer to constructed struct
+                const auto temp_struct_ptr = visitor.get_local_temp_var_name();
+                visitor.write_str(temp_struct_ptr);
+                visitor.write(" = &");
+                accept_opt_nestable(visitor, func_call, true);
+                visitor.write("; ");
+
+                // saving the accessed thing pointer
+                // the pointer to saved variable so we can access it after destruction
+                const auto temp_saved_var = visitor.get_local_temp_var_name();
+                const auto last_type = values[end - 1]->create_type(visitor.allocator);
+                last_type->accept(&visitor);
+                visitor.write(' ');
+                visitor.write_str(temp_saved_var);
+                visitor.write(" = ");
+                visitor.write_str(temp_struct_ptr);
+                visitor.write("->");
+                access_chain(visitor, values, start + 1, end);
+                visitor.write("; ");
+
+                // destructing the struct which was accessed
+                destructorFn->runtime_name(*visitor.output);
+                visitor.write('(');
+                if(destructorFn->has_self_param()) {
+                    visitor.write_str(temp_struct_ptr);
                 }
+                visitor.write("); ");
+
+                // returning the saved temporary variable
+                visitor.write_str(temp_saved_var);
+                visitor.write("; })");
+
+                return true;
             }
-        } else {
-            next = nullptr;
-            chain_value_accept(visitor, previous, current, nullptr);
         }
-        start++;
+    }
+    return false;
+}
+
+void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const unsigned start, const unsigned end) {
+    const auto total_size = values.size();
+    unsigned index = start;
+    while(index < end) {
+        const auto previous = index >= 1 ? values[index - 1] : nullptr;
+        const auto current = values[index];
+        const auto next = index + 1 < total_size ? values[index + 1] : nullptr;
+        chain_value_accept(visitor, previous, current, next);
+        if(next) {
+            write_accessor(visitor, current, next);
+        }
+        index++;
     }
 }
 
 // the end index is exclusive
-void call_any_function_above(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, int end) {
+void call_any_function_above(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const int start, int end) {
     end--;
-    while(end >= 0) {
+    while(end >= start) {
         const auto value = values[end];
         if(value->val_kind() == ValueKind::FunctionCall) {
             value->accept(&visitor);
@@ -4501,26 +4545,34 @@ void call_any_function_above(ToCAstVisitor& visitor, std::vector<ChainValue*>& v
     }
 }
 
-void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const unsigned end, const unsigned total_size) {
-    if(end == 0) {
+void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const unsigned start, const unsigned end) {
+    if(end == start) {
         return;
-    } else if(end == 1) {
-        chain_value_accept(visitor, nullptr, values[0], nullptr);
+    } else if(end - start == 1) {
+        chain_value_accept(visitor, nullptr, values[start], nullptr);
+        return;
+    }
+    // from here, there's more than one value in access chain
+    const auto first = values[start];
+    if(first->val_kind() == ValueKind::FunctionCall && write_destructible_call_chain_values(visitor, values, start, end)) {
         return;
     }
     const auto last = values[end - 1];
     const auto linked = last->linked_node();
     if(linked) {
-        const auto kind = linked->kind();
-        if(kind == ASTNodeKind::FunctionDecl || kind == ASTNodeKind::ExtensionFunctionDecl) {
+        const auto lastKind = linked->kind();
+        if(lastKind == ASTNodeKind::FunctionDecl || lastKind == ASTNodeKind::ExtensionFunctionDecl) {
             if(!linked->as_function_unsafe()->has_self_param()) {
-                call_any_function_above(visitor, values, (int) end - 1);
+                call_any_function_above(visitor, values, (int) start, (int) end - 1);
             }
             linked->runtime_name(*visitor.output);
             return;
+        } else if(lastKind == ASTNodeKind::EnumMember) {
+            write_enum(visitor, linked->as_enum_member_unsafe());
+            return;
         }
     }
-    chain_after_func(visitor, values, end, total_size);
+    chain_after_func(visitor, values, start, end);
 }
 
 void ToCAstVisitor::visit(AccessChain *chain) {
@@ -4534,7 +4586,7 @@ void ToCAstVisitor::visit(AccessChain *chain) {
     const auto size = chain->values.size();
     std::vector<int16_t> active;
     chain->set_generic_iteration(active, allocator);
-    access_chain(*this, chain->values, size, size);
+    access_chain(*this, chain->values, 0, size);
     chain->restore_generic_iteration(active, allocator);
 }
 
@@ -5148,6 +5200,8 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
                 write_enum(*this, linked->as_enum_member_unsafe());
                 return;
             }
+            default:
+                break;
         }
     }
 //    else if(linked_kind == ASTNodeKind::FunctionParam || linked_kind == ASTNodeKind::ExtensionFuncReceiver) {

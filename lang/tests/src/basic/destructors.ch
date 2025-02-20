@@ -18,6 +18,10 @@ struct Destructible {
 
 }
 
+func take_destructible_ref(ref : &Destructible) {
+
+}
+
 struct GenDestruct<T> {
 
     var data : T
@@ -34,6 +38,10 @@ struct GenDestruct<T> {
 }
 
 func take_gen_destruct_short(d : GenDestruct<short>) {
+
+}
+
+func take_gen_destruct_ref(g : &GenDestruct<short>) {
 
 }
 
@@ -581,5 +589,37 @@ func test_destructors() {
          var count = 0;
          test_variant_conditional_destruction(&count, false);
          return count == 1;
+    })
+    test("destructible structs passed as references to function calls are destructed - 1", () => {
+        var count = 0
+        if(count == 0) {
+            take_destructible_ref(Destructible {
+                data : 777, count : &count, lamb : destruct_inc_count
+            })
+        }
+        return count == 1
+    })
+    test("destructible structs passed as references to function calls are destructed - 2", () => {
+        var count = 0
+        if(count == 0) {
+            take_destructible_ref(create_destructible(&count, 334))
+        }
+        return count == 1
+    })
+    test("generic destructible structs passed as references to function calls are destructed - 1", () => {
+        var count = 0
+        if(count == 0) {
+            take_gen_destruct_ref(GenDestruct<short> {
+                data : 777, count : &count, lamb : destruct_inc_count
+            })
+        }
+        return count == 1
+    })
+    test("generic destructible structs passed as references to function calls are destructed - 2", () => {
+        var count = 0
+        if(count == 0) {
+            take_gen_destruct_ref(create_short_gen_dest(343, &count, destruct_inc_count))
+        }
+        return count == 1
     })
 }

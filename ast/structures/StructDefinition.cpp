@@ -63,11 +63,12 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
         const auto interface = info.first->as_interface_def();
         if(interface->is_static()) {
             const auto func = info.second->llvm_func();
-            if(interface->specifier() == AccessSpecifier::Public) {
-                // exported interface, this maybe present in another module
+            const auto interfaceModule = func->getParent();
+            if(interfaceModule != gen.module.get()) {
+                // interface is present in another module
+                // we create a new function with strong linkage in this module
                 const auto new_func = gen.create_function(func->getName().str(), func->getFunctionType(), AccessSpecifier::Public);
                 function->set_llvm_data(new_func);
-                gen.createFunctionBlock(new_func);
                 function->code_gen_override(gen, new_func);
             } else {
                 // internal interface, present in current module
@@ -78,8 +79,9 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
                     auto& stubEntry = func->getEntryBlock();
                     stubEntry.removeFromParent();
                 }
+                const auto final_specifier = interface->specifier() == AccessSpecifier::Public || specifier() == AccessSpecifier::Public ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::PrivateLinkage;
                 // change the function's linkage to internal
-                func->setLinkage(llvm::GlobalValue::InternalLinkage);
+                func->setLinkage(final_specifier);
                 gen.createFunctionBlock(func);
                 function->code_gen_override(gen, func);
             }

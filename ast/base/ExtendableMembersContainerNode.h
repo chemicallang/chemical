@@ -18,7 +18,7 @@ public:
     /**
      * constructor
      */
-    explicit ExtendableMembersContainerNode(LocatedIdentifier identifier) : identifier(std::move(identifier)) {
+    explicit ExtendableMembersContainerNode(LocatedIdentifier identifier) : identifier(identifier) {
 
     }
 
@@ -78,5 +78,23 @@ public:
     ExtendableMembersContainerNode *as_extendable_members_container_node() final {
         return this;
     }
+
+#ifdef COMPILER_BUILD
+
+    /**
+     * this method is dedicated for this extendable containers to externally declare themselves
+     * this should be called in code_gen_external_declare, which is called upon nodes to declare
+     * themselves in other modules when they are imported
+     * this declares the functions inside the container (like MembersContainer) but it also
+     * externally declares the extension functions inside this container
+     */
+    void extendable_external_declare(Codegen& gen) {
+        external_declare(gen);
+        for(auto& pair : extension_functions) {
+            pair.second->code_gen_external_declare(gen);
+        }
+    }
+
+#endif
 
 };

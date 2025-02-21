@@ -35,7 +35,8 @@ void InterfaceDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclar
 }
 
 void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
-
+    // this function is called by function declaration, when code_gen is called on a function
+    // however since interface doesn't generate any (body) so we do nothing
 }
 
 void InterfaceDefinition::code_gen(Codegen &gen) {

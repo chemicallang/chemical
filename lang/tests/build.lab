@@ -116,6 +116,7 @@ func build(ctx : *mut BuildContext) {
     const do_one_job = true;
 
     if(do_llvm_ir) {
+        gen_ir(ctx, &exe_name, submod)
         gen_ir(ctx, &exe_name, std_module);
         gen_ir(ctx, &exe_name, module);
     }

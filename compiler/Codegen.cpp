@@ -174,13 +174,42 @@ llvm::Function* Codegen::declare_function(const std::string &name, llvm::Functio
     if(previousFunc != nullptr) {
         return previousFunc;
     } else {
-        const auto func = create_function_proto(name, type, specifier);
-        return func;
+        return create_function_proto(name, type, specifier);
     }
 }
 
-llvm::Function *
-Codegen::create_function_proto(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier) {
+llvm::Function* Codegen::declare_weak_function(const std::string& name, llvm::FunctionType* type, bool is_exported) {
+    auto fn = llvm::Function::Create(type, is_exported ? llvm::Function::ExternalWeakLinkage : llvm::Function::WeakAnyLinkage, name, *module);
+    fn->setDSOLocal(true);
+    // if there's no implementation, a stub implementation is required, so if a strong implementation exists it can override it later
+    if(!is_exported) {
+        // what happens is an error when there's not a single implementation for an interface
+        // because on windows, it requires a stub implementation
+        createFunctionBlock(fn);
+        // generating an empty return
+        const auto returnType = type->getReturnType();
+        llvm::Type* retType = type->getReturnType();
+        if (retType->isVoidTy()) {
+            CreateRet(nullptr);
+        } else if (retType->isIntegerTy()) {
+            CreateRet(llvm::ConstantInt::get(retType, 0));
+        } else if (retType->isFloatingPointTy()) {
+            CreateRet(llvm::ConstantFP::get(retType, 0.0));
+        } else if (retType->isPointerTy()) {
+            CreateRet(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(retType)));
+        } else {
+            // For other return types (e.g. structs), return an undefined value.
+            CreateRet(llvm::UndefValue::get(retType));
+        }
+    }
+    return fn;
+}
+
+llvm::Function* Codegen::create_function_proto(
+    const std::string &name,
+    llvm::FunctionType *type,
+    AccessSpecifier specifier
+) {
     llvm::Function::LinkageTypes linkage;
     switch (specifier) {
         case AccessSpecifier::Private:

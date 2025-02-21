@@ -2399,19 +2399,24 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
             i = 1;
         }
     };
-    if(decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing()) {
+    const auto func_parent_kind = decl->parent_node->kind();
+    auto is_parent_interface = func_parent_kind == ASTNodeKind::InterfaceDecl;
+    const auto decl_return_func_type = decl->returnType->function_type();
+    if(decl_return_func_type != nullptr && !decl_return_func_type->isCapturing()) {
         tld->value_visitor->write("static ");
-        accept_func_return(tld->visitor, decl->returnType->function_type()->returnType);
+        accept_func_return(tld->visitor, decl_return_func_type->returnType);
         tld->write('(');
         write_self_param_now();
-        func_ret_func_proto_after_l_paren(tld->visitor, decl, decl->returnType->function_type(), i);
+        func_ret_func_proto_after_l_paren(tld->visitor, decl, decl_return_func_type, i);
     } else {
-        auto is_parent_interface = decl->parent_node->as_interface_def() != nullptr;
         accept_func_return_with_name(tld->visitor, decl, (is_parent_interface || decl->body.has_value()) && !decl->is_exported_fast());
         tld->write('(');
         write_self_param_now();
         func_type_params(tld->visitor, decl, i);
         tld->write(')');
+    }
+    if(is_parent_interface) {
+        tld->write(" __attribute__((weak))");
     }
     tld->write(';');
 }

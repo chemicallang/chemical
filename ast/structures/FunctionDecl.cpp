@@ -350,6 +350,30 @@ void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::stri
     gen.di.add(decl, callee);
 }
 
+void declare_non_gen_weak_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name, bool is_exported) {
+    auto callee = gen.declare_weak_function(name, decl->create_llvm_func_type(gen), is_exported);
+    decl->set_llvm_data(callee);
+    gen.di.add(decl, callee);
+}
+
+void declare_fn_weak(Codegen& gen, FunctionDeclaration *decl, bool is_exported) {
+    if(decl->generic_params.empty()) {
+        // non generic functions always have generic iteration equal to zero
+        decl->active_iteration = 0;
+        declare_non_gen_weak_fn(gen, decl, decl->runtime_name_fast(gen), is_exported);
+    } else {
+        const auto total_use = decl->total_generic_iterations();
+        auto i = (int16_t) decl->llvm_data.size();
+        while(i < total_use) {
+            decl->set_active_iteration(i);
+            declare_non_gen_weak_fn(gen, decl, decl->runtime_name_fast(gen), is_exported);
+            i++;
+        }
+        // we set active iteration to -1, so all generics would fail without setting active_iteration
+        decl->set_active_iteration(-1);
+    }
+}
+
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
     if(decl->generic_params.empty()) {
         // non generic functions always have generic iteration equal to zero
@@ -469,7 +493,7 @@ void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclar
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, InterfaceDefinition* def) {
     if(def->is_static()) {
-        declare_fn(gen, this);
+        declare_fn_weak(gen, this, def->specifier() == AccessSpecifier::Public);
     } else {
         create_fn(gen, this);
     }

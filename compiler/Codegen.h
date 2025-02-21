@@ -248,6 +248,11 @@ public:
     llvm::Function* declare_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier);
 
     /**
+     * get or insert a function prototype for weak symbol, is exported is required
+     */
+    llvm::Function* declare_weak_function(const std::string& name, llvm::FunctionType* type, bool is_exported);
+
+    /**
      * create a function prototype
      * @param name name of the function
      * @param type type of the function

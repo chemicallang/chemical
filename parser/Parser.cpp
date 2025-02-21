@@ -24,7 +24,7 @@ Parser::Parser(
     global_allocator(global_allocator),
     mod_allocator(mod_allocator), is64Bit(is64Bit), binder(binder)
 {
-
+    annotations.reserve(16);
 }
 
 std::string_view Parser::file_path() {

@@ -109,8 +109,7 @@ public struct unordered_map<Key, Value> {
         size++;
     }
 
-    // TODO make this private
-    func get_ptr_for_key(&self, key : &Key) : *Value {
+    func get_ptr(&self, key : &Key) : *Value {
         var index : size_t = hash_with_capacity(key);
         var currentNode = table[index];
         while (currentNode != null) {
@@ -124,7 +123,7 @@ public struct unordered_map<Key, Value> {
 
     // Find a value by key
     func find(&self, key : &Key, value : &mut Value) : bool {
-        const ptr = get_ptr_for_key(key)
+        const ptr = get_ptr(key)
         if(ptr != null) {
             value = *ptr;
             return true;
@@ -134,7 +133,7 @@ public struct unordered_map<Key, Value> {
     }
 
     func contains(&self, key : &Key) : bool {
-        return get_ptr_for_key(key) != null
+        return get_ptr(key) != null
     }
 
     // Remove a key-value pair

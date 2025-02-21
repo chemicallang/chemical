@@ -38,6 +38,17 @@ class ValueAndOperatorStack;
 typedef void(*AnnotationModifierFunc)(Parser *parser, AnnotableNode* node);
 
 /**
+ * the struct representing the annotation modifier
+ */
+struct AnnotationModifier {
+
+    chem::string_view name;
+
+    AnnotationModifierFunc func;
+
+};
+
+/**
  * the parser that is used to parse
  */
 class Parser : public ASTDiagnoser {
@@ -83,7 +94,7 @@ public:
     /**
      * these are annotation modifier functions that will be called on the next node
      */
-    std::vector<AnnotationModifierFunc> annotations;
+    std::vector<AnnotationModifier> annotations;
 
     /**
      * current parent node
@@ -178,8 +189,8 @@ public:
      * suppose to be called on a node which can take annotations
      */
     void annotate(AnnotableNode* node) {
-        for(auto annot : annotations) {
-            annot(this, node);
+        for(auto& annot : annotations) {
+            annot.func(this, node);
         }
         annotations.clear();
     }

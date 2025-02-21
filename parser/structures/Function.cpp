@@ -211,11 +211,25 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
     }
 }
 
-FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allow_declaration, bool allow_extensions) {
+FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool allow_declaration, bool allow_extensions) {
 
     if(!consumeWSOfType(TokenType::FuncKw)) {
         return nullptr;
     }
+
+    // by default comptime functions are allocated using job allocator
+    // because they can be called indirectly in different modules
+    // so we retain them, throughout executable
+    bool is_comptime = false;
+    for(auto& annot : annotations) {
+        if(annot.name == "comptime") {
+            is_comptime = true;
+        }
+    }
+
+    // generic functions are also allocated on the global allocator
+    // so that further implementations can be generated in other modules
+    auto& allocator = is_comptime ? global_allocator : passed_allocator;
 
     std::vector<GenericTypeParameter*> gen_params;
 

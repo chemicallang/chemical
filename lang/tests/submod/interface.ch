@@ -26,3 +26,18 @@ func (thing : &mut UnimplementedInterface99888) unimp_delg_998888() : int {
     return x + 2;
 
 }
+
+@static
+public interface ExportedUnimplementedInterface99232332 {
+
+    func do_stuff(&self) : int
+
+}
+
+public func (thing : &mut ExportedUnimplementedInterface99232332) unimp_delg_5434534() : int {
+
+    var x = thing.do_stuff();
+
+    return x + 2;
+
+}

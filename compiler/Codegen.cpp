@@ -179,10 +179,10 @@ llvm::Function* Codegen::declare_function(const std::string &name, llvm::Functio
 }
 
 llvm::Function* Codegen::declare_weak_function(const std::string& name, llvm::FunctionType* type, bool is_exported) {
-    auto fn = llvm::Function::Create(type, is_exported ? llvm::Function::ExternalWeakLinkage : llvm::Function::WeakAnyLinkage, name, *module);
+    auto fn = llvm::Function::Create(type, llvm::Function::WeakAnyLinkage, name, *module);
     fn->setDSOLocal(true);
     // if there's no implementation, a stub implementation is required, so if a strong implementation exists it can override it later
-    if(!is_exported) {
+//    if(!is_exported) {
         // what happens is an error when there's not a single implementation for an interface
         // because on windows, it requires a stub implementation
         createFunctionBlock(fn);
@@ -201,7 +201,7 @@ llvm::Function* Codegen::declare_weak_function(const std::string& name, llvm::Fu
             // For other return types (e.g. structs), return an undefined value.
             CreateRet(llvm::UndefValue::get(retType));
         }
-    }
+//    }
     return fn;
 }
 

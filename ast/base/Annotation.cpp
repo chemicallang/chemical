@@ -9,15 +9,6 @@ Annotation::Annotation(AnnotationKind kind) : kind(kind) {
 
 }
 
-void Annotation::traverse(bool consider_self, const std::function<void(Annotation*)>& traverser) {
-    if(consider_self) {
-        traverser(this);
-    }
-    for(auto& ann : extends) {
-        ann.traverse(true, traverser);
-    }
-}
-
 void Annotation::get_all(std::vector<Annotation*>& into, AnnotationKind expected, bool consider_self) {
     if(consider_self && kind == expected) {
         into.push_back(this);
@@ -40,12 +31,6 @@ Annotation* Annotation::get_annotation(AnnotationKind expected, bool consider_se
 }
 
 Annotation::~Annotation() = default;
-
-void AnnotationParent::traverse(const std::function<void(Annotation*)>& traverser) {
-    for(auto& ann : annotations) {
-        ann.traverse(true, traverser);
-    }
-}
 
 void AnnotationParent::get_all(std::vector<Annotation*>& into, AnnotationKind expected) {
     for(auto& ann : annotations) {

@@ -4,7 +4,6 @@
 
 #include <string>
 #include "std/chem_string_view.h"
-#include "utils/fwd/functional.h"
 
 class SourceProvider;
 
@@ -50,21 +49,3 @@ std::pair<char, int> escapable_char(const chem::string_view& value, unsigned ind
  * @return the escaped character, and whether it succeeded
  */
 std::pair<char, bool> escape_single(const std::string& value, unsigned index);
-
-/**
- * this is the function that will run when a invalid escape sequence is encountered in the string
- * the second parameter is index into the given string
- */
-using InvalidSeqHandler = std::function<void(const std::string&, unsigned int)>;
-
-/**
- * will escape all the escapable characters and return the new formed string
- * the start and size value allow to cut the string and process portion of it
- * it will also return only that portion and nothing else
- *
- * @param value the string which contains the characters
- * @param start the start at which string to append into return (inclusive)
- * @param end the end index at which string to append into return (exclusive)
- * @return a string with all escapable characters like \n escaped
- */
-std::string escape_all(const std::string& value, unsigned start, unsigned end, const InvalidSeqHandler& handler);

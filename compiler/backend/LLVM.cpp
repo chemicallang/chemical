@@ -1217,7 +1217,7 @@ void DestructStmt::code_gen(Codegen &gen) {
 //        args.emplace_back(structPtr);
 //        gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->llvm_pointer(gen), args);
 
-    gen.destruct(id_value, arr_size_llvm, elem_type, true, [&](llvm::Value*){});
+    gen.destruct(id_value, arr_size_llvm, elem_type, true);
 
 }
 

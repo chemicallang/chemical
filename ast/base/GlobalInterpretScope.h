@@ -7,7 +7,6 @@
 #pragma once
 
 #include "InterpretScope.h"
-#include "utils/fwd/functional.h"
 #include "ASTAllocator.h"
 #include "compiler/ASTDiagnoser.h"
 #include <vector>

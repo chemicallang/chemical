@@ -13,7 +13,6 @@
 #include "integration/common/Diagnostic.h"
 #include <memory>
 #include <optional>
-#include "utils/fwd/functional.h"
 #include "model/CompilerBinder.h"
 #include "integration/cbi/bindings/CBI.h"
 #include "compiler/ASTDiagnoser.h"

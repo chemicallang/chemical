@@ -146,7 +146,7 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
                 const auto arr_type = (ArrayType *) type;
                 if (arr_type->elem_type->kind() == BaseTypeKind::Linked ||
                 arr_type->elem_type->kind() == BaseTypeKind::Generic) {
-                    gen.destruct(llvm_ptr, arr_type->get_array_size(), arr_type->elem_type, [](llvm::Value*){});
+                    gen.destruct(llvm_ptr, arr_type->get_array_size(), arr_type->elem_type);
                 }
                 break;
             }

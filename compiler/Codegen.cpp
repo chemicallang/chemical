@@ -229,15 +229,28 @@ void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::V
     }
 }
 
-void Codegen::destruct(
+LLVMArrayDestructor::~LLVMArrayDestructor() {
+    const auto builder = gen.builder;
+    // we just called destructor on struct pointer, if it's equal to first element, then we are done
+    auto result = builder->CreateICmpEQ(structPtr, firstEle);
+    builder->CreateCondBr(result, end_block, body_block);
+    // setting end block as insert point so further user code can go into it
+    builder->SetInsertPoint(end_block);
+}
+
+LLVMArrayDestructor Codegen::loop_array_destructor(
         llvm::Value* allocaInst,
         llvm::Value* array_size,
         llvm::Type* elem_type,
-        bool check_for_null,
-        const std::function<void(llvm::Value*)>& call_destructor
+        bool check_for_null
 ) {
-
     auto& gen = *this;
+    // initial variables
+    const auto builder = gen.builder;
+    auto& ctx = *gen.ctx;
+    const auto inbounds = gen.inbounds;
+    const auto current_function = gen.current_function;
+
     // the pointer to the first element in array
     auto firstEle = allocaInst;
     // the pointer to last element in array
@@ -245,20 +258,20 @@ void Codegen::destruct(
     // the current block in which we are
     auto current_block = builder->GetInsertBlock();
     // the body block contains the loop that calls the destructors
-    auto body_block = llvm::BasicBlock::Create(*ctx, "", current_function);
+    auto body_block = llvm::BasicBlock::Create(ctx, "", current_function);
     // the end block is where all destructors have been called, user's code is written...
-    auto end_block = llvm::BasicBlock::Create(*ctx, "", current_function);
+    auto end_block = llvm::BasicBlock::Create(ctx, "", current_function);
 
     if(check_for_null) {
         // check if given pointer is null and send user to end block if it is
-        CheckNullCondBr(allocaInst, end_block, body_block);
+        gen.CheckNullCondBr(allocaInst, end_block, body_block);
     } else {
         // sending directly to body block (no null check)
-        CreateBr(body_block);
+        gen.CreateBr(body_block);
     };
 
     // generating the code for the body
-    SetInsertPoint(body_block);
+    gen.SetInsertPoint(body_block);
     auto PHI = builder->CreatePHI(builder->getPtrTy(), 2);
     auto structPtr = builder->CreateGEP(elem_type, PHI, { builder->getInt32(-1) }, "", inbounds);
     // if coming from the current block, last element pointer is taken (the ptr to last element in array)
@@ -266,41 +279,27 @@ void Codegen::destruct(
     // if coming from the body block (next iteration), we take -1 of the previous array (decrementing pointer)
     PHI->addIncoming(structPtr, body_block);
 
-    // calling the destructor
-    call_destructor(structPtr);
+    // returning array destructor
+    return LLVMArrayDestructor(gen, structPtr, firstEle, body_block, end_block);
 
-    // we just called destructor on struct pointer, if it's equal to first element, then we are done
-    auto result = builder->CreateICmpEQ(structPtr, firstEle);
-    CreateCondBr(result, end_block, body_block);
-
-    // setting end block as insert point so further user code can go into it
-    SetInsertPoint(end_block);
 }
 
-void Codegen::destruct(
+LLVMArrayDestructor Codegen::destruct(
         llvm::Value* allocaInst,
         llvm::Function* destr_func_data,
         bool pass_self,
         llvm::Value* array_size,
         BaseType* elem_type,
-        bool check_for_null,
-        const std::function<void(llvm::Value*)>& after_destruct
+        bool check_for_null
 ) {
-    destruct(
-        allocaInst,
-        array_size,
-        elem_type->llvm_type(*this),
-        check_for_null,
-        [&](llvm::Value* struct_pointer) -> void {
-            // calling the destructor
-            std::vector<llvm::Value*> args;
-            if(pass_self) {
-                args.emplace_back(struct_pointer);
-            }
-            builder->CreateCall(destr_func_data, args, "");
-            after_destruct(struct_pointer);
-        }
-    );
+    const auto finalize = loop_array_destructor(allocaInst, array_size, elem_type->llvm_type(*this), check_for_null);
+    // calling the destructor
+    std::vector<llvm::Value*> args;
+    if(pass_self) {
+        args.emplace_back(finalize.structPtr);
+    }
+    builder->CreateCall(destr_func_data, args, "");
+    return finalize;
 }
 
 FunctionDeclaration* determine_func_data(
@@ -348,33 +347,29 @@ void Codegen::destruct(
         llvm::Value* allocaInst,
         llvm::Value* array_size,
         BaseType* elem_type,
-        bool check_for_null,
-        const std::function<void(llvm::Value*)>& after_destruct
+        bool check_for_null
 ) {
     // determining destructor
     llvm::Function* func_data;
     auto destructorFunc = determine_destructor_for(elem_type, func_data);
     if(!destructorFunc) return;
     // calling destruct
-    destruct(
+    const auto finalize = destruct(
             allocaInst,
             func_data,
             destructorFunc->has_self_param(),
             array_size,
             elem_type,
-            check_for_null,
-            after_destruct
+            check_for_null
     );
-
 }
 
 void Codegen::destruct(
         llvm::Value* allocaInst,
         unsigned int array_size,
-        BaseType* elem_type,
-        const std::function<void(llvm::Value*)>& after_destruct
+        BaseType* elem_type
 ) {
-    destruct(allocaInst, builder->getInt32(array_size), elem_type, false, after_destruct);
+    destruct(allocaInst, builder->getInt32(array_size), elem_type, false);
 }
 
 llvm::BasicBlock *Codegen::createBB(const std::string &name, llvm::Function *fn) {

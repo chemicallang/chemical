@@ -246,7 +246,7 @@ bool Parser::parseAnnotation(ASTAllocator& allocator) {
     auto name_view = chem::string_view(annot->value.data() + 1, annot->value.size() - 1);
     auto found = AnnotationModifierFunctions.find(name_view);
     if(found != AnnotationModifierFunctions.end()) {
-        annotations.emplace_back(found->second);
+        annotations.emplace_back(name_view, found->second);
         return true;
     } else {
         error("unknown annotation found '" + annot->value.str() + "'");

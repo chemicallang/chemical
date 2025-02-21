@@ -12,7 +12,7 @@ func hash_ushort(key : ushort) : uint {
     return (key * KnuthsMultiplicativeConstant)
 }
 
-func <T> __wrap_murmur_hash(value : T) : uint {
+public func <T> __wrap_murmur_hash(value : T) : uint {
     return murmurhash(&value, sizeof(T), 0)
 }
 

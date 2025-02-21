@@ -1,3 +1,5 @@
+import "@submod/interface/external.ch"
+
 @static
 interface StaticSummer {
 
@@ -44,6 +46,21 @@ public struct ImplExportedStaticMultiplier : ExportedStaticMultiplier {
 
 }
 
+/**
+func (thing : &mut ExternallyImplementedInterface) get_interface_num_in_curr_mod() : int {
+    return thing.give_number();
+}
+
+struct RightExternalNumber : ExternallyImplementedInterface {
+
+    @override
+    func give_number(&self) : int {
+        return 8765;
+    }
+
+}
+**/
+
 func test_static_interfaces() {
 
     test("methods in static interfaces work", () => {
@@ -65,5 +82,39 @@ func test_static_interfaces() {
         var multiplier = ImplExportedStaticMultiplier { a : 10, b : 10 }
         return multiplier.double_multiplied() == 200;
     })
+
+    test("externally implemented imported interface works", () => {
+        var thing = CurrModPubIntImpl {}
+        return thing.give_number() == 8787
+    })
+
+    test("externally implemented imported interface works through extension method", () => {
+        var thing = CurrModPubIntImpl {}
+        return thing.inc_imp_pub_int() == 8788
+    })
+
+    /**
+
+    test("external interfaces implemented in current module work", () => {
+        var thing = RightExternalNumber {  }
+        return thing.give_number() == 8765
+    })
+
+    test("external interfaces implemented in current module work", () => {
+        var thing = RightExternalNumber {  }
+        return thing.give_number() == 8765
+    })
+
+    test("external interfaces implemented in current module work through extension method in current module", () => {
+        var thing = RightExternalNumber {  }
+        return thing.get_interface_num_in_curr_mod() == 8765
+    })
+
+    test("external interfaces implemented in current module work through extension method in external module", () => {
+        var thing = RightExternalNumber {  }
+        return thing.pls_give_ext_num() == 8765
+    })
+
+    **/
 
 }

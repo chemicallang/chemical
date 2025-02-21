@@ -13,11 +13,6 @@ public:
     std::vector<Annotation> annotations;
 
     /**
-     * traverse
-     */
-    void traverse(const std::function<void(Annotation*)>& traverser);
-
-    /**
      * get annotations by this kind
      */
     void get_all(std::vector<Annotation*>& into, AnnotationKind expected);

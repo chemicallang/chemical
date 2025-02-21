@@ -90,30 +90,3 @@ std::pair<char, bool> escape_single(const std::string &value, unsigned i) {
         return {'\0', false};
     }
 }
-
-std::string escape_all(const std::string& value, unsigned index, unsigned end, const InvalidSeqHandler& handler) {
-    std::string ret;
-    char current;
-    while(index < end) {
-        current = value[index];
-        if(current == '\\') {
-            if(index + 1 < end) {
-                auto result = escapable_char(value, index + 1);
-                if(result.second == -1) {
-                    handler(value, index + 1);
-                } else {
-                    ret.append(1, result.first);
-                }
-                index = result.second;
-                continue;
-            } else {
-                handler(value, index + 1);
-                break;
-            }
-        } else {
-            ret.append(1, current);
-        }
-        index++;
-    }
-    return ret;
-}

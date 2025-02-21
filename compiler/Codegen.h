@@ -17,9 +17,9 @@
 #include <unordered_map>
 #include "CodegenEmitterOptions.h"
 #include "ClangCodegen.h"
-#include "utils/fwd/functional.h"
 #include "std/chem_string_view.h"
 #include "backend/DebugInfoBuilder.h"
+#include "compiler/backend/include/LLVMArrayDestructor.h"
 
 class ASTAllocator;
 
@@ -479,31 +479,30 @@ public:
     );
 
     /**
-     * destruct given alloca instruction, the array size is llvm value
-     * destructs an array, also allows to add extra logic after destruction via lambda
-     * the llvm::Value* provided in lambda is of the struct present in the array
+     * this returns llvm array destructor, which finishes the job
+     * you are supposed to call destructor before the returned object destructs on the
+     * struct pointer present inside the llvm array destructor,
+     * otherwise no actual destruction would take place
      */
-    void destruct(
+    LLVMArrayDestructor loop_array_destructor(
             llvm::Value* allocaInst,
             llvm::Value* array_size,
             llvm::Type* elem_type,
-            bool check_for_null,
-            const std::function<void(llvm::Value*)>& call_destructor
+            bool check_for_null
     );
 
     /**
      * destruct given alloca instruction, the array size is llvm value
-     * destructs an array, also allows to add extra logic after destruction via lambda
-     * the llvm::Value* provided in lambda is of the struct present in the array
+     * destructs an array, you can take the object into a variable, and put extra logic
+     * after the destruction
      */
-    void destruct(
+    LLVMArrayDestructor destruct(
             llvm::Value* allocaInst,
             llvm::Function* func_data,
             bool pass_self,
             llvm::Value* array_size,
             BaseType* elem_type,
-            bool check_for_null,
-            const std::function<void(llvm::Value*)>& after_destruct
+            bool check_for_null
     );
 
     /**
@@ -515,8 +514,7 @@ public:
             llvm::Value* allocaInst,
             llvm::Value* array_size,
             BaseType* elem_type,
-            bool check_for_null,
-            const std::function<void(llvm::Value*)>& after_destruct
+            bool check_for_null
     );
 
     /**
@@ -529,8 +527,7 @@ public:
     void destruct(
             llvm::Value* allocaInst,
             unsigned int array_size,
-            BaseType* elem_type,
-            const std::function<void(llvm::Value*)>& after_destruct
+            BaseType* elem_type
     );
 
     /**

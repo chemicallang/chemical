@@ -259,7 +259,6 @@ set(COMMON_SOURCES
         ast/values/LambdaFunction.h
         ast/values/LambdaFunction.cpp
         parser/values/LambdaValue.cpp
-        utils/fwd/vector.h
         integration/common/Position.h
         cst/base/CSTDiagnoser.h
         cst/CSTDiagnoser.cpp
@@ -309,7 +308,6 @@ set(COMMON_SOURCES
         integration/common/DiagSeverity.h
         utils/Benchmark.h
         utils/Benchmark.cpp
-        utils/fwd/functional.h
         compiler/ASTDiagnoser.h
         compiler/ASTDiagnoser.cpp
         integration/cbi/model/LexResult.h
@@ -575,6 +573,7 @@ set(COMPILER_SOURCES
         utils/ProcessUtils.h
         compiler/ClangCodegen.h
         preprocess/2c/SubVisitor.h
+        compiler/backend/include/LLVMArrayDestructor.h
 )
 
 # add Compiler executable

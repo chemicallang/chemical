@@ -46,7 +46,6 @@ public struct ImplExportedStaticMultiplier : ExportedStaticMultiplier {
 
 }
 
-/**
 func (thing : &mut ExternallyImplementedInterface) get_interface_num_in_curr_mod() : int {
     return thing.give_number();
 }
@@ -59,7 +58,6 @@ struct RightExternalNumber : ExternallyImplementedInterface {
     }
 
 }
-**/
 
 func test_static_interfaces() {
 
@@ -93,8 +91,6 @@ func test_static_interfaces() {
         return thing.inc_imp_pub_int() == 8788
     })
 
-    /**
-
     test("external interfaces implemented in current module work", () => {
         var thing = RightExternalNumber {  }
         return thing.give_number() == 8765
@@ -114,7 +110,5 @@ func test_static_interfaces() {
         var thing = RightExternalNumber {  }
         return thing.pls_give_ext_num() == 8765
     })
-
-    **/
 
 }

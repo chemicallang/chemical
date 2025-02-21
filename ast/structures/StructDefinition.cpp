@@ -65,22 +65,20 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
             const auto func = info.second->llvm_func();
             if(interface->specifier() == AccessSpecifier::Public) {
                 // exported interface, this maybe present in another module
-                // exported interface methods do not have a stub implementation
-                // internal interface, present in current module
-                // internal interfaces methods have a stub implementation
                 const auto new_func = gen.create_function(func->getName().str(), func->getFunctionType(), AccessSpecifier::Public);
                 function->set_llvm_data(new_func);
                 gen.createFunctionBlock(new_func);
                 function->code_gen_override(gen, new_func);
             } else {
                 // internal interface, present in current module
-                // internal interfaces methods have a stub implementation
+                // we will implement the interface in place, since its present in current module
                 function->set_llvm_data(func);
                 if(func->size() == 1) {
                     // remove the stub block present in functions internal to module
                     auto& stubEntry = func->getEntryBlock();
                     stubEntry.removeFromParent();
                 }
+                // change the function's linkage to internal
                 func->setLinkage(llvm::GlobalValue::InternalLinkage);
                 gen.createFunctionBlock(func);
                 function->code_gen_override(gen, func);

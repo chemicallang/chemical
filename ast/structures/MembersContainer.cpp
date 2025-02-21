@@ -108,6 +108,38 @@ llvm::Function*& MembersContainer::llvm_generic_func_data(FunctionDeclaration* d
     return generic_llvm_data.at(decl).at(struct_itr).at(func_itr);
 }
 
+void MembersContainer::external_declare(Codegen& gen) {
+    if(generic_params.empty()) {
+        for (auto& function: functions()) {
+            function->code_gen_external_declare(gen);
+        }
+    } else {
+        if(functions().empty()) return;
+        // get the total number of iterations that already exist for each function
+        const auto total_existing_itr = generic_llvm_data[functions().front()].size();
+        // clear the existing iteration's llvm_data since that's out of module
+        for(auto& func : functions()) {
+            generic_llvm_data[func].clear();
+        }
+        int16_t i = 0;
+        const auto prev_active_iteration = active_iteration;
+        while(i < total_existing_itr) {
+            set_active_iteration(i);
+            // declare all the functions at iteration
+            for (auto& function: functions()) {
+                function->code_gen_external_declare(gen);
+            }
+            // acquire functions llvm data at iteration
+            acquire_function_iterations(i);
+            i++;
+        }
+        set_active_iteration_safely(prev_active_iteration);
+        // calling code_gen, this will generate any missing generic iterations
+        code_gen_declare(gen);
+        code_gen(gen);
+    }
+}
+
 void MembersContainer::acquire_function_iterations(int16_t iteration) {
     for(auto& function : functions()) {
         auto& func_data = generic_llvm_data[function];

@@ -385,6 +385,13 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
+     * only call this when you need to declare the functions inside the members container
+     * should be called in code_gen_external_declare, which is called on nodes to declare themselves
+     * in another module
+     */
+    void external_declare(Codegen& gen);
+
+    /**
      * for the given struct iteration, we acquire all the function iterations and put them
      * in the llvm_struct types, this basically set's the given iteration so that when llvm_type is called
      * or llvm_value, it will consider the struct iteration

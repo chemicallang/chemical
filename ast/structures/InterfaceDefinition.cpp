@@ -39,16 +39,42 @@ void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclarati
     // however since interface doesn't generate any (body) so we do nothing
 }
 
-void InterfaceDefinition::code_gen(Codegen &gen) {
-    for (auto& func: functions()) {
-        if(is_static()) {
-            func->code_gen_declare(gen, this);
-        } else if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
-            func->code_gen_declare(gen, this);
-            func->code_gen_body(gen, this);
+void declare_generic_static_interface(Codegen &gen, InterfaceDefinition* def) {
+    const auto total = def->total_generic_iterations();
+    if(total == 0) return; // generic type was never used
+    auto prev_active_iteration = def->active_iteration;
+    auto& itr_ptr = def->iterations_declared;
+    auto struct_itr = itr_ptr;
+    while(struct_itr < total) {
+        // generating code and copying iterations
+        def->set_active_iteration(struct_itr);
+        def->early_declare_structural_generic_args(gen);
+        for (auto& func: def->functions()) {
+            func->code_gen_declare(gen, def);
         }
+        def->acquire_function_iterations(struct_itr);
+        struct_itr++;
     }
-    if(!is_static()) {
+    itr_ptr = struct_itr;
+    def->set_active_iteration(prev_active_iteration);
+}
+
+void InterfaceDefinition::code_gen(Codegen &gen) {
+    if(is_static()) {
+        if(is_generic()) {
+            declare_generic_static_interface(gen, this);
+        } else {
+            for (auto& func: functions()) {
+                func->code_gen_declare(gen, this);
+            }
+        }
+    } else {
+        for (auto& func: functions()) {
+            if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
+                func->code_gen_declare(gen, this);
+                func->code_gen_body(gen, this);
+            }
+        }
         for (const auto& function: functions()) {
             code_gen_for_users(gen, function);
         }

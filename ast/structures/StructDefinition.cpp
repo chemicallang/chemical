@@ -58,11 +58,14 @@ void StructDefinition::struct_func_gen(
 // returns true if current function should be skipped because it has been overridden
 // or errored out
 bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function) {
-    const auto info = get_overriding_info(function);
-    if(info.first) {
-        const auto interface = info.first->as_interface_def();
+    const auto info = get_func_overriding_info(function);
+    if(info.base_container) {
+        const auto interface = info.base_container->as_interface_def();
+        // we always assume base container as interface, it could be something else (abstract struct maybe)
         if(interface->is_static()) {
-            const auto func = info.second->llvm_func();
+            const auto inh_type = info.type->type;
+            const auto prev_itr = interface->set_active_itr_ret_prev(inh_type->get_generic_iteration());
+            const auto func = info.base_func->llvm_func();
             const auto interfaceModule = func->getParent();
             if(interfaceModule != gen.module.get()) {
                 // interface is present in another module
@@ -85,9 +88,10 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
                 gen.createFunctionBlock(func);
                 function->code_gen_override(gen, func);
             }
+            interface->set_active_iteration(prev_itr);
         } else {
             auto& user = interface->users[this];
-            auto llvm_data = user.find(info.second);
+            auto llvm_data = user.find(info.base_func);
             if (llvm_data == user.end()) {
                 return false;
             }

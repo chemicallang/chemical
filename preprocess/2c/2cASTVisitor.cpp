@@ -2889,14 +2889,6 @@ void gen_generic_interface_functions(ToCAstVisitor& visitor, InterfaceDefinition
 }
 
 void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
-    // forward declaring the structs of users, because currently we only need to use them
-    // as pointers, even if user returns a struct, the function only takes a pointer (to memcpy)
-    for(auto& use : def->users) {
-        new_line_and_indent();
-        write("struct ");
-        node_name(visitor, use.first);
-        write(';');
-    }
     const auto is_static = def->is_static();
     const auto is_generic = def->is_generic();
     for (auto& func: def->functions()) {
@@ -2951,6 +2943,14 @@ void CTopLevelDeclarationVisitor::declare_interface_iterations(InterfaceDefiniti
 }
 
 void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
+    // forward declaring the structs of users, because currently we only need to use them
+    // as pointers, even if user returns a struct, the function only takes a pointer (to memcpy)
+    for(auto& use : def->users) {
+        new_line_and_indent();
+        write("struct ");
+        node_name(visitor, use.first);
+        write(';');
+    }
     declare_interface_iterations(def);
 }
 

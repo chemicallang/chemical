@@ -635,7 +635,11 @@ llvm::Value* FunctionCall::llvm_chain_value(
                 if(g) {
                     if(g->val_kind() == ValueKind::FunctionCall || !is_node_decl(g->linked_node())) {
                         const auto grandpa = build_parent_chain(parent_val, gen.allocator);
-                        grandparent = grandpa->llvm_value(gen, nullptr);
+                        if(grandpa->val_kind() == ValueKind::AccessChain) {
+                            grandparent = grandpa->as_access_chain_unsafe()->llvm_value_no_itr(gen, nullptr);
+                        } else {
+                            grandparent = grandpa->llvm_value(gen, nullptr);
+                        }
                     }
                 }
             }

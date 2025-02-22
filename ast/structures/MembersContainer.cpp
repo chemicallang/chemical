@@ -554,12 +554,14 @@ void MembersContainer::set_active_iteration_no_subs(int16_t iteration) {
         throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
     }
 #endif
-    if(!is_generic()) {
-        return;
+    if(is_generic()) {
+        active_iteration = iteration;
+        for (auto& param: generic_params) {
+            param->active_iteration = iteration;
+        }
     }
-    active_iteration = iteration;
-    for (auto &param: generic_params) {
-        param->active_iteration = iteration;
+    for(auto& inh : inherited) {
+        inh->type->set_generic_iteration(inh->type->get_generic_iteration());
     }
 }
 
@@ -569,15 +571,17 @@ void MembersContainer::set_active_iteration(int16_t iteration) {
         throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
     }
 #endif
-    if(!is_generic()) {
-        return;
+    if(is_generic()) {
+        active_iteration = iteration;
+        for (auto& param: generic_params) {
+            param->active_iteration = iteration;
+        }
+        for (auto sub: subscribers) {
+            sub->set_parent_iteration(iteration);
+        }
     }
-    active_iteration = iteration;
-    for (auto &param: generic_params) {
-        param->active_iteration = iteration;
-    }
-    for(auto sub : subscribers) {
-        sub->set_parent_iteration(iteration);
+    for(auto& inh : inherited) {
+        inh->type->set_generic_iteration(inh->type->get_generic_iteration());
     }
 }
 

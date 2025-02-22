@@ -30,7 +30,11 @@ public:
 
     void declare_struct(StructDefinition* structDef);
 
+    void declare_interface(InterfaceDefinition* interface);
+
     void declare_struct_iterations(StructDefinition* def);
+
+    void declare_interface_iterations(InterfaceDefinition* def);
 
     void declare_variant_iterations(VariantDefinition* def);
 

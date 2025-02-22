@@ -2664,9 +2664,7 @@ void gen_generic_struct_functions(ToCAstVisitor& visitor, StructDefinition* def)
 
 void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* def) {
     if(def->generic_params.empty()) {
-        if(redefining) { // defining struct imported from another module
-            declare_struct(def);
-        } else if(def->iterations_declared == 0) { // not yet declared, we should declare it
+        if(redefining || def->iterations_declared == 0) {
             declare_struct(def);
         }
         def->iterations_declared = 1;
@@ -2858,7 +2856,41 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
     visitor.write(';');
 }
 
-void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
+void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* def);
+
+static void contained_interface_functions(ToCAstVisitor& visitor, InterfaceDefinition* def) {
+    for(auto& func : def->functions()) {
+        if(func->is_generic()) {
+            visitor.write("[GENERIC_FUNCTIONS inside a interface not supported YET]");
+        } else {
+            // active iteration is probably going to zero here since function is non generic
+            // it get's the parent iteration and figures out which functions generic calls
+            // are calling inside the body of the function and activates it
+            func->activate_gen_call_iterations(func->active_iteration);
+            const auto interface = def->get_overriding_interface(func);
+            contained_func_decl(visitor, func, interface != nullptr, def);
+        }
+    }
+}
+
+void gen_generic_interface_functions(ToCAstVisitor& visitor, InterfaceDefinition* def) {
+    const auto total_itr = def->total_generic_iterations();
+    if(total_itr == 0) return; // generic type never used (yet)
+    int16_t itr = def->iterations_body_done;
+    if(itr >= total_itr) return;
+    auto prev = def->active_iteration;
+    while (itr < total_itr) {
+        def->set_active_iteration(itr);
+        contained_interface_functions(visitor, def);
+        itr++;
+    }
+    def->iterations_body_done = total_itr;
+    def->set_active_iteration(prev);
+}
+
+void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
+    // forward declaring the structs of users, because currently we only need to use them
+    // as pointers, even if user returns a struct, the function only takes a pointer (to memcpy)
     for(auto& use : def->users) {
         new_line_and_indent();
         write("struct ");
@@ -2866,6 +2898,7 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
         write(';');
     }
     const auto is_static = def->is_static();
+    const auto is_generic = def->is_generic();
     for (auto& func: def->functions()) {
         if(is_static || !func->has_self_param()) {
             declare_contained_func(this, func, false);
@@ -2881,6 +2914,7 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
             }
         }
         def->active_user = nullptr;
+        // either create or declare the vtable, depending on whether it has been declared before
         for(auto& user : def->users) {
             const auto linked_struct = user.first;
             if(linked_struct) {
@@ -2888,6 +2922,36 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
             }
         }
     }
+}
+
+void CTopLevelDeclarationVisitor::declare_interface_iterations(InterfaceDefinition* def) {
+    if(def->generic_params.empty()) {
+        if(redefining || def->iterations_declared == 0) {
+            declare_interface(def);
+        }
+        def->iterations_declared = 1;
+    } else {
+        // when redefining (struct imported from other module), we declare all iterations, otherwise begin where left off
+        int16_t itr = redefining ? (int16_t) 0 : def->iterations_declared;
+        const auto total = def->total_generic_iterations();
+        while(itr < total) {
+            def->set_active_iteration(itr);
+            // early declare structs that are generic arguments
+            early_declare_gen_arg_structs(*this, def->generic_params);
+            declare_interface(def);
+            itr++;
+        }
+        def->iterations_declared = total;
+        def->set_active_iteration(-1);
+        // generate any remaining functions that haven't been generated
+        if(redefining) {
+            gen_generic_interface_functions(visitor, def);
+        }
+    }
+}
+
+void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
+    declare_interface_iterations(def);
 }
 
 void CTopLevelDeclarationVisitor::visit(ImplDefinition *def) {
@@ -3882,8 +3946,15 @@ static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition*
             // it get's the parent iteration and figures out which functions generic calls
             // are calling inside the body of the function and activates it
             func->activate_gen_call_iterations(func->active_iteration);
-            const auto interface = def->get_overriding_interface(func);
-            contained_func_decl(visitor, func, interface != nullptr, def);
+            const auto overriding = def->get_func_overriding_info(func);
+            if(overriding.type) {
+                const auto type = overriding.type->type;
+                const auto prev_gen_itr = type->set_generic_iteration(type->get_generic_iteration());
+                contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
+                type->set_generic_iteration(prev_gen_itr);
+            } else {
+                contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
+            }
         }
     }
 }

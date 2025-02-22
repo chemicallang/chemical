@@ -69,6 +69,9 @@ UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpeci
             return decl;
         }
 
+        auto prev_parent_node = parent_node;
+        parent_node = decl;
+
         do {
             consumeNewLines();
             if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
@@ -77,6 +80,8 @@ UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpeci
                 break;
             }
         } while(token->type != TokenType::RBrace);
+
+        parent_node = prev_parent_node;
 
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for union block");

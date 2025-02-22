@@ -22,6 +22,9 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
 
         annotate(decl);
 
+        auto prev_parent_node = parent_node;
+        parent_node = decl;
+
         parseGenericParametersList(allocator, decl->generic_params);
 
         if (!consumeToken(TokenType::LBrace)) {
@@ -29,8 +32,6 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
             return decl;
         }
 
-        auto prev_parent_node = parent_node;
-        parent_node = decl;
         do {
             consumeNewLines();
             if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {

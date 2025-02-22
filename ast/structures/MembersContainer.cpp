@@ -438,9 +438,8 @@ FunctionDeclaration *MembersContainer::direct_child_function(const chem::string_
     }
 }
 
-// returns the struct/interface & function that is being overridden by given function in the parameter
-std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(FunctionDeclaration* function) {
-    if(inherited.empty()) return { nullptr, nullptr };
+FunctionOverridingInfo MembersContainer::get_func_overriding_info(FunctionDeclaration* function) {
+    if(inherited.empty()) return { nullptr, nullptr, nullptr };
     for(auto& inherits : inherited) {
         auto& type = *inherits->type;
         const auto linked_node = type.get_direct_linked_node();
@@ -450,7 +449,7 @@ std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(
                 const auto interface = linked_node->as_interface_def_unsafe();
                 const auto child_func = interface->direct_child_function(function->name_view());
                 if (child_func) {
-                    return {interface, child_func};
+                    return { inherits.get(), interface, child_func};
                 } else {
                     continue;
                 }
@@ -458,17 +457,17 @@ std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(
                 const auto struct_def = linked_node->as_struct_def_unsafe();
                 const auto child_func = struct_def->direct_child_function(function->name_view());
                 if (child_func) {
-                    return {struct_def, child_func};
+                    return { inherits.get(), struct_def, child_func};
                 } else {
-                    const auto info = struct_def->get_overriding_info(function);
-                    if (info.first) {
+                    const auto info = struct_def->get_func_overriding_info(function);
+                    if (info.type) {
                         return info;
                     }
                 }
             }
         }
     }
-    return { nullptr, nullptr };
+    return { nullptr, nullptr, nullptr };
 }
 
 std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_func_with_signature(FunctionDeclaration* function) {

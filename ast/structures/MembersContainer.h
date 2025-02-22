@@ -12,6 +12,25 @@
 #include "MultiFunctionNode.h"
 #include <span>
 
+struct FunctionOverridingInfo {
+
+    /**
+     * the inherited type which corresponds to the base container
+     */
+    InheritedType* type;
+
+    /**
+     * The container (interface or struct) that contains the actual function which is being overridden by us
+     */
+    ASTNode* base_container;
+
+    /**
+     * the base function present in base container, which is being overridden by us
+     */
+    FunctionDeclaration* base_func;
+
+};
+
 class MembersContainer : public AnnotableNode, public VariablesContainer {
 private:
 
@@ -356,9 +375,19 @@ public:
     bool extends_node(ASTNode* other);
 
     /**
-     * get the overriding struct / interface and the function being overridden
+     * get the overriding info for the given function (to know which function is the given function overriding and in which interface / struct)
      */
-    std::pair<ASTNode*, FunctionDeclaration*> get_overriding_info(FunctionDeclaration* function);
+    FunctionOverridingInfo get_func_overriding_info(FunctionDeclaration* function);
+
+    /**
+     * get the overriding struct / interface and the function being overridden
+     * @deprecated
+     */
+    [[deprecated]]
+    std::pair<ASTNode*, FunctionDeclaration*> get_overriding_info(FunctionDeclaration* function) {
+        const auto info = get_func_overriding_info(function);
+        return { info.base_container, info.base_func };
+    }
 
     /**
      * get a function with signature equal to given func type, present in direct or inherited functions

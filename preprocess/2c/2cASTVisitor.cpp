@@ -3973,9 +3973,9 @@ static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition*
             const auto overriding = def->get_func_overriding_info(func);
             if(overriding.type) {
                 const auto type = overriding.type->type;
-                const auto prev_gen_itr = type->set_generic_iteration(type->get_generic_iteration());
+                const auto prev_gen_itr = overriding.base_container->set_active_itr_ret_prev(type->get_generic_iteration());
                 contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
-                type->set_generic_iteration(prev_gen_itr);
+                overriding.base_container->set_active_iteration(prev_gen_itr);
             } else {
                 contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
             }

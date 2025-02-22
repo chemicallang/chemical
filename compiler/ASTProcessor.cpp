@@ -211,11 +211,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
 
         if(!already_imported) {
-            if(file.is_c_file) {
-                sym_res_c_file(file.unit.scope, file.abs_path);
-            } else {
-                file.scope_index = sym_res_tld_declare_file(file.unit.scope, file.abs_path);
-            }
+            file.scope_index = sym_res_tld_declare_file(file.unit.scope, file.abs_path);
             // report and clear diagnostics
             if (resolver->has_errors && !options->ignore_errors) {
                 std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
@@ -229,7 +225,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
     for(auto file_ptr : files) {
         auto& file = *file_ptr;
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
-        if(!already_imported && !file.is_c_file) {
+        if(!already_imported) {
             resolver->link_signature_file(file.unit.scope, file.abs_path, file.scope_index);
             // report and clear diagnostics
             if (resolver->has_errors && !options->ignore_errors) {
@@ -249,7 +245,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         bool already_imported = imported != shrinked_unit.end();
 
         // symbol resolution
-        if(!already_imported && !file.is_c_file) {
+        if(!already_imported) {
 #ifdef DEBUG
             if(file.scope_index == -1) {
                 throw std::runtime_error("file's scope index is equal to -1");
@@ -518,57 +514,16 @@ void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int f
         result.continue_processing = false;
     }
 
-    result.is_c_file = false;
-
 }
 
 void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& abs_path) {
 
-    auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
-    result.is_c_file = is_c_file;
     result.abs_path = abs_path;
     result.file_id = fileId;
     result.scope_index = -1;
     result.continue_processing = true;
 
-    if (is_c_file) {
-
-        auto& unit = result.unit;
-
-        std::unique_ptr<BenchmarkResults> bm;
-
-        if(options->benchmark) {
-            bm = std::make_unique<BenchmarkResults>();
-            bm->benchmark_begin();
-        }
-
-#ifdef COMPILER_BUILD
-
-        translator->translate(
-            options->exe_path.c_str(),
-            abs_path.data(),
-            options->resources_path.c_str()
-        );
-
-        unit.scope.nodes = std::move(translator->nodes);
-
-        if(options->benchmark) {
-            bm->benchmark_end();
-        }
-
-        result.parse_diagnostics = std::move(translator->diagnostics);
-
-#elif defined(TCC_BUILD) && defined(DEBUG)
-        throw std::runtime_error("cannot translate c file as clang api is not available");
-#endif
-
-        result.parse_benchmark = std::move(bm);
-
-    } else {
-
-        import_chemical_file(result, fileId, abs_path);
-
-    }
+    import_chemical_file(result, fileId, abs_path);
 
 }
 

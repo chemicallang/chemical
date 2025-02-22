@@ -89,10 +89,6 @@ public:
      */
     bool link(SymbolResolver &linker) final;
 
-    int16_t get_generic_iteration() final {
-        return generic_iteration;
-    }
-
     ASTNode *linked_node() final;
 
     [[nodiscard]]

@@ -16,6 +16,7 @@
 #include "ast/types/LiteralType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ArrayType.h"
 #include <sstream>
 #include "ASTNode.h"
 
@@ -525,6 +526,21 @@ BaseType* BaseType::removeReferenceFromType(ASTAllocator& allocator) {
 bool BaseType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
     const auto val_type = value->create_type(allocator);
     return val_type != nullptr && satisfies(val_type->pure_type());
+}
+
+int16_t BaseType::get_generic_iteration() {
+    switch(kind()) {
+        case BaseTypeKind::Reference:
+            return as_reference_type_unsafe()->type->get_generic_iteration();
+        case BaseTypeKind::Pointer:
+            return as_pointer_type_unsafe()->type->get_generic_iteration();
+        case BaseTypeKind::Generic:
+            return as_generic_type_unsafe()->generic_iteration;
+        case BaseTypeKind::Array:
+            return as_array_type_unsafe()->elem_type->get_generic_iteration();
+        default:
+            return -1;
+    }
 }
 
 unsigned BaseType::type_alignment(bool is64Bit) {

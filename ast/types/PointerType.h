@@ -18,10 +18,6 @@ public:
 
     }
 
-    int16_t get_generic_iteration() final {
-        return type->get_generic_iteration();
-    }
-
     [[nodiscard]]
     BaseType* create_child_type(ASTAllocator& allocator) const final {
         return type->copy(allocator);

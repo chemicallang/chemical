@@ -39,9 +39,6 @@ struct ImplIntGenStatSummer : GenStatSummer<int> {
 
 func test_generic_static_interfaces() {
 
-    /** TODO these tests don't work
-         this is probably because s.sum is of a generic interface for which iteration is not set
-         we will fix this by changing our design of generics
     test("generic static interfaces work - 1", () => {
         var s = ImplShortGenStatSummer { a : 4, b : 8 }
         return s.sum() == 14
@@ -51,7 +48,6 @@ func test_generic_static_interfaces() {
         var s = ImplIntGenStatSummer { a : 10, b : 30 }
         return s.sum() == 43
     })
-    **/
 
     test("generic static interfaces work through extension methods - 1", () => {
         var s = ImplShortGenStatSummer { a : 4, b : 4 }

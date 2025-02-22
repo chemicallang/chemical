@@ -12,6 +12,8 @@
 #include "MultiFunctionNode.h"
 #include <span>
 
+class MembersContainer;
+
 struct FunctionOverridingInfo {
 
     /**
@@ -22,7 +24,7 @@ struct FunctionOverridingInfo {
     /**
      * The container (interface or struct) that contains the actual function which is being overridden by us
      */
-    ASTNode* base_container;
+    MembersContainer* base_container;
 
     /**
      * the base function present in base container, which is being overridden by us

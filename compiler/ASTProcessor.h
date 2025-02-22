@@ -45,11 +45,6 @@ struct ASTFileResultData {
      */
     bool continue_processing;
 
-    /**
-     * if this unit belongs to a c file that was translated using clang
-     */
-    bool is_c_file;
-
 };
 
 struct ASTFileMetaData {

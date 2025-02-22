@@ -64,6 +64,12 @@ struct StructDeclAttributes {
      */
     bool anonymous;
 
+    /**
+     * if abstract, cannot be instantiated, because it doesn't implement all methods of interface
+     * for which a struct that inherits this, will provide the implementation
+     */
+    bool is_abstract;
+
 };
 
 class StructDefinition : public ExtendableMembersContainerNode {
@@ -96,7 +102,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node),
-        location(location), attrs(specifier, false, false, false, false, false, false, false, false),
+        location(location), attrs(specifier, false, false, false, false, false, false, false, false, false),
         linked_type(identifier.identifier, this, location) {
 
     }
@@ -183,6 +189,14 @@ public:
 
     inline void set_anonymous(bool value) {
         attrs.anonymous = value;
+    }
+
+    inline bool is_abstract() {
+        return attrs.is_abstract;
+    }
+
+    inline void set_abstract(bool value) {
+        attrs.is_abstract = value;
     }
 
     inline std::string get_runtime_name() {

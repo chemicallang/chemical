@@ -164,9 +164,7 @@ public:
     /**
      * will get the generic iteration or -1 if this type can't provide one
      */
-    virtual int16_t get_generic_iteration() {
-        return -1;
-    }
+    int16_t get_generic_iteration();
 
     /**
      * whether the given value satisfies the current type

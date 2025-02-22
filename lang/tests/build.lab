@@ -39,8 +39,27 @@ func exe_dir_file(ctx : *BuildContext, exe_name : *string, file_name : *string, 
 func gen_ir(ctx : *BuildContext, exe_name : *string, module : *mut Module) {
     module.llvm_ir_path = exe_dir_path(ctx, exe_name)
     module.llvm_ir_path.append_str(&module.name);
-    module.llvm_ir_path.append_char_ptr(".ll")
+    module.llvm_ir_path.append_char_ptr("/llvm_ir.ll")
     printf("module : %s, llvm ir : %s\n", module.name.data(), module.llvm_ir_path.data());
+}
+
+func gen_asm(ctx : *BuildContext, exe_name : *string, module : *mut Module) {
+    module.asm_path = exe_dir_path(ctx, exe_name)
+    module.asm_path.append_str(&module.name);
+    module.asm_path.append_char_ptr("/mod_asm.s")
+    printf("module : %s, asm : %s\n", module.name.data(), module.asm_path.data());
+}
+
+func gen_c(ctx : *BuildContext, exe_name : *string, module : *mut Module) {
+    const path = exe_dir_path(ctx, exe_name)
+    path.append_str(&module.name);
+    path.append_char_ptr("/mod_c.c")
+    if(compiler::is_clang()) {
+        ctx.translate_mod_to_c(module, path);
+    } else {
+        module.out_c_path = path;
+    }
+    printf("module : %s, output c : %s\n", module.name.data(), path.data());
 }
 
 struct JobAndContext {
@@ -108,12 +127,12 @@ func build(ctx : *mut BuildContext) {
     // ctx.build_cbi(&cbi_name, entry_mod, { entry_mod });
 
     const do_llvm_ir = true;
-    const do_asm = false;
+    const do_asm = true;
     const do_to_ch = !is_minimal && compiler::is_clang();
 
-    const do_c = !is_minimal && !compiler::is_clang();
+    const do_c = !compiler::is_clang();
     var do_dyn_lib = !is_minimal;
-    const do_one_job = true;
+    const do_one_job = false;
 
     if(do_llvm_ir) {
         gen_ir(ctx, &exe_name, submod)
@@ -122,10 +141,11 @@ func build(ctx : *mut BuildContext) {
     }
 
     if(do_asm) {
-        module.asm_path = exe_dir_path(ctx, &exe_name)
-        module.asm_path.append_str(&module.name);
-        module.asm_path.append_char_ptr(".s")
-        printf("The asm path is %s\n", module.asm_path.data());
+        // TODO asm generation is failing because of error in the submod
+        //     error: <unknown>:0: symbol 'extern_imported_sum' is already defined
+        // gen_asm(ctx, &exe_name, submod)
+        // gen_asm(ctx, &exe_name, std_module);
+        // gen_asm(ctx, &exe_name, module);
     }
 
     if(do_to_ch) {
@@ -135,7 +155,9 @@ func build(ctx : *mut BuildContext) {
     }
 
     if(do_c) {
-        ctx.translate_mod_to_c(module, exe_dir_path(ctx, &exe_name));
+        gen_c(ctx, &exe_name, submod);
+        gen_c(ctx, &exe_name, std_module);
+        gen_c(ctx, &exe_name, module);
         if(do_one_job) {
             return;
         }

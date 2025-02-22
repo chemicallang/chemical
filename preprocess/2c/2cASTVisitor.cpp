@@ -1673,6 +1673,14 @@ public:
 
     std::vector<DestructionJob> destruct_jobs;
 
+    void destruct_no_gen(
+            const chem::string_view& self_name,
+            ExtendableMembersContainerNode* linked,
+            int16_t generic_iteration,
+            FunctionDeclaration* destructor,
+            bool is_pointer
+    );
+
     void destruct(
             const chem::string_view& self_name,
             ExtendableMembersContainerNode* linked,
@@ -1847,12 +1855,7 @@ void CAfterStmtVisitor::visit(FunctionCall *call) {
     }
 }
 
-void CDestructionVisitor::destruct(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, int16_t generic_iteration, FunctionDeclaration* destructor, bool is_pointer) {
-    int16_t prev_itr;
-    if(!parent_node->generic_params.empty()) {
-        prev_itr = parent_node->active_iteration;
-        parent_node->set_active_iteration(generic_iteration);
-    }
+void CDestructionVisitor::destruct_no_gen(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, int16_t generic_iteration, FunctionDeclaration* destructor, bool is_pointer) {
     if(new_line_before) {
         visitor.new_line_and_indent();
     }
@@ -1870,6 +1873,15 @@ void CDestructionVisitor::destruct(const chem::string_view& self_name, Extendabl
     if(!new_line_before) {
         visitor.new_line_and_indent();
     }
+}
+
+void CDestructionVisitor::destruct(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, int16_t generic_iteration, FunctionDeclaration* destructor, bool is_pointer) {
+    int16_t prev_itr;
+    if(!parent_node->generic_params.empty()) {
+        prev_itr = parent_node->active_iteration;
+        parent_node->set_active_iteration(generic_iteration);
+    }
+    destruct_no_gen(self_name, parent_node, generic_iteration, destructor, is_pointer);
     if(!parent_node->generic_params.empty()) {
         parent_node->set_active_iteration(prev_itr);
     }
@@ -1908,7 +1920,15 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
     }
 }
 
-void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, Value* array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {
+void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, Value* array_size, ExtendableMembersContainerNode* parent_node, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {
+
+    int16_t prev_itr;
+    const auto is_generic = parent_node->is_generic();
+    if(is_generic) {
+        prev_itr = parent_node->active_iteration;
+        parent_node->set_active_iteration(generic_iteration);
+    }
+
     std::string arr_val_itr_name = visitor.get_local_temp_var_name();
     visitor.new_line_and_indent();
     visitor.write("for(int ");
@@ -1923,10 +1943,14 @@ void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, V
     visitor.write("--){");
     visitor.indentation_level++;
     std::string name = self_name.str() + "[" + arr_val_itr_name + "]";
-    destruct(chem::string_view(name.data(), name.size()), linked, generic_iteration, destructorFunc, false);
+    destruct_no_gen(chem::string_view(name.data(), name.size()), parent_node, generic_iteration, destructorFunc, false);
     visitor.indentation_level--;
     visitor.new_line_and_indent();
     visitor.write('}');
+
+    if(is_generic) {
+        parent_node->set_active_iteration(prev_itr);
+    }
 }
 
 void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_return) {
@@ -2000,7 +2024,7 @@ bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name,
                 return false;
             }
             int16_t generic_iteration = 0;
-            if(!struc_def->generic_params.empty()) {
+            if(struc_def->is_generic()) {
                 auto type = initializer->create_value_type(visitor.allocator);
                 generic_iteration = type->get_generic_iteration();
             }

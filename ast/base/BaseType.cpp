@@ -385,11 +385,11 @@ FunctionDeclaration* BaseType::implicit_constructor_for(ASTAllocator& allocator,
 }
 
 int16_t BaseType::set_generic_iteration(int16_t iteration) {
-    if(iteration > -1) {
+    if(iteration > -2) {
         const auto linked = linked_node();
         if(linked) {
             const auto members_container = linked->as_members_container();
-            if (members_container && members_container->is_generic()) {
+            if (members_container) {
                 return members_container->set_active_itr_ret_prev(iteration);
             }
         }
@@ -534,6 +534,10 @@ int16_t BaseType::get_generic_iteration() {
             return as_reference_type_unsafe()->type->get_generic_iteration();
         case BaseTypeKind::Pointer:
             return as_pointer_type_unsafe()->type->get_generic_iteration();
+        case BaseTypeKind::Linked:{
+            const auto container = as_linked_type_unsafe()->linked->as_members_container();
+            return container ? container->active_iteration : (int16_t) -1;
+        }
         case BaseTypeKind::Generic:
             return as_generic_type_unsafe()->generic_iteration;
         case BaseTypeKind::Array:

@@ -3484,7 +3484,9 @@ void process_variant_member_using(
         if (!func) {
             return;
         }
+        const auto prev_itr = mem_def->set_active_itr_ret_prev(mem_type->get_generic_iteration());
         variant_member_process_fn(visitor, member, func, mem_def, mem_param);
+        mem_def->set_active_iteration(prev_itr);
     }
 }
 
@@ -3650,12 +3652,16 @@ void process_struct_members_using(
     for(auto& inherits : def->inherited) {
         auto linked = inherits->type->linked_struct_def();
         if(linked) {
+            const auto prev_itr = inherits->type->set_generic_iteration(inherits->type->get_generic_iteration());
             process_member(visitor, inherits->type, linked->name_view());
+            inherits->type->set_generic_iteration(prev_itr);
         }
     }
     for (auto& var: def->variables) {
         auto value_type = var.second->create_value_type(visitor.allocator);
+        const auto prev_itr = value_type->set_generic_iteration(value_type->get_generic_iteration());
         process_member(visitor, value_type, var.second->name);
+        value_type->set_generic_iteration(prev_itr);
     }
 }
 

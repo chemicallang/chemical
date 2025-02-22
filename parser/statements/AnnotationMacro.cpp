@@ -174,6 +174,14 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make the struct direct init");
             }
         }},
+        { "abstract", [](Parser* parser, AnnotableNode* node) -> void {
+            const auto def = node->as_struct_def();
+            if(def) {
+                def->set_abstract(true);
+            } else {
+                parser->error("couldn't make the struct abstract");
+            }
+        }},
         { "no_return", [](Parser* parser, AnnotableNode* node) -> void {
             const auto func = node->as_function();
             if(func) {

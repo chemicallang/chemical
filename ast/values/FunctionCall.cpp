@@ -82,7 +82,10 @@ void put_self_param(
             }
         } else if(gen.current_func_type) {
             auto passing_self_arg = gen.current_func_type->get_self_param();
-            if(passing_self_arg && passing_self_arg->type->is_same(self_param->type)) {
+            // TODO we used to verify the type of self argument passing_self_arg->type->is_same(self_param->type)
+            //    however now we aren't going to do this here, it should be done in symbol resolution
+            //    this is because, function in inherited interfaces, their self arg doesn't have the same type
+            if(passing_self_arg) {
                 args.emplace_back(passing_self_arg->llvm_load(gen));
             } else {
                 gen.error("function without a self argument cannot call methods that require self arg", call);

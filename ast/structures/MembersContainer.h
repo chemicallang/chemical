@@ -160,6 +160,15 @@ public:
     void set_active_iteration(int16_t iteration) final;
 
     /**
+     * this sets the given iteration as active, and returns current iteration
+     */
+    int16_t set_active_itr_ret_prev(int16_t iteration) {
+        const auto active = active_iteration;
+        set_active_iteration(iteration);
+        return active;
+    }
+
+    /**
      * set's the generic active iteration safely
      */
     inline void set_active_iteration_safely(int16_t itr) {

@@ -145,7 +145,7 @@ llvm::Function*& FunctionDeclaration::get_llvm_data() {
     }
     if(parent_node) {
         auto k = parent_node->kind();
-        if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl) {
+        if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::InterfaceDecl) {
             auto container = parent_node->as_members_container_unsafe();
             if(!container->generic_params.empty()) { // container is generic
                 return container->generic_llvm_data[this][container->active_iteration][active_iteration];

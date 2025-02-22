@@ -570,6 +570,7 @@ void MembersContainer::set_active_iteration(int16_t iteration) {
         throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
     }
 #endif
+// TODO set active iteration as it's given, we don't want to use 0 here
     if(iteration == -1) {
         active_iteration = 0;
     } else {

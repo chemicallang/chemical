@@ -566,13 +566,13 @@ llvm::Value* Codegen::move_by_allocate(BaseType* type, Value* value, llvm::Value
     }
     const auto pure = value->pure_type_ptr();
     const auto kind = pure->kind();
-    const auto linked_node = pure->get_direct_linked_node(kind);
+    const auto linked_node = pure->get_direct_linked_node();
     if(!linked_node) {
         // we can pass directly, as there's no node, it's probably a native type like int or long, where generic is being moved, and int is used in generic type parameter
         return movable_value;
     }
     const auto linked_node_kind = linked_node->kind();
-    if(!linked_node->isStoredStructType(linked_node_kind)) {
+    if(!ASTNode::isStoredStructType(linked_node_kind)) {
         // we can pass directly, as the node is not a stored struct type, what could it be except typealias
         return movable_value;
     }

@@ -131,13 +131,14 @@ public:
 
     /**
      * copy the type, along with linked node
+     * this copy function performs a deep copy, so it should be used with care
      */
     virtual BaseType *copy(ASTAllocator& allocator) const = 0;
 
     /**
      * is this type a reference to the given node
      */
-    bool is_reference_to(ASTNode* node, BaseTypeKind k);
+    bool is_reference_to(ASTNode* node);
 
     /**
      * get loadable referred to type
@@ -188,18 +189,6 @@ public:
     virtual bool satisfies(ASTAllocator& allocator, Value* value, bool assignment);
 
     /**
-     * pointer type returns pointer type
-     */
-    PointerType *pointer_type(BaseTypeKind k);
-
-    /**
-     * a helper inline function
-     */
-    inline PointerType* pointer_type() {
-        return pointer_type(kind());
-    }
-
-    /**
      * if this value can be auto dereferenced, the type of dereferenced value is returned
      * the expected type should be a reference for that to happen, otherwise a null pointer is
      * returned
@@ -212,19 +201,8 @@ public:
     BaseType* removeReferenceFromType(ASTAllocator& allocator);
 
     /**
-     * function type returns function type
-     */
-    FunctionType *function_type(BaseTypeKind k);
-
-    /**
-     * a helper inline function
-     */
-    FunctionType *function_type() {
-        return function_type(kind());
-    }
-
-    /**
-     * representation is representation of the type
+     * representation is representation of the type as a string
+     * however this method maybe slow, use with care
      */
     std::string representation();
 
@@ -250,7 +228,7 @@ public:
     /**
      * check if this type is a pointer
      */
-    bool is_pointer() {
+    inline bool is_pointer() {
         return is_pointer(kind());
     }
 
@@ -262,29 +240,22 @@ public:
     }
 
     /**
+     * check if this kind is a reference type
+     */
+    inline bool is_reference() {
+        return kind() == BaseTypeKind::Reference;
+    }
+
+    /**
      * will make the type mutable, completely pointer type, linked type, generic type
      * everything inside will become mutable, as if you wrote mut keyword before the type
      */
-    bool make_mutable(BaseTypeKind k);
+    bool make_mutable();
 
     /**
      * check if this type is mutable
      */
-    bool is_mutable(BaseTypeKind k);
-
-    /**
-     * check if this represents a reference
-     */
-    bool is_reference(BaseTypeKind k) {
-        return k == BaseTypeKind::Reference;
-    }
-
-    /**
-     * helper function
-     */
-    inline bool is_reference() {
-        return is_reference(kind());
-    }
+    bool is_mutable();
 
     /**
      * get members container
@@ -344,53 +315,32 @@ public:
     /**
      * if this is a directly referenced / generic type, get it's ref'ed node
      */
-    ASTNode* get_direct_linked_node(BaseTypeKind kind);
+    ASTNode* get_direct_linked_node();
 
     /**
      * get direct or referenced linked node, type should be Struct or Struct&
      */
-    ASTNode* get_ref_or_linked_node(BaseTypeKind kind);
-
-    /**
-     * a helper function
-     */
-    inline ASTNode* get_direct_linked_node() {
-        return get_direct_linked_node(kind());
-    }
+    ASTNode* get_ref_or_linked_node();
 
     /**
      * if this is a directly referenced / generic type, get it's ref'ed node
      */
-    StructDefinition* get_direct_linked_struct(BaseTypeKind k);
+    StructDefinition* get_direct_linked_struct();
 
     /**
      * get direct linked interface from the following type
      */
-    InterfaceDefinition* get_direct_linked_interface(BaseTypeKind k);
+    InterfaceDefinition* get_direct_linked_interface();
 
     /**
      * get direct or referenced struct, this means either the type should be Struct or Struct&
      */
-    StructDefinition* get_ref_or_linked_struct(BaseTypeKind k);
-
-    /**
-     * a helper function
-     */
-    inline StructDefinition* get_direct_linked_struct() {
-        return get_direct_linked_struct(kind());
-    }
+    StructDefinition* get_ref_or_linked_struct();
 
     /**
      * if this is a directly referenced / generic variant, get it
      */
-    VariantDefinition* get_direct_linked_variant(BaseTypeKind k);
-
-    /**
-     * a helper function
-     */
-    inline VariantDefinition* get_direct_linked_variant() {
-        return get_direct_linked_variant(kind());
-    }
+    VariantDefinition* get_direct_linked_variant();
 
     /**
      * if this type is linked with a struct definition, it can be retrieved using this function
@@ -447,7 +397,7 @@ public:
     /**
      * check if linked is a movable type
      */
-    bool requires_moving(BaseTypeKind k);
+    bool requires_moving();
 
     /**
      * searches a implicit constructor for given value, using the linked struct with this type

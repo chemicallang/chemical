@@ -569,7 +569,7 @@ bool FunctionType::mark_moved_value(
     if(expected_type) {
         const auto pure_expected = expected_type->pure_type();
         const auto pure_expected_kind = pure_expected->kind();
-        const auto expected_node = pure_expected->get_ref_or_linked_node(pure_expected_kind);
+        const auto expected_node = pure_expected->get_ref_or_linked_node();
         if(!expected_node) {
             if(expected_type_kind != BaseTypeKind::Any) {
                 diagnoser.error("cannot move a struct to a non struct type", &value);

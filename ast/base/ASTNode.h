@@ -298,7 +298,7 @@ public:
     /**
      * get members container (if this node is one, or if linked with one)
      */
-    MembersContainer* get_members_container(ASTNodeKind k);
+    MembersContainer* get_members_container();
 
     /**
      * This would return the representation of the node

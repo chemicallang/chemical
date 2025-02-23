@@ -60,7 +60,7 @@ public:
      * when this method is called, we will set pointer to mutable too
      */
     void make_mutable_on_child() {
-        is_mutable = type->is_mutable(type->kind());
+        is_mutable = type->is_mutable();
     }
 
 #ifdef COMPILER_BUILD

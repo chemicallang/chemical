@@ -908,14 +908,14 @@ bool MembersContainer::extends_node(ASTNode* other) {
             if(inherited_node == other) {
                 return true;
             } else {
-                const auto container = inherited_node->get_members_container(inherited_node->kind());
+                const auto container = inherited_node->get_members_container();
                 return container && container->extends_node(other);
             }
         } else if(otherKind == ASTNodeKind::InterfaceDecl) {
             for(auto& inh : inherited) {
                 const auto inherited_node = inh.type->get_direct_linked_node();
                 if(!inherited_node) return false;
-                const auto container = inherited_node->get_members_container(inherited_node->kind());
+                const auto container = inherited_node->get_members_container();
                 if(container && container->extends_node(other)) {
                     return true;
                 }

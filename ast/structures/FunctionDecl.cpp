@@ -605,7 +605,7 @@ void code_gen_process_members(
 ) {
     unsigned index = 0;
     for(auto& inherited : def->inherited) {
-        const auto base_def = inherited->type->get_direct_linked_struct();
+        const auto base_def = inherited.type->get_direct_linked_struct();
         if(base_def) {
             member_func_call(gen, base_def, def, func, index);
         }

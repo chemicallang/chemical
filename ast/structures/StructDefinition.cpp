@@ -131,7 +131,7 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
             struct_func_gen(gen, functions(), declare);
             if (!declare) {
                 for (auto& inherits: inherited) {
-                    const auto interface = inherits->type->linked_interface_def();
+                    const auto interface = inherits.type->linked_interface_def();
                     if (interface && !interface->is_static()) {
                         interface->llvm_global_vtable(gen, this);
                     }
@@ -434,8 +434,8 @@ ASTNode *StructDefinition::child(const chem::string_view &name) {
         return node;
     } else if (!inherited.empty()) {
         for(auto& inherits : inherited) {
-            if(inherits->specifier == AccessSpecifier::Public) {
-                const auto thing = inherits->type->linked_node()->child(name);
+            if(inherits.specifier == AccessSpecifier::Public) {
+                const auto thing = inherits.type->linked_node()->child(name);
                 if (thing) return thing;
             }
         }
@@ -446,7 +446,7 @@ ASTNode *StructDefinition::child(const chem::string_view &name) {
 VariablesContainer *StructDefinition::copy_container(ASTAllocator& allocator) {
     auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(identifier, parent_node, location);
     for(auto& inherits : inherited) {
-        def->inherited.emplace_back(inherits->copy(allocator));
+        def->inherited.emplace_back(inherits.copy(allocator));
     }
     for(auto& variable : variables) {
         def->variables[variable.first] = variable.second->copy_member(allocator);

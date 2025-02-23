@@ -2459,7 +2459,7 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
         if(visitor.redefining || def->iterations_declared < def->total_generic_iterations()) {
             // declare inherited types
             for(auto& inherit : def->inherited) {
-                auto in_node = inherit->type->get_direct_linked_node();
+                auto in_node = inherit.type->get_direct_linked_node();
                 if(in_node) {
                     early_declare_node(visitor, in_node);
                 }
@@ -2640,7 +2640,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
     write(" {");
     visitor.indentation_level+=1;
     for(auto& inherits : def->inherited) {
-        const auto struct_def = inherits->type->linked_struct_def();
+        const auto struct_def = inherits.type->linked_struct_def();
         if(struct_def) {
             visitor.new_line_and_indent();
             visitor.write("struct ");
@@ -2731,7 +2731,7 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     write(" {");
     visitor.indentation_level+=1;
     for(auto& inherits : def->inherited) {
-        const auto struct_def = inherits->type->linked_struct_def();
+        const auto struct_def = inherits.type->linked_struct_def();
         if(struct_def) {
             visitor.new_line_and_indent();
             visitor.write("struct ");
@@ -3650,11 +3650,11 @@ void process_struct_members_using(
     void(*process_member)(ToCAstVisitor& visitor, BaseType* member_type, const chem::string_view& member_name)
 ) {
     for(auto& inherits : def->inherited) {
-        auto linked = inherits->type->linked_struct_def();
+        auto linked = inherits.type->linked_struct_def();
         if(linked) {
-            const auto prev_itr = inherits->type->set_generic_iteration(inherits->type->get_generic_iteration());
-            process_member(visitor, inherits->type, linked->name_view());
-            inherits->type->set_generic_iteration(prev_itr);
+            const auto prev_itr = inherits.type->set_generic_iteration(inherits.type->get_generic_iteration());
+            process_member(visitor, inherits.type, linked->name_view());
+            inherits.type->set_generic_iteration(prev_itr);
         }
     }
     for (auto& var: def->variables) {
@@ -3681,8 +3681,8 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
         }
     }
     for(auto& inh : struct_def->inherited) {
-        const auto var = inh.get();
-        const auto var_type = var->type->pure_type(visitor.allocator);
+        auto& var = inh;
+        const auto var_type = var.type->pure_type(visitor.allocator);
         const auto def = var_type->get_direct_linked_struct();
         if(def) {
             auto has_initializer = initializers && initializers->find(def->name_view()) != initializers->end();
@@ -3993,7 +3993,7 @@ void ToCAstVisitor::visit(StructDefinition *def) {
     auto prev_members_container = current_members_container;
     current_members_container = def;
     for (auto& inherits: def->inherited) {
-        const auto overridden = inherits->type->linked_node()->as_interface_def();
+        const auto overridden = inherits.type->linked_node()->as_interface_def();
         if (overridden) {
             for (auto& func: overridden->functions()) {
                 if (!def->contains_func(func->name_view())) {
@@ -4469,7 +4469,7 @@ void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, Extenda
     while(i < last) {
         const auto seg = path[i];
         auto& base = def->inherited[seg];
-        def = base->type->linked_struct_def();
+        def = base.type->linked_struct_def();
         visitor.write(def->name_view());
         visitor.write('.');
         i++;

@@ -27,6 +27,17 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
 
         parseGenericParametersList(allocator, decl->generic_params);
 
+        if(consumeToken(TokenType::ColonSym)) {
+            do {
+                auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
+                auto type = parseLinkedOrGenericType(allocator);
+                if(!type) {
+                    return decl;
+                }
+                decl->inherited.emplace_back(type, in_spec);
+            } while(consumeToken(TokenType::CommaSym));
+        }
+
         if (!consumeToken(TokenType::LBrace)) {
             error("expected a '{' when starting an interface block");
             return decl;

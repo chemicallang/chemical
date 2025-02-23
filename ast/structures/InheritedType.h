@@ -24,6 +24,6 @@ public:
      * make a copy of this type
      */
     [[nodiscard]]
-    std::unique_ptr<InheritedType> copy(ASTAllocator& allocator) const;
+    InheritedType copy(ASTAllocator& allocator) const;
 
 };

@@ -510,6 +510,8 @@ set(COMMON_SOURCES
         ast/values/PointerValue.cpp
         ast/values/BlockValue.h
         ast/values/BlockValue.cpp
+        preprocess/visitors/NonRecursiveVisitor.h
+        preprocess/visitors/ast_fwd.h
 )
 
 # Chemical LSP Executable Target

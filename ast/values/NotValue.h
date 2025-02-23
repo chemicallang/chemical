@@ -16,14 +16,13 @@ public:
     Value* value;
     SourceLocation location;
 
-    explicit NotValue(Value* value, SourceLocation location) : value(value), location(location) {}
+    explicit NotValue(
+        Value* value,
+        SourceLocation location
+    ) : Value(ValueKind::NotValue), value(value), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::NotValue;
     }
 
     void accept(Visitor *visitor) final {

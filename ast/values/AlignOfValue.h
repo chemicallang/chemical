@@ -13,14 +13,15 @@ public:
     BaseType* for_type;
     SourceLocation location;
 
-    explicit AlignOfValue(BaseType *for_type, SourceLocation location);
+    explicit AlignOfValue(
+        BaseType *for_type,
+        SourceLocation location
+    ) : Value(ValueKind::AlignOfValue), for_type(for_type), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::AlignOfValue;
     }
 
     void accept(Visitor *visitor) final {

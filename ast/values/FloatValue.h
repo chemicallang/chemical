@@ -23,14 +23,15 @@ public:
      *
      * @param value The floating-point value.
      */
-    explicit FloatValue(float value, SourceLocation location) : value(value), location(location) {}
+    explicit FloatValue(
+        float value,
+        SourceLocation location
+    ) : Value(ValueKind::Float), value(value), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::Float;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

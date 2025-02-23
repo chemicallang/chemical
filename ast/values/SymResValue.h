@@ -48,16 +48,12 @@ public:
         SymResValueReplacementFn fn,
         void* data_ptr,
         SourceLocation location
-    ) : allocator(allocator), fn(fn), data_ptr(data_ptr), location(location) {
+    ) : Value(ValueKind::SymResValue), allocator(allocator), fn(fn), data_ptr(data_ptr), location(location) {
 
     }
 
     SourceLocation encoded_location() override {
         return location;
-    }
-
-    ValueKind val_kind() override {
-        return ValueKind::SymResValue;
     }
 
     void accept(Visitor *visitor) override {

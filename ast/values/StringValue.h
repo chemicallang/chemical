@@ -24,20 +24,17 @@ public:
     SourceLocation location;
 
     /**
-     * @brief Construct a new StringValue object.
-     *
-     * @param value The string value.
+     * constructor
      */
-    explicit StringValue(chem::string_view value, SourceLocation location) : length(value.size()), value(value), location(location) {
+    explicit StringValue(
+        chem::string_view value,
+        SourceLocation location
+    ) : Value(ValueKind::String), length(value.size()), value(value), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::String;
     }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;

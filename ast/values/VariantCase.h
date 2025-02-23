@@ -24,7 +24,9 @@ public:
             ASTDiagnoser& resolver,
             SwitchStatement* statement,
             SourceLocation location
-    );
+    ) : Value(ValueKind::VariantCase), parent_val(parent_val), switch_statement(statement), location(location) {
+
+    }
 
     /**
      * constructor
@@ -33,14 +35,12 @@ public:
             Value* parent_val,
             SwitchStatement* statement,
             SourceLocation location
-    );
+    ) : Value(ValueKind::VariantCase), parent_val(parent_val), switch_statement(statement), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::VariantCase;
     }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;

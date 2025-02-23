@@ -23,16 +23,12 @@ public:
         ASTNode* parent_node,
         bool is_value,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::SwitchStmt), expression(expression), parent_node(parent_node), is_value(is_value), location(location) {
+    ) : ASTNode(ASTNodeKind::SwitchStmt), Value(ValueKind::SwitchValue), expression(expression), parent_node(parent_node), is_value(is_value), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::SwitchValue;
     }
 
     void set_parent(ASTNode* new_parent) final {

@@ -12,16 +12,19 @@ public:
     bool is64Bit;
     SourceLocation location;
 
-    ULongValue(unsigned long value, bool is64Bit, SourceLocation location) : value(value), is64Bit(is64Bit), location(location) {
+    /**
+     * constructor
+     */
+    ULongValue(
+        unsigned long value,
+        bool is64Bit,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::UInt), value(value), is64Bit(is64Bit), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::ULong;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

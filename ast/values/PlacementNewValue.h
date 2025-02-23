@@ -14,12 +14,12 @@ public:
     // TODO remove this
     PointerType ptr_type;
 
-    inline PlacementNewValue(Value* pointer, Value* value, SourceLocation location) : pointer(pointer), value(value), location(location), ptr_type(nullptr, 0, false) {
+    inline PlacementNewValue(
+        Value* pointer,
+        Value* value,
+        SourceLocation location
+    ) : Value(ValueKind::NewValue), pointer(pointer), value(value), location(location), ptr_type(nullptr, 0, false) {
 
-    }
-
-    ValueKind val_kind() override {
-        return ValueKind::NewValue;
     }
 
     SourceLocation encoded_location() override {

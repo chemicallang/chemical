@@ -23,7 +23,10 @@ public:
      *
      * @param value The character value.
      */
-    CharValue(char value, SourceLocation location) : value(value), location(location) {
+    CharValue(
+        char value,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::Char), value(value), location(location) {
 
     }
 
@@ -42,10 +45,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::Char;
     }
 
     uint64_t byte_size(bool is64Bit) final {

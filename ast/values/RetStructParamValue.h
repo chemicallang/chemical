@@ -15,7 +15,7 @@ public:
 
     SourceLocation location;
 
-    explicit RetStructParamValue(SourceLocation location) : location(location) {
+    explicit RetStructParamValue(SourceLocation location) : Value(ValueKind::RetStructParamValue), location(location) {
 
     }
 
@@ -25,10 +25,6 @@ public:
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::RetStructParamValue;
     }
 
 #ifdef COMPILER_BUILD

@@ -42,6 +42,13 @@ class WrapValue;
  * @brief Base class for all values in the AST.
  */
 class Value : public ASTAny {
+private:
+
+    /**
+     * the value kind is stored like this
+     */
+    ValueKind const _kind;
+
 public:
 
     /**
@@ -52,7 +59,9 @@ public:
     /**
      * default constructor
      */
-    Value() = default;
+    inline explicit Value(ValueKind k) noexcept : _kind(k) {
+
+    };
 
     /**
      * deleted copy constructor
@@ -65,11 +74,6 @@ public:
     Value(Value&& other) = default;
 
     /**
-     * move assignment operator
-     */
-    Value& operator =(Value &&other) = default;
-
-    /**
      * any kind of 'value' is returned
      */
     ASTAnyKind any_kind() final {
@@ -77,9 +81,18 @@ public:
     }
 
     /**
-     * get the value kind
+     * get the kind of this value
      */
-    virtual ValueKind val_kind() = 0;
+    inline ValueKind kind() {
+        return _kind;
+    }
+
+    /**
+     * get the value kind of this value
+     */
+    inline ValueKind val_kind() {
+        return _kind;
+    }
 
     /**
      * extracts a value from a node
@@ -507,13 +520,6 @@ public:
     }
 
     /**
-     * return if this is a chain value
-     */
-    virtual ChainValue* as_chain_value() {
-        return nullptr;
-    }
-
-    /**
      * a function to be overridden by char values to return actual values
      */
     char get_the_char();
@@ -662,6 +668,10 @@ public:
 
     static constexpr inline bool isAccessChain(ValueKind k) {
         return k == ValueKind::AccessChain;
+    }
+
+    static constexpr inline bool isChainValue(ValueKind k) {
+        return k == ValueKind::Identifier || k == ValueKind::FunctionCall || k == ValueKind::IndexOperator || k == ValueKind::AccessChain;
     }
 
     static constexpr inline bool isSwitchValue(ValueKind k) {
@@ -830,6 +840,10 @@ public:
 
     inline AccessChain* as_access_chain() {
         return isAccessChain(val_kind()) ? ((AccessChain*) this) : nullptr;
+    }
+
+    inline ChainValue* as_chain_value() {
+        return isChainValue(val_kind()) ? ((ChainValue*) this) : nullptr;
     }
 
     inline IsValue* as_is_value() {
@@ -1053,5 +1067,3 @@ public:
     }
 
 };
-
-static_assert(sizeof(Value) <= 8, "Value must always be equal or less than 8 bytes");

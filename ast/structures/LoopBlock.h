@@ -27,7 +27,7 @@ public:
         Scope scope,
         ASTNode* parent_node,
         SourceLocation location
-    ) : LoopASTNode(std::move(scope), ASTNodeKind::LoopBlock), parent_node(parent_node), location(location) {
+    ) : LoopASTNode(std::move(scope), ASTNodeKind::LoopBlock), Value(ValueKind::LoopValue), parent_node(parent_node), location(location) {
 
     }
 
@@ -41,10 +41,6 @@ public:
 
     ASTNode* parent() final {
         return parent_node;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::LoopValue;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

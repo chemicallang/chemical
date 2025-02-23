@@ -4,15 +4,6 @@
 #include "PointerValue.h"
 #include "ast/base/InterpretScope.h"
 
-PointerValue::PointerValue(
-    InterpretScope& scope,
-    StringValue* value,
-    BaseType* type
-) : type(type), data((void*) value->value.data()), location(value->encoded_location()), behind(0) {
-    // total bytes ahead = total characters, since 1 char = 1 byte
-    ahead = value->value.size();
-}
-
 PointerValue* PointerValue::cast(InterpretScope& scope, BaseType* new_type) {
     return new (scope.allocate<PointerValue>()) PointerValue(
         data, new_type, behind, ahead, location

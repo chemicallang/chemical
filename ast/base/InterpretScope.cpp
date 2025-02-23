@@ -269,14 +269,17 @@ void InterpretScope::print_values() {
 // a dummy value, which will call a lambda upon destruction
 class DestructValue : public Value {
 public:
+
     void* data;
     void(*destruct)(void* data);
-    DestructValue(void* data, void(*destruct)(void* data)) : data(data), destruct(destruct) {
+
+    DestructValue(
+        void* data,
+        void(*destruct)(void* data)
+    ) : Value(ValueKind::DestructValue), data(data), destruct(destruct) {
 
     }
-    ValueKind val_kind() override {
-        return ValueKind::DestructValue;
-    }
+
     void accept(Visitor *visitor) override {
         // cannot be visited
     }

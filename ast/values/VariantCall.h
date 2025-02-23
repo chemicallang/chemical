@@ -21,14 +21,15 @@ public:
     /**
      * this will take the access chain, if has function call at least, own it's values
      */
-    explicit VariantCall(Value* parent_val, SourceLocation location);
+    explicit VariantCall(
+        Value* parent_val,
+        SourceLocation location
+    ) : Value(ValueKind::VariantCall), parent_val(parent_val), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::VariantCall;
     }
 
     void accept(Visitor *visitor) final {

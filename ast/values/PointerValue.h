@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/values/StringValue.h"
 
 /**
  * it's sole purpose to simulate pointers in comptime
@@ -30,7 +31,7 @@ public:
         size_t behind,
         size_t ahead,
         SourceLocation location
-    ) : data(data), type(type), behind(behind), ahead(ahead), location(location) {
+    ) : Value(ValueKind::PointerValue), data(data), type(type), behind(behind), ahead(ahead), location(location) {
 
     }
 
@@ -43,14 +44,14 @@ public:
         InterpretScope& scope,
         StringValue* value,
         BaseType* type
-    );
+    ) : Value(ValueKind::PointerValue), type(type), data((void*) value->value.data()), location(value->encoded_location()), behind(0) {
+        // total bytes ahead = total characters, since 1 char = 1 byte
+        ahead = value->value.size();
+    }
+
 
     SourceLocation encoded_location() override {
         return location;
-    }
-
-    ValueKind val_kind() override {
-        return ValueKind::PointerValue;
     }
 
     void accept(Visitor *visitor) override {

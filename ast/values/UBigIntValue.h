@@ -11,16 +11,18 @@ public:
     unsigned long long value;
     SourceLocation location;
 
-    explicit UBigIntValue(unsigned long long value, SourceLocation location) : value(value), location(location) {
+    /**
+     * constructor
+     */
+    explicit UBigIntValue(
+        unsigned long long value,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::UBigInt), value(value), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::UBigInt;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

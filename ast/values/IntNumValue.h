@@ -30,6 +30,13 @@ public:
     );
 
     /**
+     * constructor
+     */
+    inline explicit IntNumValue(ValueKind k) noexcept : Value(k) {
+
+    }
+
+    /**
      * provide the number of bits used by this value
      */
     virtual unsigned int get_num_bits() = 0;

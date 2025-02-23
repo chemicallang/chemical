@@ -138,10 +138,6 @@ void VariantCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
 
 #endif
 
-VariantCall::VariantCall(Value* parent_val, SourceLocation location) : parent_val(parent_val), location(location) {
-
-}
-
 VariantMember* VariantCall::get_member() {
     return parent_val->linked_node()->as_variant_member();
 }

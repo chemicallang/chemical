@@ -11,16 +11,15 @@ public:
     long long value;
     SourceLocation location;
 
-    explicit BigIntValue(long long value, SourceLocation location) : value(value), location(location) {
+    explicit BigIntValue(
+        long long value,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::BigInt), value(value), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::BigInt;
     }
 
     uint64_t byte_size(bool is64Bit) final {

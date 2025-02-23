@@ -32,9 +32,20 @@ public:
     SourceLocation location;
     AccessChainAttributes attrs;
 
-    AccessChain(bool is_node, SourceLocation location);
+    AccessChain(
+        bool is_node,
+        SourceLocation location
+    ) : ChainValue(ValueKind::AccessChain), location(location), attrs(is_node, false) {
 
-    AccessChain(std::vector<ChainValue*> values, bool is_node, SourceLocation location);
+    }
+
+    AccessChain(
+        std::vector<ChainValue*> values,
+        bool is_node,
+        SourceLocation location
+    ) : ChainValue(ValueKind::AccessChain), values(std::move(values)), location(location), attrs(is_node, false) {
+
+    }
 
     inline bool is_node() {
         return attrs.is_node;
@@ -54,10 +65,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::AccessChain;
     }
 
     /**

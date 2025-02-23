@@ -35,16 +35,16 @@ public:
     /**
      * constructor
      */
-    VariableIdentifier(chem::string_view value, SourceLocation location, bool is_ns = false) : value(value), location(location), is_ns(is_ns) {
+    VariableIdentifier(
+        chem::string_view value,
+        SourceLocation location,
+        bool is_ns = false
+    ) : ChainValue(ValueKind::Identifier), value(value), location(location), is_ns(is_ns) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::Identifier;
     }
 
     uint64_t byte_size(bool is64Bit) final;

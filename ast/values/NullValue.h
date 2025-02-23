@@ -16,11 +16,17 @@ public:
     BaseType* expected = nullptr;
     SourceLocation location;
 
-    inline explicit NullValue(SourceLocation location) : location(location) {
+    /**
+     * constructor
+     */
+    inline explicit NullValue(SourceLocation location) : Value(ValueKind::NullValue), location(location) {
 
     }
 
-    inline NullValue(BaseType* expected, SourceLocation location) : expected(expected), location(location) {
+    inline NullValue(
+        BaseType* expected,
+        SourceLocation location
+    ) : Value(ValueKind::NullValue), expected(expected), location(location) {
 
     }
 
@@ -30,10 +36,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::NullValue;
     }
 
     void accept(Visitor *visitor) final {

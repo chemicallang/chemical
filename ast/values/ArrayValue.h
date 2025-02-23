@@ -31,14 +31,12 @@ public:
             std::vector<unsigned int> sizes,
             SourceLocation location,
             ASTAllocator& allocator
-    );
+    ) : Value(ValueKind::ArrayValue), values(std::move(values)), sizes(std::move(sizes)), location(location) {
+        created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size(), ZERO_LOC);
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::ArrayValue;
     }
 
     void accept(Visitor *visitor) final {

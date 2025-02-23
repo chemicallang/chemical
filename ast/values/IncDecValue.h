@@ -12,17 +12,16 @@ public:
     bool post;
     SourceLocation location;
 
+    /**
+     * constructor
+     */
     IncDecValue(
         Value* value,
         bool increment,
         bool post,
         SourceLocation location
-    ) : value(value), increment(increment), post(post), location(location) {
+    ) : Value(ValueKind::IncDecValue), value(value), increment(increment), post(post), location(location) {
 
-    }
-
-    ValueKind val_kind() override {
-        return ValueKind::IncDecValue;
     }
 
     void accept(Visitor *visitor) override {

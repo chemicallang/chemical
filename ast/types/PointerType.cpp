@@ -35,8 +35,8 @@ bool PointerType::satisfies(BaseType *given) {
         const auto pure_type = ((ArrayType*) other_pure);
         return current->satisfies(pure_type->elem_type);
     }
-    const auto pointer = other_pure->pointer_type(other_kind);
-    if(pointer && pointer->type) {
+    if(BaseType::is_pointer(other_kind) && other_pure->as_pointer_type_unsafe()->type) {
+        const auto pointer = other_pure->as_pointer_type_unsafe();
         if(!pointer->is_mutable && is_mutable) {
             return false;
         }
@@ -71,7 +71,7 @@ bool ReferenceType::satisfies(BaseType* given, Value* value, bool assignment) {
             return false;
         }
     }
-    if(!assignment && is_mutable && !given->is_mutable(givenKind)) {
+    if(!assignment && is_mutable && !given->is_mutable()) {
         return false;
     }
     return type->satisfies(given);

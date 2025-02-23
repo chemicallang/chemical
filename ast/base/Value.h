@@ -495,8 +495,7 @@ public:
 
     /**
      * This method allows to make a copy of the current value
-     * This method can only be called on primitive values as they are the only ones that support copy operation
-     * @return
+     * this makes a deep copy, so it should be used with care
      */
     virtual Value* copy(ASTAllocator& allocator);
 

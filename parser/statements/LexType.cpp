@@ -417,7 +417,7 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             token++;
             auto type = parseType(allocator);
             if(type) {
-                type->make_mutable(type->kind());
+                type->make_mutable();
                 return type;
             } else {
                 error("expected a type after the qualifier");

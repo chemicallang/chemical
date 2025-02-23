@@ -51,11 +51,11 @@ AccessChain chain_range(ASTAllocator& allocator, FunctionCall* call, std::vector
 }
 
 AccessChain parent_chain(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain) {
-    return parent_chain(allocator, call, chain, chain.size() - 1);
+    return parent_chain(allocator, call, chain, (int) chain.size() - 1);
 }
 
 AccessChain grandparent_chain(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain) {
-    return parent_chain(allocator, call, chain, chain.size() - 2);
+    return parent_chain(allocator, call, chain, (int) chain.size() - 2);
 }
 
 void put_self_param(
@@ -708,7 +708,7 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
         auto type = decl->create_value_type(gen.allocator);
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-        to_llvm_args(gen, this, type->function_type(), values, args, 0, nullptr, destructibles);
+        to_llvm_args(gen, this, type->as_function_type(), values, args, 0, nullptr, destructibles);
         auto invoked = gen.builder->CreateInvoke(fn, normal, unwind, args);
         Value::destruct(gen, destructibles);
         return invoked;
@@ -869,7 +869,7 @@ bool FunctionCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType* exp
 FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
     const auto type = parent_val->create_type(allocator);
-    auto func_type = type->pure_type()->function_type();
+    auto func_type = type->pure_type()->as_function_type();
     const auto func_decl = safe_linked_func();
     if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
@@ -883,10 +883,10 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
 FunctionType* FunctionCall::known_func_type() {
     auto decl = safe_linked_func();
     if(decl) {
-        return decl->function_type();
+        return decl->as_function_type();
     }
     auto func_type = parent_val->known_type();
-    if(func_type->function_type()) {
+    if(func_type->as_function_type()) {
         return (FunctionType*) func_type;
     } else {
         return nullptr;
@@ -894,7 +894,7 @@ FunctionType* FunctionCall::known_func_type() {
 }
 
 BaseType* FunctionCall::get_arg_type(unsigned int index) {
-    auto func_type = parent_val->known_type()->function_type();
+    auto func_type = parent_val->known_type()->as_function_type();
     auto param = func_type->func_param_for_arg_at(index);
     return param->type;
 }

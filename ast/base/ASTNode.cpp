@@ -55,7 +55,8 @@ std::string ASTNode::representation() {
     return ostring.str();
 }
 
-MembersContainer* ASTNode::get_members_container(ASTNodeKind k) {
+MembersContainer* ASTNode::get_members_container() {
+    const auto k = kind();
     if(isMembersContainer(k)) {
         return (MembersContainer*) this;
     } else if(k == ASTNodeKind::TypealiasStmt) {

@@ -135,7 +135,7 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
 
-    auto func_type = expected_type ? expected_type->function_type() : nullptr;
+    auto func_type = expected_type ? expected_type->as_function_type() : nullptr;
 
     if(!func_type) {
 

@@ -119,7 +119,7 @@ chem::string_view& BaseType::linked_name() {
 
 MembersContainer* BaseType::get_members_container() {
     const auto direct_node = get_direct_linked_node();
-    return direct_node ? direct_node->get_members_container(direct_node->kind()) : nullptr;
+    return direct_node ? direct_node->get_members_container() : nullptr;
 }
 
 FunctionDeclaration* BaseType::get_def_constructor() {
@@ -153,7 +153,7 @@ FunctionDeclaration* BaseType::get_copy_fn() {
 }
 
 bool BaseType::requires_destructor() {
-    auto node = get_direct_linked_node(kind());
+    auto node = get_direct_linked_node();
     if(!node) return false;
     auto node_kind = node->kind();
     if(ASTNode::isMembersContainer(node_kind)) {
@@ -171,7 +171,7 @@ bool BaseType::requires_destructor() {
 }
 
 bool BaseType::requires_move_fn() {
-    auto node = get_direct_linked_node(kind());
+    auto node = get_direct_linked_node();
     if(!node) return false;
     auto node_kind = node->kind();
     if(ASTNode::isMembersContainer(node_kind)) {
@@ -189,7 +189,7 @@ bool BaseType::requires_move_fn() {
 }
 
 bool BaseType::requires_clear_fn() {
-    auto node = get_direct_linked_node(kind());
+    auto node = get_direct_linked_node();
     if(!node) return false;
     auto node_kind = node->kind();
     if(ASTNode::isMembersContainer(node_kind)) {
@@ -207,7 +207,7 @@ bool BaseType::requires_clear_fn() {
 }
 
 bool BaseType::requires_copy_fn() {
-    auto node = get_direct_linked_node(kind());
+    auto node = get_direct_linked_node();
     if(!node) return false;
     auto node_kind = node->kind();
     if(ASTNode::isMembersContainer(node_kind)) {
@@ -294,8 +294,8 @@ BaseType* BaseType::pure_type(ASTAllocator& allocator) {
     }
 }
 
-ASTNode* BaseType::get_direct_linked_node(BaseTypeKind kind) {
-    switch(kind) {
+ASTNode* BaseType::get_direct_linked_node() {
+    switch(kind()) {
         case BaseTypeKind::Linked:
             return ((LinkedType*) this)->linked;
         case BaseTypeKind::Generic:
@@ -308,8 +308,8 @@ ASTNode* BaseType::get_direct_linked_node(BaseTypeKind kind) {
     }
 }
 
-ASTNode* BaseType::get_ref_or_linked_node(BaseTypeKind kind) {
-    switch(kind) {
+ASTNode* BaseType::get_ref_or_linked_node() {
+    switch(kind()) {
         case BaseTypeKind::Linked:
             return ((LinkedType*) this)->linked;
         case BaseTypeKind::Generic:
@@ -324,23 +324,23 @@ ASTNode* BaseType::get_ref_or_linked_node(BaseTypeKind kind) {
     }
 }
 
-StructDefinition* BaseType::get_direct_linked_struct(BaseTypeKind k) {
-    const auto ref_node = get_direct_linked_node(k);
+StructDefinition* BaseType::get_direct_linked_struct() {
+    const auto ref_node = get_direct_linked_node();
     return ref_node ? ref_node->as_struct_def() : nullptr;
 }
 
-InterfaceDefinition* BaseType::get_direct_linked_interface(BaseTypeKind k) {
-    const auto ref_node = get_direct_linked_node(k);
+InterfaceDefinition* BaseType::get_direct_linked_interface() {
+    const auto ref_node = get_direct_linked_node();
     return ref_node ? ref_node->as_interface_def() : nullptr;
 }
 
-StructDefinition* BaseType::get_ref_or_linked_struct(BaseTypeKind k) {
-    const auto node = get_ref_or_linked_node(k);
+StructDefinition* BaseType::get_ref_or_linked_struct() {
+    const auto node = get_ref_or_linked_node();
     return node ? node->as_struct_def() : nullptr;
 }
 
-VariantDefinition* BaseType::get_direct_linked_variant(BaseTypeKind k) {
-    const auto ref_node = get_direct_linked_node(k);
+VariantDefinition* BaseType::get_direct_linked_variant() {
+    const auto ref_node = get_direct_linked_node();
     return ref_node ? ref_node->as_variant_def() : nullptr;
 }
 
@@ -362,8 +362,8 @@ StructDefinition* BaseType::get_direct_non_movable_struct() {
     }
 }
 
-bool BaseType::requires_moving(BaseTypeKind k) {
-    auto node = get_direct_linked_node(k);
+bool BaseType::requires_moving() {
+    auto node = get_direct_linked_node();
     return node != nullptr && node->requires_moving(node->kind());
 }
 
@@ -397,17 +397,17 @@ int16_t BaseType::set_generic_iteration(int16_t iteration) {
     return -2;
 }
 
-bool BaseType::make_mutable(BaseTypeKind k) {
-    switch(k) {
+bool BaseType::make_mutable() {
+    switch(kind()) {
         case BaseTypeKind::Pointer: {
             ((PointerType*) this)->is_mutable = true;
             const auto ref = ((PointerType*) this)->type;
-            return ref->make_mutable(ref->kind());
+            return ref->make_mutable();
         }
         case BaseTypeKind::Reference: {
             ((ReferenceType*) this)->is_mutable = true;
             const auto ref = ((ReferenceType*) this)->type;
-            return ref->make_mutable(ref->kind());
+            return ref->make_mutable();
         }
         default:
             // this method is called before symbol resolution, linked types are not linked
@@ -421,8 +421,8 @@ bool BaseType::make_mutable(BaseTypeKind k) {
     }
 }
 
-bool BaseType::is_mutable(BaseTypeKind k) {
-    switch(k) {
+bool BaseType::is_mutable() {
+    switch(kind()) {
         case BaseTypeKind::Generic:
         case BaseTypeKind::Dynamic:
         case BaseTypeKind::Struct:
@@ -439,7 +439,7 @@ bool BaseType::is_mutable(BaseTypeKind k) {
             const auto linked_kind = linked->kind();
             if(linked_kind == ASTNodeKind::TypealiasStmt) {
                 const auto actual = linked->as_typealias_unsafe()->actual_type;
-                return actual->is_mutable(actual->kind());
+                return actual->is_mutable();
             } else {
                 // direct struct / union / variant / interface are all mutable
                 return true;
@@ -456,16 +456,8 @@ bool BaseType::is_mutable(BaseTypeKind k) {
     }
 }
 
-PointerType *BaseType::pointer_type(BaseTypeKind k) {
-    if(k == BaseTypeKind::Pointer) {
-        return (PointerType*) this;
-    } else {
-        return nullptr;
-    }
-}
-
-bool BaseType::is_reference_to(ASTNode* node, BaseTypeKind k) {
-    if(k == BaseTypeKind::Reference) {
+bool BaseType::is_reference_to(ASTNode* node) {
+    if(kind() == BaseTypeKind::Reference) {
         const auto child_type = ((ReferenceType*) this)->type;
         const auto child_type_kind = child_type->kind();
         if(child_type_kind == BaseTypeKind::Linked && ((LinkedType*) child_type)->linked == node) {
@@ -485,14 +477,6 @@ BaseType* BaseType::getLoadableReferredType() {
         }
     }
     return nullptr;
-}
-
-FunctionType *BaseType::function_type(BaseTypeKind k) {
-    if(k == BaseTypeKind::Function) {
-        return (FunctionType*) this;
-    } else {
-        return nullptr;
-    }
 }
 
 BaseType* BaseType::getAutoDerefType(BaseType* expected_type) {

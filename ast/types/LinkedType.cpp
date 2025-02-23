@@ -25,12 +25,12 @@ bool LinkedType::satisfies(BaseType *other) {
     switch(linked_kind) {
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::InterfaceDecl: {
-            const auto other_linked = other->get_direct_linked_node(other_kind);
+            const auto other_linked = other->get_direct_linked_node();
             if(other_linked) {
                 if (linked == other_linked) {
                     return true;
                 } else {
-                    const auto container = other_linked->get_members_container(other_linked->kind());
+                    const auto container = other_linked->get_members_container();
                     return container && container->extends_node(linked);
                 }
             } else {
@@ -38,7 +38,7 @@ bool LinkedType::satisfies(BaseType *other) {
             }
         }
         case ASTNodeKind::VariantDecl: {
-            const auto other_linked = other->get_direct_linked_node(other_kind);
+            const auto other_linked = other->get_direct_linked_node();
             if(other_linked) {
                 if (linked == other_linked) {
                     return true;

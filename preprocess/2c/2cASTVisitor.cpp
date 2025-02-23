@@ -229,8 +229,9 @@ void node_parent_name(ToCAstVisitor& visitor, ASTNode* node, bool take_parent = 
 void func_type_with_id(ToCAstVisitor& visitor, FunctionType* type, const chem::string_view& id);
 
 void type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_view& id) {
-    if(type->function_type() != nullptr && !type->function_type()->isCapturing()) {
-        func_type_with_id(visitor, type->function_type(), id);
+    const auto func_type = type->as_function_type();
+    if(func_type != nullptr && !func_type->isCapturing()) {
+        func_type_with_id(visitor, func_type, id);
     } else {
         visitor.visit(type);
         if(!id.empty() && id != "_") {
@@ -685,7 +686,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param->type->isStructLikeType();
         bool is_memcpy_ref_str = val->requires_memcpy_ref_struct(param->type);
         if(is_memcpy_ref_str) {
-            const auto linked = param->type->get_direct_linked_node(param_type_kind);;
+            const auto linked = param->type->get_direct_linked_node();
             visitor.write("({ ");
             temp_struct_name = visitor.get_local_temp_var_name();
             auto t = val->create_type(visitor.allocator);
@@ -987,7 +988,7 @@ void value_init_default(ToCAstVisitor& visitor, const chem::string_view& identif
     switch(type_kind) {
         case BaseTypeKind::Array: {
             const auto arr_type = (ArrayType*) type;
-            auto elem_type = arr_type->elem_type->function_type();
+            auto elem_type = arr_type->elem_type->as_function_type();
             if (elem_type && !elem_type->isCapturing()) {
                 func_ptr_array_type(visitor, arr_type, elem_type, identifier);
                 write_id = false;
@@ -997,7 +998,7 @@ void value_init_default(ToCAstVisitor& visitor, const chem::string_view& identif
             break;
         }
         case BaseTypeKind::Function: {
-            const auto func_type = type->function_type();
+            const auto func_type = type->as_function_type();
             if (!func_type->isCapturing()) {
                 func_type_with_id(visitor, func_type, identifier);
                 write_id = false;
@@ -1733,7 +1734,7 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     if(type->kind() == BaseTypeKind::Reference) {
         visitor.write('*');
     }
-    if(type->requires_moving(type->kind()) && !assign->lhs->is_ref_moved()) {
+    if(type->requires_moving() && !assign->lhs->is_ref_moved()) {
         auto container = type->linked_node()->as_members_container();
         auto destr = container->destructor_func();
         func_container_name(visitor, destr);
@@ -2336,7 +2337,7 @@ void CValueDeclarationVisitor::visit(StructValue *structValue) {
 
 void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<FunctionParam*>& params) {
     for(auto& param : params) {
-        if(param->type->kind() == BaseTypeKind::Function && param->type->function_type()->isCapturing()) {
+        if(param->type->kind() == BaseTypeKind::Function && param->type->as_function_type()->isCapturing()) {
             // do not declare capturing function types
             continue;
         }
@@ -2369,8 +2370,9 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl,
     if(decl->is_comptime()) {
         return;
     }
-    if(decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing()) {
-        func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
+    const auto ret_func = decl->returnType->as_function_type();
+    if(ret_func && !ret_func->isCapturing()) {
+        func_that_returns_func_proto(visitor, decl, name, ret_func);
     } else {
         const auto ret_kind = decl->returnType->kind();
         accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_exported_fast());
@@ -2385,7 +2387,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
         return;
     }
     declare_params(tld->value_visitor, decl->params);
-    if(decl->returnType->function_type() == nullptr) {
+    if(decl->returnType->as_function_type() == nullptr) {
         decl->returnType->accept(tld->value_visitor);
     }
     tld->visitor.new_line_and_indent();
@@ -2399,7 +2401,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         return;
     }
     declare_params(tld->value_visitor, decl->params);
-    if(decl->returnType->function_type() == nullptr) {
+    if(decl->returnType->as_function_type() == nullptr) {
         decl->returnType->accept(tld->value_visitor);
     }
     tld->visitor.new_line_and_indent();
@@ -2424,7 +2426,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     };
     const auto func_parent_kind = decl->parent_node->kind();
     auto is_parent_interface = func_parent_kind == ASTNodeKind::InterfaceDecl;
-    const auto decl_return_func_type = decl->returnType->function_type();
+    const auto decl_return_func_type = decl->returnType->as_function_type();
     if(decl_return_func_type != nullptr && !decl_return_func_type->isCapturing()) {
         tld->value_visitor->write("static ");
         accept_func_return(tld->visitor, decl_return_func_type->returnType);
@@ -3349,8 +3351,9 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
     auto prev_func_decl = visitor.current_func_type;
     visitor.current_func_type = decl;
     visitor.new_line_and_indent();
-    if(decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing()) {
-        func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
+    const auto decl_ret_func = decl->returnType->as_function_type();
+    if(decl_ret_func && !decl_ret_func->isCapturing()) {
+        func_that_returns_func_proto(visitor, decl, name, decl_ret_func);
     } else {
         declare_func_with_return(visitor, decl, name);
     }
@@ -3759,12 +3762,13 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
             i = 1;
         }
     };
-    if(decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing()) {
+    const auto decl_ret_func = decl->returnType->as_function_type();
+    if(decl_ret_func != nullptr && !decl_ret_func->isCapturing()) {
         visitor.write("static ");
-        accept_func_return(visitor, decl->returnType->function_type()->returnType);
+        accept_func_return(visitor, decl_ret_func->returnType);
         visitor.write('(');
         write_self_param_now();
-        func_ret_func_proto_after_l_paren(visitor, decl, decl->returnType->function_type(), i);
+        func_ret_func_proto_after_l_paren(visitor, decl, decl_ret_func, i);
     } else {
         accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_exported_fast());
         visitor.write('(');
@@ -4877,13 +4881,14 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
 
 void ToCAstVisitor::VisitStructMember(StructMember *member) {
     if(member->type->kind() == BaseTypeKind::Function) {
-        if(member->type->function_type()->isCapturing()) {
+        const auto func_type = member->type->as_function_type();
+        if(func_type->isCapturing()) {
             write(fat_pointer_type);
             write('*');
             space();
             write(member->name);
         } else {
-            func_type_with_id(*this, member->type->function_type(), member->name);
+            func_type_with_id(*this, func_type, member->name);
         }
     } else {
         type_with_id(*this, member->type, member->name);

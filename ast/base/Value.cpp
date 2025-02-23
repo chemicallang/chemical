@@ -470,24 +470,24 @@ bool is_node_mutable(ASTNode* node, FunctionType* func_type, SymbolResolver& res
     switch(linked_kind) {
         case ASTNodeKind::VarInitStmt:{
             const auto type = node->as_var_init_unsafe()->create_value_type(resolver.allocator);
-            return type->is_mutable(type->kind());
+            return type->is_mutable();
         }
         case ASTNodeKind::FunctionParam:
         case ASTNodeKind::ExtensionFuncReceiver: {
             const auto type = node->as_base_func_param_unsafe()->type;
-            return type->is_mutable(type->kind());
+            return type->is_mutable();
         }
         case ASTNodeKind::VariantCaseVariable: {
             const auto member_param = node->as_variant_case_var_unsafe()->member_param;
             const auto type = member_param->type;
-            return type->is_mutable(type->kind());
+            return type->is_mutable();
         }
         case ASTNodeKind::StructMember:
         case ASTNodeKind::UnnamedUnion:
         case ASTNodeKind::UnnamedStruct: {
             const auto self_param = func_type->get_self_param();
             if (self_param) {
-                return self_param->type->is_mutable(self_param->type->kind());
+                return self_param->type->is_mutable();
             } else {
                 const auto func = func_type->as_function();
                 // constructor takes a mutable reference by default
@@ -521,7 +521,7 @@ bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, 
                 return is_node_assignable(id->linked);
             } else {
                 const auto type = id->linked->create_value_type(resolver.allocator);
-                return type->is_mutable(type->kind());
+                return type->is_mutable();
             }
         }
         case ValueKind::AccessChain: {
@@ -534,7 +534,7 @@ bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, 
             const auto last_kind = last->val_kind();
             if(last_kind == ValueKind::FunctionCall) {
                 const auto type = last->create_type(resolver.allocator);
-                return type->is_mutable(type->kind());
+                return type->is_mutable();
             }
             while(i < chain_size) {
                 const auto value = chain_values[i];
@@ -601,7 +601,7 @@ bool Value::requires_memcpy_ref_struct(BaseType* known_type) {
     const auto chain = as_access_chain_unsafe();
     const auto id = as_identifier_unsafe();
     if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && chain->values.back()->as_func_call() == nullptr)) {
-        auto linked = known_type->get_direct_linked_node(known_type->kind());
+        auto linked = known_type->get_direct_linked_node();
         if (linked) {
             auto k = linked->kind();
             if(k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion) {

@@ -16,6 +16,10 @@ public:
 
     }
 
+    IntNTypeKind IntNKind() const override {
+        return IntNTypeKind::Int;
+    }
+
     [[nodiscard]]
     unsigned int num_bits() const final {
         return 32;

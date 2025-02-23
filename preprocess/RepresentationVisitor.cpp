@@ -481,10 +481,6 @@ void RepresentationVisitor::visit(AccessChain *chain) {
     }
 }
 
-void RepresentationVisitor::visit(MacroValueStatement *statement) {
-    write("[MacroValueStatement_UNIMPLEMENTED]");
-}
-
 void RepresentationVisitor::visit(StructMember *member) {
     write("var ");
     write(member->name);

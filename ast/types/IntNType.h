@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/BaseType.h"
+#include "ast/base/IntNTypeKind.h"
 
 class IntNType : public BaseType {
 public:
@@ -13,6 +14,11 @@ public:
     inline IntNType(SourceLocation location) : BaseType(BaseTypeKind::IntN, location) {
 
     }
+
+    /**
+     * get the int n type kind
+     */
+    virtual IntNTypeKind IntNKind() const = 0;
 
     /**
      * is this int n type unsigned

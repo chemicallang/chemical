@@ -13,6 +13,10 @@ public:
 
     }
 
+    IntNTypeKind IntNKind() const override {
+        return IntNTypeKind::UChar;
+    }
+
     bool is_unsigned() final {
         return true;
     }

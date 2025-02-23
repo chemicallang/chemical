@@ -156,7 +156,7 @@ LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* ty
                 return nullptr;
             }
         } else {
-            return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->location);
+            return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->encoded_location());
         }
     }
 }

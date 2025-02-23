@@ -11,31 +11,27 @@ class AlignOfValue : public Value {
 public:
 
     BaseType* for_type;
-    SourceLocation location;
 
     explicit AlignOfValue(
         BaseType *for_type,
         SourceLocation location
-    ) : Value(ValueKind::AlignOfValue), for_type(for_type), location(location) {
+    ) : Value(ValueKind::AlignOfValue, location), for_type(for_type) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(location);
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(encoded_location());
     }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     AlignOfValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<AlignOfValue>()) AlignOfValue(for_type->copy(allocator), location);
+        return new (allocator.allocate<AlignOfValue>()) AlignOfValue(for_type->copy(allocator), encoded_location());
     }
 
     Value* evaluated_value(InterpretScope &scope) override;

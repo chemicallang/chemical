@@ -9,7 +9,9 @@ public:
 
     static const UShortType instance;
 
-    using IntNType::IntNType;
+    UShortType(SourceLocation location) : IntNType(location) {
+
+    }
 
     [[nodiscard]]
     unsigned int num_bits() const final {
@@ -32,7 +34,7 @@ public:
 
     [[nodiscard]]
     UShortType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UShortType>()) UShortType(location);
+        return new (allocator.allocate<UShortType>()) UShortType(encoded_location());
     }
 
 };

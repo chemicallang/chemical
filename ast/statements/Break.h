@@ -20,7 +20,6 @@ public:
      * block and then the loop is broken
      */
     Value* value;
-    SourceLocation location;
 
     /**
      * @brief Construct a new Break statement object.
@@ -29,12 +28,8 @@ public:
         LoopASTNode *node,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::BreakStmt), node(node), parent_node(parent_node), value(nullptr), location(location) {
+    ) : ASTNode(ASTNodeKind::BreakStmt, location), node(node), parent_node(parent_node), value(nullptr) {
 
-    }
-
-    SourceLocation encoded_location() final {
-        return location;
     }
 
     void set_parent(ASTNode* new_parent) final {

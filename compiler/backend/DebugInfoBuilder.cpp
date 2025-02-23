@@ -148,7 +148,7 @@ void DebugInfoBuilder::info(InterfaceDefinition *interfaceDefinition) {
 }
 
 void DebugInfoBuilder::info(VarInitStatement *init, llvm::AllocaInst* inst) {
-    const auto location = loc_node(this, init->location);
+    const auto location = loc_node(this, init->encoded_location());
     llvm::DILocalVariable *Var = builder->createAutoVariable(
             diScope,
             to_ref(init->name_view()),

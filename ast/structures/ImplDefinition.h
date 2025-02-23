@@ -17,7 +17,6 @@ public:
     BaseType* interface_type;
     BaseType* struct_type;
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * constructor
@@ -27,13 +26,10 @@ public:
             BaseType* struct_type,
             ASTNode* parent_node,
             SourceLocation location
-    ) : MembersContainer(ASTNodeKind::ImplDecl), interface_type(interface_type), struct_type(struct_type), parent_node(parent_node), location(location) {
+    ) : MembersContainer(ASTNodeKind::ImplDecl, location), interface_type(interface_type), struct_type(struct_type), parent_node(parent_node) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     /**
      * constructor
@@ -41,7 +37,7 @@ public:
     ImplDefinition(
             ASTNode* parent_node,
             SourceLocation location
-    ) : MembersContainer(ASTNodeKind::ImplDecl), parent_node(parent_node), location(location) {
+    ) : MembersContainer(ASTNodeKind::ImplDecl, location), parent_node(parent_node) {
 
     }
 

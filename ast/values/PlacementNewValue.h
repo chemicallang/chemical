@@ -10,7 +10,6 @@ public:
 
     Value* pointer;
     Value* value;
-    SourceLocation location;
     // TODO remove this
     PointerType ptr_type;
 
@@ -18,12 +17,8 @@ public:
         Value* pointer,
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NewValue), pointer(pointer), value(value), location(location), ptr_type(nullptr, 0, false) {
+    ) : Value(ValueKind::NewValue, location), pointer(pointer), value(value), ptr_type(nullptr, 0, false) {
 
-    }
-
-    SourceLocation encoded_location() override {
-        return location;
     }
 
     void accept(Visitor *visitor) override {

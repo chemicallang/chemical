@@ -12,18 +12,13 @@ public:
 
     chem::string_view name;
     ASTNode* parent_node;
-    SourceLocation location;
 
     StructType(
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::StructType), name(name), parent_node(parent), location(location) {
+    ) : ASTNode(ASTNodeKind::StructType, location), BaseType(BaseTypeKind::Struct, location), name(name), parent_node(parent) {
 
-    }
-
-    SourceLocation encoded_location() override {
-        return location;
     }
 
     ASTNode* parent() override {
@@ -34,13 +29,8 @@ public:
         visitor->visit(this);
     }
 
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Struct;
-    }
-
     BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<StructType>()) StructType(name, parent_node, location);
+        return new (allocator.allocate<StructType>()) StructType(name, parent_node, BaseType::encoded_location());
     }
 
     bool equals(StructType *type);

@@ -54,7 +54,7 @@ void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstT
 
 BaseType* Expression::create_type(ASTAllocator& allocator) {
     if(operation >= Operation::IndexBooleanReturningStart && operation <= Operation::IndexBooleanReturningEnd) {
-        return new (allocator.allocate<BoolType>()) BoolType(location);
+        return new (allocator.allocate<BoolType>()) BoolType(encoded_location());
     }
     auto firstType = firstValue->create_type(allocator);
     auto secondType = secondValue->create_type(allocator);
@@ -83,7 +83,7 @@ BaseType* Expression::create_type(ASTAllocator& allocator) {
     }
     // subtracting a pointer results in a long type
     if(operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
-        return new (allocator.allocate<LongType>()) LongType(is64Bit, location);
+        return new (allocator.allocate<LongType>()) LongType(is64Bit, encoded_location());
     }
     return first;
 }
@@ -124,7 +124,7 @@ bool Expression::primitive() {
 Value *Expression::evaluate(InterpretScope &scope) {
     auto fEvl = firstValue->evaluated_value(scope);
     auto sEvl = secondValue->evaluated_value(scope);
-    return scope.evaluate(operation, fEvl, sEvl, location, this);
+    return scope.evaluate(operation, fEvl, sEvl, encoded_location(), this);
 }
 
 Expression *Expression::copy(ASTAllocator& allocator) {
@@ -133,7 +133,7 @@ Expression *Expression::copy(ASTAllocator& allocator) {
         secondValue->copy(allocator),
         operation,
         is64Bit,
-        location,
+        encoded_location(),
         created_type
     );
 }

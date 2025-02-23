@@ -17,7 +17,6 @@ class IntValue : public IntNumValue {
 public:
 
     int value; ///< The integer value.
-    SourceLocation location;
 
     /**
      * constructor
@@ -25,11 +24,8 @@ public:
     explicit IntValue(
         int value,
         SourceLocation location
-    ) : IntNumValue(ValueKind::Int), value(value), location(location) {}
+    ) : IntNumValue(ValueKind::Int, location), value(value) {}
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 4;
@@ -49,7 +45,7 @@ public:
     }
 
     IntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<IntValue>()) IntValue(value, location);
+        return new (allocator.allocate<IntValue>()) IntValue(value, encoded_location());
     }
 
     bool is_unsigned() final {
@@ -58,7 +54,7 @@ public:
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<IntType>()) IntType(location);
+        return new (allocator.allocate<IntType>()) IntType(encoded_location());
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

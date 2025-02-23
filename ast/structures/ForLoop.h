@@ -15,7 +15,6 @@ class ForLoop : public LoopASTNode {
 public:
 
     ASTNode* parent_node;
-    SourceLocation location;
     ASTNode* initializer;
     Value* conditionExpr;
     ASTNode* incrementerExpr;
@@ -31,14 +30,11 @@ public:
             Scope body,
             ASTNode* parent_node,
             SourceLocation location
-    ) : LoopASTNode(std::move(body), ASTNodeKind::ForLoopStmt), initializer(initializer), conditionExpr(conditionExpr),
-        incrementerExpr(incrementerExpr), parent_node(parent_node), location(location) {
+    ) : LoopASTNode(std::move(body), ASTNodeKind::ForLoopStmt, location), initializer(initializer), conditionExpr(conditionExpr),
+        incrementerExpr(incrementerExpr), parent_node(parent_node) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

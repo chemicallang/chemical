@@ -506,7 +506,7 @@ bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 
 llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     auto type = value->create_type(gen.allocator)->pure_type();
-    const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, location);
+    const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, encoded_location());
     auto value_pointer = value->llvm_pointer(gen);
     // TODO loading the value after pointer, value is not being loaded using the pointer we have
     auto value_loaded = value->llvm_value(gen);

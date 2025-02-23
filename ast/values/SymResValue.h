@@ -36,11 +36,6 @@ public:
     void* data_ptr;
 
     /**
-     * the location of the sym res value
-     */
-    SourceLocation location;
-
-    /**
      * constructor
      */
     inline SymResValue(
@@ -48,12 +43,8 @@ public:
         SymResValueReplacementFn fn,
         void* data_ptr,
         SourceLocation location
-    ) : Value(ValueKind::SymResValue), allocator(allocator), fn(fn), data_ptr(data_ptr), location(location) {
+    ) : Value(ValueKind::SymResValue, location), allocator(allocator), fn(fn), data_ptr(data_ptr) {
 
-    }
-
-    SourceLocation encoded_location() override {
-        return location;
     }
 
     void accept(Visitor *visitor) override {

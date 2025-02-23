@@ -12,18 +12,13 @@ public:
 
     chem::string_view name;
     ASTNode* parent_node;
-    SourceLocation location;
 
     UnionType(
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::UnionType), name(name), parent_node(parent), location(location) {
+    ) : ASTNode(ASTNodeKind::UnionType, location), BaseType(BaseTypeKind::Union, location), name(name), parent_node(parent) {
 
-    }
-
-    SourceLocation encoded_location() override {
-        return location;
     }
 
     ASTNode* parent() override {
@@ -32,11 +27,6 @@ public:
 
     void accept(Visitor *visitor) {
         visitor->visit(this);
-    }
-
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Union;
     }
 
     uint64_t byte_size(bool is64Bit) {
@@ -52,7 +42,7 @@ public:
     }
 
     BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<UnionType>()) UnionType(name, parent_node, location);
+        return new (allocator.allocate<UnionType>()) UnionType(name, parent_node, BaseType::encoded_location());
     }
 
     bool link(SymbolResolver &linker) override;

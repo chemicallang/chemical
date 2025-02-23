@@ -11,7 +11,6 @@ public:
     Value* parent_val;
     std::vector<VariantCaseVariable> identifier_list;
     SwitchStatement* switch_statement;
-    SourceLocation location;
 
     /**
      * this will not only take the access chain, but also find the last function call
@@ -24,7 +23,7 @@ public:
             ASTDiagnoser& resolver,
             SwitchStatement* statement,
             SourceLocation location
-    ) : Value(ValueKind::VariantCase), parent_val(parent_val), switch_statement(statement), location(location) {
+    ) : Value(ValueKind::VariantCase, location), parent_val(parent_val), switch_statement(statement) {
 
     }
 
@@ -35,13 +34,10 @@ public:
             Value* parent_val,
             SwitchStatement* statement,
             SourceLocation location
-    ) : Value(ValueKind::VariantCase), parent_val(parent_val), switch_statement(statement), location(location) {
+    ) : Value(ValueKind::VariantCase, location), parent_val(parent_val), switch_statement(statement) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 

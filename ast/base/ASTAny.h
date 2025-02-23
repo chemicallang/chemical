@@ -40,12 +40,6 @@ public:
     virtual void accept(Visitor *visitor) = 0;
 
     /**
-     * get the encoded location, this encoded location can be provided
-     * to location manager to get the actual decoded location
-     */
-    virtual SourceLocation encoded_location() = 0;
-
-    /**
      * Interpret the current node in the given interpret scope
      */
     virtual void interpret(InterpretScope &scope);

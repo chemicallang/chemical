@@ -16,7 +16,6 @@ public:
     Value* condition;
     bool stoppedInterpretation = false;
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * @brief Construct a new WhileLoop object.
@@ -29,11 +28,8 @@ public:
         Scope body,
         ASTNode* parent_node,
         SourceLocation location
-    ) : LoopASTNode(std::move(body), ASTNodeKind::WhileLoopStmt), condition(condition), parent_node(parent_node), location(location) {}
+    ) : LoopASTNode(std::move(body), ASTNodeKind::WhileLoopStmt, location), condition(condition), parent_node(parent_node) {}
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

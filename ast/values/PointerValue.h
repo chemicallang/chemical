@@ -19,8 +19,6 @@ public:
     size_t behind;
     // the amount (bytes) pointer can go ahead according to the type
     size_t ahead;
-    // the location
-    SourceLocation location;
 
     /**
      * constructor
@@ -31,7 +29,7 @@ public:
         size_t behind,
         size_t ahead,
         SourceLocation location
-    ) : Value(ValueKind::PointerValue), data(data), type(type), behind(behind), ahead(ahead), location(location) {
+    ) : Value(ValueKind::PointerValue, location), data(data), type(type), behind(behind), ahead(ahead) {
 
     }
 
@@ -44,15 +42,11 @@ public:
         InterpretScope& scope,
         StringValue* value,
         BaseType* type
-    ) : Value(ValueKind::PointerValue), type(type), data((void*) value->value.data()), location(value->encoded_location()), behind(0) {
+    ) : Value(ValueKind::PointerValue, value->encoded_location()), type(type), data((void*) value->value.data()), behind(0) {
         // total bytes ahead = total characters, since 1 char = 1 byte
         ahead = value->value.size();
     }
 
-
-    SourceLocation encoded_location() override {
-        return location;
-    }
 
     void accept(Visitor *visitor) override {
         // cannot be visited
@@ -60,7 +54,7 @@ public:
 
     PointerValue* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<PointerValue>()) PointerValue(
-            data, type, behind, ahead, location
+            data, type, behind, ahead, encoded_location()
         );
     }
 

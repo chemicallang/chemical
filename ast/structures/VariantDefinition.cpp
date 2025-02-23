@@ -403,7 +403,7 @@ int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* 
 }
 
 BaseDefMember *VariantMember::copy_member(ASTAllocator& allocator) {
-    const auto member = new (allocator.allocate<VariantMember>()) VariantMember(name, parent_node, location);
+    const auto member = new (allocator.allocate<VariantMember>()) VariantMember(name, parent_node, encoded_location());
     for(auto& value : values) {
         member->values[value.first] = value.second->copy(allocator);
     }
@@ -483,7 +483,7 @@ BaseType* VariantMember::known_type() {
 }
 
 BaseType* VariantMember::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, this, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, this, encoded_location());
 }
 
 //hybrid_ptr<BaseType> VariantMember::get_value_type() {
@@ -495,7 +495,7 @@ BaseTypeKind VariantMember::type_kind() const {
 }
 
 VariantMemberParam* VariantMemberParam::copy(ASTAllocator& allocator) {
-    return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, is_const, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent_node, location);
+    return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, is_const, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent_node, encoded_location());
 }
 
 void VariantMemberParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {

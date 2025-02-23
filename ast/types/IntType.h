@@ -9,7 +9,12 @@ public:
 
     static const IntType instance;
 
-    using IntNType::IntNType;
+    /**
+     * constructor
+     */
+    IntType(SourceLocation location) : IntNType(location) {
+
+    }
 
     [[nodiscard]]
     unsigned int num_bits() const final {
@@ -32,7 +37,7 @@ public:
 
     [[nodiscard]]
     IntType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<IntType>()) IntType(location);
+        return new (allocator.allocate<IntType>()) IntType(encoded_location());
     }
 
 };

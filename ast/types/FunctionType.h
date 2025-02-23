@@ -51,7 +51,7 @@ struct FunctionTypeData {
 
 static_assert(sizeof(FunctionTypeData) <= 8);
 
-class FunctionType : public TokenizedBaseType {
+class FunctionType : public BaseType {
 public:
 
     std::vector<FunctionParam*> params;
@@ -90,7 +90,7 @@ public:
         SourceLocation location,
         bool signature_resolved = false
     ) : data(isVariadic, isCapturing, signature_resolved), params(std::move(params)), returnType(returnType),
-        parent_node(parent_node), TokenizedBaseType(location) {
+        parent_node(parent_node), BaseType(BaseTypeKind::Function, location) {
 
     }
 
@@ -105,7 +105,7 @@ public:
             SourceLocation location,
             bool signature_resolved = false
     ) : data(isVariadic, isCapturing, signature_resolved), returnType(returnType),
-        parent_node(parent_node), TokenizedBaseType(location) {
+        parent_node(parent_node), BaseType(BaseTypeKind::Function, location) {
 
     }
 
@@ -165,11 +165,6 @@ public:
      * do parameter types match with the given function parameter types
      */
     bool do_param_types_match(std::vector<FunctionParam*>& param_types, bool check_self = true);
-
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Function;
-    }
 
     bool isInVarArgs(unsigned index) const;
 

@@ -10,7 +10,6 @@ class UnnamedStruct : public BaseDefMember, public VariablesContainer {
 public:
 
     ASTNode* parent_node;
-    SourceLocation location;
     AccessSpecifier specifier;
 
     UnnamedStruct(
@@ -18,13 +17,10 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : BaseDefMember(name, ASTNodeKind::UnnamedStruct), parent_node(parent_node), location(location), specifier(specifier) {
+    ) : BaseDefMember(name, ASTNodeKind::UnnamedStruct, location), parent_node(parent_node), specifier(specifier) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    BaseType* known_type() final {
 //        return this;

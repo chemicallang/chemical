@@ -49,6 +49,11 @@ private:
      */
     ValueKind const _kind;
 
+    /**
+     * encoded source location
+     */
+    SourceLocation _location;
+
 public:
 
     /**
@@ -59,7 +64,7 @@ public:
     /**
      * default constructor
      */
-    inline explicit Value(ValueKind k) noexcept : _kind(k) {
+    inline explicit constexpr Value(ValueKind k, SourceLocation loc) noexcept : _kind(k), _location(loc) {
 
     };
 
@@ -83,15 +88,26 @@ public:
     /**
      * get the kind of this value
      */
-    inline ValueKind kind() {
+    inline ValueKind kind() const noexcept {
         return _kind;
     }
 
     /**
      * get the value kind of this value
      */
-    inline ValueKind val_kind() {
+    inline ValueKind val_kind() const noexcept {
         return _kind;
+    }
+
+    /**
+     * get the encoded source location
+     */
+    inline SourceLocation encoded_location() const noexcept {
+        return _location;
+    }
+
+    inline void set_encoded_location(SourceLocation loc) noexcept {
+        _location = loc;
     }
 
     /**

@@ -21,7 +21,6 @@ public:
     chem::string_view value;
     unsigned int length = 0;
     bool is_array = false;
-    SourceLocation location;
 
     /**
      * constructor
@@ -29,13 +28,10 @@ public:
     explicit StringValue(
         chem::string_view value,
         SourceLocation location
-    ) : Value(ValueKind::String), length(value.size()), value(value), location(location) {
+    ) : Value(ValueKind::String, location), length(value.size()), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
@@ -62,7 +58,7 @@ public:
                          " of length " << std::to_string(value.size());
         }
 #endif
-        return new CharValue(value[i], location);
+        return new CharValue(value[i], encoded_location());
     }
 
 #ifdef COMPILER_BUILD
@@ -76,7 +72,7 @@ public:
 #endif
 
     StringValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<StringValue>()) StringValue(value, location);
+        return new (allocator.allocate<StringValue>()) StringValue(value, encoded_location());
     }
 
     BaseType* create_type(ASTAllocator& allocator) final;

@@ -71,7 +71,6 @@ public:
     BaseType* type;
     Value* value; ///< The value being assigned to the identifier.
     ASTNode* parent_node;
-    SourceLocation location;
 #ifdef COMPILER_BUILD
     llvm::Value *llvm_ptr;
 #endif
@@ -93,8 +92,8 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ASTNode(ASTNodeKind::VarInitStmt), attrs(specifier, false, false, false, false, is_const, is_reference, false), located_id(identifier),
-        type(type), value(value), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::VarInitStmt, location), attrs(specifier, false, false, false, false, is_const, is_reference, false), located_id(identifier),
+        type(type), value(value), parent_node(parent_node) {
 
     }
 
@@ -214,9 +213,6 @@ public:
         attrs.has_assignment = true;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

@@ -15,7 +15,6 @@ public:
     Value* value;
     BaseType* type;
     bool is_negating;
-    SourceLocation location;
 
     /**
      * constructor
@@ -25,13 +24,10 @@ public:
             BaseType* type,
             bool is_negating,
             SourceLocation location
-    ) : Value(ValueKind::IsValue), value(value), type(type), is_negating(is_negating), location(location) {
+    ) : Value(ValueKind::IsValue, location), value(value), type(type), is_negating(is_negating) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     IsValue *copy(ASTAllocator& allocator) final;
 
@@ -49,7 +45,7 @@ public:
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<BoolType>()) BoolType(location);
+        return new (allocator.allocate<BoolType>()) BoolType(encoded_location());
     }
 
     void accept(Visitor *visitor) final {

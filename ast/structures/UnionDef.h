@@ -25,7 +25,6 @@ public:
 
     UnionDeclAttributes attrs;
     ASTNode* parent_node;
-    SourceLocation location;
     LinkedType linked_type;
 
 #ifdef COMPILER_BUILD
@@ -37,7 +36,7 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::UnionDecl), parent_node(parent_node), location(location),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::UnionDecl, location), parent_node(parent_node),
         attrs(specifier, false, false, false, false), linked_type("", this, location) {
 
     }
@@ -49,9 +48,6 @@ public:
         return &identifier;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    std::string union_name_str() final {
 //        return name_view().str();

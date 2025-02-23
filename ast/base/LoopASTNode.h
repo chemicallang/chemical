@@ -18,10 +18,9 @@ public:
     Scope body;
 
     /**
-     * initialize with the given body
-     * @param body
+     * constructor
      */
-    explicit LoopASTNode(Scope body, ASTNodeKind k) : ASTNode(k), body(std::move(body)) {
+    explicit LoopASTNode(Scope body, ASTNodeKind k, SourceLocation loc) : ASTNode(k, loc), body(std::move(body)) {
 
     }
 

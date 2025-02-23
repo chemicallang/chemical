@@ -8,12 +8,11 @@ class UnsafeBlock : public ASTNode {
 public:
 
     Scope scope;
-    SourceLocation location;
 
     explicit UnsafeBlock(
         Scope scope,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::UnsafeBlock), scope(std::move(scope)), location(location) {
+    ) : ASTNode(ASTNodeKind::UnsafeBlock, location), scope(std::move(scope)) {
 
     }
 
@@ -21,9 +20,6 @@ public:
         visitor->visit(this);
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode* parent() final {
         return scope.parent_node;

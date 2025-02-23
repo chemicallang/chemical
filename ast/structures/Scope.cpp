@@ -62,7 +62,7 @@ void Scope::interpret(InterpretScope &scope) {
 }
 
 Scope Scope::shallow_copy() {
-    Scope copied(parent_node, location);
+    Scope copied(parent_node, encoded_location());
     for(const auto node : nodes) {
         copied.nodes.emplace_back(node);
     }

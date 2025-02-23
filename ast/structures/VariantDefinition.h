@@ -24,7 +24,6 @@ public:
 
     VariantDeclAttributes attrs;
     ASTNode* parent_node;
-    SourceLocation location;
     LinkedType ref_type;
 
 #ifdef COMPILER_BUILD
@@ -43,8 +42,8 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::VariantDecl), parent_node(parent_node), ref_type(name_view(), this, location),
-        location(location), attrs(specifier, false, false, false, false) {
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::VariantDecl, location), parent_node(parent_node),
+        ref_type(name_view(), this, location), attrs(specifier, false, false, false, false) {
     }
 
     /**
@@ -54,9 +53,6 @@ public:
         return &identifier;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     AccessSpecifier specifier() {
         return attrs.specifier;

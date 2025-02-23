@@ -14,20 +14,16 @@ class AddrOfValue : public Value {
 public:
 
     Value* value;
-    SourceLocation location;
     PointerType _ptr_type;
     bool is_value_mutable = false;
 
     explicit AddrOfValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::AddrOfValue), value(value), location(location), _ptr_type(nullptr, location) {
+    ) : Value(ValueKind::AddrOfValue, location), value(value), _ptr_type(nullptr, location) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;

@@ -4,12 +4,17 @@
 
 #include "ast/base/BaseType.h"
 
-class StringType : public TokenizedBaseType {
+class StringType : public BaseType {
 public:
 
     static const StringType instance;
 
-    using TokenizedBaseType::TokenizedBaseType;
+    /**
+     * constructor
+     */
+    StringType(SourceLocation location) : BaseType(BaseTypeKind::String, location) {
+
+    }
 
     [[nodiscard]]
     BaseType* create_child_type(ASTAllocator& allocator) const final;
@@ -22,11 +27,6 @@ public:
         visitor->visit(this);
     }
 
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::String;
-    }
-
     bool satisfies(BaseType *type) final;
 
     bool is_same(BaseType *type) final {
@@ -35,7 +35,7 @@ public:
 
     [[nodiscard]]
     StringType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<StringType>()) StringType(location);
+        return new (allocator.allocate<StringType>()) StringType(encoded_location());
     }
 
 #ifdef COMPILER_BUILD

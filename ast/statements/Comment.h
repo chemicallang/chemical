@@ -14,18 +14,13 @@ public:
     ASTNode* parent_node;
     chem::string_view comment;
     bool multiline;
-    SourceLocation location;
 
     Comment(
             chem::string_view comment,
             bool multiline,
             ASTNode* parent,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::CommentStmt), comment(comment), multiline(multiline), parent_node(parent), location(location) {}
-
-    SourceLocation encoded_location() final {
-        return location;
-    }
+    ) : ASTNode(ASTNodeKind::CommentStmt, location), comment(comment), multiline(multiline), parent_node(parent) {}
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

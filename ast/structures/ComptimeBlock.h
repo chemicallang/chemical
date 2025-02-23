@@ -10,7 +10,6 @@ public:
 
     Scope body;
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * constructor
@@ -19,7 +18,7 @@ public:
         Scope body,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::ComptimeBlock), body(std::move(body)), parent_node(parent), location(location) {
+    ) : ASTNode(ASTNodeKind::ComptimeBlock, location), body(std::move(body)), parent_node(parent) {
 
     }
 
@@ -27,9 +26,6 @@ public:
         visitor->visit(this);
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode* parent() final {
         return parent_node;

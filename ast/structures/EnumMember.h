@@ -27,7 +27,6 @@ public:
      * this enum member
      */
     Value* init_value;
-    SourceLocation location;
     EnumMemberAttributes attrs;
 
     EnumMember(
@@ -36,8 +35,8 @@ public:
         Value* init_value,
         EnumDeclaration* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::EnumMember), name(name), index(index), init_value(init_value),
-        parent_node(parent_node), location(location), attrs(false)
+    ) : ASTNode(ASTNodeKind::EnumMember, location), name(name), index(index), init_value(init_value),
+        parent_node(parent_node), attrs(false)
     {
 
     }
@@ -50,9 +49,6 @@ public:
         attrs.deprecated = value;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode *parent() final {
         return (ASTNode*) parent_node;

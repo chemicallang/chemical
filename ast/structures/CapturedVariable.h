@@ -13,7 +13,6 @@ public:
     unsigned int index;
     LambdaFunction *lambda;
     ASTNode *linked;
-    SourceLocation location;
     PointerType ptrType;
 
 
@@ -22,14 +21,11 @@ public:
         unsigned int index,
         bool capture_by_ref,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::CapturedVariable), name(name), index(index), capture_by_ref(capture_by_ref),
-        location(location), ptrType(nullptr, location) {
+    ) : ASTNode(ASTNodeKind::CapturedVariable, location), name(name), index(index),
+        capture_by_ref(capture_by_ref), ptrType(nullptr, location) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode *parent() final {
         return nullptr;

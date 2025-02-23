@@ -5,7 +5,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/utils/Operation.h"
 
-class ExpressionType : public TokenizedBaseType {
+class ExpressionType : public BaseType {
 public:
 
     BaseType* firstType;
@@ -17,7 +17,7 @@ public:
         BaseType* secondType,
         bool isLogicalAnd,
         SourceLocation location
-    ) : TokenizedBaseType(location), firstType(firstType), secondType(secondType), isLogicalAnd(isLogicalAnd) {
+    ) : BaseType(BaseTypeKind::ExpressionType, location), firstType(firstType), secondType(secondType), isLogicalAnd(isLogicalAnd) {
         // do nothing
     }
 
@@ -31,11 +31,6 @@ public:
 
     bool satisfies(BaseType *type) override;
 
-    [[nodiscard]]
-    BaseTypeKind kind() const override {
-        return BaseTypeKind::ExpressionType;
-    }
-
     bool is_same(BaseType *type) override {
         return type->kind() == BaseTypeKind::ExpressionType &&
             isLogicalAnd == type->as_expr_type_unsafe()->isLogicalAnd &&
@@ -48,7 +43,7 @@ public:
                 firstType->copy(allocator),
                 secondType->copy(allocator),
                 isLogicalAnd,
-                location
+                encoded_location()
         );
     }
 

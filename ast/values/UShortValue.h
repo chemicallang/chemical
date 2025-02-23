@@ -9,7 +9,6 @@ class UShortValue : public IntNumValue {
 public:
 
     unsigned short value;
-    SourceLocation location;
 
     /**
      * constructor
@@ -17,13 +16,10 @@ public:
     explicit UShortValue(
         unsigned short value,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UShort), value(value), location(location) {
+    ) : IntNumValue(ValueKind::UShort, location), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &UShortType::instance, false };
@@ -42,12 +38,12 @@ public:
     }
 
     UShortValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UShortValue>()) UShortValue(value, location);
+        return new (allocator.allocate<UShortValue>()) UShortValue(value, encoded_location());
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UShortType>()) UShortType(location);
+        return new (allocator.allocate<UShortType>()) UShortType(encoded_location());
     }
 
     unsigned int get_num_bits() final {

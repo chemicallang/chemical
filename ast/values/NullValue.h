@@ -14,25 +14,21 @@ class NullValue : public Value {
 public:
 
     BaseType* expected = nullptr;
-    SourceLocation location;
 
     /**
      * constructor
      */
-    inline explicit NullValue(SourceLocation location) : Value(ValueKind::NullValue), location(location) {
+    inline explicit NullValue(SourceLocation location) : Value(ValueKind::NullValue, location) {
 
     }
 
     inline NullValue(
         BaseType* expected,
         SourceLocation location
-    ) : Value(ValueKind::NullValue), expected(expected), location(location) {
+    ) : Value(ValueKind::NullValue, location), expected(expected) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
@@ -48,7 +44,7 @@ public:
     }
 
     NullValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NullValue>()) NullValue(expected, location);
+        return new (allocator.allocate<NullValue>()) NullValue(expected, encoded_location());
     }
 
 #ifdef COMPILER_BUILD

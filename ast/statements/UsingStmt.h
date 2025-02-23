@@ -27,7 +27,6 @@ class UsingStmt : public ASTNode {
 public:
 
     AccessChain* chain;
-    SourceLocation location;
     UsingStmtAttributes attrs;
     ASTNode* parent_node;
 
@@ -36,7 +35,7 @@ public:
             ASTNode* parent_node,
             bool is_namespace,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::UsingStmt), chain(chain), parent_node(parent_node), location(location),
+    ) : ASTNode(ASTNodeKind::UsingStmt, location), chain(chain), parent_node(parent_node),
         attrs(is_namespace, false)
     {
 
@@ -58,9 +57,6 @@ public:
         attrs.propagate = value;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);

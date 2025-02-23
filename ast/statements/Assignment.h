@@ -20,7 +20,6 @@ public:
     InterfaceDefinition* definition;
     Operation assOp;
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * @brief Construct a new AssignStatement object.
@@ -34,7 +33,7 @@ public:
             Operation assOp,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::AssignmentStmt), lhs(lhs), value(value), assOp(assOp), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::AssignmentStmt, location), lhs(lhs), value(value), assOp(assOp), parent_node(parent_node) {
 
     }
 
@@ -44,10 +43,6 @@ public:
 
     ASTNode *parent() final {
         return parent_node;
-    }
-
-    SourceLocation encoded_location() final {
-        return location;
     }
 
     void accept(Visitor *visitor) final;

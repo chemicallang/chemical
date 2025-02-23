@@ -4,12 +4,17 @@
 
 #include "ast/base/BaseType.h"
 
-class Float128Type : public TokenizedBaseType {
+class Float128Type : public BaseType {
 public:
 
     static const Float128Type instance;
 
-    using TokenizedBaseType::TokenizedBaseType;
+    /**
+     * constructor
+     */
+    Float128Type(SourceLocation location) : BaseType(BaseTypeKind::Float128, location) {
+
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 16;
@@ -17,11 +22,6 @@ public:
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
-    }
-
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Float128;
     }
 
     bool satisfies(BaseType *type) final {
@@ -34,7 +34,7 @@ public:
 
     [[nodiscard]]
     Float128Type *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<Float128Type>()) Float128Type(location);
+        return new (allocator.allocate<Float128Type>()) Float128Type(encoded_location());
     }
 
 #ifdef COMPILER_BUILD

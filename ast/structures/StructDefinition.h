@@ -78,7 +78,6 @@ private:
 
 public:
     ASTNode* parent_node;
-    SourceLocation location;
     LinkedType linked_type;
 
 #ifdef COMPILER_BUILD
@@ -101,8 +100,8 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::StructDecl), parent_node(parent_node),
-        location(location), attrs(specifier, false, false, false, false, false, false, false, false, false),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::StructDecl, location), parent_node(parent_node),
+        attrs(specifier, false, false, false, false, false, false, false, false, false),
         linked_type(identifier.identifier, this, location) {
 
     }
@@ -224,9 +223,6 @@ public:
         parent_node = new_parent;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode *parent() final {
         return parent_node;

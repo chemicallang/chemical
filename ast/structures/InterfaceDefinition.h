@@ -48,10 +48,6 @@ public:
      */
     ASTNode* parent_node;
     /**
-     * the location of the interface
-     */
-    SourceLocation location;
-    /**
      * users are registered so we can declare functions before hand
      */
 #ifdef COMPILER_BUILD
@@ -86,7 +82,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::InterfaceDecl), parent_node(parent_node), location(location),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::InterfaceDecl, location), parent_node(parent_node),
         attrs(specifier, false, false, false) {
 
     }
@@ -127,9 +123,6 @@ public:
         return attrs.has_implementation;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

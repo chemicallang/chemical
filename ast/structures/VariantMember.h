@@ -21,21 +21,16 @@ public:
     tsl::ordered_map<chem::string_view, VariantMemberParam*> values;
     VariantDefinition* parent_node;
     LinkedType ref_type;
-    SourceLocation location;
     VariantMemberAttributes attrs;
 
     VariantMember(
             chem::string_view name,
             VariantDefinition* parent_node,
             SourceLocation location
-    ) : BaseDefMember(name, ASTNodeKind::VariantMember), parent_node(parent_node), ref_type(name, this, location),
-        location(location), attrs(false)
+    ) : BaseDefMember(name, ASTNodeKind::VariantMember, location), parent_node(parent_node),
+        ref_type(name, this, location), attrs(false)
     {
 
-    }
-
-    SourceLocation encoded_location() final {
-        return location;
     }
 
     inline bool deprecated() {

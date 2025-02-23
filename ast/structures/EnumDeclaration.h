@@ -35,7 +35,6 @@ public:
     LocatedIdentifier located_id; ///< The name of the enum.
     std::unordered_map<chem::string_view, EnumMember*> members; ///< The values of the enum.
     ASTNode* parent_node;
-    SourceLocation location;
     BaseType* underlying_type;
 
     /**
@@ -60,7 +59,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableNode(ASTNodeKind::EnumDecl), located_id(name_id), parent_node(parent_node), location(location),
+    ) : ExtendableNode(ASTNodeKind::EnumDecl, location), located_id(name_id), parent_node(parent_node),
         linked_type(name_id.identifier, this, location), underlying_type(underlying_type), attrs(specifier, false) {
 
     }
@@ -119,9 +118,6 @@ public:
         return default_starting_index;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

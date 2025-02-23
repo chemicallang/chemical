@@ -14,7 +14,6 @@ public:
     Value* def_value;
     VariantMember* parent_node;
     unsigned index;
-    SourceLocation location;
     bool is_const;
 
     VariantMemberParam(
@@ -25,14 +24,11 @@ public:
         Value* def_value,
         VariantMember* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::VariantMemberParam), name(name), index(index), type(type), def_value(def_value),
-        parent_node(parent_node), location(location), is_const(is_const) {
+    ) : ASTNode(ASTNodeKind::VariantMemberParam, location), name(name), index(index), type(type), def_value(def_value),
+        parent_node(parent_node), is_const(is_const) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     VariantMemberParam* copy(ASTAllocator& allocator);
 

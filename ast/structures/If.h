@@ -20,7 +20,6 @@ public:
     std::optional<Scope> elseBody;
     ASTNode* parent_node;
     bool is_value;
-    SourceLocation location;
     bool is_computable = false;
     bool resolved_condition = true;
     // after resolving computed value, we store the scope, so we can visit it
@@ -41,13 +40,10 @@ public:
             ASTNode* parent_node,
             bool is_value,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::IfStmt), Value(ValueKind::IfValue), condition(condition), ifBody(std::move(ifBody)),
+    ) : ASTNode(ASTNodeKind::IfStmt, location), Value(ValueKind::IfValue, location), condition(condition), ifBody(std::move(ifBody)),
         elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node),
-        is_value(is_value), location(location) {}
+        is_value(is_value) {}
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

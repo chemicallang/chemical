@@ -4,10 +4,15 @@
 
 #include "ast/base/BaseType.h"
 
-class IntNType : public TokenizedBaseType {
+class IntNType : public BaseType {
 public:
 
-    using TokenizedBaseType::TokenizedBaseType;
+    /**
+     * constructor
+     */
+    inline IntNType(SourceLocation location) : BaseType(BaseTypeKind::IntN, location) {
+
+    }
 
     /**
      * is this int n type unsigned

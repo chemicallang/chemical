@@ -45,7 +45,6 @@ public:
     tsl::ordered_map<chem::string_view, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
     ASTNode* parent_node;
-    SourceLocation location;
     NamespaceDeclAttributes attrs;
 
     /**
@@ -56,7 +55,7 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ASTNode(ASTNodeKind::NamespaceDecl), identifier(identifier), parent_node(parent_node), location(location), attrs(specifier, false, false) {
+    ) : ASTNode(ASTNodeKind::NamespaceDecl, location), identifier(identifier), parent_node(parent_node), attrs(specifier, false, false) {
 
     }
 
@@ -107,9 +106,6 @@ public:
         attrs.deprecated = value;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

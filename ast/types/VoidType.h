@@ -4,20 +4,17 @@
 
 #include "ast/base/BaseType.h"
 
-class VoidType : public TokenizedBaseType {
+class VoidType : public BaseType {
 public:
 
     static const VoidType instance;
 
-    using TokenizedBaseType::TokenizedBaseType;
+    VoidType(SourceLocation location) : BaseType(BaseTypeKind::Void, location) {
+
+    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
-    }
-
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Void;
     }
 
     bool satisfies(BaseType *type) final {
@@ -30,7 +27,7 @@ public:
 
     [[nodiscard]]
     virtual VoidType* copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<VoidType>()) VoidType(location);
+        return new (allocator.allocate<VoidType>()) VoidType(encoded_location());
     }
 
 #ifdef COMPILER_BUILD

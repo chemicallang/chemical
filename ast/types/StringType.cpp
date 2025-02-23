@@ -4,7 +4,7 @@
 #include "CharType.h"
 
 BaseType* StringType::create_child_type(ASTAllocator& allocator) const {
-    return new (allocator.allocate<CharType>()) CharType(location);
+    return new (allocator.allocate<CharType>()) CharType(encoded_location());
 }
 
 //hybrid_ptr<BaseType> StringType::get_child_type() {

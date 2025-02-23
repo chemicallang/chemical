@@ -29,11 +29,11 @@ Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
     switch(k) {
         case ValueKind::String:{
             const auto val = eval->as_string_unsafe();
-            return new (scope.allocate<CharValue>()) CharValue(val->value[0], location);
+            return new (scope.allocate<CharValue>()) CharValue(val->value[0], encoded_location());
         }
         case ValueKind::PointerValue: {
             const auto val = (PointerValue*) eval;
-            return val->deref(scope, location, this);
+            return val->deref(scope, encoded_location(), this);
         }
         default:
             scope.error("couldn't dereference value in comptime", this);
@@ -70,6 +70,6 @@ BaseType* DereferenceValue::known_type() {
 DereferenceValue *DereferenceValue::copy(ASTAllocator& allocator) {
     return new DereferenceValue(
             value->copy(allocator),
-            location
+            encoded_location()
     );
 }

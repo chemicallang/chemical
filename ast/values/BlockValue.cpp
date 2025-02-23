@@ -9,7 +9,7 @@ BaseType* BlockValue::create_type(ASTAllocator &allocator) {
     if(calculated_value) {
         return calculated_value->create_type(allocator);
     } else {
-        return new (allocator.allocate<VoidType>()) VoidType(scope.location);
+        return new (allocator.allocate<VoidType>()) VoidType(scope.encoded_location());
     }
 }
 

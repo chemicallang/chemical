@@ -10,7 +10,6 @@ public:
 
     unsigned long value;
     bool is64Bit;
-    SourceLocation location;
 
     /**
      * constructor
@@ -19,13 +18,10 @@ public:
         unsigned long value,
         bool is64Bit,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UInt), value(value), is64Bit(is64Bit), location(location) {
+    ) : IntNumValue(ValueKind::UInt, location), value(value), is64Bit(is64Bit) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { known_type(), false };
@@ -44,12 +40,12 @@ public:
     }
 
     ULongValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<ULongValue>()) ULongValue(value, is64Bit, location);
+        return new (allocator.allocate<ULongValue>()) ULongValue(value, is64Bit, encoded_location());
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, location);
+        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, encoded_location());
     }
 
     unsigned int get_num_bits() final {

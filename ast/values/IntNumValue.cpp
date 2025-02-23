@@ -6,8 +6,8 @@
 #include "ast/types/ReferenceType.h"
 
 Value* IncDecValue::evaluated_value(InterpretScope &scope) {
-    const auto val = new (scope.allocate<ShortValue>()) ShortValue(1, location);
-    value->set_value(scope, val, increment ? Operation::Addition : Operation::Subtraction, location);
+    const auto val = new (scope.allocate<ShortValue>()) ShortValue(1, encoded_location());
+    value->set_value(scope, val, increment ? Operation::Addition : Operation::Subtraction, encoded_location());
     // TODO support post and pre properly
     return value->evaluated_value(scope);
 }

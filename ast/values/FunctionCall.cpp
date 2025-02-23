@@ -874,7 +874,7 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, location), generic_iteration);
+            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()), generic_iteration);
         }
     }
     return func_type;
@@ -1233,7 +1233,7 @@ Value* FunctionCall::evaluated_value(InterpretScope &scope) {
 }
 
 FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
-    auto call = new (allocator.allocate<FunctionCall>()) FunctionCall((ChainValue*) parent_val->copy(allocator), {}, location);
+    auto call = new (allocator.allocate<FunctionCall>()) FunctionCall((ChainValue*) parent_val->copy(allocator), {}, encoded_location());
     for(const auto value : values) {
         call->values.emplace_back(value->copy(allocator));
     }
@@ -1260,7 +1260,7 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
             if(func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
                 const auto struct_def = func_decl->parent_node->as_struct_def();
                 if(struct_def->is_generic()) {
-                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, location), generic_iteration);
+                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()), generic_iteration);
                 }
             }
             prev_itr = set_curr_itr_on_decl();

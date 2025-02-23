@@ -56,5 +56,5 @@ void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
 }
 
 void AssignStatement::interpret(InterpretScope &scope) {
-    lhs->set_value(scope, value, assOp, location);
+    lhs->set_value(scope, value, assOp, encoded_location());
 }

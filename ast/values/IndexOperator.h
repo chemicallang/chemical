@@ -15,7 +15,6 @@ public:
 
     ChainValue* parent_val;
     std::vector<Value*> values;
-    SourceLocation location;
 
     /**
      * constructor
@@ -24,13 +23,10 @@ public:
             ChainValue* parent,
             std::vector<Value*> indexes,
             SourceLocation location
-    ) : ChainValue(ValueKind::IndexOperator), parent_val(parent), values(std::move(indexes)), location(location) {
+    ) : ChainValue(ValueKind::IndexOperator, location), parent_val(parent), values(std::move(indexes)) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);

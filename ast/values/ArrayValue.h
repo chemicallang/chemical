@@ -17,7 +17,6 @@ public:
 
     std::vector<Value*> values;
     std::vector<unsigned int> sizes;
-    SourceLocation location;
     ArrayType* created_type;
 
 #ifdef COMPILER_BUILD
@@ -31,13 +30,10 @@ public:
             std::vector<unsigned int> sizes,
             SourceLocation location,
             ASTAllocator& allocator
-    ) : Value(ValueKind::ArrayValue), values(std::move(values)), sizes(std::move(sizes)), location(location) {
+    ) : Value(ValueKind::ArrayValue, location), values(std::move(values)), sizes(std::move(sizes)) {
         created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size(), ZERO_LOC);
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
@@ -132,7 +128,7 @@ public:
         if (elemType) {
             copied_elem_type = elemType->copy(allocator);
         }
-        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(copied_values), copied_elem_type, sizes, location, allocator);
+        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(copied_values), copied_elem_type, sizes, encoded_location(), allocator);
     }
 
 };

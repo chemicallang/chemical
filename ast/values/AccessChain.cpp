@@ -167,7 +167,7 @@ bool AccessChain::compile_time_computable() {
 }
 
 AccessChain *AccessChain::copy(ASTAllocator& allocator) {
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(is_node(), location);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(is_node(), encoded_location());
     for(auto& value : values) {
         chain->values.emplace_back((ChainValue*) value->copy(allocator));
     }

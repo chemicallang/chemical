@@ -7,6 +7,7 @@
 #include "GlobalInterpretScope.h"
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
+#include "ast/base/BaseType.h"
 #include "ast/structures/Scope.h"
 #include "rang.hpp"
 #include <utility>
@@ -23,18 +24,42 @@ GlobalInterpretScope::GlobalInterpretScope(
 
 }
 
-void GlobalInterpretScope::interpret_error(std::string& msg, ASTAny* any) {
+void GlobalInterpretScope::interpret_error(std::string& msg, SourceLocation loc) {
 #ifdef DEBUG
     std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
 #endif
-    ASTDiagnoser::diagnostic(msg, any, DiagSeverity::Error);
+    ASTDiagnoser::diagnostic(msg, loc, DiagSeverity::Error);
 }
 
-void GlobalInterpretScope::interpret_error(std::string_view& msg, ASTAny* any) {
+void GlobalInterpretScope::interpret_error(std::string_view& msg, SourceLocation loc) {
 #ifdef DEBUG
     std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
 #endif
-    ASTDiagnoser::diagnostic(msg, any, DiagSeverity::Error);
+    ASTDiagnoser::diagnostic(msg, loc, DiagSeverity::Error);
+}
+
+void GlobalInterpretScope::interpret_error(std::string& error, ASTNode* any) {
+    interpret_error(error, any->encoded_location());
+}
+
+void GlobalInterpretScope::interpret_error(std::string_view& error, ASTNode* any) {
+    interpret_error(error, any->encoded_location());
+}
+
+void GlobalInterpretScope::interpret_error(std::string& error, Value* any) {
+    interpret_error(error, any->encoded_location());
+}
+
+void GlobalInterpretScope::interpret_error(std::string_view& error, Value* any) {
+    interpret_error(error, any->encoded_location());
+}
+
+void GlobalInterpretScope::interpret_error(std::string& error, BaseType* any) {
+    interpret_error(error, any->encoded_location());
+}
+
+void GlobalInterpretScope::interpret_error(std::string_view& error, BaseType* any) {
+    interpret_error(error, any->encoded_location());
 }
 
 GlobalInterpretScope::~GlobalInterpretScope() = default;

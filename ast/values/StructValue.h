@@ -25,7 +25,6 @@ public:
     BaseType* refType;
     std::unordered_map<chem::string_view, StructMemberInitializer> values;
     int16_t generic_iteration = 0;
-    SourceLocation location;
     ASTNode* parent_node;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst = nullptr;
@@ -35,7 +34,7 @@ public:
         BaseType* refType,
         SourceLocation location,
         ASTNode* parent
-    ) : Value(ValueKind::StructValue), refType(refType), definition(nullptr), container(nullptr), location(location), parent_node(parent)
+    ) : Value(ValueKind::StructValue, location), refType(refType), definition(nullptr), container(nullptr), parent_node(parent)
     {
 
     }
@@ -46,14 +45,11 @@ public:
         VariablesContainer* container,
         SourceLocation location,
         ASTNode* parent
-    ) : Value(ValueKind::StructValue), refType(refType), definition(definition), container(container), location(location), parent_node(parent)
+    ) : Value(ValueKind::StructValue, location), refType(refType), definition(definition), container(container), parent_node(parent)
     {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);

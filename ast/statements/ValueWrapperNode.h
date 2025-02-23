@@ -14,16 +14,12 @@ public:
     ValueWrapperNode(
         Value* value,
         ASTNode* parent_node
-    ) : ASTNode(ASTNodeKind::ValueWrapper), value(value), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::ValueWrapper, value->encoded_location()), value(value), parent_node(parent_node) {
 
     }
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
-    }
-
-    SourceLocation encoded_location() override {
-        return value->encoded_location();
     }
 
     ASTNode* parent() override {

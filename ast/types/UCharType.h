@@ -9,7 +9,9 @@ public:
 
     static const UCharType instance;
 
-    using IntNType::IntNType;
+    UCharType(SourceLocation location) : IntNType(location) {
+
+    }
 
     bool is_unsigned() final {
         return true;
@@ -28,16 +30,11 @@ public:
         visitor->visit(this);
     }
 
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::IntN;
-    }
-
     Value *create(ASTAllocator& allocator, uint64_t value) final;
 
     [[nodiscard]]
     UCharType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UCharType>()) UCharType(location);
+        return new (allocator.allocate<UCharType>()) UCharType(encoded_location());
     }
 
 #ifdef COMPILER_BUILD

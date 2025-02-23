@@ -4,12 +4,14 @@
 
 #include "ast/base/BaseType.h"
 
-class BoolType : public TokenizedBaseType {
+class BoolType : public BaseType {
 public:
 
     static const BoolType instance;
 
-    using TokenizedBaseType::TokenizedBaseType;
+    BoolType(SourceLocation location) : BaseType(BaseTypeKind::Bool, location) {
+
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 1;
@@ -17,11 +19,6 @@ public:
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
-    }
-
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Bool;
     }
 
     bool satisfies(BaseType *type) final {
@@ -33,7 +30,7 @@ public:
     }
 
     virtual BoolType* copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<BoolType>()) BoolType(location);
+        return new (allocator.allocate<BoolType>()) BoolType(encoded_location());
     }
 
 #ifdef COMPILER_BUILD

@@ -25,11 +25,9 @@ public:
     /**
      * constructor
      */
-    explicit MultiFunctionNode(std::string name) : ASTNode(ASTNodeKind::MultiFunctionNode), name(std::move(name)) {
+    explicit MultiFunctionNode(std::string name) : ASTNode(ASTNodeKind::MultiFunctionNode, ZERO_LOC), name(std::move(name)) {
 
     }
-
-    SourceLocation encoded_location() final;
 
     FunctionDeclaration* func_for_call(ASTAllocator& allocator, std::vector<Value*>& args);
 

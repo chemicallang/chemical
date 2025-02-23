@@ -6,7 +6,7 @@
 
 PointerValue* PointerValue::cast(InterpretScope& scope, BaseType* new_type) {
     return new (scope.allocate<PointerValue>()) PointerValue(
-        data, new_type, behind, ahead, location
+        data, new_type, behind, ahead, encoded_location()
     );
 }
 

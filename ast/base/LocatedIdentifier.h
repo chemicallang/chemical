@@ -15,13 +15,6 @@ struct LocatedIdentifier {
      */
     chem::string_view identifier;
 
-    /**
-     * location of the identifier
-     */
-#ifdef LSP_BUILD
-    SourceLocation location;
-#endif
-
 };
 
 constexpr LocatedIdentifier ZERO_LOC_ID(const char* str) {

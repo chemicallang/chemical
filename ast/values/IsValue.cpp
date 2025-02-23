@@ -11,7 +11,7 @@ IsValue *IsValue::copy(ASTAllocator& allocator) {
             value->copy(allocator),
             type->copy(allocator),
             is_negating,
-            location
+            encoded_location()
     );
 }
 
@@ -24,9 +24,9 @@ bool IsValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected
 Value* IsValue::evaluated_value(InterpretScope &scope) {
     const auto result = get_comp_time_result();
     if(result.has_value()) {
-        return new (scope.allocate<BoolValue>()) BoolValue(result.value(), location);
+        return new (scope.allocate<BoolValue>()) BoolValue(result.value(), encoded_location());
     } else {
-        return new (scope.allocate<NullValue>()) NullValue(location);
+        return new (scope.allocate<NullValue>()) NullValue(encoded_location());
     }
 }
 

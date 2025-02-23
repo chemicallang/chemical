@@ -67,11 +67,6 @@ public:
     ASTNode* parent_node;
 
     /**
-     * the location of the sym res value
-     */
-    SourceLocation location;
-
-    /**
      * constructor
      */
     inline SymResNode(
@@ -81,16 +76,12 @@ public:
             void* data_ptr,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::SymResNode), allocator(allocator), decl_fn(decl_fn), repl_fn(repl_fn), data_ptr(data_ptr), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::SymResNode, location), allocator(allocator), decl_fn(decl_fn), repl_fn(repl_fn), data_ptr(data_ptr), parent_node(parent_node) {
 
     }
 
     ASTNode* parent() override {
         return parent_node;
-    }
-
-    SourceLocation encoded_location() override {
-        return location;
     }
 
     void accept(Visitor *visitor) override {

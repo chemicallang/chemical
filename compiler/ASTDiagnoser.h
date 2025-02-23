@@ -51,122 +51,114 @@ public:
         location_diagnostic(message, location, severity);
     }
 
-    /**
-     * a diagnostic with severity
-     */
-    void diagnostic(std::string& err, ASTAny* node, DiagSeverity severity) {
+    template <typename NodeT>
+    inline void diagnostic(std::string& err, NodeT* node, DiagSeverity severity)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
         location_diagnostic(err, node->encoded_location(), severity);
     }
 
-    /**
-     * a diagnostic with severity
-     */
-    void diagnostic(std::string_view& err, ASTAny* node, DiagSeverity severity) {
+    template <typename NodeT>
+    inline void diagnostic(std::string_view err, NodeT* node, DiagSeverity severity)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
         location_diagnostic(err, node->encoded_location(), severity);
     }
 
-    /**
-     * an info diagnostic
-     */
-    inline void info(std::string &err, ASTAny* node) {
+    template <typename NodeT>
+    inline void info(std::string &err, NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Information);
     }
 
-    /**
-     * an info diagnostic
-     */
-    inline void info(std::string_view err, ASTAny* node) {
+    template <typename NodeT>
+    inline void info(std::string_view err, NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Information);
     }
 
-    /**
-     * an warning diagnostic
-     */
-    void warn(std::string &err, ASTAny *node) {
+    template <typename NodeT>
+    inline void warn(std::string &err, NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Warning);
     }
 
-    /**
-     * an warning diagnostic
-     */
-    void warn(std::string_view err, ASTAny *node) {
+    template <typename NodeT>
+    inline void warn(std::string_view err, NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Warning);
     }
 
-    /**
-     * an error diagnostic
-     */
-    void error(std::string &err, ASTAny* node) {
+    template <typename NodeT>
+    inline void error(std::string &err, NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Error);
     }
 
-    /**
-     * an error diagnostic
-     */
-    inline void error(std::string_view err, ASTAny* node) {
+    template <typename NodeT>
+    inline void error(std::string_view err, NodeT* node)
+    requires requires(NodeT n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Error);
     }
 
-    /**
-     * this will report two diagnostics, one at the location of first node and other
-     * at the location of other node
-     */
-    void info(std::string &err, ASTAny* node, ASTAny* other) {
+    template <typename NodeT1, typename NodeT2>
+    inline void info(std::string &err, NodeT1* node, NodeT2* other)
+    requires requires(NodeT1 n) { n.encoded_location(); } &&
+             requires(NodeT2 n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Information);
         diagnostic(err, other, DiagSeverity::Information);
     }
 
-    /**
-     * this will report two diagnostics, one at the location of first node and other
-     * at the location of other node
-     */
-    void info(std::string_view err, ASTAny* node, ASTAny* other) {
+    template <typename NodeT1, typename NodeT2>
+    inline void info(std::string_view err, NodeT1* node, NodeT2* other)
+    requires requires(NodeT1 n) { n.encoded_location(); } &&
+             requires(NodeT2 n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Information);
         diagnostic(err, other, DiagSeverity::Information);
     }
 
-    /**
-     * this will report two diagnostics, one at the location of first node and other
-     * at the location of other node
-     */
-    void warn(std::string &err, ASTAny *node, ASTAny* other) {
+    template <typename NodeT1, typename NodeT2>
+    inline void warn(std::string &err, NodeT1* node, NodeT2* other)
+    requires requires(NodeT1 n) { n.encoded_location(); } &&
+             requires(NodeT2 n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Warning);
         diagnostic(err, other, DiagSeverity::Warning);
     }
 
-    /**
-     * this will report two diagnostics, one at the location of first node and other
-     * at the location of other node
-     */
-    void warn(std::string_view err, ASTAny *node, ASTAny* other) {
+    template <typename NodeT1, typename NodeT2>
+    inline void warn(std::string_view err, NodeT1* node, NodeT2* other)
+    requires requires(NodeT1 n) { n.encoded_location(); } &&
+             requires(NodeT2 n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Warning);
         diagnostic(err, other, DiagSeverity::Warning);
     }
 
-    /**
-     * this will report two diagnostics, one at the location of first node and other
-     * at the location of other node
-     */
-    void error(std::string &err, ASTAny* node, ASTAny* other) {
+    template <typename NodeT1, typename NodeT2>
+    inline void error(std::string &err, NodeT1* node, NodeT2* other)
+    requires requires(NodeT1 n) { n.encoded_location(); } &&
+             requires(NodeT2 n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Error);
         diagnostic(err, other, DiagSeverity::Error);
     }
 
-    /**
-     * this will report two diagnostics, one at the location of first node and other
-     * at the location of other node
-     */
-    void error(std::string_view err, ASTAny* node, ASTAny* other) {
+    template <typename NodeT1, typename NodeT2>
+    inline void error(std::string_view err, NodeT1* node, NodeT2* other)
+    requires requires(NodeT1 n) { n.encoded_location(); } &&
+             requires(NodeT2 n) { n.encoded_location(); }
+    {
         diagnostic(err, node, DiagSeverity::Error);
         diagnostic(err, other, DiagSeverity::Error);
-    }
-
-    /**
-     * just prints the errors to std out
-     */
-    [[deprecated]]
-    inline void print_errors(const std::string& path) {
-        print_diagnostics(path, "Diagnostic");
     }
 
     /**

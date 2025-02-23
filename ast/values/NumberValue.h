@@ -25,7 +25,6 @@ public:
 
     uint64_t value;
     BaseType* linked_type = nullptr;
-    SourceLocation location;
 
     /**
      * @brief Construct a new IntValue object.
@@ -35,11 +34,8 @@ public:
     explicit NumberValue(
         uint64_t value,
         SourceLocation location
-    ) : IntNumValue(ValueKind::NumberValue), value(value), location(location) {}
+    ) : IntNumValue(ValueKind::NumberValue, location), value(value) {}
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
@@ -63,7 +59,7 @@ public:
     }
 
     NumberValue *copy(ASTAllocator& allocator) final {
-        auto copy = new (allocator.allocate<NumberValue>()) NumberValue(value, location);
+        auto copy = new (allocator.allocate<NumberValue>()) NumberValue(value, encoded_location());
         if(linked_type) {
             copy->linked_type = (IntNType *) linked_type->copy(allocator);
         }
@@ -88,7 +84,7 @@ public:
         if(linked_type) {
             return linked_type->copy(allocator);
         } else {
-            return new (allocator.allocate<IntType>()) IntType(location);
+            return new (allocator.allocate<IntType>()) IntType(encoded_location());
         }
     }
 

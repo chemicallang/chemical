@@ -14,7 +14,6 @@ public:
     catch_var_type catchVar;
     std::optional<Scope> catchScope;
     ASTNode* parent_node;
-    SourceLocation location;
 
     TryCatch(
             std::unique_ptr<FunctionCall> tryCall,
@@ -22,7 +21,7 @@ public:
             std::optional<Scope> catchScope,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::TryStmt), tryCall(std::move(tryCall)), catchVar(std::move(catchVar)), catchScope(std::move(catchScope)), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::TryStmt, location), tryCall(std::move(tryCall)), catchVar(std::move(catchVar)), catchScope(std::move(catchScope)), parent_node(parent_node) {
 
     }
 
@@ -30,9 +29,6 @@ public:
         parent_node = new_parent;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode *parent() final {
         return parent_node;

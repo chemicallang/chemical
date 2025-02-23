@@ -3,10 +3,6 @@
 #include "DynamicType.h"
 #include "ast/structures/InterfaceDefinition.h"
 
-DynamicType::DynamicType(BaseType* referenced, SourceLocation location) : referenced(referenced), TokenizedBaseType(location) {
-
-}
-
 bool DynamicType::link(SymbolResolver &linker) {
     return referenced->link(linker);
 }

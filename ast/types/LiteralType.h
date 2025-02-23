@@ -4,12 +4,12 @@
 
 #include "ast/base/BaseType.h"
 
-class LiteralType : public TokenizedBaseType {
+class LiteralType : public BaseType {
 public:
 
     BaseType* underlying;
 
-    explicit LiteralType(BaseType* underlying, SourceLocation location) : underlying(underlying), TokenizedBaseType(location) {
+    explicit LiteralType(BaseType* underlying, SourceLocation location) : underlying(underlying), BaseType(BaseTypeKind::Literal, location) {
         // do nothing
     }
 
@@ -23,18 +23,13 @@ public:
         visitor->visit(this);
     }
 
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Literal;
-    }
-
     bool is_same(BaseType *type) final {
         return type->kind() == BaseTypeKind::Literal && ((LiteralType*) type)->underlying->is_same(underlying);
     }
 
     [[nodiscard]]
     LiteralType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator), location);
+        return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator), encoded_location());
     }
 
 #ifdef COMPILER_BUILD

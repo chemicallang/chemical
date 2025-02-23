@@ -18,7 +18,7 @@ unsigned int EnumMember::get_default_index() {
 }
 
 BaseType* EnumMember::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(parent_node->name_view(), (ASTNode*) parent_node, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(parent_node->name_view(), (ASTNode*) parent_node, encoded_location());
 }
 
 BaseType* EnumMember::known_type() {
@@ -53,7 +53,7 @@ void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
             underlying_integer_type = inherited->underlying_integer_type;
         } else {
             linker.error("given type is not an enum or integer type", underlying_type);
-            underlying_integer_type = new (linker.ast_allocator->allocate<IntType>()) IntType(location);
+            underlying_integer_type = new (linker.ast_allocator->allocate<IntType>()) IntType(encoded_location());
         }
     }
     linker.scope_start();
@@ -69,7 +69,7 @@ EnumDeclaration* EnumDeclaration::get_inherited_enum_decl() {
 }
 
 BaseType* EnumDeclaration::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode*) this, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode*) this, encoded_location());
 }
 
 BaseType* EnumDeclaration::known_type() {

@@ -159,7 +159,7 @@ llvm::Value* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinit
 #endif
 
 BaseType* InterfaceDefinition::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), this, location);
+    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), this, encoded_location());
 }
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {

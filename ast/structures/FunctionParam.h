@@ -25,7 +25,6 @@ public:
 
     unsigned int index;
     Value* defValue;
-    SourceLocation location;
     const bool is_implicit;
 
     FunctionParam(
@@ -36,12 +35,9 @@ public:
             bool is_implicit,
             FunctionType* func_type,
             SourceLocation location
-    ) : BaseFunctionParam(name, type, func_type, ASTNodeKind::FunctionParam), index(index),
-        defValue(defValue), is_implicit(is_implicit), location(location) {}
+    ) : BaseFunctionParam(name, type, func_type, ASTNodeKind::FunctionParam, location), index(index),
+        defValue(defValue), is_implicit(is_implicit) {}
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode *parent() final {
         return (ASTNode*) func_type;

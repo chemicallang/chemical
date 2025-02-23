@@ -113,17 +113,17 @@ RepresentationVisitor::RepresentationVisitor(std::ostream &output) : output(outp
 class RepresentationVisitor;
 
 // will write a scope to visitor
-void scope(RepresentationVisitor* visitor, Scope& scope) {
-    visitor->write('{');
-    visitor->indentation_level+=1;
-    scope.accept(visitor);
-    visitor->indentation_level-=1;
-    visitor->new_line_and_indent();
-    visitor->write('}');
+void scope(RepresentationVisitor& visitor, Scope& scope) {
+    visitor.write('{');
+    visitor.indentation_level+=1;
+    visitor.visit(&scope);
+    visitor.indentation_level-=1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
 }
 
-void write_encoded(RepresentationVisitor* visitor, const chem::string_view& value) {
-    auto& out = visitor->output;
+void write_encoded(RepresentationVisitor& visitor, const chem::string_view& value) {
+    auto& out = visitor.output;
     for(char c : value) {
         write_escape_encoded(out, c);
     }
@@ -148,28 +148,28 @@ void RepresentationVisitor::translate(std::vector<ASTNode*>& nodes) {
     // writing
     for(const auto node : nodes) {
         new_line_and_indent();
-        node->accept(this);
+        visit(node);
     }
 
 }
 
 RepresentationVisitor::~RepresentationVisitor() = default;
 
-void RepresentationVisitor::visitCommon(ASTNode *node) {
+void RepresentationVisitor::VisitCommonNode(ASTNode* node) {
 #ifdef DEBUG
-    throw std::runtime_error("RepresentationVisitor::visitCommon called");
+    throw std::runtime_error("RepresentationVisitor::VisitCommonNode called");
 #endif
 }
 
-void RepresentationVisitor::visitCommonValue(Value *value) {
+void RepresentationVisitor::VisitCommonValue(Value* value) {
 #ifdef DEBUG
-    throw std::runtime_error("RepresentationVisitor::visitCommonValue called");
+    throw std::runtime_error("RepresentationVisitor::VisitCommonValue called");
 #endif
 }
 
-void RepresentationVisitor::visitCommonType(BaseType *value) {
+void RepresentationVisitor::VisitCommonType(BaseType* type) {
 #ifdef DEBUG
-    throw std::runtime_error("RepresentationVisitor::visitCommonType called");
+    throw std::runtime_error("RepresentationVisitor::VisitCommonType called");
 #endif
 }
 
@@ -197,7 +197,7 @@ void RepresentationVisitor::write(const chem::string_view& view) {
     output.write(view.data(), (std::streamsize) view.size());
 }
 
-void RepresentationVisitor::visit(VarInitStatement *init) {
+void RepresentationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if (init->is_const()) {
         write("const ");
     } else {
@@ -206,16 +206,16 @@ void RepresentationVisitor::visit(VarInitStatement *init) {
     write(init->id_view());
     if (init->type) {
         write(" : ");
-        init->type->accept(this);
+        visit(init->type);
     }
     if (init->value) {
         write(" = ");
-        init->value->accept(this);
+        visit(init->value);
     }
 }
 
-void RepresentationVisitor::visit(AssignStatement *stmt) {
-    stmt->lhs->accept(this);
+void RepresentationVisitor::VisitAssignmentStmt(AssignStatement *stmt) {
+    visit(stmt->lhs);
     if (stmt->assOp != Operation::Assignment) {
         write(' ');
         write_str(to_string(stmt->assOp));
@@ -223,48 +223,48 @@ void RepresentationVisitor::visit(AssignStatement *stmt) {
     } else {
         write(" = ");
     }
-    stmt->value->accept(this);
+    visit(stmt->value);
 }
 
-void RepresentationVisitor::visit(BreakStatement *breakStatement) {
+void RepresentationVisitor::VisitBreakStmt(BreakStatement *breakStatement) {
     write("break;");
 }
 
-void RepresentationVisitor::visit(Comment *comment) {
+void RepresentationVisitor::VisitCommentStmt(Comment *comment) {
     write("//");
     write(comment->comment);
 }
 
-void RepresentationVisitor::visit(ContinueStatement *continueStatement) {
+void RepresentationVisitor::VisitContinueStmt(ContinueStatement *continueStatement) {
     write("continue;");
 }
 
-void RepresentationVisitor::visit(ImportStatement *stmt) {
+void RepresentationVisitor::VisitImportStmt(ImportStatement *stmt) {
     write("import ");
     write('\'');
     write(stmt->filePath);
     write('\'');
 }
 
-void RepresentationVisitor::visit(ReturnStatement *returnStatement) {
+void RepresentationVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
     if(returnStatement->value) {
         write("return ");
-        returnStatement->value->accept(this);
+        visit(returnStatement->value);
         write(';');
     } else {
         write("return;");
     }
 }
 
-void RepresentationVisitor::visit(DoWhileLoop *doWhileLoop) {
+void RepresentationVisitor::VisitDoWhileLoopStmt(DoWhileLoop *doWhileLoop) {
     write("do ");
-    scope(this, doWhileLoop->body);
+    scope(*this, doWhileLoop->body);
     write(" while(");
-    doWhileLoop->condition->accept(this);
+    visit(doWhileLoop->condition);
     write(");");
 }
 
-void RepresentationVisitor::visit(EnumDeclaration *enumDecl) {
+void RepresentationVisitor::VisitEnumDecl(EnumDeclaration *enumDecl) {
     write("enum ");
     write(enumDecl->name_view());
     space();
@@ -284,27 +284,27 @@ void RepresentationVisitor::visit(EnumDeclaration *enumDecl) {
     write('}');
 }
 
-void RepresentationVisitor::visit(ForLoop *forLoop) {
+void RepresentationVisitor::VisitForLoopStmt(ForLoop *forLoop) {
     write("for(");
-    forLoop->initializer->accept(this);
-    forLoop->conditionExpr->accept(this);
+    visit(forLoop->initializer);
+    visit(forLoop->conditionExpr);
     write(';');
-    forLoop->incrementerExpr->accept(this);
+    visit(forLoop->incrementerExpr);
     write(')');
-    scope(this, forLoop->body);
+    scope(*this, forLoop->body);
 }
 
-void RepresentationVisitor::visit(FunctionParam *param) {
+void RepresentationVisitor::VisitFunctionParam(FunctionParam *param) {
     if(param->name.empty()) {
         write('-');
     } else {
         write(param->name);
     }
     write(" : ");
-    param->type->accept(this);
+    visit(param->type);
 }
 
-void RepresentationVisitor::visit(FunctionDeclaration *decl) {
+void RepresentationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     write_ws(decl->specifier());
     write("func ");
     write(decl->name_view());
@@ -312,7 +312,7 @@ void RepresentationVisitor::visit(FunctionDeclaration *decl) {
     int i = 0;
     while (i < decl->params.size()) {
         const auto &param = decl->params[i];
-        param->accept(this);
+        visit(param);
         if (i < decl->params.size() - 1) {
             write(", ");
         } else {
@@ -325,85 +325,85 @@ void RepresentationVisitor::visit(FunctionDeclaration *decl) {
     write(')');
     if(decl->returnType->kind() != BaseTypeKind::Void) {
         write(" : ");
-        decl->returnType->accept(this);
+        visit(decl->returnType);
     }
     write(' ');
     if (decl->body.has_value()) {
-        scope(this, decl->body.value());
+        scope(*this, decl->body.value());
     }
 }
 
-void RepresentationVisitor::visit(IfStatement *decl) {
+void RepresentationVisitor::VisitIfStmt(IfStatement *decl) {
     write("if(");
     nested_value = true;
-    decl->condition->accept(this);
+    visit(decl->condition);
     nested_value = false;
     write(')');
-    scope(this, decl->ifBody);
+    scope(*this, decl->ifBody);
     unsigned i = 0;
     while(i < decl->elseIfs.size()) {
         auto& elif = decl->elseIfs[i];
         write("else if(");
-        elif.first->accept(this);
+        visit(elif.first);
         write(')');
-        scope(this, elif.second);
+        scope(*this, elif.second);
         i++;
     }
     if(decl->elseBody.has_value()) {
         write(" else ");
-        scope(this, decl->elseBody.value());
+        scope(*this, decl->elseBody.value());
     }
 }
 
-void write_members(RepresentationVisitor* visitor, MembersContainer* container) {
+void write_members(RepresentationVisitor& visitor, MembersContainer* container) {
     int i = 0;
     for (const auto &field: container->variables) {
-        visitor->new_line_and_indent();
-        field.second->accept(visitor);
+        visitor.new_line_and_indent();
+        visitor.visit(field.second);
         i++;
     }
     i = 0;
-    for (const auto &field: container->functions()) {
-        visitor->new_line_and_indent();
-        field->accept(visitor);
+    for (auto &field: container->functions()) {
+        visitor.new_line_and_indent();
+        visitor.visit((ASTNode*) field);
         i++;
     }
 }
 
-void RepresentationVisitor::visit(ImplDefinition *def) {
+void RepresentationVisitor::VisitImplDecl(ImplDefinition *def) {
     write("impl ");
-    def->interface_type->accept(this);
+    visit(def->interface_type);
     space();
     if (def->struct_type) {
         write("for ");
-        def->struct_type->accept(this);
+        visit(def->struct_type);
     }
     write("{");
     indentation_level+=1;
-    write_members(this, def);
+    write_members(*this, def);
     indentation_level-=1;
     new_line_and_indent();
     write("}");
 }
 
-void RepresentationVisitor::visit(InterfaceDefinition *def) {
+void RepresentationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
     write("interface ");
     write(def->name_view());
     space();
     write("{");
     indentation_level+=1;
-    write_members(this, def);
+    write_members(*this, def);
     indentation_level-=1;
     new_line_and_indent();
     write("}");
 }
 
-void RepresentationVisitor::visit(Scope *scope) {
+void RepresentationVisitor::VisitScope(Scope *scope) {
     auto prev = top_level_node;
     top_level_node = false;
     for(const auto node : scope->nodes) {
         new_line_and_indent();
-        node->accept(this);
+        visit(node);
     }
     top_level_node = prev;
 }
@@ -424,15 +424,28 @@ bool RepresentationVisitor::write(AccessSpecifier specifier) {
     }
 }
 
+template<typename T>
+void comma_separated_accept(RepresentationVisitor& visitor, T& things) {
+    bool has_before = false;
+    for(const auto sub_type : things) {
+        if(has_before) {
+            visitor.write(", ");
+        } else {
+            has_before = true;
+        }
+        visitor.visit(sub_type);
+    }
+}
+
 void write_gen_params(RepresentationVisitor& visitor, StructDefinition* def) {
     if(!def->generic_params.empty()) {
         visitor.write('<');
-        visitor.comma_separated_accept(def->generic_params);
+        comma_separated_accept(visitor, def->generic_params);
         visitor.write('>');
     }
 }
 
-void RepresentationVisitor::visit(StructDefinition *def) {
+void RepresentationVisitor::VisitStructDecl(StructDefinition *def) {
     write_ws(def->specifier());
     write("struct ");
     write(def->name_view());
@@ -453,27 +466,27 @@ void RepresentationVisitor::visit(StructDefinition *def) {
     space();
     write("{");
     indentation_level+=1;
-    write_members(this, def);
+    write_members(*this, def);
     indentation_level-=1;
     new_line_and_indent();
     write("}");
 }
 
-void RepresentationVisitor::visit(WhileLoop *whileLoop) {
+void RepresentationVisitor::VisitWhileLoopStmt(WhileLoop *whileLoop) {
     write("while(");
-    whileLoop->condition->accept(this);
+    visit(whileLoop->condition);
     write(") ");
-    scope(this, whileLoop->body);
+    scope(*this, whileLoop->body);
 }
 
-void RepresentationVisitor::visit(UnsafeBlock *block) {
-    block->scope.accept(this);
+void RepresentationVisitor::VisitUnsafeBlock(UnsafeBlock *block) {
+    visit(&block->scope);
 }
 
-void RepresentationVisitor::visit(AccessChain *chain) {
+void RepresentationVisitor::VisitAccessChain(AccessChain *chain) {
     int i = 0;
     while (i < chain->values.size()) {
-        chain->values[i]->accept(this);
+        visit(chain->values[i]);
         if (i != chain->values.size() - 1) {
             write('.');
         }
@@ -481,29 +494,29 @@ void RepresentationVisitor::visit(AccessChain *chain) {
     }
 }
 
-void RepresentationVisitor::visit(StructMember *member) {
+void RepresentationVisitor::VisitStructMember(StructMember *member) {
     write("var ");
     write(member->name);
     write(" : ");
-    member->type->accept(this);
+    visit(member->type);
     if (member->defValue) {
         write(" = ");
-        member->defValue->accept(this);
+        visit(member->defValue);
     }
     write(';');
 }
 
-void RepresentationVisitor::visit(TypealiasStatement *stmt) {
+void RepresentationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
     write_ws(stmt->specifier());
     write("typealias ");
     write(stmt->name_view());
     write(" = ");
-    stmt->actual_type->accept(this);
+    visit(stmt->actual_type);
 }
 
-void RepresentationVisitor::visit(SwitchStatement *statement) {
+void RepresentationVisitor::VisitSwitchStmt(SwitchStatement *statement) {
     write("switch(");
-    statement->expression->accept(this);
+    visit(statement->expression);
     write(") {");
     unsigned i = 0;
     indentation_level += 1;
@@ -519,7 +532,7 @@ void RepresentationVisitor::visit(SwitchStatement *statement) {
                 if(case_ind > 0) {
                     write(" | ");
                 }
-                switch_case.first->accept(this);
+                visit(switch_case.first);
             }
             case_ind++;
         }
@@ -527,7 +540,7 @@ void RepresentationVisitor::visit(SwitchStatement *statement) {
         space();
         write('{');
         indentation_level += 1;
-        scope.accept(this);
+        visit(&scope);
         indentation_level -= 1;
         write('}');
         i++;
@@ -537,7 +550,7 @@ void RepresentationVisitor::visit(SwitchStatement *statement) {
     write('}');
 }
 
-void RepresentationVisitor::visit(Namespace *ns) {
+void RepresentationVisitor::VisitNamespaceDecl(Namespace *ns) {
     if(ns->nodes.empty()) return;
     write("namespace ");
     write(ns->name());
@@ -546,90 +559,90 @@ void RepresentationVisitor::visit(Namespace *ns) {
     indentation_level++;
     for(const auto node : ns->nodes) {
         new_line_and_indent();
-        node->accept(this);
+        visit(node);
     }
     indentation_level--;
     new_line_and_indent();
     write('}');
 }
 
-void RepresentationVisitor::visit(TryCatch *statement) {
+void RepresentationVisitor::VisitTryStmt(TryCatch *statement) {
     write("[TryCatch_UNIMPLEMENTED]");
 }
 
-void RepresentationVisitor::visit(ValueWrapperNode *node) {
-    node->value->accept(this);
+void RepresentationVisitor::VisitValueWrapper(ValueWrapperNode *node) {
+    visit(node->value);
 }
 
-void RepresentationVisitor::visit(IntValue *val) {
+void RepresentationVisitor::VisitIntValue(IntValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(BigIntValue *val) {
+void RepresentationVisitor::VisitBigIntValue(BigIntValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(LongValue *val) {
+void RepresentationVisitor::VisitLongValue(LongValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(ShortValue *val) {
+void RepresentationVisitor::VisitShortValue(ShortValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(UBigIntValue *val) {
+void RepresentationVisitor::VisitUBigIntValue(UBigIntValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(UIntValue *val) {
+void RepresentationVisitor::VisitUIntValue(UIntValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(ULongValue *val) {
+void RepresentationVisitor::VisitULongValue(ULongValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(UShortValue *val) {
+void RepresentationVisitor::VisitUShortValue(UShortValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(Int128Value *val) {
+void RepresentationVisitor::VisitInt128Value(Int128Value *val) {
     write_str(std::to_string(val->get_num_value()));
 }
 
-void RepresentationVisitor::visit(UInt128Value *val) {
+void RepresentationVisitor::VisitUInt128Value(UInt128Value *val) {
     write_str(std::to_string(val->get_num_value()));
 }
 
-void RepresentationVisitor::visit(NumberValue *numValue) {
+void RepresentationVisitor::VisitNumberValue(NumberValue *numValue) {
     write_str(std::to_string(numValue->get_num_value()));
 }
 
-void RepresentationVisitor::visit(FloatValue *val) {
+void RepresentationVisitor::VisitFloatValue(FloatValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(DoubleValue *val) {
+void RepresentationVisitor::VisitDoubleValue(DoubleValue *val) {
     write_str(std::to_string(val->value));
 }
 
-void RepresentationVisitor::visit(CharValue *val) {
+void RepresentationVisitor::VisitCharValue(CharValue *val) {
     if(!interpret_representation) write('\'');
     write_escape_encoded(output, val->value);
     if(!interpret_representation) write('\'');
 }
 
-void RepresentationVisitor::visit(StringValue *val) {
+void RepresentationVisitor::VisitStringValue(StringValue *val) {
     if(interpret_representation) {
         write(val->value);
     } else {
         write('"');
-        write_encoded(this, val->value);
+        write_encoded(*this, val->value);
         write('"');
     }
 }
 
-void RepresentationVisitor::visit(BoolValue *boolVal) {
+void RepresentationVisitor::VisitBoolValue(BoolValue *boolVal) {
     if(boolVal->value) {
         write("true");
     } else {
@@ -637,11 +650,11 @@ void RepresentationVisitor::visit(BoolValue *boolVal) {
     }
 }
 
-void RepresentationVisitor::visit(ArrayValue *arr) {
+void RepresentationVisitor::VisitArrayValue(ArrayValue *arr) {
     write('{');
     unsigned i = 0;
     while(i < arr->values.size()) {
-        arr->values[i]->accept(this);
+        visit(arr->values[i]);
         if(i != arr->values.size() - 1) {
             write(',');
         }
@@ -650,8 +663,8 @@ void RepresentationVisitor::visit(ArrayValue *arr) {
     write('}');
 }
 
-void RepresentationVisitor::visit(StructValue *val) {
-    val->refType->accept(this);
+void RepresentationVisitor::VisitStructValue(StructValue *val) {
+    visit(val->refType);
     write(" {");
     indentation_level += 1;
     unsigned i = 0;
@@ -659,7 +672,7 @@ void RepresentationVisitor::visit(StructValue *val) {
         new_line_and_indent();
         write(value.first);
         write(" : ");
-        value.second.value->accept(this);
+        visit(value.second.value);
         if (i < val->values.size() - 1) write(",");
         i++;
     }
@@ -668,45 +681,45 @@ void RepresentationVisitor::visit(StructValue *val) {
     write('}');
 }
 
-void RepresentationVisitor::visit(VariableIdentifier *identifier) {
+void RepresentationVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
     write(identifier->value);
 }
 
-void RepresentationVisitor::visit(Expression *expr) {
+void RepresentationVisitor::VisitExpression(Expression *expr) {
     write('(');
     nested_value = true;
-    expr->firstValue->accept(this);
+    visit(expr->firstValue);
     space();
     write_str(to_string(expr->operation));
     space();
-    expr->secondValue->accept(this);
+    visit(expr->secondValue);
     nested_value = false;
     write(')');
 }
 
-void RepresentationVisitor::visit(CastedValue *casted) {
+void RepresentationVisitor::VisitCastedValue(CastedValue *casted) {
     write('(');
-    casted->value->accept(this);
+    visit(casted->value);
     write(" as ");
-    casted->type->accept(this);
+    visit(casted->type);
     write(')');
 }
 
-void RepresentationVisitor::visit(AddrOfValue *casted) {
+void RepresentationVisitor::VisitAddrOfValue(AddrOfValue *casted) {
     write('&');
-    casted->value->accept(this);
+    visit(casted->value);
 }
 
-void RepresentationVisitor::visit(DereferenceValue *casted) {
+void RepresentationVisitor::VisitDereferenceValue(DereferenceValue *casted) {
     write('*');
-    casted->value->accept(this);
+    visit(casted->value);
 }
 
-void RepresentationVisitor::visit(FunctionCall *call) {
+void RepresentationVisitor::VisitFunctionCall(FunctionCall *call) {
     write('(');
     int i = 0;
     while (i < call->values.size()) {
-        call->values[i]->accept(this);
+        visit(call->values[i]);
         if (i != call->values.size() - 1) {
             write(',');
         }
@@ -715,37 +728,37 @@ void RepresentationVisitor::visit(FunctionCall *call) {
     write(')');
 }
 
-void RepresentationVisitor::visit(IndexOperator *op) {
+void RepresentationVisitor::VisitIndexOperator(IndexOperator *op) {
     unsigned i = 0;
     while(i < op->values.size()) {
         write('[');
         auto& val = op->values[i];
-        val->accept(this);
+        visit(val);
         write(']');
         i++;
     }
 }
 
-void RepresentationVisitor::visit(NegativeValue *negValue) {
+void RepresentationVisitor::VisitNegativeValue(NegativeValue *negValue) {
     write('-');
-    negValue->value->accept(this);
+    visit(negValue->value);
 }
 
-void RepresentationVisitor::visit(NotValue *notValue) {
+void RepresentationVisitor::VisitNotValue(NotValue *notValue) {
     write('!');
-    notValue->value->accept(this);
+    visit(notValue->value);
 }
 
-void RepresentationVisitor::visit(NullValue *nullValue) {
+void RepresentationVisitor::VisitNullValue(NullValue *nullValue) {
     write("null");
 }
 
-void RepresentationVisitor::visit(LambdaFunction *lamb) {
+void RepresentationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
     write('[');
     unsigned i = 0;
     unsigned size = lamb->captureList.size();
     while(i < size) {
-        lamb->captureList[i]->accept(this);
+        visit(lamb->captureList[i]);
         if(i < size - 1){
             write(',');
         }
@@ -755,113 +768,134 @@ void RepresentationVisitor::visit(LambdaFunction *lamb) {
     i = 0;
     size = lamb->params.size();
     while(i < size) {
-        lamb->params[i]->accept(this);
+        visit(lamb->params[i]);
         if(i < size - 1){
             write(',');
         }
         i++;
     }
     write(") => ");
-    scope(this, lamb->scope);
+    scope(*this, lamb->scope);
 }
 
-void RepresentationVisitor::visit(AnyType *func) {
+void RepresentationVisitor::VisitAnyType(AnyType *func) {
     write("any");
 }
 
-void RepresentationVisitor::visit(ArrayType *type) {
-    type->elem_type->accept(this);
+void RepresentationVisitor::VisitArrayType(ArrayType *type) {
+    visit(type->elem_type);
     write("[]");
 }
 
-void RepresentationVisitor::visit(BigIntType *func) {
-    write("bigint");
-}
-
-void RepresentationVisitor::visit(BoolType *func) {
+void RepresentationVisitor::VisitBoolType(BoolType *func) {
     write("bool");
 }
 
-void RepresentationVisitor::visit(CharType *func) {
-    write("char");
+void RepresentationVisitor::VisitIntNType(IntNType *type) {
+    switch(type->IntNKind()) {
+        case IntNTypeKind::Char:
+            write("char");
+            return;
+        case IntNTypeKind::Short:
+            write("short");
+            return;
+        case IntNTypeKind::Int:
+            write("int");
+            return;
+        case IntNTypeKind::Long:
+            write("long");
+            return;
+        case IntNTypeKind::BigInt:
+            write("bigint");
+            return;
+        case IntNTypeKind::Int128:
+            write("int128");
+            return;
+        case IntNTypeKind::UChar:
+            write("uchar");
+            return;
+        case IntNTypeKind::UShort:
+            write("ushort");
+            return;
+        case IntNTypeKind::UInt:
+            write("uint");
+            return;
+        case IntNTypeKind::ULong:
+            write("ulong");
+            return;
+        case IntNTypeKind::UBigInt:
+            write("ubigint");
+            return;
+        case IntNTypeKind::UInt128:
+            write("uint128");
+            return;
+    }
 }
 
-void RepresentationVisitor::visit(DoubleType *func) {
+void RepresentationVisitor::VisitDoubleType(DoubleType *func) {
     write("double");
 }
 
-void RepresentationVisitor::visit(FloatType *func) {
+void RepresentationVisitor::VisitFloatType(FloatType *func) {
     write("float");
 }
 
-void RepresentationVisitor::visit(Float128Type *type) {
+void RepresentationVisitor::VisitFloat128Type(Float128Type *type) {
     write("float128");
 }
 
-void RepresentationVisitor::visit(LongDoubleType *type) {
+void RepresentationVisitor::VisitLongDoubleType(LongDoubleType *type) {
     write("longdouble");
 }
 
-void RepresentationVisitor::visit(ComplexType *type) {
+void RepresentationVisitor::VisitComplexType(ComplexType *type) {
     write("complex ");
-    type->elem_type->accept(this);
+    visit(type->elem_type);
 }
 
-void RepresentationVisitor::visit(FunctionType *type) {
+void RepresentationVisitor::VisitFunctionType(FunctionType *type) {
     write('(');
     unsigned i = 0;
     auto size = type->params.size();
     while(i < size) {
-        type->params[i]->accept(this);
+        visit(type->params[i]);
         if(i < size - 1) {
             write(", ");
         }
         i++;
     }
     write(") => ");
-    type->returnType->accept(this);
+    visit(type->returnType);
 }
 
-void RepresentationVisitor::visit(GenericType *type) {
-    type->referenced->accept(this);
+void RepresentationVisitor::VisitGenericType(GenericType *type) {
+    visit(type->referenced);
     write('<');
-    comma_separated_accept(type->types);
+    comma_separated_accept(*this, type->types);
     write('>');
 }
 
-void RepresentationVisitor::visit(GenericTypeParameter *type_param) {
+void RepresentationVisitor::VisitGenericTypeParam(GenericTypeParameter *type_param) {
     write(type_param->identifier);
 }
 
-void RepresentationVisitor::visit(Int128Type *func) {
-    write("int128");
-}
-
-void RepresentationVisitor::visit(IntType *func) {
-    write("int");
-}
-
-void RepresentationVisitor::visit(LongType *func) {
-    write("long");
-}
-
-void RepresentationVisitor::visit(PointerType *type) {
+void RepresentationVisitor::VisitPointerType(PointerType *type) {
     write('*');
     if(type->is_mutable) {
         write("mut ");
     }
-    type->type->accept(this);
+    visit(type->type);
 }
 
-void RepresentationVisitor::visit(ReferenceType *type) {
+void RepresentationVisitor::VisitReferenceType(ReferenceType *type) {
     write('&');
     if(type->is_mutable) {
         write("mut ");
     }
-    type->type->accept(this);
+    visit(type->type);
 }
 
-void RepresentationVisitor::visit(LinkedType *type) {
+void RepresentationVisitor::VisitLinkedType(LinkedType *type) {
     const auto id = type->linked->get_located_id();
     if(id) {
         write(id->identifier);
@@ -870,99 +904,75 @@ void RepresentationVisitor::visit(LinkedType *type) {
     }
 }
 
-void RepresentationVisitor::visit(ShortType *func) {
-    write("short");
-}
-
-void RepresentationVisitor::visit(StringType *func) {
+void RepresentationVisitor::VisitStringType(StringType *func) {
     write("string");
 }
 
-void RepresentationVisitor::visit(StructType *val) {
+void RepresentationVisitor::VisitStructType(StructType *val) {
     write("[StructType_UNIMPLEMENTED]");
 }
 
-void RepresentationVisitor::visit(UBigIntType *func) {
-    write("ubigint");
-}
-
-void RepresentationVisitor::visit(UInt128Type *func) {
-    write("uint128");
-}
-
-void RepresentationVisitor::visit(UIntType *func) {
-    write("uint");
-}
-
-void RepresentationVisitor::visit(ULongType *func) {
-    write("ulong");
-}
-
-void RepresentationVisitor::visit(UShortType *func) {
-    write("ushort");
-}
-
-void RepresentationVisitor::visit(VoidType *func) {
+void RepresentationVisitor::VisitVoidType(VoidType *func) {
     write("void");
 }
 
-void RepresentationVisitor::visit(LoopBlock *block) {
+void RepresentationVisitor::VisitLoopBlock(LoopBlock *block) {
     write("loop");
-    scope(this, block->body);
+    scope(*this, block->body);
 }
 
-void RepresentationVisitor::visit(ValueNode *node) {
-    node->value->accept(this);
+void RepresentationVisitor::VisitValueNode(ValueNode *node) {
+    visit(node->value);
 }
 
-void RepresentationVisitor::visit(VariantCall *call) {
-    call->parent_val->accept(this);
+void RepresentationVisitor::VisitVariantCall(VariantCall *call) {
+    visit(call->parent_val);
     write('(');
     bool is_first = true;
     for(auto& value : call->values) {
         if(!is_first) {
             write(", ");
         }
-        value->accept(this);
+        visit(value);
         is_first = false;
     }
     write(')');
 }
 
-void RepresentationVisitor::visit(IsValue *isVal) {
-    isVal->value->accept(this);
+void RepresentationVisitor::VisitIsValue(IsValue *isVal) {
+    visit(isVal->value);
     write(" is ");
-    isVal->type->accept(this);
+    visit(isVal->type);
 }
 
-void RepresentationVisitor::visit(DestructStmt *delStmt) {
+void RepresentationVisitor::VisitDeleteStmt(DestructStmt *delStmt) {
     write("destruct");
     if(delStmt->is_array) {
         write('[');
         if(delStmt->array_value) {
-            delStmt->array_value->accept(this);
+            visit(delStmt->array_value);
         }
         write(']');
         write(' ');
-        delStmt->identifier->accept(this);
+        visit(delStmt->identifier);
     }
 }
 
-void RepresentationVisitor::visit(VariantCase *chain) {
-    chain->parent_val->accept(this);
+void RepresentationVisitor::VisitVariantCase(VariantCase *chain) {
+    visit(chain->parent_val);
     write('(');
     bool is_first = true;
     for(auto& var : chain->identifier_list) {
         if(!is_first) {
             write(", ");
         }
-        var.accept(this);
+        visit(&var);
         is_first = false;
     }
     write(')');
 }
 
-void RepresentationVisitor::visit(VariantDefinition *variant_def) {
+void RepresentationVisitor::VisitVariantDecl(VariantDefinition *variant_def) {
     write_ws(variant_def->specifier());
     write("variant ");
     write(variant_def->name_view());
@@ -970,90 +980,82 @@ void RepresentationVisitor::visit(VariantDefinition *variant_def) {
     indentation_level+=1;
     for(auto& var : variant_def->variables) {
         new_line_and_indent();
-        var.second->accept(this);
+        visit(var.second);
     }
     indentation_level-=1;
     new_line_and_indent();
     write('}');
 }
 
-void RepresentationVisitor::visit(DynamicType *type) {
+void RepresentationVisitor::VisitDynamicType(DynamicType *type) {
     write("dyn ");
-    type->referenced->accept(this);
+    visit(type->referenced);
 }
 
-void RepresentationVisitor::visit(SizeOfValue *size_of) {
+void RepresentationVisitor::VisitSizeOfValue(SizeOfValue *size_of) {
     write("sizeof(");
-    size_of->for_type->accept(this);
+    visit(size_of->for_type);
     write(')');
 }
 
-void RepresentationVisitor::visit(AlignOfValue *align_of) {
+void RepresentationVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
     write("alignof(");
-    align_of->for_type->accept(this);
+    visit(align_of->for_type);
     write(')');
 }
 
-void RepresentationVisitor::visit(RetStructParamValue *paramVal) {
+void RepresentationVisitor::VisitRetStructParamValue(RetStructParamValue *paramVal) {
     write("[UnimplementedRetStructParamValue]");
 }
 
-void RepresentationVisitor::visit(UsingStmt *usingStmt) {
+void RepresentationVisitor::VisitUsingStmt(UsingStmt *usingStmt) {
     write("using [TODO Unimplemented]");
 }
 
-void RepresentationVisitor::visit(LinkedValueType *ref_type) {
-    write("[UnimplementedLinkedValueType]");
-}
-
-void RepresentationVisitor::visit(UCharType *uchar) {
-    write("uchar");
-}
-
-void RepresentationVisitor::visit(LiteralType *type) {
+void RepresentationVisitor::VisitLiteralType(LiteralType *type) {
     write("literal");
     write('<');
-    type->underlying->accept(this);
+    visit(type->underlying);
     write('>');
 }
 
-void RepresentationVisitor::visit(UnnamedStruct *def) {
+void RepresentationVisitor::VisitUnnamedStruct(UnnamedStruct *def) {
     write("[UnimplementedUnnamedStruct]");
 }
 
-void RepresentationVisitor::visit(UnnamedUnion *def) {
+void RepresentationVisitor::VisitUnnamedUnion(UnnamedUnion *def) {
     write("[UnimplementedUnnamedUnion]");
 }
 
-void RepresentationVisitor::visit(UnionDef *def) {
+void RepresentationVisitor::VisitUnionDecl(UnionDef *def) {
     write("[UnimplementedUnionDef]");
 }
 
-void RepresentationVisitor::visit(ExtensionFunction *extensionFunc) {
+void RepresentationVisitor::VisitExtensionFunctionDecl(ExtensionFunction *extensionFunc) {
     write_ws(extensionFunc->specifier());
     write("func ");
-    extensionFunc->receiver.accept(this);
+    visit(&extensionFunc->receiver);
     write(' ');
     write("TODO");
 }
 
-void RepresentationVisitor::visit(ExtensionFuncReceiver *receiver) {
+void RepresentationVisitor::VisitExtensionFuncReceiver(ExtensionFuncReceiver *receiver) {
     write('(');
     write(receiver->name);
     write(" : ");
-    receiver->type->accept(this);
+    visit(receiver->type);
     write(')');
 }
 
-void RepresentationVisitor::visit(ThrowStatement *throwStmt) {
+void RepresentationVisitor::VisitThrowStmt(ThrowStatement *throwStmt) {
     write("throw ");
     write("TODO");
 }
 
-void RepresentationVisitor::visit(UCharValue *charVal) {
+void RepresentationVisitor::VisitUCharValue(UCharValue *charVal) {
     write(charVal->value);
 }
 
-void RepresentationVisitor::visit(UnionType *unionType) {
+void RepresentationVisitor::VisitUnionType(UnionType *unionType) {
     write("[UnimplementedUnionType]");
 }

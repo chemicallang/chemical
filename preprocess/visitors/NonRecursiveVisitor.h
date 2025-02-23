@@ -1,5 +1,7 @@
 // Copyright (c) Qinetik 2025.
 
+#pragma once
+
 #include "ast/base/BaseType.h"
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
@@ -9,151 +11,464 @@ template<typename Derived>
 class NonRecursiveVisitor {
 public:
 
-    // NODES
+    // ------- Common Functions -----
+
+    // overriding this would allow you handle all nodes
+    void VisitCommonNode(ASTNode* node) {
+        // does nothng by default
+    }
+
+    // overriding this will allow you handle all nodes
+    void VisitCommonValue(Value* value) {
+        // does nothing by default
+    }
+
+    // overriding this will allow you handle every type
+    void VisitCommonType(BaseType* type) {
+        // does nothing by default
+    }
+
+    // ------- NODES --------
 
     void VisitAssignmentStmt(AssignStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitBreakStmt(BreakStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitCommentStmt(Comment* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitContinueStmt(ContinueStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitUnreachableStmt(UnreachableStmt* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitDeleteStmt(DestructStmt* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitImportStmt(ImportStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitReturnStmt(ReturnStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitSwitchStmt(SwitchStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitThrowStmt(ThrowStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitTypealiasStmt(TypealiasStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitUsingStmt(UsingStmt* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitVarInitStmt(VarInitStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitLoopBlock(LoopBlock* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitProvideStmt(ProvideStmt* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitComptimeBlock(ComptimeBlock* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitWhileLoopStmt(WhileLoop* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitDoWhileLoopStmt(DoWhileLoop* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitSymResNode(SymResNode* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitForLoopStmt(ForLoop* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitIfStmt(IfStatement* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitTryStmt(TryCatch* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitValueNode(ValueNode* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitValueWrapper(ValueWrapperNode* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitEnumDecl(EnumDeclaration* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitEnumMember(EnumMember* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitFunctionDecl(FunctionDeclaration* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitExtensionFunctionDecl(ExtensionFunction* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitMultiFunctionNode(MultiFunctionNode* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitImplDecl(ImplDefinition* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitInterfaceDecl(InterfaceDefinition* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitInitBlock(InitBlock* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitStructDecl(StructDefinition* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitStructMember(StructMember* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitNamespaceDecl(Namespace* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitUnionDecl(UnionDef* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitVariantDecl(VariantDefinition* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitVariantMember(VariantMember* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitUnnamedStruct(UnnamedStruct* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitUnnamedUnion(UnnamedUnion* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitScope(Scope* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitUnsafeBlock(UnsafeBlock* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitFunctionParam(FunctionParam* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitExtensionFuncReceiver(ExtensionFuncReceiver* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitGenericTypeParam(GenericTypeParameter* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitVariantMemberParam(VariantMemberParam* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitCapturedVariable(CapturedVariable* node) {
-
+        VisitCommonNode((ASTNode*) node);
     }
     void VisitVariantCaseVariable(VariantCaseVariable* node) {
+        VisitCommonNode((ASTNode*) node);
+    }
 
+    // ---------- Values ----------
+
+    void VisitCharValue(CharValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitShortValue(ShortValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitIntValue(IntValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitLongValue(LongValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitBigIntValue(BigIntValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitInt128Value(Int128Value* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitUCharValue(UCharValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitUShortValue(UShortValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitUIntValue(UIntValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitULongValue(ULongValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitUBigIntValue(UBigIntValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitUInt128Value(UInt128Value* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitNumberValue(NumberValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitFloatValue(FloatValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitDoubleValue(DoubleValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitBoolValue(BoolValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitStringValue(StringValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitExpression(Expression* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitArrayValue(ArrayValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitStructValue(StructValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitLambdaFunction(LambdaFunction* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitIfValue(IfStatement* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitSwitchValue(SwitchStatement* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitLoopValue(LoopBlock* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitNewTypedValue(NewTypedValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitNewValue(NewValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitPlacementNewValue(PlacementNewValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitIncDecValue(IncDecValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitIsValue(IsValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitDereferenceValue(DereferenceValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitRetStructParamValue(RetStructParamValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitAccessChain(AccessChain* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitCastedValue(CastedValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitVariableIdentifier(VariableIdentifier* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitIndexOperator(IndexOperator* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitFunctionCall(FunctionCall* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitNegativeValue(NegativeValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitNotValue(NotValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitNullValue(NullValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitSizeOfValue(SizeOfValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitSymResValue(SymResValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitUnsafeValue(UnsafeValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitComptimeValue(ComptimeValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitAlignOfValue(AlignOfValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitVariantCall(VariantCall* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitVariantCase(VariantCase* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitAddrOfValue(AddrOfValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitPointerValue(PointerValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitBlockValue(BlockValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitWrapValue(WrapValue* value) {
+        VisitCommonValue(value);
+    }
+
+    void VisitDestructValue(DestructValue* value) {
+        VisitCommonValue(value);
+    }
+
+    // Types begin here
+
+    void VisitAnyType(AnyType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitArrayType(ArrayType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitStructType(StructType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitUnionType(UnionType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitBoolType(BoolType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitDoubleType(DoubleType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitFloatType(FloatType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitLongDoubleType(LongDoubleType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitComplexType(ComplexType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitFloat128Type(Float128Type* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitFunctionType(FunctionType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitGenericType(GenericType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitIntNType(IntNType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitPointerType(PointerType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitReferenceType(ReferenceType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitLinkedType(LinkedType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitStringType(StringType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitLiteralType(LiteralType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitDynamicType(DynamicType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitVoidType(VoidType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitExpressionType(ExpressionType* type) {
+        VisitCommonType((BaseType*) type);
+    }
+
+    void VisitUnknownType(BaseType* type) {
+        VisitCommonType((BaseType*) type);
     }
 
     void VisitNodeUnsafe(ASTNode* node) {
@@ -308,219 +623,16 @@ public:
             case ASTNodeKind::UnionType:
                 static_cast<Derived*>(this)->VisitUnionType((UnionType*) node);
                 return;
+#ifdef DEBUG
+            default:
+                throw "UNHANDLED: node kind in non recursive visitor";
+#endif
         }
     }
 
     inline void VisitNode(ASTNode* node) {
         if(node) VisitNodeUnsafe(node);
     }
-
-    // Values
-
-    void VisitCharValue(CharValue* value) {
-
-    }
-
-    void VisitShortValue(ShortValue* value) {
-
-    }
-
-    void VisitIntValue(IntValue* value) {
-
-    }
-
-    void VisitLongValue(LongValue* value) {
-
-    }
-
-    void VisitBigIntValue(BigIntValue* value) {
-
-    }
-
-    void VisitInt128Value(Int128Value* value) {
-
-    }
-
-    void VisitUCharValue(UCharValue* value) {
-
-    }
-
-    void VisitUShortValue(UShortValue* value) {
-
-    }
-
-    void VisitUIntValue(UIntValue* value) {
-
-    }
-
-    void VisitULongValue(ULongValue* value) {
-
-    }
-
-    void VisitUBigIntValue(UBigIntValue* value) {
-
-    }
-
-    void VisitUInt128Value(UInt128Value* value) {
-
-    }
-
-    void VisitNumberValue(NumberValue* value) {
-
-    }
-
-    void VisitFloatValue(FloatValue* value) {
-
-    }
-
-    void VisitDoubleValue(DoubleValue* value) {
-
-    }
-
-    void VisitBoolValue(BoolValue* value) {
-
-    }
-
-    void VisitStringValue(StringValue* value) {
-
-    }
-
-    void VisitExpression(Expression* value) {
-
-    }
-
-    void VisitArrayValue(ArrayValue* value) {
-
-    }
-
-    void VisitStructValue(StructValue* value) {
-
-    }
-
-    void VisitLambdaFunction(LambdaFunction* value) {
-
-    }
-
-    void VisitIfValue(IfStatement* value) {
-
-    }
-
-    void VisitSwitchValue(SwitchStatement* value) {
-
-    }
-
-    void VisitLoopValue(LoopBlock* value) {
-
-    }
-
-    void VisitNewTypedValue(NewTypedValue* value) {
-
-    }
-
-    void VisitNewValue(NewValue* value) {
-
-    }
-
-    void VisitPlacementNewValue(PlacementNewValue* value) {
-
-    }
-
-    void VisitIncDecValue(IncDecValue* value) {
-
-    }
-
-    void VisitIsValue(IsValue* value) {
-
-    }
-
-    void VisitDereferenceValue(DereferenceValue* value) {
-
-    }
-
-    void VisitRetStructParamValue(RetStructParamValue* value) {
-
-    }
-
-    void VisitAccessChain(AccessChain* value) {
-
-    }
-
-    void VisitCastedValue(CastedValue* value) {
-
-    }
-
-    void VisitVariableIdentifier(VariableIdentifier* value) {
-
-    }
-
-    void VisitIndexOperator(IndexOperator* value) {
-
-    }
-
-    void VisitFunctionCall(FunctionCall* value) {
-
-    }
-
-    void VisitNegativeValue(NegativeValue* value) {
-
-    }
-
-    void VisitNotValue(NotValue* value) {
-
-    }
-
-    void VisitNullValue(NullValue* value) {
-
-    }
-
-    void VisitSizeOfValue(SizeOfValue* value) {
-
-    }
-
-    void VisitSymResValue(SymResValue* value) {
-
-    }
-
-    void VisitUnsafeValue(UnsafeValue* value) {
-
-    }
-
-    void VisitComptimeValue(ComptimeValue* value) {
-
-    }
-
-    void VisitAlignOfValue(AlignOfValue* value) {
-
-    }
-
-    void VisitVariantCall(VariantCall* value) {
-
-    }
-
-    void VisitVariantCase(VariantCase* value) {
-
-    }
-
-    void VisitAddrOfValue(AddrOfValue* value) {
-
-    }
-
-    void VisitPointerValue(PointerValue* value) {
-
-    }
-
-    void VisitBlockValue(BlockValue* value) {
-
-    }
-
-    void VisitWrapValue(WrapValue* value) {
-
-    }
-
-    void VisitDestructValue(DestructValue* value) {
-
-    }
-
 
     void VisitValueUnsafe(Value* value) {
         switch(value->kind()) {
@@ -677,99 +789,15 @@ public:
             case ValueKind::DestructValue:
                 static_cast<Derived*>(this)->VisitDestructValue((DestructValue*) value);
                 return;
+#ifdef DEBUG
+            default:
+                throw "UNHANDLED: value kind in non recursive visitor";
+#endif
         }
     }
 
     void VisitValue(Value* value) {
         if(value) VisitValueUnsafe(value);
-    }
-
-    void VisitAnyType(AnyType* type) {
-
-    }
-
-    void VisitArrayType(ArrayType* type) {
-
-    }
-
-    void VisitStructType(StructType* type) {
-
-    }
-
-    void VisitUnionType(UnionType* type) {
-
-    }
-
-    void VisitBoolType(BoolType* type) {
-
-    }
-
-    void VisitDoubleType(DoubleType* type) {
-
-    }
-
-    void VisitFloatType(FloatType* type) {
-
-    }
-
-    void VisitLongDoubleType(LongDoubleType* type) {
-
-    }
-
-    void VisitComplexType(ComplexType* type) {
-
-    }
-
-    void VisitFloat128Type(Float128Type* type) {
-
-    }
-
-    void VisitFunctionType(FunctionType* type) {
-
-    }
-
-    void VisitGenericType(GenericType* type) {
-
-    }
-
-    void VisitIntNType(IntNType* type) {
-
-    }
-
-    void VisitPointerType(PointerType* type) {
-
-    }
-
-    void VisitReferenceType(ReferenceType* type) {
-
-    }
-
-    void VisitLinkedType(LinkedType* type) {
-
-    }
-
-    void VisitStringType(StringType* type) {
-
-    }
-
-    void VisitLiteralType(LiteralType* type) {
-
-    }
-
-    void VisitDynamicType(DynamicType* type) {
-
-    }
-
-    void VisitVoidType(VoidType* type) {
-
-    }
-
-    void VisitExpressionType(ExpressionType* type) {
-
-    }
-
-    void VisitUnknownType(BaseType* type) {
-
     }
 
     void VisitTypeUnsafe(BaseType* type) {
@@ -840,6 +868,10 @@ public:
             case BaseTypeKind::Unknown:
                 static_cast<Derived*>(this)->VisitUnknownType(type);
                 return;
+#ifdef DEBUG
+            default:
+                throw "UNHANDLED: type kind in non recursive visitor";
+#endif
         }
     }
 

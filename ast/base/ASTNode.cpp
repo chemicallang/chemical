@@ -51,7 +51,7 @@ LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier
 std::string ASTNode::representation() {
     std::ostringstream ostring;
     RepresentationVisitor visitor(ostring);
-    accept(&visitor);
+    visitor.visit(this);
     return ostring.str();
 }
 

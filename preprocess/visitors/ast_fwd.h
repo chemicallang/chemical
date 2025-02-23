@@ -62,8 +62,6 @@ class InitBlock;
 
 class AccessChain;
 
-class MacroValueStatement;
-
 class StructMember;
 
 class VariantCase;

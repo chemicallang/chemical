@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include "CTopLevelDeclVisitor.h"
 #include "std/chem_string_view.h"
+#include "preprocess/visitors/NonRecursiveVisitor.h"
 
 class GlobalInterpretScope;
 class ASTAllocator;
@@ -25,7 +26,7 @@ class CAfterStmtVisitor;
 class FunctionType;
 class MembersContainer;
 
-class ToCAstVisitor : public Visitor, public ASTDiagnoser {
+class ToCAstVisitor : public NonRecursiveVisitor<ToCAstVisitor>, public ASTDiagnoser {
 public:
 
     /**
@@ -50,11 +51,6 @@ public:
      * is system 64bit
      */
     bool is64Bit = true;
-
-    /**
-     * should C's sizeof operator be used instead of our sizeof macro
-     */
-    bool use_sizeof = false;
 
     /**
      * whether to output debug comments or not
@@ -230,7 +226,7 @@ public:
     /**
      * accept any node to this visitor and receive a string instead
      */
-    std::string string_accept(ASTAny* any);
+    std::string string_accept(Value* any);
 
     /**
      * used to write a string to a stream
@@ -319,30 +315,6 @@ public:
      */
     void external_declare(std::vector<ASTNode*>& nodes);
 
-    //------------------------------
-    //----------Visitors------------
-    //------------------------------
-
-    void visitCommon(ASTNode* node) final;
-
-    void visitCommonValue(Value* value) final;
-
-    void visit(VarInitStatement* init) final;
-
-    void visit(AssignStatement* assign) final;
-
-    void visit(BreakStatement* breakStatement) final;
-
-    void visit(Comment* comment) final;
-
-    void visit(ContinueStatement* continueStatement) final;
-
-    void visit(UnreachableStmt *stmt) final;
-
-    void visit(UnsafeBlock *block) final;
-
-    void visit(ImportStatement* importStatement) final;
-
     /**
      * does the return value require 'return' keyword before it
      */
@@ -353,221 +325,294 @@ public:
      */
     void return_value(Value* val, BaseType* type);
 
-    void visit(ReturnStatement* returnStatement) final;
-
-    void visit(DoWhileLoop* doWhileLoop) final;
-
-    void visit(EnumDeclaration* enumDeclaration) final;
-
-    void visit(ForLoop* forLoop) final;
-
-    void visit(FunctionParam* functionParam) final;
-
-    void visit(FunctionDeclaration* functionDeclaration) final;
-
-    void visit(ExtensionFunction *extensionFunc) final;
-
-    void visit(IfStatement* ifStatement) final;
-
-    void visit(ImplDefinition* implDefinition) final;
-
-    void visit(UnionDef *def) final;
-
-    void visit(InterfaceDefinition* interfaceDefinition) final;
-
     void visit_scope(Scope *scope, unsigned destruct_begin);
 
-    void visit(Scope* scope) final;
+    // HELPER METHODS
 
-    void visit(StructDefinition* structDefinition) final;
-
-    void visit(VariantDefinition* variant_def) final;
-
-    void visit(VariantCase *chain) final;
-
-    void visit(VariantCall *call) final;
-
-    void visit(DestructStmt *delStmt) final;
-
-    void visit(IncDecValue *value) override;
-
-    void visit(IsValue *casted) final;
-
-    void visit(NewTypedValue *value) override;
-
-    void visit(NewValue *value) override;
-
-    void visit(PlacementNewValue *value) override;
-
-    void visit(UnnamedUnion *def) final;
-
-    void visit(UnnamedStruct *def) final;
-
-    void visit(Namespace *ns) final;
-
-    void visit(WhileLoop* whileLoop) final;
-
-    void visit(LoopBlock *scope) final;
-
-    void visit(AccessChain* chain) final;
-
-    void visit(InitBlock *initBlock) final;
-
-    void visit(MacroValueStatement* statement) final;
-
-    void visit(StructMember* member) final;
-
-    void visit(ProvideStmt *provideStmt) final;
-
-    void visit(ComptimeBlock *block) final;
-
-    void visit(TypealiasStatement* statement) final;
-
-    void visit(SwitchStatement* statement) final;
-
-    void visit(TryCatch* statement) final;
-
-    void visit(UsingStmt *usingStmt) final {
-        // does nothing
+    inline void visit(ASTNode* node) noexcept {
+        VisitNodeUnsafe(node);
     }
 
-    // Value Vis final;
+    inline void visit(Value* value) noexcept {
+        VisitValueUnsafe(value);
+    }
 
-    void visit(IntValue *intVal) final;
+    inline void visit(BaseType* type) noexcept {
+        VisitTypeUnsafe(type);
+    }
 
-    void visit(BigIntValue* val) final;
+    // NODES
 
-    void visit(LongValue* val) final;
+    void VisitAssignmentStmt(AssignStatement* node);
 
-    void visit(ShortValue* val) final;
+    void VisitBreakStmt(BreakStatement* node);
 
-    void visit(UBigIntValue* val) final;
+    void VisitCommentStmt(Comment* node);
 
-    void visit(UIntValue* val) final;
+    void VisitContinueStmt(ContinueStatement* node);
 
-    void visit(ULongValue* val) final;
+    void VisitUnreachableStmt(UnreachableStmt* node);
 
-    void visit(UShortValue* val) final;
+    void VisitDeleteStmt(DestructStmt* node);
 
-    void visit(Int128Value* val) final;
+    void VisitImportStmt(ImportStatement* node);
 
-    void visit(UInt128Value* val) final;
+    void VisitReturnStmt(ReturnStatement* node);
 
-    void visit(NumberValue* boolVal) final;
+    void VisitSwitchStmt(SwitchStatement* node);
 
-    void visit(FloatValue* floatVal) final;
+    // throw statement is not supported, we may remove it
+    void VisitThrowStmt(ThrowStatement* node) {}
 
-    void visit(DoubleValue* doubleVal) final;
+    void VisitTypealiasStmt(TypealiasStatement* node);
 
-    void visit(CharValue* charVal) final;
+    void VisitUsingStmt(UsingStmt* node) {
+        // we do not handle using stmt as it's just for symbol resolution
+    }
 
-    void visit(UCharValue *charVal) final;
+    void VisitVarInitStmt(VarInitStatement* node);
 
-    void visit(StringValue* stringVal) final;
+    void VisitLoopBlock(LoopBlock* node);
 
-    void visit(BoolValue* boolVal) final;
+    void VisitProvideStmt(ProvideStmt* node);
 
-    void visit(ArrayValue* arrayVal) final;
+    void VisitComptimeBlock(ComptimeBlock* node);
 
-    void visit(StructValue* structValue) final;
+    void VisitWhileLoopStmt(WhileLoop* node);
 
-    void visit(VariableIdentifier* identifier) final;
+    void VisitDoWhileLoopStmt(DoWhileLoop* node);
 
-    void visit(SizeOfValue *size_of) final;
+    // TODO throw error when found, suppose to replaced
+    void VisitSymResNode(SymResNode* node) {}
 
-    void visit(AlignOfValue *align_of) final;
+    void VisitForLoopStmt(ForLoop* node);
 
-    void visit(Expression* expr) final;
+    void VisitIfStmt(IfStatement* node);
 
-    void visit(CastedValue* casted) final;
+    void VisitTryStmt(TryCatch* node);
 
-    void visit(AddrOfValue* casted) final;
+    void VisitValueNode(ValueNode* node);
 
-    void visit(RetStructParamValue *paramVal) final;
+    void VisitValueWrapper(ValueWrapperNode* node);
 
-    void visit(DereferenceValue* casted) final;
+    void VisitEnumDecl(EnumDeclaration* node);
 
-    void visit(FunctionCall* call) final;
+    // enum members are handled along with enum declaration
+    void VisitEnumMember(EnumMember* node) {}
 
-    void visit(IndexOperator* op) final;
+    void VisitFunctionDecl(FunctionDeclaration* node);
 
-    void visit(BlockValue *blockVal) override;
+    void VisitExtensionFunctionDecl(ExtensionFunction* node);
 
-    void visit(NegativeValue* negValue) final;
+    // TODO handle multi function node
+    void VisitMultiFunctionNode(MultiFunctionNode* node) {}
 
-    void visit(NotValue* notValue) final;
+    void VisitImplDecl(ImplDefinition* node);
 
-    void visit(ValueNode *node) final;
+    void VisitInterfaceDecl(InterfaceDefinition* node);
 
-    void visit(ValueWrapperNode *node) override;
+    void VisitInitBlock(InitBlock* node);
 
-    void visit(NullValue* nullValue) final;
+    void VisitStructDecl(StructDefinition* node);
 
-    void visit(LambdaFunction* func) final;
+    void VisitStructMember(StructMember* node);
 
-    void visit(LiteralType *func) final;
+    void VisitNamespaceDecl(Namespace* node);
 
-    void visit(AnyType* func) final;
+    void VisitUnionDecl(UnionDef* node);
 
-    void visit(ArrayType* func) final;
+    void VisitVariantDecl(VariantDefinition* node);
 
-    void visit(BigIntType* func) final;
+    // variant members are handled in variant definition
+    void VisitVariantMember(VariantMember* node) {}
 
-    void visit(BoolType* func) final;
+    void VisitUnnamedStruct(UnnamedStruct* node);
 
-    void visit(CharType* func) final;
+    void VisitUnnamedUnion(UnnamedUnion* node);
 
-    void visit(DoubleType* func) final;
+    void VisitScope(Scope* node);
 
-    void visit(FloatType* func) final;
+    void VisitUnsafeBlock(UnsafeBlock* node);
 
-    void visit(Float128Type* func) final;
+    void VisitFunctionParam(FunctionParam* node);
 
-    void visit(LongDoubleType *type) final;
+    // we handle extension func receiver when extension func is received
+    void VisitExtensionFuncReceiver(ExtensionFuncReceiver* node) {}
 
-    void visit(ComplexType *type) final;
+    // we handle generic type parameters along with function / struct
+    void VisitGenericTypeParam(GenericTypeParameter* node) {}
 
-    void visit(FunctionType* func) final;
+    // variant member paremeters are also handle along with variant decl
+    void VisitVariantMemberParam(VariantMemberParam* node) {}
 
-    void visit(GenericType* func) final;
+    // are handled in when processing lambda
+    void VisitCapturedVariable(CapturedVariable* node) {}
 
-    void visit(Int128Type* func) final;
+    // are handled in switch or related constructs
+    void VisitVariantCaseVariable(VariantCaseVariable* node) {}
 
-    void visit(IntType* func) final;
+    // Values
 
-    void visit(UCharType *uchar) final;
+    void VisitCharValue(CharValue* value);
 
-    void visit(LongType* func) final;
+    void VisitShortValue(ShortValue* value);
 
-    void visit(PointerType* func) final;
+    void VisitIntValue(IntValue* value);
 
-    void visit(ReferenceType* func) final;
+    void VisitLongValue(LongValue* value);
 
-    void visit(LinkedType* func) final;
+    void VisitBigIntValue(BigIntValue* value);
 
-    void visit(LinkedValueType *ref_type) final;
+    void VisitInt128Value(Int128Value* value);
 
-    void visit(DynamicType *type) final;
+    void VisitUCharValue(UCharValue* value);
 
-    void visit(ShortType* func) final;
+    void VisitUShortValue(UShortValue* value);
 
-    void visit(StringType* func) final;
+    void VisitUIntValue(UIntValue* value);
 
-    void visit(StructType* func) final;
+    void VisitULongValue(ULongValue* value);
 
-    void visit(UnionType *unionType) final;
+    void VisitUBigIntValue(UBigIntValue* value);
 
-    void visit(UBigIntType* func) final;
+    void VisitUInt128Value(UInt128Value* value);
 
-    void visit(UInt128Type* func) final;
+    void VisitNumberValue(NumberValue* value);
 
-    void visit(UIntType* func) final;
+    void VisitFloatValue(FloatValue* value);
 
-    void visit(ULongType* func) final;
+    void VisitDoubleValue(DoubleValue* value);
 
-    void visit(UShortType* func) final;
+    void VisitBoolValue(BoolValue* value);
 
-    void visit(VoidType* func) final;
+    void VisitStringValue(StringValue* value);
+
+    void VisitExpression(Expression* value);
+
+    void VisitArrayValue(ArrayValue* value);
+
+    void VisitStructValue(StructValue* value);
+
+    void VisitLambdaFunction(LambdaFunction* value);
+
+    void VisitIfValue(IfStatement* value) {
+        VisitIfStmt(value);
+    }
+
+    void VisitSwitchValue(SwitchStatement* value) {
+        VisitSwitchStmt(value);
+    }
+
+    void VisitLoopValue(LoopBlock* value) {
+        VisitLoopBlock(value);
+    }
+
+    void VisitNewTypedValue(NewTypedValue* value);
+
+    void VisitNewValue(NewValue* value);
+
+    void VisitPlacementNewValue(PlacementNewValue* value);
+
+    void VisitIncDecValue(IncDecValue* value);
+
+    void VisitIsValue(IsValue* value);
+
+    void VisitDereferenceValue(DereferenceValue* value);
+
+    void VisitRetStructParamValue(RetStructParamValue* value);
+
+    void VisitAccessChain(AccessChain* value);
+
+    void VisitCastedValue(CastedValue* value);
+
+    void VisitVariableIdentifier(VariableIdentifier* value);
+
+    void VisitIndexOperator(IndexOperator* value);
+
+    void VisitFunctionCall(FunctionCall* value);
+
+    void VisitNegativeValue(NegativeValue* value);
+
+    void VisitNotValue(NotValue* value);
+
+    void VisitNullValue(NullValue* value);
+
+    void VisitSizeOfValue(SizeOfValue* value);
+
+    // TODO throw error as this gets replaced
+    void VisitSymResValue(SymResValue* value) {}
+
+    // TODO handle unsafe value
+    void VisitUnsafeValue(UnsafeValue* value) {}
+
+    // comptime values are replaced
+    // throw error if it exists
+    void VisitComptimeValue(ComptimeValue* value) {}
+
+    void VisitAlignOfValue(AlignOfValue* value);
+
+    void VisitVariantCall(VariantCall* value);
+
+    void VisitVariantCase(VariantCase* value);
+
+    void VisitAddrOfValue(AddrOfValue* value);
+
+    // TODO handle pointer value
+    void VisitPointerValue(PointerValue* value) {}
+
+    void VisitBlockValue(BlockValue* value);
+
+    // TODO handle wrap value
+    void VisitWrapValue(WrapValue* value) {}
+
+    // destruct value is just used for interpretation
+    // TODO throw error if it exists
+    void VisitDestructValue(DestructValue* value) {}
+
+    // TYPES
+
+    void VisitAnyType(AnyType* type);
+
+    void VisitArrayType(ArrayType* type);
+
+    void VisitStructType(StructType* type);
+
+    void VisitUnionType(UnionType* type);
+
+    void VisitBoolType(BoolType* type);
+
+    void VisitDoubleType(DoubleType* type);
+
+    void VisitFloatType(FloatType* type);
+
+    void VisitLongDoubleType(LongDoubleType* type);
+
+    void VisitComplexType(ComplexType* type);
+
+    void VisitFloat128Type(Float128Type* type);
+
+    void VisitFunctionType(FunctionType* type);
+
+    void VisitGenericType(GenericType* type);
+
+    void VisitIntNType(IntNType* type);
+
+    void VisitPointerType(PointerType* type);
+
+    void VisitReferenceType(ReferenceType* type);
+
+    void VisitLinkedType(LinkedType* type);
+
+    void VisitStringType(StringType* type);
+
+    void VisitLiteralType(LiteralType* type);
+
+    void VisitDynamicType(DynamicType* type);
+
+    void VisitVoidType(VoidType* type);
+
+    // TODO expression type
+    void VisitExpressionType(ExpressionType* type) {}
 
     ~ToCAstVisitor();
 

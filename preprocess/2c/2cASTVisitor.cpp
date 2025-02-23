@@ -150,7 +150,7 @@ void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
     }
     // writing
     for(const auto node : nodes) {
-        node->accept(this);
+        visit(node);
     }
 }
 
@@ -170,7 +170,7 @@ class ToCAstVisitor;
 // will write a scope to visitor
 void scope_no_parens(ToCAstVisitor& visitor, Scope& scope) {
     visitor.indentation_level+=1;
-    scope.accept(&visitor);
+    visitor.visit(&scope);
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
 }
@@ -232,7 +232,7 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_vie
     if(type->function_type() != nullptr && !type->function_type()->isCapturing()) {
         func_type_with_id(visitor, type->function_type(), id);
     } else {
-        type->accept(&visitor);
+        visitor.visit(type);
         if(!id.empty() && id != "_") {
             visitor.space();
             visitor.write(id);
@@ -251,7 +251,7 @@ void param_type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::stri
 }
 
 void write_struct_return_param(ToCAstVisitor& visitor, FunctionType* decl) {
-    decl->returnType->accept(&visitor);
+    visitor.visit(decl->returnType);
     visitor.write("* ");
     const auto func = decl->as_function();
     if(func && func->is_constructor_fn()) {
@@ -271,7 +271,7 @@ void write_struct_def_value_call(ToCAstVisitor& visitor, StructDefinition* def) 
 }
 
 void extension_func_param(ToCAstVisitor& visitor, ExtensionFunction* extension) {
-    extension->receiver.type->accept(&visitor);
+    visitor.visit(extension->receiver.type);
     visitor.space();
     visitor.write(extension->receiver.name);
 }
@@ -317,7 +317,7 @@ void accept_func_return(ToCAstVisitor& visitor, BaseType* type) {
     if(visitor.pass_structs_to_initialize && type->isStructLikeType()) {
         visitor.write("void");
     } else {
-        type->accept(&visitor);
+        visitor.visit(type);
     }
 }
 
@@ -507,7 +507,7 @@ bool implicit_mutate_value_for_dyn_obj(ToCAstVisitor& visitor, BaseType* type, V
 
 bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value* value) {
     return implicit_mutate_value_for_dyn_obj(visitor, type, value, [](ToCAstVisitor& visitor, Value* value) -> void {
-        value->accept(&visitor);
+        visitor.visit(value);
     });
 }
 
@@ -520,11 +520,11 @@ bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, ReferenceType*
     if(Value::isValueKindRValue(val->val_kind())) {
         const auto temp_var = visitor.get_local_temp_var_name();
         visitor.write("({ ");
-        ref_type->type->accept(&visitor);
+        visitor.visit(ref_type->type);
         visitor.write(' ');
         visitor.write_str(temp_var);
         visitor.write(" = ");
-        val->accept(&visitor);
+        visitor.visit(val);
         visitor.write("; &");
         visitor.write_str(temp_var);
         visitor.write("; })");
@@ -557,7 +557,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
     }
     // mutating value
     if(!implicit_mutate_value_default(*this, type, value)) {
-        value->accept(this);
+        visit(value);
     }
 }
 
@@ -689,7 +689,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             visitor.write("({ ");
             temp_struct_name = visitor.get_local_temp_var_name();
             auto t = val->create_type(visitor.allocator);
-            t->accept(&visitor);
+            visitor.visit(t);
             visitor.write(' ');
             visitor.write(temp_struct_name);
             visitor.write(" = ");
@@ -710,11 +710,11 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             if(allocated != visitor.local_allocated.end()) {
                 visitor.write(allocated->second);
             } else if(accept_value) {
-                val->accept(&visitor);
+                visitor.visit(val);
             }
         } else if(!val->reference() && base_type->pure_type()->kind() == BaseTypeKind::Array) {
             visitor.write('(');
-            base_type->accept(&visitor);
+            visitor.visit(base_type);
             visitor.write("[]");
             visitor.write(')');
             visitor.accept_mutating_value_explicit(param->type, val, false);
@@ -741,7 +741,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
                 } else {
                     has_value_before = true;
                 }
-                param->defValue->accept(&visitor);
+                visitor.visit(param->defValue);
             } else if(!func_type->isInVarArgs(i)) {
                 visitor.error("function param '" + param->name.str() + "' doesn't have a default value, however no argument exists for it", call);
             }
@@ -839,12 +839,12 @@ void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* c
     if(!grandpa->is_pointer() && !is_value_passed_pointer_like(grandpa)) {
         visitor.write('&');
     }
-    grandpa->accept(&visitor);
+    visitor.visit(grandpa);
 }
 
 bool write_self_arg_bool_no_pointer(ToCAstVisitor& visitor, FunctionType* func_type, ChainValue* grandpa, FunctionCall* call) {
     if(func_type->has_self_param()) {
-        grandpa->accept(&visitor);
+        visitor.visit(grandpa);
         return true;
     } else {
         return false;
@@ -992,7 +992,7 @@ void value_init_default(ToCAstVisitor& visitor, const chem::string_view& identif
                 func_ptr_array_type(visitor, arr_type, elem_type, identifier);
                 write_id = false;
             } else {
-                type->accept(&visitor);
+                visitor.visit(type);
             }
             break;
         }
@@ -1002,12 +1002,12 @@ void value_init_default(ToCAstVisitor& visitor, const chem::string_view& identif
                 func_type_with_id(visitor, func_type, identifier);
                 write_id = false;
             } else {
-                type->accept(&visitor);
+                visitor.visit(type);
             }
             break;
         }
         default:
-            type->accept(&visitor);
+            visitor.visit(type);
             break;
     }
     visitor.space();
@@ -1021,7 +1021,7 @@ void value_alloca_store(ToCAstVisitor& visitor, const chem::string_view& identif
         if(value_kind == ValueKind::IfValue || value_kind == ValueKind::SwitchValue || value_kind == ValueKind::LoopValue) {
             value_alloca(visitor, identifier, type, value);
             visitor.new_line_and_indent();
-            value->accept(&visitor);
+            visitor.visit(value);
             return;
         }
 //        auto value_chain = value->as_access_chain_unsafe();
@@ -1063,7 +1063,7 @@ void allocate_struct_by_name(ToCAstVisitor& visitor, ASTNode* def, const chem::s
     allocate_struct_by_name_no_init(visitor, def, name);
     if(initializer) {
         visitor.write(" = ");
-        initializer->accept(&visitor);
+        visitor.visit(initializer);
     }
     visitor.write(';');
     visitor.new_line_and_indent();
@@ -1075,7 +1075,7 @@ void allocate_fat_pointer_by_name(ToCAstVisitor& visitor, const chem::string_vie
     visitor.write(name);
     if(initializer) {
         visitor.write(" = ");
-        initializer->accept(&visitor);
+        visitor.visit(initializer);
     }
     visitor.write(';');
     visitor.new_line_and_indent();
@@ -1167,7 +1167,7 @@ void moved_value_call(ToCAstVisitor& visitor, Value* value) {
         visitor.write(", ");
     }
     visitor.write('&');
-    value->accept(&visitor);
+    visitor.visit(value);
     visitor.write(')');
     visitor.write(';');
     visitor.local_allocated[value] = struct_name;
@@ -1424,7 +1424,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                     if(node && ASTNode::isStoredStructType(node->kind())) {
                         visitor.write('&');
                     }
-                    found->second->accept(&visitor);
+                    visitor.visit(found->second);
                     has_comma_before = false;
                 } else {
                     const auto between = visitor.current_func_type->implicit_param_for(param->name);
@@ -1739,14 +1739,14 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
         func_container_name(visitor, destr);
         visitor.write('(');
         visitor.write('&');
-        assign->lhs->accept(&visitor);
+        visitor.visit(assign->lhs);
         visitor.write(')');
         visitor.write(';');
         visitor.new_line_and_indent();
     }
     const auto prev_nested = visitor.nested_value;
     visitor.nested_value = true;
-    assign->lhs->accept(&visitor);
+    visitor.visit(assign->lhs);
     visitor.nested_value = prev_nested;
     visitor.write(' ');
     if(assign->assOp != Operation::Assignment) {
@@ -1933,7 +1933,7 @@ void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, V
     visitor.write("for(int ");
     visitor.write(arr_val_itr_name);
     visitor.write(" = ");
-    array_size->accept(&visitor);
+    visitor.visit(array_size);
     visitor.write(" - 1");
     visitor.write("; ");
     visitor.write(arr_val_itr_name);
@@ -2203,9 +2203,9 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
             visitor.new_line_and_indent();
             if(var->capture_by_ref) {
                 PointerType pointer(var->linked->create_value_type(visitor.allocator), ZERO_LOC);
-                pointer.accept(&visitor);
+                visitor.visit(&pointer);
             } else {
-                var->linked->create_value_type(visitor.allocator)->accept(&visitor);
+                visitor.visit(var->linked->create_value_type(visitor.allocator));
             }
             visitor.space();
             visitor.write(var->name);
@@ -2224,7 +2224,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     if(lamb->isCapturing()) {
         auto self_param = lamb->get_self_param();
         if(self_param) {
-            self_param->accept(&visitor);
+            visitor.visit(self_param);
             visitor.write(", ");
             i++;
         }
@@ -2590,7 +2590,7 @@ void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
         const auto func_type = stmt->actual_type->as_function_type_unsafe();
         func_type_with_id(visitor, func_type, stmt->name_view());
     } else {
-        stmt->actual_type->accept(&visitor);
+        visitor.visit(stmt->actual_type);
         write(' ');
         node_parent_name(visitor, stmt);
         write(stmt->name_view());
@@ -2607,7 +2607,7 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     visitor.indentation_level+=1;
     for(auto& var : def->variables) {
         visitor.new_line_and_indent();
-        var.second->accept(&visitor);
+        visitor.visit(var.second);
     }
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
@@ -2651,7 +2651,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
     }
     for(auto& var : def->variables) {
         visitor.new_line_and_indent();
-        var.second->accept(&visitor);
+        visitor.visit(var.second);
     }
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
@@ -2756,7 +2756,7 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
         visitor.indentation_level += 1;
         for(auto& value : member->values) {
             visitor.new_line_and_indent();
-            value.second->type->accept(&visitor);
+            visitor.visit(value.second->type);
             visitor.space();
             visitor.write(value.second->name);
             visitor.write(';');
@@ -2989,7 +2989,7 @@ void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
     if(is_top_level_node) return;
     visitor.new_line_and_indent();
     write("typedef ");
-    stmt->actual_type->accept(&visitor);
+    visitor.visit(stmt->actual_type);
     write(' ');
     std::string alias = "__chalias_";
     alias += std::to_string(random(100,999)) + "_";
@@ -3061,18 +3061,6 @@ void ToCAstVisitor::reset() {
 
 ToCAstVisitor::~ToCAstVisitor() = default;
 
-void ToCAstVisitor::visitCommon(ASTNode *node) {
-#ifdef DEBUG
-    throw std::runtime_error("visitor common node called in 2c ASTVisitor");
-#endif
-}
-
-void ToCAstVisitor::visitCommonValue(Value *value) {
-#ifdef DEBUG
-    throw std::runtime_error("visitor common value called in 2c ASTVisitor");
-#endif
-}
-
 void ToCAstVisitor::write(char value) {
     output->put(value);
 }
@@ -3112,22 +3100,22 @@ void ToCAstVisitor::write(const chem::string_view& str) {
     output->write(str.data(), (std::streamsize) str.size());
 }
 
-std::string ToCAstVisitor::string_accept(ASTAny* any) {
+std::string ToCAstVisitor::string_accept(Value* any) {
     std::ostringstream stream;
     auto curr_out = output;
     output = &stream;
-    any->accept(this);
+    visit(any);
     output = curr_out;
     return stream.str();
 }
 
-void ToCAstVisitor::visit(VarInitStatement *init) {
+void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(init->is_top_level()) return;
     var_init(*this, init, false);
     init->accept(destructor.get());
 }
 
-void ToCAstVisitor::visit(AssignStatement *assign) {
+void ToCAstVisitor::VisitAssignmentStmt(AssignStatement *assign) {
     assign_statement(*this, assign);
     write(';');
 }
@@ -3139,7 +3127,7 @@ void write_assignable(ToCAstVisitor& visitor, ASTNode* node) {
             visitor.write(node->as_var_init()->name_view());
             return;
         case ASTNodeKind::AssignmentStmt:
-            node->as_assignment()->lhs->accept(&visitor);
+            visitor.visit(node->as_assignment()->lhs);
             return;
         default:
             const auto p = node->parent();
@@ -3152,7 +3140,7 @@ void write_assignable(ToCAstVisitor& visitor, ASTNode* node) {
     }
 }
 
-void ToCAstVisitor::visit(BreakStatement *node) {
+void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
     if(node->value) {
         auto val_kind = node->value->val_kind();
         if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
@@ -3161,7 +3149,7 @@ void ToCAstVisitor::visit(BreakStatement *node) {
         }
         auto prev = nested_value;
         nested_value = true;
-        node->value->accept(this);
+        visit(node->value);
         nested_value = prev;
         write(';');
         new_line_and_indent();
@@ -3169,23 +3157,23 @@ void ToCAstVisitor::visit(BreakStatement *node) {
     write("break;");
 }
 
-void ToCAstVisitor::visit(Comment *comment) {
+void ToCAstVisitor::VisitCommentStmt(Comment *comment) {
     // leave comments alone
 }
 
-void ToCAstVisitor::visit(ContinueStatement *continueStatement) {
+void ToCAstVisitor::VisitContinueStmt(ContinueStatement *continueStatement) {
     write("continue;");
 }
 
-void ToCAstVisitor::visit(UnreachableStmt *stmt) {
+void ToCAstVisitor::VisitUnreachableStmt(UnreachableStmt *stmt) {
     write("unreachable();");
 }
 
-void ToCAstVisitor::visit(UnsafeBlock *block) {
-    block->scope.accept(this);
+void ToCAstVisitor::VisitUnsafeBlock(UnsafeBlock *block) {
+    visit(&block->scope);
 }
 
-void ToCAstVisitor::visit(ImportStatement *importStatement) {
+void ToCAstVisitor::VisitImportStmt(ImportStatement *importStatement) {
     // leave imports alone
 }
 
@@ -3193,7 +3181,7 @@ void struct_initialize_inside_braces(ToCAstVisitor& visitor, StructValue* val) {
     visitor.write("(struct ");
     visitor.write(val->linked_name_view());
     visitor.write(")");
-    val->accept(&visitor);
+    visitor.visit(val);
 }
 
 bool ToCAstVisitor::requires_return(Value* val) {
@@ -3258,14 +3246,14 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
             if(is_value_passed_pointer_like(val)) {
                 write('*');
             }
-            val->accept(this);
+            visit(val);
         }
     } else {
         accept_mutating_value_explicit(type, val, false);
     }
 }
 
-void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
+void ToCAstVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
     const auto val = returnStatement->value;
     const auto return_type = returnStatement->func_type->returnType;
     std::string saved_into_temp_var;
@@ -3278,7 +3266,7 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
         saved_into_temp_var = "__chx_ret_val_res";
         write("const ");
         auto type = val->create_type(allocator);
-        type->accept(this);
+        visit(type);
         space();
         write(saved_into_temp_var);
         write(" = ");
@@ -3321,36 +3309,36 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
     }
 }
 
-void ToCAstVisitor::visit(DoWhileLoop *doWhileLoop) {
+void ToCAstVisitor::VisitDoWhileLoopStmt(DoWhileLoop *doWhileLoop) {
     write("do ");
     scope(*this, doWhileLoop->body);
     write(" while(");
-    doWhileLoop->condition->accept(this);
+    visit(doWhileLoop->condition);
     write(");");
 }
 
-void ToCAstVisitor::visit(EnumDeclaration *enumDecl) {
+void ToCAstVisitor::VisitEnumDecl(EnumDeclaration *enumDecl) {
 
 }
 
-void ToCAstVisitor::visit(ForLoop *forLoop) {
+void ToCAstVisitor::VisitForLoopStmt(ForLoop *forLoop) {
     write("for(");
-    forLoop->initializer->accept(this);
-    forLoop->conditionExpr->accept(this);
+    visit(forLoop->initializer);
+    visit(forLoop->conditionExpr);
     write(';');
     const auto inc_kind = forLoop->incrementerExpr->kind();
     if(inc_kind == ASTNodeKind::AssignmentStmt) {
         assign_statement(*this, forLoop->incrementerExpr->as_assignment_unsafe());
     } else if(inc_kind == ASTNodeKind::ValueWrapper) {
-        forLoop->incrementerExpr->as_value_wrapper_unsafe()->value->accept(this);
+        visit(forLoop->incrementerExpr->as_value_wrapper_unsafe()->value);
     } else {
-        forLoop->incrementerExpr->accept(this);
+        visit(forLoop->incrementerExpr);
     }
     write(')');
     scope(*this, forLoop->body);
 }
 
-void ToCAstVisitor::visit(FunctionParam *param) {
+void ToCAstVisitor::VisitFunctionParam(FunctionParam *param) {
     param_type_with_id(*this, param->type, param->name);
 }
 
@@ -3734,7 +3722,7 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
         visitor.write("this->");
         visitor.write(var.first);
         visitor.write(" = ");
-        defValue->accept(&visitor);
+        visitor.visit(defValue);
         visitor.write(';');
     }
 }
@@ -3859,27 +3847,27 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     visitor.current_func_type = prev_func_decl;
 }
 
-void ToCAstVisitor::visit(FunctionDeclaration *decl) {
+void ToCAstVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     func_decl_with_name(*this, decl);
 }
 
-void ToCAstVisitor::visit(ExtensionFunction *decl) {
+void ToCAstVisitor::VisitExtensionFunctionDecl(ExtensionFunction *decl) {
     func_decl_with_name(*this, decl);
 }
 
-void ToCAstVisitor::visit(IfStatement *decl) {
+void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
     // generating code for compile time if statements
     if(decl->computed_scope.has_value()) {
         auto scope = decl->computed_scope.value();
         if(scope) {
-            scope->accept(this);
+            visit(scope);
         }
         return;
     }
     // generating code for normal if statements
     write("if(");
     nested_value = true;
-    decl->condition->accept(this);
+    visit(decl->condition);
     nested_value = false;
     write(')');
     scope(*this, decl->ifBody);
@@ -3887,7 +3875,7 @@ void ToCAstVisitor::visit(IfStatement *decl) {
     while(i < decl->elseIfs.size()) {
         auto& elif = decl->elseIfs[i];
         write("else if(");
-        elif.first->accept(this);
+        visit(elif.first);
         write(')');
         scope(*this, elif.second);
         i++;
@@ -3898,7 +3886,7 @@ void ToCAstVisitor::visit(IfStatement *decl) {
     }
 }
 
-void ToCAstVisitor::visit(ImplDefinition *def) {
+void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     const auto overrides = def->struct_type != nullptr;
     const auto linked_interface = def->interface_type->linked_node()->as_interface_def();
     const auto linked_struct = def->struct_type ? def->struct_type->linked_struct_def() : nullptr;
@@ -3907,7 +3895,7 @@ void ToCAstVisitor::visit(ImplDefinition *def) {
     }
 }
 
-void ToCAstVisitor::visit(InterfaceDefinition *def) {
+void ToCAstVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
 
 }
 
@@ -3917,7 +3905,7 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     for(const auto node : scope->nodes) {
         new_line_and_indent();
         node->accept(before_stmt.get());
-        node->accept(this);
+        visit(node);
         node->accept(after_stmt.get());
     }
     if(destructor->destroy_current_scope) {
@@ -3930,17 +3918,17 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     top_level_node = prev;
 }
 
-void ToCAstVisitor::visit(Scope *scope) {
+void ToCAstVisitor::VisitScope(Scope *scope) {
     visit_scope(scope, destructor->destruct_jobs.size());
 }
 
-void ToCAstVisitor::visit(UnnamedUnion *def) {
+void ToCAstVisitor::VisitUnnamedUnion(UnnamedUnion *def) {
     write("union ");
     write('{');
     indentation_level+=1;
     for(auto& var : def->variables) {
         new_line_and_indent();
-        var.second->accept(this);
+        visit(var.second);
     }
     indentation_level-=1;
     new_line_and_indent();
@@ -3950,13 +3938,13 @@ void ToCAstVisitor::visit(UnnamedUnion *def) {
     write(';');
 }
 
-void ToCAstVisitor::visit(UnnamedStruct *def) {
+void ToCAstVisitor::VisitUnnamedStruct(UnnamedStruct *def) {
     write("struct ");
     write('{');
     indentation_level+=1;
     for(auto& var : def->variables) {
         new_line_and_indent();
-        var.second->accept(this);
+        visit(var.second);
     }
     indentation_level-=1;
     new_line_and_indent();
@@ -3988,7 +3976,7 @@ static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition*
     }
 }
 
-void ToCAstVisitor::visit(StructDefinition *def) {
+void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
     auto prev_members_container = current_members_container;
     current_members_container = def;
     for (auto& inherits: def->inherited) {
@@ -4018,7 +4006,7 @@ void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def
     }
 }
 
-void ToCAstVisitor::visit(VariantDefinition* def) {
+void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
     if(def->generic_params.empty()) {
         if(def->iterations_body_done == 0) {
             generate_contained_functions(*this, def);
@@ -4030,19 +4018,19 @@ void ToCAstVisitor::visit(VariantDefinition* def) {
 
 }
 
-void ToCAstVisitor::visit(UnionDef *def) {
+void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
     for(auto& func : def->functions()) {
         contained_func_decl(*this, func, false, def);
     }
 }
 
-void ToCAstVisitor::visit(Namespace *ns) {
+void ToCAstVisitor::VisitNamespaceDecl(Namespace *ns) {
     for(const auto node : ns->nodes) {
-        node->accept(this);
+        visit(node);
     }
 }
 
-void ToCAstVisitor::visit(DestructStmt *stmt) {
+void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
 
     bool new_line_before = true;
 
@@ -4065,7 +4053,7 @@ void ToCAstVisitor::visit(DestructStmt *stmt) {
     }
 }
 
-void ToCAstVisitor::visit(IsValue *isValue) {
+void ToCAstVisitor::VisitIsValue(IsValue *isValue) {
     bool result = false;
     auto comp_time = isValue->get_comp_time_result();
     if(comp_time.has_value()) {
@@ -4074,28 +4062,28 @@ void ToCAstVisitor::visit(IsValue *isValue) {
     write(result ? '1' : '0');
 }
 
-void ToCAstVisitor::visit(NewTypedValue *value) {
+void ToCAstVisitor::VisitNewTypedValue(NewTypedValue *value) {
     write("malloc(sizeof(");
-    value->type->accept(this);
+    visit(value->type);
     write("))");
 }
 
-void ToCAstVisitor::visit(NewValue *value) {
+void ToCAstVisitor::VisitNewValue(NewValue *value) {
     const auto value_kind = value->value->val_kind();
     if(value_kind == ValueKind::StructValue || value_kind == ValueKind::AccessChain) {
         auto value_type = value->value->create_type(allocator);
         write("({ ");
-        value_type->accept(this);
+        visit(value_type);
         write("* ");
         auto temp_name = get_local_temp_var_name();
         write(temp_name);
         write(" = ");
         write("malloc(sizeof(");
-        value_type->accept(this);
+        visit(value_type);
         write(")); *");
         write(temp_name);
         write(" = ");
-        value->value->accept(this);
+        visit(value->value);
         write("; ");
         write(temp_name);
         write("; })");
@@ -4104,21 +4092,21 @@ void ToCAstVisitor::visit(NewValue *value) {
     }
 }
 
-void ToCAstVisitor::visit(PlacementNewValue *value) {
+void ToCAstVisitor::VisitPlacementNewValue(PlacementNewValue *value) {
     const auto value_kind = value->value->val_kind();
     if(value_kind == ValueKind::StructValue || value_kind == ValueKind::AccessChain) {
         auto value_type = value->value->create_type(allocator);
         write("({ ");
-        value_type->accept(this);
+        visit(value_type);
         write("* ");
         auto temp_name = get_local_temp_var_name();
         write(temp_name);
         write(" = ");
-        value->pointer->accept(this);
+        visit(value->pointer);
         write("; *");
         write(temp_name);
         write(" = ");
-        value->value->accept(this);
+        visit(value->value);
         write("; ");
         write(temp_name);
         write("; })");
@@ -4127,24 +4115,24 @@ void ToCAstVisitor::visit(PlacementNewValue *value) {
     }
 }
 
-void ToCAstVisitor::visit(WhileLoop *whileLoop) {
+void ToCAstVisitor::VisitWhileLoopStmt(WhileLoop *whileLoop) {
     write("while(");
-    whileLoop->condition->accept(this);
+    visit(whileLoop->condition);
     write(") ");
     scope(*this, whileLoop->body);
 }
 
-void ToCAstVisitor::visit(LoopBlock *loop) {
+void ToCAstVisitor::VisitLoopBlock(LoopBlock *loop) {
     write("while(1)");
     scope(*this, loop->body);
 }
 
-void ToCAstVisitor::visit(VariantCase *variant_case) {
+void ToCAstVisitor::VisitVariantCase(VariantCase *variant_case) {
     const auto member = variant_case->parent_val->linked_node()->as_variant_member();
     *output << member->parent_node->direct_child_index(member->name);
 }
 
-void ToCAstVisitor::visit(VariantCall *call) {
+void ToCAstVisitor::VisitVariantCall(VariantCall *call) {
     auto found = local_allocated.find(call);
     if(found == local_allocated.end()) {
         write("[VariantCallNotAllocated]");
@@ -4157,7 +4145,7 @@ inline bool isLoadableReference(BaseType* type) {
     return type->getLoadableReferredType() != nullptr;
 }
 
-void ToCAstVisitor::visit(IncDecValue *value) {
+void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
     if(!value->post) {
         write(value->increment ? "++" : "--");
     }
@@ -4167,14 +4155,14 @@ void ToCAstVisitor::visit(IncDecValue *value) {
             write('(');
         }
         write('*');
-        value->value->accept(this);
+        visit(value->value);
         if(value->post) {
             write(')');
             write(value->increment ? "++" : "--");
         }
         return;
     }
-    value->value->accept(this);
+    visit(value->value);
     if(value->post) {
         write(value->increment ? "++" : "--");
     }
@@ -4187,18 +4175,18 @@ void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func
     func_type_with_id(visitor, type, "");
     visitor.write(") ");
     // TODO func_call parent value is being accepted twice - 1
-    func_call->parent_val->accept(&visitor);
+    visitor.visit(func_call->parent_val);
     visitor.write("->first");
     visitor.write(')');
     visitor.write('(');
     if(type->has_self_param()) {
         visitor.write('&');
         auto parent_val = get_parent_from(func_call->parent_val);
-        parent_val->accept(&visitor);
+        visitor.visit(parent_val);
         visitor.write(", ");
     }
     // TODO func_call parent value is being accepted twice - 2
-    func_call->parent_val->accept(&visitor);
+    visitor.visit(func_call->parent_val);
     visitor.write("->second");
     if(!func_call->values.empty()) {
         visitor.write(',');
@@ -4492,10 +4480,10 @@ void accept_opt_nestable(ToCAstVisitor& visitor, ChainValue* value, bool is_nest
     if(is_nested) {
         const auto prev_nested = visitor.nested_value;
         visitor.nested_value = true;
-        value->accept(&visitor);
+        visitor.visit(value);
         visitor.nested_value = prev_nested;
     } else {
-        value->accept(&visitor);
+        visitor.visit(value);
     }
 }
 
@@ -4546,7 +4534,7 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
 void write_enum(ToCAstVisitor& visitor, EnumMember* member) {
     if(visitor.inline_enum_member_access) {
         if(member->init_value) {
-            member->init_value->accept(&visitor);
+            visitor.visit(member->init_value);
         } else {
             *visitor.output << member->get_default_index();
         }
@@ -4579,7 +4567,7 @@ bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Ch
             if (destructorFn) {
 
                 visitor.write("({ ");
-                memContainer->known_type()->accept(&visitor);
+                visitor.visit(memContainer->known_type());
                 visitor.write("* ");
 
                 // the pointer to constructed struct
@@ -4593,7 +4581,7 @@ bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Ch
                 // the pointer to saved variable so we can access it after destruction
                 const auto temp_saved_var = visitor.get_local_temp_var_name();
                 const auto last_type = values[end - 1]->create_type(visitor.allocator);
-                last_type->accept(&visitor);
+                visitor.visit(last_type);
                 visitor.write(' ');
                 visitor.write_str(temp_saved_var);
                 visitor.write(" = ");
@@ -4642,7 +4630,7 @@ void call_any_function_above(ToCAstVisitor& visitor, std::vector<ChainValue*>& v
     while(end >= start) {
         const auto value = values[end];
         if(value->val_kind() == ValueKind::FunctionCall) {
-            value->accept(&visitor);
+            visitor.visit(value);
             visitor.write(", ");
             return;
         }
@@ -4681,7 +4669,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
     chain_after_func(visitor, values, start, end);
 }
 
-void ToCAstVisitor::visit(AccessChain *chain) {
+void ToCAstVisitor::VisitAccessChain(AccessChain *chain) {
     if(chain->is_moved()) {
         auto found = local_allocated.find(chain);
         if(found != local_allocated.end()) {
@@ -4696,7 +4684,7 @@ void ToCAstVisitor::visit(AccessChain *chain) {
     chain->restore_generic_iteration(active, allocator);
 }
 
-void ToCAstVisitor::visit(FunctionCall *call) {
+void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
 
     const auto linked = call->parent_val->linked_node();
     // you can't call an enum member, so we're using it as a no value
@@ -4715,7 +4703,7 @@ void ToCAstVisitor::visit(FunctionCall *call) {
     if(func_decl && func_decl->is_comptime()) {
         call->set_curr_itr_on_decl();
         const auto value = evaluated_func_val(*this, func_decl, call);
-        value->accept(this);
+        visit(value);
         return;
     }
 
@@ -4748,7 +4736,7 @@ void ToCAstVisitor::visit(FunctionCall *call) {
                     write(')');
                     space();
                     const auto grandpa_chain = build_parent_chain(call->parent_val, allocator);
-                    grandpa_chain->accept(this);
+                    visit(grandpa_chain);
                     write('.');
                     write("second");
                     write(')');
@@ -4789,7 +4777,7 @@ void ToCAstVisitor::visit(FunctionCall *call) {
             write_str(temp_name);
             write("; ");
             // write function name
-            call->parent_val->accept(this);
+            visit(call->parent_val);
             write("(&");
             write_str(temp_name);
             write_implicit_args(*this, func_type, call, false);
@@ -4813,7 +4801,7 @@ void ToCAstVisitor::visit(FunctionCall *call) {
                     allocate_struct_by_name_no_init(*this, return_linked, temp_name_view);
                     write("; ");
                     // write function name
-                    call->parent_val->accept(this);
+                    visit(call->parent_val);
                     write("(&");
                     write_str(temp_name);
                     write_implicit_args(*this, func_type, call, false);
@@ -4832,7 +4820,7 @@ void ToCAstVisitor::visit(FunctionCall *call) {
 
     // normal functions
     call->set_curr_itr_on_decl();
-    call->parent_val->accept(this);
+    visit(call->parent_val);
     write('(');
     write_implicit_args(*this, func_type, call);
     func_call_args(*this, call, func_type);
@@ -4851,7 +4839,7 @@ void ToCAstVisitor::visit(FunctionCall *call) {
 
 }
 
-void ToCAstVisitor::visit(InitBlock *initBlock) {
+void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
     auto& container = initBlock->container;
     auto& initializers = initBlock->initializers;
     auto is_union = container->kind() == ASTNodeKind::UnionDecl;
@@ -4870,7 +4858,7 @@ void ToCAstVisitor::visit(InitBlock *initBlock) {
                     write("this->");
                     write(init.first);
                     write(" = ");
-                    struc_val->accept(this);
+                    visit(struc_val);
                     write(';');
                     continue;
                 }
@@ -4881,17 +4869,13 @@ void ToCAstVisitor::visit(InitBlock *initBlock) {
             write("this->");
             write(init.first);
             write(" = ");
-            init.second.value->accept(this);
+            visit(init.second.value);
             write(';');
         }
     }
 }
 
-void ToCAstVisitor::visit(MacroValueStatement *statement) {
-    write("[MacroValueStatement_UNIMPLEMENTED]");
-}
-
-void ToCAstVisitor::visit(StructMember *member) {
+void ToCAstVisitor::VisitStructMember(StructMember *member) {
     if(member->type->kind() == BaseTypeKind::Function) {
         if(member->type->function_type()->isCapturing()) {
             write(fat_pointer_type);
@@ -4907,18 +4891,18 @@ void ToCAstVisitor::visit(StructMember *member) {
     write(';');
 }
 
-void ToCAstVisitor::visit(ProvideStmt *stmt) {
+void ToCAstVisitor::VisitProvideStmt(ProvideStmt *stmt) {
     stmt->put_in(implicit_args, stmt->value, this, [](ProvideStmt* stmt, void* data) {
         const auto v = (ToCAstVisitor*) data;
         v->visit(&stmt->body);
     });
 }
 
-void ToCAstVisitor::visit(ComptimeBlock *block) {
+void ToCAstVisitor::VisitComptimeBlock(ComptimeBlock *block) {
     block->body.interpret(comptime_scope);
 }
 
-void ToCAstVisitor::visit(TypealiasStatement *stmt) {
+void ToCAstVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
     // declared above
 }
 
@@ -4968,10 +4952,10 @@ void switch_expr(ToCAstVisitor& visitor, Value* expr, BaseType* type) {
     if(isLoadableReference(type)) {
         visitor.write('*');
     }
-    expr->accept(&visitor);
+    visitor.visit(expr);
 }
 
-void ToCAstVisitor::visit(SwitchStatement *statement) {
+void ToCAstVisitor::VisitSwitchStmt(SwitchStatement *statement) {
     write("switch(");
     VariantDefinition* variant = nullptr;
     const auto known_t = statement->expression->create_type(allocator);
@@ -4987,7 +4971,7 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
             if (variant) {
                 // turn on the active iteration of the variant
                 variant->set_active_iteration(known_t->get_generic_iteration());
-                statement->expression->accept(this);
+                visit(statement->expression);
                 write_accessor(*this, statement->expression, nullptr);
                 write(variant_type_variant_name);
             } else {
@@ -4997,7 +4981,7 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
             switch_expr(*this, statement->expression, known_t);
         }
     } else {
-        statement->expression->accept(this);
+        visit(statement->expression);
     }
     write(") {");
     unsigned i = 0;
@@ -5020,7 +5004,7 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
                 if(variant) {
                     write_variant_call_index(*this, variant, switch_case.first);
                 } else {
-                    switch_case.first->accept(this);
+                    visit(switch_case.first);
                 }
 
                 write(':');
@@ -5045,55 +5029,55 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
     write('}');
 }
 
-void ToCAstVisitor::visit(TryCatch *statement) {
+void ToCAstVisitor::VisitTryStmt(TryCatch *statement) {
     write("[TryCatch_UNIMPLEMENTED]");
 }
 
-void ToCAstVisitor::visit(IntValue *val) {
+void ToCAstVisitor::VisitIntValue(IntValue *val) {
     *output << val->value;
 }
 
-void ToCAstVisitor::visit(BigIntValue *val) {
+void ToCAstVisitor::VisitBigIntValue(BigIntValue *val) {
     *output << val->value;
 }
 
-void ToCAstVisitor::visit(LongValue *val) {
+void ToCAstVisitor::VisitLongValue(LongValue *val) {
     *output << val->value;
 }
 
-void ToCAstVisitor::visit(ShortValue *val) {
+void ToCAstVisitor::VisitShortValue(ShortValue *val) {
     *output << val->value;
 }
 
-void ToCAstVisitor::visit(UBigIntValue *val) {
+void ToCAstVisitor::VisitUBigIntValue(UBigIntValue *val) {
     *output << val->value;
 }
 
-void ToCAstVisitor::visit(UIntValue *val) {
+void ToCAstVisitor::VisitUIntValue(UIntValue *val) {
     *output << val->value;
 }
 
-void ToCAstVisitor::visit(ULongValue *val) {
+void ToCAstVisitor::VisitULongValue(ULongValue *val) {
     *output << val->value;
 }
 
-void ToCAstVisitor::visit(UShortValue *val) {
+void ToCAstVisitor::VisitUShortValue(UShortValue *val) {
     *output << val->value;
 }
 
-void ToCAstVisitor::visit(Int128Value *val) {
+void ToCAstVisitor::VisitInt128Value(Int128Value *val) {
     *output << val->get_num_value();
 }
 
-void ToCAstVisitor::visit(UInt128Value *val) {
+void ToCAstVisitor::VisitUInt128Value(UInt128Value *val) {
     *output << val->get_num_value();
 }
 
-void ToCAstVisitor::visit(NumberValue *numValue) {
+void ToCAstVisitor::VisitNumberValue(NumberValue *numValue) {
     *output << numValue->get_num_value();
 }
 
-void ToCAstVisitor::visit(FloatValue *val) {
+void ToCAstVisitor::VisitFloatValue(FloatValue *val) {
     // we must convert to a string before writing because
     // well if value is 4.0, it doesn't write the point zero part and writes just 4
     // after writing 4 we can't write 'f' after it, C expects 4.0f not 4f
@@ -5101,29 +5085,29 @@ void ToCAstVisitor::visit(FloatValue *val) {
     write('f');
 }
 
-void ToCAstVisitor::visit(DoubleValue *val) {
+void ToCAstVisitor::VisitDoubleValue(DoubleValue *val) {
     *output << val->value;
 }
 
-void ToCAstVisitor::visit(CharValue *val) {
+void ToCAstVisitor::VisitCharValue(CharValue *val) {
     write('\'');
     write_escape_encoded(*output, val->value);
     write('\'');
 }
 
-void ToCAstVisitor::visit(UCharValue *val) {
+void ToCAstVisitor::VisitUCharValue(UCharValue *val) {
     write('\'');
     write_escape_encoded(*output, (char) val->value);
     write('\'');
 }
 
-void ToCAstVisitor::visit(StringValue *val) {
+void ToCAstVisitor::VisitStringValue(StringValue *val) {
     write('"');
     write_encoded(*this, val->value);
     write('"');
 }
 
-void ToCAstVisitor::visit(BoolValue *boolVal) {
+void ToCAstVisitor::VisitBoolValue(BoolValue *boolVal) {
     if(boolVal->value) {
         write('1');
     } else {
@@ -5131,7 +5115,7 @@ void ToCAstVisitor::visit(BoolValue *boolVal) {
     }
 }
 
-void ToCAstVisitor::visit(ArrayValue *arr) {
+void ToCAstVisitor::VisitArrayValue(ArrayValue *arr) {
     write('{');
     unsigned i = 0;
     auto prev = nested_value;
@@ -5148,7 +5132,7 @@ void ToCAstVisitor::visit(ArrayValue *arr) {
     write('}');
 }
 
-void ToCAstVisitor::visit(StructValue *val) {
+void ToCAstVisitor::VisitStructValue(StructValue *val) {
     auto linked = val->linked_node();
     auto linked_kind = linked->kind();
     int16_t prev_itr;
@@ -5240,7 +5224,7 @@ void ToCAstVisitor::visit(StructValue *val) {
 //    }
 //}
 
-void ToCAstVisitor::visit(VariableIdentifier *identifier) {
+void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
     if(identifier->is_moved) {
         auto found = local_allocated.find(identifier);
         if(found != local_allocated.end()) {
@@ -5276,7 +5260,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
             case ASTNodeKind::VarInitStmt: {
                 const auto init = linked->as_var_init_unsafe();
                 if (init->is_comptime()) {
-                    init->value->accept(this);
+                    visit(init->value);
                     return;
                 }
                 break;
@@ -5296,7 +5280,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
                 const auto var = linked->as_variant_case_var_unsafe();
                 Value* expr = var->switch_statement->expression;
                 const auto var_mem = var->parent_val->linked_node()->as_variant_member();
-                expr->accept(this);
+                visit(expr);
                 write_accessor(*this, expr, identifier);
                 write(var_mem->name);
                 write('.');
@@ -5329,26 +5313,26 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
     write(identifier->value);
 }
 
-void ToCAstVisitor::visit(SizeOfValue *size_of) {
+void ToCAstVisitor::VisitSizeOfValue(SizeOfValue *size_of) {
     write("sizeof");
     write('(');
     const auto pure_t = size_of->for_type->pure_type(allocator);
     if(pure_t->kind() == BaseTypeKind::Reference) {
-        pure_t->as_reference_type_unsafe()->type->accept(this);
+        visit(pure_t->as_reference_type_unsafe()->type);
     } else {
-        size_of->for_type->accept(this);
+        visit(size_of->for_type);
     }
     write(')');
 }
 
-void ToCAstVisitor::visit(AlignOfValue *align_of) {
+void ToCAstVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
     write("_Alignof");
     write('(');
-    align_of->for_type->removeReferenceFromType(allocator)->accept(this);
+    visit(align_of->for_type->removeReferenceFromType(allocator));
     write(')');
 }
 
-void ToCAstVisitor::visit(Expression *expr) {
+void ToCAstVisitor::VisitExpression(Expression *expr) {
     write('(');
     auto prev_nested = nested_value;
     nested_value = true;
@@ -5360,7 +5344,7 @@ void ToCAstVisitor::visit(Expression *expr) {
         write('*');
     }
 
-    expr->firstValue->accept(this);
+    visit(expr->firstValue);
 
     space();
     write_str(to_string(expr->operation));
@@ -5373,55 +5357,55 @@ void ToCAstVisitor::visit(Expression *expr) {
         write('*');
     }
 
-    expr->secondValue->accept(this);
+    visit(expr->secondValue);
 
     nested_value = prev_nested;
     write(')');
 }
 
-void ToCAstVisitor::visit(CastedValue *casted) {
+void ToCAstVisitor::VisitCastedValue(CastedValue *casted) {
     write('(');
     write('(');
-    casted->type->accept(this);
+    visit(casted->type);
     write(')');
     write(' ');
     auto prev_nested = nested_value;
     nested_value = true;
-    casted->value->accept(this);
+    visit(casted->value);
     nested_value = prev_nested;
     write(')');
 }
 
-void ToCAstVisitor::visit(AddrOfValue *value) {
+void ToCAstVisitor::VisitAddrOfValue(AddrOfValue *value) {
     if(!is_value_passed_pointer_like(value)) {
         write('&');
     }
-    value->value->accept(this);
+    visit(value->value);
 }
 
-void ToCAstVisitor::visit(RetStructParamValue *paramVal) {
+void ToCAstVisitor::VisitRetStructParamValue(RetStructParamValue *paramVal) {
     write(struct_passed_param_name);
 }
 
-void ToCAstVisitor::visit(DereferenceValue *casted) {
+void ToCAstVisitor::VisitDereferenceValue(DereferenceValue *casted) {
 //    const auto known = casted->value->known_type();
     write('*');
-    casted->value->accept(this);
+    visit(casted->value);
 }
 
-void ToCAstVisitor::visit(IndexOperator *op) {
-    op->parent_val->accept(this);
+void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {
+    visit(op->parent_val);
     unsigned i = 0;
     while(i < op->values.size()) {
         write('[');
         auto& val = op->values[i];
-        val->accept(this);
+        visit(val);
         write(']');
         i++;
     }
 }
 
-void ToCAstVisitor::visit(BlockValue *blockVal) {
+void ToCAstVisitor::VisitBlockValue(BlockValue *blockVal) {
     write("({");
     new_line_and_indent();
     scope_no_parens(*this, blockVal->scope);
@@ -5429,21 +5413,21 @@ void ToCAstVisitor::visit(BlockValue *blockVal) {
     write(")}");
 }
 
-void ToCAstVisitor::visit(NegativeValue *negValue) {
+void ToCAstVisitor::VisitNegativeValue(NegativeValue *negValue) {
     write('-');
-    negValue->value->accept(this);
+    visit(negValue->value);
 }
 
-void ToCAstVisitor::visit(NotValue *notValue) {
+void ToCAstVisitor::VisitNotValue(NotValue *notValue) {
     write('!');
-    notValue->value->accept(this);
+    visit(notValue->value);
 }
 
-void ToCAstVisitor::visit(NullValue *nullValue) {
+void ToCAstVisitor::VisitNullValue(NullValue *nullValue) {
     write("NULL");
 }
 
-void ToCAstVisitor::visit(ValueNode *node) {
+void ToCAstVisitor::VisitValueNode(ValueNode *node) {
     auto val_kind = node->value->val_kind();
     if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
         write_assignable(*this, node->parent_node);
@@ -5456,18 +5440,18 @@ void ToCAstVisitor::visit(ValueNode *node) {
 //    } else if(val_kind == ValueKind::FunctionCall) {
 //
 //    } else {
-        node->value->accept(this);
+        visit(node->value);
 //    }
     nested_value = prev;
     write(';');
 }
 
-void ToCAstVisitor::visit(ValueWrapperNode *node) {
-    node->value->accept(this);
+void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
+    visit(node->value);
     write(';');
 }
 
-void ToCAstVisitor::visit(LambdaFunction *func) {
+void ToCAstVisitor::VisitLambdaFunction(LambdaFunction *func) {
     auto found = declarer->aliases.find(func);
     if(found != declarer->aliases.end()) {
         if(func->isCapturing()) {
@@ -5512,23 +5496,19 @@ void ToCAstVisitor::visit(LambdaFunction *func) {
     }
 }
 
-void ToCAstVisitor::visit(AnyType *any_type) {
+void ToCAstVisitor::VisitAnyType(AnyType *any_type) {
     write("void");
 }
 
-void ToCAstVisitor::visit(LiteralType *literal) {
-    literal->underlying->accept(this);
+void ToCAstVisitor::VisitLiteralType(LiteralType *literal) {
+    visit(literal->underlying);
 }
 
-void ToCAstVisitor::visit(ArrayType *type) {
-    type->elem_type->accept(this);
+void ToCAstVisitor::VisitArrayType(ArrayType *type) {
+    visit(type->elem_type);
 }
 
-void ToCAstVisitor::visit(BigIntType *func) {
-    write("long long");
-}
-
-void ToCAstVisitor::visit(BoolType *func) {
+void ToCAstVisitor::VisitBoolType(BoolType *func) {
     if(cpp_like) {
         write("bool");
     } else {
@@ -5536,32 +5516,28 @@ void ToCAstVisitor::visit(BoolType *func) {
     }
 }
 
-void ToCAstVisitor::visit(CharType *func) {
-    write("char");
-}
-
-void ToCAstVisitor::visit(DoubleType *func) {
+void ToCAstVisitor::VisitDoubleType(DoubleType *func) {
     write("double");
 }
 
-void ToCAstVisitor::visit(FloatType *func) {
+void ToCAstVisitor::VisitFloatType(FloatType *func) {
     write("float");
 }
 
-void ToCAstVisitor::visit(Float128Type* func) {
+void ToCAstVisitor::VisitFloat128Type(Float128Type* func) {
     write("__float128");
 }
 
-void ToCAstVisitor::visit(LongDoubleType *type) {
+void ToCAstVisitor::VisitLongDoubleType(LongDoubleType *type) {
     write("long double");
 }
 
-void ToCAstVisitor::visit(ComplexType *type) {
+void ToCAstVisitor::VisitComplexType(ComplexType *type) {
     write("_Complex ");
-    type->elem_type->accept(this);
+    visit(type->elem_type);
 }
 
-void ToCAstVisitor::visit(FunctionType *type) {
+void ToCAstVisitor::VisitFunctionType(FunctionType *type) {
     if(type->isCapturing()) {
         write(fat_pointer_type);
         write('*');
@@ -5570,36 +5546,62 @@ void ToCAstVisitor::visit(FunctionType *type) {
     func_type_with_id(*this, type, "NOT_FOUND");
 }
 
-void ToCAstVisitor::visit(GenericType *gen_type) {
+void ToCAstVisitor::VisitGenericType(GenericType *gen_type) {
     const auto gen_struct = gen_type->referenced->linked->as_members_container();
     const auto prev_itr = gen_struct->active_iteration;
     gen_struct->set_active_iteration(gen_type->generic_iteration);
-    gen_type->referenced->accept(this);
+    visit(gen_type->referenced);
     gen_struct->set_active_iteration(prev_itr);
 }
 
-void ToCAstVisitor::visit(Int128Type *func) {
-    write("__int128");
-}
-
-void ToCAstVisitor::visit(IntType *func) {
-    write("int");
-}
-
-void ToCAstVisitor::visit(UCharType *uchar) {
-    write("unsigned char");
-}
-
-void ToCAstVisitor::visit(LongType *func) {
-    if(is64Bit) {
-        write("long long");
-    } else {
-        write("long");
+void ToCAstVisitor::VisitIntNType(IntNType *type) {
+    switch(type->IntNKind()) {
+        case IntNTypeKind::Char:
+            write("char");
+            return;
+        case IntNTypeKind::Short:
+            write("short");
+            return;
+        case IntNTypeKind::Int:
+            write("int");
+            return;
+        case IntNTypeKind::Long:
+            if(is64Bit) {
+                write("long long");
+            } else {
+                write("long");
+            }
+            return;
+        case IntNTypeKind::BigInt:
+            write("long long");
+            return;
+        case IntNTypeKind::Int128:
+            write("__int128");
+            return;
+        case IntNTypeKind::UChar:
+            write("unsigned char");
+            return;
+        case IntNTypeKind::UShort:
+            write("unsigned short");
+            return;
+        case IntNTypeKind::UInt:
+            write("unsigned int");
+            return;
+        case IntNTypeKind::ULong:
+            write("unsigned long");
+            return;
+        case IntNTypeKind::UBigInt:
+            write("unsigned long long");
+            return;
+        case IntNTypeKind::UInt128:
+            write("unsigned __int128");
+            return;
     }
+
 }
 
-void ToCAstVisitor::visit(PointerType *func) {
-    func->type->accept(this);
+void ToCAstVisitor::VisitPointerType(PointerType *func) {
+    visit(func->type);
     if(func->is_mutable) {
         write('*');
     } else {
@@ -5607,8 +5609,8 @@ void ToCAstVisitor::visit(PointerType *func) {
     }
 }
 
-void ToCAstVisitor::visit(ReferenceType* func) {
-    func->type->accept(this);
+void ToCAstVisitor::VisitReferenceType(ReferenceType* func) {
+    visit(func->type);
     if(func->is_mutable) {
         write('*');
     } else {
@@ -5616,7 +5618,7 @@ void ToCAstVisitor::visit(ReferenceType* func) {
     }
 }
 
-void ToCAstVisitor::visit(LinkedType *type) {
+void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
     auto& linked = *type->linked;
     const auto kind = linked.kind();
     switch(kind) {
@@ -5640,7 +5642,7 @@ void ToCAstVisitor::visit(LinkedType *type) {
             linked.runtime_name(*output);
             return;
         case ASTNodeKind::GenericTypeParam:
-            linked.get_value_type(allocator)->accept(this);
+            visit(linked.get_value_type(allocator));
             return;
         case ASTNodeKind::TypealiasStmt: {
             auto alias = declarer->aliases.find(&linked);
@@ -5661,23 +5663,19 @@ void ToCAstVisitor::visit(LinkedType *type) {
     }
 }
 
-void ToCAstVisitor::visit(LinkedValueType *ref_type) {
-    write("[ref_value_type]");
-}
+//void ToCAstVisitor::VisitLinkedValueType(LinkedValueType *ref_type) {
+//    write("[ref_value_type]");
+//}
 
-void ToCAstVisitor::visit(DynamicType *type) {
+void ToCAstVisitor::VisitDynamicType(DynamicType *type) {
     write(fat_pointer_type);
 }
 
-void ToCAstVisitor::visit(ShortType *func) {
-    write("short");
-}
-
-void ToCAstVisitor::visit(StringType *func) {
+void ToCAstVisitor::VisitStringType(StringType *func) {
     write("char*");
 }
 
-void ToCAstVisitor::visit(StructType *val) {
+void ToCAstVisitor::VisitStructType(StructType *val) {
     write("struct ");
     if(!val->name.empty()) {
         write(val->name);
@@ -5685,13 +5683,13 @@ void ToCAstVisitor::visit(StructType *val) {
     }
     write("{ ");
     for(auto& variable : val->variables) {
-        variable.second->accept(this);
+        visit(variable.second);
         write(' ');
     }
     write("}");
 }
 
-void ToCAstVisitor::visit(UnionType *val) {
+void ToCAstVisitor::VisitUnionType(UnionType *val) {
     write("union ");
     if(!val->name.empty()) {
         write(val->name);
@@ -5699,40 +5697,20 @@ void ToCAstVisitor::visit(UnionType *val) {
     }
     write("{ ");
     for(auto& variable : val->variables) {
-        variable.second->accept(this);
+        visit(variable.second);
         write(' ');
     }
     write("}");
 }
 
-void ToCAstVisitor::visit(UBigIntType *func) {
-    write("unsigned long long");
-}
-
-void ToCAstVisitor::visit(UInt128Type *func) {
-    write("unsigned __int128");
-}
-
-void ToCAstVisitor::visit(UIntType *func) {
-    write("unsigned int");
-}
-
-void ToCAstVisitor::visit(ULongType *func) {
-    write("unsigned long");
-}
-
-void ToCAstVisitor::visit(UShortType *func) {
-    write("unsigned short");
-}
-
-void ToCAstVisitor::visit(VoidType *func) {
+void ToCAstVisitor::VisitVoidType(VoidType *func) {
     write("void");
 }
 
 void ToCBackendContext::mem_copy(Value *lhs, Value *rhs) {
     visitor->new_line_and_indent();
-    lhs->accept(visitor);
+    visitor->visit(lhs);
     visitor->write(" = ");
-    rhs->accept(visitor);
+    visitor->visit(rhs);
     visitor->write(';');
 }

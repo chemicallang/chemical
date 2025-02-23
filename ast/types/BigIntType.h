@@ -13,6 +13,10 @@ public:
 
     }
 
+    IntNTypeKind IntNKind() const override {
+        return IntNTypeKind::BigInt;
+    }
+
     uint64_t byte_size(bool is64Bit) final {
         return 8;
     }

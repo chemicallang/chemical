@@ -178,8 +178,6 @@ public:
 
     void visit(AccessChain* chain) final;
 
-    void visit(MacroValueStatement* statement) final;
-
     void visit(StructMember* member) final;
 
     void visit(TypealiasStatement* statement) final;

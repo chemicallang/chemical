@@ -16,6 +16,10 @@ public:
 
     }
 
+    IntNTypeKind IntNKind() const override {
+        return IntNTypeKind::ULong;
+    }
+
     [[nodiscard]]
     unsigned int num_bits() const final {
         return is64Bit ? 64 : 32;

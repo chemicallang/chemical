@@ -169,10 +169,6 @@ public:
         visitCommon((ASTNode*) chain);
     }
 
-    virtual void visit(MacroValueStatement* statement) {
-        visitCommon((ASTNode*) statement);
-    }
-
     virtual void visit(StructMember* member) {
         visitCommon((ASTNode*) member);
     }

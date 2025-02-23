@@ -35,8 +35,6 @@ public:
      */
     ASTNode* parent_node;
 
-    SourceLocation location;
-
     /**
      * constructor
      */
@@ -46,12 +44,8 @@ public:
         bool is_array,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::DeleteStmt), array_value(array_value), identifier(value), is_array(is_array), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::DeleteStmt, location), array_value(array_value), identifier(value), is_array(is_array), parent_node(parent_node) {
 
-    }
-
-    SourceLocation encoded_location() final {
-        return location;
     }
 
     DestructData get_data(ASTAllocator& allocator);

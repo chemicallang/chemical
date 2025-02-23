@@ -7,22 +7,22 @@
 #include "ast/base/BaseType.h"
 #include "std/chem_string_view.h"
 
-class LinkedType : public TokenizedBaseType {
+class LinkedType : public BaseType {
 public:
 
     chem::string_view type;
     ASTNode *linked;
 
-    LinkedType(chem::string_view type, SourceLocation location) : type(type), TokenizedBaseType(location), linked(nullptr) {
+    LinkedType(chem::string_view type, SourceLocation location) : type(type), BaseType(BaseTypeKind::Linked, location), linked(nullptr) {
 
     }
 
     [[deprecated]]
-    LinkedType(chem::string_view type, SourceLocation location, ASTNode* linked) : type(type), TokenizedBaseType(location), linked(linked) {
+    LinkedType(chem::string_view type, SourceLocation location, ASTNode* linked) : type(type), BaseType(BaseTypeKind::Linked, location), linked(linked) {
 
     }
 
-    LinkedType(chem::string_view type, ASTNode* linked, SourceLocation location) : type(type), TokenizedBaseType(location), linked(linked) {
+    LinkedType(chem::string_view type, ASTNode* linked, SourceLocation location) : type(type), BaseType(BaseTypeKind::Linked, location), linked(linked) {
 
     }
 
@@ -36,11 +36,6 @@ public:
 
     ASTNode *linked_node() final;
 
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Linked;
-    }
-
     bool is_same(BaseType *other) final {
         return other->kind() == kind() && static_cast<LinkedType *>(other)->linked == linked;
     }
@@ -49,7 +44,7 @@ public:
 
     [[nodiscard]]
     LinkedType *copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<LinkedType>()) LinkedType(type, linked, location);
+        return new (allocator.allocate<LinkedType>()) LinkedType(type, linked, encoded_location());
     }
 
 #ifdef COMPILER_BUILD

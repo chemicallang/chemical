@@ -9,7 +9,6 @@ class UCharValue : public IntNumValue {
 public:
 
     unsigned char value;
-    SourceLocation location;
 
     /**
      * constructor
@@ -17,13 +16,10 @@ public:
     explicit UCharValue(
         unsigned char value,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UChar), value(value), location(location) {
+    ) : IntNumValue(ValueKind::UChar, location), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &UCharType::instance, false };
@@ -42,12 +38,12 @@ public:
     }
 
     UCharValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UCharValue>()) UCharValue(value, location);
+        return new (allocator.allocate<UCharValue>()) UCharValue(value, encoded_location());
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UCharType>()) UCharType(location);
+        return new (allocator.allocate<UCharType>()) UCharType(encoded_location());
     }
 
     bool is_unsigned() final {

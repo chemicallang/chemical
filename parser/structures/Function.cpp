@@ -320,7 +320,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& passed_a
 
     auto block = parseBraceBlock("function", decl, allocator);
     if(block.has_value()) {
-        decl->body.emplace(block->parent_node, block->location);
+        decl->body.emplace(block->parent_node, block->encoded_location());
         decl->body->nodes = std::move(block->nodes);
     } else if(!allow_declaration) {
         error("expected the function definition after the signature");

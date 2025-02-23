@@ -9,7 +9,9 @@ public:
 
     static const UBigIntType instance;
 
-    using IntNType::IntNType;
+    UBigIntType(SourceLocation location) : IntNType(location) {
+
+    }
 
     [[nodiscard]]
     unsigned int num_bits() const final {
@@ -32,7 +34,7 @@ public:
 
     [[nodiscard]]
     UBigIntType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(location);
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(encoded_location());
     }
 
 };

@@ -18,7 +18,6 @@ public:
     Value* secondValue; ///< The second value in the expression.
     Operation operation; ///< The operation between the two values.
     bool is64Bit; // is 64bit operating system
-    SourceLocation location;
     BaseType* created_type = nullptr;
 
     /**
@@ -31,14 +30,11 @@ public:
             bool is64Bit,
             SourceLocation location,
             BaseType* created_type = nullptr
-    ) : Value(ValueKind::Expression), firstValue(firstValue), secondValue(secondValue),
-        operation(operation), is64Bit(is64Bit), location(location), created_type(created_type) {
+    ) : Value(ValueKind::Expression, location), firstValue(firstValue), secondValue(secondValue),
+        operation(operation), is64Bit(is64Bit), created_type(created_type) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);

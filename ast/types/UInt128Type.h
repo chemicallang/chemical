@@ -9,7 +9,9 @@ public:
 
     static const UInt128Type instance;
 
-    using IntNType::IntNType;
+    UInt128Type(SourceLocation location) : IntNType(location) {
+
+    }
 
     [[nodiscard]]
     unsigned int num_bits() const final {
@@ -32,7 +34,7 @@ public:
 
     [[nodiscard]]
     UInt128Type *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UInt128Type>()) UInt128Type(location);
+        return new (allocator.allocate<UInt128Type>()) UInt128Type(encoded_location());
     }
 
 };

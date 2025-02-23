@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]]
     LongType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<LongType>()) LongType(is64Bit, location);
+        return new (allocator.allocate<LongType>()) LongType(is64Bit, encoded_location());
     }
 
 

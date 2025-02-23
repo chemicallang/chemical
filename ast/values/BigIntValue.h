@@ -9,18 +9,14 @@ class BigIntValue : public IntNumValue {
 public:
 
     long long value;
-    SourceLocation location;
 
     explicit BigIntValue(
         long long value,
         SourceLocation location
-    ) : IntNumValue(ValueKind::BigInt), value(value), location(location) {
+    ) : IntNumValue(ValueKind::BigInt, location), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 8;
@@ -31,7 +27,7 @@ public:
     }
 
     BigIntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BigIntValue>()) BigIntValue(value, location);
+        return new (allocator.allocate<BigIntValue>()) BigIntValue(value, encoded_location());
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
@@ -44,7 +40,7 @@ public:
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<BigIntType>()) BigIntType(location);
+        return new (allocator.allocate<BigIntType>()) BigIntType(encoded_location());
     }
 
     unsigned int get_num_bits() final {

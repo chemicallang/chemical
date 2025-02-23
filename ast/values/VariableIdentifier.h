@@ -28,7 +28,6 @@ public:
     chem::string_view value;
     ASTNode *linked = nullptr;
     ChainValue* parent_val = nullptr;
-    SourceLocation location;
     bool is_ns;
     bool is_moved = false;
 
@@ -39,13 +38,10 @@ public:
         chem::string_view value,
         SourceLocation location,
         bool is_ns = false
-    ) : ChainValue(ValueKind::Identifier), value(value), location(location), is_ns(is_ns) {
+    ) : ChainValue(ValueKind::Identifier, location), value(value), is_ns(is_ns) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     uint64_t byte_size(bool is64Bit) final;
 

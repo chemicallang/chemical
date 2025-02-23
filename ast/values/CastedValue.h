@@ -14,19 +14,15 @@ public:
 
     Value* value;
     BaseType* type;
-    SourceLocation location;
 
     CastedValue(
         Value* value,
         BaseType* type,
         SourceLocation location
-    ) : Value(ValueKind::CastedValue), value(value), type(type), location(location) {
+    ) : Value(ValueKind::CastedValue, location), value(value), type(type) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     CastedValue *copy(ASTAllocator& allocator) final;
 

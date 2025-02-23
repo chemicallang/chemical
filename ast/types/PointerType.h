@@ -5,7 +5,7 @@
 #include "ast/base/BaseType.h"
 #include <memory>
 
-class PointerType : public TokenizedBaseType {
+class PointerType : public BaseType {
 public:
 
     static const PointerType void_ptr_instance;
@@ -14,7 +14,7 @@ public:
     bool is_mutable;
     std::vector<std::unique_ptr<BaseType>> pures{};
 
-    PointerType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), TokenizedBaseType(location), is_mutable(is_mutable) {
+    PointerType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), BaseType(BaseTypeKind::Pointer, location), is_mutable(is_mutable) {
 
     }
 
@@ -39,11 +39,6 @@ public:
         visitor->visit(this);
     }
 
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Pointer;
-    }
-
     bool satisfies(BaseType *type) final;
 
     bool is_same(BaseType *other) final {
@@ -52,7 +47,7 @@ public:
 
     [[nodiscard]]
     PointerType *copy(ASTAllocator& allocator) const final {
-        return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), location, is_mutable);
+        return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), encoded_location(), is_mutable);
     }
 
     bool link(SymbolResolver &linker) final;

@@ -77,7 +77,13 @@ public:
     std::unordered_map<FunctionDeclaration*, std::vector<std::vector<llvm::Function*>>> generic_llvm_data;
 #endif
 
-    using ASTNode::ASTNode;
+    /**
+     * default constructor
+     */
+    inline explicit MembersContainer(ASTNodeKind k, SourceLocation loc) noexcept : ASTNode(k, loc) {
+        // does nothing
+    }
+
 
     const std::vector<FunctionDeclaration*>& functions() {
         return functions_container;

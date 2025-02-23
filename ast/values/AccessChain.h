@@ -29,13 +29,12 @@ class AccessChain : public ChainValue {
 public:
 
     std::vector<ChainValue*> values;
-    SourceLocation location;
     AccessChainAttributes attrs;
 
     AccessChain(
         bool is_node,
         SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain), location(location), attrs(is_node, false) {
+    ) : ChainValue(ValueKind::AccessChain, location), attrs(is_node, false) {
 
     }
 
@@ -43,7 +42,7 @@ public:
         std::vector<ChainValue*> values,
         bool is_node,
         SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain), values(std::move(values)), location(location), attrs(is_node, false) {
+    ) : ChainValue(ValueKind::AccessChain, location), values(std::move(values)), attrs(is_node, false) {
 
     }
 
@@ -63,9 +62,6 @@ public:
         attrs.is_moved = is_moved;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     /**
      * simply links the access chain, the end_offset is used to control linking last values of the chain

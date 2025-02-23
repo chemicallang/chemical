@@ -15,7 +15,6 @@ private:
 public:
 
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * @brief Construct a new ContinueStatement object.
@@ -24,12 +23,8 @@ public:
         LoopASTNode *node,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::ContinueStmt), node(node), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::ContinueStmt, location), node(node), parent_node(parent_node) {
 
-    }
-
-    SourceLocation encoded_location() final {
-        return location;
     }
 
     void set_parent(ASTNode* new_parent) final {

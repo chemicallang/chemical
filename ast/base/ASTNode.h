@@ -62,12 +62,17 @@ private:
      */
     ASTNodeKind const _kind;
 
+    /**
+     * encoded source location
+     */
+    SourceLocation _location;
+
 public:
 
     /**
      * default constructor
      */
-    inline explicit ASTNode(ASTNodeKind k) noexcept : _kind(k) {
+    inline explicit constexpr ASTNode(ASTNodeKind k, SourceLocation loc) noexcept : _kind(k), _location(loc) {
         // does nothing
     }
 
@@ -93,6 +98,20 @@ public:
      */
     inline ASTNodeKind kind() const noexcept {
         return _kind;
+    }
+
+    /**
+     * get the encoded location
+     */
+    inline SourceLocation encoded_location() const noexcept {
+        return _location;
+    }
+
+    /**
+     * this sets the new location for this node
+     */
+    inline void set_encoded_location(SourceLocation new_loc) noexcept {
+        _location = new_loc;
     }
 
     /**

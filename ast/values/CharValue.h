@@ -16,7 +16,6 @@ class CharValue : public IntNumValue {
 public:
 
     char value; ///< The character value.
-    SourceLocation location;
 
     /**
      * @brief Construct a new CharValue object.
@@ -26,7 +25,7 @@ public:
     CharValue(
         char value,
         SourceLocation location
-    ) : IntNumValue(ValueKind::Char), value(value), location(location) {
+    ) : IntNumValue(ValueKind::Char, location), value(value) {
 
     }
 
@@ -43,9 +42,6 @@ public:
         return false;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 1;
@@ -60,11 +56,11 @@ public:
     }
 
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<CharType>()) CharType(location);
+        return new (allocator.allocate<CharType>()) CharType(encoded_location());
     }
 
     CharValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<CharValue>()) CharValue(value, location);
+        return new (allocator.allocate<CharValue>()) CharValue(value, encoded_location());
     }
 
 #ifdef COMPILER_BUILD

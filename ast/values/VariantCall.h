@@ -9,7 +9,6 @@ public:
     std::vector<Value*> values;
     std::vector<BaseType*> generic_list;
     BaseType* cached_type = nullptr;
-    SourceLocation location;
 
     /**
      * the generic iteration is determined and stored at resolution phase
@@ -24,13 +23,10 @@ public:
     explicit VariantCall(
         Value* parent_val,
         SourceLocation location
-    ) : Value(ValueKind::VariantCall), parent_val(parent_val), location(location) {
+    ) : Value(ValueKind::VariantCall, location), parent_val(parent_val) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);

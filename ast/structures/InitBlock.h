@@ -16,7 +16,6 @@ public:
 
     Scope scope;
     ASTNode* parent_node;
-    SourceLocation location;
     std::unordered_map<chem::string_view, InitBlockInitializerValue> initializers;
     // the struct container for which init block is for
     ExtendableMembersContainerNode* container;
@@ -27,7 +26,7 @@ public:
         Scope scope,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::InitBlock), scope(std::move(scope)), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::InitBlock, location), scope(std::move(scope)), parent_node(parent_node) {
 
     }
 
@@ -39,9 +38,6 @@ public:
         return parent_node;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

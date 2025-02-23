@@ -244,11 +244,31 @@ void InterpretScope::erase_value(const std::string &name) {
 }
 
 void InterpretScope::error(std::string& err, ASTAny* any) {
-    global->interpret_error(err, any);
+    switch(any->any_kind()) {
+        case ASTAnyKind::Value:
+            global->interpret_error(err, (Value*) any);
+            break;
+        case ASTAnyKind::Node:
+            global->interpret_error(err, (ASTNode*) any);
+            break;
+        case ASTAnyKind::Type:
+            global->interpret_error(err, (BaseType*) any);
+            break;
+    }
 }
 
 void InterpretScope::error(std::string_view err, ASTAny* any) {
-    global->interpret_error(err, any);
+    switch(any->any_kind()) {
+        case ASTAnyKind::Value:
+            global->interpret_error(err, (Value*) any);
+            break;
+        case ASTAnyKind::Node:
+            global->interpret_error(err, (ASTNode*) any);
+            break;
+        case ASTAnyKind::Type:
+            global->interpret_error(err, (BaseType*) any);
+            break;
+    }
 }
 
 bool InterpretScope::isTarget64Bit() {
@@ -276,16 +296,12 @@ public:
     DestructValue(
         void* data,
         void(*destruct)(void* data)
-    ) : Value(ValueKind::DestructValue), data(data), destruct(destruct) {
+    ) : Value(ValueKind::DestructValue, ZERO_LOC), data(data), destruct(destruct) {
 
     }
 
     void accept(Visitor *visitor) override {
         // cannot be visited
-    }
-    SourceLocation encoded_location() override {
-        // has no location
-        return ZERO_LOC;
     }
     Value* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<DestructValue>()) DestructValue(data, destruct);

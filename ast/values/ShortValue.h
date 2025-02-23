@@ -7,7 +7,6 @@ class ShortValue : public IntNumValue {
 public:
 
     short value;
-    SourceLocation location;
 
     /**
      * constructor
@@ -15,13 +14,10 @@ public:
     explicit ShortValue(
         short value,
         SourceLocation location
-    ) : IntNumValue(ValueKind::Short), value(value), location(location) {
+    ) : IntNumValue(ValueKind::Short, location), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &ShortType::instance, false };
@@ -40,11 +36,11 @@ public:
     }
 
     ShortValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<ShortValue>()) ShortValue(value, location);
+        return new (allocator.allocate<ShortValue>()) ShortValue(value, encoded_location());
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<ShortType>()) ShortType(location);
+        return new (allocator.allocate<ShortType>()) ShortType(encoded_location());
     }
 
     unsigned int get_num_bits() final {

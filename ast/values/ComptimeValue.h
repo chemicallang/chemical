@@ -28,12 +28,8 @@ public:
     inline ComptimeValue(
         ASTAllocator* allocator,
         Value* value
-    ) : Value(ValueKind::ComptimeValue), allocator(allocator), value(value) {
+    ) : Value(ValueKind::ComptimeValue, value->encoded_location()), allocator(allocator), value(value) {
 
-    }
-
-    SourceLocation encoded_location() override {
-        return value->encoded_location();
     }
 
     void accept(Visitor *visitor) override {

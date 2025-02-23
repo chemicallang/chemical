@@ -11,22 +11,18 @@ public:
 
     Value* value;
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * constructor
      */
     ThrowStatement(
-            Value* value,
-            ASTNode* parent_node,
-            SourceLocation location
-    ) : ASTNode(ASTNodeKind::ThrowStmt), value(value), parent_node(parent_node), location(location) {
+        Value* value,
+        ASTNode* parent_node,
+        SourceLocation location
+    ) : ASTNode(ASTNodeKind::ThrowStmt, location), value(value), parent_node(parent_node) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

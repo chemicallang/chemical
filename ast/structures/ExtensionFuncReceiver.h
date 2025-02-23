@@ -8,7 +8,6 @@ class ExtensionFuncReceiver : public BaseFunctionParam {
 public:
 
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * constructor
@@ -18,13 +17,10 @@ public:
         BaseType* type,
         ASTNode* parent_node,
         SourceLocation location
-    ) : BaseFunctionParam(name, type, nullptr, ASTNodeKind::ExtensionFuncReceiver), parent_node(parent_node), location(location) {
+    ) : BaseFunctionParam(name, type, nullptr, ASTNodeKind::ExtensionFuncReceiver, location), parent_node(parent_node) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode * parent() final {
         return parent_node;

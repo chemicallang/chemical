@@ -4,12 +4,15 @@
 
 #include "ast/base/BaseType.h"
 
-class ComplexType : public TokenizedBaseType {
+class ComplexType : public BaseType {
 public:
 
     BaseType* elem_type;
 
-    ComplexType(BaseType* elem_type, SourceLocation location) : TokenizedBaseType(location), elem_type(elem_type) {
+    ComplexType(
+        BaseType* elem_type,
+        SourceLocation location
+    ) : BaseType(BaseTypeKind::Complex, location), elem_type(elem_type) {
 
     }
 
@@ -19,11 +22,6 @@ public:
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
-    }
-
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Complex;
     }
 
     bool satisfies(BaseType *type) final {
@@ -36,7 +34,7 @@ public:
 
     [[nodiscard]]
     ComplexType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ComplexType>()) ComplexType(elem_type, location);
+        return new (allocator.allocate<ComplexType>()) ComplexType(elem_type, encoded_location());
     }
 
 #ifdef COMPILER_BUILD

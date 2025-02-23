@@ -111,7 +111,7 @@ std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator,
         return scope;
     }
 
-    scope.location = loc(lb->position, rb->position);
+    scope.set_encoded_location(loc(lb->position, rb->position));
 
     return scope;
 

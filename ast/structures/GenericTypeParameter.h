@@ -14,7 +14,6 @@ public:
     int16_t active_iteration = -1; // <-- index of active type in usage vector
     ASTNode* parent_node;
     unsigned param_index = 0; // <-- index in the generic type parameters
-    SourceLocation location;
 
     /**
      * constructor
@@ -26,14 +25,11 @@ public:
         ASTNode* parent_node,
         unsigned param_index,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::GenericTypeParam), identifier(identifier), at_least_type(at_least_type), def_type(def_type),
-        parent_node(parent_node), param_index(param_index), location(location) {
+    ) : ASTNode(ASTNodeKind::GenericTypeParam, location), identifier(identifier), at_least_type(at_least_type), def_type(def_type),
+        parent_node(parent_node), param_index(param_index) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);

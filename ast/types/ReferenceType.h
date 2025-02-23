@@ -5,13 +5,13 @@
 #include "ast/base/BaseType.h"
 #include <memory>
 
-class ReferenceType : public TokenizedBaseType {
+class ReferenceType : public BaseType {
 public:
 
     BaseType* type;
     bool is_mutable;
 
-    ReferenceType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), TokenizedBaseType(location), is_mutable(is_mutable) {
+    ReferenceType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), BaseType(BaseTypeKind::Reference, location), is_mutable(is_mutable) {
 
     }
 
@@ -36,11 +36,6 @@ public:
         visitor->visit(this);
     }
 
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Reference;
-    }
-
     bool satisfies(BaseType* given, Value* value, bool assignment);
 
     bool satisfies(BaseType *given) final {
@@ -55,7 +50,7 @@ public:
 
     [[nodiscard]]
     ReferenceType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), location, is_mutable);
+        return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), encoded_location(), is_mutable);
     }
 
     bool link(SymbolResolver &linker) final {

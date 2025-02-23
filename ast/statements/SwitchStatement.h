@@ -16,20 +16,16 @@ public:
     int defScopeInd = -1;
     ASTNode* parent_node;
     bool is_value;
-    SourceLocation location;
 
     SwitchStatement(
         Value* expression,
         ASTNode* parent_node,
         bool is_value,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::SwitchStmt), Value(ValueKind::SwitchValue), expression(expression), parent_node(parent_node), is_value(is_value), location(location) {
+    ) : ASTNode(ASTNodeKind::SwitchStmt, location), Value(ValueKind::SwitchValue, location), expression(expression), parent_node(parent_node), is_value(is_value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

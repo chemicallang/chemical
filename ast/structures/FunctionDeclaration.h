@@ -222,10 +222,6 @@ public:
      * have been generated, so next time we should start at this index to generate bodies
      */
     int16_t bodies_gen_index = 0;
-    /**
-     * the location
-     */
-    SourceLocation location;
 
     /**
      * the llvm data
@@ -253,8 +249,8 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal,
             bool signature_resolved = false,
             ASTNodeKind k = ASTNodeKind::FunctionDecl
-    ) : ASTNode(k), FunctionTypeBody(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
-         identifier(identifier), body(std::move(body)), location(location),
+    ) : ASTNode(k, location), FunctionTypeBody(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
+         identifier(identifier), body(std::move(body)),
          attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
     }
 
@@ -270,8 +266,8 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal,
             bool signature_resolved = false,
             ASTNodeKind k = ASTNodeKind::FunctionDecl
-    )  : ASTNode(k), FunctionTypeBody(returnType, isVariadic, false, parent_node, location, signature_resolved),
-         identifier(identifier), location(location),
+    )  : ASTNode(k, location), FunctionTypeBody(returnType, isVariadic, false, parent_node, location, signature_resolved),
+         identifier(identifier),
          attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
     }
 
@@ -435,11 +431,6 @@ public:
 
     inline void set_override(bool value) {
         attrs.is_override = value;
-    }
-
-
-    SourceLocation encoded_location() override {
-        return location;
     }
 
     /**

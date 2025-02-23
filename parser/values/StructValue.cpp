@@ -47,7 +47,7 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
             return structValue;
         }
 
-        structValue->location = loc(start, rBrace->position);
+        structValue->set_encoded_location(loc(start, rBrace->position));
 
         return structValue;
 

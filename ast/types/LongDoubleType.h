@@ -4,12 +4,17 @@
 
 #include "ast/base/BaseType.h"
 
-class LongDoubleType : public TokenizedBaseType {
+class LongDoubleType : public BaseType {
 public:
 
     static const LongDoubleType instance;
 
-    using TokenizedBaseType::TokenizedBaseType;
+    /**
+     * constructor
+     */
+    LongDoubleType(SourceLocation location) : BaseType(BaseTypeKind::LongDouble, location) {
+
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 16;
@@ -17,11 +22,6 @@ public:
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
-    }
-
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::LongDouble;
     }
 
     bool satisfies(BaseType *type) final {
@@ -34,7 +34,7 @@ public:
 
     [[nodiscard]]
     LongDoubleType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<LongDoubleType>()) LongDoubleType(location);
+        return new (allocator.allocate<LongDoubleType>()) LongDoubleType(encoded_location());
     }
 
 #ifdef COMPILER_BUILD

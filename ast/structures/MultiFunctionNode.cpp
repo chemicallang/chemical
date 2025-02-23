@@ -4,10 +4,6 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/FunctionDeclaration.h"
 
-SourceLocation MultiFunctionNode::encoded_location() {
-    return functions[0]->encoded_location();
-}
-
 FunctionDeclaration* MultiFunctionNode::func_for_call(ASTAllocator& allocator, std::vector<Value*>& args) {
     for(auto func : functions) {
         if(func->satisfy_args(allocator, args)) {

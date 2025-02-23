@@ -11,7 +11,6 @@ public:
 
     uint64_t low;
     uint64_t high;
-    SourceLocation location;
 
     /**
      * constructor
@@ -20,13 +19,10 @@ public:
         uint64_t low,
         uint64_t high,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UInt128), low(low), high(high), location(location) {
+    ) : IntNumValue(ValueKind::UInt128, location), low(low), high(high) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &UInt128Type::instance, false };
@@ -45,12 +41,12 @@ public:
     }
 
     UInt128Value *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UInt128Value>()) UInt128Value(low, high, location);
+        return new (allocator.allocate<UInt128Value>()) UInt128Value(low, high, encoded_location());
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UInt128Type>()) UInt128Type(location);
+        return new (allocator.allocate<UInt128Type>()) UInt128Type(encoded_location());
     }
 
     unsigned int get_num_bits() final {

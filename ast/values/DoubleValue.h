@@ -16,7 +16,6 @@ class DoubleValue : public Value {
 public:
 
     double value; ///< The double value.
-    SourceLocation location;
 
     /**
      * @brief Construct a new DoubleValue object.
@@ -26,11 +25,8 @@ public:
     explicit DoubleValue(
         double value,
         SourceLocation location
-    ) : Value(ValueKind::Double), value(value), location(location) {}
+    ) : Value(ValueKind::Double, location), value(value) {}
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
@@ -53,7 +49,7 @@ public:
 //    }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<DoubleType>()) DoubleType(location);
+        return new (allocator.allocate<DoubleType>()) DoubleType(encoded_location());
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
@@ -65,7 +61,7 @@ public:
     }
 
     DoubleValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<DoubleValue>()) DoubleValue(value, location);
+        return new (allocator.allocate<DoubleValue>()) DoubleValue(value, encoded_location());
     }
 
     [[nodiscard]]

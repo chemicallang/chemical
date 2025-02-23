@@ -18,9 +18,9 @@ public:
     using Value::link;
 
     /**
-     * constructor\
+     * constructor
      */
-    inline explicit ChainValue(ValueKind k) noexcept : Value(k) {
+    inline explicit ChainValue(ValueKind k, SourceLocation loc) noexcept : Value(k, loc) {
 
     }
 

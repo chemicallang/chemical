@@ -618,7 +618,7 @@ void StructValueadd_value(StructValue* structValue, chem::string_view* name, Val
 
 void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable) {
     // TODO remove this method
-    variantCase->identifier_list.emplace_back(std::move(variable->name), nullptr, nullptr, variable->location);
+    variantCase->identifier_list.emplace_back(std::move(variable->name), nullptr, nullptr, variable->encoded_location());
 }
 
 std::vector<ASTNode*>* ScopegetNodes(Scope* scope) {
@@ -659,7 +659,7 @@ std::vector<GenericTypeParameter*>* FunctionDeclarationget_generic_params(Functi
 
 std::vector<ASTNode*>* FunctionDeclarationadd_body(FunctionDeclaration* decl) {
     if(!decl->body.has_value()) {
-        decl->body.emplace(decl->parent_node, decl->location);
+        decl->body.emplace(decl->parent_node, decl->ASTNode::encoded_location());
     }
     return &decl->body.value().nodes;
 }
@@ -670,13 +670,13 @@ std::vector<ASTNode*>* IfStatementget_body(IfStatement* stmt) {
 
 std::vector<ASTNode*>* IfStatementadd_else_body(IfStatement* stmt) {
     if(!stmt->elseBody.has_value()) {
-        stmt->elseBody.emplace(stmt->parent_node, stmt->location);
+        stmt->elseBody.emplace(stmt->parent_node, stmt->ASTNode::encoded_location());
     }
     return &stmt->elseBody.value().nodes;
 }
 
 std::vector<ASTNode*>* IfStatementadd_else_if(IfStatement* stmt, Value* condition) {
-    stmt->elseIfs.emplace_back(condition, Scope(stmt->parent_node, stmt->location));
+    stmt->elseIfs.emplace_back(condition, Scope(stmt->parent_node, stmt->ASTNode::encoded_location()));
     return &stmt->elseIfs.back().second.nodes;
 }
 

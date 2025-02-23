@@ -36,7 +36,6 @@ public:
     // after equal
     BaseType* actual_type;
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * @brief Construct a new TypealiasStatement object.
@@ -47,8 +46,8 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableNode(ASTNodeKind::TypealiasStmt), located_id(identifier), actual_type(actual_type),
-        parent_node(parent_node), location(location), attrs(specifier, false, false) {
+    ) : ExtendableNode(ASTNodeKind::TypealiasStmt, location), located_id(identifier), actual_type(actual_type),
+        parent_node(parent_node), attrs(specifier, false, false) {
 
     }
 
@@ -91,9 +90,6 @@ public:
         return name_view().str();
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

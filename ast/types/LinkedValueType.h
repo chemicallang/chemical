@@ -23,7 +23,7 @@ public:
             value->copy(allocator),
             type,
             linked,
-            location
+            encoded_location()
         );
     }
 

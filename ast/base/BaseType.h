@@ -32,12 +32,26 @@ class IntNType;
  * BaseType is a base class for all the types there are
  */
 class BaseType : public ASTAny {
+private:
+
+    /**
+     * the type kind
+     */
+    BaseTypeKind const _kind;
+
+    /**
+     * the location of this node
+     */
+    SourceLocation const _location;
+
 public:
 
     /**
      * default constructor
      */
-    BaseType() = default;
+    inline explicit constexpr BaseType(BaseTypeKind k, SourceLocation loc) noexcept : _kind(k), _location(loc) {
+
+    }
 
     /**
      * deleted copy constructor
@@ -50,9 +64,18 @@ public:
     BaseType(BaseType&& other) = default;
 
     /**
-     * move assignment operator
+     * the type kind
      */
-    BaseType& operator =(BaseType &&other) = default;
+    inline BaseTypeKind kind() const noexcept {
+        return _kind;
+    }
+
+    /**
+     * get the encoded location
+     */
+    inline SourceLocation encoded_location() const noexcept {
+        return _location;
+    }
 
     /**
      * any kind of 'type' is returned
@@ -133,13 +156,6 @@ public:
      */
     virtual ASTNode *linked_node() {
         return nullptr;
-    }
-
-    /**
-     * return kind of base type
-     */
-    virtual BaseTypeKind kind() const {
-        return BaseTypeKind::Unknown;
     }
 
     /**
@@ -748,18 +764,4 @@ public:
         return (VoidType*) this;
     }
 
-
 };
-
-// just a helper class that takes care about cst token
-class TokenizedBaseType : public BaseType {
-public:
-    SourceLocation location;
-    constexpr explicit TokenizedBaseType(SourceLocation location) : location(location) {}
-    SourceLocation encoded_location() override {
-        return location;
-    }
-};
-
-static_assert(sizeof(BaseType) <= 8, "BaseType must always be equal or less than 8 bytes");
-static_assert(sizeof(TokenizedBaseType) <= 16, "TokenizedBaseType must always be equal or less than 8 bytes");

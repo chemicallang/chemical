@@ -9,7 +9,6 @@ class UIntValue : public IntNumValue {
 public:
 
     unsigned int value;
-    SourceLocation location;
 
     /**
      * constructor
@@ -17,13 +16,10 @@ public:
     explicit UIntValue(
         unsigned int value,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UInt), value(value), location(location) {
+    ) : IntNumValue(ValueKind::UInt, location), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &UIntType::instance, false };
@@ -42,12 +38,12 @@ public:
     }
 
     UIntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UIntValue>()) UIntValue(value, location);
+        return new (allocator.allocate<UIntValue>()) UIntValue(value, encoded_location());
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UIntType>()) UIntType(location);
+        return new (allocator.allocate<UIntType>()) UIntType(encoded_location());
     }
 
     bool is_unsigned() final {

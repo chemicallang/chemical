@@ -239,9 +239,9 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
             unsigned int i = sizes.size() - 1;
             while(i > 0) {
                 if(i == sizes.size() - 1) {
-                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(known, sizes[i], location);
+                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(known, sizes[i], encoded_location());
                 } else {
-                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(elementType, sizes[i], location);
+                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(elementType, sizes[i], encoded_location());
                 }
                 i--;
             }
@@ -257,7 +257,7 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
 }
 
 BaseType* ArrayValue::create_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<ArrayType>()) ArrayType(element_type(allocator), array_size(), location);
+    return new (allocator.allocate<ArrayType>()) ArrayType(element_type(allocator), array_size(), encoded_location());
 }
 
 //hybrid_ptr<BaseType> ArrayValue::get_base_type() {

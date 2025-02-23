@@ -18,7 +18,6 @@ public:
 
     ASTNode* parent_node;
     Value* first_broken = nullptr;
-    SourceLocation location;
 
     /**
      * constructor
@@ -27,13 +26,10 @@ public:
         Scope scope,
         ASTNode* parent_node,
         SourceLocation location
-    ) : LoopASTNode(std::move(scope), ASTNodeKind::LoopBlock), Value(ValueKind::LoopValue), parent_node(parent_node), location(location) {
+    ) : LoopASTNode(std::move(scope), ASTNodeKind::LoopBlock, location), Value(ValueKind::LoopValue, location), parent_node(parent_node) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);

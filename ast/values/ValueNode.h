@@ -26,7 +26,6 @@ public:
      */
     Value* value;
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * constructor
@@ -35,13 +34,10 @@ public:
         Value* value,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::ValueNode), value(value), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::ValueNode, location), value(value), parent_node(parent_node) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     Value *holding_value() final {
         return value;

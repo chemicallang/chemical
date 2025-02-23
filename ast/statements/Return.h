@@ -17,7 +17,6 @@ public:
     ASTNode* parent_node;
     FunctionTypeBody* func_type = nullptr;
     Value* value;
-    SourceLocation location;
 
     /**
      * @brief Construct a new ReturnStatement object.
@@ -27,13 +26,10 @@ public:
             FunctionTypeBody* declaration,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::ReturnStmt), value(value), func_type(declaration), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::ReturnStmt, location), value(value), func_type(declaration), parent_node(parent_node) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

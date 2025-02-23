@@ -14,16 +14,12 @@ class NotValue : public Value {
 public:
 
     Value* value;
-    SourceLocation location;
 
     explicit NotValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NotValue), value(value), location(location) {}
+    ) : Value(ValueKind::NotValue, location), value(value) {}
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
@@ -40,7 +36,7 @@ public:
 #endif
 
     NotValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), location);
+        return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), encoded_location());
     }
 
     [[nodiscard]]

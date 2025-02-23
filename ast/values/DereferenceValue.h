@@ -14,18 +14,14 @@ class DereferenceValue : public Value {
 public:
 
     Value* value;
-    SourceLocation location;
 
     explicit DereferenceValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::DereferenceValue), value(value), location(location) {
+    ) : Value(ValueKind::DereferenceValue, location), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     uint64_t byte_size(bool is64Bit) final {
         return value->byte_size(is64Bit);

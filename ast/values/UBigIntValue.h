@@ -9,7 +9,6 @@ class UBigIntValue : public IntNumValue {
 public:
 
     unsigned long long value;
-    SourceLocation location;
 
     /**
      * constructor
@@ -17,13 +16,10 @@ public:
     explicit UBigIntValue(
         unsigned long long value,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UBigInt), value(value), location(location) {
+    ) : IntNumValue(ValueKind::UBigInt, location), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &UBigIntType::instance, false };
@@ -42,12 +38,12 @@ public:
     }
 
     UBigIntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, location);
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, encoded_location());
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(location);
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(encoded_location());
     }
 
     unsigned int get_num_bits() final {

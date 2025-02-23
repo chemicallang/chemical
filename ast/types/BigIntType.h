@@ -9,7 +9,9 @@ public:
 
     static const BigIntType instance;
 
-    using IntNType::IntNType;
+    BigIntType(SourceLocation location) : IntNType(location) {
+
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 8;
@@ -31,7 +33,7 @@ public:
     Value *create(ASTAllocator& allocator, uint64_t value) final;
 
     BigIntType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<BigIntType>()) BigIntType(location);
+        return new (allocator.allocate<BigIntType>()) BigIntType(encoded_location());
     }
 
 };

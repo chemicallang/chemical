@@ -11,7 +11,7 @@ CastedValue *CastedValue::copy(ASTAllocator& allocator) {
     return new CastedValue(
         value->copy(allocator),
         type->copy(allocator),
-        location
+        encoded_location()
     );
 }
 

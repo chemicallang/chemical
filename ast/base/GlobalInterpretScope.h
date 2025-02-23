@@ -23,7 +23,7 @@ class SymbolResolver;
 
 struct GlobalContainer;
 
-class GlobalInterpretScope : public InterpretScope, public ASTDiagnoser {
+class GlobalInterpretScope final : public InterpretScope, public ASTDiagnoser {
 public:
 
     /**
@@ -120,11 +120,41 @@ public:
     /**
      * apart from adding a diagnostic, this notifies in debug mode
      */
-    void interpret_error(std::string& error, ASTAny* any);
+    void interpret_error(std::string& error, SourceLocation loc);
 
     /**
      * apart from adding a diagnostic, this notifies in debug mode
      */
-    void interpret_error(std::string_view& error, ASTAny* any);
+    void interpret_error(std::string_view& error, SourceLocation loc);
+
+    /**
+     * apart from adding a diagnostic, this notifies in debug mode
+     */
+    void interpret_error(std::string& error, ASTNode* any);
+
+    /**
+     * apart from adding a diagnostic, this notifies in debug mode
+     */
+    void interpret_error(std::string_view& error, ASTNode* any);
+
+    /**
+     * apart from adding a diagnostic, this notifies in debug mode
+     */
+    void interpret_error(std::string& error, Value* any);
+
+    /**
+     * apart from adding a diagnostic, this notifies in debug mode
+     */
+    void interpret_error(std::string_view& error, Value* any);
+
+    /**
+     * apart from adding a diagnostic, this notifies in debug mode
+     */
+    void interpret_error(std::string& error, BaseType* any);
+
+    /**
+     * apart from adding a diagnostic, this notifies in debug mode
+     */
+    void interpret_error(std::string_view& error, BaseType* any);
 
 };

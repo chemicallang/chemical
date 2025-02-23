@@ -14,16 +14,12 @@ class NegativeValue : public Value {
 public:
 
     Value* value;
-    SourceLocation location;
 
     explicit NegativeValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NegativeValue), value(value), location(location) {}
+    ) : Value(ValueKind::NegativeValue, location), value(value) {}
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    hybrid_ptr<BaseType> get_base_type() final;
 
@@ -40,7 +36,7 @@ public:
     bool primitive() final;
 
     Value* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NegativeValue>()) NegativeValue(value->copy(allocator), location);
+        return new (allocator.allocate<NegativeValue>()) NegativeValue(value->copy(allocator), encoded_location());
     }
 
     Value* evaluated_value(InterpretScope &scope) final;

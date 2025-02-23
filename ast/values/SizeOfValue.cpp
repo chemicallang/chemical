@@ -13,7 +13,7 @@ bool SizeOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
 }
 
 Value* SizeOfValue::evaluated_value(InterpretScope &scope) {
-    return new (scope.allocate<UBigIntValue>()) UBigIntValue(for_type->byte_size(scope.global->target_data.is_64Bit), location);
+    return new (scope.allocate<UBigIntValue>()) UBigIntValue(for_type->byte_size(scope.global->target_data.is_64Bit), encoded_location());
 }
 
 bool AlignOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
@@ -22,5 +22,5 @@ bool AlignOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *exp
 }
 
 Value* AlignOfValue::evaluated_value(InterpretScope &scope) {
-    return new (scope.allocate<UBigIntValue>()) UBigIntValue(for_type->type_alignment(scope.global->target_data.is_64Bit), location);
+    return new (scope.allocate<UBigIntValue>()) UBigIntValue(for_type->type_alignment(scope.global->target_data.is_64Bit), encoded_location());
 }

@@ -4,7 +4,7 @@
 
 #include "LinkedType.h"
 
-class DynamicType : public TokenizedBaseType {
+class DynamicType : public BaseType {
 public:
 
     BaseType* referenced;
@@ -12,7 +12,12 @@ public:
     /**
      * constructor
      */
-    DynamicType(BaseType* referenced, SourceLocation location);
+    DynamicType(
+        BaseType* referenced,
+        SourceLocation location
+    ) : referenced(referenced), BaseType(BaseTypeKind::Dynamic, location) {
+
+    }
 
     void accept(Visitor* visitor) final {
         visitor->visit(this);
@@ -22,16 +27,11 @@ public:
         return type->kind() == BaseTypeKind::Dynamic && ((DynamicType*) type)->referenced->is_same(referenced);
     }
 
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Dynamic;
-    }
-
     bool satisfies(BaseType *type) final;
 
     [[nodiscard]]
     DynamicType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<DynamicType>()) DynamicType(referenced->copy(allocator), location);
+        return new (allocator.allocate<DynamicType>()) DynamicType(referenced->copy(allocator), encoded_location());
     }
 
     ASTNode* linked_node() final {

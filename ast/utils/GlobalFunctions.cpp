@@ -441,11 +441,8 @@ public:
 class WrapValue : public Value {
 public:
     Value* underlying;
-    explicit WrapValue(Value* underlying) : Value(ValueKind::WrapValue), underlying(underlying) {
+    explicit WrapValue(Value* underlying) : Value(ValueKind::WrapValue, ZERO_LOC), underlying(underlying) {
 
-    }
-    SourceLocation encoded_location() final {
-        return ZERO_LOC;
     }
     void accept(Visitor *visitor) final {
         throw std::runtime_error("compiler::wrap value cannot be visited");
@@ -692,7 +689,7 @@ public:
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(call->location.encoded, call->location);
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(call->encoded_location().encoded, call->encoded_location());
     }
 
 };
@@ -714,8 +711,8 @@ public:
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        const auto loc = call_scope->global->loc_man.getLocation(call->location);
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, call->location);
+        const auto loc = call_scope->global->loc_man.getLocation(call->encoded_location());
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, call->encoded_location());
     }
 
 };
@@ -737,8 +734,8 @@ public:
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        const auto loc = call_scope->global->loc_man.getLocation(call->location);
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, call->location);
+        const auto loc = call_scope->global->loc_man.getLocation(call->encoded_location());
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, call->encoded_location());
     }
 
 };
@@ -772,7 +769,7 @@ public:
         const auto global = call_scope->global;;
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
-            const auto loc = global->loc_man.getLocation(runtime_call->location);
+            const auto loc = global->loc_man.getLocation(runtime_call->encoded_location());
             return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, ZERO_LOC);
         } else {
             return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
@@ -801,7 +798,7 @@ public:
         const auto global = call_scope->global;;
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
-            const auto loc = global->loc_man.getLocation(runtime_call->location);
+            const auto loc = global->loc_man.getLocation(runtime_call->encoded_location());
             return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, ZERO_LOC);
         } else {
             return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
@@ -1019,7 +1016,7 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto& triple = call_scope->global->target_triple;
         const auto triple_ptr = allocator.allocate_str(triple.data(), triple.size());
-        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(triple_ptr, triple.size()), call->location);
+        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(triple_ptr, triple.size()), call->encoded_location());
     }
 };
 
@@ -1041,9 +1038,9 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto& loc_man = call_scope->global->loc_man;
-        auto location = loc_man.getLocation(call->location);
+        auto location = loc_man.getLocation(call->encoded_location());
         auto fileId = loc_man.getPathForFileId(location.fileId);
-        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(fileId.data(), fileId.size()), call->location);
+        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(fileId.data(), fileId.size()), call->encoded_location());
     }
 };
 

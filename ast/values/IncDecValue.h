@@ -10,7 +10,6 @@ public:
     Value* value;
     bool increment;
     bool post;
-    SourceLocation location;
 
     /**
      * constructor
@@ -20,16 +19,12 @@ public:
         bool increment,
         bool post,
         SourceLocation location
-    ) : Value(ValueKind::IncDecValue), value(value), increment(increment), post(post), location(location) {
+    ) : Value(ValueKind::IncDecValue, location), value(value), increment(increment), post(post) {
 
     }
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
-    }
-
-    SourceLocation encoded_location() override {
-        return location;
     }
 
     BaseType* create_type(ASTAllocator &allocator) override;

@@ -4,20 +4,17 @@
 
 #include "ast/base/BaseType.h"
 
-class AnyType : public TokenizedBaseType {
+class AnyType : public BaseType {
 public:
 
     static const AnyType instance;
 
-    using TokenizedBaseType::TokenizedBaseType;
+    inline AnyType(SourceLocation location) : BaseType(BaseTypeKind::Any, location) {
+
+    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
-    }
-
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Any;
     }
 
     bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final {
@@ -34,7 +31,7 @@ public:
 
     [[nodiscard]]
     AnyType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<AnyType>()) AnyType(location);
+        return new (allocator.allocate<AnyType>()) AnyType(encoded_location());
     }
 
 #ifdef COMPILER_BUILD

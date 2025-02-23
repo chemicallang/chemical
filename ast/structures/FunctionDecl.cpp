@@ -991,7 +991,7 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     if (defValue) {
         copied = defValue->copy(allocator);
     }
-    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, location);
+    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, encoded_location());
 }
 
 bool FunctionParam::link_param_type(SymbolResolver &linker) {

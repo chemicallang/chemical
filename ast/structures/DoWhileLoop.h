@@ -19,7 +19,6 @@ public:
 
     Value* condition;
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * constructor
@@ -29,13 +28,10 @@ public:
             Scope body,
             ASTNode* parent_node,
             SourceLocation location
-    ) : condition(condition), LoopASTNode(std::move(body), ASTNodeKind::DoWhileLoopStmt), parent_node(parent_node), location(location) {
+    ) : condition(condition), LoopASTNode(std::move(body), ASTNodeKind::DoWhileLoopStmt, location), parent_node(parent_node) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode * parent() final {
         return parent_node;

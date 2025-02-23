@@ -35,8 +35,9 @@ public:
             chem::string_view name,
             BaseType* type,
             FunctionType* func_type,
-            ASTNodeKind k
-    ) : ASTNode(k), name(name), type(type), func_type(func_type), attrs(false) {
+            ASTNodeKind k,
+            SourceLocation loc
+    ) : ASTNode(k, loc), name(name), type(type), func_type(func_type), attrs(false) {
 
     };
 

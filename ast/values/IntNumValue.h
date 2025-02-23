@@ -32,7 +32,7 @@ public:
     /**
      * constructor
      */
-    inline explicit IntNumValue(ValueKind k) noexcept : Value(k) {
+    inline explicit IntNumValue(ValueKind k, SourceLocation loc) noexcept : Value(k, loc) {
 
     }
 

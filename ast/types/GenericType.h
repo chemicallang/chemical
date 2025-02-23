@@ -4,6 +4,7 @@
 
 #include <utility>
 #include "ast/base/BaseType.h"
+#include "ast/types/LinkedType.h"
 #include <unordered_map>
 
 class ASTDiagnoser;
@@ -27,22 +28,23 @@ public:
     /**
      * constructor
      */
-    GenericType(LinkedType* referenced);
+    GenericType(LinkedType* referenced) : BaseType(BaseTypeKind::Generic, referenced->encoded_location()), referenced(referenced) {
+
+    }
 
     /**
      * constructor
      */
-    GenericType(LinkedType* referenced, std::vector<BaseType*> types);
+    GenericType(LinkedType* referenced, std::vector<BaseType*> types) : BaseType(BaseTypeKind::Generic, referenced->encoded_location()), referenced(referenced), types(std::move(types)) {
+
+    }
 
     /**
      * constructor
      */
-    GenericType(LinkedType* referenced, int16_t generic_itr);
+    GenericType(LinkedType* referenced, int16_t generic_itr) : BaseType(BaseTypeKind::Generic, referenced->encoded_location()), referenced(referenced), generic_iteration(generic_itr) {
 
-    /**
-     * get encoded location
-     */
-    SourceLocation encoded_location() final;
+    }
 
     /**
      * accept the visitor
@@ -90,11 +92,6 @@ public:
     bool link(SymbolResolver &linker) final;
 
     ASTNode *linked_node() final;
-
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Generic;
-    }
 
     bool is_same(BaseType *other) final {
         return other->kind() == kind();

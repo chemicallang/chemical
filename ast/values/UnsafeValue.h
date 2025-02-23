@@ -27,12 +27,8 @@ public:
     inline UnsafeValue(
         ASTAllocator* allocator,
         Value* value
-    ) : Value(ValueKind::UnsafeValue), allocator(allocator), value(value) {
+    ) : Value(ValueKind::UnsafeValue, value->encoded_location()), allocator(allocator), value(value) {
 
-    }
-
-    SourceLocation encoded_location() override {
-        return value->encoded_location();
     }
 
     void accept(Visitor *visitor) override {

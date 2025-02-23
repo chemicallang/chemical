@@ -13,7 +13,6 @@ public:
     chem::string_view identifier;
     Scope body;
     ASTNode* parent_node;
-    SourceLocation location;
 
     /**
      * constructor
@@ -24,7 +23,7 @@ public:
         Scope body,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::ProvideStmt), value(value), identifier(identifier), body(std::move(body)), parent_node(parent), location(location) {
+    ) : ASTNode(ASTNodeKind::ProvideStmt, location), value(value), identifier(identifier), body(std::move(body)), parent_node(parent) {
 
     }
 
@@ -39,9 +38,6 @@ public:
         visitor->visit(this);
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode* parent() final {
         return parent_node;

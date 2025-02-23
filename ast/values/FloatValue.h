@@ -16,7 +16,6 @@ class FloatValue : public Value {
 public:
 
     float value; ///< The floating-point value.
-    SourceLocation location;
 
     /**
      * @brief Construct a new FloatValue object.
@@ -26,13 +25,10 @@ public:
     explicit FloatValue(
         float value,
         SourceLocation location
-    ) : Value(ValueKind::Float), value(value), location(location) {
+    ) : Value(ValueKind::Float, location), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
 //    hybrid_ptr<BaseType> get_base_type() final {
 //        return hybrid_ptr<BaseType> { (BaseType*) &FloatType::instance, false };
@@ -59,11 +55,11 @@ public:
 #endif
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<FloatType>()) FloatType(location);
+        return new (allocator.allocate<FloatType>()) FloatType(encoded_location());
     }
 
     FloatValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<FloatValue>()) FloatValue(value, location);
+        return new (allocator.allocate<FloatValue>()) FloatValue(value, encoded_location());
     }
 
     [[nodiscard]]

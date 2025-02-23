@@ -20,21 +20,17 @@ public:
     std::vector<BaseType*> generic_list;
     std::vector<Value*> values;
     int16_t generic_iteration = -1;
-    SourceLocation location;
 
     FunctionCall(
             ChainValue* parent,
             std::vector<Value*> values,
             SourceLocation location
-    ) : ChainValue(ValueKind::FunctionCall), parent_val(parent), values(std::move(values)), location(location) {
+    ) : ChainValue(ValueKind::FunctionCall, location), parent_val(parent), values(std::move(values)) {
 
     }
 
     FunctionCall(FunctionCall &&other) = delete;
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     uint64_t byte_size(bool is64Bit) final;
 

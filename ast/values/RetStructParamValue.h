@@ -13,15 +13,10 @@
 class RetStructParamValue : public Value {
 public:
 
-    SourceLocation location;
-
-    explicit RetStructParamValue(SourceLocation location) : Value(ValueKind::RetStructParamValue), location(location) {
+    explicit RetStructParamValue(SourceLocation location) : Value(ValueKind::RetStructParamValue, location) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
@@ -38,7 +33,7 @@ public:
     BaseType* create_type(ASTAllocator& allocator) final;
 
     Value *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<RetStructParamValue>()) RetStructParamValue(location);
+        return new (allocator.allocate<RetStructParamValue>()) RetStructParamValue(encoded_location());
     }
 
     [[nodiscard]]

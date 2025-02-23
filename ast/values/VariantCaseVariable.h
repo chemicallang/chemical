@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/values/VariableIdentifier.h"
 
 class VariantMemberParam;
 
@@ -13,7 +14,6 @@ public:
     VariableIdentifier* parent_val;
     VariantMemberParam* member_param;
     SwitchStatement* switch_statement;
-    SourceLocation location;
 
     /**
      * variant case
@@ -23,13 +23,10 @@ public:
             VariableIdentifier* parent_val,
             SwitchStatement* switch_statement,
             SourceLocation token
-    ) : ASTNode(ASTNodeKind::VariantCaseVariable), name(name), parent_val(parent_val), switch_statement(switch_statement), location(location) {
+    ) : ASTNode(ASTNodeKind::VariantCaseVariable, parent_val->encoded_location()), name(name), parent_val(parent_val), switch_statement(switch_statement) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     void accept(Visitor *visitor) final;
 

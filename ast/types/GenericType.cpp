@@ -6,22 +6,6 @@
 #include "LinkedType.h"
 #include "ast/structures/StructDefinition.h"
 
-GenericType::GenericType(LinkedType* referenced) : referenced(referenced) {
-
-}
-
-GenericType::GenericType(LinkedType* referenced, std::vector<BaseType*> types) : referenced(referenced), types(std::move(types)) {
-
-}
-
-GenericType::GenericType(LinkedType* referenced, int16_t generic_itr) : referenced(referenced), generic_iteration(generic_itr) {
-
-}
-
-SourceLocation GenericType::encoded_location() {
-    return referenced->encoded_location();
-}
-
 bool GenericType::link(SymbolResolver &linker) {
     referenced->link(linker);
     if(!referenced->linked) {

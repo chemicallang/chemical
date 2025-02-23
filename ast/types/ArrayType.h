@@ -5,7 +5,7 @@
 #include "ast/base/BaseType.h"
 #include <memory>
 
-class ArrayType : public TokenizedBaseType {
+class ArrayType : public BaseType {
 private:
 
     uint64_t array_size = 0;
@@ -19,7 +19,7 @@ public:
         BaseType* elem_type,
         Value* array_size_val,
         SourceLocation location
-    ) : elem_type(elem_type), array_size_value(array_size_val), TokenizedBaseType(location) {
+    ) : BaseType(BaseTypeKind::Array, location), elem_type(elem_type), array_size_value(array_size_val) {
 
     }
 
@@ -27,7 +27,7 @@ public:
             BaseType* elem_type,
             uint64_t array_size,
             SourceLocation location
-    ) : elem_type(elem_type), array_size_value(nullptr), array_size(array_size), TokenizedBaseType(location) {
+    ) : BaseType(BaseTypeKind::Array, location), elem_type(elem_type), array_size_value(nullptr), array_size(array_size) {
 
     }
 
@@ -76,11 +76,6 @@ public:
         return elem_type;
     }
 
-    [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::Array;
-    }
-
     bool equals(ArrayType *type) const {
         return type->array_size == array_size && elem_type->is_same(type->elem_type);
     }
@@ -91,7 +86,7 @@ public:
 
     [[nodiscard]]
     ArrayType* copy(ASTAllocator& allocator) const final {
-        const auto t = new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size_value, location);
+        const auto t = new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size_value, encoded_location());
         t->array_size = array_size;
         return t;
     }

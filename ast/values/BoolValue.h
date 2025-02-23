@@ -13,7 +13,6 @@ class BoolValue : public Value {
 public:
 
     bool value;
-    SourceLocation location;
 
     /**
      * @brief Construct a new CharValue object.
@@ -23,16 +22,13 @@ public:
     explicit BoolValue(
         bool value,
         SourceLocation location
-    ) : Value(ValueKind::Bool), value(value), location(location) {
+    ) : Value(ValueKind::Bool, location), value(value) {
 
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     BoolValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BoolValue>()) BoolValue(value, location);
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, encoded_location());
     }
 
     uint64_t byte_size(bool is64Bit) final {
@@ -48,7 +44,7 @@ public:
     }
 
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BoolType>()) BoolType(location);
+        return new (allocator.allocate<BoolType>()) BoolType(encoded_location());
     }
 
     void accept(Visitor *visitor) final {

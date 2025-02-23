@@ -22,7 +22,6 @@ public:
     BaseType* type;
     Value* defValue;
     ASTNode* parent_node;
-    SourceLocation location;
     StructMemberAttributes attrs;
 
     StructMember(
@@ -33,7 +32,7 @@ public:
             SourceLocation location,
             bool is_const = false,
             AccessSpecifier specifier = AccessSpecifier::Public
-    ) : BaseDefMember(name, ASTNodeKind::StructMember), type(type), defValue(defValue), parent_node(parent_node), location(location),
+    ) : BaseDefMember(name, ASTNodeKind::StructMember, location), type(type), defValue(defValue), parent_node(parent_node),
         attrs(specifier, is_const, false)
     {
 
@@ -67,9 +66,6 @@ public:
         parent_node = new_parent;
     }
 
-    SourceLocation encoded_location() final {
-        return location;
-    }
 
     ASTNode *parent() final {
         return parent_node;

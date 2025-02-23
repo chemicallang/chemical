@@ -9,7 +9,9 @@ public:
 
     static const CharType instance;
 
-    using IntNType::IntNType;
+    CharType(SourceLocation location) : IntNType(location) {
+
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 1;
@@ -31,13 +33,8 @@ public:
     Value *create(ASTAllocator& allocator, uint64_t value) final;
 
     [[nodiscard]]
-    BaseTypeKind kind() const final {
-        return BaseTypeKind::IntN;
-    }
-
-    [[nodiscard]]
     CharType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<CharType>()) CharType(location);
+        return new (allocator.allocate<CharType>()) CharType(encoded_location());
     }
 
 #ifdef COMPILER_BUILD

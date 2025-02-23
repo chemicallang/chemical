@@ -132,8 +132,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
     current_loop_node = loop;
     auto block = parseBraceBlock("forloop", loop, allocator);
     if(block.has_value()) {
-        loop->body.nodes = std::move(block.value().nodes);
-        loop->body.location = block.value().location;
+        loop->body = std::move(block.value());
     } else {
         error("expected a brace block in a for block");
         current_loop_node = prev_loop_node;
@@ -161,8 +160,7 @@ LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) 
     current_loop_node = loopBlock;
     auto block = parseBraceBlock("loop", loopBlock, allocator);
     if(block.has_value()) {
-        auto& blk = block.value();
-        loopBlock->body = { std::move(blk.nodes), blk.parent_node, blk.location };
+        loopBlock->body = std::move(block.value());
     } else {
         error("expected a brace block in a for block");
         current_loop_node = prev_loop_node;

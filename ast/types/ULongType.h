@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]]
     ULongType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, location);
+        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, encoded_location());
     }
 
 };

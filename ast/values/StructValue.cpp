@@ -356,9 +356,9 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     }
     std::vector<chem::string_view> missing;
     for(auto& mem : container->inherited) {
-        auto& type = *mem->type;
+        auto& type = *mem.type;
         if(type.get_direct_linked_struct()) {
-            const auto& ref_type_name = mem->ref_type_name();
+            const auto& ref_type_name = mem.ref_type_name();
             auto val = values.find(ref_type_name);
             if (val == values.end()) {
                 missing.emplace_back(ref_type_name);

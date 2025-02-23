@@ -11,7 +11,7 @@
 class VariablesContainer {
 public:
 
-    std::vector<std::unique_ptr<InheritedType>> inherited;
+    std::vector<InheritedType> inherited;
     tsl::ordered_map<chem::string_view, BaseDefMember*> variables;
 
     /**

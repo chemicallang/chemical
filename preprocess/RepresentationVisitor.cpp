@@ -444,9 +444,9 @@ void RepresentationVisitor::visit(StructDefinition *def) {
         const auto size = def->inherited.size();
         while(i < size) {
             const auto& thing = def->inherited[i];
-            write(thing->specifier);
+            write(thing.specifier);
             space();
-            write(def->inherited[i]->specifier);
+            write(def->inherited[i].specifier);
             if(i < size - 1) write(", ");
             i++;
         }

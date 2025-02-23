@@ -56,16 +56,16 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
 
         auto decl = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct("", parent_node, 0, specifier);
 
-        if(consumeToken(TokenType::ColonSym)) {
-            do {
-                auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
-                auto type = parseLinkedOrGenericType(allocator);
-                if(!type) {
-                    return decl;
-                }
-                decl->inherited.emplace_back(new InheritedType(type, in_spec));
-            } while(consumeToken(TokenType::CommaSym));
-        }
+//        if(consumeToken(TokenType::ColonSym)) {
+//            do {
+//                auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
+//                auto type = parseLinkedOrGenericType(allocator);
+//                if(!type) {
+//                    return decl;
+//                }
+//                decl->inherited.emplace_back(new InheritedType(type, in_spec));
+//            } while(consumeToken(TokenType::CommaSym));
+//        }
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return decl;
@@ -186,7 +186,7 @@ StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, Ac
                 if(!type) {
                     return decl;
                 }
-                decl->inherited.emplace_back(new InheritedType(type, in_spec));
+                decl->inherited.emplace_back(type, in_spec);
             } while(consumeToken(TokenType::CommaSym));
         }
         if(!consumeToken(TokenType::LBrace)) {

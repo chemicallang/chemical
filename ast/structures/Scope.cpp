@@ -179,9 +179,9 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     if(values.size() < definition->init_values_req_size()) {
         std::vector<chem::string_view> missing;
         for(auto& mem : definition->inherited) {
-            auto& type = *mem->type;
+            auto& type = *mem.type;
             if(type.get_direct_linked_struct()) {
-                const auto& ref_type_name = mem->ref_type_name();
+                const auto& ref_type_name = mem.ref_type_name();
                 auto val = values.find(ref_type_name);
                 if (val == values.end()) {
                     missing.emplace_back(ref_type_name);
@@ -289,7 +289,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
             }
             bool found = false;
             for(auto& inherit : mems_container->inherited) {
-                auto struc = inherit->type->get_direct_linked_struct();
+                auto struc = inherit.type->get_direct_linked_struct();
                 if(struc && called_struc == struc) {
                     found = true;
                 }

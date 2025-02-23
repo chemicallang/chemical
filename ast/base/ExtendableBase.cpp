@@ -14,7 +14,7 @@ FunctionDeclaration *ExtendableBase::extended_child(const chem::string_view &nam
 
 void ExtendableBase::adopt(MembersContainer* definition) {
     for(auto& inherits : definition->inherited) {
-        adopt((MembersContainer*) inherits->type->linked_node());
+        adopt((MembersContainer*) inherits.type->linked_node());
     }
     for(auto& func : definition->functions()) {
         extension_functions[func->name_view()] = func;

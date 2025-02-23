@@ -23,7 +23,7 @@
 std::string BaseType::representation() {
     std::ostringstream ostring;
     RepresentationVisitor visitor(ostring);
-    accept(&visitor);
+    visitor.visit(this);
     return ostring.str();
 }
 

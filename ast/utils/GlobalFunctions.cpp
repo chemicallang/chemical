@@ -305,7 +305,7 @@ public:
             if(paramValue == nullptr) {
                 ostring.write("null", 4);
             } else {
-                paramValue->accept(&visitor);
+                visitor.visit(paramValue);
             }
         }
         std::cout << ostring.str();
@@ -352,7 +352,7 @@ public:
             if(paramValue == nullptr) {
                 ostring.write("null", 4);
             } else {
-                paramValue->accept(&visitor);
+                visitor.visit(paramValue);
             }
         }
         const auto& str = ostring.str();
@@ -1119,7 +1119,7 @@ public:
             return nullptr;
         }
         const auto childType = call->generic_list.front()->pure_type(allocator);
-        childType->accept(&visitor);
+        visitor.visit(childType);
         const auto& str = ostring.str();
         const auto returnValue = new (allocator.allocate<StringValue>()) StringValue(chem::string_view(allocator.allocate_str(str.data(), str.size()), str.size()), call->encoded_location());
         ostring.str("");

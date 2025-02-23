@@ -803,7 +803,7 @@ Value* Value::get_first_value_from_value_node(ASTNode* node) {
 std::string Value::representation() {
     std::ostringstream ostring;
     RepresentationVisitor visitor(ostring);
-    accept(&visitor);
+    visitor.visit(this);
     return ostring.str();
 }
 

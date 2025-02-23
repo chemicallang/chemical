@@ -16,16 +16,12 @@ public:
     /**
      * constructor
      */
-    BlockValue(Scope scope) : scope(std::move(scope)) {
+    BlockValue(Scope scope) : Value(ValueKind::BlockValue), scope(std::move(scope)) {
 
     }
 
     SourceLocation encoded_location() override {
         return scope.encoded_location();
-    }
-
-    ValueKind val_kind() override {
-        return ValueKind::BlockValue;
     }
 
     void accept(Visitor *visitor) override {

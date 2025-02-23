@@ -6,15 +6,6 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
 
-IsValue::IsValue(
-        Value* value,
-        BaseType* type,
-        bool is_negating,
-        SourceLocation location
-) : value(value), type(type), is_negating(is_negating), location(location) {
-
-}
-
 IsValue *IsValue::copy(ASTAllocator& allocator) {
     return new (allocator.allocate<IsValue>()) IsValue(
             value->copy(allocator),

@@ -6,14 +6,6 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/structures/BaseFunctionParam.h"
 
-
-AddrOfValue::AddrOfValue(
-    Value* value,
-    SourceLocation location
-) : value(value), location(location), _ptr_type(nullptr, location) {
-
-}
-
 bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     auto res = value->link(linker, value);
     if(res) {

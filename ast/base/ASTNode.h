@@ -55,12 +55,14 @@ class BaseDefMember;
  * Base class for ast node
  */
 class ASTNode : public ASTAny {
-public:
+private:
 
     /**
      * kind is stored
      */
     ASTNodeKind const _kind;
+
+public:
 
     /**
      * default constructor

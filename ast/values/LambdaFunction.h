@@ -42,16 +42,12 @@ public:
             Scope scope,
             ASTNode* parent_node,
             SourceLocation location
-    ) : captureList(std::move(captureList)), FunctionTypeBody(std::move(params), nullptr, isVariadic, !captureList.empty(), parent_node, location), scope(std::move(scope)) {
+    ) : Value(ValueKind::LambdaFunc), captureList(std::move(captureList)), FunctionTypeBody(std::move(params), nullptr, isVariadic, !captureList.empty(), parent_node, location), scope(std::move(scope)) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::LambdaFunc;
     }
 
     LambdaFunction* as_lambda() final {

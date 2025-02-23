@@ -7,10 +7,6 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "ULongValue.h"
 
-SizeOfValue::SizeOfValue(BaseType* for_type, SourceLocation location) : for_type(for_type), location(location) {
-
-}
-
 bool SizeOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     for_type->link(linker);
     return true;
@@ -18,10 +14,6 @@ bool SizeOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
 
 Value* SizeOfValue::evaluated_value(InterpretScope &scope) {
     return new (scope.allocate<UBigIntValue>()) UBigIntValue(for_type->byte_size(scope.global->target_data.is_64Bit), location);
-}
-
-AlignOfValue::AlignOfValue(BaseType* for_type, SourceLocation location) : for_type(for_type), location(location) {
-
 }
 
 bool AlignOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {

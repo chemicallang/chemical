@@ -11,16 +11,18 @@ public:
     unsigned short value;
     SourceLocation location;
 
-    explicit UShortValue(unsigned short value, SourceLocation location) : value(value), location(location) {
+    /**
+     * constructor
+     */
+    explicit UShortValue(
+        unsigned short value,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::UShort), value(value), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::UShort;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

@@ -164,16 +164,6 @@ bool ArrayValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 
 #endif
 
-ArrayValue::ArrayValue(
-    std::vector<Value*> values,
-    BaseType* elemType,
-    std::vector<unsigned int> sizes,
-    SourceLocation location,
-    ASTAllocator& allocator
-) : values(std::move(values)), sizes(std::move(sizes)), location(location) {
-    created_type = new (allocator.allocate<ArrayType>()) ArrayType(elemType, array_size(), ZERO_LOC);
-}
-
 BaseType*& ArrayValue::known_elem_type() const {
     return ((ArrayType*) created_type)->elem_type;
 }

@@ -102,16 +102,6 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
     return true;
 }
 
-AccessChain::AccessChain(bool is_node, SourceLocation location) : location(location), attrs(is_node, false) {
-
-}
-
-AccessChain::AccessChain(
-        std::vector<ChainValue*> values, bool is_node, SourceLocation location
-) : values(std::move(values)), location(location), attrs(is_node, false) {
-
-}
-
 BaseType* AccessChain::create_type(ASTAllocator& allocator) {
     const auto values_size = values.size();
     if(values_size == 1) {

@@ -13,14 +13,15 @@ public:
     BaseType* for_type;
     SourceLocation location;
 
-    explicit SizeOfValue(BaseType *for_type, SourceLocation location);
+    explicit SizeOfValue(
+        BaseType *for_type,
+        SourceLocation location
+    ) : Value(ValueKind::SizeOfValue), for_type(for_type), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::SizeOfValue;
     }
 
     void accept(Visitor *visitor) final {

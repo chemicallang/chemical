@@ -11,16 +11,18 @@ public:
     unsigned char value;
     SourceLocation location;
 
-    explicit UCharValue(unsigned char value, SourceLocation location) : value(value), location(location) {
+    /**
+     * constructor
+     */
+    explicit UCharValue(
+        unsigned char value,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::UChar), value(value), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::UChar;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

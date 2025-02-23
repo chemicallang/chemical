@@ -23,14 +23,13 @@ public:
      *
      * @param value The double value.
      */
-    explicit DoubleValue(double value, SourceLocation location) : value(value), location(location) {}
+    explicit DoubleValue(
+        double value,
+        SourceLocation location
+    ) : Value(ValueKind::Double), value(value), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::Double;
     }
 
     void accept(Visitor *visitor) final {

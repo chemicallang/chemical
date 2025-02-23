@@ -441,7 +441,7 @@ public:
 class WrapValue : public Value {
 public:
     Value* underlying;
-    explicit WrapValue(Value* underlying) : underlying(underlying) {
+    explicit WrapValue(Value* underlying) : Value(ValueKind::WrapValue), underlying(underlying) {
 
     }
     SourceLocation encoded_location() final {
@@ -449,9 +449,6 @@ public:
     }
     void accept(Visitor *visitor) final {
         throw std::runtime_error("compiler::wrap value cannot be visited");
-    }
-    ValueKind val_kind() final {
-        return ValueKind::WrapValue;
     }
     Value *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<WrapValue>()) WrapValue(underlying->copy(allocator));

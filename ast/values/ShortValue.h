@@ -9,16 +9,18 @@ public:
     short value;
     SourceLocation location;
 
-    explicit ShortValue(short value, SourceLocation location) : value(value), location(location) {
+    /**
+     * constructor
+     */
+    explicit ShortValue(
+        short value,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::Short), value(value), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::Short;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

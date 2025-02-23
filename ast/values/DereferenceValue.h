@@ -19,16 +19,12 @@ public:
     explicit DereferenceValue(
         Value* value,
         SourceLocation location
-    ) : value(value), location(location) {
+    ) : Value(ValueKind::DereferenceValue), value(value), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::DereferenceValue;
     }
 
     uint64_t byte_size(bool is64Bit) final {

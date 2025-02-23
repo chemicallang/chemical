@@ -26,7 +26,7 @@ public:
             ChainValue* parent,
             std::vector<Value*> values,
             SourceLocation location
-    ) : parent_val(parent), values(std::move(values)), location(location) {
+    ) : ChainValue(ValueKind::FunctionCall), parent_val(parent), values(std::move(values)), location(location) {
 
     }
 
@@ -34,10 +34,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::FunctionCall;
     }
 
     uint64_t byte_size(bool is64Bit) final;

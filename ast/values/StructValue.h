@@ -32,31 +32,27 @@ public:
 #endif
 
     StructValue(
-            BaseType* refType,
-            SourceLocation location,
-            ASTNode* parent
-    ) : refType(refType), definition(nullptr), container(nullptr), location(location), parent_node(parent)
+        BaseType* refType,
+        SourceLocation location,
+        ASTNode* parent
+    ) : Value(ValueKind::StructValue), refType(refType), definition(nullptr), container(nullptr), location(location), parent_node(parent)
     {
 
     }
 
     StructValue(
-            BaseType* refType,
-            ExtendableMembersContainerNode *definition,
-            VariablesContainer* container,
-            SourceLocation location,
-            ASTNode* parent
-    ) : refType(refType), definition(definition), container(container), location(location), parent_node(parent)
+        BaseType* refType,
+        ExtendableMembersContainerNode *definition,
+        VariablesContainer* container,
+        SourceLocation location,
+        ASTNode* parent
+    ) : Value(ValueKind::StructValue), refType(refType), definition(definition), container(container), location(location), parent_node(parent)
     {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::StructValue;
     }
 
     void accept(Visitor *visitor) final {

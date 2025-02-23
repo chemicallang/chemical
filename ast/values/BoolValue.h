@@ -20,12 +20,11 @@ public:
      *
      * @param value The character value.
      */
-    explicit BoolValue(bool value, SourceLocation location) : value(value), location(location) {
+    explicit BoolValue(
+        bool value,
+        SourceLocation location
+    ) : Value(ValueKind::Bool), value(value), location(location) {
 
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::Bool;
     }
 
     SourceLocation encoded_location() final {

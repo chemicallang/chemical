@@ -11,16 +11,18 @@ public:
     unsigned int value;
     SourceLocation location;
 
-    explicit UIntValue(unsigned int value, SourceLocation location) : value(value), location(location) {
+    /**
+     * constructor
+     */
+    explicit UIntValue(
+        unsigned int value,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::UInt), value(value), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::UInt;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

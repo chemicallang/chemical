@@ -16,14 +16,13 @@ public:
     Value* value;
     SourceLocation location;
 
-    explicit NegativeValue(Value* value, SourceLocation location) : value(value), location(location) {}
+    explicit NegativeValue(
+        Value* value,
+        SourceLocation location
+    ) : Value(ValueKind::NegativeValue), value(value), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::NegativeValue;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final;

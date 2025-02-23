@@ -13,16 +13,19 @@ public:
     uint64_t high;
     SourceLocation location;
 
-    UInt128Value(uint64_t low, uint64_t high, SourceLocation location) : low(low), high(high), location(location) {
+    /**
+     * constructor
+     */
+    UInt128Value(
+        uint64_t low,
+        uint64_t high,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::UInt128), low(low), high(high), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::UInt128;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

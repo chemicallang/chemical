@@ -13,12 +13,14 @@ public:
     // TODO remove this
     PointerType ptr_type;
 
-    NewValue(Value* value, SourceLocation location) : value(value), location(location), ptr_type(nullptr, 0, false) {
+    /**
+     * constructor
+     */
+    NewValue(
+        Value* value,
+        SourceLocation location
+    ) : Value(ValueKind::NewValue), value(value), location(location), ptr_type(nullptr, 0, false) {
 
-    }
-
-    ValueKind val_kind() override {
-        return ValueKind::NewValue;
     }
 
     SourceLocation encoded_location() override {

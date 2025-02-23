@@ -22,14 +22,13 @@ public:
     /**
      * constructor
      */
-    explicit IntValue(int value, SourceLocation location) : value(value), location(location) {}
+    explicit IntValue(
+        int value,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::Int), value(value), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::Int;
     }
 
     uint64_t byte_size(bool is64Bit) final {

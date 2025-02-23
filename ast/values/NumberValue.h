@@ -32,7 +32,10 @@ public:
      *
      * @param value The integer value.
      */
-    explicit NumberValue(uint64_t value, SourceLocation location) : value(value), location(location) {}
+    explicit NumberValue(
+        uint64_t value,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::NumberValue), value(value), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;
@@ -57,10 +60,6 @@ public:
     [[nodiscard]]
     uint64_t get_num_value() const final {
         return value;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::NumberValue;
     }
 
     NumberValue *copy(ASTAllocator& allocator) final {

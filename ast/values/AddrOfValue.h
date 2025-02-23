@@ -18,14 +18,15 @@ public:
     PointerType _ptr_type;
     bool is_value_mutable = false;
 
-    explicit AddrOfValue(Value* value, SourceLocation location);
+    explicit AddrOfValue(
+        Value* value,
+        SourceLocation location
+    ) : Value(ValueKind::AddrOfValue), value(value), location(location), _ptr_type(nullptr, location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::AddrOfValue;
     }
 
     uint64_t byte_size(bool is64Bit) final {

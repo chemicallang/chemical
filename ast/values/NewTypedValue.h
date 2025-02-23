@@ -17,16 +17,15 @@ public:
     // TODO remove this
     PointerType ptr_type;
 
-    inline NewTypedValue(BaseType* type, SourceLocation location) : type(type), location(location), ptr_type(nullptr, 0 , false) {
+    inline NewTypedValue(
+        BaseType* type,
+        SourceLocation location
+    ) : Value(ValueKind::NewTypedValue), type(type), location(location), ptr_type(nullptr, 0 , false) {
 
     }
 
     SourceLocation encoded_location() override {
         return location;
-    }
-
-    ValueKind val_kind() override {
-        return ValueKind::NewTypedValue;
     }
 
     void accept(Visitor *visitor) override {

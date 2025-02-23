@@ -520,31 +520,6 @@ ASTNode* VariantMemberParam::child(const chem::string_view &varName) {
     return linked_node->child(varName);
 }
 
-VariantCase::VariantCase(
-    Value* parent_val,
-    std::vector<Value*>& value_list,
-    ASTDiagnoser& diagnoser,
-    SwitchStatement* statement,
-    SourceLocation location
-) : parent_val(parent_val), switch_statement(statement), location(location) {
-//    for(const auto value : value_list) {
-//        const auto id = value->as_identifier();
-//        if(!id) {
-//            diagnoser.error("switch variant case with a function call, value is not a identifiers '" + value->representation() + "'", value);
-//            return;
-//        }
-//        identifier_list.emplace_back(id->value.str(), this, value->encoded_location());
-//    }
-}
-
-VariantCase::VariantCase(
-    Value* parent_val,
-    SwitchStatement* statement,
-    SourceLocation location
-) : parent_val(parent_val), switch_statement(statement), location(location) {
-
-}
-
 bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
     Value* empty_val = nullptr;

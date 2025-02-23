@@ -17,8 +17,11 @@ public:
     using Value::create_type;
     using Value::link;
 
-    ChainValue* as_chain_value() final {
-        return this;
+    /**
+     * constructor\
+     */
+    inline explicit ChainValue(ValueKind k) noexcept : Value(k) {
+
     }
 
     /**
@@ -179,5 +182,3 @@ public:
 #endif
 
 };
-
-static_assert(sizeof(ChainValue) <= 8, "ChainValue must always be equal or less than 8 bytes");

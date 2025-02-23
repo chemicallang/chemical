@@ -17,20 +17,19 @@ public:
     std::vector<Value*> values;
     SourceLocation location;
 
+    /**
+     * constructor
+     */
     IndexOperator(
             ChainValue* parent,
             std::vector<Value*> indexes,
             SourceLocation location
-    ) : parent_val(parent), values(std::move(indexes)), location(location) {
+    ) : ChainValue(ValueKind::IndexOperator), parent_val(parent), values(std::move(indexes)), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::IndexOperator;
     }
 
     void accept(Visitor *visitor) final {

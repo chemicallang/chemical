@@ -13,16 +13,16 @@ public:
     bool is_negative;
     SourceLocation location;
 
-    Int128Value(uint64_t magnitude, bool is_negative, SourceLocation location) : magnitude(magnitude), is_negative(is_negative), location(location) {
+    Int128Value(
+        uint64_t magnitude,
+        bool is_negative,
+        SourceLocation location
+    ) : IntNumValue(ValueKind::Int128), magnitude(magnitude), is_negative(is_negative), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::Int128;
     }
 
 //    hybrid_ptr<BaseType> get_base_type() final {

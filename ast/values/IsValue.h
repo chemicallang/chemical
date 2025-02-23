@@ -17,19 +17,20 @@ public:
     bool is_negating;
     SourceLocation location;
 
+    /**
+     * constructor
+     */
     IsValue(
             Value* value,
             BaseType* type,
             bool is_negating,
             SourceLocation location
-    );
+    ) : Value(ValueKind::IsValue), value(value), type(type), is_negating(is_negating), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ValueKind val_kind() final {
-        return ValueKind::IsValue;
     }
 
     IsValue *copy(ASTAllocator& allocator) final;

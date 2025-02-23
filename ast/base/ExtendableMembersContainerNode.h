@@ -18,7 +18,7 @@ public:
     /**
      * constructor
      */
-    explicit ExtendableMembersContainerNode(LocatedIdentifier identifier) : identifier(identifier) {
+    ExtendableMembersContainerNode(LocatedIdentifier identifier, ASTNodeKind k) : MembersContainer(k), identifier(identifier) {
 
     }
 

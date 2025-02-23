@@ -167,17 +167,6 @@ bool IfStatement::add_child_index(Codegen& gen, std::vector<llvm::Value *>& inde
 
 #endif
 
-IfStatement::IfStatement(
-        Value* condition,
-        Scope ifBody,
-        std::vector<std::pair<Value*, Scope>> elseIfs,
-        std::optional<Scope> elseBody,
-        ASTNode* parent_node,
-        bool is_value,
-        SourceLocation location
-) : condition(condition), ifBody(std::move(ifBody)),
-    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node), is_value(is_value), location(location) {}
-
 void IfStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }

@@ -31,7 +31,11 @@ public:
     /**
      * constructor
      */
-    ValueNode(Value* value, ASTNode* parent_node, SourceLocation location) : value(value), parent_node(parent_node), location(location) {
+    ValueNode(
+        Value* value,
+        ASTNode* parent_node,
+        SourceLocation location
+    ) : ASTNode(ASTNodeKind::ValueNode), value(value), parent_node(parent_node), location(location) {
 
     }
 
@@ -45,10 +49,6 @@ public:
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::ValueNode;
     }
 
     ASTNode *parent() final {

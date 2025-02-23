@@ -11,12 +11,11 @@ public:
     Value* value;
     ASTNode* parent_node;
 
-    ValueWrapperNode(Value* value, ASTNode* parent_node) : value(value), parent_node(parent_node) {
+    ValueWrapperNode(
+        Value* value,
+        ASTNode* parent_node
+    ) : ASTNode(ASTNodeKind::ValueWrapper), value(value), parent_node(parent_node) {
 
-    }
-
-    ASTNodeKind kind() override {
-        return ASTNodeKind::ValueWrapper;
     }
 
     void accept(Visitor *visitor) override {

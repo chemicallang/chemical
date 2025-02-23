@@ -12,43 +12,34 @@
 
 class DoWhileLoop : public LoopASTNode {
 private:
+
     bool stoppedInterpretation = false;
+
 public:
+
     Value* condition;
     ASTNode* parent_node;
     SourceLocation location;
 
     /**
-     * Initialize an empty do while loop
-     */
-//    explicit DoWhileLoop(ASTNode* parent, CSTToken* token) : parent_node(parent), token(token), LoopASTNode(nullptr) {
-//
-//    }
-
-    SourceLocation encoded_location() final {
-        return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::DoWhileLoopStmt;
-    }
-
-    ASTNode * parent() final {
-        return parent_node;
-    }
-
-    /**
-     * @brief Construct a new WhileLoop object.
-     *
-     * @param condition The loop condition.
-     * @param body The body of the while loop.
+     * constructor
      */
     DoWhileLoop(
             Value* condition,
             Scope body,
             ASTNode* parent_node,
             SourceLocation location
-    );
+    ) : condition(condition), LoopASTNode(std::move(body), ASTNodeKind::DoWhileLoopStmt), parent_node(parent_node), location(location) {
+
+    }
+
+    SourceLocation encoded_location() final {
+        return location;
+    }
+
+    ASTNode * parent() final {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) final;
 

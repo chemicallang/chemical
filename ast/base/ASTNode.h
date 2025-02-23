@@ -52,15 +52,22 @@ class GenericTypeParameter;
 class BaseDefMember;
 
 /**
- * @brief Base class for all AST nodes.
+ * Base class for ast node
  */
 class ASTNode : public ASTAny {
 public:
 
     /**
+     * kind is stored
+     */
+    ASTNodeKind const _kind;
+
+    /**
      * default constructor
      */
-    ASTNode() = default;
+    inline explicit ASTNode(ASTNodeKind k) noexcept : _kind(k) {
+        // does nothing
+    }
 
     /**
      * deleted copy constructor
@@ -73,15 +80,17 @@ public:
     ASTNode(ASTNode&& other) = default;
 
     /**
-     * move assignment constructor
-     */
-    ASTNode& operator =(ASTNode &&other) noexcept = default;
-
-    /**
      * any kind of 'node' is returned
      */
     ASTAnyKind any_kind() final {
         return ASTAnyKind::Node;
+    }
+
+    /**
+     * get the kind of ast node
+     */
+    inline ASTNodeKind kind() const noexcept {
+        return _kind;
     }
 
     /**
@@ -233,11 +242,6 @@ public:
     virtual int child_index(const chem::string_view &name) {
         return -1;
     }
-
-    /**
-     * get the ast node kind from this node
-     */
-    virtual ASTNodeKind kind() = 0;
 
     /**
      * this generic type would subscribe to this node, so all usages of this generic node
@@ -1155,5 +1159,3 @@ public:
     }
 
 };
-
-static_assert(sizeof(ASTNode) <= 8, "ASTNode must always be equal or less than 8 bytes");

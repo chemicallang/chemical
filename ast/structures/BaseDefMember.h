@@ -5,12 +5,12 @@
 #include "ast/base/AnnotableNode.h"
 #include "ordered_map.h"
 
-class BaseDefMember : public AnnotableNode {
+class BaseDefMember : public ASTNode {
 public:
 
     chem::string_view name;
 
-    BaseDefMember(chem::string_view name) : name(name) {
+    BaseDefMember(chem::string_view name, ASTNodeKind k) : ASTNode(k), name(name) {
 
     }
 

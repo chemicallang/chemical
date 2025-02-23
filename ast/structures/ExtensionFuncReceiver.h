@@ -18,16 +18,12 @@ public:
         BaseType* type,
         ASTNode* parent_node,
         SourceLocation location
-    ) : BaseFunctionParam(name, type), parent_node(parent_node), location(location) {
+    ) : BaseFunctionParam(name, type, nullptr, ASTNodeKind::ExtensionFuncReceiver), parent_node(parent_node), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::ExtensionFuncReceiver;
     }
 
     ASTNode * parent() final {

@@ -33,7 +33,7 @@ public:
             SourceLocation location,
             bool is_const = false,
             AccessSpecifier specifier = AccessSpecifier::Public
-    ) : BaseDefMember(name), type(type), defValue(defValue), parent_node(parent_node), location(location),
+    ) : BaseDefMember(name, ASTNodeKind::StructMember), type(type), defValue(defValue), parent_node(parent_node), location(location),
         attrs(specifier, is_const, false)
     {
 
@@ -61,10 +61,6 @@ public:
 
     inline void set_deprecated(bool value) {
         attrs.deprecated = value;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::StructMember;
     }
 
     void set_parent(ASTNode* new_parent) final {

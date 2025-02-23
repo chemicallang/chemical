@@ -20,8 +20,7 @@ class ASTUnit {
 public:
 
     /**
-     * The top level scope, This contains nodes that have raw pointers
-     * to values and types allocated in this ASTUnit
+     * the top level nodes in the ast unit
      */
     Scope scope;
 
@@ -44,7 +43,7 @@ public:
     /**
      * default move constructor
      */
-    ASTUnit(ASTUnit&& other) noexcept ;
+    ASTUnit(ASTUnit&& other) noexcept;
 
     /**
      * move assignment operator

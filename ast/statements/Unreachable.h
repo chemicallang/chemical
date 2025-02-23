@@ -18,16 +18,15 @@ public:
     /**
      * Construct a new ContinueStatement object.
      */
-    UnreachableStmt(ASTNode* parent_node, SourceLocation location) : parent_node(parent_node), location(location) {
+    UnreachableStmt(
+        ASTNode* parent_node,
+        SourceLocation location
+    ) : ASTNode(ASTNodeKind::UnreachableStmt), parent_node(parent_node), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::UnreachableStmt;
     }
 
     void set_parent(ASTNode* new_parent) final {

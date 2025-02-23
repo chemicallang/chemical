@@ -14,7 +14,11 @@ public:
     ASTNode* parent_node;
     SourceLocation location;
 
-    StructType(chem::string_view name, ASTNode* parent, SourceLocation location) : name(name), parent_node(parent), location(location) {
+    StructType(
+        chem::string_view name,
+        ASTNode* parent,
+        SourceLocation location
+    ) : ASTNode(ASTNodeKind::StructType), name(name), parent_node(parent), location(location) {
 
     }
 
@@ -33,10 +37,6 @@ public:
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::Struct;
-    }
-
-    ASTNodeKind kind() override {
-        return ASTNodeKind::StructType;
     }
 
     BaseType* copy(ASTAllocator &allocator) const override {

@@ -24,7 +24,7 @@ public:
         Scope body,
         ASTNode* parent,
         SourceLocation location
-    ) : value(value), identifier(identifier), body(std::move(body)), parent_node(parent), location(location) {
+    ) : ASTNode(ASTNodeKind::ProvideStmt), value(value), identifier(identifier), body(std::move(body)), parent_node(parent), location(location) {
 
     }
 
@@ -45,10 +45,6 @@ public:
 
     ASTNode* parent() final {
         return parent_node;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::ProvideStmt;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

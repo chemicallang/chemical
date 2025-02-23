@@ -36,15 +36,11 @@ public:
             bool is_implicit,
             FunctionType* func_type,
             SourceLocation location
-    ) : BaseFunctionParam(name, type, func_type), index(index),
+    ) : BaseFunctionParam(name, type, func_type, ASTNodeKind::FunctionParam), index(index),
         defValue(defValue), is_implicit(is_implicit), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::FunctionParam;
     }
 
     ASTNode *parent() final {

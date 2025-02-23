@@ -21,11 +21,7 @@ public:
             bool multiline,
             ASTNode* parent,
             SourceLocation location
-    ) : comment(comment), multiline(multiline), parent_node(parent), location(location) {}
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::CommentStmt;
-    }
+    ) : ASTNode(ASTNodeKind::CommentStmt), comment(comment), multiline(multiline), parent_node(parent), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;

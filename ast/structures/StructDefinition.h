@@ -101,7 +101,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::StructDecl), parent_node(parent_node),
         location(location), attrs(specifier, false, false, false, false, false, false, false, false, false),
         linked_type(identifier.identifier, this, location) {
 
@@ -112,10 +112,6 @@ public:
      */
     inline LocatedIdentifier* get_located_id() {
         return &identifier;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::StructDecl;
     }
 
     inline AccessSpecifier specifier() {

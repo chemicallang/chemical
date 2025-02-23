@@ -25,14 +25,16 @@ public:
     /**
      * @brief Construct a new Break statement object.
      */
-    BreakStatement(LoopASTNode *node, ASTNode* parent_node, SourceLocation location);
+    BreakStatement(
+        LoopASTNode *node,
+        ASTNode* parent_node,
+        SourceLocation location
+    ) : ASTNode(ASTNodeKind::BreakStmt), node(node), parent_node(parent_node), value(nullptr), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::BreakStmt;
     }
 
     void set_parent(ASTNode* new_parent) final {

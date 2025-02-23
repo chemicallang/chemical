@@ -34,10 +34,8 @@ public:
             Operation assOp,
             ASTNode* parent_node,
             SourceLocation location
-    );
+    ) : ASTNode(ASTNodeKind::AssignmentStmt), lhs(lhs), value(value), assOp(assOp), parent_node(parent_node), location(location) {
 
-    ASTNodeKind kind() final {
-        return ASTNodeKind::AssignmentStmt;
     }
 
     void set_parent(ASTNode* new_parent) final {

@@ -19,14 +19,14 @@ public:
     /**
      * empty constructor
      */
-    Scope(ASTNode* parent_node, SourceLocation location) : parent_node(parent_node), location(location) {
+    Scope(ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope), parent_node(parent_node), location(location) {
 
     }
 
     /**
      * constructor
      */
-    Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : nodes(std::move(nodes)), parent_node(parent_node), location(location) {
+    Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope), nodes(std::move(nodes)), parent_node(parent_node), location(location) {
 
     }
 
@@ -35,18 +35,27 @@ public:
      */
     Scope(const Scope& other) = delete;
 
-    Scope(Scope&& other) = default;
+    /**
+     * move constructor
+     */
+    Scope(Scope&& other) : ASTNode(other.kind()), nodes(std::move(other.nodes)), parent_node(other.parent_node), location(other.location) {
 
-    Scope& operator=(Scope&&) = default;
+    };
+
+    /**
+     * move assignment
+     */
+    Scope& operator=(Scope&& other) noexcept {
+        nodes = std::move(other.nodes);
+        parent_node = other.parent_node;
+        location = other.location;
+        return *this;
+    }
 
     Scope shallow_copy();
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::Scope;
     }
 
     void set_parent(ASTNode* new_parent) final {

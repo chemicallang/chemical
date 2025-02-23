@@ -27,14 +27,12 @@ public:
             BaseType* struct_type,
             ASTNode* parent_node,
             SourceLocation location
-    );
+    ) : MembersContainer(ASTNodeKind::ImplDecl), interface_type(interface_type), struct_type(struct_type), parent_node(parent_node), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::ImplDecl;
     }
 
     /**
@@ -43,7 +41,9 @@ public:
     ImplDefinition(
             ASTNode* parent_node,
             SourceLocation location
-    );
+    ) : MembersContainer(ASTNodeKind::ImplDecl), parent_node(parent_node), location(location) {
+
+    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

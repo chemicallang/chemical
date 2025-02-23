@@ -10,7 +10,6 @@
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
-#include "ast/statements/MacroValueStatement.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/structures/EnumDeclaration.h"

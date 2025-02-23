@@ -36,8 +36,8 @@ public:
         Value* init_value,
         EnumDeclaration* parent_node,
         SourceLocation location
-    ) : name(name), index(index), init_value(init_value), parent_node(parent_node), location(location),
-       attrs(false)
+    ) : ASTNode(ASTNodeKind::EnumMember), name(name), index(index), init_value(init_value),
+        parent_node(parent_node), location(location), attrs(false)
     {
 
     }
@@ -52,10 +52,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::EnumMember;
     }
 
     ASTNode *parent() final {

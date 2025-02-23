@@ -81,7 +81,7 @@ public:
             void* data_ptr,
             ASTNode* parent_node,
             SourceLocation location
-    ) : allocator(allocator), decl_fn(decl_fn), repl_fn(repl_fn), data_ptr(data_ptr), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::SymResNode), allocator(allocator), decl_fn(decl_fn), repl_fn(repl_fn), data_ptr(data_ptr), parent_node(parent_node), location(location) {
 
     }
 
@@ -91,10 +91,6 @@ public:
 
     SourceLocation encoded_location() override {
         return location;
-    }
-
-    ASTNodeKind kind() override {
-        return ASTNodeKind::SymResNode;
     }
 
     void accept(Visitor *visitor) override {

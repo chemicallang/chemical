@@ -19,7 +19,9 @@ public:
         Scope body,
         ASTNode* parent,
         SourceLocation location
-    );
+    ) : ASTNode(ASTNodeKind::ComptimeBlock), body(std::move(body)), parent_node(parent), location(location) {
+
+    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
@@ -31,10 +33,6 @@ public:
 
     ASTNode* parent() final {
         return parent_node;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::ComptimeBlock;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

@@ -6,16 +6,6 @@
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructDefinition.h"
 
-DestructStmt::DestructStmt(
-        Value* array_value,
-        Value* value,
-        bool is_array,
-        ASTNode* parent_node,
-        SourceLocation location
-) : array_value(array_value), identifier(value), is_array(is_array), parent_node(parent_node), location(location) {
-
-}
-
 void DestructStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(array_value) {
         array_value->link(linker, array_value);

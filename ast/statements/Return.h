@@ -27,16 +27,12 @@ public:
             FunctionTypeBody* declaration,
             ASTNode* parent_node,
             SourceLocation location
-    ) : value(value), func_type(declaration), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::ReturnStmt), value(value), func_type(declaration), parent_node(parent_node), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::ReturnStmt;
     }
 
     void set_parent(ASTNode* new_parent) final {

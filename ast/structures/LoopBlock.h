@@ -23,7 +23,11 @@ public:
     /**
      * constructor
      */
-    LoopBlock(Scope scope, ASTNode* parent_node, SourceLocation location) : LoopASTNode(std::move(scope)), parent_node(parent_node), location(location) {
+    LoopBlock(
+        Scope scope,
+        ASTNode* parent_node,
+        SourceLocation location
+    ) : LoopASTNode(std::move(scope), ASTNodeKind::LoopBlock), parent_node(parent_node), location(location) {
 
     }
 
@@ -37,10 +41,6 @@ public:
 
     ASTNode* parent() final {
         return parent_node;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::LoopBlock;
     }
 
     ValueKind val_kind() final {

@@ -23,7 +23,7 @@ struct EnumDeclAttributes {
 
 };
 
-class EnumDeclaration : public ExtendableAnnotableNode {
+class EnumDeclaration : public ExtendableNode {
 private:
 
     // this is calculated during symbol resolution
@@ -60,7 +60,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : located_id(name_id), parent_node(parent_node), location(location),
+    ) : ExtendableNode(ASTNodeKind::EnumDecl), located_id(name_id), parent_node(parent_node), location(location),
         linked_type(name_id.identifier, this, location), underlying_type(underlying_type), attrs(specifier, false) {
 
     }
@@ -121,10 +121,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::EnumDecl;
     }
 
     void set_parent(ASTNode* new_parent) final {

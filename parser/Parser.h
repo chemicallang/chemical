@@ -35,7 +35,7 @@ class ValueAndOperatorStack;
 /**
  * A function that is called upon encountering an annotation
  */
-typedef void(*AnnotationModifierFunc)(Parser *parser, AnnotableNode* node);
+typedef void(*AnnotationModifierFunc)(Parser *parser, ASTNode* node);
 
 /**
  * the struct representing the annotation modifier
@@ -188,7 +188,7 @@ public:
     /**
      * suppose to be called on a node which can take annotations
      */
-    void annotate(AnnotableNode* node) {
+    void annotate(ASTNode* node) {
         for(auto& annot : annotations) {
             annot.func(this, node);
         }

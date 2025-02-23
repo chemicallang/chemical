@@ -55,22 +55,6 @@ void ImplDefinition::code_gen(Codegen &gen) {
 
 #endif
 
-ImplDefinition::ImplDefinition(
-        ASTNode* parent_node,
-        SourceLocation location
-) : parent_node(parent_node), location(location) {
-
-}
-
-ImplDefinition::ImplDefinition(
-    BaseType* interface_type,
-    BaseType* struct_type,
-    ASTNode* parent_node,
-    SourceLocation location
-) : interface_type(interface_type), struct_type(struct_type), parent_node(parent_node), location(location) {
-
-}
-
 uint64_t ImplDefinition::byte_size(bool is64Bit) {
 #ifdef DEBUG
     throw std::runtime_error("ImplDefinition::byte_size byte_size on impl definition");

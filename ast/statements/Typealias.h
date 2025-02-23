@@ -27,7 +27,7 @@ struct TypealiasDeclAttributes {
 
 };
 
-class TypealiasStatement : public ExtendableAnnotableNode {
+class TypealiasStatement : public ExtendableNode {
 public:
 
     TypealiasDeclAttributes attrs;
@@ -47,8 +47,8 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : located_id(identifier), actual_type(actual_type), parent_node(parent_node), location(location),
-        attrs(specifier, false, false) {
+    ) : ExtendableNode(ASTNodeKind::TypealiasStmt), located_id(identifier), actual_type(actual_type),
+        parent_node(parent_node), location(location), attrs(specifier, false, false) {
 
     }
 
@@ -93,10 +93,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::TypealiasStmt;
     }
 
     void set_parent(ASTNode* new_parent) final {

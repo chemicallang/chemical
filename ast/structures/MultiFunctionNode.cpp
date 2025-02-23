@@ -4,10 +4,6 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/FunctionDeclaration.h"
 
-MultiFunctionNode::MultiFunctionNode(std::string name) : name(std::move(name)) {
-
-}
-
 SourceLocation MultiFunctionNode::encoded_location() {
     return functions[0]->encoded_location();
 }

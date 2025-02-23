@@ -37,7 +37,7 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(std::move(identifier)), parent_node(parent_node), location(location),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::UnionDecl), parent_node(parent_node), location(location),
         attrs(specifier, false, false, false, false), linked_type("", this, location) {
 
     }
@@ -51,10 +51,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::UnionDecl;
     }
 
 //    std::string union_name_str() final {

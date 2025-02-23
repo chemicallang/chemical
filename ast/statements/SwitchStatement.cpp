@@ -193,15 +193,6 @@ void SwitchStatement::code_gen(Codegen &gen, Scope* scope, unsigned int index) {
 
 #endif
 
-SwitchStatement::SwitchStatement(
-        Value* expression,
-        ASTNode* parent_node,
-        bool is_value,
-        SourceLocation location
-) : expression(expression), parent_node(parent_node), is_value(is_value), location(location) {
-
-}
-
 Value* SwitchStatement::get_value_node() {
     return Value::get_first_value_from_value_node(this);
 }

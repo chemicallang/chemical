@@ -86,7 +86,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(identifier), parent_node(parent_node), location(location),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::InterfaceDecl), parent_node(parent_node), location(location),
         attrs(specifier, false, false, false) {
 
     }
@@ -129,10 +129,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::InterfaceDecl;
     }
 
     void set_parent(ASTNode* new_parent) final {

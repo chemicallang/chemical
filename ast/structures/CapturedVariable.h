@@ -22,17 +22,13 @@ public:
         unsigned int index,
         bool capture_by_ref,
         SourceLocation location
-    ) : name(name), index(index), capture_by_ref(capture_by_ref),
+    ) : ASTNode(ASTNodeKind::CapturedVariable), name(name), index(index), capture_by_ref(capture_by_ref),
         location(location), ptrType(nullptr, location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::CapturedVariable;
     }
 
     ASTNode *parent() final {

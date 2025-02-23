@@ -21,7 +21,7 @@ public:
      * initialize with the given body
      * @param body
      */
-    explicit LoopASTNode(Scope body) : body(std::move(body)) {
+    explicit LoopASTNode(Scope body, ASTNodeKind k) : ASTNode(k), body(std::move(body)) {
 
     }
 

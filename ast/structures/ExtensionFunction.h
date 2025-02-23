@@ -10,36 +10,38 @@ public:
 
     ExtensionFuncReceiver receiver;
 
+//    ExtensionFunction(
+//            LocatedIdentifier identifier,
+//            ExtensionFuncReceiver receiver,
+//            std::vector<FunctionParam*> params,
+//            BaseType* returnType,
+//            bool isVariadic,
+//            ASTNode* parent_node,
+//            SourceLocation location,
+//            std::optional<Scope> body = std::nullopt,
+//            AccessSpecifier specifier = AccessSpecifier::Internal
+//    ) : FunctionDeclaration(
+//            identifier,
+//            std::move(params),
+//            returnType,
+//            isVariadic,
+//            parent_node,
+//            location,
+//            std::move(body),
+//            specifier,
+//            false,
+//            ASTNodeKind::ExtensionFunctionDecl
+//    ), receiver(std::move(receiver)) {
+//
+//    }
+
     ExtensionFunction(
             LocatedIdentifier identifier,
             ExtensionFuncReceiver receiver,
-            std::vector<FunctionParam*> params,
             BaseType* returnType,
             bool isVariadic,
             ASTNode* parent_node,
             SourceLocation location,
-            std::optional<Scope> body = std::nullopt,
-            AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : FunctionDeclaration(
-            identifier,
-            std::move(params),
-            returnType,
-            isVariadic,
-            parent_node,
-            location,
-            std::move(body),
-            specifier
-    ), receiver(std::move(receiver)) {
-
-    }
-
-    ExtensionFunction(
-            LocatedIdentifier identifier,
-            ExtensionFuncReceiver receiver,
-            BaseType* returnType,
-            bool isVariadic,
-            ASTNode* parent_node,
-            SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : FunctionDeclaration(
             identifier,
@@ -47,7 +49,9 @@ public:
             isVariadic,
             parent_node,
             location,
-            specifier
+            specifier,
+            false,
+            ASTNodeKind::ExtensionFunctionDecl
     ), receiver(std::move(receiver)) {
 
     }
@@ -57,10 +61,6 @@ public:
     std::vector<llvm::Type *> param_types(Codegen &gen) final;
 
 #endif
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::ExtensionFunctionDecl;
-    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);

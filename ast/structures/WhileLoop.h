@@ -24,14 +24,15 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    WhileLoop(Value* condition, Scope body, ASTNode* parent_node, SourceLocation location);
+    WhileLoop(
+        Value* condition,
+        Scope body,
+        ASTNode* parent_node,
+        SourceLocation location
+    ) : LoopASTNode(std::move(body), ASTNodeKind::WhileLoopStmt), condition(condition), parent_node(parent_node), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::WhileLoopStmt;
     }
 
     void set_parent(ASTNode* new_parent) final {

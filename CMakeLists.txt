@@ -204,7 +204,6 @@ set(COMMON_SOURCES
         stream/SourceProviderImpl.cpp
         ast/structures/FunctionDecl.cpp
         ast/utils/GlobalFunctions.cpp
-        ast/statements/MacroValueStatement.h
         integration/common/Diagnostic.cpp
         ast/structures/Scope.cpp
         ast/types/PointerType.h

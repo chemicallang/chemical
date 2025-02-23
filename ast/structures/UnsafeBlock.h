@@ -10,7 +10,12 @@ public:
     Scope scope;
     SourceLocation location;
 
-    explicit UnsafeBlock(Scope scope, SourceLocation location);
+    explicit UnsafeBlock(
+        Scope scope,
+        SourceLocation location
+    ) : ASTNode(ASTNodeKind::UnsafeBlock), scope(std::move(scope)), location(location) {
+
+    }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
@@ -22,10 +27,6 @@ public:
 
     ASTNode* parent() final {
         return scope.parent_node;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::UnsafeBlock;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

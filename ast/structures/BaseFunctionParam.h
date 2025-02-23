@@ -34,14 +34,11 @@ public:
     BaseFunctionParam(
             chem::string_view name,
             BaseType* type,
-            FunctionType* func_type = nullptr
-    ) : name(name), type(type), func_type(func_type), attrs(false) {
+            FunctionType* func_type,
+            ASTNodeKind k
+    ) : ASTNode(k), name(name), type(type), func_type(func_type), attrs(false) {
 
     };
-
-    ASTNodeKind kind() {
-        return ASTNodeKind::FunctionParam;
-    }
 
     inline bool has_address_taken() {
         return attrs.has_address_taken_of;

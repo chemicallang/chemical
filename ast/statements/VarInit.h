@@ -62,7 +62,7 @@ struct VarInitAttributes {
 
 };
 
-class VarInitStatement : public AnnotableNode {
+class VarInitStatement : public ASTNode {
 public:
 
     // TODO do not store the decl_scope here
@@ -93,7 +93,8 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : attrs(specifier, false, false, false, false, is_const, is_reference, false), located_id(identifier), type(type), value(value), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::VarInitStmt), attrs(specifier, false, false, false, false, is_const, is_reference, false), located_id(identifier),
+        type(type), value(value), parent_node(parent_node), location(location) {
 
     }
 
@@ -215,10 +216,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::VarInitStmt;
     }
 
     void set_parent(ASTNode* new_parent) final {

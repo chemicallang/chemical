@@ -27,16 +27,12 @@ public:
         Scope scope,
         ASTNode* parent_node,
         SourceLocation location
-    ) : scope(std::move(scope)), parent_node(parent_node), location(location) {
+    ) : ASTNode(ASTNodeKind::InitBlock), scope(std::move(scope)), parent_node(parent_node), location(location) {
 
     }
 
     void accept(Visitor *visitor) final {
         visitor->visit(this);
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::InitBlock;
     }
 
     ASTNode* parent() final {

@@ -34,21 +34,6 @@ void DoWhileLoop::code_gen(Codegen &gen) {
 
 #endif
 
-/**
- * @brief Construct a new WhileLoop object.
- *
- * @param condition The loop condition.
- * @param body The body of the while loop.
- */
-DoWhileLoop::DoWhileLoop(
-    Value* condition,
-    Scope body,
-    ASTNode* parent_node,
-    SourceLocation location
-) : condition(condition), LoopASTNode(std::move(body)), parent_node(parent_node), location(location) {
-
-}
-
 void DoWhileLoop::accept(Visitor *visitor) {
     visitor->visit(this);
 }

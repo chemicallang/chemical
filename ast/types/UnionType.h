@@ -14,7 +14,11 @@ public:
     ASTNode* parent_node;
     SourceLocation location;
 
-    UnionType(chem::string_view name, ASTNode* parent, SourceLocation location) : name(name), parent_node(parent), location(location) {
+    UnionType(
+        chem::string_view name,
+        ASTNode* parent,
+        SourceLocation location
+    ) : ASTNode(ASTNodeKind::UnionType), name(name), parent_node(parent), location(location) {
 
     }
 
@@ -33,10 +37,6 @@ public:
     [[nodiscard]]
     BaseTypeKind kind() const final {
         return BaseTypeKind::Union;
-    }
-
-    ASTNodeKind kind() override {
-        return ASTNodeKind::UnionType;
     }
 
     uint64_t byte_size(bool is64Bit) {

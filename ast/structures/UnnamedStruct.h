@@ -18,12 +18,8 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : BaseDefMember(name), parent_node(parent_node), location(location), specifier(specifier) {
+    ) : BaseDefMember(name, ASTNodeKind::UnnamedStruct), parent_node(parent_node), location(location), specifier(specifier) {
 
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::UnnamedStruct;
     }
 
     SourceLocation encoded_location() final {

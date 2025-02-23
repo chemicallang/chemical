@@ -46,7 +46,9 @@ public:
         bool is_array,
         ASTNode* parent_node,
         SourceLocation location
-    );
+    ) : ASTNode(ASTNodeKind::DeleteStmt), array_value(array_value), identifier(value), is_array(is_array), parent_node(parent_node), location(location) {
+
+    }
 
     SourceLocation encoded_location() final {
         return location;
@@ -56,10 +58,6 @@ public:
 
     ASTNode* parent() final {
         return parent_node;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::DeleteStmt;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

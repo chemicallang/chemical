@@ -28,18 +28,14 @@ public:
             chem::string_view name,
             VariantDefinition* parent_node,
             SourceLocation location
-    ) : BaseDefMember(name), parent_node(parent_node), ref_type(name, this, location), location(location),
-        attrs(false)
+    ) : BaseDefMember(name, ASTNodeKind::VariantMember), parent_node(parent_node), ref_type(name, this, location),
+        location(location), attrs(false)
     {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::VariantMember;
     }
 
     inline bool deprecated() {

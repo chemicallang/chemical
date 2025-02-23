@@ -31,7 +31,7 @@ struct NamespaceDeclAttributes {
 
 };
 
-class Namespace : public AnnotableNode {
+class Namespace : public ASTNode {
 private:
 
     void declare_node(SymbolResolver& linker, ASTNode* node, const chem::string_view& node_id);
@@ -56,7 +56,7 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : identifier(identifier), parent_node(parent_node), location(location), attrs(specifier, false, false) {
+    ) : ASTNode(ASTNodeKind::NamespaceDecl), identifier(identifier), parent_node(parent_node), location(location), attrs(specifier, false, false) {
 
     }
 
@@ -109,10 +109,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::NamespaceDecl;
     }
 
     void set_parent(ASTNode* new_parent) final {

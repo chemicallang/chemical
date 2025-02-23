@@ -33,7 +33,7 @@ struct FunctionOverridingInfo {
 
 };
 
-class MembersContainer : public AnnotableNode, public VariablesContainer {
+class MembersContainer : public ASTNode, public VariablesContainer {
 private:
 
     std::vector<FunctionDeclaration*> functions_container;
@@ -76,6 +76,8 @@ public:
      */
     std::unordered_map<FunctionDeclaration*, std::vector<std::vector<llvm::Function*>>> generic_llvm_data;
 #endif
+
+    using ASTNode::ASTNode;
 
     const std::vector<FunctionDeclaration*>& functions() {
         return functions_container;

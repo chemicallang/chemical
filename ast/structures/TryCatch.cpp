@@ -4,16 +4,6 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/types/LinkedType.h"
 
-TryCatch::TryCatch(
-        std::unique_ptr<FunctionCall> tryCall,
-        catch_var_type catchVar,
-        std::optional<Scope> catchScope,
-        ASTNode* parent_node,
-        SourceLocation location
-) : tryCall(std::move(tryCall)), catchVar(std::move(catchVar)), catchScope(std::move(catchScope)), parent_node(parent_node), location(location) {
-
-}
-
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"

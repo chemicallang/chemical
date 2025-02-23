@@ -6,16 +6,6 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionParam.h"
 
-AssignStatement::AssignStatement(
-        Value* lhs,
-        Value* value,
-        Operation assOp,
-        ASTNode* parent_node,
-        SourceLocation location
-) : lhs(lhs), value(value), assOp(assOp), parent_node(parent_node), location(location) {
-
-}
-
 void AssignStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }

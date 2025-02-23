@@ -5,17 +5,6 @@
 #include "ast/base/Value.h"
 #include "UsingStmt.h"
 
-UsingStmt::UsingStmt(
-    AccessChain* chain,
-    ASTNode* parent_node,
-    bool is_namespace,
-    SourceLocation location
-) : chain(chain), parent_node(parent_node), location(location),
-    attrs(is_namespace, false)
-{
-
-}
-
 void UsingStmt::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(!chain->link(linker, nullptr, nullptr, 0, true, false)) {
         return;

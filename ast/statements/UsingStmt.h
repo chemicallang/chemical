@@ -23,7 +23,7 @@ struct UsingStmtAttributes {
  * using statement just like in c++, it allows users to bring symbols in current scope
  * from namespaces
  */
-class UsingStmt : public AnnotableNode {
+class UsingStmt : public ASTNode {
 public:
 
     AccessChain* chain;
@@ -36,7 +36,11 @@ public:
             ASTNode* parent_node,
             bool is_namespace,
             SourceLocation location
-    );
+    ) : ASTNode(ASTNodeKind::UsingStmt), chain(chain), parent_node(parent_node), location(location),
+        attrs(is_namespace, false)
+    {
+
+    }
 
     inline bool is_namespace() {
         return attrs.is_namespace;
@@ -56,10 +60,6 @@ public:
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::UsingStmt;
     }
 
     void accept(Visitor *visitor) final {

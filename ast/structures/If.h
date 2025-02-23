@@ -41,7 +41,9 @@ public:
             ASTNode* parent_node,
             bool is_value,
             SourceLocation location
-    );
+    ) : ASTNode(ASTNodeKind::IfStmt), condition(condition), ifBody(std::move(ifBody)),
+        elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node),
+        is_value(is_value), location(location) {}
 
     SourceLocation encoded_location() final {
         return location;
@@ -49,10 +51,6 @@ public:
 
     ValueKind val_kind() final {
         return ValueKind::IfValue;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::IfStmt;
     }
 
     void set_parent(ASTNode* new_parent) final {

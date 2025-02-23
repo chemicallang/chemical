@@ -131,7 +131,7 @@ struct FuncDeclAttributes {
 
 };
 
-class FunctionDeclaration : public AnnotableNode, public FunctionTypeBody {
+class FunctionDeclaration : public ASTNode, public FunctionTypeBody {
 private:
     /**
      * TODO avoid storing the interpret return here
@@ -251,8 +251,9 @@ public:
             SourceLocation location,
             std::optional<Scope> body = std::nullopt,
             AccessSpecifier specifier = AccessSpecifier::Internal,
-            bool signature_resolved = false
-    )  : FunctionTypeBody(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
+            bool signature_resolved = false,
+            ASTNodeKind k = ASTNodeKind::FunctionDecl
+    ) : ASTNode(k), FunctionTypeBody(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
          identifier(identifier), body(std::move(body)), location(location),
          attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
     }
@@ -267,8 +268,9 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal,
-            bool signature_resolved = false
-    )  : FunctionTypeBody(returnType, isVariadic, false, parent_node, location, signature_resolved),
+            bool signature_resolved = false,
+            ASTNodeKind k = ASTNodeKind::FunctionDecl
+    )  : ASTNode(k), FunctionTypeBody(returnType, isVariadic, false, parent_node, location, signature_resolved),
          identifier(identifier), location(location),
          attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
     }
@@ -438,10 +440,6 @@ public:
 
     SourceLocation encoded_location() override {
         return location;
-    }
-
-    ASTNodeKind kind() {
-        return ASTNodeKind::FunctionDecl;
     }
 
     /**

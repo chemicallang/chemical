@@ -22,10 +22,8 @@ public:
             std::optional<Scope> catchScope,
             ASTNode* parent_node,
             SourceLocation location
-    );
+    ) : ASTNode(ASTNodeKind::TryStmt), tryCall(std::move(tryCall)), catchVar(std::move(catchVar)), catchScope(std::move(catchScope)), parent_node(parent_node), location(location) {
 
-    ASTNodeKind kind() final {
-        return ASTNodeKind::TryStmt;
     }
 
     void set_parent(ASTNode* new_parent) final {

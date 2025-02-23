@@ -26,17 +26,13 @@ public:
         ASTNode* parent_node,
         unsigned param_index,
         SourceLocation location
-    ) : identifier(identifier), at_least_type(at_least_type),
-    def_type(def_type), parent_node(parent_node), param_index(param_index), location(location) {
+    ) : ASTNode(ASTNodeKind::GenericTypeParam), identifier(identifier), at_least_type(at_least_type), def_type(def_type),
+        parent_node(parent_node), param_index(param_index), location(location) {
 
     }
 
     SourceLocation encoded_location() final {
         return location;
-    }
-
-    ASTNodeKind kind() final {
-        return ASTNodeKind::GenericTypeParam;
     }
 
     void accept(Visitor *visitor) final {

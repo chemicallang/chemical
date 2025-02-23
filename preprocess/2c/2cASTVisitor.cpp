@@ -15,7 +15,6 @@
 #include "ast/statements/Assignment.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/SwitchStatement.h"
-#include "ast/statements/MacroValueStatement.h"
 #include "ast/types/DynamicType.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumMember.h"

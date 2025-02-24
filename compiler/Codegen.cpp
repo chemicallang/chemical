@@ -73,6 +73,7 @@
 #include <llvm/Transforms/Utils/NameAnonGlobals.h>
 #include <llvm-c/Core.h>
 #include "rang.hpp"
+#include "compiler/lab/LabBuildCompiler.h"
 
 Codegen::Codegen(
         GlobalInterpretScope& comptime_scope,
@@ -83,7 +84,7 @@ Codegen::Codegen(
         const std::string& module_name
 ) : ASTDiagnoser(comptime_scope.loc_man), comptime_scope(comptime_scope), allocator(allocator),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple),
-    di(comptime_scope.loc_man, nullptr, *this) {
+    di(comptime_scope.loc_man, nullptr, *this), mode(comptime_scope.build_compiler->options->outMode) {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();
     // creating a new ir builder

@@ -559,7 +559,7 @@ int main(int argc, char *argv[]) {
         }
 
         LabBuildContext context(&compiler_opts, std::string(args[0]));
-        compiler_opts.def_mode = mode;
+        compiler_opts.outMode = mode;
 
         // giving build args to lab build context
         if(output.has_value()) {
@@ -584,7 +584,7 @@ int main(int argc, char *argv[]) {
 
     // set default compiler options
     compiler_opts.is_caching_enabled = false;
-    compiler_opts.def_mode = mode;
+    compiler_opts.outMode = mode;
 
     prepare_options(&compiler_opts);
 

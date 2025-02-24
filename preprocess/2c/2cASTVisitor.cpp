@@ -139,7 +139,7 @@ ToCAstVisitor::ToCAstVisitor(
 void ToCAstVisitor::declare_before_translation(std::vector<ASTNode*>& nodes) {
     // declare the top level things with this visitor
     for(const auto node : nodes) {
-        node->accept((Visitor*) &tld);
+        tld.visit(node);
     }
 }
 
@@ -160,7 +160,7 @@ void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
     vis.redefining = true;
     // declare the top level things with this visitor
     for(auto& node : nodes) {
-        node->accept(&vis);
+        vis.visit(node);
     }
     vis.redefining = prev;
 }
@@ -2446,7 +2446,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     tld->write(';');
 }
 
-void CTopLevelDeclarationVisitor::visit(VarInitStatement *init) {
+void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(!init->is_top_level()) return;
     visitor.new_line_and_indent();
     const auto is_exported = init->is_exported();
@@ -2543,11 +2543,11 @@ void CTopLevelDeclarationVisitor::declare_func(FunctionDeclaration* decl) {
     }
 }
 
-void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
+void CTopLevelDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     declare_func(decl);
 }
 
-void CTopLevelDeclarationVisitor::visit(ExtensionFunction *decl) {
+void CTopLevelDeclarationVisitor::VisitExtensionFunctionDecl(ExtensionFunction *decl) {
     declare_func(decl);
 }
 
@@ -2584,7 +2584,7 @@ void CValueDeclarationVisitor::VisitEnumDecl(EnumDeclaration *enumDecl) {
     }
 }
 
-void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
+void CTopLevelDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
     visitor.new_line_and_indent();
     write("typedef ");
     const auto kind = stmt->actual_type->kind();
@@ -2600,7 +2600,7 @@ void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
     write(';');
 }
 
-void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
+void CTopLevelDeclarationVisitor::VisitUnionDecl(UnionDef *def) {
     visitor.new_line_and_indent();
     write("union ");
     node_parent_name(visitor, def);
@@ -2619,10 +2619,10 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     }
 }
 
-void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
+void CTopLevelDeclarationVisitor::VisitNamespaceDecl(Namespace *ns) {
     if(ns->is_comptime()) return;
     for(const auto node : ns->nodes) {
-        node->accept(this);
+        visit(node);
     }
 }
 
@@ -2713,7 +2713,7 @@ void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* de
     }
 }
 
-void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
+void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
     if(visitor.compiler_interfaces && def->is_compiler_interface()) {
         auto& interfaces = *visitor.compiler_interfaces;
         interfaces.emplace_back(def->name_view().str());
@@ -2826,7 +2826,7 @@ void CTopLevelDeclarationVisitor::declare_variant_iterations(VariantDefinition* 
     }
 }
 
-void CTopLevelDeclarationVisitor::visit(VariantDefinition *def) {
+void CTopLevelDeclarationVisitor::VisitVariantDecl(VariantDefinition *def) {
     declare_variant_iterations(def);
 }
 
@@ -2967,7 +2967,7 @@ void CTopLevelDeclarationVisitor::declare_interface_iterations(InterfaceDefiniti
     }
 }
 
-void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
+void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
     // forward declaring the structs of users, because currently we only need to use them
     // as pointers, even if user returns a struct, the function only takes a pointer (to memcpy)
     for(auto& use : def->users) {
@@ -2979,7 +2979,7 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
     declare_interface_iterations(def);
 }
 
-void CTopLevelDeclarationVisitor::visit(ImplDefinition *def) {
+void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
 
 }
 

@@ -5,11 +5,14 @@
 #include "SubVisitor.h"
 #include "ast/utils/CommonVisitor.h"
 #include <string>
+#include "preprocess/visitors/NonRecursiveVisitor.h"
 
 class CValueDeclarationVisitor;
 
-class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {
+class CTopLevelDeclarationVisitor : public NonRecursiveVisitor<CTopLevelDeclarationVisitor>, public SubVisitor {
 public:
+
+    using NonRecursiveVisitor<CTopLevelDeclarationVisitor>::visit;
 
     CValueDeclarationVisitor* value_visitor;
 
@@ -42,25 +45,27 @@ public:
 
     void declare_func(FunctionDeclaration* decl);
 
-    void visit(VarInitStatement *init) final;
+    // Visitor methods
 
-    void visit(TypealiasStatement *statement) final;
+    void VisitVarInitStmt(VarInitStatement *init);
 
-    void visit(FunctionDeclaration *functionDeclaration) final;
+    void VisitTypealiasStmt(TypealiasStatement *statement);
 
-    void visit(ExtensionFunction *extensionFunc) final;
+    void VisitFunctionDecl(FunctionDeclaration *functionDeclaration);
 
-    void visit(StructDefinition *structDefinition) final;
+    void VisitExtensionFunctionDecl(ExtensionFunction *extensionFunc);
 
-    void visit(VariantDefinition *variant_def) final;
+    void VisitStructDecl(StructDefinition *structDefinition);
 
-    void visit(Namespace *ns) final;
+    void VisitVariantDecl(VariantDefinition *variant_def);
 
-    void visit(UnionDef *def) final;
+    void VisitNamespaceDecl(Namespace *ns);
 
-    void visit(InterfaceDefinition *interfaceDefinition) final;
+    void VisitUnionDecl(UnionDef *def);
 
-    void visit(ImplDefinition *implDefinition) final;
+    void VisitInterfaceDecl(InterfaceDefinition *interfaceDefinition);
+
+    void VisitImplDecl(ImplDefinition *implDefinition);
 
     void reset();
 

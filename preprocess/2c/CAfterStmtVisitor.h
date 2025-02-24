@@ -5,22 +5,25 @@
 #include "SubVisitor.h"
 #include "ast/utils/CommonVisitor.h"
 #include <string>
+#include "preprocess/visitors/RecursiveValueVisitor.h"
 
-class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
+class CAfterStmtVisitor : public RecursiveValueVisitor<CAfterStmtVisitor>, public SubVisitor {
+public:
 
+    using RecursiveValueVisitor<CAfterStmtVisitor>::visit;
     using SubVisitor::SubVisitor;
-
-    void visit(FunctionCall *call) final;
-
-    void visit(AccessChain *chain) final;
 
     void destruct_chain(AccessChain *chain, bool destruct_last);
 
-    void visit(LambdaFunction *func) final {
+    void VisitFunctionCall(FunctionCall *call);
+
+    void VisitAccessChain(AccessChain *chain);
+
+    void VisitLambdaFunction(LambdaFunction *func) {
         // do nothing
     }
 
-    void visit(Scope *scope) final {
+    void VisitScope(Scope *scope) {
         // do nothing
     }
 

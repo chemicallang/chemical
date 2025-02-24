@@ -178,195 +178,195 @@ public:
     // ---------- Values ----------
 
     inline void VisitCharValue(CharValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitShortValue(ShortValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitIntValue(IntValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitLongValue(LongValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitBigIntValue(BigIntValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitInt128Value(Int128Value* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitUCharValue(UCharValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitUShortValue(UShortValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitUIntValue(UIntValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitULongValue(ULongValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitUBigIntValue(UBigIntValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitUInt128Value(UInt128Value* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitNumberValue(NumberValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitFloatValue(FloatValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitDoubleValue(DoubleValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitBoolValue(BoolValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitStringValue(StringValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitExpression(Expression* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitArrayValue(ArrayValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitStructValue(StructValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitLambdaFunction(LambdaFunction* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitNewTypedValue(NewTypedValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitNewValue(NewValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitPlacementNewValue(PlacementNewValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitIncDecValue(IncDecValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitIsValue(IsValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitDereferenceValue(DereferenceValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitRetStructParamValue(RetStructParamValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitAccessChain(AccessChain* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitCastedValue(CastedValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitVariableIdentifier(VariableIdentifier* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitIndexOperator(IndexOperator* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitFunctionCall(FunctionCall* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitNegativeValue(NegativeValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitNotValue(NotValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitNullValue(NullValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitSizeOfValue(SizeOfValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitSymResValue(SymResValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitUnsafeValue(UnsafeValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitComptimeValue(ComptimeValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitAlignOfValue(AlignOfValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitVariantCall(VariantCall* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitVariantCase(VariantCase* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitAddrOfValue(AddrOfValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitPointerValue(PointerValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitBlockValue(BlockValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitWrapValue(WrapValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     inline void VisitDestructValue(DestructValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
     // Types begin here

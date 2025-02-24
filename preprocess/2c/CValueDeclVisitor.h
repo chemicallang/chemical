@@ -4,13 +4,16 @@
 
 #include "SubVisitor.h"
 #include "ast/utils/CommonVisitor.h"
+#include "preprocess/visitors/RecursiveValueVisitor.h"
 #include <string>
 #include <unordered_map>
 
-class CValueDeclarationVisitor : public CommonVisitor, public SubVisitor {
+class CValueDeclarationVisitor : public RecursiveValueVisitor<CValueDeclarationVisitor>, public SubVisitor {
 public:
 
     using SubVisitor::SubVisitor;
+
+    using RecursiveValueVisitor<CValueDeclarationVisitor>::visit;
 
     std::unordered_map<void*, std::string> aliases;
 
@@ -22,31 +25,31 @@ public:
 
     unsigned enum_num = 0;
 
-    void visit(LambdaFunction *func) final;
+    void VisitLambdaFunction(LambdaFunction *func);
 
-    void visit(FunctionDeclaration *functionDeclaration) final;
+    void VisitFunctionDecl(FunctionDeclaration *functionDeclaration);
 
-    void visit(ExtensionFunction *extensionFunc) final;
+    void VisitExtensionFunctionDecl(ExtensionFunction *extensionFunc);
 
-    void visit(EnumDeclaration *enumDeclaration) final;
+    void VisitEnumDecl(EnumDeclaration *enumDeclaration);
 
-    void visit(TypealiasStatement *statement) final;
+    void VisitTypealiasStmt(TypealiasStatement *statement);
 
-    void visit(FunctionType *func) final;
+    void VisitFunctionType(FunctionType *func);
 
-    void visit(StructMember *member) final;
+    void VisitStructMember(StructMember *member);
 
-    void visit(IfStatement *ifStatement) final;
+    void VisitIfStmt(IfStatement *ifStatement);
 
-    void visit(ReturnStatement *stmt) final;
+    void VisitReturnStmt(ReturnStatement *stmt);
 
-    void visit(FunctionCall *call) final;
+    void VisitFunctionCall(FunctionCall *call);
 
-    void visit(VariantCall *call) final;
+    void VisitVariantCall(VariantCall *call);
 
-    void visit(ArrayValue *arrayVal) final;
+    void VisitArrayValue(ArrayValue *arrayVal);
 
-    void visit(StructValue *structValue) final;
+    void VisitStructValue(StructValue *structValue);
 
     void reset() final {
         aliases.clear();

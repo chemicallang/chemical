@@ -1,5 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
+#pragma once
+
 #include "ast/base/ASTNode.h"
 #include "Scope.h"
 #include "ast/base/BaseType.h"

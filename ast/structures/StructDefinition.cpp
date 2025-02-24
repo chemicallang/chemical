@@ -206,7 +206,8 @@ llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
 
 llvm::Value* BaseDefMember::llvm_load(Codegen &gen) {
     auto pointer = llvm_pointer(gen);
-    return Value::load_value(gen, known_type(), llvm_type(gen), pointer);
+    // TODO use the location of the loader, not what's being loaded
+    return Value::load_value(gen, known_type(), llvm_type(gen), pointer, encoded_location());
 }
 
 llvm::Type* StructMember::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
@@ -220,7 +221,7 @@ bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     return true;
 }
 
-void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, SourceLocation location) {
     auto func = destructor_func();
     if(func) {
         std::vector<llvm::Value*> args;
@@ -233,7 +234,8 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
         } else {
             func_data = func->llvm_func();
         }
-        gen.builder->CreateCall(func_data, args);
+        const auto instr = gen.builder->CreateCall(func_data, args);
+        gen.di.instr(instr, location);
     }
 }
 

@@ -30,9 +30,11 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
     const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
     if(interface) {
         if(!allocaInst) {
-            allocaInst = gen.builder->CreateAlloca(parent_type, nullptr);
+            const auto alloca1 = gen.builder->CreateAlloca(parent_type, nullptr);
+            gen.di.instr(alloca1, this);
+            allocaInst = alloca1;
         }
-        if(!gen.assign_dyn_obj(this, expected_type, inst, allocaInst)) {
+        if(!gen.assign_dyn_obj(this, expected_type, inst, allocaInst, encoded_location())) {
             gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation(), this);
         }
         inst = allocaInst;
@@ -58,7 +60,8 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
                     // store pointer only, since user want's a reference
                     auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, elem_index);
                     const auto ref_pointer = value_ptr->llvm_pointer(gen);
-                    gen.builder->CreateStore(ref_pointer, elementPtr);
+                    const auto storeInst = gen.builder->CreateStore(ref_pointer, elementPtr);
+                    gen.di.instr(storeInst, value_ptr);
                     continue;
                 }
             }
@@ -72,7 +75,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             if(!moved) {
                 if (gen.requires_memcpy_ref_struct(variable.second, value_ptr)) {
                     auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, elem_index);
-                    gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr));
+                    gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr), value_ptr->encoded_location());
                 } else {
                     // couldn't move struct
                     value_ptr->store_in_struct(gen, this, inst, parent_type, idx, elem_index, variable.second);
@@ -101,7 +104,9 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     auto dyn_obj = (llvm::AllocaInst*) gen.allocate_dyn_obj_based_on_type(expected_type);
-    allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
+    const auto alloca1 = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
+    gen.di.instr(alloca1, encoded_location());
+    allocaInst = alloca1;
     if(dyn_obj) {
         initialize_alloca(dyn_obj, gen, expected_type);
         return dyn_obj;
@@ -122,7 +127,7 @@ void StructValue::llvm_destruct(Codegen &gen, llvm::Value *givenAlloca) {
             prev_itr = definition->active_iteration;
             definition->set_active_iteration(generic_iteration);
         }
-        definition->llvm_destruct(gen, givenAlloca);
+        definition->llvm_destruct(gen, givenAlloca, encoded_location());
         if (is_generic()) {
             definition->set_active_iteration(prev_itr);
         }
@@ -186,7 +191,7 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
     const auto known_type = lhs->known_type();
     if(known_type->kind() == BaseTypeKind::Dynamic && known_type->linked_node()->as_interface_def()) {
         const auto value = llvm_allocate(gen, "", nullptr);
-        gen.assign_store(lhs, lhsPtr, this, value);
+        gen.assign_store(lhs, lhsPtr, this, value, encoded_location());
         return;
     } else if(lhs->as_deref_value()) {
         if(!definition->destructor_func() && !definition->clear_func() && allows_direct_init()) {
@@ -203,7 +208,8 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
             llvm::Function* func_data;
             auto destr = gen.determine_destructor_for(definition->known_type(), func_data);
             if(destr) {
-                gen.builder->CreateCall(func_data, { lhsPtr });
+                const auto callInst = gen.builder->CreateCall(func_data, { lhsPtr });
+                gen.di.instr(callInst, this);
             }
         }
         initialize_alloca(lhsPtr, gen, nullptr);

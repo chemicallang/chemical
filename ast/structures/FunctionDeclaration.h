@@ -490,6 +490,13 @@ public:
     void activate_gen_call_iterations(int16_t iteration);
 
     /**
+     * if there's no body then returns the location of function
+     */
+    SourceLocation body_location() {
+        return (body.has_value()) ? body->encoded_location() : ASTNode::encoded_location();
+    }
+
+    /**
      * set's the active iteration for a generic function
      * this helps generics types pretend to be certain type
      * @param set_generic_calls you can send false to do less work, the generic calls present inside the body of the function will be

@@ -23,7 +23,8 @@ llvm::Type* SwitchStatement::llvm_type(Codegen &gen) {
 }
 
 llvm::AllocaInst* SwitchStatement::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
-    auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
+    const auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
+    gen.di.instr(allocated, Value::encoded_location());
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { nullptr, allocated };
     code_gen(gen);
@@ -104,7 +105,9 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
             const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type();
             const auto ref_kind = ref->kind();
             if(BaseType::isIntNType(ref_kind) || ref_kind == BaseTypeKind::Bool) {
-                expr_value = gen.builder->CreateLoad(ref->llvm_type(gen), expr_value);
+                const auto loadInst = gen.builder->CreateLoad(ref->llvm_type(gen), expr_value);
+                gen.di.instr(loadInst, expression);
+                expr_value = loadInst;
             }
         }
 
@@ -125,13 +128,16 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
                 const auto def_type = variant_def->llvm_type(gen);
                 std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
                 const auto gep = gen.builder->CreateGEP(def_type, expr_value, idxList, "",gen.inbounds);
-                expr_value = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
+                const auto loadInst = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
+                gen.di.instr(loadInst, expression);
+                expr_value = loadInst;
             }
         }
 
     }
 
     auto switchInst = gen.builder->CreateSwitch(expr_value, end, total_scopes);
+    gen.di.instr(switchInst, Value::encoded_location());
 
     bool all_scopes_return = true;
 
@@ -148,7 +154,7 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
         if(!gen.has_current_block_ended) {
             all_scopes_return = false;
         }
-        gen.CreateBr(end);
+        gen.CreateBr(end, scope.encoded_location());
 
         for(auto& switch_case : cases) {
             if(switch_case.second == scope_ind) {

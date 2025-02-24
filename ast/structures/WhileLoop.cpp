@@ -16,7 +16,7 @@ void WhileLoop::code_gen(Codegen &gen) {
     auto exitBlock = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
 
     // sending to loop condition
-    gen.CreateBr(loopCond);
+    gen.CreateBr(loopCond, encoded_location());
 
     // loop condition
     gen.SetInsertPoint(loopCond);
@@ -25,7 +25,9 @@ void WhileLoop::code_gen(Codegen &gen) {
     // loop then
     gen.SetInsertPoint(loopThen);
     gen.loop_body_gen(body, loopCond, exitBlock);
-    gen.CreateBr(loopCond);
+
+    // TODO use the ending location
+    gen.CreateBr(loopCond, body.encoded_location());
 
     // loop exit
     gen.SetInsertPoint(exitBlock);

@@ -49,18 +49,24 @@
 #include "compiler/llvmimpl.h"
 #include "ast/structures/StructMember.h"
 
-llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, llvm::Value* value, llvm::Type* type) {
-    auto x = gen.builder->CreateAlloca(type, nullptr);
-    gen.builder->CreateStore(value, x);
-    return x;
-}
-
 llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
-    return llvm_allocate_with(gen, llvm_value(gen, expected_type), expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
+    const auto value = llvm_value(gen, expected_type);
+    const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
+    const auto alloc = gen.builder->CreateAlloca(type, nullptr);
+    gen.di.instr(alloc, this);
+    const auto store = gen.builder->CreateStore(value, alloc);
+    gen.di.instr(store, this);
+    return alloc;
 }
 
 llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<ChainValue*>& values, unsigned int until, BaseType* expected_type) {
-    return llvm_allocate_with(gen, values[until]->access_chain_value(gen, values, until, expected_type), values[until]->llvm_type(gen));
+    const auto val = values[until];
+    const auto value = val->access_chain_value(gen, values, until, expected_type);
+    const auto alloc = gen.builder->CreateAlloca(val->llvm_type(gen), nullptr);
+    gen.di.instr(alloc, val);
+    const auto store = gen.builder->CreateStore(value, alloc);
+    gen.di.instr(store, val);
+    return alloc;
 }
 
 llvm::Value* Value::get_element_pointer(
@@ -85,10 +91,21 @@ unsigned int Value::store_in_struct(
 ) {
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
     const auto value = llvm_value(gen, expected_type);
-    if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value)) {
+    if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
+
         const auto value_pure = create_type(gen.allocator)->pure_type();
         const auto derefType = value_pure->getAutoDerefType(expected_type);
-        gen.builder->CreateStore(derefType ? gen.builder->CreateLoad(derefType->llvm_type(gen), value) : value, elementPtr);
+
+        llvm::Value* Val = value;
+        if(derefType) {
+            const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
+            gen.di.instr(loadInstr, this);
+            Val = loadInstr;
+        }
+
+        const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
+        gen.di.instr(storeInstr, this);
+
     }
     return index + 1;
 }
@@ -104,10 +121,20 @@ unsigned int Value::store_in_array(
 ) {
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
     const auto value = llvm_value(gen, expected_type);
-    if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value)) {
+    if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
         const auto value_pure = create_type(gen.allocator)->pure_type();
         const auto derefType = value_pure->getAutoDerefType(expected_type);
-        gen.builder->CreateStore(derefType ? gen.builder->CreateLoad(derefType->llvm_type(gen), value) : value, elementPtr);
+
+        llvm::Value* Val = value;
+        if(derefType) {
+            const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
+            gen.di.instr(loadInstr, this);
+            Val = loadInstr;
+        }
+
+        const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
+        gen.di.instr(storeInstr, this);
+
     }
     return index + 1;
 }
@@ -118,11 +145,13 @@ void Value::destruct(Codegen& gen, std::vector<std::pair<Value*, llvm::Value*>>&
     }
 }
 
-llvm::Value* Value::load_value(Codegen& gen, BaseType* known_t, llvm::Type* type, llvm::Value* ptr) {
+llvm::Value* Value::load_value(Codegen& gen, BaseType* known_t, llvm::Type* type, llvm::Value* ptr, SourceLocation location) {
     if(known_t->isStructLikeType()) {
         return ptr;
     }
-    return gen.builder->CreateLoad(type, ptr);
+    const auto loadInstr = gen.builder->CreateLoad(type, ptr);
+    gen.di.instr(loadInstr, location);
+    return loadInstr;
 }
 
 llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<ChainValue*>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
@@ -240,7 +269,9 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
 
     const auto is_stored = parent->is_stored_ptr_or_ref(gen.allocator);
     if(is_stored && i <= until) {
-        pointer = gen.builder->CreateLoad(parent->llvm_type(gen), pointer);
+        const auto loadInst = gen.builder->CreateLoad(parent->llvm_type(gen), pointer);
+        gen.di.instr(loadInst, parent);
+        pointer = loadInst;
     }
 
     while (i <= until) {
@@ -251,8 +282,11 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
             } else {
                 gep = create_gep(gen, values, parent_index, pointer, idxList);
             }
-            pointer = gen.builder->CreateLoad(values[i]->llvm_type(gen), gep);
-            parent = values[i];
+            const auto current = values[i];
+            const auto loadInst = gen.builder->CreateLoad(current->llvm_type(gen), gep);
+            gen.di.instr(loadInst, current);
+            pointer = loadInst;
+            parent = current;
             parent_index = i;
             idxList.clear();
         } else {
@@ -308,7 +342,7 @@ llvm::Value* ChainValue::access_chain_pointer(
 }
 
 void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
-    gen.CreateCondBr(llvm_value(gen), then_block, otherwise_block);
+    gen.CreateCondBr(llvm_value(gen), then_block, otherwise_block, encoded_location());
 }
 
 llvm::Value* Value::llvm_pointer(Codegen& gen) {
@@ -352,7 +386,7 @@ llvm::Value* Value::llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt) {
  */
 void Value::llvm_assign_value(Codegen& gen, llvm::Value* lhsPtr, Value* lhs) {
     const auto rhsValue = llvm_value(gen, lhs ? lhs->known_type() : nullptr);
-    gen.assign_store(lhs, lhsPtr, this, rhsValue);
+    gen.assign_store(lhs, lhsPtr, this, rhsValue, encoded_location());
 }
 
 void ChainValue::access_chain_assign_value(
@@ -365,7 +399,7 @@ void ChainValue::access_chain_assign_value(
     BaseType* expected_type
 ) {
     const auto value = access_chain_value(gen, chain->values, until, destructibles, expected_type);
-    gen.assign_store(lhs, lhsPtr, chain, value);
+    gen.assign_store(lhs, lhsPtr, chain, value, encoded_location());
 }
 
 #endif

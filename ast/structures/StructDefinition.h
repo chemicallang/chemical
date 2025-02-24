@@ -329,7 +329,7 @@ public:
 
     void code_gen_external_declare(Codegen &gen) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst, SourceLocation location);
 
 #endif
 

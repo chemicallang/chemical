@@ -16,12 +16,12 @@ void DoWhileLoop::code_gen(Codegen &gen) {
     auto exitBlock = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
 
     // sending to loop then
-    gen.CreateBr(loopThen);
+    gen.CreateBr(loopThen, body.encoded_location());
 
     // loop then
     gen.SetInsertPoint(loopThen);
     gen.loop_body_gen(body, loopCond, exitBlock);
-    gen.CreateBr(loopCond);
+    gen.CreateBr(loopCond, body.encoded_location());
 
     // loop condition
     gen.SetInsertPoint(loopCond);

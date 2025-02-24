@@ -415,6 +415,19 @@ void ASTNode::code_gen_generic(Codegen &gen) {
 #endif
 }
 
+void ASTNode::llvm_destruct(Codegen& gen, llvm::Value* allocaInst, SourceLocation location) {
+    switch(kind()) {
+        case ASTNodeKind::StructDecl:
+            as_struct_def_unsafe()->llvm_destruct(gen, allocaInst, location);
+            return;
+        case ASTNodeKind::VariantDecl:
+            as_variant_def_unsafe()->llvm_destruct(gen, allocaInst, location);
+            return;
+        default:
+            return;
+    }
+}
+
 #endif
 
 void ASTNode::subscribe(GenericType* subscriber) {

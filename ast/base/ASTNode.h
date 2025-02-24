@@ -385,9 +385,7 @@ public:
     /**
      * will call destructor on allocated value, if required
      */
-    virtual void llvm_destruct(Codegen& gen, llvm::Value* allocaInst) {
-        // no destruction required
-    }
+    void llvm_destruct(Codegen& gen, llvm::Value* allocaInst, SourceLocation location);
 
     /**
      * this can be overridden if node intends to declare itself before generating code for it

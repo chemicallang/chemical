@@ -16,7 +16,8 @@ llvm::Type* IfStatement::llvm_type(Codegen &gen) {
 }
 
 llvm::AllocaInst* IfStatement::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
-    auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
+    const auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
+    gen.di.instr(allocated, Value::encoded_location());
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { nullptr, allocated };
     code_gen(gen);
@@ -100,9 +101,11 @@ void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
     ifBody.code_gen(gen);
     bool is_then_returns = gen.has_current_block_ended;
     if(endBlock) {
-        gen.CreateBr(endBlock);
+        // TODO send the ending location of the block
+        gen.CreateBr(endBlock, ifBody.encoded_location());
     } else {
-        gen.DefaultRet();
+        // TODO send the ending location here
+        gen.DefaultRet(ifBody.encoded_location());
     }
 
     bool all_elseifs_return = true;
@@ -124,9 +127,11 @@ void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
             all_elseifs_return = false;
         }
         if(endBlock) {
-            gen.CreateBr(endBlock);
+            // TODO send the ending location of the block
+            gen.CreateBr(endBlock, elif.second.encoded_location());
         } else {
-            gen.DefaultRet();
+            // TODO send the ending location here
+            gen.DefaultRet(elif.second.encoded_location());
         }
         i++;
     }
@@ -138,9 +143,11 @@ void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
         elseBody.value().code_gen(gen);
         is_else_returns = gen.has_current_block_ended;
         if(endBlock) {
-            gen.CreateBr(endBlock);
+            // TODO send the ending location of the block
+            gen.CreateBr(endBlock, elseBody->encoded_location());
         } else {
-            gen.DefaultRet();
+            // TODO send the ending location of the block
+            gen.DefaultRet(elseBody->encoded_location());
         }
     }
 

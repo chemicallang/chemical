@@ -3,6 +3,11 @@
 #pragma once
 
 namespace llvm {
+    class Instruction;
+    class CallInst;
+    class UnreachableInst;
+    class BranchInst;
+    class ReturnInst;
     class AllocaInst;
     class GlobalVariable;
     class Function;

@@ -19,18 +19,19 @@ void ForLoop::code_gen(Codegen &gen) {
     auto endBlock = llvm::BasicBlock::Create(*gen.ctx, "forend", gen.current_function);
 
     // going to condition
-    gen.CreateBr(condBlock);
+    gen.CreateBr(condBlock, body.encoded_location());
 
     // condition block
     gen.SetInsertPoint(condBlock);
     auto comparison = conditionExpr->llvm_value(gen);
-    gen.CreateCondBr(comparison, thenBlock, endBlock);
+    gen.CreateCondBr(comparison, thenBlock, endBlock, body.encoded_location());
 
     // then block
     gen.SetInsertPoint(thenBlock);
     gen.loop_body_gen(body, condBlock, endBlock);
     incrementerExpr->code_gen(gen);
-    gen.CreateBr(condBlock);
+    // TODO use the ending location here
+    gen.CreateBr(condBlock, body.encoded_location());
 
     // end block
     gen.SetInsertPoint(endBlock);

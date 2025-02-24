@@ -167,7 +167,9 @@ llvm::Value* arg_value(
         // passing r values as pointers by allocating them
         if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && Value::isValueKindRValue(value->val_kind())) {
             const auto allocated = gen.builder->CreateAlloca(value->llvm_type(gen));
-            gen.builder->CreateStore(value->llvm_arg_value(gen, param_type), allocated);
+            gen.di.instr(allocated, value);
+            const auto storeInstr = gen.builder->CreateStore(value->llvm_arg_value(gen, param_type), allocated);
+            gen.di.instr(storeInstr, value);
             argValue = allocated;
         } else {
             argValue = value->llvm_pointer(gen);
@@ -190,21 +192,24 @@ llvm::Value* arg_value(
             } else if(gen.requires_memcpy_ref_struct(func_param->type, value)) {
                 // non movable struct being passed directly, we should memcpy it
                 auto type = value->llvm_type(gen);
-                auto copy = gen.builder->CreateAlloca(type);
-                gen.memcpy_struct(type, copy, argValue);
+                const auto copy = gen.builder->CreateAlloca(type);
+                gen.di.instr(copy, value);
+                gen.memcpy_struct(type, copy, argValue, value->encoded_location());
                 argValue = copy;
             }
         }
         // pack it into a fat pointer, if the function expects a dynamic type
         const auto dyn_impl = gen.get_dyn_obj_impl(value, func_param->type);
         if(dyn_impl) {
-            argValue = gen.pack_fat_pointer(argValue, dyn_impl);
+            argValue = gen.pack_fat_pointer(argValue, dyn_impl, value->encoded_location());
         } else {
             // automatic dereference arguments that are references
             const auto val_type = value->create_type(gen.allocator);
             const auto derefType = val_type->getAutoDerefType(func_param->type);
             if(derefType) {
-                argValue = gen.builder->CreateLoad(derefType->llvm_type(gen), argValue);
+                const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), argValue);
+                gen.di.instr(loadInstr, value);
+                argValue = loadInstr;
             }
         }
     }
@@ -334,18 +339,23 @@ llvm::Value* call_with_callee(
         std::vector<llvm::Value*>& args,
         llvm::Value* callee
 ) {
-    return gen.builder->CreateCall(call->llvm_linked_func_type(gen), callee, args);
+    const auto callInstr = gen.builder->CreateCall(call->llvm_linked_func_type(gen), callee, args);
+    gen.di.instr(callInstr, call);
+    return callInstr;
 }
 
 llvm::Value* struct_return_in_args(
         Codegen& gen,
         std::vector<llvm::Value*>& args,
         FunctionType* func_type,
-        llvm::Value* returnedValue
+        llvm::Value* returnedValue,
+        Value* debug_value
 ) {
     if(func_type->returnType->isStructLikeType()) {
         if(!returnedValue) {
-            returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+            const auto allocaInstr = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+            gen.di.instr(allocaInstr, debug_value);
+            returnedValue = allocaInstr;
         }
         args.emplace_back(returnedValue);
     }
@@ -375,12 +385,16 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
     if(func_type->has_self_param()) {
         // the pointer to the struct object present in dynamic object (must be loaded)
         const auto first_ele_ptr = gen.builder->CreateGEP(struct_ty, granny, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-        self_ptr = gen.builder->CreateLoad(gen.builder->getPtrTy(), first_ele_ptr);
+        const auto loadInstr = gen.builder->CreateLoad(gen.builder->getPtrTy(), first_ele_ptr);
+        gen.di.instr(loadInstr, this);
+        self_ptr = loadInstr;
     }
 
     // the pointer to implementation (vtable) we stored for the given interface (must be loaded)
     const auto second_ele_ptr = gen.builder->CreateGEP(struct_ty, granny, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
     const auto second_ele = gen.builder->CreateLoad(gen.builder->getPtrTy(), second_ele_ptr);
+    gen.di.instr(second_ele, this);
+
     // getting the index of the pointer stored in vtable using the interface and function
     const int func_index = interface->vtable_function_index(linked);
     // loading the pointer to the function, with GEP we are doing pointer math to find the correct function
@@ -389,11 +403,12 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
         callee_ptr = gen.builder->CreateGEP(interface->llvm_vtable_type(gen), second_ele, { gen.builder->getInt32(func_index) }, "", gen.inbounds);;
     }
     // load the actual function pointer
-    llvm::Value* callee = gen.builder->CreateLoad(gen.builder->getPtrTy(), callee_ptr);
+    const auto callee = gen.builder->CreateLoad(gen.builder->getPtrTy(), callee_ptr);
+    gen.di.instr(callee, this);
 
     // we must use callee to call the function,
     std::vector<llvm::Value*> args;
-    llvm::Value* returned_value = struct_return_in_args(gen, args, func_type, nullptr);
+    llvm::Value* returned_value = struct_return_in_args(gen, args, func_type, nullptr, this);
     to_llvm_args(gen, this, func_type, values, args, 0, self_ptr, destructibles);
 
     llvm::Value* call_value = call_with_callee(this, gen, args, callee);
@@ -423,7 +438,8 @@ llvm::Value *call_capturing_lambda(
     llvm::Value* grandpa = nullptr;
     llvm::Value* value = call->parent_val->llvm_value(gen);
     auto dataPtr = gen.builder->CreateStructGEP(gen.fat_pointer_type(), value, 1);
-    auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
+    const auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
+    gen.di.instr(data, call);
     std::vector<llvm::Value *> args;
     // TODO self param is being put first, the problem is that user probably expects that arguments are loaded first
     //   functions that take a implicit self param, this is ok, because their first argument will be self and should be loaded
@@ -433,8 +449,11 @@ llvm::Value *call_capturing_lambda(
     to_llvm_args(gen, call, func_type, call->values, args, 0);
     auto structType = gen.fat_pointer_type();
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
-    auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
-    return gen.builder->CreateCall(func_type->llvm_func_type(gen), lambda, args);
+    const auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
+    gen.di.instr(lambda, call);
+    const auto instr = gen.builder->CreateCall(func_type->llvm_func_type(gen), lambda, args);
+    gen.di.instr(instr, call);
+    return instr;
 }
 
 void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
@@ -456,14 +475,14 @@ void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     } else if(linked_kind == ASTNodeKind::VariantMember) {
         const auto member = linked->as_variant_member_unsafe();
         const auto variant = member->parent_node;
-        variant->llvm_destruct(gen, allocaInst);
+        variant->llvm_destruct(gen, allocaInst, encoded_location());
         return;
     }
     auto funcType = function_type(gen.allocator);
     if(funcType) {
         auto return_linked = funcType->returnType->linked_node();
         if(return_linked) {
-            return_linked->llvm_destruct(gen, allocaInst);
+            return_linked->llvm_destruct(gen, allocaInst, encoded_location());
         }
     }
 }
@@ -494,7 +513,8 @@ bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* d
     }
     // storing the type index in the enum inside variant
     auto type_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-    gen.builder->CreateStore(gen.builder->getInt32(member_index), type_ptr);
+    const auto storeInstr = gen.builder->CreateStore(gen.builder->getInt32(member_index), type_ptr);
+    gen.di.instr(storeInstr, call);
     // storing the values of the variant inside it's struct
     auto data_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
     const auto struct_type = member->llvm_raw_struct_type(gen);
@@ -515,7 +535,8 @@ bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* d
                 std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
                 auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
                 const auto val = value_ptr->llvm_pointer(gen);
-                gen.builder->CreateStore(val, elementPtr);
+                const auto autoRefStore = gen.builder->CreateStore(val, elementPtr);
+                gen.di.instr(autoRefStore, call);
                 continue;
             }
         }
@@ -532,7 +553,7 @@ bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* d
             if(gen.requires_memcpy_ref_struct(param_type, value_ptr)) {
                 std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
                 auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
-                gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr));
+                gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr), value.encoded_location());
             } else {
                 value.store_in_struct(gen, call, data_ptr, struct_type, {gen.builder->getInt32(0)}, i, param_type);
             }
@@ -571,7 +592,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
         const auto mem = parent_linked->as_variant_member_unsafe();
         const auto mem_type = variant_llvm_type(gen, mem);
         if(!returnedStruct) {
-            returnedStruct = gen.builder->CreateAlloca(mem_type, nullptr);
+            const auto returnedAlloca = gen.builder->CreateAlloca(mem_type, nullptr);
+            gen.di.instr(returnedAlloca, this);
+            returnedStruct = returnedAlloca;
         }
         variant_call_initialize(gen, returnedStruct, mem_type, mem, this);
         return returnedStruct;
@@ -597,7 +620,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
         auto as_struct = val->as_struct_value();
         if(as_struct) {
             if(!returnedStruct) {
-                returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+                const auto returnedAlloca = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+                gen.di.instr(returnedAlloca, this);
+                returnedValue = returnedAlloca;
             }
             as_struct->initialize_alloca((llvm::AllocaInst*) returnedValue, gen, nullptr);
             return returnedValue;
@@ -613,7 +638,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     if(returnsStruct) {
         if(!returnedStruct) {
-            returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+            const auto returnedAlloca = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+            gen.di.instr(returnedAlloca, this);
+            returnedValue = returnedAlloca;
         }
         args.emplace_back(returnedValue);
     }
@@ -659,7 +686,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
         auto data = def->llvm_func_data(decl);
         args.emplace_back(grandparent);
-        gen.builder->CreateCall(data, args);
+        const auto callInstr = gen.builder->CreateCall(data, args);
+        gen.di.instr(callInstr, this);
         return returnedValue;
     }
 
@@ -667,7 +695,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
     to_llvm_args(gen, this, func_type, values, args, 0, grandparent, destructibles);
 
     const auto llvm_func_type = llvm_linked_func_type(gen);
-    auto call_value = gen.builder->CreateCall(llvm_func_type, callee_value, args);
+    const auto call_value = gen.builder->CreateCall(llvm_func_type, callee_value, args);
+    gen.di.instr(call_value, this);
 
     return returnedValue ? returnedValue : call_value;
 
@@ -709,8 +738,9 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
         to_llvm_args(gen, this, type->as_function_type(), values, args, 0, nullptr, destructibles);
-        auto invoked = gen.builder->CreateInvoke(fn, normal, unwind, args);
+        const auto invoked = gen.builder->CreateInvoke(fn, normal, unwind, args);
         Value::destruct(gen, destructibles);
+        gen.di.instr(invoked, this);
         return invoked;
     } else {
         gen.error("Unknown function call through invoke ", this);
@@ -743,6 +773,7 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         const auto variant = variant_mem->parent_node;
         const auto variant_type = variant_llvm_type(gen, variant_mem);
         const auto allocated = gen.builder->CreateAlloca(variant_type);
+        gen.di.instr(allocated, this);
         variant_call_initialize(gen, allocated, variant_type, variant_mem, this);
         return allocated;
     }
@@ -778,7 +809,7 @@ void FunctionCall::access_chain_assign_value(
         llvm_chain_value(gen, args, destructibles, lhsPtr);
     } else {
         const auto llvm_val = access_chain_value(gen, chain->values, until, destructibles, expected_type);
-        gen.assign_store(lhs, lhsPtr, chain, llvm_val);
+        gen.assign_store(lhs, lhsPtr, chain, llvm_val, encoded_location());
     }
 }
 

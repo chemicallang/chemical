@@ -29,14 +29,17 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
     // storing captured variables in a struct
     auto capturedStructType = capture_struct_type(gen);
     auto capturedAlloca = gen.builder->CreateAlloca(capturedStructType);
+    gen.di.instr(capturedAlloca, (Value*) this);
     unsigned i = 0;
     while(i < captureList.size()) {
         auto cap = captureList[i];
         auto ptr = gen.builder->CreateStructGEP(capturedStructType, capturedAlloca, i);
         if(cap->capture_by_ref) {
-            gen.builder->CreateStore(cap->linked->llvm_pointer(gen), ptr);
+            const auto instr = gen.builder->CreateStore(cap->linked->llvm_pointer(gen), ptr);
+            gen.di.instr(instr, cap);
         } else {
-            gen.builder->CreateStore(cap->linked->llvm_load(gen), ptr);
+            const auto instr = gen.builder->CreateStore(cap->linked->llvm_load(gen), ptr);
+            gen.di.instr(instr, cap);
         }
         i++;
     }
@@ -49,7 +52,7 @@ llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
         if(!captured) {
             captured = llvm::ConstantPointerNull::get(llvm::PointerType::get(*gen.ctx, 0));
         }
-        return gen.pack_fat_pointer(lambda->func_ptr, captured);
+        return gen.pack_fat_pointer(lambda->func_ptr, captured, lambda->Value::encoded_location());
     } else {
         return lambda->func_ptr;
     }

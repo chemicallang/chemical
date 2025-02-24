@@ -39,7 +39,7 @@ llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return Value::load_value(gen, create_type(gen.allocator), llvm_type(gen), llvm_pointer(gen));
+    return Value::load_value(gen, create_type(gen.allocator), llvm_type(gen), llvm_pointer(gen), encoded_location());
 }
 
 bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {

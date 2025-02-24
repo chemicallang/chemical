@@ -46,7 +46,6 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const(), linkage, initializer, runtime_name_fast());
     global->setDSOLocal(true);
     llvm_ptr = global;
-    gen.di.add(this, global);
 }
 
 void VarInitStatement::code_gen(Codegen &gen) {
@@ -69,7 +68,9 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 auto node = known_t->get_direct_linked_node();
                 if(node && node->isStoredStructType(node->kind())) {
                     const auto& name_v = name_view();
-                    llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));
+                    const auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));
+                    gen.di.instr(allocaInst, encoded_location());
+                    llvm_ptr = allocaInst;
                     gen.move_by_memcpy(node, value, llvm_ptr, value->llvm_value(gen));
                     moved = true;
                 }
@@ -95,7 +96,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
                 llvm_ptr = value->llvm_allocate(gen, name_str(),type_ptr_fast());
                 if(dyn_obj_impl) {
-                    gen.assign_dyn_obj_impl(llvm_ptr, dyn_obj_impl);
+                    gen.assign_dyn_obj_impl(llvm_ptr, dyn_obj_impl, encoded_location());
                 }
 
             }
@@ -103,11 +104,14 @@ void VarInitStatement::code_gen(Codegen &gen) {
         } else {
             const auto t = llvm_type(gen);
             const auto& v = name_view();
-            llvm_ptr = gen.builder->CreateAlloca(t, nullptr, llvm::StringRef(v.data(), v.size()));
+            const auto allocaInst = gen.builder->CreateAlloca(t, nullptr, llvm::StringRef(v.data(), v.size()));
+            gen.di.instr(allocaInst, encoded_location());
+            llvm_ptr = allocaInst;
             const auto var = type->get_direct_linked_variant();
             if(var) {
                 auto gep = gen.builder->CreateGEP(t, llvm_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-                gen.builder->CreateStore(gen.builder->getInt32(var->variables.size()), gep);
+                const auto storeInst = gen.builder->CreateStore(gen.builder->getInt32(var->variables.size()), gep);
+                gen.di.instr(storeInst, encoded_location());
             }
         }
     }
@@ -124,7 +128,7 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
     }
     if(value) {
         if(value->is_ref_moved()) {
-            known_type()->linked_node()->llvm_destruct(gen, llvm_ptr);
+            known_type()->linked_node()->llvm_destruct(gen, llvm_ptr, encoded_location());
             return;
         }
         value->llvm_destruct(gen, llvm_ptr);
@@ -132,13 +136,13 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
         auto kind = type->kind();
         switch (kind) {
             case BaseTypeKind::Linked:
-                type->linked_node()->llvm_destruct(gen, llvm_ptr);
+                type->linked_node()->llvm_destruct(gen, llvm_ptr, encoded_location());
                 break;
             case BaseTypeKind::Generic: {
                 const auto generic_struct = type->get_generic_struct();
                 const auto prev_itr = generic_struct->active_iteration;
                 generic_struct->set_active_iteration(type->get_generic_iteration());
-                generic_struct->llvm_destruct(gen, llvm_ptr);
+                generic_struct->llvm_destruct(gen, llvm_ptr, encoded_location());
                 generic_struct->set_active_iteration(prev_itr);
                 break;
             }
@@ -146,7 +150,7 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
                 const auto arr_type = (ArrayType *) type;
                 if (arr_type->elem_type->kind() == BaseTypeKind::Linked ||
                 arr_type->elem_type->kind() == BaseTypeKind::Generic) {
-                    gen.destruct(llvm_ptr, arr_type->get_array_size(), arr_type->elem_type);
+                    gen.destruct(llvm_ptr, arr_type->get_array_size(), arr_type->elem_type, encoded_location());
                 }
                 break;
             }
@@ -189,7 +193,10 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
     }
     auto v = llvm_pointer(gen);
     const auto& name = name_view();
-    return gen.builder->CreateLoad(llvm_type(gen), v, llvm::StringRef(name.data(), name.size()));
+    const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), v, llvm::StringRef(name.data(), name.size()));
+    // TODO use the location for loader, not what's being loaded
+    gen.di.instr(loadInst, encoded_location());
+    return loadInst;
 }
 
 bool VarInitStatement::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {

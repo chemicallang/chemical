@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "TryCatch.h"
 #include "ast/values/FunctionCall.h"
@@ -23,10 +23,6 @@ void TryCatch::code_gen(Codegen &gen) {
 }
 
 #endif
-
-void TryCatch::accept(Visitor *visitor) {
-    visitor->visit(this);
-}
 
 void TryCatch::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     tryCall->link(linker, (Value*&) tryCall);

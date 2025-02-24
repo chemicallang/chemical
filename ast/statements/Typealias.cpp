@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "Typealias.h"
 #include "compiler/SymbolResolver.h"
@@ -43,10 +43,6 @@ BaseType* TypealiasStatement::known_type() {
 
 uint64_t TypealiasStatement::byte_size(bool is64Bit) {
     return actual_type->byte_size(is64Bit);
-}
-
-void TypealiasStatement::accept(Visitor *visitor) {
-    visitor->visit(this);
 }
 
 BaseTypeKind TypealiasStatement::type_kind() const {

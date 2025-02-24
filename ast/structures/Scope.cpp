@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "Scope.h"
 #include <iostream>
@@ -67,10 +67,6 @@ Scope Scope::shallow_copy() {
         copied.nodes.emplace_back(node);
     }
     return copied;
-}
-
-void Scope::accept(Visitor *visitor) {
-    visitor->visit(this);
 }
 
 void Scope::tld_declare(SymbolResolver &linker) {

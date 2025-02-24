@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -27,11 +27,6 @@ public:
         SourceLocation location
     ) : Value(ValueKind::VariantCall, location), parent_val(parent_val) {
 
-    }
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     void relink_values(SymbolResolver &linker);

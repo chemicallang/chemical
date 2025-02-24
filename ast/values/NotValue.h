@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 01/03/2024.
@@ -19,11 +19,6 @@ public:
         Value* value,
         SourceLocation location
     ) : Value(ValueKind::NotValue, location), value(value) {}
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 

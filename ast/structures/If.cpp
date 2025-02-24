@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "If.h"
 #include "ast/base/BaseType.h"
@@ -166,10 +166,6 @@ bool IfStatement::add_child_index(Codegen& gen, std::vector<llvm::Value *>& inde
 }
 
 #endif
-
-void IfStatement::accept(Visitor *visitor) {
-    visitor->visit(this);
-}
 
 std::optional<bool> IfStatement::get_condition_const(InterpretScope& scope) {
     auto constant = condition->evaluated_value(scope);

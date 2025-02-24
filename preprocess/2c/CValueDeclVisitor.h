@@ -1,9 +1,8 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
 #include "SubVisitor.h"
-#include "ast/utils/CommonVisitor.h"
 #include "preprocess/visitors/RecursiveValueVisitor.h"
 #include <string>
 #include <unordered_map>

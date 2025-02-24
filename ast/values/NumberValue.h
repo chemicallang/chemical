@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 27/02/2024.
@@ -35,11 +35,6 @@ public:
         uint64_t value,
         SourceLocation location
     ) : IntNumValue(ValueKind::NumberValue, location), value(value) {}
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
 
     bool link(SymbolResolver &linker, BaseType *type);
 

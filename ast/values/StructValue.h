@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -48,11 +48,6 @@ public:
     ) : Value(ValueKind::StructValue, location), refType(refType), definition(definition), container(container), parent_node(parent)
     {
 
-    }
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     inline VariablesContainer* variables() {

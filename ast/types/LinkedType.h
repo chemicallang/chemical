@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -27,10 +27,6 @@ public:
     }
 
     uint64_t byte_size(bool is64Bit) final;
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
 
     bool link(SymbolResolver &linker);
 

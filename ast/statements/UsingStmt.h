@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -55,11 +55,6 @@ public:
 
     inline void set_propagate(bool value) {
         attrs.propagate = value;
-    }
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     void set_parent(ASTNode* new_parent) final {

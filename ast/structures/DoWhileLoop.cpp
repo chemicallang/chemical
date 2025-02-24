@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "DoWhileLoop.h"
 #include "compiler/SymbolResolver.h"
@@ -33,10 +33,6 @@ void DoWhileLoop::code_gen(Codegen &gen) {
 }
 
 #endif
-
-void DoWhileLoop::accept(Visitor *visitor) {
-    visitor->visit(this);
-}
 
 void DoWhileLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();

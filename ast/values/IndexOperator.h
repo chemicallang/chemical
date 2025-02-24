@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 29/02/2024.
@@ -25,11 +25,6 @@ public:
             SourceLocation location
     ) : ChainValue(ValueKind::IndexOperator, location), parent_val(parent), values(std::move(indexes)) {
 
-    }
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     Value* evaluated_value(InterpretScope &scope) override;

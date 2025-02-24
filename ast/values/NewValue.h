@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -20,10 +20,6 @@ public:
         SourceLocation location
     ) : Value(ValueKind::NewValue, location), value(value), ptr_type(nullptr, 0, false) {
 
-    }
-
-    void accept(Visitor *visitor) override {
-        visitor->visit(this);
     }
 
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;

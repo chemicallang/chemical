@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -22,10 +22,6 @@ public:
 //    hybrid_ptr<BaseType> get_child_type() final;
 
     BaseType* known_child_type() final;
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
 
     bool satisfies(BaseType *type) final;
 

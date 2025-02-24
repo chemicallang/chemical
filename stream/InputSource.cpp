@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "FileInputSource.h"
 #include <fcntl.h>   // for open, O_RDONLY

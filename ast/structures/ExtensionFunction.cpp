@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "ExtensionFunction.h"
 #include "compiler/SymbolResolver.h"
@@ -92,10 +92,6 @@ void ExtensionFunction::link_signature(SymbolResolver &linker) {
     }
 
     container->extension_functions[name_view()] = this;
-}
-
-void ExtensionFuncReceiver::accept(Visitor *visitor) {
-    visitor->visit(this);
 }
 
 void ExtensionFunction::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {

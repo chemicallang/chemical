@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -28,11 +28,6 @@ public:
     ) : ASTNode(ASTNodeKind::GenericTypeParam, location), identifier(identifier), at_least_type(at_least_type), def_type(def_type),
         parent_node(parent_node), param_index(param_index) {
 
-    }
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     void declare_only(SymbolResolver& linker);

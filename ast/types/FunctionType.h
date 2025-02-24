@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -174,10 +174,6 @@ public:
 
     ASTNode* linked_node() override {
         return returnType->linked_node();
-    }
-
-    void accept(Visitor *visitor) {
-        visitor->visit(this);
     }
 
     virtual ExtensionFunction* as_extension_func() {

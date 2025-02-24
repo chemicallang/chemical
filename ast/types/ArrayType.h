@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -53,10 +53,6 @@ public:
         } else {
             return array_size * elem_type->byte_size(is64Bit);
         }
-    }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     bool satisfies(BaseType *type) final;

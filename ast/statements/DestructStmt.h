@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -57,10 +57,6 @@ public:
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
 
 #ifdef COMPILER_BUILD
 

@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #define PROJECT_VERSION_MAJOR 1
 #define PROJECT_VERSION_MINOR 0

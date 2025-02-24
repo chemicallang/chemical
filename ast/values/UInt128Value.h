@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -34,10 +34,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final {
         return 16;
-    }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     UInt128Value *copy(ASTAllocator& allocator) final {

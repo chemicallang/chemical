@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 27/02/2024.
@@ -38,8 +38,6 @@ public:
     ASTNode *parent() final {
         return parent_node;
     }
-
-    void accept(Visitor *visitor) final;
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

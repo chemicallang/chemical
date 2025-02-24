@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include <memory>
 
@@ -978,10 +978,6 @@ unsigned FunctionParam::calculate_c_or_llvm_index() {
     return start + index;
 }
 
-void FunctionParam::accept(Visitor *visitor) {
-    visitor->visit(this);
-}
-
 BaseTypeKind BaseFunctionParam::type_kind() const {
     return type->kind();
 }
@@ -1360,10 +1356,6 @@ BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
 //hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {
 //    return hybrid_ptr<BaseType> { create_value_type(), true };
 //}
-
-void FunctionDeclaration::accept(Visitor *visitor) {
-    visitor->visit(this);
-}
 
 void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
     linker.declare_function(name_view(), this);

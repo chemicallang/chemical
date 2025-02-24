@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -17,10 +17,6 @@ public:
         SourceLocation location
     ) : referenced(referenced), BaseType(BaseTypeKind::Dynamic, location) {
 
-    }
-
-    void accept(Visitor* visitor) final {
-        visitor->visit(this);
     }
 
     bool is_same(BaseType* type) final {

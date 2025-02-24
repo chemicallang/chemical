@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "VarInit.h"
 #include "compiler/SymbolResolver.h"
@@ -250,10 +250,6 @@ BaseType* VarInitStatement::known_type() {
         return known_type;
     }
     return nullptr;
-}
-
-void VarInitStatement::accept(Visitor *visitor) {
-    visitor->visit(this);
 }
 
 ASTNode *VarInitStatement::child(const chem::string_view &name) {

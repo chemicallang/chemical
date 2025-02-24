@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ast/base/Visitor.h"
+#include "ast/base/ast_fwd.h"
 #include "compiler/llvmfwd.h"
 #include "std/chem_string_view.h"
 #include "integration/common/Position.h"

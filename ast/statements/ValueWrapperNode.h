@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -16,10 +16,6 @@ public:
         ASTNode* parent_node
     ) : ASTNode(ASTNodeKind::ValueWrapper, value->encoded_location()), value(value), parent_node(parent_node) {
 
-    }
-
-    void accept(Visitor *visitor) override {
-        visitor->visit(this);
     }
 
     ASTNode* parent() override {

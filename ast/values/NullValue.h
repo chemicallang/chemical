@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 01/03/2024.
@@ -32,10 +32,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
-    }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     [[nodiscard]]

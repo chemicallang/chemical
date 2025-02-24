@@ -1,8 +1,7 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
-#include "ast/base/Visitor.h"
 #include "compiler/ASTDiagnoser.h"
 #include "ast/base/ASTAny.h"
 #include <iosfwd>

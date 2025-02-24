@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "DereferenceValue.h"
 #include "ast/types/ReferenceType.h"

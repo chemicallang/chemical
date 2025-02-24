@@ -47,10 +47,6 @@ public:
 
     }
 
-    void accept(Visitor *visitor) override {
-        throw std::runtime_error("SymResValue cannot be visited, as it should be replaced during symbol resolution");
-    }
-
 //    Value* copy(ASTAllocator &alloc) override {
 //        return new (alloc.allocate<SymResValue>()) SymResValue(
 //            this->allocator, fn, data_ptr, location

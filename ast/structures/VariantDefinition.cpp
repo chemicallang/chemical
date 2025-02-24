@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "VariantDefinition.h"
 #include "VariantMember.h"
@@ -410,10 +410,6 @@ BaseDefMember *VariantMember::copy_member(ASTAllocator& allocator) {
     return member;
 }
 
-void VariantMember::accept(Visitor *visitor) {
-
-}
-
 void VariantMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
 
 }
@@ -539,10 +535,6 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& nod
     }
     member_param = node->second;
     linker.declare(name, this);
-}
-
-void VariantCaseVariable::accept(Visitor *visitor) {
-    throw std::runtime_error("VariantCaseVariable cannot be visited, As is it always contained within a VariantCase which is visited");
 }
 
 //hybrid_ptr<BaseType> VariantCaseVariable::get_value_type() {

@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -23,10 +23,6 @@ public:
 
     ASTNode* parent() override {
         return parent_node;
-    }
-
-    void accept(Visitor *visitor) {
-        visitor->visit(this);
     }
 
     uint64_t byte_size(bool is64Bit) {

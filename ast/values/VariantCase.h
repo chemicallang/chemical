@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "ast/base/Value.h"
 #include "VariantCaseVariable.h"
@@ -40,10 +40,6 @@ public:
 
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
 
 #ifdef COMPILER_BUILD
 

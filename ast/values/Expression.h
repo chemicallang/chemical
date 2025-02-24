@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 27/02/2024.
@@ -33,11 +33,6 @@ public:
     ) : Value(ValueKind::Expression, location), firstValue(firstValue), secondValue(secondValue),
         operation(operation), is64Bit(is64Bit), created_type(created_type) {
 
-    }
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     /**

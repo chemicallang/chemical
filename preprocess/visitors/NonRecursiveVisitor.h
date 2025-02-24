@@ -5,7 +5,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
-#include "ast_fwd.h"
+#include "ast/base/ast_fwd.h"
 
 template<typename Derived>
 class NonRecursiveVisitor {

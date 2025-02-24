@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "IntNumValue.h"
 #include "ast/types/ShortType.h"
@@ -29,10 +29,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final {
         return 2;
-    }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     ShortValue *copy(ASTAllocator& allocator) final {

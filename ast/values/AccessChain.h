@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 29/02/2024.
@@ -108,8 +108,6 @@ public:
      * will call relink_parent on values starting from second value
      */
     void relink_parent();
-
-    void accept(Visitor *visitor) final;
 
     AccessChain *copy(ASTAllocator& allocator) final;
 

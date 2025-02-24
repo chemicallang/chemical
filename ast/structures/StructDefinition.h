@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 27/02/2024.
@@ -243,8 +243,6 @@ public:
     bool is_generic() {
         return !generic_params.empty();
     }
-
-    void accept(Visitor *visitor) final;
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

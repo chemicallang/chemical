@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 01/03/2024.
@@ -36,10 +36,6 @@ public:
     BaseType* create_type(ASTAllocator &allocator) final;
 
     Value* evaluated_value(InterpretScope &scope) override;
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
 
     ASTNode* linked_node() override {
         return value->linked_node();

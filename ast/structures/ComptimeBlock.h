@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 
 #pragma once
@@ -21,11 +21,6 @@ public:
     ) : ASTNode(ASTNodeKind::ComptimeBlock, location), body(std::move(body)), parent_node(parent) {
 
     }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
-
 
     ASTNode* parent() final {
         return parent_node;

@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -79,8 +79,6 @@ public:
     }
 
     unsigned int calculate_c_or_llvm_index() final;
-
-    void accept(Visitor *visitor) final;
 
     Value *holding_value() final {
         return defValue;

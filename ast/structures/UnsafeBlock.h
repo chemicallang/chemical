@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -15,11 +15,6 @@ public:
     ) : ASTNode(ASTNodeKind::UnsafeBlock, location), scope(std::move(scope)) {
 
     }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
-
 
     ASTNode* parent() final {
         return scope.parent_node;

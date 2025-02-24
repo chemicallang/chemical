@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 27/02/2024.
@@ -472,8 +472,6 @@ public:
     LocatedIdentifier* get_func_name_id() final {
         return &identifier;
     }
-
-    void accept(Visitor *visitor);
 
     void make_destructor(ASTAllocator&, ExtendableMembersContainerNode* def);
 

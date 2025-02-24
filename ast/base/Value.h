@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 27/02/2024.
@@ -21,7 +21,6 @@ class Codegen;
 
 #endif
 
-#include "Visitor.h"
 #include "BaseTypeKind.h"
 #include "ValueKind.h"
 #include "std/chem_string_view.h"

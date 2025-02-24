@@ -47,11 +47,6 @@ public:
         ahead = value->value.size();
     }
 
-
-    void accept(Visitor *visitor) override {
-        // cannot be visited
-    }
-
     PointerValue* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<PointerValue>()) PointerValue(
             data, type, behind, ahead, encoded_location()

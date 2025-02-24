@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -17,11 +17,6 @@ public:
         SourceLocation location
     ) : Value(ValueKind::AlignOfValue, location), for_type(for_type) {
 
-    }
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {

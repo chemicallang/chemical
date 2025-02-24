@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -30,10 +30,6 @@ public:
     }
 
     FunctionDeclaration* func_for_call(ASTAllocator& allocator, std::vector<Value*>& args);
-
-    void accept(Visitor *visitor) final {
-        // don't do anything
-    }
 
     ASTNode *parent() final {
         return nullptr;

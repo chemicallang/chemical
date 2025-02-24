@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -28,11 +28,6 @@ public:
         SourceLocation location
     ) : LoopASTNode(std::move(scope), ASTNodeKind::LoopBlock, location), Value(ValueKind::LoopValue, location), parent_node(parent_node) {
 
-    }
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     ASTNode* parent() final {

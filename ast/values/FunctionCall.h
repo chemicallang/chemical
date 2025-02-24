@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 29/02/2024.
@@ -31,12 +31,7 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
-
     uint64_t byte_size(bool is64Bit) final;
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
 
     void link_values(SymbolResolver &linker, std::vector<bool>& properly_linked);
 

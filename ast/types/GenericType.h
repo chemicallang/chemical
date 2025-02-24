@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -44,13 +44,6 @@ public:
      */
     GenericType(LinkedType* referenced, int16_t generic_itr) : BaseType(BaseTypeKind::Generic, referenced->encoded_location()), referenced(referenced), generic_iteration(generic_itr) {
 
-    }
-
-    /**
-     * accept the visitor
-     */
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     /**

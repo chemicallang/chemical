@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -52,10 +52,6 @@ public:
 
     ASTNode *parent() final {
         return (ASTNode*) parent_node;
-    }
-
-    void accept(Visitor *visitor) final {
-        // TODO should enum members be visited or not ?
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) final;

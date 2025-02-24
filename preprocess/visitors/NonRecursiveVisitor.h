@@ -30,448 +30,432 @@ public:
 
     // ------- NODES --------
 
-    void VisitAssignmentStmt(AssignStatement* node) {
+    inline void VisitAssignmentStmt(AssignStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitBreakStmt(BreakStatement* node) {
+    inline void VisitBreakStmt(BreakStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitCommentStmt(Comment* node) {
+    inline void VisitCommentStmt(Comment* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitContinueStmt(ContinueStatement* node) {
+    inline void VisitContinueStmt(ContinueStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitUnreachableStmt(UnreachableStmt* node) {
+    inline void VisitUnreachableStmt(UnreachableStmt* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitDeleteStmt(DestructStmt* node) {
+    inline void VisitDeleteStmt(DestructStmt* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitImportStmt(ImportStatement* node) {
+    inline void VisitImportStmt(ImportStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitReturnStmt(ReturnStatement* node) {
+    inline void VisitReturnStmt(ReturnStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitSwitchStmt(SwitchStatement* node) {
+    inline void VisitSwitchStmt(SwitchStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitThrowStmt(ThrowStatement* node) {
+    inline void VisitThrowStmt(ThrowStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitTypealiasStmt(TypealiasStatement* node) {
+    inline void VisitTypealiasStmt(TypealiasStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitUsingStmt(UsingStmt* node) {
+    inline void VisitUsingStmt(UsingStmt* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitVarInitStmt(VarInitStatement* node) {
+    inline void VisitVarInitStmt(VarInitStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitLoopBlock(LoopBlock* node) {
+    inline void VisitLoopBlock(LoopBlock* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitProvideStmt(ProvideStmt* node) {
+    inline void VisitProvideStmt(ProvideStmt* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitComptimeBlock(ComptimeBlock* node) {
+    inline void VisitComptimeBlock(ComptimeBlock* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitWhileLoopStmt(WhileLoop* node) {
+    inline void VisitWhileLoopStmt(WhileLoop* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitDoWhileLoopStmt(DoWhileLoop* node) {
+    inline void VisitDoWhileLoopStmt(DoWhileLoop* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitSymResNode(SymResNode* node) {
+    inline void VisitSymResNode(SymResNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitForLoopStmt(ForLoop* node) {
+    inline void VisitForLoopStmt(ForLoop* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitIfStmt(IfStatement* node) {
+    inline void VisitIfStmt(IfStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitTryStmt(TryCatch* node) {
+    inline void VisitTryStmt(TryCatch* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitValueNode(ValueNode* node) {
+    inline void VisitValueNode(ValueNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitValueWrapper(ValueWrapperNode* node) {
+    inline void VisitValueWrapper(ValueWrapperNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitEnumDecl(EnumDeclaration* node) {
+    inline void VisitEnumDecl(EnumDeclaration* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitEnumMember(EnumMember* node) {
+    inline void VisitEnumMember(EnumMember* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitFunctionDecl(FunctionDeclaration* node) {
+    inline void VisitFunctionDecl(FunctionDeclaration* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitExtensionFunctionDecl(ExtensionFunction* node) {
+    inline void VisitExtensionFunctionDecl(ExtensionFunction* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitMultiFunctionNode(MultiFunctionNode* node) {
+    inline void VisitMultiFunctionNode(MultiFunctionNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitImplDecl(ImplDefinition* node) {
+    inline void VisitImplDecl(ImplDefinition* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitInterfaceDecl(InterfaceDefinition* node) {
+    inline void VisitInterfaceDecl(InterfaceDefinition* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitInitBlock(InitBlock* node) {
+    inline void VisitInitBlock(InitBlock* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitStructDecl(StructDefinition* node) {
+    inline void VisitStructDecl(StructDefinition* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitStructMember(StructMember* node) {
+    inline void VisitStructMember(StructMember* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitNamespaceDecl(Namespace* node) {
+    inline void VisitNamespaceDecl(Namespace* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitUnionDecl(UnionDef* node) {
+    inline void VisitUnionDecl(UnionDef* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitVariantDecl(VariantDefinition* node) {
+    inline void VisitVariantDecl(VariantDefinition* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitVariantMember(VariantMember* node) {
+    inline void VisitVariantMember(VariantMember* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitUnnamedStruct(UnnamedStruct* node) {
+    inline void VisitUnnamedStruct(UnnamedStruct* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitUnnamedUnion(UnnamedUnion* node) {
+    inline void VisitUnnamedUnion(UnnamedUnion* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitScope(Scope* node) {
+    inline void VisitScope(Scope* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitUnsafeBlock(UnsafeBlock* node) {
+    inline void VisitUnsafeBlock(UnsafeBlock* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitFunctionParam(FunctionParam* node) {
+    inline void VisitFunctionParam(FunctionParam* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitExtensionFuncReceiver(ExtensionFuncReceiver* node) {
+    inline void VisitExtensionFuncReceiver(ExtensionFuncReceiver* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitGenericTypeParam(GenericTypeParameter* node) {
+    inline void VisitGenericTypeParam(GenericTypeParameter* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitVariantMemberParam(VariantMemberParam* node) {
+    inline void VisitVariantMemberParam(VariantMemberParam* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitCapturedVariable(CapturedVariable* node) {
+    inline void VisitCapturedVariable(CapturedVariable* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    void VisitVariantCaseVariable(VariantCaseVariable* node) {
+    inline void VisitVariantCaseVariable(VariantCaseVariable* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
 
     // ---------- Values ----------
 
-    void VisitCharValue(CharValue* value) {
+    inline void VisitCharValue(CharValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitShortValue(ShortValue* value) {
+    inline void VisitShortValue(ShortValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitIntValue(IntValue* value) {
+    inline void VisitIntValue(IntValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitLongValue(LongValue* value) {
+    inline void VisitLongValue(LongValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitBigIntValue(BigIntValue* value) {
+    inline void VisitBigIntValue(BigIntValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitInt128Value(Int128Value* value) {
+    inline void VisitInt128Value(Int128Value* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitUCharValue(UCharValue* value) {
+    inline void VisitUCharValue(UCharValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitUShortValue(UShortValue* value) {
+    inline void VisitUShortValue(UShortValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitUIntValue(UIntValue* value) {
+    inline void VisitUIntValue(UIntValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitULongValue(ULongValue* value) {
+    inline void VisitULongValue(ULongValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitUBigIntValue(UBigIntValue* value) {
+    inline void VisitUBigIntValue(UBigIntValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitUInt128Value(UInt128Value* value) {
+    inline void VisitUInt128Value(UInt128Value* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitNumberValue(NumberValue* value) {
+    inline void VisitNumberValue(NumberValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitFloatValue(FloatValue* value) {
+    inline void VisitFloatValue(FloatValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitDoubleValue(DoubleValue* value) {
+    inline void VisitDoubleValue(DoubleValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitBoolValue(BoolValue* value) {
+    inline void VisitBoolValue(BoolValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitStringValue(StringValue* value) {
+    inline void VisitStringValue(StringValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitExpression(Expression* value) {
+    inline void VisitExpression(Expression* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitArrayValue(ArrayValue* value) {
+    inline void VisitArrayValue(ArrayValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitStructValue(StructValue* value) {
+    inline void VisitStructValue(StructValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitLambdaFunction(LambdaFunction* value) {
+    inline void VisitLambdaFunction(LambdaFunction* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitIfValue(IfStatement* value) {
+    inline void VisitNewTypedValue(NewTypedValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitSwitchValue(SwitchStatement* value) {
+    inline void VisitNewValue(NewValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitLoopValue(LoopBlock* value) {
+    inline void VisitPlacementNewValue(PlacementNewValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitNewTypedValue(NewTypedValue* value) {
+    inline void VisitIncDecValue(IncDecValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitNewValue(NewValue* value) {
+    inline void VisitIsValue(IsValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitPlacementNewValue(PlacementNewValue* value) {
+    inline void VisitDereferenceValue(DereferenceValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitIncDecValue(IncDecValue* value) {
+    inline void VisitRetStructParamValue(RetStructParamValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitIsValue(IsValue* value) {
+    inline void VisitAccessChain(AccessChain* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitDereferenceValue(DereferenceValue* value) {
+    inline void VisitCastedValue(CastedValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitRetStructParamValue(RetStructParamValue* value) {
+    inline void VisitVariableIdentifier(VariableIdentifier* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitAccessChain(AccessChain* value) {
+    inline void VisitIndexOperator(IndexOperator* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitCastedValue(CastedValue* value) {
+    inline void VisitFunctionCall(FunctionCall* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitVariableIdentifier(VariableIdentifier* value) {
+    inline void VisitNegativeValue(NegativeValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitIndexOperator(IndexOperator* value) {
+    inline void VisitNotValue(NotValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitFunctionCall(FunctionCall* value) {
+    inline void VisitNullValue(NullValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitNegativeValue(NegativeValue* value) {
+    inline void VisitSizeOfValue(SizeOfValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitNotValue(NotValue* value) {
+    inline void VisitSymResValue(SymResValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitNullValue(NullValue* value) {
+    inline void VisitUnsafeValue(UnsafeValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitSizeOfValue(SizeOfValue* value) {
+    inline void VisitComptimeValue(ComptimeValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitSymResValue(SymResValue* value) {
+    inline void VisitAlignOfValue(AlignOfValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitUnsafeValue(UnsafeValue* value) {
+    inline void VisitVariantCall(VariantCall* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitComptimeValue(ComptimeValue* value) {
+    inline void VisitVariantCase(VariantCase* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitAlignOfValue(AlignOfValue* value) {
+    inline void VisitAddrOfValue(AddrOfValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitVariantCall(VariantCall* value) {
+    inline void VisitPointerValue(PointerValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitVariantCase(VariantCase* value) {
+    inline void VisitBlockValue(BlockValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitAddrOfValue(AddrOfValue* value) {
+    inline void VisitWrapValue(WrapValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
-    void VisitPointerValue(PointerValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
-    }
-
-    void VisitBlockValue(BlockValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
-    }
-
-    void VisitWrapValue(WrapValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue(value);
-    }
-
-    void VisitDestructValue(DestructValue* value) {
+    inline void VisitDestructValue(DestructValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue(value);
     }
 
     // Types begin here
 
-    void VisitAnyType(AnyType* type) {
+    inline void VisitAnyType(AnyType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitArrayType(ArrayType* type) {
+    inline void VisitArrayType(ArrayType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitStructType(StructType* type) {
+    inline void VisitStructType(StructType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitUnionType(UnionType* type) {
+    inline void VisitUnionType(UnionType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitBoolType(BoolType* type) {
+    inline void VisitBoolType(BoolType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitDoubleType(DoubleType* type) {
+    inline void VisitDoubleType(DoubleType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitFloatType(FloatType* type) {
+    inline void VisitFloatType(FloatType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitLongDoubleType(LongDoubleType* type) {
+    inline void VisitLongDoubleType(LongDoubleType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitComplexType(ComplexType* type) {
+    inline void VisitComplexType(ComplexType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitFloat128Type(Float128Type* type) {
+    inline void VisitFloat128Type(Float128Type* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitFunctionType(FunctionType* type) {
+    inline void VisitFunctionType(FunctionType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitGenericType(GenericType* type) {
+    inline void VisitGenericType(GenericType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitIntNType(IntNType* type) {
+    inline void VisitIntNType(IntNType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitPointerType(PointerType* type) {
+    inline void VisitPointerType(PointerType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitReferenceType(ReferenceType* type) {
+    inline void VisitReferenceType(ReferenceType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitLinkedType(LinkedType* type) {
+    inline void VisitLinkedType(LinkedType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitStringType(StringType* type) {
+    inline void VisitStringType(StringType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitLiteralType(LiteralType* type) {
+    inline void VisitLiteralType(LiteralType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitDynamicType(DynamicType* type) {
+    inline void VisitDynamicType(DynamicType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitVoidType(VoidType* type) {
+    inline void VisitVoidType(VoidType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitExpressionType(ExpressionType* type) {
+    inline void VisitExpressionType(ExpressionType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
-    void VisitUnknownType(BaseType* type) {
-        static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
-    }
-
-    void VisitNodeUnsafe(ASTNode* node) {
+    void VisitNodeNoNullCheck(ASTNode* node) {
         switch(node->kind()) {
             case ASTNodeKind::AssignmentStmt:
                 static_cast<Derived*>(this)->VisitAssignmentStmt((AssignStatement*) node);
@@ -631,10 +615,10 @@ public:
     }
 
     inline void VisitNode(ASTNode* node) {
-        if(node) VisitNodeUnsafe(node);
+        if(node) VisitNodeNoNullCheck(node);
     }
 
-    void VisitValueUnsafe(Value* value) {
+    void VisitValueNoNullCheck(Value* value) {
         switch(value->kind()) {
             case ValueKind::Char:
                 static_cast<Derived*>(this)->VisitCharValue((CharValue*) value);
@@ -700,13 +684,13 @@ public:
                 static_cast<Derived*>(this)->VisitLambdaFunction((LambdaFunction*) value);
                 return;
             case ValueKind::IfValue:
-                static_cast<Derived*>(this)->VisitIfValue((IfStatement*) value);
+                static_cast<Derived*>(this)->VisitIfStmt((IfStatement*) value);
                 return;
             case ValueKind::SwitchValue:
-                static_cast<Derived*>(this)->VisitSwitchValue((SwitchStatement*) value);
+                static_cast<Derived*>(this)->VisitSwitchStmt((SwitchStatement*) value);
                 return;
             case ValueKind::LoopValue:
-                static_cast<Derived*>(this)->VisitLoopValue((LoopBlock*) value);
+                static_cast<Derived*>(this)->VisitLoopBlock((LoopBlock*) value);
                 return;
             case ValueKind::NewTypedValue:
                 static_cast<Derived*>(this)->VisitNewTypedValue((NewTypedValue*) value);
@@ -796,11 +780,11 @@ public:
         }
     }
 
-    void VisitValue(Value* value) {
-        if(value) VisitValueUnsafe(value);
+    inline void VisitValue(Value* value) {
+        if(value) VisitValueNoNullCheck(value);
     }
 
-    void VisitTypeUnsafe(BaseType* type) {
+    void VisitTypeNoNullCheck(BaseType* type) {
         switch(type->kind()) {
             case BaseTypeKind::Any:
                 static_cast<Derived*>(this)->VisitAnyType((AnyType*) type);
@@ -865,9 +849,6 @@ public:
             case BaseTypeKind::ExpressionType:
                 static_cast<Derived*>(this)->VisitExpressionType((ExpressionType*) type);
                 return;
-            case BaseTypeKind::Unknown:
-                static_cast<Derived*>(this)->VisitUnknownType(type);
-                return;
 #ifdef DEBUG
             default:
                 throw "UNHANDLED: type kind in non recursive visitor";
@@ -875,8 +856,393 @@ public:
         }
     }
 
-    void VisitType(BaseType* type) {
-        if(type) VisitTypeUnsafe(type);
+    inline void VisitType(BaseType* type) {
+        if(type) VisitTypeNoNullCheck(type);
+    }
+
+    // Visit By Ptr Type
+
+    inline void VisitByPtrTypeNoNullCheck(AssignStatement* node) {
+        static_cast<Derived*>(this)->VisitAssignmentStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(BreakStatement* node) {
+        static_cast<Derived*>(this)->VisitBreakStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(Comment* node) {
+        static_cast<Derived*>(this)->VisitCommentStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ContinueStatement* node) {
+        static_cast<Derived*>(this)->VisitContinueStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UnreachableStmt* node) {
+        static_cast<Derived*>(this)->VisitUnreachableStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(DestructStmt* node) {
+        static_cast<Derived*>(this)->VisitDeleteStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ImportStatement* node) {
+        static_cast<Derived*>(this)->VisitImportStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ReturnStatement* node) {
+        static_cast<Derived*>(this)->VisitReturnStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(SwitchStatement* node) {
+        static_cast<Derived*>(this)->VisitSwitchStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ThrowStatement* node) {
+        static_cast<Derived*>(this)->VisitThrowStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(TypealiasStatement* node) {
+        static_cast<Derived*>(this)->VisitTypealiasStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UsingStmt* node) {
+        static_cast<Derived*>(this)->VisitUsingStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(VarInitStatement* node) {
+        static_cast<Derived*>(this)->VisitVarInitStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(LoopBlock* node) {
+        static_cast<Derived*>(this)->VisitLoopBlock(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ProvideStmt* node) {
+        static_cast<Derived*>(this)->VisitProvideStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ComptimeBlock* node) {
+        static_cast<Derived*>(this)->VisitComptimeBlock(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(WhileLoop* node) {
+        static_cast<Derived*>(this)->VisitWhileLoopStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(DoWhileLoop* node) {
+        static_cast<Derived*>(this)->VisitDoWhileLoopStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(SymResNode* node) {
+        static_cast<Derived*>(this)->VisitSymResNode(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ForLoop* node) {
+        static_cast<Derived*>(this)->VisitForLoopStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(IfStatement* node) {
+        static_cast<Derived*>(this)->VisitIfStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(TryCatch* node) {
+        static_cast<Derived*>(this)->VisitTryStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ValueNode* node) {
+        static_cast<Derived*>(this)->VisitValueNode(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ValueWrapperNode* node) {
+        static_cast<Derived*>(this)->VisitValueWrapper(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(EnumDeclaration* node) {
+        static_cast<Derived*>(this)->VisitEnumDecl(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(EnumMember* node) {
+        static_cast<Derived*>(this)->VisitEnumMember(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(FunctionDeclaration* node) {
+        static_cast<Derived*>(this)->VisitFunctionDecl(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ExtensionFunction* node) {
+        static_cast<Derived*>(this)->VisitExtensionFunctionDecl(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(MultiFunctionNode* node) {
+        static_cast<Derived*>(this)->VisitMultiFunctionNode(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ImplDefinition* node) {
+        static_cast<Derived*>(this)->VisitImplDecl(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(InterfaceDefinition* node) {
+        static_cast<Derived*>(this)->VisitInterfaceDecl(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(InitBlock* node) {
+        static_cast<Derived*>(this)->VisitInitBlock(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(StructDefinition* node) {
+        static_cast<Derived*>(this)->VisitStructDecl(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(StructMember* node) {
+        static_cast<Derived*>(this)->VisitStructMember(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(Namespace* node) {
+        static_cast<Derived*>(this)->VisitNamespaceDecl(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UnionDef* node) {
+        static_cast<Derived*>(this)->VisitUnionDecl(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(VariantDefinition* node) {
+        static_cast<Derived*>(this)->VisitVariantDecl(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(VariantMember* node) {
+        static_cast<Derived*>(this)->VisitVariantMember(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UnnamedStruct* node) {
+        static_cast<Derived*>(this)->VisitUnnamedStruct(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UnnamedUnion* node) {
+        static_cast<Derived*>(this)->VisitUnnamedUnion(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(Scope* node) {
+        static_cast<Derived*>(this)->VisitScope(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UnsafeBlock* node) {
+        static_cast<Derived*>(this)->VisitUnsafeBlock(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(FunctionParam* node) {
+        static_cast<Derived*>(this)->VisitFunctionParam(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ExtensionFuncReceiver* node) {
+        static_cast<Derived*>(this)->VisitExtensionFuncReceiver(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(GenericTypeParameter* node) {
+        static_cast<Derived*>(this)->VisitGenericTypeParam(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(VariantMemberParam* node) {
+        static_cast<Derived*>(this)->VisitVariantMemberParam(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(CapturedVariable* node) {
+        static_cast<Derived*>(this)->VisitCapturedVariable(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(VariantCaseVariable* node) {
+        static_cast<Derived*>(this)->VisitVariantCaseVariable(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(CharValue* value) {
+        static_cast<Derived*>(this)->VisitCharValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ShortValue* value) {
+        static_cast<Derived*>(this)->VisitShortValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(IntValue* value) {
+        static_cast<Derived*>(this)->VisitIntValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(LongValue* value) {
+        static_cast<Derived*>(this)->VisitLongValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(BigIntValue* value) {
+        static_cast<Derived*>(this)->VisitBigIntValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(Int128Value* value) {
+        static_cast<Derived*>(this)->VisitInt128Value(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UCharValue* value) {
+        static_cast<Derived*>(this)->VisitUCharValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UShortValue* value) {
+        static_cast<Derived*>(this)->VisitUShortValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UIntValue* value) {
+        static_cast<Derived*>(this)->VisitUIntValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ULongValue* value) {
+        static_cast<Derived*>(this)->VisitULongValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UBigIntValue* value) {
+        static_cast<Derived*>(this)->VisitUBigIntValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UInt128Value* value) {
+        static_cast<Derived*>(this)->VisitUInt128Value(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(NumberValue* value) {
+        static_cast<Derived*>(this)->VisitNumberValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(FloatValue* value) {
+        static_cast<Derived*>(this)->VisitFloatValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(DoubleValue* value) {
+        static_cast<Derived*>(this)->VisitDoubleValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(BoolValue* value) {
+        static_cast<Derived*>(this)->VisitBoolValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(StringValue* value) {
+        static_cast<Derived*>(this)->VisitStringValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(Expression* value) {
+        static_cast<Derived*>(this)->VisitExpression(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ArrayValue* value) {
+        static_cast<Derived*>(this)->VisitArrayValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(StructValue* value) {
+        static_cast<Derived*>(this)->VisitStructValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(LambdaFunction* value) {
+        static_cast<Derived*>(this)->VisitLambdaFunction(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(NewTypedValue* value) {
+        static_cast<Derived*>(this)->VisitNewTypedValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(NewValue* value) {
+        static_cast<Derived*>(this)->VisitNewValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(PlacementNewValue* value) {
+        static_cast<Derived*>(this)->VisitPlacementNewValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(IncDecValue* value) {
+        static_cast<Derived*>(this)->VisitIncDecValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(IsValue* value) {
+        static_cast<Derived*>(this)->VisitIsValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(DereferenceValue* value) {
+        static_cast<Derived*>(this)->VisitDereferenceValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(RetStructParamValue* value) {
+        static_cast<Derived*>(this)->VisitRetStructParamValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(AccessChain* value) {
+        static_cast<Derived*>(this)->VisitAccessChain(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(CastedValue* value) {
+        static_cast<Derived*>(this)->VisitCastedValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(VariableIdentifier* value) {
+        static_cast<Derived*>(this)->VisitVariableIdentifier(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(IndexOperator* value) {
+        static_cast<Derived*>(this)->VisitIndexOperator(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(FunctionCall* value) {
+        static_cast<Derived*>(this)->VisitFunctionCall(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(NegativeValue* value) {
+        static_cast<Derived*>(this)->VisitNegativeValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(NotValue* value) {
+        static_cast<Derived*>(this)->VisitNotValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(NullValue* value) {
+        static_cast<Derived*>(this)->VisitNullValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(SizeOfValue* value) {
+        static_cast<Derived*>(this)->VisitSizeOfValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(SymResValue* value) {
+        static_cast<Derived*>(this)->VisitSymResValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UnsafeValue* value) {
+        static_cast<Derived*>(this)->VisitUnsafeValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ComptimeValue* value) {
+        static_cast<Derived*>(this)->VisitComptimeValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(AlignOfValue* value) {
+        static_cast<Derived*>(this)->VisitAlignOfValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(VariantCall* value) {
+        static_cast<Derived*>(this)->VisitVariantCall(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(VariantCase* value) {
+        static_cast<Derived*>(this)->VisitVariantCase(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(AddrOfValue* value) {
+        static_cast<Derived*>(this)->VisitAddrOfValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(PointerValue* value) {
+        static_cast<Derived*>(this)->VisitPointerValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(BlockValue* value) {
+        static_cast<Derived*>(this)->VisitBlockValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(WrapValue* value) {
+        static_cast<Derived*>(this)->VisitWrapValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(DestructValue* value) {
+        static_cast<Derived*>(this)->VisitDestructValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(AnyType* type) {
+        static_cast<Derived*>(this)->VisitAnyType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ArrayType* type) {
+        static_cast<Derived*>(this)->VisitArrayType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(StructType* type) {
+        static_cast<Derived*>(this)->VisitStructType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(UnionType* type) {
+        static_cast<Derived*>(this)->VisitUnionType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(BoolType* type) {
+        static_cast<Derived*>(this)->VisitBoolType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(DoubleType* type) {
+        static_cast<Derived*>(this)->VisitDoubleType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(FloatType* type) {
+        static_cast<Derived*>(this)->VisitFloatType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(LongDoubleType* type) {
+        static_cast<Derived*>(this)->VisitLongDoubleType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ComplexType* type) {
+        static_cast<Derived*>(this)->VisitComplexType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(Float128Type* type) {
+        static_cast<Derived*>(this)->VisitFloat128Type(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(FunctionType* type) {
+        static_cast<Derived*>(this)->VisitFunctionType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(GenericType* type) {
+        static_cast<Derived*>(this)->VisitGenericType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(IntNType* type) {
+        static_cast<Derived*>(this)->VisitIntNType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(PointerType* type) {
+        static_cast<Derived*>(this)->VisitPointerType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ReferenceType* type) {
+        static_cast<Derived*>(this)->VisitReferenceType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(LinkedType* type) {
+        static_cast<Derived*>(this)->VisitLinkedType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(StringType* type) {
+        static_cast<Derived*>(this)->VisitStringType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(LiteralType* type) {
+        static_cast<Derived*>(this)->VisitLiteralType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(DynamicType* type) {
+        static_cast<Derived*>(this)->VisitDynamicType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(VoidType* type) {
+        static_cast<Derived*>(this)->VisitVoidType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(ExpressionType* type) {
+        static_cast<Derived*>(this)->VisitExpressionType(type);
+    }
+
+    template<typename Thing>
+    inline void VisitByPtrType(Thing* thing) {
+        if(thing) VisitByPtrTypeNoNullCheck(thing);
+    }
+
+    // THE ULTIMATE VISITOR METHODS THAT CAN VISIT ALL
+    // ITS IMPORTANT TO NOTE THAT THESE METHODS DO NOT PERFORM A NULL CHECK
+
+    template<typename T>
+    inline void visit(T* ptr) {
+        VisitByPtrTypeNoNullCheck(ptr);
+    }
+    inline void visit(ASTNode* node) {
+        VisitNodeNoNullCheck(node);
+    }
+    inline void visit(BaseDefMember* node) {
+        VisitNodeNoNullCheck(node);
+    }
+    inline void visit(BaseFunctionParam* node) {
+        VisitNodeNoNullCheck(node);
+    }
+    inline void visit(Value* value) {
+        VisitValueNoNullCheck(value);
+    }
+    inline void visit(ChainValue* value) {
+        VisitValueNoNullCheck(value);
+    }
+    inline void visit(BaseType* type) {
+        VisitTypeNoNullCheck(type);
     }
 
 };

@@ -513,6 +513,7 @@ set(COMMON_SOURCES
         preprocess/visitors/NonRecursiveVisitor.h
         preprocess/visitors/ast_fwd.h
         ast/base/IntNTypeKind.h
+        preprocess/visitors/RecursiveValueVisitor.h
 )
 
 # Chemical LSP Executable Target

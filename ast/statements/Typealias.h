@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -116,8 +116,6 @@ public:
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
-
-    void accept(Visitor *visitor) final;
 
     [[nodiscard]]
     BaseTypeKind type_kind() const final;

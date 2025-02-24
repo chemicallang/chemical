@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "WhileLoop.h"
 #include "compiler/SymbolResolver.h"
@@ -47,10 +47,6 @@ void WhileLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     condition->link(linker, condition);
     body.link_sequentially(linker);
     linker.scope_end();
-}
-
-void WhileLoop::accept(Visitor *visitor) {
-    visitor->visit(this);
 }
 
 void WhileLoop::interpret(InterpretScope &scope) {

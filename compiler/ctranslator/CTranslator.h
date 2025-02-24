@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -10,7 +10,6 @@
 #include "ast/base/BaseType.h"
 #include "compiler/clangfwd.h"
 #include "compiler/chem_clang.h"
-#include "ast/base/Visitor.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "ordered_map.h"
 #include "integration/common/Diagnostic.h"

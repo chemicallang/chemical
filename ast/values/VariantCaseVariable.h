@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -26,9 +26,6 @@ public:
     ) : ASTNode(ASTNodeKind::VariantCaseVariable, parent_val->encoded_location()), name(name), parent_val(parent_val), switch_statement(switch_statement) {
 
     }
-
-
-    void accept(Visitor *visitor) final;
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

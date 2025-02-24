@@ -1,14 +1,10 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "Assignment.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/types/FunctionType.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionParam.h"
-
-void AssignStatement::accept(Visitor *visitor) {
-    visitor->visit(this);
-}
 
 void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(lhs->link_assign(linker, lhs, nullptr)) {

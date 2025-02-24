@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "Import.h"
 #include <filesystem>
@@ -10,10 +10,6 @@ namespace fs = std::filesystem;
 
 void ImportStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
 
-}
-
-void ImportStatement::accept(Visitor *visitor) {
-    visitor->visit(this);
 }
 
 void ImportStatement::interpret(InterpretScope &scope) {

@@ -1,5 +1,5 @@
 ﻿
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "LibLsp/lsp/textDocument/declaration_definition.h"
 #include "LibLsp/lsp/general/initialize.h"

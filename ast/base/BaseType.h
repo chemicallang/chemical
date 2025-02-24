@@ -1,11 +1,10 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
 #include "BaseTypeKind.h"
 #include <string>
 #include <memory>
-#include "Visitor.h"
 #include "ASTAny.h"
 #include "ASTAllocator.h"
 #include "std/hybrid_ptr.h"

@@ -23,10 +23,6 @@ public:
 
     }
 
-    void accept(Visitor *visitor) override {
-        visitor->visit(this);
-    }
-
     BaseType* create_type(ASTAllocator &allocator) override;
 
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) override {

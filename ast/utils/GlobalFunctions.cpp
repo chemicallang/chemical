@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/lab/LabBuildCompiler.h"
@@ -443,9 +443,6 @@ public:
     Value* underlying;
     explicit WrapValue(Value* underlying) : Value(ValueKind::WrapValue, ZERO_LOC), underlying(underlying) {
 
-    }
-    void accept(Visitor *visitor) final {
-        throw std::runtime_error("compiler::wrap value cannot be visited");
     }
     Value *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<WrapValue>()) WrapValue(underlying->copy(allocator));

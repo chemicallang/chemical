@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -61,10 +61,6 @@ public:
     std::vector<llvm::Type *> param_types(Codegen &gen) final;
 
 #endif
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
 
     ExtensionFunction* as_extension_func() final {
         return this;

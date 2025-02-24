@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -31,8 +31,6 @@ public:
     ASTNode *parent() final {
         return parent_node;
     }
-
-    void accept(Visitor *visitor) final;
 
 #ifdef COMPILER_BUILD
 

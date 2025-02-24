@@ -31,10 +31,6 @@ public:
 
     }
 
-    void accept(Visitor *visitor) override {
-        throw std::runtime_error("ComptimeValue cannot be visited, as it should be replaced during symbol resolution");
-    }
-
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
         const auto prev = linker.safe_context;
         linker.safe_context = false;

@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "RepresentationVisitor.h"
 #include <memory>
@@ -100,7 +100,6 @@
 #include "ast/values/UInt128Value.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
-#include "ast/utils/CommonVisitor.h"
 #include "utils/RepresentationUtils.h"
 #include "ast/statements/Comment.h"
 #include "preprocess/2c/2cASTVisitor.h"

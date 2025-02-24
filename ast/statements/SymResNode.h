@@ -84,10 +84,6 @@ public:
         return parent_node;
     }
 
-    void accept(Visitor *visitor) override {
-        throw std::runtime_error("SymResNode cannot be visited, as it should be replaced during symbol resolution");
-    }
-
 //    Value* copy(ASTAllocator &alloc) override {
 //        return new (alloc.allocate<SymResNode>()) SymResNode(
 //            this->allocator, fn, data_ptr, location

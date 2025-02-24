@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -11,10 +11,6 @@ public:
 
     inline AnyType(SourceLocation location) : BaseType(BaseTypeKind::Any, location) {
 
-    }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final {

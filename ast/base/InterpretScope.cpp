@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 06/03/2024.
@@ -298,10 +298,6 @@ public:
         void(*destruct)(void* data)
     ) : Value(ValueKind::DestructValue, ZERO_LOC), data(data), destruct(destruct) {
 
-    }
-
-    void accept(Visitor *visitor) override {
-        // cannot be visited
     }
     Value* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<DestructValue>()) DestructValue(data, destruct);

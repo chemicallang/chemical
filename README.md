@@ -233,13 +233,8 @@ so we not just welcome contributions but encourage everybody to contribute. So w
 
 ## Licensing
 
-Qinetik owns Chemical, Qinetik is a for-profit company. But we will always keep Chemical as an open source programming language.
-
-Qinetik intends to make products and apps and intends to develop Chemical as an open source work with community effort to improve
-app development process.
-
 Chemical's Compiler is open source and MIT licensed and will always remain open source and MIT licensed, You can use Chemical's compiler however you like.
-You don't even need to give credits. But if you do, we'd really appreciate it. 
+You don't even need to give credits. But if you do, we'd really appreciate it.
 
 [WorkflowBadge]: https://github.com/vlang/v/workflows/CI/badge.svg
 [DiscordBadge]: https://img.shields.io/discord/1206227290359337062?label=Discord&logo=discord&logoColor=white

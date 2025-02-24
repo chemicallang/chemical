@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -28,10 +28,6 @@ public:
 
     bool is_unsigned() final {
         return false;
-    }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     Value *create(ASTAllocator& allocator, uint64_t value) final;

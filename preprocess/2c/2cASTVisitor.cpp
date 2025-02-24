@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "2cASTVisitor.h"
 #include <memory>
@@ -113,7 +113,6 @@
 #include "ast/values/IsValue.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
-#include "ast/utils/CommonVisitor.h"
 #include "preprocess/utils/RepresentationUtils.h"
 #include "ast/utils/ASTUtils.h"
 #include <sstream>
@@ -1662,7 +1661,7 @@ struct DestructionJob {
     };
 };
 
-class CDestructionVisitor : public Visitor, public SubVisitor {
+class CDestructionVisitor : public SubVisitor {
 public:
 
     using SubVisitor::SubVisitor;
@@ -1710,7 +1709,7 @@ public:
 
     bool queue_destruct_arr(const chem::string_view& self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
 
-    void visit(VarInitStatement *init) final;
+    void VisitVarInitStmt(VarInitStatement *init);
 
     void dispatch_jobs_from_no_clean(int begin);
 
@@ -2097,7 +2096,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
     }
 }
 
-void CDestructionVisitor::visit(VarInitStatement *init) {
+void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
     // do not destruct pointers, references or moved objects
     if(init->get_has_moved()) {
         return;
@@ -3114,7 +3113,7 @@ std::string ToCAstVisitor::string_accept(Value* any) {
 void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(init->is_top_level()) return;
     var_init(*this, init, false);
-    init->accept(destructor.get());
+    destructor->VisitVarInitStmt(init);
 }
 
 void ToCAstVisitor::VisitAssignmentStmt(AssignStatement *assign) {

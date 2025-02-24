@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "AccessChain.h"
 #include "VariableIdentifier.h"
@@ -131,10 +131,6 @@ BaseType* AccessChain::create_type(ASTAllocator& allocator) {
 
 BaseType* AccessChain::known_type() {
     return values[values.size() - 1]->known_type();
-}
-
-void AccessChain::accept(Visitor *visitor) {
-    visitor->visit(this);
 }
 
 bool AccessChain::primitive() {

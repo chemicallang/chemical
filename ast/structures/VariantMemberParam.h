@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -36,10 +36,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final {
         return type->byte_size(is64Bit);
-    }
-
-    void accept(Visitor *visitor) final {
-        throw std::runtime_error("VariantMemberParam::accept called");
     }
 
     BaseType* known_type() final {

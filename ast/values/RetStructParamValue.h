@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -15,11 +15,6 @@ public:
 
     explicit RetStructParamValue(SourceLocation location) : Value(ValueKind::RetStructParamValue, location) {
 
-    }
-
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD

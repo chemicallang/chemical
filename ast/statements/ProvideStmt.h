@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 
 #pragma once
@@ -33,11 +33,6 @@ public:
      */
     template<typename T>
     void put_in(std::unordered_map<chem::string_view, T*>& value_map, T* new_value, void* data, void(*do_body)(ProvideStmt*, void*));
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
-    }
-
 
     ASTNode* parent() final {
         return parent_node;

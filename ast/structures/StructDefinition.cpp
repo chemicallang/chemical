@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "StructMember.h"
 #include "StructDefinition.h"
@@ -284,10 +284,6 @@ llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 
 #endif
 
-void StructMember::accept(Visitor *visitor) {
-    visitor->visit(this);
-}
-
 BaseType* StructMember::create_value_type(ASTAllocator& allocator) {
     return type->copy(allocator);
 }
@@ -354,10 +350,6 @@ BaseType* UnnamedStruct::create_value_type(ASTAllocator &allocator) {
 //    // this is UnionType's copy method
 //    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, location);
 //}
-
-void StructDefinition::accept(Visitor *visitor) {
-    visitor->visit(this);
-}
 
 void StructDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_node(name_view(), this, specifier(), true);

@@ -193,7 +193,6 @@ set(COMMON_SOURCES
         ast/types/BoolType.h
         ast/types/CharType.h
         ast/types/ArrayType.h
-        ast/base/Visitor.h
         ast/types/VoidType.h
         ast/types/AnyType.h
         utils/CmdUtils.h
@@ -322,8 +321,6 @@ set(COMMON_SOURCES
         server/analyzers/Documentation.h
         preprocess/2c/2cASTVisitor.h
         preprocess/2c/2cASTVisitor.cpp
-        ast/utils/CommonVisitor.cpp
-        ast/utils/CommonVisitor.h
         preprocess/RepresentationVisitor.cpp
         preprocess/utils/RepresentationUtils.h
         preprocess/utils/RepresentationUtils.cpp
@@ -355,8 +352,6 @@ set(COMMON_SOURCES
         ast/structures/ExtensionFuncReceiver.h
         ast/structures/ExtensionFunction.cpp
         ast/structures/BaseFunctionParam.h
-        preprocess/ShrinkingVisitor.h
-        preprocess/ShrinkingVisitor.cpp
         compiler/OutputMode.h
         compiler/CodegenEmitterOptions.h
         ast/statements/ThrowStatement.h
@@ -511,7 +506,7 @@ set(COMMON_SOURCES
         ast/values/BlockValue.h
         ast/values/BlockValue.cpp
         preprocess/visitors/NonRecursiveVisitor.h
-        preprocess/visitors/ast_fwd.h
+        ast/base/ast_fwd.h
         ast/base/IntNTypeKind.h
         preprocess/visitors/RecursiveValueVisitor.h
 )

@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "ForLoop.h"
 #include "compiler/SymbolResolver.h"
@@ -54,10 +54,6 @@ void ForLoop::code_gen(Codegen &gen) {
 //    parent_node(parent_node), token(token) {
 //
 //}
-
-void ForLoop::accept(Visitor *visitor) {
-    visitor->visit(this);
-}
 
 void ForLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();

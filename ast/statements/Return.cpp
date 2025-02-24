@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "Return.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -58,10 +58,6 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
             }
         }
     }
-}
-
-void ReturnStatement::accept(Visitor *visitor) {
-    visitor->visit(this);
 }
 
 BaseType* ReturnStatement::known_type() {

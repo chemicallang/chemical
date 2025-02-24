@@ -1,8 +1,8 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
-#include "Visitor.h"
+#include "ast/base/ast_fwd.h"
 #include "ASTAnyKind.h"
 #include <vector>
 #include <memory>
@@ -33,11 +33,6 @@ public:
      * get the ast any kind for this ast any type
      */
     virtual ASTAnyKind any_kind() = 0;
-
-    /**
-     * accept the visitor
-     */
-    virtual void accept(Visitor *visitor) = 0;
 
     /**
      * Interpret the current node in the given interpret scope

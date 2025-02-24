@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "SwitchStatement.h"
 #include "ast/base/Value.h"
@@ -351,8 +351,4 @@ void SwitchStatement::interpret(InterpretScope &scope) {
         body.interpret(scope);
         return;
     }
-}
-
-void SwitchStatement::accept(Visitor *visitor) {
-    visitor->visit(this);
 }

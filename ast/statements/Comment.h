@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 //
 // Created by Waqas Tahir on 09/03/2024.
@@ -32,10 +32,6 @@ public:
 
     void interpret(InterpretScope &scope) final {
         // do nothing, since it's a comment
-    }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD

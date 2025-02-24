@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -81,8 +81,6 @@ public:
     bool get_is_const() final {
         return is_const();
     }
-
-    void accept(Visitor *visitor) final;
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

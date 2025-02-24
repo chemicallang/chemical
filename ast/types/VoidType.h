@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -11,10 +11,6 @@ public:
 
     VoidType(SourceLocation location) : BaseType(BaseTypeKind::Void, location) {
 
-    }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     bool satisfies(BaseType *type) final {

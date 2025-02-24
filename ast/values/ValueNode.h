@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2024.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #pragma once
 
@@ -41,10 +41,6 @@ public:
 
     Value *holding_value() final {
         return value;
-    }
-
-    void accept(Visitor *visitor) final {
-        visitor->visit(this);
     }
 
     ASTNode *parent() final {

@@ -138,12 +138,13 @@ void VariantDefinition::code_gen_external_declare(Codegen &gen) {
     }
 }
 
-void VariantDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+void VariantDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, SourceLocation location) {
     const auto destr = destructor_func();
     if(destr) {
         // making a call to destructor function
         const auto data = llvm_func_data(destr);
-        gen.builder->CreateCall(data, { allocaInst });
+        const auto instr = gen.builder->CreateCall(data, { allocaInst });
+        gen.di.instr(instr, location);
     }
 }
 
@@ -203,7 +204,7 @@ llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value* VariantCaseVariable::llvm_load(Codegen &gen) {
-    return Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer(gen));
+    return Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer(gen), encoded_location());
 }
 
 llvm::Type* VariantCaseVariable::llvm_type(Codegen &gen) {

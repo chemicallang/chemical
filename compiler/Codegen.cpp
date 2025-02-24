@@ -123,17 +123,13 @@ bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
 
 void Codegen::module_init(const std::string& module_name) {
     module = std::make_unique<llvm::Module>(module_name, *ctx);
-    diBuilder = std::make_unique<llvm::DIBuilder>(*module.get(), true);
+    diBuilder = std::make_unique<llvm::DIBuilder>(*module, true);
     di.update_builder(diBuilder.get());
 }
 
 void Codegen::createFunctionBlock(llvm::Function *fn) {
     auto entry = createBB("entry", fn);
     SetInsertPoint(entry);
-}
-
-void Codegen::end_function_block() {
-    DefaultRet();
 }
 
 llvm::Function *Codegen::create_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier) {
@@ -158,7 +154,7 @@ llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::F
     func_type->queue_destruct_params(*this);
     createFunctionBlock(nested_function);
     scope.code_gen(*this, destruct_begin);
-    end_function_block();
+    end_function_block(scope.encoded_location());
 
     has_current_block_ended = prev_block_ended;
     SetInsertPoint(prev_block);
@@ -179,7 +175,7 @@ llvm::Function* Codegen::declare_function(const std::string &name, llvm::Functio
     }
 }
 
-llvm::Function* Codegen::declare_weak_function(const std::string& name, llvm::FunctionType* type, bool is_exported) {
+llvm::Function* Codegen::declare_weak_function(const std::string& name, llvm::FunctionType* type, bool is_exported, SourceLocation location) {
     auto fn = llvm::Function::Create(type, llvm::Function::WeakAnyLinkage, name, *module);
     fn->setDSOLocal(true);
     // if there's no implementation, a stub implementation is required, so if a strong implementation exists it can override it later
@@ -191,16 +187,16 @@ llvm::Function* Codegen::declare_weak_function(const std::string& name, llvm::Fu
         const auto returnType = type->getReturnType();
         llvm::Type* retType = type->getReturnType();
         if (retType->isVoidTy()) {
-            CreateRet(nullptr);
+            CreateRet(nullptr, location);
         } else if (retType->isIntegerTy()) {
-            CreateRet(llvm::ConstantInt::get(retType, 0));
+            CreateRet(llvm::ConstantInt::get(retType, 0), location);
         } else if (retType->isFloatingPointTy()) {
-            CreateRet(llvm::ConstantFP::get(retType, 0.0));
+            CreateRet(llvm::ConstantFP::get(retType, 0.0), location);
         } else if (retType->isPointerTy()) {
-            CreateRet(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(retType)));
+            CreateRet(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(retType)), location);
         } else {
             // For other return types (e.g. structs), return an undefined value.
-            CreateRet(llvm::UndefValue::get(retType));
+            CreateRet(llvm::UndefValue::get(retType), location);
         }
 //    }
     return fn;
@@ -246,16 +242,26 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
     }
 }
 
-void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value) {
+void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value, SourceLocation location) {
     if(lhs) {
         const auto lhsType = lhs->create_type(allocator);
         const auto value_pure = rhs->create_type(allocator);
         const auto derefType = value_pure->getAutoDerefType(lhsType);
-        if (!assign_dyn_obj(rhs, lhsType, pointer, value)) {
-            builder->CreateStore(derefType ? builder->CreateLoad(derefType->llvm_type(*this), value) : value, pointer);
+        if (!assign_dyn_obj(rhs, lhsType, pointer, value, location)) {
+            auto Val = value;
+            if(derefType) {
+                const auto loadInst = builder->CreateLoad(derefType->llvm_type(*this), value);
+                di.instr(loadInst, rhs);
+                Val = loadInst;
+            }
+            // TODO not using the correct location for debugging
+            const auto storeInst = builder->CreateStore(Val, pointer);
+            di.instr(storeInst, lhs);
         }
     } else {
-        builder->CreateStore(value, pointer);
+        // TODO not using the correct location for debugging
+        const auto storeInst = builder->CreateStore(value, pointer);
+        di.instr(storeInst, rhs);
     }
 }
 
@@ -272,7 +278,8 @@ LLVMArrayDestructor Codegen::loop_array_destructor(
         llvm::Value* allocaInst,
         llvm::Value* array_size,
         llvm::Type* elem_type,
-        bool check_for_null
+        bool check_for_null,
+        SourceLocation location
 ) {
     auto& gen = *this;
     // initial variables
@@ -294,10 +301,10 @@ LLVMArrayDestructor Codegen::loop_array_destructor(
 
     if(check_for_null) {
         // check if given pointer is null and send user to end block if it is
-        gen.CheckNullCondBr(allocaInst, end_block, body_block);
+        gen.CheckNullCondBr(allocaInst, end_block, body_block, location);
     } else {
         // sending directly to body block (no null check)
-        gen.CreateBr(body_block);
+        gen.CreateBr(body_block, location);
     };
 
     // generating the code for the body
@@ -320,15 +327,17 @@ LLVMArrayDestructor Codegen::destruct(
         bool pass_self,
         llvm::Value* array_size,
         BaseType* elem_type,
-        bool check_for_null
+        bool check_for_null,
+        SourceLocation location
 ) {
-    const auto finalize = loop_array_destructor(allocaInst, array_size, elem_type->llvm_type(*this), check_for_null);
+    const auto finalize = loop_array_destructor(allocaInst, array_size, elem_type->llvm_type(*this), check_for_null, location);
     // calling the destructor
     std::vector<llvm::Value*> args;
     if(pass_self) {
         args.emplace_back(finalize.structPtr);
     }
-    builder->CreateCall(destr_func_data, args, "");
+    const auto callInst = builder->CreateCall(destr_func_data, args, "");
+    di.instr(callInst, location);
     return finalize;
 }
 
@@ -377,7 +386,8 @@ void Codegen::destruct(
         llvm::Value* allocaInst,
         llvm::Value* array_size,
         BaseType* elem_type,
-        bool check_for_null
+        bool check_for_null,
+        SourceLocation location
 ) {
     // determining destructor
     llvm::Function* func_data;
@@ -390,16 +400,18 @@ void Codegen::destruct(
             destructorFunc->has_self_param(),
             array_size,
             elem_type,
-            check_for_null
+            check_for_null,
+            location
     );
 }
 
 void Codegen::destruct(
         llvm::Value* allocaInst,
         unsigned int array_size,
-        BaseType* elem_type
+        BaseType* elem_type,
+        SourceLocation location
 ) {
-    destruct(allocaInst, builder->getInt32(array_size), elem_type, false);
+    destruct(allocaInst, builder->getInt32(array_size), elem_type, false, location);
 }
 
 llvm::BasicBlock *Codegen::createBB(const std::string &name, llvm::Function *fn) {
@@ -410,16 +422,19 @@ llvm::StructType* Codegen::fat_pointer_type() {
     return llvm::StructType::get(*ctx, {builder->getPtrTy(), builder->getPtrTy()} );
 }
 
-llvm::AllocaInst* Codegen::pack_fat_pointer(llvm::Value* first_ptr, llvm::Value* second_ptr) {
+llvm::AllocaInst* Codegen::pack_fat_pointer(llvm::Value* first_ptr, llvm::Value* second_ptr, SourceLocation location) {
     // create a struct with two pointers
     auto structType = fat_pointer_type();
-    auto allocated = builder->CreateAlloca(structType);
+    const auto allocated = builder->CreateAlloca(structType);
+    di.instr(allocated, location);
     // store lambda function pointer in the first variable
     auto first = builder->CreateGEP(structType, allocated, {builder->getInt32(0), builder->getInt32(0)}, "", inbounds);
-    builder->CreateStore(first_ptr, first);
+    const auto storeInst1 = builder->CreateStore(first_ptr, first);
+    di.instr(storeInst1, location);
     // store a pointer to a struct that contains captured variables in the second variable
     auto second = builder->CreateGEP(structType, allocated, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
-    builder->CreateStore(second_ptr, second);
+    const auto storeInst2 = builder->CreateStore(second_ptr, second);
+    di.instr(storeInst2, location);
     return allocated;
 }
 
@@ -446,68 +461,67 @@ llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
     return nullptr;
 }
 
-llvm::Value* Codegen::pack_dyn_obj(Value* value, BaseType* type, llvm::Value* llvm_value) {
-    auto found = get_dyn_obj_impl(value, type);
-    if(found) {
-        return pack_fat_pointer(llvm_value, found);
-    }
-    return llvm_value;
-}
-
 llvm::Value* Codegen::allocate_dyn_obj_based_on_type(BaseType* type) {
     if(!type) return nullptr;
     const auto interface = type->linked_dyn_interface();
     if(!interface) return nullptr;
-    return builder->CreateAlloca(fat_pointer_type());
+    const auto allocaInst = builder->CreateAlloca(fat_pointer_type());
+    di.instr(allocaInst, type);
+    return allocaInst;
 }
 
-void Codegen::assign_dyn_obj_impl(llvm::Value* fat_pointer, llvm::Value* impl) {
+void Codegen::assign_dyn_obj_impl(llvm::Value* fat_pointer, llvm::Value* impl, SourceLocation location) {
     auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
-    builder->CreateStore(impl, second);
+    const auto storeInst = builder->CreateStore(impl, second);
+    di.instr(storeInst, location);
 }
 
-bool Codegen::assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer) {
+bool Codegen::assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer, SourceLocation location) {
     auto found = get_dyn_obj_impl(value, type);
     if(found) {
-        assign_dyn_obj_impl(fat_pointer, found);
+        assign_dyn_obj_impl(fat_pointer, found, location);
         return true;
     }
     return false;
 }
 
-void Codegen::assign_dyn_obj(llvm::Value* fat_pointer, llvm::Value* obj, llvm::Value* impl) {
+void Codegen::assign_dyn_obj(llvm::Value* fat_pointer, llvm::Value* obj, llvm::Value* impl, SourceLocation location) {
     auto first = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(0)}, "", inbounds);
-    builder->CreateStore(obj, first);
+    const auto storeInst1 = builder->CreateStore(obj, first);
+    di.instr(storeInst1, location);
     auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
-    builder->CreateStore(impl, second);
+    const auto storeInst2 = builder->CreateStore(impl, second);
+    di.instr(storeInst2, location);
 }
 
-bool Codegen::assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj) {
+bool Codegen::assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj, SourceLocation location) {
     auto found = get_dyn_obj_impl(value, type);
     if(found) {
-        assign_dyn_obj(fat_pointer, obj, found);
+        assign_dyn_obj(fat_pointer, obj, found, location);
         return true;
     }
     return false;
 }
 
-void call_clear_fn(Codegen &gen, FunctionDeclaration* decl, llvm::Value* llvm_value) {
+void call_clear_fn(Codegen &gen, FunctionDeclaration* decl, llvm::Value* llvm_value, SourceLocation location) {
     const auto func = decl->llvm_func();
-    gen.builder->CreateCall(func, { llvm_value });
+    const auto callInst = gen.builder->CreateCall(func, { llvm_value });
+    gen.di.instr(callInst, location);
 }
 
-void Codegen::call_clear_fn(Value* value, llvm::Value* llvm_value) {
+void Codegen::call_clear_fn(Value* value, llvm::Value* llvm_value, SourceLocation location) {
     auto& gen = *this;
     auto known_t = value->known_type();
     auto movable = known_t->get_direct_linked_movable_struct();
     const auto move_func = movable->clear_func();
-    ::call_clear_fn(gen, move_func, llvm_value);
+    ::call_clear_fn(gen, move_func, llvm_value, location);
 }
 
-void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value) {
+void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location) {
     llvm::MaybeAlign m;
     const auto alloc_size = module->getDataLayout().getTypeAllocSize(type);
-    builder->CreateMemCpy(pointer, m, value, m, alloc_size);
+    const auto callInst = builder->CreateMemCpy(pointer, m, value, m, alloc_size);
+    di.instr(callInst, location);
 }
 
 void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
@@ -528,13 +542,14 @@ void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_
         auto linked = value.linked_node();
         auto k = linked->kind();
         if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
-            gen.memcpy_struct(container->llvm_type(gen), elem_ptr, movable_value);
+            gen.memcpy_struct(container->llvm_type(gen), elem_ptr, movable_value, value_ptr->encoded_location());
             return;
         }
-        gen.builder->CreateCall(pre_move_func->llvm_func(), { elem_ptr, movable_value });
+        const auto callInst = gen.builder->CreateCall(pre_move_func->llvm_func(), { elem_ptr, movable_value });
+        gen.di.instr(callInst, value_ptr);
         return;
     }
-    gen.memcpy_struct(node->llvm_type(gen), elem_ptr, movable_value);
+    gen.memcpy_struct(node->llvm_type(gen), elem_ptr, movable_value, value_ptr->encoded_location());
     auto linked = value.linked_node();
     auto k = linked->kind();
     if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
@@ -543,7 +558,7 @@ void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_
     auto clear_func = container->clear_func();
     if (clear_func) {
         // now we can move the previous arg, since we copied it's contents
-        ::call_clear_fn(gen, clear_func, movable_value);
+        ::call_clear_fn(gen, clear_func, movable_value, value_ptr->encoded_location());
     }
 }
 
@@ -577,7 +592,13 @@ llvm::Value* Codegen::move_by_allocate(BaseType* type, Value* value, llvm::Value
         // we can pass directly, as the node is not a stored struct type, what could it be except typealias
         return movable_value;
     }
-    auto new_struct = elem_pointer ? elem_pointer : builder->CreateAlloca(type->llvm_type(*this));
+
+    auto new_struct = elem_pointer;
+    if(!new_struct) {
+        const auto allocaInst = builder->CreateAlloca(type->llvm_type(*this));
+        di.instr(allocaInst, type);
+        new_struct = allocaInst;
+    }
     move_by_memcpy(linked_node, value, new_struct, movable_value);
     return new_struct;
 }
@@ -586,9 +607,9 @@ void Codegen::print_to_console() {
     module->print(llvm::outs(), nullptr, false, true);
 }
 
-void Codegen::CheckNullCondBr(llvm::Value* value, llvm::BasicBlock* TrueBlock, llvm::BasicBlock* FalseBlock) {
+void Codegen::CheckNullCondBr(llvm::Value* value, llvm::BasicBlock* TrueBlock, llvm::BasicBlock* FalseBlock, SourceLocation location) {
     auto is_null = builder->CreateICmpEQ(value, NullValue::null_llvm_value(*this));
-    CreateCondBr(is_null, TrueBlock, FalseBlock);
+    CreateCondBr(is_null, TrueBlock, FalseBlock, location);
 }
 
 void Codegen::SetInsertPoint(llvm::BasicBlock *block) {
@@ -596,38 +617,42 @@ void Codegen::SetInsertPoint(llvm::BasicBlock *block) {
     builder->SetInsertPoint(block);
 }
 
-void Codegen::CreateBr(llvm::BasicBlock *block) {
+void Codegen::CreateBr(llvm::BasicBlock *block, SourceLocation location) {
     if (!has_current_block_ended) {
-        builder->CreateBr(block);
+        const auto brInst = builder->CreateBr(block);
+        di.instr(brInst, location);
         has_current_block_ended = true;
     }
 }
 
-void Codegen::CreateUnreachable() {
+void Codegen::CreateUnreachable(SourceLocation location) {
     if(!has_current_block_ended) {
-        builder->CreateUnreachable();
+        const auto unrInst = builder->CreateUnreachable();
+        di.instr(unrInst, location);
         has_current_block_ended = true;
     }
 }
 
-void Codegen::CreateRet(llvm::Value *value) {
+void Codegen::CreateRet(llvm::Value *value, SourceLocation location) {
     if (!has_current_block_ended) {
-        builder->CreateRet(value);
+        const auto retInst = builder->CreateRet(value);
+        di.instr(retInst, location);
         has_current_block_ended = true;
     }
 }
 
-void Codegen::DefaultRet() {
+void Codegen::DefaultRet(SourceLocation location) {
     if(redirect_return) {
-        CreateBr(redirect_return);
+        CreateBr(redirect_return, location);
     } else {
-        CreateRet(nullptr);
+        CreateRet(nullptr, location);
     }
 }
 
-void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode) {
+void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode, SourceLocation location) {
     if (!has_current_block_ended) {
-        builder->CreateCondBr(Cond, True, FalseMDNode);
+        const auto brInst = builder->CreateCondBr(Cond, True, FalseMDNode);
+        di.instr(brInst, location);
         has_current_block_ended = true;
     }
 }

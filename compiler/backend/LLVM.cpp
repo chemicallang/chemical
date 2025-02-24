@@ -359,9 +359,11 @@ llvm::Value *StringValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 llvm::AllocaInst *StringValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType* expected_type) {
     if(is_array) {
         // when user creates a array of characters, we memcopy the string value to the allocated array
-        auto alloc = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
+        const auto alloc = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
+        gen.di.instr(alloc, this);
         auto arr = llvm_value(gen, nullptr);
-        gen.builder->CreateMemCpy(alloc, llvm::MaybeAlign(), arr, llvm::MaybeAlign(), length);
+        const auto callInst = gen.builder->CreateMemCpy(alloc, llvm::MaybeAlign(), arr, llvm::MaybeAlign(), length);
+        gen.di.instr(callInst, this);
         return alloc;
     } else {
         return Value::llvm_allocate(gen, identifier, expected_type);
@@ -421,7 +423,9 @@ llvm::Value *DereferenceValue::llvm_pointer(Codegen& gen) {
 }
 
 llvm::Value *DereferenceValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return gen.builder->CreateLoad(llvm_type(gen), value->llvm_value(gen), "deref");
+    const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), value->llvm_value(gen), "deref");
+    gen.di.instr(loadInst, this);
+    return loadInst;
 }
 
 llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, BaseType* secondType) {
@@ -431,13 +435,13 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
         llvm::BasicBlock* second_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
         llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
         if(operation == Operation::LogicalAND) {
-            gen.CreateCondBr(first, second_block, end_block);
+            gen.CreateCondBr(first, second_block, end_block, encoded_location());
         } else {
-            gen.CreateCondBr(first, end_block, second_block);
+            gen.CreateCondBr(first, end_block, second_block, encoded_location());
         }
         gen.SetInsertPoint(second_block);
         auto second = secondValue->llvm_value(gen);
-        gen.CreateBr(end_block);
+        gen.CreateBr(end_block, encoded_location());
         gen.SetInsertPoint(end_block);
         auto phi = gen.builder->CreatePHI(gen.builder->getInt1Ty(), 2);
         phi->addIncoming(gen.builder->getInt1(operation == Operation::LogicalOR), current_block);
@@ -515,11 +519,14 @@ llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     const auto referred = type->getLoadableReferredType();
     if(referred) {
         value_pointer = value_loaded;
-        value_loaded = gen.builder->CreateLoad(referred->llvm_type(gen), value_loaded);
+        const auto loadInst = gen.builder->CreateLoad(referred->llvm_type(gen), value_loaded);
+        gen.di.instr(loadInst, this);
+        value_loaded = loadInst;
         type = referred;
     }
     const auto result = gen.operate(op, value, rhs, type, ((BaseType*) &ShortType::instance), value_loaded, rhs->llvm_value(gen, nullptr));
-    gen.builder->CreateStore(result, value_pointer);
+    const auto storeInst = gen.builder->CreateStore(result, value_pointer);
+    gen.di.instr(storeInst, this);
     return post ? value_loaded : result;
 }
 
@@ -596,7 +603,9 @@ llvm::Value* NewTypedValue::llvm_value(Codegen &gen, BaseType *exp_type) {
     }
     auto size = mod.getDataLayout().getTypeAllocSize(type->llvm_type(gen));
     auto size_val = gen.builder->getIntN(mallocFn->getArg(0)->getType()->getIntegerBitWidth(), size);
-    return gen.builder->CreateCall(mallocFn, { size_val });
+    const auto callInst = gen.builder->CreateCall(mallocFn, { size_val });
+    gen.di.instr(callInst, this);
+    return callInst;
 }
 
 llvm::Type* NewValue::llvm_type(Codegen &gen) {
@@ -617,6 +626,7 @@ llvm::Value* NewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     auto size = mod.getDataLayout().getTypeAllocSize(value->llvm_type(gen));
     auto size_val = gen.builder->getIntN(mallocFn->getArg(0)->getType()->getIntegerBitWidth(), size);
     const auto pointer_val = gen.builder->CreateCall(mallocFn, { size_val });
+    gen.di.instr(pointer_val, this);
 
     const auto kind = value->val_kind();
     if(kind == ValueKind::StructValue) {
@@ -898,11 +908,11 @@ void BlockValue::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_bl
 // --------------------------------------- Statements
 
 void ContinueStatement::code_gen(Codegen &gen) {
-    gen.CreateBr(gen.current_loop_continue);
+    gen.CreateBr(gen.current_loop_continue, encoded_location());
 }
 
 void UnreachableStmt::code_gen(Codegen &gen) {
-    gen.CreateUnreachable();
+    gen.CreateUnreachable(encoded_location());
 }
 
 void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
@@ -925,10 +935,11 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             // TODO hardcoded the function implicit struct return argument at index 0
             auto dest = gen.current_function->getArg(0);
             auto value_ptr = value->llvm_pointer(gen);
-            if(!gen.assign_dyn_obj(value, func_type->returnType, dest, value_ptr)) {
+            if(!gen.assign_dyn_obj(value, func_type->returnType, dest, value_ptr, encoded_location())) {
                 llvm::MaybeAlign noAlign;
                 auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(func_type->returnType->llvm_type(gen));
-                gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, alloc_size);
+                const auto memCpyInst = gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, alloc_size);
+                gen.di.instr(memCpyInst, this);
             }
         } else if(value->as_variant_call()) {
             auto dest = gen.current_function->getArg(0);
@@ -942,7 +953,9 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
                 // automatic dereference if required
                 const auto derefType = value_type->getAutoDerefType(to_type);
                 if(derefType) {
-                    return_value = gen.builder->CreateLoad(derefType->llvm_type(gen), return_value);
+                    const auto loadInst = gen.builder->CreateLoad(derefType->llvm_type(gen), return_value);
+                    gen.di.instr(loadInst, value);
+                    return_value = loadInst;
                 }
 
                 // implicit cast to value that's required
@@ -962,9 +975,9 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     }
     // return the return value calculated above
     if (value) {
-        gen.CreateRet(return_value);
+        gen.CreateRet(return_value, encoded_location());
     } else {
-        gen.DefaultRet();
+        gen.DefaultRet(encoded_location());
     }
 }
 
@@ -993,7 +1006,7 @@ void BreakStatement::code_gen(Codegen &gen) {
             gen.error("couldn't assign value in break statement", this);
         }
     }
-    gen.CreateBr(gen.current_loop_exit);
+    gen.CreateBr(gen.current_loop_exit, encoded_location());
 }
 
 void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
@@ -1065,7 +1078,7 @@ void InitBlock::code_gen(Codegen &gen) {
         } else {
             if(gen.requires_memcpy_ref_struct(variable.second, value)) {
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
-                gen.memcpy_struct(value->llvm_type(gen), elementPtr, value->llvm_value(gen, nullptr));
+                gen.memcpy_struct(value->llvm_type(gen), elementPtr, value->llvm_value(gen, nullptr), value->encoded_location());
             } else {
                 // couldn't move struct
                 value->store_in_struct(gen, nullptr, self_arg, parent_type, idx, is_union ? 0 : variable.first, variable.second);
@@ -1087,9 +1100,11 @@ llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm
 //    const auto pure = known_type->pure_type();
     if(requires_memcpy_ref_struct(known_type->pure_type(allocator), value)) {
         if(!llvm_ptr) {
-            llvm_ptr = builder->CreateAlloca(type, nullptr);
+            const auto allocaInst = builder->CreateAlloca(type, nullptr);
+            di.instr(allocaInst, value);
+            llvm_ptr = allocaInst;
         }
-        memcpy_struct(type, llvm_ptr, value->llvm_value(*this, nullptr));
+        memcpy_struct(type, llvm_ptr, value->llvm_value(*this, nullptr), value->encoded_location());
         return llvm_ptr;
     }
     return nullptr;
@@ -1110,7 +1125,8 @@ void AssignStatement::code_gen(Codegen &gen) {
                 llvm::Function* llvm_func_data;
                 auto destr_fn = gen.determine_destructor_for(lhs_type, llvm_func_data);
                 if(destr_fn) {
-                    gen.builder->CreateCall(llvm_func_data, { pointer });
+                    const auto callInst = gen.builder->CreateCall(llvm_func_data, { pointer });
+                    gen.di.instr(callInst, this);
                 }
             }
             if(gen.move_by_memcpy(lhs_type, value, pointer, value->llvm_value(gen))) {
@@ -1125,7 +1141,7 @@ void AssignStatement::code_gen(Codegen &gen) {
         value->llvm_assign_value(gen, pointer, lhs);
     } else {
         llvm::Value* llvm_value = gen.operate(assOp, lhs, value);
-        gen.assign_store(lhs, pointer, value, llvm_value);
+        gen.assign_store(lhs, pointer, value, llvm_value, value->encoded_location());
     }
 }
 
@@ -1167,7 +1183,7 @@ void DestructStmt::code_gen(Codegen &gen) {
         auto identifier_value = identifier->llvm_value(gen);
 
         // checking null value
-        gen.CheckNullCondBr(identifier_value, end_block, destruct_block);
+        gen.CheckNullCondBr(identifier_value, end_block, destruct_block, encoded_location());
 
         // generating code for destructor
         gen.SetInsertPoint(destruct_block);
@@ -1175,8 +1191,9 @@ void DestructStmt::code_gen(Codegen &gen) {
         if (destructor->has_self_param()) {
             destr_args.emplace_back(identifier_value);
         }
-        gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->llvm_pointer(gen), destr_args);
-        gen.CreateBr(end_block);
+        const auto callInst = gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->llvm_pointer(gen), destr_args);
+        gen.di.instr(callInst, this);
+        gen.CreateBr(end_block, encoded_location());
 
         // end block
         gen.SetInsertPoint(end_block);
@@ -1226,7 +1243,7 @@ void DestructStmt::code_gen(Codegen &gen) {
 //        args.emplace_back(structPtr);
 //        gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->llvm_pointer(gen), args);
 
-    gen.destruct(id_value, arr_size_llvm, elem_type, true);
+    gen.destruct(id_value, arr_size_llvm, elem_type, true, encoded_location());
 
 }
 
@@ -1247,7 +1264,8 @@ void LoopBlock::llvm_assign_value(Codegen &gen, llvm::Value* lhsPtr, Value *lhs)
 }
 
 llvm::AllocaInst* LoopBlock::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
-    auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
+    const auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
+    gen.di.instr(allocated, Value::encoded_location());
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { nullptr, allocated };
     code_gen(gen);
@@ -1258,10 +1276,10 @@ llvm::AllocaInst* LoopBlock::llvm_allocate(Codegen &gen, const std::string &iden
 void LoopBlock::code_gen(Codegen &gen) {
     llvm::BasicBlock* current = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
     llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
-    gen.CreateBr(current);
+    gen.CreateBr(current, ASTNode::encoded_location());
     gen.SetInsertPoint(current);
     gen.loop_body_gen(body, current, end_block);
-    gen.CreateBr(current);
+    gen.CreateBr(current, ASTNode::encoded_location());
     gen.SetInsertPoint(end_block);
 }
 
@@ -1337,5 +1355,5 @@ void LLVMBackendContext::mem_copy(Value* lhs, Value* rhs) {
     auto& gen = *gen_ptr;
     auto pointer = lhs->llvm_pointer(gen);
     auto val = rhs->llvm_value(gen, nullptr);
-    gen.memcpy_struct(rhs->llvm_type(gen), pointer, val);
+    gen.memcpy_struct(rhs->llvm_type(gen), pointer, val, rhs->encoded_location());
 }

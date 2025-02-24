@@ -316,8 +316,6 @@ set(COMMON_SOURCES
         preprocess/ImportPathHandler.cpp
         integration/common/Location.h
         integration/common/Range.h
-        compiler/PrimitiveTypeMap.h
-        compiler/PrimitiveTypemap.cpp
         server/analyzers/Documentation.h
         preprocess/2c/2cASTVisitor.h
         preprocess/2c/2cASTVisitor.cpp

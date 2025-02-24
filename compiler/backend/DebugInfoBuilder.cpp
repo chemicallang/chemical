@@ -37,6 +37,7 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/values/FunctionCall.h"
 
 inline LocationManager::LocationPosData loc_node(DebugInfoBuilder* visitor, SourceLocation loc) {
     return visitor->loc_man.getLocationPos(loc);
@@ -95,25 +96,38 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type) {
     switch(type->kind()) {
         case BaseTypeKind::IntN: {
             const auto intNType = type->as_intn_type_unsafe();
-            const auto numBits = intNType->num_bits();
-            const auto isUnsigned = intNType->is_unsigned();
-            switch (numBits) {
-                case 8:
-                    return di.builder->createBasicType(isUnsigned ? "uchar" : "char", 1, isUnsigned ? llvm::dwarf::DW_ATE_unsigned_char : llvm::dwarf::DW_ATE_signed_char);
-                case 16:
-                    return di.builder->createBasicType(isUnsigned ? "ushort" : "short", 2, isUnsigned ? llvm::dwarf::DW_ATE_unsigned : llvm::dwarf::DW_ATE_signed);
-                case 32:
-                    return di.builder->createBasicType(isUnsigned ? "uint" : "int", 4, isUnsigned ? llvm::dwarf::DW_ATE_unsigned : llvm::dwarf::DW_ATE_signed);
-                case 64:
-                    return di.builder->createBasicType(isUnsigned ? "ubigint" : "bigint", 8, isUnsigned ? llvm::dwarf::DW_ATE_unsigned : llvm::dwarf::DW_ATE_signed);
-                default:
-                    return di.builder->createBasicType("integer", type->as_intn_type_unsafe()->num_bits(), isUnsigned ? llvm::dwarf::DW_ATE_unsigned : llvm::dwarf::DW_ATE_signed);
+            const auto num_bits = intNType->num_bits();
+            switch(intNType->IntNKind()) {
+                case IntNTypeKind::Char:
+                    return di.builder->createBasicType("char", num_bits, llvm::dwarf::DW_ATE_signed_char);
+                case IntNTypeKind::Short:
+                    return di.builder->createBasicType("short", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::Int:
+                    return di.builder->createBasicType("int", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::Long:
+                    return di.builder->createBasicType("long", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::BigInt:
+                    return di.builder->createBasicType("bigint", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::Int128:
+                    return di.builder->createBasicType("int128", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::UChar:
+                    return di.builder->createBasicType("uchar", num_bits, llvm::dwarf::DW_ATE_unsigned_char);
+                case IntNTypeKind::UShort:
+                    return di.builder->createBasicType("ushort", num_bits, llvm::dwarf::DW_ATE_unsigned);
+                case IntNTypeKind::UInt:
+                    return di.builder->createBasicType("uint", num_bits, llvm::dwarf::DW_ATE_unsigned);
+                case IntNTypeKind::ULong:
+                    return di.builder->createBasicType("ulong", num_bits, llvm::dwarf::DW_ATE_unsigned);
+                case IntNTypeKind::UBigInt:
+                    return di.builder->createBasicType("ubigint", num_bits, llvm::dwarf::DW_ATE_unsigned);
+                case IntNTypeKind::UInt128:
+                    return di.builder->createBasicType("int128", num_bits, llvm::dwarf::DW_ATE_unsigned);
             }
         }
         case BaseTypeKind::Float:
             return di.builder->createBasicType("float", 32, llvm::dwarf::DW_ATE_float);
         case BaseTypeKind::Double:
-            return di.builder->createBasicType("double", 32, llvm::dwarf::DW_ATE_decimal_float);
+            return di.builder->createBasicType("double", 64, llvm::dwarf::DW_ATE_decimal_float);
         case BaseTypeKind::Pointer: {
             const auto ptrType = type->as_pointer_type_unsafe();
             const auto pointee = to_di_type(di, ptrType->type);
@@ -124,42 +138,45 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type) {
             const auto pointee = to_di_type(di, ptrType->type);
             return di.builder->createReferenceType(0, pointee, 64);
         }
+        // TODO handle more types
         default:
             return nullptr;
     }
 }
 
-void DebugInfoBuilder::info(Value *value) {
+void DebugInfoBuilder::instr(llvm::Instruction* inst, const Position& position) {
+    if(isEnabled) {
+        inst->setDebugLoc(di_loc(position));
+    }
+}
 
+void DebugInfoBuilder::instr(llvm::Instruction* inst, SourceLocation source_loc) {
+    if(inst && isEnabled) {
+        const auto location = loc_node(this, source_loc);
+        inst->setDebugLoc(di_loc(location.start));
+    }
 }
 
 void DebugInfoBuilder::info(FunctionDeclaration *decl, llvm::Function* func) {
-    // TODO must debug info for every function call, before we do function declaration
-//    const auto location = loc_node(this, decl->location);
-//    llvm::DISubprogram *SP = builder->createFunction(
-//            diScope,
-//            to_ref(decl->name_view()),
-//            decl->runtime_name_str(),  // Linkage name
-//            diFile,
-//            location.start.line,    // Line number of the function
-//            builder->createSubroutineType(builder->getOrCreateTypeArray({})),
-//            location.start.character,
-//            llvm::DINode::FlagPrototyped,
-//            llvm::DISubprogram::SPFlagDefinition
-//    );
-//    func->setSubprogram(SP);
-}
-
-void DebugInfoBuilder::info(StructDefinition *structDefinition) {
-
-}
-
-void DebugInfoBuilder::info(InterfaceDefinition *interfaceDefinition) {
-
+    const auto location = loc_node(this, decl->ASTNode::encoded_location());
+    llvm::DISubprogram *SP = builder->createFunction(
+            diScope,
+            to_ref(decl->name_view()),
+            decl->runtime_name_str(),  // Linkage name
+            diFile,
+            location.start.line,    // Line number of the function
+            builder->createSubroutineType(builder->getOrCreateTypeArray({})),
+            location.start.character,
+            llvm::DINode::FlagPrototyped,
+            llvm::DISubprogram::SPFlagDefinition
+    );
+    func->setSubprogram(SP);
 }
 
 void DebugInfoBuilder::info(VarInitStatement *init, llvm::AllocaInst* inst) {
     const auto location = loc_node(this, init->encoded_location());
+    const auto loc = di_loc(location.start);
+    inst->setDebugLoc(loc);
     llvm::DILocalVariable *Var = builder->createAutoVariable(
             diScope,
             to_ref(init->name_view()),
@@ -171,103 +188,13 @@ void DebugInfoBuilder::info(VarInitStatement *init, llvm::AllocaInst* inst) {
             init->llvm_ptr,                                         // Variable allocation
             Var,
             builder->createExpression(),
-            di_loc(location.start),
+            loc,
             inst
     );
 }
 
-void DebugInfoBuilder::info(VarInitStatement* init, llvm::GlobalVariable* variable) {
-
-}
-
-void DebugInfoBuilder::info(ImplDefinition *implDefinition) {
-
-}
-
-void DebugInfoBuilder::info(UnionDef *def) {
-
-}
-
-void DebugInfoBuilder::info(VariantDefinition *variant_def) {
-
-}
-
-void DebugInfoBuilder::info(Scope *scope) {
-
-}
-
-void DebugInfoBuilder::info(IfStatement *ifStatement) {
-
-}
-
-void DebugInfoBuilder::info(ValueWrapperNode *node) {
-
-}
-
-void DebugInfoBuilder::info(ForLoop *forLoop) {
-
-}
-
-void DebugInfoBuilder::info(LoopBlock *scope) {
-
-}
-
-void DebugInfoBuilder::info(WhileLoop *whileLoop) {
-
-}
-
-void DebugInfoBuilder::info(DoWhileLoop *doWhileLoop) {
-
-}
-
-void DebugInfoBuilder::info(AssignStatement *assign) {
-
-}
-
-void DebugInfoBuilder::info(SwitchStatement *statement) {
-
-}
-
-void DebugInfoBuilder::info(BreakStatement *breakStatement) {
-
-}
-
-void DebugInfoBuilder::info(ContinueStatement *continueStatement) {
-
-}
-
-void DebugInfoBuilder::info(ReturnStatement *returnStatement) {
-
-}
-
-void DebugInfoBuilder::info(InitBlock *initBlock) {
-
-}
-
-void DebugInfoBuilder::info(StructMemberInitializer *init) {
-
-}
-
-void DebugInfoBuilder::info(DestructStmt *delStmt) {
-
-}
-
-void DebugInfoBuilder::info(UnreachableStmt *stmt) {
-
-}
-
-void DebugInfoBuilder::info(LambdaFunction *func) {
-
-}
-
-void DebugInfoBuilder::info(ExtensionFuncReceiver *receiver) {
-
-}
-
-void DebugInfoBuilder::info(FunctionParam *functionParam) {
-
-}
-
-void DebugInfoBuilder::info(Namespace *ns) {
-
+void DebugInfoBuilder::info(FunctionCall* call, llvm::CallInst* callInst) {
+    instr(callInst, call->encoded_location());
+    const auto location = loc_node(this, call->encoded_location());
+    callInst->setDebugLoc(di_loc(location.start));
 }

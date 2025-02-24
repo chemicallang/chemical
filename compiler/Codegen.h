@@ -231,7 +231,9 @@ public:
      * this is because the functions that return void may need a return statement
      * to end current BasicBlock
      */
-    void end_function_block();
+    void end_function_block(SourceLocation location) {
+        DefaultRet(location);
+    }
 
     /**
      * the method to create a function
@@ -253,7 +255,7 @@ public:
     /**
      * get or insert a function prototype for weak symbol, is exported is required
      */
-    llvm::Function* declare_weak_function(const std::string& name, llvm::FunctionType* type, bool is_exported);
+    llvm::Function* declare_weak_function(const std::string& name, llvm::FunctionType* type, bool is_exported, SourceLocation location);
 
     /**
      * create a function prototype
@@ -275,23 +277,13 @@ public:
     /**
      * packs two pointers into a fat pointer (a struct containing two pointers)
      */
-    llvm::AllocaInst* pack_fat_pointer(llvm::Value* first_ptr, llvm::Value* second_ptr);
+    llvm::AllocaInst* pack_fat_pointer(llvm::Value* first_ptr, llvm::Value* second_ptr, SourceLocation location);
 
     /**
      * gets the implementation using value and type, where value is a struct value or ref struct
      * and type is a type to an interface, that is implemented by ref struct
      */
     llvm::Value* get_dyn_obj_impl(Value*, BaseType* type);
-
-    /**
-     * it checks whether the given type is a dynamic type and the given value is a struct
-     * if the given value is a struct that implements the given dynamic type, it's packed into
-     * a fat pointer where the first pointer is the llvm_value expected to be the object reference
-     * retrieved via value->llvm_value(), the second pointer is the implementation retrieved by
-     * finding the interface which stores all implementations for the structs
-     * IF it can't pack because it's not a dynamic type, it will return llvm_value
-     */
-    llvm::Value* pack_dyn_obj(Value* value, BaseType* type, llvm::Value* llvm_value);
 
     /**
      * if this type corresponds to a dynamic object, a fat pointer type will be allocated and returned
@@ -304,13 +296,13 @@ public:
      * fat_pointer already having valid struct object for the implementation
      * the implementation is calculated based on the given Value* pointer and type
      */
-    void assign_dyn_obj_impl(llvm::Value* fat_pointer, llvm::Value* impl);
+    void assign_dyn_obj_impl(llvm::Value* fat_pointer, llvm::Value* impl, SourceLocation location);
 
     /**
      * it finds the implementation for the given value and type automatically
      * returns true if could get implementation and assign it
      */
-    bool assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer);
+    bool assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer, SourceLocation location);
 
     /**
      * the implementation represented by this dynamic object will be assigned, along
@@ -318,23 +310,23 @@ public:
      * obj is the pointer to the struct that will be assigned
      * the implementation is calculated based on value and type
      */
-    void assign_dyn_obj(llvm::Value* fat_pointer, llvm::Value* obj, llvm::Value* impl);
+    void assign_dyn_obj(llvm::Value* fat_pointer, llvm::Value* obj, llvm::Value* impl, SourceLocation location);
 
     /**
      * if you don't know the implementation, you can use this method, it get's the implementation
      * and when found assigns it, along with the obj, returns true if succeeds otherwise false
      */
-    bool assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj);
+    bool assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj, SourceLocation location);
 
     /**
      * a helper method to call clear function
      */
-    void call_clear_fn(Value* value, llvm::Value* llvm_value);
+    void call_clear_fn(Value* value, llvm::Value* llvm_value, SourceLocation location);
 
     /**
      * mem copy a struct into the given pointer
      */
-    void memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value);
+    void memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location);
 
     /**
      * move the value
@@ -468,7 +460,7 @@ public:
      * stores the value, into the pointer, it's an assignment, it takes care of auto dereferences during
      * assignment
      */
-    void assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value);
+    void assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value, SourceLocation location);
 
     /**
      * determines destructor function for given element type
@@ -496,7 +488,8 @@ public:
             llvm::Value* allocaInst,
             llvm::Value* array_size,
             llvm::Type* elem_type,
-            bool check_for_null
+            bool check_for_null,
+            SourceLocation location
     );
 
     /**
@@ -510,7 +503,8 @@ public:
             bool pass_self,
             llvm::Value* array_size,
             BaseType* elem_type,
-            bool check_for_null
+            bool check_for_null,
+            SourceLocation location
     );
 
     /**
@@ -522,7 +516,8 @@ public:
             llvm::Value* allocaInst,
             llvm::Value* array_size,
             BaseType* elem_type,
-            bool check_for_null
+            bool check_for_null,
+            SourceLocation location
     );
 
     /**
@@ -535,7 +530,8 @@ public:
     void destruct(
             llvm::Value* allocaInst,
             unsigned int array_size,
-            BaseType* elem_type
+            BaseType* elem_type,
+            SourceLocation location
     );
 
     /**
@@ -555,7 +551,7 @@ public:
     /**
      * if the value is null, go to true block, otherwise false block
      */
-    void CheckNullCondBr(llvm::Value* value, llvm::BasicBlock* TrueBlock, llvm::BasicBlock* FalseBlock);
+    void CheckNullCondBr(llvm::Value* value, llvm::BasicBlock* TrueBlock, llvm::BasicBlock* FalseBlock, SourceLocation location);
 
     /**
      * The safe version of builder.CreateBr
@@ -563,12 +559,12 @@ public:
      * once you call this, no longer can you create branch, or return instructions
      * because you've already shifted to another block
      */
-    void CreateBr(llvm::BasicBlock *block);
+    void CreateBr(llvm::BasicBlock *block, SourceLocation location);
 
     /**
      * The safe version of builder.CreateUnreachable
      */
-    void CreateUnreachable();
+    void CreateUnreachable(SourceLocation location);
 
     /**
      * The safe version of builder.CreateRet
@@ -576,20 +572,20 @@ public:
      * once you call this, no longer can you create branch, or return instructions
      * because you've already shifted to another block
      */
-    void CreateRet(llvm::Value *value);
+    void CreateRet(llvm::Value *value, SourceLocation location);
 
     /**
      * creates a default return, it returns void
      * this takes into account the redirect_return required for cleanup blocks in
      * destructors, it should be used instead of CreateRet(nullptr) or CreateRetVoid()
      */
-    void DefaultRet();
+    void DefaultRet(SourceLocation location);
 
     /**
      * The safe version of builder.CreateCondBr
      * this will avoid creating multiple terminator instructions
      */
-    void CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode);
+    void CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode, SourceLocation location);
 
     /**
     * this operates on two values, left and right

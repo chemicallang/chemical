@@ -6,7 +6,6 @@
 
 #include "parser/Parser.h"
 #include "ast/types/LinkedType.h"
-#include "compiler/PrimitiveTypeMap.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/AccessChain.h"
 #include "ast/types/LinkedValueType.h"

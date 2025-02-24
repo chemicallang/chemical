@@ -335,21 +335,15 @@ public:
     }
 
     /**
-     * allocates the given type and stores the given value in it
-     * @return returns pointer to alloca instruction
-     */
-    llvm::AllocaInst* llvm_allocate_with(Codegen& gen, llvm::Value* value, llvm::Type* type);
-
-    /**
      * load the given value, taking in to account structs
      */
-    static llvm::Value* load_value(Codegen& gen, BaseType* known_t, llvm::Type* type, llvm::Value* ptr);
+    static llvm::Value* load_value(Codegen& gen, BaseType* known_t, llvm::Type* type, llvm::Value* ptr, SourceLocation location);
 
     /**
      * load the given value, taking in to account structs
      */
     static llvm::Value* load_value(Codegen& gen, Value* value, llvm::Value* ptr) {
-        return load_value(gen, value->known_type(), value->llvm_type(gen), ptr);
+        return load_value(gen, value->known_type(), value->llvm_type(gen), ptr, value->encoded_location());
     }
 
     /**

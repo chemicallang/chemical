@@ -52,7 +52,8 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
                 const auto ref_pointer = values[i]->llvm_pointer(gen);
-                gen.builder->CreateStore(ref_pointer, elementPtr);
+                const auto storeInst = gen.builder->CreateStore(ref_pointer, elementPtr);
+                gen.di.instr(storeInst, values[i]);
                 continue;
             }
         }
@@ -69,7 +70,7 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
             if(gen.requires_memcpy_ref_struct(known_child_t, &value)) {
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
-                gen.memcpy_struct(value.llvm_type(gen), elementPtr, value.llvm_value(gen, nullptr));
+                gen.memcpy_struct(value.llvm_type(gen), elementPtr, value.llvm_value(gen, nullptr), value.encoded_location());
             } else {
                 // couldn't move the struct
                 value.store_in_array(gen, this, allocated, parent_type, idxList, i, known_child_t);
@@ -80,7 +81,9 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
 
 llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     auto arrType = llvm_type(gen);
-    arr = gen.builder->CreateAlloca(arrType, nullptr, identifier);
+    const auto allocaInst = gen.builder->CreateAlloca(arrType, nullptr, identifier);
+    gen.di.instr(allocaInst, this);
+    arr = allocaInst;
     initialize_allocated(gen, arr, expected_type);
     return arr;
 }
@@ -99,7 +102,8 @@ llvm::Value *ArrayValue::llvm_arg_value(Codegen &gen, BaseType* expected_type) {
 
 void ArrayValue::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     auto elem_type = element_type(gen.allocator);
-    gen.destruct(allocaInst, array_size(), elem_type);
+    // TODO use a different location for this destruction
+    gen.destruct(allocaInst, array_size(), elem_type, encoded_location());
 }
 
 unsigned int ArrayValue::store_in_array(

@@ -165,9 +165,9 @@ public:
             visit(param);
         }
         if(decl->body.has_value()) {
-            visit(decl->body.value());
+            visit(&decl->body.value());
         }
-        visit(decl->returnType)->accept(this);
+        visit(decl->returnType);
     }
 
     void VisitFunctionParam(FunctionParam *param) {

@@ -4,32 +4,34 @@
 
 #include "SubVisitor.h"
 #include "ast/utils/CommonVisitor.h"
+#include "preprocess/visitors/RecursiveValueVisitor.h"
 #include <string>
 
-class CBeforeStmtVisitor : public CommonVisitor, public SubVisitor {
+class CBeforeStmtVisitor : public RecursiveValueVisitor<CBeforeStmtVisitor>, public SubVisitor {
 public:
 
+    using RecursiveValueVisitor<CBeforeStmtVisitor>::visit;
     using SubVisitor::SubVisitor;
-
-    void visit(FunctionCall *call) final;
-
-    void visit(AccessChain *chain) final;
-
-    void visit(VariantCall *call) final;
 
     void process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const chem::string_view& identifier);
 
     void process_init_value(Value* value, const chem::string_view& identifier);
 
-    void visit(VariableIdentifier *identifier) final;
+    void VisitFunctionCall(FunctionCall *call);
 
-    void visit(VarInitStatement *init) final;
+    void VisitAccessChain(AccessChain *chain) ;
 
-    void visit(Scope *scope) final {
+    void VisitVariantCall(VariantCall *call) ;
+
+    void VisitVariableIdentifier(VariableIdentifier *identifier) ;
+
+    void VisitVarInitStmt(VarInitStatement *init) ;
+
+    void VisitScope(Scope *scope) {
         // do nothing
     }
 
-    void visit(LambdaFunction *func) final {
+    void VisitLambdaFunction(LambdaFunction *func) {
         // do nothing
     }
 

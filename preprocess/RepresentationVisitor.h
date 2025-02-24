@@ -120,18 +120,6 @@ public:
         }
     }
 
-    inline void visit(ASTNode* node) {
-        VisitNodeUnsafe(node);
-    }
-
-    inline void visit(Value* value) {
-        VisitValueUnsafe(value);
-    }
-
-    inline void visit(BaseType* type) {
-        VisitTypeUnsafe(type);
-    }
-
     //------------------------------
     //----------Visitors------------
     //------------------------------

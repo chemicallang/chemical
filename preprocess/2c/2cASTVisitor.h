@@ -327,20 +327,6 @@ public:
 
     void visit_scope(Scope *scope, unsigned destruct_begin);
 
-    // HELPER METHODS
-
-    inline void visit(ASTNode* node) noexcept {
-        VisitNodeUnsafe(node);
-    }
-
-    inline void visit(Value* value) noexcept {
-        VisitValueUnsafe(value);
-    }
-
-    inline void visit(BaseType* type) noexcept {
-        VisitTypeUnsafe(type);
-    }
-
     // NODES
 
     void VisitAssignmentStmt(AssignStatement* node);
@@ -494,18 +480,6 @@ public:
     void VisitStructValue(StructValue* value);
 
     void VisitLambdaFunction(LambdaFunction* value);
-
-    void VisitIfValue(IfStatement* value) {
-        VisitIfStmt(value);
-    }
-
-    void VisitSwitchValue(SwitchStatement* value) {
-        VisitSwitchStmt(value);
-    }
-
-    void VisitLoopValue(LoopBlock* value) {
-        VisitLoopBlock(value);
-    }
 
     void VisitNewTypedValue(NewTypedValue* value);
 

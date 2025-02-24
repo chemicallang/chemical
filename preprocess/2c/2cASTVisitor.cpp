@@ -1771,7 +1771,7 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
                     if(comp_chain) {
                         destruct_chain(comp_chain, true);
                     } else {
-                        eval->second->accept(this);
+                        visit(eval->second);
                     }
                 } else {
                     std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor" << std::endl;
@@ -1807,12 +1807,12 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
     }
 }
 
-void CAfterStmtVisitor::visit(AccessChain *chain) {
-    CommonVisitor::visit(chain);
+void CAfterStmtVisitor::VisitAccessChain(AccessChain *chain) {
+    RecursiveValueVisitor::VisitAccessChain(chain);
 //    destruct_chain(chain, chain->is_node());
 }
 
-void CAfterStmtVisitor::visit(FunctionCall *call) {
+void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 //    auto decl = call->safe_linked_func();
 //    if(decl && decl->is_comptime()) {
 //        auto eval = visitor->evaluated_func_calls.find(call);
@@ -1849,7 +1849,7 @@ void CAfterStmtVisitor::visit(FunctionCall *call) {
                 // don't need to destruct, value is accepting this visitor
                 // if it's access chain, it will always trigger function calls present in access chain, which will again trigger this
                 // if it's identifier, we have a method for identifier on this visitor
-                val->accept(this);
+                visit(val);
 //            }
         }
     }
@@ -3910,7 +3910,7 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
         new_line_and_indent();
         before_stmt->visit(node);
         visit(node);
-        node->accept(after_stmt.get());
+        after_stmt->visit(node);
     }
     if(destructor->destroy_current_scope) {
         destructor->dispatch_jobs_from_no_clean((int) destruct_begin);

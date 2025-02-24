@@ -67,9 +67,7 @@ public:
             LocationManager& loc_man,
             llvm::DIBuilder* builder,
             Codegen& gen
-    ) : loc_man(loc_man), builder(builder), gen(gen) {
-
-    }
+    );
 
     /**
      * a compile unit is created for every file

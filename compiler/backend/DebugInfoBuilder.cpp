@@ -53,6 +53,17 @@ inline llvm::StringRef to_ref(const chem::string_view& view) {
     return llvm::StringRef(view.data(), view.size());
 }
 
+DebugInfoBuilder::DebugInfoBuilder(
+    LocationManager& loc_man,
+    llvm::DIBuilder* builder,
+    Codegen& gen
+)  : loc_man(loc_man), builder(builder), gen(gen) {
+    const auto m = gen.mode;
+    const auto is_d = is_debug(m);
+    isOptimized = !is_d;
+    isEnabled = is_d && m != OutputMode::DebugQuick;
+}
+
 void DebugInfoBuilder::update_builder(llvm::DIBuilder* new_builder) {
     builder = new_builder;
 }

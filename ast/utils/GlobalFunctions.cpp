@@ -1558,7 +1558,7 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) 
     // we change the global interpret scope for each job, so we must redeclare def value
     scope.values["def"] = &defThing.defValue;
     const auto boolType = new (allocator.allocate<BoolType>()) BoolType(ZERO_LOC);
-    const auto mode = scope.build_compiler->options->def_mode;
+    const auto mode = scope.build_compiler->options->outMode;
     defThing.declare_value(allocator, "debug", boolType, boolValue(allocator, is_debug(mode)));
     defThing.declare_value(allocator, "debug_quick", boolType, boolValue(allocator, mode == OutputMode::DebugQuick));
     defThing.declare_value(allocator, "debug_complete", boolType, boolValue(allocator, mode == OutputMode::DebugComplete));

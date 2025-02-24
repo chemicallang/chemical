@@ -157,6 +157,9 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
 }
 
 void VarInitStatement::code_gen_external_declare(Codegen &gen) {
+    if(is_comptime()) {
+        return;
+    }
     code_gen_global_var(gen, false);
 }
 

@@ -47,7 +47,7 @@ public:
     /**
      * default output mode
      */
-    OutputMode def_mode = OutputMode::Debug;
+    OutputMode outMode = OutputMode::Debug;
 
     /**
      * whether the generated ir should be debuggable ir

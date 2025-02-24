@@ -62,6 +62,11 @@ public:
     ASTAllocator& allocator;
 
     /**
+     * the code generation mode
+     */
+    OutputMode mode;
+
+    /**
      * Debug info builder basically just generates the debug information
      * it's conveniently named di so it's easier to access
      */
@@ -168,8 +173,6 @@ public:
 
     /**
      * constructor
-     * @param nodes
-     * @param path
      */
     explicit Codegen(
             GlobalInterpretScope& comptime_scope,

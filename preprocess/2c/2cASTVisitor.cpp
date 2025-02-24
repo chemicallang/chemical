@@ -1296,7 +1296,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
 //    }
 //}
 
-void CBeforeStmtVisitor::visit(FunctionCall *call) {
+void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 
     const auto linked = call->parent_val->linked_node();
     // enum member can't be called, we're using it as a no value
@@ -1304,7 +1304,7 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     const auto decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
 
     // visit the values
-    CommonVisitor::visit(call);
+    RecursiveValueVisitor::VisitFunctionCall(call);
 
     // handling non variant function
     if(linked_kind != ASTNodeKind::VariantMember) {
@@ -1449,15 +1449,15 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
     }
 };
 
-void CBeforeStmtVisitor::visit(VariableIdentifier *identifier) {
+void CBeforeStmtVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
     if(identifier->is_moved) {
         move_identifier(visitor, identifier);
     }
 }
 
-void CBeforeStmtVisitor::visit(AccessChain *chain) {
+void CBeforeStmtVisitor::VisitAccessChain(AccessChain *chain) {
 
-    CommonVisitor::visit(chain);
+    RecursiveValueVisitor::VisitAccessChain(chain);
 
     move_chain(visitor, chain);
 
@@ -1521,9 +1521,9 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
     }
 }
 
-void CBeforeStmtVisitor::visit(VariantCall *call) {
+void CBeforeStmtVisitor::VisitVariantCall(VariantCall *call) {
 
-    CommonVisitor::visit(call);
+    RecursiveValueVisitor::VisitVariantCall(call);
     const auto member = call->parent_val->linked_node()->as_variant_member();
     const auto linked = member->parent_node;
     const auto index = linked->direct_child_index(member->name);
@@ -1623,11 +1623,11 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const chem::string_vie
     }
 }
 
-void CBeforeStmtVisitor::visit(VarInitStatement *init) {
+void CBeforeStmtVisitor::VisitVarInitStmt(VarInitStatement *init) {
 //    if (!init->type) {
 //        init->type = init->value->create_type(visitor.allocator);
 //    }
-    CommonVisitor::visit(init);
+    RecursiveValueVisitor::VisitVarInitStmt(init);
 }
 
 CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
@@ -3908,7 +3908,7 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     top_level_node = false;
     for(const auto node : scope->nodes) {
         new_line_and_indent();
-        node->accept(before_stmt.get());
+        before_stmt->visit(node);
         visit(node);
         node->accept(after_stmt.get());
     }
@@ -4868,7 +4868,7 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
                 }
             }
             local_allocated[call] = "this->" + init.first.str();
-            chain->accept(before_stmt.get());
+            before_stmt->visit(chain);
         } else {
             write("this->");
             write(init.first);

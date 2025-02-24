@@ -94,6 +94,8 @@ template<typename T>
 class RecursiveValueVisitor : public NonRecursiveVisitor<T> {
 public:
 
+    using NonRecursiveVisitor<T>::visit;
+
     bool is_top_level_node = true;
 
     void VisitScope(Scope *scope) {
@@ -132,7 +134,7 @@ public:
     }
 
     void VisitUnsafeBlock(UnsafeBlock *block) {
-        visit(block->scope);
+        visit(&block->scope);
     }
 
     void VisitValueWrapper(ValueWrapperNode *node) {
@@ -169,7 +171,7 @@ public:
     }
 
     void VisitFunctionParam(FunctionParam *param) {
-        param->type->accept(this);
+        visit(param->type);
         if(param->defValue) {
             visit(param->defValue);
         }
@@ -203,13 +205,13 @@ public:
 
     void VisitIfStmt(IfStatement *stmt) {
         visit(stmt->condition);
-        visit(stmt->ifBody);
+        visit(&stmt->ifBody);
         for (auto& elif : stmt->elseIfs) {
             visit(elif.first);
-            visit(elif.second);
+            visit(&elif.second);
         }
         if(stmt->elseBody.has_value()) {
-            visit(stmt->elseBody.value());
+            visit(&stmt->elseBody.value());
         }
     }
 
@@ -219,24 +221,24 @@ public:
 
     void VisitWhileLoopStmt(WhileLoop *loop) {
         visit(loop->condition);
-        visit(loop->body);
+        visit(&loop->body);
     }
 
     void VisitDoWhileLoopStmt(DoWhileLoop *loop) {
-        visit(loop->body);
+        visit(&loop->body);
         visit(loop->condition);
     }
 
     void VisitForLoopStmt(ForLoop *loop) {
         visit(loop->initializer);
         visit(loop->incrementerExpr);
-        visit(loop->body);
+        visit(&loop->body);
     }
 
     void VisitSwitchStmt(SwitchStatement *stmt) {
         visit(stmt->expression);
         for(auto& scope : stmt->scopes) {
-            visit(scope);
+            visit(&scope);
         }
     }
 

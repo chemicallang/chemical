@@ -146,7 +146,7 @@ void ToCAstVisitor::declare_before_translation(std::vector<ASTNode*>& nodes) {
 void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
     // take out values like lambda from within functions
     for(const auto node : nodes) {
-        node->accept((Visitor*) declarer.get());
+        declarer->visit(node);
     }
     // writing
     for(const auto node : nodes) {
@@ -2186,8 +2186,8 @@ std::string typedef_func_type(ToCAstVisitor& visitor, FunctionType* type) {
 ////    }
 //}
 
-void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
-    CommonVisitor::visit(lamb);
+void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
+    RecursiveValueVisitor::VisitLambdaFunction(lamb);
     std::string lamb_name = "__chemda_";
     lamb_name += std::to_string(random(100,999)) + "_";
     lamb_name += std::to_string(lambda_num++);
@@ -2248,7 +2248,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     visitor.destructor->destroy_current_scope = prev_destroy_scope;
 }
 
-void CValueDeclarationVisitor::visit(ReturnStatement *stmt) {
+void CValueDeclarationVisitor::VisitReturnStmt(ReturnStatement *stmt) {
 
 //    const auto val = stmt->value;
 //    if(val) {
@@ -2263,12 +2263,12 @@ void CValueDeclarationVisitor::visit(ReturnStatement *stmt) {
 //        }
 //    }
 
-    CommonVisitor::visit(stmt);
+    RecursiveValueVisitor::VisitReturnStmt(stmt);
 
 }
 
 
-void CValueDeclarationVisitor::visit(FunctionCall *call) {
+void CValueDeclarationVisitor::VisitFunctionCall(FunctionCall *call) {
     // replace all values that call implicit constructor with actual calls
 //    const auto size = call->values.size();
 //    auto func_type = call->function_type(visitor.allocator);
@@ -2285,10 +2285,10 @@ void CValueDeclarationVisitor::visit(FunctionCall *call) {
 //            i++;
 //        }
 //    }
-    CommonVisitor::visit(call);
+    RecursiveValueVisitor::VisitFunctionCall(call);
 }
 
-void CValueDeclarationVisitor::visit(VariantCall *call) {
+void CValueDeclarationVisitor::VisitVariantCall(VariantCall *call) {
 //    auto itr = call->get_member()->values.begin();
 //    for(auto& value_ptr : call->values) {
 //        // replace calls to implicit constructor with actual calls
@@ -2298,10 +2298,10 @@ void CValueDeclarationVisitor::visit(VariantCall *call) {
 //        }
 //        itr++;
 //    }
-    CommonVisitor::visit(call);
+    RecursiveValueVisitor::VisitVariantCall(call);
 }
 
-void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
+void CValueDeclarationVisitor::VisitArrayValue(ArrayValue *arrayVal) {
 
 //    // replace all values that call implicit constructors with actual calls
 //    const auto elem_type = arrayVal->element_type(visitor.allocator);
@@ -2315,11 +2315,11 @@ void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
 //        }
 //    }
 
-    CommonVisitor::visit(arrayVal);
+    RecursiveValueVisitor::VisitArrayValue(arrayVal);
 
 }
 
-void CValueDeclarationVisitor::visit(StructValue *structValue) {
+void CValueDeclarationVisitor::VisitStructValue(StructValue *structValue) {
 
 //    const auto container = structValue->variables();
 //    for(auto& value : structValue->values) {
@@ -2331,18 +2331,18 @@ void CValueDeclarationVisitor::visit(StructValue *structValue) {
 //        }
 //    }
 
-    CommonVisitor::visit(structValue);
+    RecursiveValueVisitor::VisitStructValue(structValue);
 
 }
 
 void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<FunctionParam*>& params) {
-    for(auto& param : params) {
+    for(const auto param : params) {
         if(param->type->kind() == BaseTypeKind::Function && param->type->as_function_type()->isCapturing()) {
             // do not declare capturing function types
             continue;
         }
         if(param->type->kind() != BaseTypeKind::Function) {
-            param->accept(value_visitor);
+            value_visitor->visit(param);
         }
     }
 }
@@ -2388,7 +2388,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
     }
     declare_params(tld->value_visitor, decl->params);
     if(decl->returnType->as_function_type() == nullptr) {
-        decl->returnType->accept(tld->value_visitor);
+        tld->value_visitor->visit(decl->returnType);
     }
     tld->visitor.new_line_and_indent();
     declare_func_with_return(tld->visitor, decl, name);
@@ -2402,7 +2402,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     }
     declare_params(tld->value_visitor, decl->params);
     if(decl->returnType->as_function_type() == nullptr) {
-        decl->returnType->accept(tld->value_visitor);
+        tld->value_visitor->visit(decl->returnType);
     }
     tld->visitor.new_line_and_indent();
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
@@ -2551,19 +2551,19 @@ void CTopLevelDeclarationVisitor::visit(ExtensionFunction *decl) {
     declare_func(decl);
 }
 
-void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
+void CValueDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     if(decl->body.has_value() && !decl->is_comptime()) {
-        decl->body.value().accept(this);
+        visit(&decl->body.value());
     }
 }
 
-void CValueDeclarationVisitor::visit(ExtensionFunction *decl) {
+void CValueDeclarationVisitor::VisitExtensionFunctionDecl(ExtensionFunction *decl) {
     if(decl->body.has_value() && !decl->is_comptime()) {
-        decl->body.value().accept(this);
+        visit(&decl->body.value());
     }
 }
 
-void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
+void CValueDeclarationVisitor::VisitEnumDecl(EnumDeclaration *enumDecl) {
     if(visitor.inline_enum_member_access) return;
     unsigned i = 0;
     for(auto& mem : enumDecl->members) {
@@ -2628,7 +2628,7 @@ void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
 
 void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def) {
     for(auto& mem : def->variables) {
-        mem.second->accept(value_visitor);
+        value_visitor->visit(mem.second);
     }
     // before we declare this struct, we must early declare any direct struct type variables
     // inside this struct, because some structs get used inside which are present in other modules
@@ -2723,7 +2723,7 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
 
 void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     for(auto& mem : def->variables) {
-        mem.second->accept(value_visitor);
+        value_visitor->visit(mem.second);
     }
     visitor.new_line_and_indent();
     write("struct ");
@@ -2987,7 +2987,7 @@ void CTopLevelDeclarationVisitor::reset() {
 //    declared_nodes.clear();
 }
 
-void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
+void CValueDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
     if(is_top_level_node) return;
     visitor.new_line_and_indent();
     write("typedef ");
@@ -3001,25 +3001,25 @@ void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
     write(';');
 }
 
-void CValueDeclarationVisitor::visit(FunctionType *type) {
+void CValueDeclarationVisitor::VisitFunctionType(FunctionType *type) {
     // TODO remove this method
 }
 
-void CValueDeclarationVisitor::visit(StructMember *member) {
+void CValueDeclarationVisitor::VisitStructMember(StructMember *member) {
     if(member->type->kind() != BaseTypeKind::Function) {
-        CommonVisitor::visit(member);
+        RecursiveValueVisitor::VisitStructMember(member);
     }
 }
 
-void CValueDeclarationVisitor::visit(IfStatement *stmt) {
+void CValueDeclarationVisitor::VisitIfStmt(IfStatement *stmt) {
     if(stmt->computed_scope.has_value()) {
         auto scope = stmt->computed_scope.value();
         if(scope) {
-            scope->accept(this);
+            visit(scope);
         }
         return;
     }
-    CommonVisitor::visit(stmt);
+    RecursiveValueVisitor::VisitIfStmt(stmt);
 }
 
 void declare_fat_pointer(ToCAstVisitor& visitor) {

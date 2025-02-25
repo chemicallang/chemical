@@ -25,8 +25,6 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
 class LabBuildContext {
 public:
 
-    // path to the compiler exe path
-    std::string exe_path;
     // the build directory that will be used for file generation
     std::string build_dir;
     // all the modules created during the build process
@@ -41,6 +39,8 @@ public:
     void* on_finished_data = nullptr;
     // if import paths are to be used with aliases in them, we need a path handler
     ImportPathHandler* handler;
+    // the compiler options sent by the user
+    LabBuildCompilerOptions* options;
 
 private:
 

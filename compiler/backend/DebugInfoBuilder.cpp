@@ -157,17 +157,19 @@ void DebugInfoBuilder::instr(llvm::Instruction* inst, SourceLocation source_loc)
     }
 }
 
-void DebugInfoBuilder::info(FunctionDeclaration *decl, llvm::Function* func) {
-    const auto location = loc_node(this, decl->ASTNode::encoded_location());
+void DebugInfoBuilder::info(FunctionType *decl, llvm::Function* func) {
+    const auto location = loc_node(this, decl->encoded_location());
+    const auto as_func = decl->as_function();
+    const auto name_view = as_func ? to_ref(as_func->name_view()) : func->getName();
     llvm::DISubprogram *SP = builder->createFunction(
             diScope,
-            to_ref(decl->name_view()),
-            decl->runtime_name_str(),  // Linkage name
+            name_view,
+            func->getName(),  // Linkage name
             diFile,
             location.start.line,    // Line number of the function
             builder->createSubroutineType(builder->getOrCreateTypeArray({})),
             location.start.character,
-            llvm::DINode::FlagPrototyped,
+            llvm::DINode::FlagFwdDecl,
             llvm::DISubprogram::SPFlagDefinition
     );
     func->setSubprogram(SP);

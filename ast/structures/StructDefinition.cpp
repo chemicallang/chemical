@@ -70,7 +70,7 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
             if(interfaceModule != gen.module.get()) {
                 // interface is present in another module
                 // we create a new function with strong linkage in this module
-                const auto new_func = gen.create_function(func->getName().str(), func->getFunctionType(), AccessSpecifier::Public);
+                const auto new_func = gen.create_function(func->getName(), func->getFunctionType(), function, AccessSpecifier::Public);
                 function->set_llvm_data(new_func);
                 function->code_gen_override(gen, new_func);
             } else {

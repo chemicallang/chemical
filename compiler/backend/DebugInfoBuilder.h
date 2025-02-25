@@ -104,7 +104,7 @@ protected:
 
     void instr(llvm::Instruction* inst, const Position& position);
 
-    void info(FunctionDeclaration *decl, llvm::Function* func);
+    void info(FunctionType *decl, llvm::Function* func);
 
     void info(VarInitStatement *init, llvm::AllocaInst* allocaInst);
 
@@ -127,9 +127,16 @@ public:
     // unless the debug info visitor is disabled
     // -------------------------------------------
 
-    inline void add(FunctionDeclaration *functionDeclaration, llvm::Function* func) {
+    inline void create(FunctionType *decl, llvm::Function* func) {
         if(isEnabled) {
-            info(functionDeclaration, func);
+            info(decl, func);
+        }
+    }
+
+    inline void declare(FunctionType *decl, llvm::Function* func) {
+        if(isEnabled) {
+            // there was no debug information associated with a declared function for a c compiled file
+            // So currently we're not doing anything here
         }
     }
 

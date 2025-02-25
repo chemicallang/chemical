@@ -823,7 +823,8 @@ int link_objects(
     const std::string& comp_exe_path,
     std::vector<chem::string>& linkables,
     const std::string& output_path,
-    const std::vector<std::string>& flags
+    const std::vector<std::string>& flags,
+    const std::string_view& target_triple
 ) {
     int link_result;
 #ifdef COMPILER_BUILD
@@ -831,7 +832,7 @@ int link_objects(
     for(auto& obj : linkables) {
         data.emplace_back(obj.data());
     }
-    link_result = link_objects(data, output_path, comp_exe_path, flags);
+    link_result = link_objects(data, output_path, comp_exe_path, flags, target_triple);
 #else
     chem::string copy(comp_exe_path);
     link_result = tcc_link_objects(copy.mutable_data(), output_path, linkables);
@@ -856,7 +857,15 @@ int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::stri
         flags.emplace_back("-no-pie");
     }
 #endif
-    return link_objects(options->exe_path, linkables, output_path, flags);
+    if(options->verbose) {
+        flags.emplace_back("-v");
+    }
+    if(is_debug(options->outMode)) {
+        flags.emplace_back("-g");
+        // TODO so on windows -gdward-4 is being used as .pdb and .ilk are being generated which aren't supported by gdb
+//        flags.emplace_back("-gdwarf-4");
+    }
+    return link_objects(options->exe_path, linkables, output_path, flags, options->target_triple);
 }
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {

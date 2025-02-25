@@ -132,13 +132,45 @@ void Codegen::createFunctionBlock(llvm::Function *fn) {
     SetInsertPoint(entry);
 }
 
-llvm::Function *Codegen::create_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier) {
-    current_function = create_function_proto(name, type, specifier);
+llvm::Function::LinkageTypes to_linkage_type(AccessSpecifier specifier) {
+    switch (specifier) {
+        case AccessSpecifier::Private:
+        case AccessSpecifier::Protected:
+            return llvm::Function::PrivateLinkage;
+        case AccessSpecifier::Public:
+            return llvm::Function::ExternalLinkage;
+        case AccessSpecifier::Internal:
+            return llvm::Function::InternalLinkage;
+        default:
+#ifdef DEBUG
+            throw "unknown access specifier in to linkage type";
+#endif
+            return llvm::Function::InternalLinkage;
+
+    }
+}
+
+// a helper to create a function which has a definition
+llvm::Function* create_defined_func(
+        Codegen& gen,
+        const std::string_view &name,
+        llvm::FunctionType *type,
+        FunctionType* func_type,
+        llvm::Function::LinkageTypes linkage
+) {
+    auto fn = llvm::Function::Create(type, linkage, name, *gen.module);
+    fn->setDSOLocal(true);
+    gen.di.create(func_type, fn);
+    return fn;
+}
+
+llvm::Function *Codegen::create_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
+    current_function = create_defined_func(*this, name, type, func_type, to_linkage_type(specifier));
     createFunctionBlock(current_function);
     return current_function;
 }
 
-llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::FunctionType *type, FunctionType* func_type, Scope &scope) {
+llvm::Function *Codegen::create_nested_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, Scope &scope) {
 
     auto prev_destruct_nodes = std::move(destruct_nodes);
     auto prev_destroy_scope = destroy_current_scope;
@@ -148,7 +180,7 @@ llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::F
 
     destroy_current_scope = true;
     SetInsertPoint(nullptr);
-    auto nested_function = create_function_proto(name, type, AccessSpecifier::Private);
+    auto nested_function = create_defined_func(*this, name, type, func_type, llvm::Function::PrivateLinkage);
     current_function = nested_function;
     const auto destruct_begin = destruct_nodes.size();
     func_type->queue_destruct_params(*this);
@@ -166,16 +198,19 @@ llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::F
 
 }
 
-llvm::Function* Codegen::declare_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier) {
+llvm::Function* Codegen::declare_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
     const auto previousFunc = module->getFunction(name);
     if(previousFunc != nullptr) {
         return previousFunc;
     } else {
-        return create_function_proto(name, type, specifier);
+        auto fn = llvm::Function::Create(type, to_linkage_type(specifier), name, *module);
+        fn->setDSOLocal(true);
+        di.declare(func_type, fn);
+        return fn;
     }
 }
 
-llvm::Function* Codegen::declare_weak_function(const std::string& name, llvm::FunctionType* type, bool is_exported, SourceLocation location) {
+llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionType* func_type, bool is_exported, SourceLocation location) {
     auto fn = llvm::Function::Create(type, llvm::Function::WeakAnyLinkage, name, *module);
     fn->setDSOLocal(true);
     // if there's no implementation, a stub implementation is required, so if a strong implementation exists it can override it later
@@ -198,30 +233,8 @@ llvm::Function* Codegen::declare_weak_function(const std::string& name, llvm::Fu
             // For other return types (e.g. structs), return an undefined value.
             CreateRet(llvm::UndefValue::get(retType), location);
         }
+        di.create(func_type, fn);
 //    }
-    return fn;
-}
-
-llvm::Function* Codegen::create_function_proto(
-    const std::string &name,
-    llvm::FunctionType *type,
-    AccessSpecifier specifier
-) {
-    llvm::Function::LinkageTypes linkage;
-    switch (specifier) {
-        case AccessSpecifier::Private:
-        case AccessSpecifier::Protected:
-            linkage = llvm::Function::PrivateLinkage;
-            break;
-        case AccessSpecifier::Public:
-            linkage = llvm::Function::ExternalLinkage;
-            break;
-        case AccessSpecifier::Internal:
-            linkage = llvm::Function::InternalLinkage;
-            break;
-    }
-    auto fn = llvm::Function::Create(type, linkage, name, *module);
-    fn->setDSOLocal(true);
     return fn;
 }
 
@@ -1092,12 +1105,12 @@ int lld_main(int argc, char **argv, const llvm::ToolContext &) {
 
 }
 
-int invoke_lld(const std::vector<std::string> &command_args) {
+int invoke_lld(const std::vector<std::string> &command_args, const std::string_view& targetTripleString) {
     // Convert the vector of strings to an ArrayRef<const char *>
     std::vector<const char *> args_cstr;
     args_cstr.reserve(command_args.size() + 1);
     std::string lld_driver;
-    auto triple = llvm::Triple(sys::getDefaultTargetTriple());
+    auto triple = llvm::Triple(targetTripleString);
     if (triple.isOSDarwin())
         lld_driver = "ld64.lld";
     else if (triple.isOSWindows())
@@ -1114,7 +1127,7 @@ int invoke_lld(const std::vector<std::string> &command_args) {
 }
 
 int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
-    return ::invoke_lld(command_args);
+    return ::invoke_lld(command_args, target_triple);
 }
 
 #endif
@@ -1126,6 +1139,7 @@ int link_objects(
     const std::string& bin_out,
     const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
     const std::vector<std::string>& flags, // passed to clang or lld,
+    const std::string_view& target_triple,
     bool use_lld = false,
     bool libc = true
 ) {
@@ -1163,11 +1177,15 @@ int link_objects(
         }
 
         // invoke lld to create executable
-        return invoke_lld(linkables);
+        return invoke_lld(linkables, target_triple);
 
     } else {
         // use clang by default
+
         std::vector<std::string> clang_flags{comp_exe_path};
+        clang_flags.emplace_back("-target");
+        clang_flags.emplace_back(target_triple);
+
         for(const auto& cland_fl : flags) {
             clang_flags.emplace_back(cland_fl);
         }

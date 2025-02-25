@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <string>
+#include <string_view>
 
 /**
  * links different object files / bitcode files using compiler or lld
@@ -13,6 +14,7 @@ int link_objects(
         const std::string& bin_out,
         const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
         const std::vector<std::string>& flags, // passed to clang or lld,
+        const std::string_view& target_triple,
         bool use_lld = false,
         bool libc = true
 );

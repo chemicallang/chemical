@@ -237,32 +237,23 @@ public:
 
     /**
      * the method to create a function
-     * @param name name of the function
-     * @param type type of the function
      */
-    llvm::Function *create_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier);
+    llvm::Function *create_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier);
 
     /**
      * create a nested function
      */
-    llvm::Function *create_nested_function(const std::string &name, llvm::FunctionType *type, FunctionType* func_type, Scope &scope);
+    llvm::Function *create_nested_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, Scope &scope);
 
     /**
      * gets or inserts a function, similar to declaration
      */
-    llvm::Function* declare_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier);
+    llvm::Function* declare_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier);
 
     /**
      * get or insert a function prototype for weak symbol, is exported is required
      */
-    llvm::Function* declare_weak_function(const std::string& name, llvm::FunctionType* type, bool is_exported, SourceLocation location);
-
-    /**
-     * create a function prototype
-     * @param name name of the function
-     * @param type type of the function
-     */
-    llvm::Function *create_function_proto(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier);
+    llvm::Function* declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionType* func_type, bool is_exported, SourceLocation location);
 
     /**
      * create a function's basic block, with the given name

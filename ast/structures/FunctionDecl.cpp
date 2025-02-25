@@ -327,11 +327,10 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     }
 #endif
     auto func_type = decl->create_llvm_func_type(gen);
-    auto func = gen.create_function(name, func_type, decl->specifier());
+    auto func = gen.create_function(name, func_type, decl, decl->specifier());
     llvm_func_def_attr(func);
     decl->llvm_attributes(func);
     decl->set_llvm_data(func);
-    gen.di.add(decl, func);
 }
 
 void create_fn(Codegen& gen, FunctionDeclaration *decl) {
@@ -353,15 +352,13 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl) {
 }
 
 void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
-    auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl->specifier());
+    auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl, decl->specifier());
     decl->set_llvm_data(callee);
-    gen.di.add(decl, callee);
 }
 
 void declare_non_gen_weak_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name, bool is_exported) {
-    auto callee = gen.declare_weak_function(name, decl->create_llvm_func_type(gen), is_exported, decl->ASTNode::encoded_location());
+    auto callee = gen.declare_weak_function(name, decl->create_llvm_func_type(gen), decl, is_exported, decl->ASTNode::encoded_location());
     decl->set_llvm_data(callee);
-    gen.di.add(decl, callee);
 }
 
 void declare_fn_weak(Codegen& gen, FunctionDeclaration *decl, bool is_exported) {

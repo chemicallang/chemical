@@ -63,25 +63,50 @@ DebugInfoBuilder::DebugInfoBuilder(
     const auto is_d = is_debug(m);
     isOptimized = !is_d;
     isEnabled = is_d && m != OutputMode::DebugQuick;
+    diScopes.reserve(20);
 }
 
 void DebugInfoBuilder::update_builder(llvm::DIBuilder* new_builder) {
     builder = new_builder;
 }
 
-void DebugInfoBuilder::createDiCompileUnit(const chem::string_view& abs_path) {
+llvm::DICompileUnit* DebugInfoBuilder::createDiCompileUnit(const chem::string_view& abs_path) {
     unsigned MyCustomLangCode = 0x8001; // Vendor-specific code
     auto [fileName, dirPath] = splitPath(abs_path);
-    diFile = builder->createFile(fileName, dirPath);
     diCompileUnit = builder->createCompileUnit(
             MyCustomLangCode,
-            diFile,
+            builder->createFile(fileName, dirPath),
             "Chemical",
             isOptimized,
             "",
             0 // <--- runtime version
     );
-    diScope = diCompileUnit;
+    diScopes.clear();
+    return diCompileUnit;
+}
+
+void DebugInfoBuilder::start_di_compile_unit(llvm::DICompileUnit* unit) {
+    if(isEnabled) {
+#ifdef DEBUG
+        if(!unit) {
+            throw std::runtime_error("cannot start an empty di compile unit");
+        }
+#endif
+        diCompileUnit = unit;
+        diScopes.push_back(unit);
+    }
+}
+
+void DebugInfoBuilder::end_di_compile_unit() {
+    if(isEnabled) {
+#ifdef DEBUG
+        if(diCompileUnit != diScopes.back()) {
+            throw std::runtime_error("current scope is not a compile unit");
+        }
+#endif
+        diCompileUnit = nullptr;
+        diScopes.pop_back();
+    }
 }
 
 void DebugInfoBuilder::finalize() {
@@ -89,7 +114,12 @@ void DebugInfoBuilder::finalize() {
 }
 
 llvm::DILocation* DebugInfoBuilder::di_loc(const Position& position) {
-    return llvm::DILocation::get(*gen.ctx, position.line, position.character, diScope);
+#ifdef DEBUG
+    if(diScopes.empty()) {
+        throw std::runtime_error("expected a scope to be present, when creating a di location");
+    }
+#endif
+    return llvm::DILocation::get(*gen.ctx, position.line + 1, position.character + 1, diScopes.back());
 }
 
 llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type) {
@@ -157,33 +187,75 @@ void DebugInfoBuilder::instr(llvm::Instruction* inst, SourceLocation source_loc)
     }
 }
 
-void DebugInfoBuilder::info(FunctionType *decl, llvm::Function* func) {
+llvm::DIScope* DebugInfoBuilder::create(FunctionType *decl, llvm::Function* func) {
+    const auto alreadyProgram = func->getSubprogram();
+    if(alreadyProgram) return alreadyProgram;
     const auto location = loc_node(this, decl->encoded_location());
     const auto as_func = decl->as_function();
     const auto name_view = as_func ? to_ref(as_func->name_view()) : func->getName();
+#ifdef DEBUG
+    if(diScopes.empty()) {
+        throw std::runtime_error("expected a compile unit scope to be present, when starting a function scope");
+    }
+#endif
     llvm::DISubprogram *SP = builder->createFunction(
-            diScope,
+            diScopes.back(),
             name_view,
             func->getName(),  // Linkage name
-            diFile,
-            location.start.line,    // Line number of the function
+            diCompileUnit->getFile(),
+            location.start.line + 1,    // Line number of the function
             builder->createSubroutineType(builder->getOrCreateTypeArray({})),
             location.start.character,
             llvm::DINode::FlagFwdDecl,
             llvm::DISubprogram::SPFlagDefinition
     );
     func->setSubprogram(SP);
+    return SP;
+}
+
+void DebugInfoBuilder::start_function_scope(FunctionType *decl, llvm::Function* func) {
+    if(!isEnabled) {
+        return;
+    }
+    diScopes.push_back(create(decl, func));
+}
+
+void DebugInfoBuilder::end_function_scope() {
+    if(!isEnabled) {
+        return;
+    }
+    diScopes.pop_back();
+}
+
+void DebugInfoBuilder::start_scope(SourceLocation source_loc) {
+    if(!isEnabled) {
+        return;
+    }
+#ifdef DEBUG
+    if(diScopes.empty()) {
+        throw std::runtime_error("expected a function scope to be present, when starting a lexical block");
+    }
+#endif
+    const auto start = loc_node(this, source_loc).start;
+    const auto lexBlock = builder->createLexicalBlock(diScopes.back(), diCompileUnit->getFile(), start.line + 1, start.character + 1);
+    diScopes.push_back(lexBlock);
+}
+
+void DebugInfoBuilder::end_scope() {
+    if(!isEnabled) {
+        return;
+    }
+    diScopes.pop_back();
 }
 
 void DebugInfoBuilder::info(VarInitStatement *init, llvm::AllocaInst* inst) {
     const auto location = loc_node(this, init->encoded_location());
     const auto loc = di_loc(location.start);
-    inst->setDebugLoc(loc);
     llvm::DILocalVariable *Var = builder->createAutoVariable(
-            diScope,
+            diScopes.back(),
             to_ref(init->name_view()),
-            diFile,
-            location.start.line,
+            diCompileUnit->getFile(),
+            location.start.line + 1,
             to_di_type(*this, init->create_value_type(gen.allocator))
     );
     builder->insertDeclare(

@@ -120,6 +120,8 @@ public:
 
     void code_gen(Codegen &gen) final;
 
+    void code_gen_no_scope(Codegen &gen, unsigned destruct_begin);
+
     void code_gen(Codegen &gen, unsigned destruct_begin);
 
 #endif

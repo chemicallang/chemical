@@ -1009,7 +1009,7 @@ void BreakStatement::code_gen(Codegen &gen) {
     gen.CreateBr(gen.current_loop_exit, encoded_location());
 }
 
-void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
+void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
     for(const auto node : nodes) {
         node->code_gen_declare(gen);
     }
@@ -1031,6 +1031,26 @@ void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
     }
     auto itr = gen.destruct_nodes.begin() + destruct_begin;
     gen.destruct_nodes.erase(itr, gen.destruct_nodes.end());
+}
+
+void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
+    // NOT THE BEST WAY TO CHECK
+    // if current function is null, it means the scope is not generating inside a function (contains top level declarations)
+    // or the current function hasn't been set prior to generating the body of the function
+    if(gen.current_function != nullptr) {
+        gen.di.start_scope(encoded_location());
+        code_gen_no_scope(gen, destruct_begin);
+        gen.di.end_scope();
+    } else {
+#ifdef DEBUG
+        if(destruct_begin != 0) {
+            // this happens when the scope contains top level declarations (top level var init)
+            // or it can also happen when destruct_nodes contain top level variables (to destruct)
+            throw std::runtime_error("cannot destruct nodes while current function does not exist");
+        }
+#endif
+        code_gen_no_scope(gen, destruct_begin);
+    }
 }
 
 void Scope::code_gen(Codegen &gen) {

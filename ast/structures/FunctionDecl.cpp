@@ -178,33 +178,62 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
     }
 }
 
-void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<Scope>& body, FunctionDeclaration* func_type) {
-    if(body.has_value()) {
-        auto prev_func_type = gen.current_func_type;
-        auto prev_func = gen.current_function;
-        gen.current_func_type = func_type;
-        gen.current_function = funcCallee;
-        auto prev_destruct_nodes = std::move(gen.destruct_nodes);
-        const auto destruct_begin = 0;
-        func_type->queue_destruct_params(gen);
-        gen.SetInsertPoint(&funcCallee->getEntryBlock());
-        for(auto& param : func_type->params) {
-            param->code_gen(gen);
-        }
-        // It's very important that we clear the evaluated function calls, before generating body
-        // because different bodies of generic functions must reevaluate comptime functions
-        gen.evaluated_func_calls.clear();
-        body->code_gen(gen, destruct_begin);
-        // TODO send the ending location of the body
-        gen.end_function_block(func_type->body_location());
-        gen.destruct_nodes = std::move(prev_destruct_nodes);
-        gen.current_function = nullptr;
-        gen.current_func_type = prev_func_type;
+void body_gen_no_scope(Codegen &gen, llvm::Function* funcCallee, Scope& body, FunctionDeclaration* func_type) {
+    auto prev_func_type = gen.current_func_type;
+    auto prev_func = gen.current_function;
+    gen.current_func_type = func_type;
+    gen.current_function = funcCallee;
+    auto prev_destruct_nodes = std::move(gen.destruct_nodes);
+    const auto destruct_begin = 0;
+    func_type->queue_destruct_params(gen);
+    gen.SetInsertPoint(&funcCallee->getEntryBlock());
+    for(auto& param : func_type->params) {
+        param->code_gen(gen);
+    }
+    // It's very important that we clear the evaluated function calls, before generating body
+    // because different bodies of generic functions must reevaluate comptime functions
+    gen.evaluated_func_calls.clear();
+    body.code_gen(gen, destruct_begin);
+    // TODO send the ending location of the body
+    gen.end_function_block(func_type->body_location());
+    gen.destruct_nodes = std::move(prev_destruct_nodes);
+    gen.current_function = nullptr;
+    gen.current_func_type = prev_func_type;
+}
+
+inline void body_gen_no_scope(Codegen &gen, FunctionDeclaration* decl, llvm::Function* funcCallee) {
+    if(decl->body.has_value()) {
+        body_gen_no_scope(gen, funcCallee, decl->body.value(), decl);
     }
 }
 
 void body_gen(Codegen &gen, FunctionDeclaration* decl, llvm::Function* funcCallee) {
-    body_gen(gen, funcCallee, decl->body, decl);
+    if(decl->body.has_value()) {
+        // we start a di subprogram as current scope
+        gen.di.start_function_scope(decl, funcCallee);
+        // and then generate the actual body
+        body_gen_no_scope(gen, funcCallee, decl->body.value(), decl);
+        // we end the di subprogram as current scope, that we started above
+        gen.di.end_function_scope();
+    }
+}
+
+void func_body_gen_no_scope(FunctionDeclaration* decl, Codegen& gen) {
+    if(decl->is_comptime()) {
+        return;
+    }
+    if(decl->generic_params.empty()) {
+        body_gen_no_scope(gen, decl, decl->llvm_func());
+    } else {
+        const auto total = decl->total_generic_iterations();
+        while(decl->bodies_gen_index < total) {
+            decl->set_active_iteration(decl->bodies_gen_index);
+            body_gen_no_scope(gen, decl, decl->llvm_func());
+            decl->bodies_gen_index++;
+        }
+        // we set active iteration to -1, so all generics would fail if acessed without setting active iteration
+        decl->set_active_iteration(-1);
+    }
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen) {
@@ -461,6 +490,12 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_f
 
 void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
     llvm_data.clear();
+    if(!is_exported()) {
+        // TODO this should not happen, we should not even include nodes
+        // we should remove the nodes if they are not public, so we never have to call code_gen_external_declare
+        // function wasn't exported
+        return;
+    }
     if(!is_generic()) {
         declare_non_gen_fn(gen, this, runtime_name_fast());
     } else {
@@ -583,7 +618,7 @@ void FunctionDeclaration::setup_cleanup_block(Codegen &gen, llvm::Function* func
         llvm::BasicBlock* cleanup_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
         gen.redirect_return = cleanup_block;
         gen.current_function = nullptr;
-        code_gen_body(gen);
+        func_body_gen_no_scope(this, gen);
         gen.CreateBr(cleanup_block, ASTNode::encoded_location()); // ensure branch to cleanup block
         gen.SetInsertPoint(cleanup_block);
     } else {
@@ -643,6 +678,11 @@ void code_gen_process_members(
 void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
+
+    // start the function scope
+    gen.di.start_function_scope(this, func);
+
+    // copy calls to members
     code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
         const auto decl = mem_def->copy_func();
         if(!decl) {
@@ -660,12 +700,23 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) 
         const auto callInstr = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
         gen.di.instr(callInstr, location);
     });
-    code_gen_body(gen);
+
+    // generate user body
+    func_body_gen_no_scope(this, gen);
+
+    // end the function scope
+    gen.di.end_function_scope();
+
 }
 
 void FunctionDeclaration::code_gen_move_fn(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
+
+    // start the function scope
+    gen.di.start_function_scope(this, func);
+
+    // move calls to members
     code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
         const auto decl = mem_def->pre_move_func();
         if(!decl) {
@@ -683,12 +734,23 @@ void FunctionDeclaration::code_gen_move_fn(Codegen& gen, StructDefinition* def) 
         const auto callInstr = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
         gen.di.instr(callInstr, location);
     });
-    code_gen_body(gen);
+
+    // generate the body
+    func_body_gen_no_scope(this, gen);
+
+    // end the function scope
+    gen.di.end_function_scope();
+
 }
 
 void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
+
+    // start the function scope
+    gen.di.start_function_scope(this, func);
+
+    // clear calls to members
     code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
         const auto decl = mem_def->clear_func();
         if(!decl) {
@@ -696,7 +758,13 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, StructDefinition* def)
         }
         create_call_member_func(gen, decl, def, func, index, false, location);
     });
-    code_gen_body(gen);
+
+    // generate the body
+    func_body_gen_no_scope(this, gen);
+
+    // end the function scope
+    gen.di.end_function_scope();
+
 }
 
 llvm::Value* variant_struct_pointer(
@@ -759,6 +827,11 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def)
 
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
+
+    // start the function scope
+    gen.di.start_function_scope(this, func);
+
+    // get args
     auto allocaInst = func->getArg(0);
     auto otherInst = func->getArg(1);
 
@@ -804,14 +877,24 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def)
     const auto retInstr = gen.builder->CreateRetVoid();
     gen.di.instr(retInstr, body_location());
 
+    // generate the body
     if(body.has_value() && !body->nodes.empty()) {
-        code_gen_body(gen);
+        func_body_gen_no_scope(this, gen);
     }
+
+    // end the function scope
+    gen.di.end_function_scope();
+
 }
 
 void FunctionDeclaration::code_gen_move_fn(Codegen& gen, VariantDefinition* def) {
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
+
+    // start the function scope
+    gen.di.start_function_scope(this, func);
+
+    // get args
     auto allocaInst = func->getArg(0);
     auto otherInst = func->getArg(1);
     // storing the type integer
@@ -856,14 +939,25 @@ void FunctionDeclaration::code_gen_move_fn(Codegen& gen, VariantDefinition* def)
     const auto retInst = gen.builder->CreateRetVoid();
     gen.di.instr(retInst, body_location());
 
+    // generate the body
     if(body.has_value() && !body->nodes.empty()) {
-        code_gen_body(gen);
+        func_body_gen_no_scope(this, gen);
     }
+
+    // end the function scope
+    gen.di.end_function_scope();
+
 }
 
 void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def) {
+
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
+
+    // start the function scope
+    gen.di.start_function_scope(this, func);
+
+    // get args
     auto allocaInst = func->getArg(0);
     // processing members to call copy functions on members
     process_members_calling_fns(gen, def, allocaInst, func, body_location(), [](VariantMember* mem)-> bool {
@@ -892,9 +986,13 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def
     const auto retInst = gen.builder->CreateRetVoid();
     gen.di.instr(retInst, body_location());
 
+    // generate the body
     if(body.has_value() && !body->nodes.empty()) {
-        code_gen_body(gen);
+        func_body_gen_no_scope(this, gen);
     }
+
+    // end the function scope
+    gen.di.end_function_scope();
 
 }
 
@@ -927,9 +1025,17 @@ void initialize_def_struct_values(
 }
 
 void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
+
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
+
+    // start the function scope
+    gen.di.start_function_scope(this, func);
+
+    // initialize default struct values in the constructor
     initialize_def_struct_values(gen, def, this, func);
+
+    // call constructors of members
     code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
         const auto decl = mem_def->default_constructor_func();
         if(!decl) {
@@ -937,16 +1043,30 @@ void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* d
         }
         create_call_member_func(gen, decl, def, func, index, true, location);
     });
+
+    // generate function body
     if(body.has_value() && !body->nodes.empty()) {
-        code_gen_body(gen);
+        func_body_gen_no_scope(this, gen);
     }
+
     // TODO use the ending location
     gen.CreateRet(nullptr, body_location());
+
+    // end the function scope
+    gen.di.end_function_scope();
+
 }
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
+
     auto func = llvm_func();
+
+    // we start a function scope
+    gen.di.start_function_scope(this, func);
+
+    // sets up the cleanup along with generating the body user provided
     setup_cleanup_block(gen, func);
+
     code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
         const auto decl = mem_def->destructor_func();
         if(!decl) {
@@ -954,14 +1074,25 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* de
         }
         create_call_member_func(gen, decl, def, func, index, false, location);
     });
+
     // TODO use the ending location
     gen.CreateRet(nullptr, body_location());
+
+    // end the function scope we started
+    gen.di.end_function_scope();
+
     gen.redirect_return = nullptr;
 }
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* def) {
     auto func = llvm_func();
+
+    // start the function scope
+    gen.di.start_function_scope(this, func);
+
+    // sets up the cleanup along with generating the body user provided
     setup_cleanup_block(gen, func);
+
     // every destructor has self at zero
     auto allocaInst = func->getArg(0);
     process_members_calling_fns(gen, def, allocaInst, func, body_location(), [](VariantMember* mem) -> bool {
@@ -986,8 +1117,13 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
             i++;
         }
     });
+
     // TODO use the ending location
     gen.CreateRet(nullptr, body_location());
+
+    // end the function scope we started
+    gen.di.end_function_scope();
+
     gen.redirect_return = nullptr;
 }
 

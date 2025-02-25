@@ -4,6 +4,7 @@
 
 #include <utility>
 
+#include "compiler/llvmfwd.h"
 #include "ast/structures/Scope.h"
 #include "ASTProcessorOptions.h"
 #include "ASTDiag.h"
@@ -83,6 +84,11 @@ struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
      * the parsed unit
      */
     ASTUnit unit;
+
+    /**
+     * the compile unit
+     */
+    llvm::DICompileUnit* diCompileUnit;
 
     /**
      * the imported files by this file, these files don't contain duplicates

@@ -7,6 +7,7 @@
 #include "std/chem_string_view.h"
 #include "integration/common/Position.h"
 #include "cst/SourceLocation.h"
+#include <vector>
 
 class LocationManager;
 
@@ -46,20 +47,15 @@ public:
     Codegen& gen;
 
     /**
+     * the scopes
+     */
+    std::vector<llvm::DIScope*> diScopes;
+
+    /**
      * the compile unit is the unit associated with current file
      * created via call to createDiCompileUnit
      */
     llvm::DICompileUnit* diCompileUnit = nullptr;
-
-    /**
-     * the di scope
-     */
-    llvm::DIScope* diScope = nullptr;
-
-    /**
-     * the di file
-     */
-    llvm::DIFile* diFile = nullptr;
 
     /**
      * create a info visitor for a single module
@@ -73,7 +69,7 @@ public:
     /**
      * a compile unit is created for every file
      */
-    void createDiCompileUnit(const chem::string_view& file_abs_path);
+    llvm::DICompileUnit* createDiCompileUnit(const chem::string_view& file_abs_path);
 
     /**
      * this function should be called every time module changes
@@ -85,10 +81,6 @@ public:
      */
     void finalize();
 
-    //-------------------------------------------
-    //       these are useful methods
-    //-------------------------------------------
-
     /**
      * get a pointer to di location
      */
@@ -96,15 +88,7 @@ public:
 
 protected:
 
-    // -------------------------------------------
-    //       the info methods
-    //  every info method has an implementation
-    //  to add debug info for the given node
-    // --------------------------------------------
-
-    void instr(llvm::Instruction* inst, const Position& position);
-
-    void info(FunctionType *decl, llvm::Function* func);
+    llvm::DIScope* create(FunctionType *decl, llvm::Function* func);
 
     void info(VarInitStatement *init, llvm::AllocaInst* allocaInst);
 
@@ -112,8 +96,20 @@ protected:
 
 public:
 
+    /**
+     * this sets the debug location for a given instruction
+     */
+    void instr(llvm::Instruction* inst, const Position& position);
+
+    /**
+     * this sets the debug location for a given instruction
+     */
     void instr(llvm::Instruction* inst, SourceLocation location);
 
+    /**
+     * this is just a helper method for nodes, values and types that have encoded locations
+     * for which instructions are generated
+     */
     template <typename NodeT>
     inline void instr(llvm::Instruction* inst, NodeT* node)
     requires requires(NodeT n) { n.encoded_location(); }
@@ -121,22 +117,45 @@ public:
         instr(inst, node->encoded_location());
     }
 
-    // -------------------------------------------
-    //       the add methods
-    // they just call the info methods above
-    // unless the debug info visitor is disabled
-    // -------------------------------------------
+    /**
+     * when you start the di compile unit, you must end the compile unit as well
+     * use the end_current_scope to end the compile unit
+     */
+    void start_di_compile_unit(llvm::DICompileUnit* unit);
 
-    inline void create(FunctionType *decl, llvm::Function* func) {
-        if(isEnabled) {
-            info(decl, func);
-        }
-    }
+    /**
+     * this ends the current di compile unit
+     */
+    void end_di_compile_unit();
 
+    /**
+     * this creates the function scope and starts it, so further code generation uses the function scope
+     * after calling this, a call to end_current_scope must be made
+     */
+    void start_function_scope(FunctionType *decl, llvm::Function* func);
+
+    /**
+     * this ends the current function scope
+     */
+    void end_function_scope();
+
+    /**
+     * start a lexical code block, a end_current_scope call is expected after this
+     */
+    void start_scope(SourceLocation location);
+
+    /**
+     * this ends a local scope
+     */
+    void end_scope();
+
+    /**
+     * when a function needs to be declared (has no body, just a prototype)
+     */
     inline void declare(FunctionType *decl, llvm::Function* func) {
         if(isEnabled) {
             // there was no debug information associated with a declared function for a c compiled file
-            // So currently we're not doing anything here
+            // therefore currently we're not doing anything here
         }
     }
 

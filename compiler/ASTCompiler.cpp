@@ -16,8 +16,6 @@ void ASTProcessor::code_gen_declare(
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    // create a di compile unit
-    gen.di.createDiCompileUnit(chem::string_view(abs_path.data(), abs_path.size()));
     gen.declare_nodes(nodes_vec);
     if(options->benchmark) {
         bm_results->benchmark_end();
@@ -85,7 +83,6 @@ void ASTProcessor::external_declare_nodes(
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    gen.di.createDiCompileUnit(chem::string_view(abs_path.data(), abs_path.size()));
     gen.external_declare_nodes(nodes_vec);
     if(options->benchmark) {
         bm_results->benchmark_end();
@@ -130,10 +127,38 @@ int ASTProcessor::compile_module(
             return 1;
         }
 
+        auto& abs_path = file.abs_path;
+
         auto declared_in = unit.declared_in.find(module);
         if(declared_in == unit.declared_in.end()) {
+
             // this is probably a different module, so we'll declare the file (if not declared)
-            external_declare_nodes(gen, unit.scope, file.abs_path);
+            if(gen.di.isEnabled) {
+
+                // we create the file di compile unit again
+                // that's because every module has a single di builder
+                // when the module completes it dies along with compile units
+                // so we create it again
+                const auto abs_path_view = chem::string_view(abs_path.data(), abs_path.size());
+                const auto fileDiCompileUnit = gen.di.createDiCompileUnit(abs_path_view);
+                file.diCompileUnit = fileDiCompileUnit;
+
+                // start the di compile unit
+                gen.di.start_di_compile_unit(fileDiCompileUnit);
+
+                // declare external nodes
+                external_declare_nodes(gen, unit.scope, file.abs_path);
+
+                // end the di compile unit scope
+                gen.di.end_di_compile_unit();
+
+            } else {
+
+                // declare external nodes
+                external_declare_nodes(gen, unit.scope, file.abs_path);
+
+            }
+
             unit.declared_in[module] = true;
         }
 
@@ -180,8 +205,32 @@ int ASTProcessor::compile_module(
             return 1;
         }
 
-        // compiling the nodes
-        code_gen_declare(gen, unit.scope.nodes, file.abs_path);
+        auto& abs_path = file.abs_path;
+
+        if(gen.di.isEnabled) {
+
+            // create  di compile unit and attach it to the file
+            const auto abs_path_view = chem::string_view(abs_path.data(), abs_path.size());
+            const auto fileDiCompileUnit = gen.di.createDiCompileUnit(abs_path_view);
+
+            // attach the unit to file
+            file.diCompileUnit = fileDiCompileUnit;
+
+            // start the unit
+            gen.di.start_di_compile_unit(fileDiCompileUnit);
+
+            // compiling the nodes
+            code_gen_declare(gen, unit.scope.nodes, abs_path);
+
+            // end the current unit
+            gen.di.end_di_compile_unit();
+
+        } else {
+
+            // compiling the nodes
+            code_gen_declare(gen, unit.scope.nodes, abs_path);
+
+        }
 
         // clear everything we allocated using file allocator to make it re-usable
         safe_clear_file_allocator();
@@ -201,8 +250,25 @@ int ASTProcessor::compile_module(
         }
 
         ASTUnit& unit = file.unit;
-        // compiling the nodes
-        code_gen_compile(gen, unit.scope.nodes, file.abs_path);
+
+        if(gen.di.isEnabled) {
+
+            // start the unit
+            gen.di.start_di_compile_unit(file.diCompileUnit);
+
+            // compiling the nodes
+            code_gen_compile(gen, unit.scope.nodes, file.abs_path);
+
+            // end the current unit
+            gen.di.end_di_compile_unit();
+
+        } else {
+
+            // compiling the nodes
+            code_gen_compile(gen, unit.scope.nodes, file.abs_path);
+
+        }
+
         // save the file result, for future retrievals
         shrinked_unit[file.abs_path] = std::move(result.unit);
 

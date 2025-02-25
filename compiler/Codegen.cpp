@@ -151,21 +151,21 @@ llvm::Function::LinkageTypes to_linkage_type(AccessSpecifier specifier) {
 }
 
 // a helper to create a function which has a definition
-llvm::Function* create_defined_func(
-        Codegen& gen,
+inline llvm::Function* create_func(
+        llvm::Module* module,
         const std::string_view &name,
         llvm::FunctionType *type,
-        FunctionType* func_type,
         llvm::Function::LinkageTypes linkage
 ) {
-    auto fn = llvm::Function::Create(type, linkage, name, *gen.module);
+    auto fn = llvm::Function::Create(type, linkage, name, *module);
     fn->setDSOLocal(true);
-    gen.di.create(func_type, fn);
     return fn;
 }
 
 llvm::Function *Codegen::create_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
-    current_function = create_defined_func(*this, name, type, func_type, to_linkage_type(specifier));
+    const auto fn = llvm::Function::Create(type, to_linkage_type(specifier), name, *module);
+    fn->setDSOLocal(true);
+    current_function = fn;
     createFunctionBlock(current_function);
     return current_function;
 }
@@ -180,14 +180,19 @@ llvm::Function *Codegen::create_nested_function(const std::string_view &name, ll
 
     destroy_current_scope = true;
     SetInsertPoint(nullptr);
-    auto nested_function = create_defined_func(*this, name, type, func_type, llvm::Function::PrivateLinkage);
+    auto nested_function = create_func(module.get(), name, type, llvm::Function::PrivateLinkage);
     current_function = nested_function;
     const auto destruct_begin = destruct_nodes.size();
+    // this begins the function scope by creating a di subprogram
+    di.start_function_scope(func_type, nested_function);
+    // this will queue the destruction of parameters that have been moved into the function
     func_type->queue_destruct_params(*this);
     createFunctionBlock(nested_function);
+    // this will emit without creating a scope, so direct instructions use the function di subprogram as parent scope
     scope.code_gen(*this, destruct_begin);
     end_function_block(scope.encoded_location());
-
+    // this will end the function scope we started by creating a di subprogram above
+    di.end_function_scope();
     has_current_block_ended = prev_block_ended;
     SetInsertPoint(prev_block);
     current_function = prev_current_func;
@@ -215,6 +220,9 @@ llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llv
     fn->setDSOLocal(true);
     // if there's no implementation, a stub implementation is required, so if a strong implementation exists it can override it later
 //    if(!is_exported) {
+        // this will create a di subprogram and set it as current scope
+        di.start_function_scope(func_type, fn);
+        di.start_scope(location);
         // what happens is an error when there's not a single implementation for an interface
         // because on windows, it requires a stub implementation
         createFunctionBlock(fn);
@@ -233,7 +241,9 @@ llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llv
             // For other return types (e.g. structs), return an undefined value.
             CreateRet(llvm::UndefValue::get(retType), location);
         }
-        di.create(func_type, fn);
+        // this will end the di subprogram
+        di.end_scope();
+        di.end_function_scope();
 //    }
     return fn;
 }

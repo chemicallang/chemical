@@ -522,6 +522,7 @@ void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, co
     result.file_id = fileId;
     result.scope_index = -1;
     result.continue_processing = true;
+    result.diCompileUnit = nullptr;
 
     import_chemical_file(result, fileId, abs_path);
 

@@ -553,29 +553,29 @@ Value* CTranslator::make_expr(clang::Expr* expr) {
     return nullptr;
 }
 
+AccessSpecifier to_specifier(clang::Linkage linkage) {
+    switch(linkage) {
+        case clang::NoLinkage:
+        case clang::VisibleNoLinkage:
+            return AccessSpecifier::Private;
+        case clang::ModuleLinkage:
+        case clang::InternalLinkage:
+            return AccessSpecifier::Internal;
+        case clang::ExternalLinkage:
+        case clang::UniqueExternalLinkage:
+        default:
+            return AccessSpecifier::Public;
+    }
+}
+
 VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     auto type = decl->getType();
     auto made_type = make_type(&type);
     if(!made_type) {
         return nullptr;
     }
-    AccessSpecifier specifier;
     auto info = decl->getLinkageAndVisibility();
-    switch(info.getLinkage()) {
-        case clang::NoLinkage:
-        case clang::VisibleNoLinkage:
-            specifier = AccessSpecifier::Private;
-            break;
-        case clang::ModuleLinkage:
-        case clang::InternalLinkage:
-            specifier = AccessSpecifier::Internal;
-            specifier = AccessSpecifier::Internal;
-            break;
-        case clang::ExternalLinkage:
-        case clang::UniqueExternalLinkage:
-            specifier = AccessSpecifier::Public;
-            break;
-    }
+    const auto specifier = to_specifier(info.getLinkage());
     const auto initializer = decl->getInit();
     auto initial_value = initializer ? (Value*) make_expr(initializer) : nullptr;
     return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, ZERO_LOC_ID(allocator, decl->getName()), made_type, initial_value, parent_node, ZERO_LOC, specifier);
@@ -586,6 +586,8 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
     if(func_decl->getName().starts_with("__")) {
         return nullptr;
     }
+    auto info = func_decl->getLinkageAndVisibility();
+    const auto specifier = to_specifier(info.getLinkage());
     // Check if the declaration is for the printf function
     // Extract function parameters
     std::vector<FunctionParam*> params;
@@ -628,7 +630,8 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
             func_decl->isVariadic(),
             parent_node,
             ZERO_LOC,
-            std::nullopt
+            std::nullopt,
+            specifier
     );
     decl->assign_params();
     return decl;

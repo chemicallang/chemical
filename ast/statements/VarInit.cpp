@@ -55,6 +55,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
             return;
         }
         code_gen_global_var(gen, true);
+        return;
     } else {
         if (value) {
             if(is_const() && !value->as_struct_value() && !value->as_array_value()) {
@@ -114,8 +115,8 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 gen.di.instr(storeInst, encoded_location());
             }
         }
+        gen.destruct_nodes.emplace_back(this);
     }
-    gen.destruct_nodes.emplace_back(this);
 }
 
 void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {

@@ -188,7 +188,7 @@ llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
     }
 }
 
-llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
+llvm::Value* VariantCaseVariable::llvm_pointer_no_itr(Codegen& gen) {
     const auto holder_pointer = switch_statement->expression->llvm_pointer(gen);
     const auto linked_member = parent_val->linked_node()->as_variant_member();
     const auto linked_def = linked_member->parent_node;
@@ -203,8 +203,22 @@ llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
     return gen.builder->CreateGEP(container_type, holder_pointer, idxList, "", gen.inbounds);
 }
 
+llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
+    const auto expr = switch_statement->expression;
+    const auto expr_type = expr->create_type(gen.allocator);
+    const auto prev_itr = expr_type->set_generic_iteration(expr_type->get_generic_iteration());
+    const auto ptr = llvm_pointer_no_itr(gen);
+    expr_type->set_generic_iteration(prev_itr);
+    return ptr;
+}
+
 llvm::Value* VariantCaseVariable::llvm_load(Codegen &gen) {
-    return Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer(gen), encoded_location());
+    const auto expr = switch_statement->expression;
+    const auto expr_type = expr->create_type(gen.allocator);
+    const auto prev_itr = expr_type->set_generic_iteration(expr_type->get_generic_iteration());
+    const auto value = Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer_no_itr(gen), encoded_location());
+    expr_type->set_generic_iteration(prev_itr);
+    return value;
 }
 
 llvm::Type* VariantCaseVariable::llvm_type(Codegen &gen) {
@@ -543,7 +557,12 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& nod
 //}
 
 BaseType* VariantCaseVariable::create_value_type(ASTAllocator& allocator) {
-    return member_param->type->copy(allocator);
+    const auto expr = switch_statement->expression;
+    const auto expr_type = expr->create_type(allocator);
+    const auto prev_itr = expr_type->set_generic_iteration(expr_type->get_generic_iteration());
+    const auto copied_type = member_param->type->copy(allocator)->pure_type(allocator);
+    expr_type->set_generic_iteration(prev_itr);
+    return copied_type;
 }
 
 BaseType* VariantCaseVariable::known_type() {

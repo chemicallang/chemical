@@ -60,8 +60,14 @@ void ASTProcessor::declare_and_compile(
         bm_results->benchmark_begin();
     }
     // create a di compile unit
-    gen.di.createDiCompileUnit(chem::string_view(abs_path.data(), abs_path.size()));
-    gen.declare_and_compile(nodes_vec);
+    if(gen.di.isEnabled) {
+        const auto compileUnit = gen.di.createDiCompileUnit(chem::string_view(abs_path.data(), abs_path.size()));
+        gen.di.start_di_compile_unit(compileUnit);
+        gen.declare_and_compile(nodes_vec);
+        gen.di.end_di_compile_unit();
+    } else {
+        gen.declare_and_compile(nodes_vec);
+    }
     if(options->benchmark) {
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "Compile", bm_results.get());

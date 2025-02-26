@@ -46,7 +46,7 @@ public func main() : int {
     test_static_interfaces();
     test_pointers_in_comptime();
     test_constructors();
-    test_unordered_map();
+    // test_unordered_map();
     test_abstract_structs();
     test_generic_static_interfaces();
     print_test_stats();

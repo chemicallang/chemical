@@ -50,6 +50,13 @@ func gen_asm(ctx : *BuildContext, exe_name : *string, module : *mut Module) {
     printf("module : %s, asm : %s\n", module.name.data(), module.asm_path.data());
 }
 
+func gen_bc(ctx : *BuildContext, exe_name : *string, module : *mut Module) {
+    module.bitcode_path = exe_dir_path(ctx, exe_name)
+    module.bitcode_path.append_str(&module.name);
+    module.bitcode_path.append_char_ptr("/mod_bitcode.bc")
+    printf("module : %s, bitcode : %s\n", module.name.data(), module.bitcode_path.data());
+}
+
 func gen_c(ctx : *BuildContext, exe_name : *string, module : *mut Module) {
     const path = exe_dir_path(ctx, exe_name)
     path.append_str(&module.name);
@@ -127,7 +134,8 @@ func build(ctx : *mut BuildContext) {
     // ctx.build_cbi(&cbi_name, entry_mod, { entry_mod });
 
     const do_llvm_ir = true;
-    const do_asm = true;
+    const do_asm = false;
+    const do_bc = true;
     const do_to_ch = !is_minimal && compiler::is_clang();
 
     const do_c = !compiler::is_clang();
@@ -143,9 +151,15 @@ func build(ctx : *mut BuildContext) {
     if(do_asm) {
         // TODO asm generation is failing because of error in the submod
         //     error: <unknown>:0: symbol 'extern_imported_sum' is already defined
-        // gen_asm(ctx, &exe_name, submod)
-        // gen_asm(ctx, &exe_name, std_module);
-        // gen_asm(ctx, &exe_name, module);
+        gen_asm(ctx, &exe_name, submod)
+        gen_asm(ctx, &exe_name, std_module);
+        gen_asm(ctx, &exe_name, module);
+    }
+
+    if(do_bc) {
+        gen_bc(ctx, &exe_name, submod)
+        gen_bc(ctx, &exe_name, std_module);
+        gen_bc(ctx, &exe_name, module);
     }
 
     if(do_to_ch) {

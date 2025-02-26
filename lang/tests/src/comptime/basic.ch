@@ -117,6 +117,7 @@ func sum_multiple(x : int) : int {
     return compiler::wrap(runtime_sum(x * 2, x * 2));
 }
 
+// TODO should this be allowed
 func ret_struct_boi() : Pair66 {
     const p = compiler::return_struct() as *mut Pair66
     p.a = 343

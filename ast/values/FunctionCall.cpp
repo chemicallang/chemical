@@ -202,6 +202,9 @@ llvm::Value* arg_value(
                         argValue = gen.builder->CreateSExt(argValue, paramIntType);
                     }
                 }
+                else if(argIntType->getBitWidth() > paramIntType->getBitWidth()) {
+                     argValue = gen.builder->CreateTrunc(argValue, paramIntType);
+                }
             }
         }
 

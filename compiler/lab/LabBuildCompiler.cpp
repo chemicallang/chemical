@@ -777,9 +777,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
             // which files to emit
             if(!mod->llvm_ir_path.empty()) {
-                emitter_options.ir_path = mod->llvm_ir_path.data();
                 if(options->debug_ir) {
                     gen.save_to_ll_file_for_debugging(mod->llvm_ir_path.data());
+                } else {
+                    emitter_options.ir_path = mod->llvm_ir_path.data();
                 }
             }
             if(!mod->asm_path.empty()) {
@@ -792,10 +793,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 emitter_options.obj_path = mod->object_path.data();
             }
 
+            const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
+            if(options->verbose) {
+                std::cout << "[Compiler] emitting the module '" << mod->name <<  "' object file at path '" << gen_path << '\'' << std::endl;
+            }
+
             // creating a object or bitcode file
             const bool save_result = gen.save_with_options(&emitter_options);
             if(save_result) {
-                const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
                 if(gen_path) {
                     exe->linkables.emplace_back(gen_path);
                     generated[mod] = gen_path;
@@ -857,13 +862,22 @@ int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::stri
         flags.emplace_back("-no-pie");
     }
 #endif
-    if(options->verbose) {
-        flags.emplace_back("-v");
-    }
     if(is_debug(options->outMode)) {
         flags.emplace_back("-g");
         // TODO so on windows -gdward-4 is being used as .pdb and .ilk are being generated which aren't supported by gdb
 //        flags.emplace_back("-gdwarf-4");
+    }
+    if(options->verbose) {
+        std::cout << "[Compiler] linking objects ";
+        for(auto& obj : linkables) {
+            std::cout << '\'' << obj.to_view() << '\'' << ' ';
+        }
+        std::cout << "with flags ";
+        for(auto& str : flags) {
+            std::cout << '\'' << str << '\'' << ' ';
+        }
+        std::cout << std::endl;
+        flags.emplace_back("-v");
     }
     return link_objects(options->exe_path, linkables, output_path, flags, options->target_triple);
 }

@@ -66,9 +66,9 @@ public:
     std::unordered_map<ASTAny*, llvm::DIType*> cachedTypes;
 
     /**
-     * this contains replaceable composite types, that will be replaced once formed
+     * these are only created when self referential data types are used
      */
-    std::unordered_map<ASTNode*, llvm::DICompositeType*> replaceableTypes;
+    std::vector<std::pair<ASTNode*, llvm::DICompositeType*>> replaceAbleTypes;
 
     /**
      * create a info visitor for a single module
@@ -112,10 +112,6 @@ public:
 protected:
 
     llvm::DIScope* create(FunctionType *decl, llvm::Function* func);
-
-    void info(VarInitStatement *init, llvm::AllocaInst* allocaInst);
-
-    void info(FunctionCall* call, llvm::CallInst* callInst);
 
 public:
 
@@ -187,10 +183,9 @@ public:
         }
     }
 
-    inline void add(VarInitStatement *init, llvm::AllocaInst* inst) {
-        if(isEnabled) {
-            info(init, inst);
-        }
-    }
+    /**
+     * should be called when a var init is declared
+     */
+    void declare(VarInitStatement *init, llvm::Value* allocaInst);
 
 };

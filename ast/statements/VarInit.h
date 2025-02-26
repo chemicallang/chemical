@@ -262,8 +262,16 @@ public:
         stream << id_view();
     }
 
+    inline std::string runtime_name_str() {
+        return parent_node ? ASTNode::runtime_name_str() : name_str();
+    }
+
+    /**
+     * @deprecated
+     */
+    [[deprecated]]
     inline std::string runtime_name_fast() {
-        return parent_node ? runtime_name_str() : name_str();
+        return runtime_name_str();
     }
 
     ASTNode *child(const chem::string_view &name) final;

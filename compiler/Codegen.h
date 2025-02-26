@@ -389,14 +389,7 @@ public:
     /**
      * sets up the module for the given target
      */
-    llvm::TargetMachine *setup_for_target(const std::string &TargetTriple);
-
-    /**
-     * automatically sets up for the current target triple
-     */
-    inline llvm::TargetMachine *setup_for_target() {
-        return setup_for_target(target_triple);
-    }
+    llvm::TargetMachine *setup_for_target(const std::string &TargetTriple, bool isDebug);
 
     /**
      * options will be used to save to files

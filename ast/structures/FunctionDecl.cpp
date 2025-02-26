@@ -322,11 +322,6 @@ void FunctionDeclaration::llvm_attributes(llvm::Function* func) {
     }
 }
 
-void llvm_func_def_attr(llvm::Function* func) {
-//    func->addFnAttr(llvm::Attribute::UWTable); // this causes error
-    func->addFnAttr(llvm::Attribute::NoUnwind);
-}
-
 void FunctionDeclaration::set_llvm_data(llvm::Function* func) {
 #ifdef DEBUG
     if(active_iteration > (int) llvm_data.size()) {
@@ -357,7 +352,6 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
 #endif
     auto func_type = decl->create_llvm_func_type(gen);
     auto func = gen.create_function(name, func_type, decl, decl->specifier());
-    llvm_func_def_attr(func);
     decl->llvm_attributes(func);
     decl->set_llvm_data(func);
 }

@@ -63,7 +63,11 @@ DebugInfoBuilder::DebugInfoBuilder(
     const auto is_d = is_debug(m);
     isOptimized = !is_d;
     isEnabled = is_d && m != OutputMode::DebugQuick;
-    diScopes.reserve(20);
+    if(isEnabled) {
+        diScopes.reserve(20);
+        cachedTypes.reserve(60);
+        replaceableTypes.reserve(20);
+    }
 }
 
 void DebugInfoBuilder::update_builder(llvm::DIBuilder* new_builder) {
@@ -109,10 +113,6 @@ void DebugInfoBuilder::end_di_compile_unit() {
     }
 }
 
-void DebugInfoBuilder::finalize() {
-    builder->finalize();
-}
-
 llvm::DILocation* DebugInfoBuilder::di_loc(const Position& position) {
 #ifdef DEBUG
     if(diScopes.empty()) {
@@ -122,7 +122,33 @@ llvm::DILocation* DebugInfoBuilder::di_loc(const Position& position) {
     return llvm::DILocation::get(*gen.ctx, position.line + 1, position.character + 1, diScopes.back());
 }
 
-llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type) {
+llvm::DIType* get_cached_type(DebugInfoBuilder& di, ASTNode* node) {
+    // checking if the type exists in ptr cache
+    const auto cacheTy = di.cachedTypes.find(node);
+    if(cacheTy != di.cachedTypes.end()) {
+        return cacheTy->second;
+    } else {
+        return nullptr;
+    }
+}
+
+llvm::DIType* to_di_type(DebugInfoBuilder& di, ASTNode* node, bool replaceable) {
+    switch(node->kind()) {
+        case ASTNodeKind::StructDecl: {
+            const auto def = node->as_struct_def_unsafe();
+            const auto cached_type = get_cached_type(di, node);
+            if(cached_type) {
+                return cached_type;
+            }
+            return replaceable ? di.create_replaceable_type(def) : di.create_struct_type(def);
+        }
+        default:
+            const auto locId = node->get_located_id();
+            return di.builder->createUnspecifiedType(locId ? to_ref(locId->identifier) : "UNSPECIFIED");
+    }
+}
+
+llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type, bool replaceable) {
     switch(type->kind()) {
         case BaseTypeKind::IntN: {
             const auto intNType = type->as_intn_type_unsafe();
@@ -160,18 +186,115 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type) {
             return di.builder->createBasicType("double", 64, llvm::dwarf::DW_ATE_decimal_float);
         case BaseTypeKind::Pointer: {
             const auto ptrType = type->as_pointer_type_unsafe();
-            const auto pointee = to_di_type(di, ptrType->type);
+            const auto pointee = to_di_type(di, ptrType->type, replaceable);
             return di.builder->createPointerType(pointee, 64);
         }
         case BaseTypeKind::Reference: {
             const auto ptrType = type->as_reference_type_unsafe();
-            const auto pointee = to_di_type(di, ptrType->type);
-            return di.builder->createReferenceType(0, pointee, 64);
+            const auto pointee = to_di_type(di, ptrType->type, replaceable);
+            return di.builder->createReferenceType(llvm::dwarf::DW_TAG_reference_type, pointee, 64);
         }
-        // TODO handle more types
+        case BaseTypeKind::Linked: {
+            const auto linkedType = type->as_linked_type_unsafe();
+            return to_di_type(di, linkedType->linked, replaceable);
+        }
         default:
-            return nullptr;
+            return di.builder->createUnspecifiedType(type->representation());
     }
+}
+
+void finalizeReplaceableType(DebugInfoBuilder& di) {
+    for(auto& rep : di.replaceableTypes) {
+        const auto finalizedType = to_di_type(di, rep.first, false);
+        rep.second->replaceAllUsesWith(finalizedType);
+    }
+}
+
+void DebugInfoBuilder::finalize() {
+    finalizeReplaceableType(*this);
+    replaceableTypes.clear();
+    cachedTypes.clear();
+    diScopes.clear();
+    builder->finalize();
+}
+
+
+llvm::DICompositeType* DebugInfoBuilder::create_replaceable_type(StructDefinition* def) {
+    const auto loc = loc_node(this, def->encoded_location());
+    auto& pos = loc.start;
+    const auto replaceAble = builder->createReplaceableCompositeType(
+            llvm::dwarf::DW_TAG_structure_type,
+            to_ref(def->name_view()),
+            diCompileUnit,
+            diCompileUnit->getFile(),
+            pos.line
+    );
+    replaceableTypes[def] = replaceAble;
+    return replaceAble;
+}
+
+// Helper to align an offset (in bits) to the given alignment (in bits).
+static inline uint64_t alignTo(uint64_t offset, uint64_t alignment) {
+    return ((offset + alignment - 1) / alignment) * alignment;
+}
+
+llvm::DICompositeType* DebugInfoBuilder::create_struct_type(StructDefinition* def) {
+
+    // creating the actual type
+    auto& dataLayout = gen.module->getDataLayout();
+    const auto loc = loc_node(this, def->encoded_location());
+    auto& pos = loc.start;
+    const auto llvm_type = def->llvm_type(gen);
+    const auto alignmentInBits = dataLayout.getABITypeAlign(llvm_type).value() * 8;
+    std::vector<llvm::Metadata*> structEles;
+    uint64_t varOffset = 0;
+    for(auto& var : def->variables) {
+        const auto var_loc = loc_node(this, var.second->encoded_location());
+        const auto var_ll_type = var.second->llvm_type(gen);
+        const auto var_bit_size = var_ll_type->getScalarSizeInBits();
+        // Get the ABI alignment in bytes and convert to bits.
+        const auto var_bit_align = dataLayout.getABITypeAlign(var_ll_type).value() * 8;
+        const auto mem_di_type = to_di_type(*this, var.second->create_value_type(gen.allocator), true);
+        // Align the current offset to the required alignment.
+        varOffset = alignTo(varOffset, var_bit_align);
+        const auto mem_type = builder->createMemberType(
+                diCompileUnit,
+                to_ref(var.first),
+                diCompileUnit->getFile(),
+                var_loc.start.line,
+                var_bit_size,
+                var_bit_align,
+                varOffset,
+                llvm::DINode::DIFlags::FlagZero,
+                mem_di_type
+        );
+        structEles.emplace_back(mem_type);
+    }
+    const auto diNodeArr = builder->getOrCreateArray(structEles);
+    const auto structType = builder->createStructType(
+            diCompileUnit,
+            to_ref(def->name_view()),
+            diCompileUnit->getFile(),
+            pos.line, llvm_type->getScalarSizeInBits(),
+            alignmentInBits,
+            llvm::DINode::DIFlags::FlagZero,
+            nullptr,
+            diNodeArr
+    );
+
+    // replace any replaceable types for this definition, that may have been formed
+    // if a pointer exists to definition inside the struct (self referential) we create a replaceable type
+    // then we replace all usages of that replaceable type once we create complete struct type
+    auto replaceAbleType = replaceableTypes.find(def);
+    if(replaceAbleType != replaceableTypes.end()) {
+        replaceAbleType->second->replaceAllUsesWith(structType);
+        replaceableTypes.erase(replaceAbleType);
+    }
+
+    // save this type in cache
+    cachedTypes[def] = structType;
+
+    return structType;
 }
 
 void DebugInfoBuilder::instr(llvm::Instruction* inst, const Position& position) {
@@ -200,6 +323,15 @@ llvm::DIScope* DebugInfoBuilder::create(FunctionType *decl, llvm::Function* func
         throw std::runtime_error("expected a compile unit scope to be present, when starting a function scope");
     }
 #endif
+    std::vector<llvm::Metadata*> mds;
+    for(const auto param : decl->params) {
+        const auto diParam = to_di_type(*this, param->type, false);
+        if(diParam) {
+            mds.emplace_back(diParam);
+        }
+    }
+    const auto typeArray = builder->getOrCreateTypeArray(mds);
+    const auto subroutineType = builder->createSubroutineType(typeArray);
     // currently all functions go into the di compile unit scope (we don't know if it's right)
     // however saving the ll file fails if we use any other scope
     llvm::DISubprogram *SP = builder->createFunction(
@@ -208,7 +340,7 @@ llvm::DIScope* DebugInfoBuilder::create(FunctionType *decl, llvm::Function* func
             func->getName(),  // Linkage name
             diCompileUnit->getFile(),
             location.start.line + 1,    // Line number of the function
-            builder->createSubroutineType(builder->getOrCreateTypeArray({})),
+            subroutineType,
             location.start.character,
             llvm::DINode::FlagFwdDecl,
             llvm::DISubprogram::SPFlagDefinition
@@ -234,6 +366,16 @@ void DebugInfoBuilder::start_function_scope(FunctionType *decl, llvm::Function* 
 void DebugInfoBuilder::end_function_scope() {
     if(!isEnabled) {
         return;
+    }
+    const auto last_scope = diScopes.back();
+    if (llvm::isa<llvm::DISubprogram>(last_scope)) {
+        // scope is a DISubprogram
+        auto *subprogram = llvm::cast<llvm::DISubprogram>(last_scope);
+        builder->finalizeSubprogram(subprogram);
+    } else {
+#ifdef DEBUG
+        throw std::runtime_error("ending function scope is not a subprogram");
+#endif
     }
     diScopes.pop_back();
 }
@@ -267,7 +409,7 @@ void DebugInfoBuilder::info(VarInitStatement *init, llvm::AllocaInst* inst) {
             to_ref(init->name_view()),
             diCompileUnit->getFile(),
             location.start.line + 1,
-            to_di_type(*this, init->create_value_type(gen.allocator))
+            to_di_type(*this, init->create_value_type(gen.allocator), false)
     );
     builder->insertDeclare(
             init->llvm_ptr,                                         // Variable allocation

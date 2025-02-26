@@ -33,5 +33,7 @@ namespace llvm {
     class DIFile;
     class DIBuilder;
     class DILocation;
+    class DIType;
+    class DICompositeType;
 
 }

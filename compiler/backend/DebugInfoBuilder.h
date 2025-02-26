@@ -8,8 +8,11 @@
 #include "integration/common/Position.h"
 #include "cst/SourceLocation.h"
 #include <vector>
+#include <unordered_map>
 
 class LocationManager;
+
+class ASTAny;
 
 class Codegen;
 
@@ -58,6 +61,16 @@ public:
     llvm::DICompileUnit* diCompileUnit = nullptr;
 
     /**
+     * we store pointers in this case
+     */
+    std::unordered_map<ASTAny*, llvm::DIType*> cachedTypes;
+
+    /**
+     * this contains replaceable composite types, that will be replaced once formed
+     */
+    std::unordered_map<ASTNode*, llvm::DICompositeType*> replaceableTypes;
+
+    /**
      * create a info visitor for a single module
      */
     DebugInfoBuilder(
@@ -65,6 +78,16 @@ public:
             llvm::DIBuilder* builder,
             Codegen& gen
     );
+
+    /**
+     * struct type will be created
+     */
+    llvm::DICompositeType* create_struct_type(StructDefinition* def);
+
+    /**
+     * creates replaceable composite type
+     */
+    llvm::DICompositeType* create_replaceable_type(StructDefinition* def);
 
     /**
      * a compile unit is created for every file

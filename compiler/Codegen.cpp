@@ -151,7 +151,7 @@ llvm::Function::LinkageTypes to_linkage_type(AccessSpecifier specifier) {
 }
 
 /**
- * all functions MUST be created through this
+ * all functions must be created through this
  */
 llvm::Function* create_func(
         Codegen& gen,

@@ -189,7 +189,9 @@ void DebugInfoBuilder::instr(llvm::Instruction* inst, SourceLocation source_loc)
 
 llvm::DIScope* DebugInfoBuilder::create(FunctionType *decl, llvm::Function* func) {
     const auto alreadyProgram = func->getSubprogram();
-    if(alreadyProgram) return alreadyProgram;
+    if(alreadyProgram) {
+        return alreadyProgram;
+    }
     const auto location = loc_node(this, decl->encoded_location());
     const auto as_func = decl->as_function();
     const auto name_view = as_func ? to_ref(as_func->name_view()) : func->getName();
@@ -198,8 +200,10 @@ llvm::DIScope* DebugInfoBuilder::create(FunctionType *decl, llvm::Function* func
         throw std::runtime_error("expected a compile unit scope to be present, when starting a function scope");
     }
 #endif
+    // currently all functions go into the di compile unit scope (we don't know if it's right)
+    // however saving the ll file fails if we use any other scope
     llvm::DISubprogram *SP = builder->createFunction(
-            diScopes.back(),
+            diCompileUnit,
             name_view,
             func->getName(),  // Linkage name
             diCompileUnit->getFile(),
@@ -211,6 +215,13 @@ llvm::DIScope* DebugInfoBuilder::create(FunctionType *decl, llvm::Function* func
     );
     func->setSubprogram(SP);
     return SP;
+}
+
+void DebugInfoBuilder::start_nested_function_scope(FunctionType *decl, llvm::Function* func) {
+    if(!isEnabled) {
+        return;
+    }
+    diScopes.push_back(create(decl, func));
 }
 
 void DebugInfoBuilder::start_function_scope(FunctionType *decl, llvm::Function* func) {

@@ -129,6 +129,11 @@ public:
     void end_di_compile_unit();
 
     /**
+     * starts a nested function scope
+     */
+    void start_nested_function_scope(FunctionType *decl, llvm::Function* func);
+
+    /**
      * this creates the function scope and starts it, so further code generation uses the function scope
      * after calling this, a call to end_current_scope must be made
      */

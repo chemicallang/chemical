@@ -51,6 +51,30 @@ public:
         location_diagnostic(message, location, severity);
     }
 
+    inline void info(std::string& message, SourceLocation location) {
+        location_diagnostic(message, location, DiagSeverity::Information);
+    }
+
+    inline void info(const std::string_view& message, SourceLocation location) {
+        location_diagnostic(message, location, DiagSeverity::Information);
+    }
+
+    inline void warn(std::string& message, SourceLocation location) {
+        location_diagnostic(message, location, DiagSeverity::Warning);
+    }
+
+    inline void warn(const std::string_view& message, SourceLocation location) {
+        location_diagnostic(message, location, DiagSeverity::Warning);
+    }
+
+    inline void error(std::string& message, SourceLocation location) {
+        location_diagnostic(message, location, DiagSeverity::Error);
+    }
+
+    inline void error(const std::string_view& message, SourceLocation location) {
+        location_diagnostic(message, location, DiagSeverity::Error);
+    }
+
     template <typename NodeT>
     inline void diagnostic(std::string& err, NodeT* node, DiagSeverity severity)
     requires requires(NodeT n) { n.encoded_location(); }

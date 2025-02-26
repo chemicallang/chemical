@@ -184,7 +184,7 @@ llvm::Function *Codegen::create_nested_function(const std::string_view &name, ll
     current_function = nested_function;
     const auto destruct_begin = destruct_nodes.size();
     // this begins the function scope by creating a di subprogram
-    di.start_function_scope(func_type, nested_function);
+    di.start_nested_function_scope(func_type, nested_function);
     // this will queue the destruction of parameters that have been moved into the function
     func_type->queue_destruct_params(*this);
     createFunctionBlock(nested_function);
@@ -658,6 +658,15 @@ void Codegen::CreateUnreachable(SourceLocation location) {
 
 void Codegen::CreateRet(llvm::Value *value, SourceLocation location) {
     if (!has_current_block_ended) {
+#ifdef DEBUG
+        if(current_function) {
+            if (value == nullptr && !current_function->getReturnType()->isVoidTy()) {
+                warn("creating a return void when the function's return ", location);
+            } else if (value != nullptr && current_function->getReturnType()->getTypeID() != value->getType()->getTypeID()) {
+                warn("return value type is different than the function's return type", location);
+            }
+        }
+#endif
         const auto retInst = builder->CreateRet(value);
         di.instr(retInst, location);
         has_current_block_ended = true;

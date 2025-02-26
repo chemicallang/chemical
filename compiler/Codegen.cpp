@@ -150,21 +150,29 @@ llvm::Function::LinkageTypes to_linkage_type(AccessSpecifier specifier) {
     }
 }
 
-// a helper to create a function which has a definition
-inline llvm::Function* create_func(
-        llvm::Module* module,
+/**
+ * all functions MUST be created through this
+ */
+llvm::Function* create_func(
+        Codegen& gen,
         const std::string_view &name,
         llvm::FunctionType *type,
         llvm::Function::LinkageTypes linkage
 ) {
-    auto fn = llvm::Function::Create(type, linkage, name, *module);
+    auto fn = llvm::Function::Create(type, linkage, name, *gen.module);
     fn->setDSOLocal(true);
+    // we add the uwtable attribute in debug mode, because we need it to be generated (at least on windows, I think)
+    // this will generate the unwind tables, which are required for call stack information
+    if(is_debug(gen.mode)) {
+        fn->addFnAttr(llvm::Attribute::UWTable);
+    } else {
+        fn->addFnAttr(llvm::Attribute::NoUnwind);
+    }
     return fn;
 }
 
 llvm::Function *Codegen::create_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
-    const auto fn = llvm::Function::Create(type, to_linkage_type(specifier), name, *module);
-    fn->setDSOLocal(true);
+    const auto fn = create_func(*this, name, type, to_linkage_type(specifier));
     current_function = fn;
     createFunctionBlock(current_function);
     return current_function;
@@ -180,7 +188,7 @@ llvm::Function *Codegen::create_nested_function(const std::string_view &name, ll
 
     destroy_current_scope = true;
     SetInsertPoint(nullptr);
-    auto nested_function = create_func(module.get(), name, type, llvm::Function::PrivateLinkage);
+    auto nested_function = create_func(*this, name, type, llvm::Function::PrivateLinkage);
     current_function = nested_function;
     const auto destruct_begin = destruct_nodes.size();
     // this begins the function scope by creating a di subprogram
@@ -208,16 +216,14 @@ llvm::Function* Codegen::declare_function(const std::string_view &name, llvm::Fu
     if(previousFunc != nullptr) {
         return previousFunc;
     } else {
-        auto fn = llvm::Function::Create(type, to_linkage_type(specifier), name, *module);
-        fn->setDSOLocal(true);
+        const auto fn = create_func(*this, name, type, to_linkage_type(specifier));
         di.declare(func_type, fn);
         return fn;
     }
 }
 
 llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionType* func_type, bool is_exported, SourceLocation location) {
-    auto fn = llvm::Function::Create(type, llvm::Function::WeakAnyLinkage, name, *module);
-    fn->setDSOLocal(true);
+    auto fn = create_func(*this, name, type, llvm::Function::WeakAnyLinkage);
     // if there's no implementation, a stub implementation is required, so if a strong implementation exists it can override it later
 //    if(!is_exported) {
         // this will create a di subprogram and set it as current scope
@@ -727,7 +733,33 @@ Codegen::~Codegen() {
 using namespace llvm;
 using namespace llvm::sys;
 
-TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
+// Configures TargetOptions for a debug build.
+// This function enables as much debug-friendly code generation as possible.
+// Note: Some options (like disabling fast/global ISel) may increase compile times,
+// so they are provided as commented-out alternatives.
+void configureDebugTargetOptions(TargetOptions &Opts) {
+
+    // Emit DWARF debug frame section for unwind tables.
+    Opts.ForceDwarfFrameSection = 1;
+
+    // --- Debug Entry and Variable Information ---
+    // Force production of debug entry values so that variable locations
+    // are tracked accurately even if the target doesn't officially support it.
+    Opts.EnableDebugEntryValues = 1;
+
+    // Enable experimental variable location tracking for more precise debug info.
+    // (May increase compile time slightly.)
+    Opts.ValueTrackingVariableLocations = 1;
+
+    // --- Optimization Adjustments ---
+    // Tail call optimizations can interfere with proper call-stack reconstruction.
+    // Disable guaranteed tail call optimization in debug builds.
+    Opts.GuaranteedTailCallOpt = 0;
+
+}
+
+
+TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple, bool isDebug) {
 
     // Initialize the target registry etc.
     InitializeAllTargetInfos();
@@ -751,6 +783,11 @@ TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
     auto Features = "";
 
     TargetOptions opt;
+
+    if(isDebug) {
+        configureDebugTargetOptions(opt);
+    }
+
     auto RM = std::optional<Reloc::Model>();
     auto TheTargetMachine = Target->createTargetMachine(
             TargetTriple, CPU, Features, opt, RM);
@@ -803,7 +840,7 @@ bool save_as_file_type(
         char** error_message
 ) {
 
-    auto TheTargetMachine = gen->setup_for_target();
+    auto TheTargetMachine = gen->setup_for_target(gen->target_triple, options->is_debug);
     if(TheTargetMachine == nullptr) {
         return false;
     }

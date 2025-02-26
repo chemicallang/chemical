@@ -52,17 +52,22 @@ void VarInitStatement::code_gen(Codegen &gen) {
     if (gen.current_function == nullptr) {
         if(is_const() && is_comptime()) {
             llvm_ptr = value->llvm_value(gen, type ? type : nullptr);
+            gen.di.declare(this, llvm_ptr);
             return;
         }
         code_gen_global_var(gen, true);
+        gen.di.declare(this, llvm_ptr);
         return;
     } else {
         if (value) {
+
             if(is_const() && !value->as_struct_value() && !value->as_array_value()) {
                 llvm_ptr = value->llvm_value(gen, type_ptr_fast());
                 gen.destruct_nodes.emplace_back(this);
+                gen.di.declare(this, llvm_ptr);
                 return;
             }
+
             bool moved = false;
             if(value->is_ref_moved()) {
                 auto known_t = value->pure_type_ptr();
@@ -91,6 +96,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                     // is referencing another struct, that is non movable and must be mem copied into the pointer
                     llvm_ptr = gen.memcpy_ref_struct(create_value_type(gen.allocator), value, nullptr, llvmType);
                     if (llvm_ptr) {
+                        gen.di.declare(this, llvm_ptr);
                         return;
                     }
                 }
@@ -99,6 +105,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 if(dyn_obj_impl) {
                     gen.assign_dyn_obj_impl(llvm_ptr, dyn_obj_impl, encoded_location());
                 }
+                gen.di.declare(this, llvm_ptr);
 
             }
 
@@ -116,6 +123,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
             }
         }
         gen.destruct_nodes.emplace_back(this);
+        gen.di.declare(this, llvm_ptr);
     }
 }
 

@@ -66,7 +66,6 @@ DebugInfoBuilder::DebugInfoBuilder(
     if(isEnabled) {
         diScopes.reserve(20);
         cachedTypes.reserve(60);
-        replaceableTypes.reserve(20);
     }
 }
 
@@ -98,18 +97,6 @@ void DebugInfoBuilder::start_di_compile_unit(llvm::DICompileUnit* unit) {
 #endif
         diCompileUnit = unit;
         diScopes.push_back(unit);
-    }
-}
-
-void DebugInfoBuilder::end_di_compile_unit() {
-    if(isEnabled) {
-#ifdef DEBUG
-        if(diCompileUnit != diScopes.back()) {
-            throw std::runtime_error("current scope is not a compile unit");
-        }
-#endif
-        diCompileUnit = nullptr;
-        diScopes.pop_back();
     }
 }
 
@@ -203,33 +190,52 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type, bool replaceable)
     }
 }
 
-void finalizeReplaceableType(DebugInfoBuilder& di) {
-    for(auto& rep : di.replaceableTypes) {
-        const auto finalizedType = to_di_type(di, rep.first, false);
-        rep.second->replaceAllUsesWith(finalizedType);
+void DebugInfoBuilder::end_di_compile_unit() {
+    if(isEnabled) {
+#ifdef DEBUG
+        if(diCompileUnit != diScopes.back()) {
+            throw std::runtime_error("current scope is not a compile unit");
+        }
+#endif
+#ifdef DEBUG
+        if(!replaceAbleTypes.empty()) {
+            throw std::runtime_error("replaceable types isn't empty");
+        }
+#endif
+        diCompileUnit = nullptr;
+        diScopes.pop_back();
     }
 }
 
+/**
+ * this method MUST always be called when the you use true for to_di_type which can include
+ * replaceable types, this should be called right after you complete your type
+ */
+void finalizeReplaceableType(DebugInfoBuilder& di) {
+    for(auto& rep : di.replaceAbleTypes) {
+        const auto finalizedType = to_di_type(di, rep.first, false);
+        rep.second->replaceAllUsesWith(finalizedType);
+    }
+    di.replaceAbleTypes.clear();
+}
+
 void DebugInfoBuilder::finalize() {
-    finalizeReplaceableType(*this);
-    replaceableTypes.clear();
     cachedTypes.clear();
     diScopes.clear();
     builder->finalize();
 }
 
-
 llvm::DICompositeType* DebugInfoBuilder::create_replaceable_type(StructDefinition* def) {
     const auto loc = loc_node(this, def->encoded_location());
     auto& pos = loc.start;
-    const auto replaceAble = builder->createReplaceableCompositeType(
+    auto replaceAble = builder->createReplaceableCompositeType(
             llvm::dwarf::DW_TAG_structure_type,
             to_ref(def->name_view()),
             diCompileUnit,
             diCompileUnit->getFile(),
             pos.line
     );
-    replaceableTypes[def] = replaceAble;
+    replaceAbleTypes.emplace_back(def, replaceAble);
     return replaceAble;
 }
 
@@ -270,6 +276,7 @@ llvm::DICompositeType* DebugInfoBuilder::create_struct_type(StructDefinition* de
         );
         structEles.emplace_back(mem_type);
     }
+
     const auto diNodeArr = builder->getOrCreateArray(structEles);
     const auto structType = builder->createStructType(
             diCompileUnit,
@@ -282,17 +289,13 @@ llvm::DICompositeType* DebugInfoBuilder::create_struct_type(StructDefinition* de
             diNodeArr
     );
 
+    // save this type in cache
+    cachedTypes[def] = structType;
+
     // replace any replaceable types for this definition, that may have been formed
     // if a pointer exists to definition inside the struct (self referential) we create a replaceable type
     // then we replace all usages of that replaceable type once we create complete struct type
-    auto replaceAbleType = replaceableTypes.find(def);
-    if(replaceAbleType != replaceableTypes.end()) {
-        replaceAbleType->second->replaceAllUsesWith(structType);
-        replaceableTypes.erase(replaceAbleType);
-    }
-
-    // save this type in cache
-    cachedTypes[def] = structType;
+    finalizeReplaceableType(*this);
 
     return structType;
 }
@@ -401,27 +404,48 @@ void DebugInfoBuilder::end_scope() {
     diScopes.pop_back();
 }
 
-void DebugInfoBuilder::info(VarInitStatement *init, llvm::AllocaInst* inst) {
+void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
+    if(!isEnabled) {
+        return;
+    }
     const auto location = loc_node(this, init->encoded_location());
     const auto loc = di_loc(location.start);
-    llvm::DILocalVariable *Var = builder->createAutoVariable(
+    if(init->is_top_level()) {
+        builder->createGlobalVariableExpression(
             diScopes.back(),
             to_ref(init->name_view()),
+            init->runtime_name_str(),
             diCompileUnit->getFile(),
             location.start.line + 1,
-            to_di_type(*this, init->create_value_type(gen.allocator), false)
-    );
-    builder->insertDeclare(
-            init->llvm_ptr,                                         // Variable allocation
-            Var,
-            builder->createExpression(),
-            loc,
-            inst
-    );
-}
-
-void DebugInfoBuilder::info(FunctionCall* call, llvm::CallInst* callInst) {
-    instr(callInst, call->encoded_location());
-    const auto location = loc_node(this, call->encoded_location());
-    callInst->setDebugLoc(di_loc(location.start));
+            to_di_type(*this, init->create_value_type(gen.allocator), false),
+            !init->is_exported(),
+            init->value != nullptr,
+            builder->createExpression()
+        );
+    } else {
+        llvm::DILocalVariable* Var = builder->createAutoVariable(
+                diScopes.back(),
+                to_ref(init->name_view()),
+                diCompileUnit->getFile(),
+                location.start.line + 1,
+                to_di_type(*this, init->create_value_type(gen.allocator), false)
+        );
+        if (llvm::Instruction *inst = llvm::dyn_cast<llvm::Instruction>(val)) {
+            builder->insertDeclare(
+                    init->llvm_ptr,                                         // Variable allocation
+                    Var,
+                    builder->createExpression(),
+                    loc,
+                    inst
+            );
+        } else {
+            builder->insertDbgValueIntrinsic(
+               val,
+               Var,
+               builder->createExpression(),
+               loc,
+               gen.builder->GetInsertBlock()
+            );
+        }
+    }
 }

@@ -546,7 +546,7 @@ bool Value::is_ref_l_value() {
     }
 }
 
-bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, bool assigning) {
+bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
     const auto kind = val_kind();
     switch(kind) {
         case ValueKind::Identifier: {
@@ -554,7 +554,7 @@ bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, 
             if(assigning) {
                 return is_node_assignable(id->linked);
             } else {
-                const auto type = id->linked->create_value_type(resolver.allocator);
+                const auto type = id->linked->create_value_type(allocator);
                 return type->is_mutable();
             }
         }
@@ -567,7 +567,7 @@ bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, 
             const auto last = chain_values[last_ind];
             const auto last_kind = last->val_kind();
             if(last_kind == ValueKind::FunctionCall) {
-                const auto type = last->create_type(resolver.allocator);
+                const auto type = last->create_type(allocator);
                 return type->is_mutable();
             }
             while(i < chain_size) {
@@ -578,11 +578,11 @@ bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, 
                         return true;
                     }
                     const auto is_last_id = last_kind == ValueKind::Identifier;
-                    if(!value->check_is_mutable(func_type, resolver, assigning && is_last_id)) {
+                    if(!value->check_is_mutable(allocator, assigning && is_last_id)) {
                         return false;
                     }
                 } else {
-                    if(!value->check_is_mutable(func_type, resolver, false)) {
+                    if(!value->check_is_mutable(allocator, false)) {
                         return false;
                     }
                 }
@@ -591,7 +591,7 @@ bool Value::check_is_mutable(FunctionType* func_type, SymbolResolver& resolver, 
             return true;
         }
         case ValueKind::DereferenceValue: {
-            return as_dereference_value_unsafe()->value->check_is_mutable(func_type, resolver, false);
+            return as_dereference_value_unsafe()->value->check_is_mutable(allocator, false);
         }
         default:
             return false;

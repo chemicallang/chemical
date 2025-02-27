@@ -42,7 +42,7 @@ void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
                 param->set_has_assignment();
             }
         }
-        if(!lhs->check_is_mutable(linker.current_func_type, linker, true)) {
+        if(!lhs->check_is_mutable(linker.allocator, true)) {
             linker.error("cannot assign to a non mutable value", lhs);
         }
         auto& func_type = *linker.current_func_type;

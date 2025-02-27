@@ -246,7 +246,7 @@ bool first_chain_is_contained_in(AccessChain& first, AccessChain& other_ptr) {
     return true;
 }
 
-bool FunctionType::un_move_chain(AccessChain* chain_ptr) {
+bool FunctionTypeBody::un_move_chain(AccessChain* chain_ptr) {
     if(moved_chains.empty()) return false;
     auto& chain = *chain_ptr;
     if(chain.values.size() == 1) {
@@ -266,7 +266,7 @@ bool FunctionType::un_move_chain(AccessChain* chain_ptr) {
     return false;
 }
 
-VariableIdentifier* FunctionType::find_moved_id(VariableIdentifier* id) {
+VariableIdentifier* FunctionTypeBody::find_moved_id(VariableIdentifier* id) {
     for(auto& moved : moved_identifiers) {
         if(moved->linked == id->linked) {
             return moved;
@@ -275,7 +275,7 @@ VariableIdentifier* FunctionType::find_moved_id(VariableIdentifier* id) {
     return nullptr;
 }
 
-bool FunctionType::un_move_exact_id(VariableIdentifier* id) {
+bool FunctionTypeBody::un_move_exact_id(VariableIdentifier* id) {
     if(moved_identifiers.empty()) return false;
     unsigned i = 0;
     for(auto& moved : moved_identifiers) {
@@ -288,7 +288,7 @@ bool FunctionType::un_move_exact_id(VariableIdentifier* id) {
     return false;
 }
 
-bool FunctionType::un_move_chain_with_first_id(VariableIdentifier* id) {
+bool FunctionTypeBody::un_move_chain_with_first_id(VariableIdentifier* id) {
     unsigned i = 0;
     for(auto& moved : moved_chains) {
         auto& chain = *moved;
@@ -303,7 +303,7 @@ bool FunctionType::un_move_chain_with_first_id(VariableIdentifier* id) {
     return false;
 }
 
-bool FunctionType::un_move_id(VariableIdentifier* id) {
+bool FunctionTypeBody::un_move_id(VariableIdentifier* id) {
     return un_move_exact_id(id) || un_move_chain_with_first_id(id);
 }
 
@@ -318,7 +318,7 @@ bool FunctionType::un_move_id(VariableIdentifier* id) {
 // for given 'm.x' if only 'm' has been moved, we return it (parent member being considered)
 // for given 'm.x' if only 'm.y' has been moved, we return null (unrelated nor considered)
 // for given 'm.x' if only 'm.x' has been moved, we return null (last member not considered)
-AccessChain* FunctionType::find_partially_matching_moved_chain(AccessChain& chain, bool consider_nested_members, bool consider_last_member) {
+AccessChain* FunctionTypeBody::find_partially_matching_moved_chain(AccessChain& chain, bool consider_nested_members, bool consider_last_member) {
     auto first_value = chain.values[0];
     const auto first_value_kind = first_value->val_kind();
     AccessChain* smallest = nullptr;
@@ -354,7 +354,7 @@ AccessChain* FunctionType::find_partially_matching_moved_chain(AccessChain& chai
     return smallest;
 }
 
-ChainValue* FunctionType::find_moved_chain_value(VariableIdentifier* id) {
+ChainValue* FunctionTypeBody::find_moved_chain_value(VariableIdentifier* id) {
     auto found = find_moved_id(id);
     if(found) return found;
     AccessChain* smallest = nullptr;
@@ -371,7 +371,7 @@ ChainValue* FunctionType::find_moved_chain_value(VariableIdentifier* id) {
     return smallest;
 }
 
-ChainValue* FunctionType::find_moved_chain_value(AccessChain* chain_ptr) {
+ChainValue* FunctionTypeBody::find_moved_chain_value(AccessChain* chain_ptr) {
     auto& chain = *chain_ptr;
     auto& first_value = *chain.values[0];
     const auto first_id = first_value.as_identifier();
@@ -386,7 +386,7 @@ ChainValue* FunctionType::find_moved_chain_value(AccessChain* chain_ptr) {
     return find_partially_matching_moved_chain(chain, true, true);
 }
 
-void FunctionType::mark_moved_no_check(AccessChain* chain) {
+void FunctionTypeBody::mark_moved_no_check(AccessChain* chain) {
     if(chain->values.size() == 1 && chain->values[0]->val_kind() == ValueKind::Identifier) {
         moved_identifiers.emplace_back(chain->values[0]->as_identifier());
     } else {
@@ -395,12 +395,12 @@ void FunctionType::mark_moved_no_check(AccessChain* chain) {
     chain->set_is_moved(true);
 }
 
-void FunctionType::mark_moved_no_check(VariableIdentifier* id) {
+void FunctionTypeBody::mark_moved_no_check(VariableIdentifier* id) {
     moved_identifiers.emplace_back(id);
     id->is_moved = true;
 }
 
-bool FunctionType::check_chain(AccessChain* chain, bool assigning, ASTDiagnoser& diagnoser) {
+bool FunctionTypeBody::check_chain(AccessChain* chain, bool assigning, ASTDiagnoser& diagnoser) {
     ChainValue* moved;
     if(assigning) {
         moved = find_partially_matching_moved_chain(*chain, false, false);
@@ -421,7 +421,7 @@ bool FunctionType::check_chain(AccessChain* chain, bool assigning, ASTDiagnoser&
     return true;
 }
 
-bool FunctionType::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
+bool FunctionTypeBody::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
     const auto moved = find_moved_chain_value(id);
     if(moved) {
         diagnoser.error("cannot access identifier '" + id->representation() + "' as '" + moved->representation() + "' has been moved" , id, moved);
@@ -449,7 +449,7 @@ bool FunctionType::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
     return true;
 }
 
-bool FunctionType::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
+bool FunctionTypeBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
     const auto moved = find_moved_chain_value(id);
     if(moved) {
         diagnoser.error("cannot move '" + id->representation() + "' as '" + moved->representation() + "' has been moved" , id, moved);
@@ -480,7 +480,7 @@ bool FunctionType::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnoser
     return true;
 }
 
-bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
+bool FunctionTypeBody::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     const auto chain = value->as_access_chain();
     if(chain) {
         if(chain->values.size() == 1) {
@@ -509,7 +509,7 @@ bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     return false;
 }
 
-bool FunctionType::is_value_movable(Value* value_ptr, BaseType* type) {
+bool FunctionTypeBody::is_value_movable(Value* value_ptr, BaseType* type) {
     auto& value = *value_ptr;
     const auto expected_type_kind = type->kind();
     if(expected_type_kind == BaseTypeKind::Reference) {
@@ -526,7 +526,7 @@ bool FunctionType::is_value_movable(Value* value_ptr, BaseType* type) {
     return false;
 }
 
-bool FunctionType::mark_moved_value(
+bool FunctionTypeBody::mark_moved_value(
         ASTAllocator& allocator,
         Value* value_ptr,
         BaseType* expected_type,
@@ -610,7 +610,7 @@ bool FunctionType::mark_moved_value(
     return false;
 }
 
-bool FunctionType::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_type) {
+bool FunctionTypeBody::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_type) {
     if(!value_type || !is_value_movable(value_ptr, value_type)) {
         return false;
     }

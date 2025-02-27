@@ -712,7 +712,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             } else if(accept_value) {
                 visitor.visit(val);
             }
-        } else if(!val->reference() && base_type->pure_type()->kind() == BaseTypeKind::Array) {
+        } else if(!val->reference() && base_type->pure_type(visitor.allocator)->kind() == BaseTypeKind::Array) {
             visitor.write('(');
             visitor.visit(base_type);
             visitor.write("[]");
@@ -796,7 +796,7 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
 //        }
 //    }
     auto type = current->create_type(visitor.allocator);
-    const auto pure_type = type->pure_type();
+    const auto pure_type = type->pure_type(visitor.allocator);
     const auto pure_type_kind = pure_type->kind();
     if(pure_type_kind == BaseTypeKind::Reference) {
         const auto linked_kind = linked->kind();
@@ -1346,7 +1346,7 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 //            } else if(returnLinkedType == ASTNodeKind::VariantDecl) {
 //                const auto temp_name = visitor.get_local_temp_var_name();
 //                allocate_struct_for_func_call(visitor, returnLinked->as_variant_def_unsafe(), call, func_type, chem::string_view(temp_name.data(), temp_name.size()));
-//            } else if(returnLinkedType == ASTNodeKind::InterfaceDecl && func_type->returnType->pure_type()->kind() == BaseTypeKind::Dynamic) {
+//            } else if(returnLinkedType == ASTNodeKind::InterfaceDecl && func_type->returnType->pure_type(visitor.allocator)->kind() == BaseTypeKind::Dynamic) {
 //                const auto temp_name = visitor.get_local_temp_var_name();
 //                allocate_fat_pointer_for_value(visitor, call, chem::string_view(temp_name.data(), temp_name.size()), nullptr);
 //            }
@@ -1355,7 +1355,7 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 //        // functions that are constructors / return struct
 //        // we call these functions beforehand and prepare
 //        if(!decl || !decl->is_comptime()) {
-//            const auto returnType = func_type->returnType->pure_type();
+//            const auto returnType = func_type->returnType->pure_type(visitor.allocator);
 //            const auto returnTypeKind = returnType->kind();;
 //            if (returnTypeKind == BaseTypeKind::Dynamic) {
 //                func_call_that_returns_struct(visitor, func_type, call);
@@ -1614,7 +1614,7 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const chem::string_vie
                     allocate_struct_for_func_call(visitor, linked->as_struct_def_unsafe(), &call, func_type, identifier);
                 } else if (linked_kind == ASTNodeKind::VariantDecl) {
                     allocate_struct_for_func_call(visitor, linked->as_variant_def_unsafe(), &call, func_type, identifier);
-                } else if (linked_kind == ASTNodeKind::InterfaceDecl && func_type->returnType->pure_type()->kind() == BaseTypeKind::Dynamic) {
+                } else if (linked_kind == ASTNodeKind::InterfaceDecl && func_type->returnType->pure_type(visitor.allocator)->kind() == BaseTypeKind::Dynamic) {
                     allocate_fat_pointer_for_value(visitor, &call, identifier, nullptr);
                 }
             }
@@ -1728,7 +1728,7 @@ public:
 };
 
 void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
-    auto type = assign->lhs->create_type(visitor.allocator)->pure_type();
+    auto type = assign->lhs->create_type(visitor.allocator)->pure_type(visitor.allocator);
     // assignment to a reference, automatic dereferencing
     if(type->kind() == BaseTypeKind::Reference) {
         visitor.write('*');
@@ -2101,7 +2101,7 @@ void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(init->get_has_moved()) {
         return;
     }
-    const auto pure_t = init->create_value_type(visitor.allocator)->pure_type();
+    const auto pure_t = init->create_value_type(visitor.allocator)->pure_type(visitor.allocator);
     const auto pure_t_kind = pure_t->kind();
     if(pure_t_kind == BaseTypeKind::Pointer || pure_t_kind == BaseTypeKind::Reference) {
         return;
@@ -4144,16 +4144,12 @@ void ToCAstVisitor::VisitVariantCall(VariantCall *call) {
     }
 }
 
-inline bool isLoadableReference(BaseType* type) {
-    return type->getLoadableReferredType() != nullptr;
-}
-
 void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
     if(!value->post) {
         write(value->increment ? "++" : "--");
     }
     const auto type = value->value->create_type(allocator);
-    if(type && isLoadableReference(type)) {
+    if(type && type->pure_type(allocator)->getLoadableReferredType() != nullptr) {
         if(value->post) {
             write('(');
         }
@@ -4343,7 +4339,7 @@ void func_container_name(ToCAstVisitor& visitor, ASTNode* parent_node, ASTNode* 
 //        });
 //    } else if(grandpa && !grandpa->linked_node()->as_namespace()) {
 //        auto grandpaType = grandpa->create_type(visitor.allocator);
-//        auto pure_grandpa = grandpaType->pure_type();
+//        auto pure_grandpa = grandpaType->pure_type(visitor.allocator);
 //        if(pure_grandpa && pure_grandpa->kind() == BaseTypeKind::Dynamic) {
 //            const auto interface = pure_grandpa->linked_node()->as_interface_def();
 //            if(interface && !interface->users.empty()) {
@@ -4721,7 +4717,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     if(grandpa) {
         auto grandpaType = grandpa->create_type(allocator);
         if(grandpaType) {
-            auto pure_grandpa = grandpaType->pure_type();
+            auto pure_grandpa = grandpaType->pure_type(allocator);
             if (pure_grandpa && pure_grandpa->kind() == BaseTypeKind::Dynamic) {
                 const auto interface = pure_grandpa->linked_node()->as_interface_def();
                 if (interface && !interface->users.empty()) {
@@ -4771,7 +4767,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
 
     // functions that return struct are handled in this block of code
     if(!func_decl || !func_decl->is_comptime()) {
-        const auto returnType = func_type->returnType->pure_type();
+        const auto returnType = func_type->returnType->pure_type(allocator);
         const auto returnTypeKind = returnType->kind();
         if (returnTypeKind == BaseTypeKind::Dynamic) {
             call->set_curr_itr_on_decl();
@@ -4953,7 +4949,7 @@ void write_variant_call_index(ToCAstVisitor& visitor, VariantDefinition* variant
 
 void switch_expr(ToCAstVisitor& visitor, Value* expr, BaseType* type) {
     // automatic dereference
-    if(isLoadableReference(type)) {
+    if(type->pure_type(visitor.allocator)->getLoadableReferredType() != nullptr) {
         visitor.write('*');
     }
     visitor.visit(expr);
@@ -5343,8 +5339,8 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
 
     // automatic dereferencing the first value
     const auto first_type = expr->firstValue->create_type(allocator);
-    const auto first_pure = first_type->pure_type();
-    if(isLoadableReference(first_pure)) {
+    const auto first_pure = first_type->pure_type(allocator);
+    if(first_pure->getLoadableReferredType() != nullptr) {
         write('*');
     }
 
@@ -5356,8 +5352,8 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
 
     // automatic dereferencing the second value
     const auto second_type = expr->secondValue->create_type(allocator);
-    const auto second_pure = second_type->pure_type();
-    if(isLoadableReference(second_pure)) {
+    const auto second_pure = second_type->pure_type(allocator);
+    if(second_pure->getLoadableReferredType() != nullptr) {
         write('*');
     }
 

@@ -193,7 +193,7 @@ llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) 
         if(k_type->isStructLikeType()) {
             return llvm_pointer(gen);
         }
-//        const auto pure = k_type->pure_type();
+//        const auto pure = k_type->pure_type(gen.allocator);
 //        if(pure->kind() == BaseTypeKind::Struct) {
 //            return llvm_pointer(gen);
 //        } else if(pure->get_direct_linked_variant()) {

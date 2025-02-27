@@ -174,7 +174,7 @@ llvm::Type* VariantMemberParam::llvm_type(Codegen &gen) {
 }
 
 bool VariantMemberParam::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
-    return type->pure_type()->linked_node()->add_child_index(gen, indexes, name);
+    return type->pure_type(gen.allocator)->linked_node()->add_child_index(gen, indexes, name);
 }
 
 llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {

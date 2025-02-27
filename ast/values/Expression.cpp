@@ -61,8 +61,8 @@ BaseType* Expression::create_type(ASTAllocator& allocator) {
     if(firstType == nullptr || secondType == nullptr) {
         return nullptr;
     }
-    const auto first = firstType->pure_type();
-    const auto second = secondType->pure_type();
+    const auto first = firstType->pure_type(allocator);
+    const auto second = secondType->pure_type(allocator);
     const auto first_kind = first->kind();
     const auto second_kind = second->kind();
     // operation between integer and float/double results in float/double

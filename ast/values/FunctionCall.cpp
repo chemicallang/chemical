@@ -142,7 +142,7 @@ llvm::Value* arg_value(
         int i
 ) {
     const auto param_type = func_param->type;
-    const auto pure_type = param_type->pure_type();
+    const auto pure_type = param_type->pure_type(gen.allocator);
     const auto param_type_kind = param_type->kind();
 
     auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
@@ -393,7 +393,7 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
     if(!grandpa) return { false, nullptr };
     const auto known_t = grandpa->known_type();
     if(!known_t) return { false, nullptr };
-    const auto pure_type = known_t->pure_type();
+    const auto pure_type = known_t->pure_type(gen.allocator);
     if(pure_type->kind() != BaseTypeKind::Dynamic) return { false, nullptr };
     const auto linked = safe_linked_func();
     const auto interface = ((DynamicType*) pure_type)->referenced->linked_node()->as_interface_def();
@@ -923,7 +923,7 @@ bool FunctionCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType* exp
 FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
     const auto type = parent_val->create_type(allocator);
-    auto func_type = type->pure_type()->as_function_type();
+    auto func_type = type->pure_type(allocator)->as_function_type();
     const auto func_decl = safe_linked_func();
     if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
@@ -1322,7 +1322,7 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     }
     auto func_type = function_type(allocator);
     if(!func_type) return nullptr;
-    auto pure_type = func_type->returnType->pure_type();
+    auto pure_type = func_type->returnType->pure_type(allocator);
     if(prev_itr >= -1) set_gen_itr_on_decl(prev_itr);
     return pure_type;
 }

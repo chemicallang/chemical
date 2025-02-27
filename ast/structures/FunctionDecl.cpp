@@ -66,7 +66,7 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
     auto arg = gen.current_function->getArg(index);
     if (arg) {
         if(has_address_taken()) {
-            const auto pure = type->pure_type();
+            const auto pure = type->pure_type(gen.allocator);
             if(pure->kind() == BaseTypeKind::IntN) {
                 const auto allocaInstr = gen.builder->CreateAlloca(pure->llvm_type(gen));
                 gen.di.instr(allocaInstr, this);

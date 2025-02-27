@@ -62,7 +62,7 @@ bool NumberValue::link(SymbolResolver &linker, BaseType *type) {
                 return true;
             }
         }
-        auto pure = type->pure_type();
+        auto pure = type->pure_type(linker.allocator);
         if(pure) {
             const auto pure_kind = pure->kind();
             if(pure_kind == BaseTypeKind::IntN) {

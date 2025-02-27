@@ -31,8 +31,8 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
     DestructData data {nullptr, nullptr,  0 };
 
     auto created_type = identifier->create_type(allocator);
-    auto pure_type = created_type->pure_type();
-//    auto pure_type = identifier->get_pure_type();
+    auto pure_type = created_type->pure_type(allocator);
+//    auto pure_type = identifier->get_pure_type(allocator);
     bool determined_array = false;
     if(pure_type->kind() == BaseTypeKind::Array) {
         determined_array = true;
@@ -42,7 +42,7 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
         if(pure_type->kind() != BaseTypeKind::Pointer) {
             return data;
         }
-        auto def = ((PointerType*) pure_type)->type->pure_type()->get_direct_linked_struct();
+        auto def = ((PointerType*) pure_type)->type->pure_type(allocator)->get_direct_linked_struct();
         if(!def) {
             return data;
         }
@@ -53,10 +53,9 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
         data.parent_node = def;
         data.destructor_func = destructor;
     }
-    BaseType* elem_type;
     if(pure_type->kind() == BaseTypeKind::Array) {
         auto arr_type = (ArrayType*) pure_type;
-        elem_type = arr_type->elem_type->pure_type();
+        const auto elem_type = arr_type->elem_type->pure_type(allocator);
         auto def = elem_type->get_direct_linked_struct();
         if(!def) {
             return data;
@@ -69,8 +68,7 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
             return data;
         }
         auto ptr_type = (PointerType*) pure_type;
-        elem_type = ptr_type->type->pure_type();
-        auto def = ptr_type->type->pure_type()->get_direct_linked_struct();
+        auto def = ptr_type->type->pure_type(allocator)->get_direct_linked_struct();
         if(!def) {
             return data;
         }

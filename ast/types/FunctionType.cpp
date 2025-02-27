@@ -570,7 +570,7 @@ bool FunctionTypeBody::mark_moved_value(
     }
     bool final = false;
     if(expected_type) {
-        const auto pure_expected = expected_type->pure_type();
+        const auto pure_expected = expected_type->pure_type(allocator);
         const auto pure_expected_kind = pure_expected->kind();
         const auto expected_node = pure_expected->get_ref_or_linked_node();
         if(!expected_node) {

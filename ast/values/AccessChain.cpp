@@ -111,7 +111,7 @@ BaseType* AccessChain::create_type(ASTAllocator& allocator) {
     set_generic_iteration(active, allocator);
     const auto type = values[values.size() - 1]->create_type(allocator);
     if(type) {
-        const auto pure = type->pure_type();
+        const auto pure = type->pure_type(allocator);
         if(pure && type != pure) {
             restore_generic_iteration(active, allocator);
             return pure;

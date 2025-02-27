@@ -42,7 +42,7 @@ Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
 }
 
 //hybrid_ptr<BaseType> DereferenceValue::get_base_type() {
-//    auto addr = value->get_pure_type();
+//    auto addr = value->get_pure_type(allocator);
 //    if(addr->kind() == BaseTypeKind::Pointer) {
 //        if(addr.get_will_free()) {
 //            return hybrid_ptr<BaseType> { ((PointerType*) (addr.get()))->type->copy() };

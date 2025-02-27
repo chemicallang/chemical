@@ -79,7 +79,7 @@ Value* Parser::parseNumberValue(ASTAllocator& allocator) {
         auto& value = token->value;
         const auto result = convert_number_to_value(allocator, const_cast<char*>(value.data()), value.size(), is64Bit, loc_single(token));
         if(!result.error.empty()) {
-            error(result.error, token);
+            error(chem::string_view(result.error), token->position);
         }
         token++;
         return result.result;

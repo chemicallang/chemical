@@ -175,7 +175,7 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
 
 void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std::vector<FunctionParam*>& to_params, SymbolResolver& resolver, Value* debug_value) {
     if(to_params.size() > from_params.size()) {
-        resolver.error("Lambda function type expects " + std::to_string(from_params.size()) + " however given " + std::to_string(to_params.size()), debug_value);
+        resolver.error(debug_value) << "Lambda function type expects " << std::to_string(from_params.size()) << " however given " << std::to_string(to_params.size());
         return;
     }
     auto total = from_params.size();
@@ -198,7 +198,7 @@ void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std:
             to_param->link_param_type(resolver);
             // check it's type is same as the from parameter
             if(!to_param->type->is_same(from_param->type)) {
-                resolver.error("Lambda function param at index " + std::to_string(start) + " with type " + from_param->type->representation() + ", redeclared with type " + to_param->type->representation(), debug_value);
+                resolver.error(debug_value) << "Lambda function param at index " << std::to_string(start) << " with type " << from_param->type->representation() << ", redeclared with type " << to_param->type->representation();
             }
         }
         start++;
@@ -210,7 +210,7 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     if(!returnType) {
         returnType = func_type->returnType->copy(*linker.ast_allocator);
     } else if(!returnType->is_same(func_type->returnType)) {
-        linker.error("Lambda function type expected return type to be " + func_type->returnType->representation() + " but got lambda with return type " + returnType->representation(), (Value*) this);
+        linker.error((Value*) this) << "Lambda function type expected return type to be " << func_type->returnType->representation() << " but got lambda with return type " << returnType->representation();
     }
     setIsCapturing(func_type->isCapturing());
     return true;

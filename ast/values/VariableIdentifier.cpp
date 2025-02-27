@@ -33,7 +33,7 @@ bool VariableIdentifier::link(SymbolResolver &linker, bool check_access) {
         }
         return true;
     } else {
-        linker.error("unresolved variable identifier '" + value.str() + "' not found", this);
+        linker.error(this) << "unresolved variable identifier '" << value << "' not found";
     }
     return false;
 }
@@ -50,10 +50,10 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
         if(linked) {
             return true;
         } else if(diagnoser) {
-            diagnoser->error("unresolved child '" + value.str() + "' in parent '" + parent->representation() + "'", this);
+            diagnoser->error(this) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
         }
     } else if (diagnoser){
-        diagnoser->error("unresolved child '" + value.str() + "' because parent '" + parent->representation() + "' couldn't be resolved.", this);
+        diagnoser->error(this) << "unresolved child '" << value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
     }
     return false;
 }

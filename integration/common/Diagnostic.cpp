@@ -49,11 +49,11 @@ std::string to_string(DiagSeverity severity) {
     }
 }
 
-void Diag::format(std::ostream& os, const std::string_view& path, const std::string_view& tag) const {
+void Diag::format(std::ostream& os, const chem::string_view& path, const chem::string_view& tag) const {
     os << '[' << tag << "] " << message << " at " << path << ':' << range.representation();
 }
 
-std::ostream& Diag::ansi(std::ostream& os, const std::string_view& path, const std::string_view &tag) const {
+std::ostream& Diag::ansi(std::ostream& os, const chem::string_view& path, const chem::string_view &tag) const {
     color(os, severity.value());
     format(os, path, tag);
     os << rang::bg::reset << rang::fg::reset;

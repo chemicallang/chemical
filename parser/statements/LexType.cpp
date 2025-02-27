@@ -151,7 +151,7 @@ LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* ty
                 auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, new_type->value), loc_single(new_type), true);
                 chain->values.emplace_back(id);
             } else {
-                error("expected an identifier after '" + type->value.str() + "::' for a type");
+                error() << "expected an identifier after '" << type->value << "::' for a type";
                 return nullptr;
             }
         } else {

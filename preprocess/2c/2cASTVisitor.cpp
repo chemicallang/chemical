@@ -743,7 +743,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
                 }
                 visitor.visit(param->defValue);
             } else if(!func_type->isInVarArgs(i)) {
-                visitor.error("function param '" + param->name.str() + "' doesn't have a default value, however no argument exists for it", call);
+                visitor.error(call) << "function param '" << param->name << "' doesn't have a default value, however no argument exists for it";
             }
         } else {
 #ifdef DEBUG
@@ -1435,7 +1435,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                         visitor.write(between->name);
                         has_comma_before = false;
                     } else {
-                        visitor.error("couldn't find implicit argument with name '" + param->name.str() + "'", call);
+                        visitor.error(call) << "couldn't find implicit argument with name '" << param->name << "'";
                     }
                 }
             }
@@ -5197,7 +5197,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
                 write(" = ");
                 accept_mutating_value(member ? member->known_type() : nullptr, defValue, false);
             } else if(!val->is_union()) {
-                error("no default value present for '" + var.first.str() + "' in struct value", val);
+                error(val) << "no default value present for '" << var.first << "' in struct value";
             }
         }
     }

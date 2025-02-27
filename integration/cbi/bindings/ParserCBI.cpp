@@ -40,5 +40,5 @@ Value* ParserparseExpression(Parser* parser, ASTAllocator* allocator, bool parse
 }
 
 void Parsererror_at(Parser* parser, chem::string_view* view, Token* token) {
-    parser->error(view->view(), token);
+    parser->error(*view, token->position);
 }

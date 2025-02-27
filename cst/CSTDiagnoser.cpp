@@ -5,15 +5,15 @@
 #include "rang.hpp"
 #include "cst/LocationManager.h"
 
-Diag CSTDiagnoser::make_diag(const std::string_view& message, const std::string_view& filePath, const Position& start, const Position& end, DiagSeverity severity) {
+Diag CSTDiagnoser::make_diag(const chem::string_view& message, const chem::string_view& filePath, const Position& start, const Position& end, DiagSeverity severity) {
     return Diag(
             Range {
                     start,
                     end
             },
             severity,
-            std::string(filePath),
-            std::string(message)
+            filePath.str(),
+            message.str()
     );
 }
 
@@ -28,11 +28,11 @@ void CSTDiagnoser::add_diag(Diag diag) {
     diagnostics.emplace_back(diag);
 }
 
-void CSTDiagnoser::diagnostic(const std::string_view &message, DiagSeverity severity) {
+void CSTDiagnoser::diagnostic(const chem::string_view &message, DiagSeverity severity) {
     diagnostic(message, "", Position { 0, 0 }, Position { 0, 0 }, severity);
 }
 
-void CSTDiagnoser::print_diagnostics(std::vector<Diag>& diagnostics, const std::string_view& path, const std::string& tag) {
+void CSTDiagnoser::print_diagnostics(std::vector<Diag>& diagnostics, const chem::string_view& path, const chem::string_view& tag) {
     for (const auto &err: diagnostics) {
         err.ansi(std::cerr, path, tag) << std::endl;
     }

@@ -94,7 +94,7 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
                 break;
             } else {
                 // skip the current token
-                diagnostic(token->position, "skipped due to invalid syntax before it", DiagSeverity::Error);
+                error("skipped due to invalid syntax before it", token->position);
                 token++;
                 continue;
             }

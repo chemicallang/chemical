@@ -166,7 +166,7 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     auto& values = initializers;
     if(linked_kind == ASTNodeKind::UnionDecl) {
         if(values.size() != 1) {
-            diagnoser.error("union '" + definition->name_str() + "' must be initialized with a single member value", this);
+            diagnoser.error(this) << "union '" << definition->name_view() << "' must be initialized with a single member value";
             return false;
         } else {
             return true;
@@ -194,9 +194,8 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
         }
         if(!missing.empty()) {
             for (auto& miss: missing) {
-                diagnoser.error(
-                        "couldn't find value for member '" + miss.str() + "' for initializing struct '" + definition->name_str() +
-                        "'", this);
+                diagnoser.error(this) <<
+                        "couldn't find value for member '" << miss << "' for initializing struct '" << definition->name_view() << "'";
             }
             return true;
         }
@@ -291,7 +290,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
                 }
             }
             if(!found) {
-                linker.error("current struct doesn't inherit struct with name '" + called_struc->name_str() + "'", (ASTNode*) chain);
+                linker.error((ASTNode*) chain) << "current struct doesn't inherit struct with name '" << called_struc->name_view() << "'";
                 continue;
             }
             initializers[called_struc->name_view()] = { true, chain };

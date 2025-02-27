@@ -227,7 +227,7 @@ ASTNode *SwitchStatement::linked_node() {
 void link_variant_mem(SymbolResolver& resolver, VariantDefinition* var_def, VariableIdentifier* id) {
     id->linked = var_def->child(id->value);
     if(!id->linked) {
-        resolver.error("couldn't find the variant member with name '" + id->value.str() + "'", id);
+        resolver.error(id) << "couldn't find the variant member with name '" << id->value << "'";
     }
 }
 

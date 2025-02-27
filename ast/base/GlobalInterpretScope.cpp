@@ -28,14 +28,14 @@ void GlobalInterpretScope::interpret_error(std::string& msg, SourceLocation loc)
 #ifdef DEBUG
     std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
 #endif
-    ASTDiagnoser::diagnostic(msg, loc, DiagSeverity::Error);
+    ASTDiagnoser::empty_diagnostic(loc, DiagSeverity::Error) << msg;
 }
 
 void GlobalInterpretScope::interpret_error(std::string_view& msg, SourceLocation loc) {
 #ifdef DEBUG
     std::cerr << rang::fg::red << "[InterpretError] " << msg << rang::fg::reset << std::endl;
 #endif
-    ASTDiagnoser::diagnostic(msg, loc, DiagSeverity::Error);
+    ASTDiagnoser::empty_diagnostic(loc, DiagSeverity::Error) << msg;
 }
 
 void GlobalInterpretScope::interpret_error(std::string& error, ASTNode* any) {

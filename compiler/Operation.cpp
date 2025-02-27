@@ -294,7 +294,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         case Operation::LogicalOR:
             return builder->CreateOr(lhs, rhs);
         default:
-            error("Cannot operate on operation " + to_string(op), first);
+            error(first) << "Cannot operate on operation " << to_string(op);
             return nullptr;
 //        case Operation::Conditional:
 //            break;

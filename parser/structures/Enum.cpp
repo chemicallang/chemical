@@ -52,7 +52,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
                 auto member = new (allocator.allocate<EnumMember>()) EnumMember(member_name, index, nullptr, decl, loc_single(memberId));
                 const auto found = decl->members.find(member_name);
                 if(found != decl->members.end()) {
-                    error("enum already has a member with name " + member_name.str());
+                    error() << "enum already has a member with name " << member_name;
                 }
                 decl->members[member_name] = member;
                 if(consumeToken(TokenType::EqualSym)) {

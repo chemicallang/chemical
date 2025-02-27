@@ -226,7 +226,7 @@ public:
     /**
      * print results for the given result
      */
-    static void print_results(ASTFileResultNew& result, const std::string& abs_path, bool benchmark);
+    static void print_results(ASTFileResultNew& result, const chem::string_view& abs_path, bool benchmark);
 
     /**
      * constructor

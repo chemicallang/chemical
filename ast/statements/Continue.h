@@ -17,9 +17,9 @@ public:
     ASTNode* parent_node;
 
     /**
-     * @brief Construct a new ContinueStatement object.
+     * Construct a new ContinueStatement object.
      */
-    ContinueStatement(
+    constexpr ContinueStatement(
         LoopASTNode *node,
         ASTNode* parent_node,
         SourceLocation location

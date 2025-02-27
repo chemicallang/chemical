@@ -13,7 +13,7 @@ public:
     /**
      * constructor
      */
-    explicit UIntValue(
+    constexpr UIntValue(
         unsigned int value,
         SourceLocation location
     ) : IntNumValue(ValueKind::UInt, location), value(value) {

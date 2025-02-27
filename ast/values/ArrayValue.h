@@ -24,7 +24,21 @@ public:
     llvm::AllocaInst *arr;
 #endif
 
-    ArrayValue(
+    /**
+     * constructor
+     */
+    constexpr ArrayValue(
+            BaseType* elem_type,
+            SourceLocation location,
+            ASTAllocator& allocator
+    ) : Value(ValueKind::ArrayValue, location) {
+        created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size(), ZERO_LOC);
+    }
+
+    /**
+     * constructor
+     */
+    constexpr ArrayValue(
             std::vector<Value*> values,
             BaseType* elem_type,
             std::vector<unsigned int> sizes,

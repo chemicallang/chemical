@@ -31,7 +31,7 @@ public:
     /**
      * constructor
      */
-    BaseFunctionParam(
+    constexpr BaseFunctionParam(
             chem::string_view name,
             BaseType* type,
             FunctionType* func_type,

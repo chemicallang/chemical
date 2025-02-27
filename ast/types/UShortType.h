@@ -9,7 +9,10 @@ public:
 
     static const UShortType instance;
 
-    UShortType(SourceLocation location) : IntNType(location) {
+    /**
+     * constructor
+     */
+    constexpr UShortType(SourceLocation location) : IntNType(location) {
 
     }
 

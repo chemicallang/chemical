@@ -19,13 +19,13 @@ struct OverridableFuncHandlingResult {
 class MultiFunctionNode : public ASTNode {
 public:
 
-    std::string name;
+    chem::string_view name;
     std::vector<FunctionDeclaration*> functions;
 
     /**
      * constructor
      */
-    explicit MultiFunctionNode(std::string name) : ASTNode(ASTNodeKind::MultiFunctionNode, ZERO_LOC), name(std::move(name)) {
+    explicit constexpr MultiFunctionNode(chem::string_view name) : ASTNode(ASTNodeKind::MultiFunctionNode, ZERO_LOC), name(name) {
 
     }
 

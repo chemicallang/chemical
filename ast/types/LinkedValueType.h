@@ -10,11 +10,17 @@ public:
 
     Value* value;
 
-    LinkedValueType(Value* value, SourceLocation location) : value(value), LinkedType("", location) {
+    /**
+     * constructor
+     */
+    constexpr LinkedValueType(Value* value, SourceLocation location) : value(value), LinkedType("", location) {
 
     }
 
-    LinkedValueType(Value* value, chem::string_view type, ASTNode* linked, SourceLocation location) : value(value), LinkedType(type, linked, location) {
+    /**
+     * constructor
+     */
+    constexpr LinkedValueType(Value* value, chem::string_view type, ASTNode* linked, SourceLocation location) : value(value), LinkedType(type, linked, location) {
 
     }
 

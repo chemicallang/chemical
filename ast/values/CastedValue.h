@@ -15,7 +15,10 @@ public:
     Value* value;
     BaseType* type;
 
-    CastedValue(
+    /**
+     * constructor
+     */
+    constexpr CastedValue(
         Value* value,
         BaseType* type,
         SourceLocation location

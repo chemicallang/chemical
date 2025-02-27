@@ -15,7 +15,10 @@ public:
 
     Value* value;
 
-    explicit NotValue(
+    /**
+     * constructor
+     */
+    constexpr NotValue(
         Value* value,
         SourceLocation location
     ) : Value(ValueKind::NotValue, location), value(value) {}

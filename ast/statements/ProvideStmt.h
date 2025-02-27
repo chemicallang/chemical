@@ -28,6 +28,18 @@ public:
     }
 
     /**
+     * constructor
+     */
+    constexpr ProvideStmt(
+            Value* value,
+            chem::string_view identifier,
+            ASTNode* parent,
+            SourceLocation location
+    ) : ASTNode(ASTNodeKind::ProvideStmt, location), value(value), identifier(identifier), body(this, location), parent_node(parent) {
+
+    }
+
+    /**
      * will allow the caller to put the value
      * in the unordered map, while working with the body
      */

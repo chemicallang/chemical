@@ -11,7 +11,7 @@ public:
     Value* value;
     ASTNode* parent_node;
 
-    ValueWrapperNode(
+    constexpr ValueWrapperNode(
         Value* value,
         ASTNode* parent_node
     ) : ASTNode(ASTNodeKind::ValueWrapper, value->encoded_location()), value(value), parent_node(parent_node) {

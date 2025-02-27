@@ -25,13 +25,12 @@ public:
     /**
      * constructor
      */
-    explicit StringValue(
+    constexpr StringValue(
         chem::string_view value,
         SourceLocation location
     ) : Value(ValueKind::String, location), length(value.size()), value(value) {
 
     }
-
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 

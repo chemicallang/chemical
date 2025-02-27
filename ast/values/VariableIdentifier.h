@@ -34,7 +34,7 @@ public:
     /**
      * constructor
      */
-    VariableIdentifier(
+    constexpr VariableIdentifier(
         chem::string_view value,
         SourceLocation location,
         bool is_ns = false

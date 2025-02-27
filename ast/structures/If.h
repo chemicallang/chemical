@@ -26,22 +26,15 @@ public:
     std::optional<Scope*> computed_scope = std::nullopt;
 
     /**
-     * @brief Construct a new IfStatement object.
-     *
-     * @param condition The condition of the if statement.
-     * @param ifBody The body of the if statement.
-     * @param elseBody The body of the else statement (can be nullptr if there's no else part).
+     * constructor
      */
-    IfStatement(
+    constexpr IfStatement(
             Value* condition,
-            Scope ifBody,
-            std::vector<std::pair<Value*, Scope>> elseIfs,
-            std::optional<Scope> elseBody,
             ASTNode* parent_node,
             bool is_value,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::IfStmt, location), Value(ValueKind::IfValue, location), condition(condition), ifBody(std::move(ifBody)),
-        elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node),
+    ) : ASTNode(ASTNodeKind::IfStmt, location), Value(ValueKind::IfValue, location), condition(condition), ifBody(this, location),
+        elseBody(std::nullopt), parent_node(parent_node),
         is_value(is_value) {}
 
 

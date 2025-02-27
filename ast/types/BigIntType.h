@@ -9,7 +9,7 @@ public:
 
     static const BigIntType instance;
 
-    BigIntType(SourceLocation location) : IntNType(location) {
+    constexpr BigIntType(SourceLocation location) : IntNType(location) {
 
     }
 

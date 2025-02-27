@@ -23,12 +23,11 @@ public:
     /**
      * constructor
      */
-    DoWhileLoop(
+    constexpr DoWhileLoop(
             Value* condition,
-            Scope body,
             ASTNode* parent_node,
             SourceLocation location
-    ) : condition(condition), LoopASTNode(std::move(body), ASTNodeKind::DoWhileLoopStmt, location), parent_node(parent_node) {
+    ) : condition(condition), LoopASTNode(ASTNodeKind::DoWhileLoopStmt, location), parent_node(parent_node) {
 
     }
 

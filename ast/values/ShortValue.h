@@ -11,7 +11,7 @@ public:
     /**
      * constructor
      */
-    explicit ShortValue(
+    constexpr ShortValue(
         short value,
         SourceLocation location
     ) : IntNumValue(ValueKind::Short, location), value(value) {

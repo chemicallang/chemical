@@ -15,7 +15,7 @@ public:
     /**
      * constructor
      */
-    UInt128Value(
+    constexpr UInt128Value(
         uint64_t low,
         uint64_t high,
         SourceLocation location

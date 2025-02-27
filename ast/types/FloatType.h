@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    FloatType(SourceLocation location) : BaseType(BaseTypeKind::Float, location) {
+    constexpr FloatType(SourceLocation location) : BaseType(BaseTypeKind::Float, location) {
 
     }
 

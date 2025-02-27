@@ -45,7 +45,7 @@ BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
     auto t1 = consumeOfType(TokenType::LParen);
     if(t1) {
 
-        auto func_type = new (allocator.allocate<FunctionType>()) FunctionType({}, nullptr, false, isCapturing, parent_node, loc_single(t1));
+        auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(nullptr, false, isCapturing, parent_node, loc_single(t1));
         auto prev_func_type = current_func_type;
         current_func_type = func_type;
         const auto isVariadic = parseParameterList(allocator, func_type->params);

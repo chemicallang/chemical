@@ -20,7 +20,7 @@ public:
     /**
      * constructor
      */
-    inline explicit ChainValue(ValueKind k, SourceLocation loc) noexcept : Value(k, loc) {
+    inline constexpr ChainValue(ValueKind k, SourceLocation loc) noexcept : Value(k, loc) {
 
     }
 

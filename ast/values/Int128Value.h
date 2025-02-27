@@ -12,7 +12,10 @@ public:
     uint64_t magnitude;
     bool is_negative;
 
-    Int128Value(
+    /**
+     * constructor
+     */
+    constexpr Int128Value(
         uint64_t magnitude,
         bool is_negative,
         SourceLocation location

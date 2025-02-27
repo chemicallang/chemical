@@ -81,23 +81,7 @@ public:
     /**
      * constructor
      */
-    FunctionType(
-        std::vector<FunctionParam*> params,
-        BaseType* returnType,
-        bool isVariadic,
-        bool isCapturing,
-        ASTNode* parent_node,
-        SourceLocation location,
-        bool signature_resolved = false
-    ) : data(isVariadic, isCapturing, signature_resolved), params(std::move(params)), returnType(returnType),
-        parent_node(parent_node), BaseType(BaseTypeKind::Function, location) {
-
-    }
-
-    /**
-     * constructor
-     */
-    FunctionType(
+    constexpr FunctionType(
             BaseType* returnType,
             bool isVariadic,
             bool isCapturing,

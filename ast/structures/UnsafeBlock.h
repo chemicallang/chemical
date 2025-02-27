@@ -9,10 +9,13 @@ public:
 
     Scope scope;
 
-    explicit UnsafeBlock(
-        Scope scope,
-        SourceLocation location
-    ) : ASTNode(ASTNodeKind::UnsafeBlock, location), scope(std::move(scope)) {
+    /**
+     * constructor
+     */
+    constexpr UnsafeBlock(
+            ASTNode* parent_node,
+            SourceLocation location
+    ) : ASTNode(ASTNodeKind::UnsafeBlock, location), scope(parent_node, location) {
 
     }
 

@@ -18,11 +18,9 @@ public:
     float value; ///< The floating-point value.
 
     /**
-     * @brief Construct a new FloatValue object.
-     *
-     * @param value The floating-point value.
+     * constructor
      */
-    explicit FloatValue(
+    constexpr FloatValue(
         float value,
         SourceLocation location
     ) : Value(ValueKind::Float, location), value(value) {

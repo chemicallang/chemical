@@ -13,6 +13,9 @@ public:
     chem::string_view name;
     ASTNode* parent_node;
 
+    /**
+     * constructor
+     */
     UnionType(
         chem::string_view name,
         ASTNode* parent,

@@ -29,7 +29,10 @@ public:
     Value* init_value;
     EnumMemberAttributes attrs;
 
-    EnumMember(
+    /**
+     * constructor
+     */
+    constexpr EnumMember(
         chem::string_view name,
         unsigned int index,
         Value* init_value,

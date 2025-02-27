@@ -22,18 +22,19 @@ public:
     // the function in which init block appears
     FunctionDeclaration* func_decl;
 
+    /**
+     * constructor
+     */
     InitBlock(
-        Scope scope,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::InitBlock, location), scope(std::move(scope)), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::InitBlock, location), scope(this, location), parent_node(parent_node) {
 
     }
 
     ASTNode* parent() final {
         return parent_node;
     }
-
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

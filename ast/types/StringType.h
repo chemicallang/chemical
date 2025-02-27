@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    StringType(SourceLocation location) : BaseType(BaseTypeKind::String, location) {
+    constexpr StringType(SourceLocation location) : BaseType(BaseTypeKind::String, location) {
 
     }
 

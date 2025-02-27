@@ -11,7 +11,7 @@ public:
     /**
      * constructor
      */
-    inline IntNType(SourceLocation location) : BaseType(BaseTypeKind::IntN, location) {
+    inline constexpr IntNType(SourceLocation location) : BaseType(BaseTypeKind::IntN, location) {
 
     }
 

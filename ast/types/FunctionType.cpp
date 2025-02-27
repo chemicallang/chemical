@@ -208,11 +208,11 @@ bool FunctionType::equal(FunctionType *other) const {
 }
 
 FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
-    std::vector<FunctionParam*> copied;
+    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isVariadic(), isCapturing(), parent_node, ZERO_LOC, data.signature_resolved);
     for (auto &param: params) {
-        copied.emplace_back(param->copy(allocator));
+        func_type->params.emplace_back(param->copy(allocator));
     }
-    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic(), isCapturing(), parent_node, ZERO_LOC, data.signature_resolved);
+    return func_type;
 }
 
 bool FunctionType::link(SymbolResolver &linker) {

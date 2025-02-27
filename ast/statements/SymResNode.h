@@ -69,7 +69,7 @@ public:
     /**
      * constructor
      */
-    inline SymResNode(
+    inline constexpr SymResNode(
             ASTAllocator* allocator,
             SymResNodeDeclarationFn decl_fn,
             SymResNodeReplacementFn repl_fn,

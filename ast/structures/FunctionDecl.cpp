@@ -1527,11 +1527,11 @@ int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagno
 }
 
 BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
-    std::vector<FunctionParam*> copied;
+    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isVariadic(), false, parent_node, ZERO_LOC, FunctionType::data.signature_resolved);
     for(const auto param : params) {
-        copied.emplace_back(param->copy(allocator));
+        func_type->params.emplace_back(param->copy(allocator));
     }
-    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic(), false, parent_node, ZERO_LOC, FunctionType::data.signature_resolved);
+    return func_type;
 }
 
 //hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {

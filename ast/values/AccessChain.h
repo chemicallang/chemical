@@ -31,14 +31,20 @@ public:
     std::vector<ChainValue*> values;
     AccessChainAttributes attrs;
 
-    AccessChain(
+    /**
+     * constructor
+     */
+    constexpr AccessChain(
         bool is_node,
         SourceLocation location
     ) : ChainValue(ValueKind::AccessChain, location), attrs(is_node, false) {
 
     }
 
-    AccessChain(
+    /**
+     * constructor
+     */
+    constexpr AccessChain(
         std::vector<ChainValue*> values,
         bool is_node,
         SourceLocation location

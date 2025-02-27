@@ -24,7 +24,7 @@ public:
     /**
      * constructor
      */
-    StructMemberInitializer(
+    constexpr StructMemberInitializer(
         chem::string_view name,
         Value* value
     ) : name(name), value(value) {

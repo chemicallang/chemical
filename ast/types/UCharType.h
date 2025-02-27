@@ -9,7 +9,10 @@ public:
 
     static const UCharType instance;
 
-    UCharType(SourceLocation location) : IntNType(location) {
+    /**
+     * constructor
+     */
+    constexpr UCharType(SourceLocation location) : IntNType(location) {
 
     }
 

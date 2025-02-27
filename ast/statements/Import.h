@@ -25,7 +25,7 @@ public:
     /**
      * constructor
      */
-    ImportStatement(
+    constexpr ImportStatement(
         chem::string_view filePath,
         ASTNode* parent_node,
         SourceLocation location

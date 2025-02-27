@@ -38,7 +38,7 @@ public:
     /**
      * constructor
      */
-    inline SymResValue(
+    inline constexpr SymResValue(
         ASTAllocator* allocator,
         SymResValueReplacementFn fn,
         void* data_ptr,

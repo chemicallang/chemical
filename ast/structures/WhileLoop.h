@@ -17,19 +17,17 @@ public:
     bool stoppedInterpretation = false;
     ASTNode* parent_node;
 
-    /**
-     * @brief Construct a new WhileLoop object.
-     *
-     * @param condition The loop condition.
-     * @param body The body of the while loop.
-     */
-    WhileLoop(
-        Value* condition,
-        Scope body,
-        ASTNode* parent_node,
-        SourceLocation location
-    ) : LoopASTNode(std::move(body), ASTNodeKind::WhileLoopStmt, location), condition(condition), parent_node(parent_node) {}
 
+    /**
+     * constructor
+     */
+    constexpr WhileLoop(
+            Value* condition,
+            ASTNode* parent_node,
+            SourceLocation location
+    ) : LoopASTNode(ASTNodeKind::WhileLoopStmt, location), condition(condition), parent_node(parent_node) {
+
+    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

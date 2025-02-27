@@ -24,7 +24,7 @@ public:
     /**
      * @brief Construct a new Break statement object.
      */
-    BreakStatement(
+    constexpr BreakStatement(
         LoopASTNode *node,
         ASTNode* parent_node,
         SourceLocation location

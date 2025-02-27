@@ -7,23 +7,25 @@
 #include "ast/base/BaseType.h"
 #include <optional>
 
-using catch_var_type = std::optional<std::pair<std::string, std::unique_ptr<BaseType>>>;
+using catch_var_type = std::optional<std::pair<std::string, BaseType*>>;
 
 class TryCatch : public ASTNode {
 public:
 
-    std::unique_ptr<FunctionCall> tryCall;
+    FunctionCall* tryCall;
     catch_var_type catchVar;
     std::optional<Scope> catchScope;
     ASTNode* parent_node;
 
+    /**
+     * constructor
+     */
     TryCatch(
-            std::unique_ptr<FunctionCall> tryCall,
+            FunctionCall* tryCall,
             catch_var_type catchVar,
-            std::optional<Scope> catchScope,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::TryStmt, location), tryCall(std::move(tryCall)), catchVar(std::move(catchVar)), catchScope(std::move(catchScope)), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::TryStmt, location), tryCall(tryCall), catchVar(std::move(catchVar)), parent_node(parent_node) {
 
     }
 

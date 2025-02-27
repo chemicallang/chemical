@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    DoubleType(SourceLocation location) : BaseType(BaseTypeKind::Double, location) {
+    constexpr DoubleType(SourceLocation location) : BaseType(BaseTypeKind::Double, location) {
 
     }
 

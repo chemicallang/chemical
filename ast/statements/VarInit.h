@@ -83,7 +83,7 @@ public:
     /**
      * constructor
      */
-    VarInitStatement(
+    constexpr VarInitStatement(
             bool is_const,
             bool is_reference,
             LocatedIdentifier identifier,

@@ -18,11 +18,9 @@ public:
     char value; ///< The character value.
 
     /**
-     * @brief Construct a new CharValue object.
-     *
-     * @param value The character value.
+     * constructor
      */
-    CharValue(
+    constexpr CharValue(
         char value,
         SourceLocation location
     ) : IntNumValue(ValueKind::Char, location), value(value) {

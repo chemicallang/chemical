@@ -1052,18 +1052,17 @@ public:
 
     explicit InterpretGetChildFunction(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_child_fn"),
-            std::vector<FunctionParam*> { &param, &methodParam },
             &anyType,
             false,
             parent_node,
             ZERO_LOC,
-            std::nullopt,
             AccessSpecifier::Public,
             true
     ), param("value", &anyType, 0, nullptr, false, this, 0),
         methodParam("method", &strType, 1, nullptr, false, this, 0), anyType(0), strType(0) {
         set_compiler_decl(true);
-    }
+        params = { &param, &methodParam };
+    };
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.size() != 2) {

@@ -12,7 +12,10 @@ public:
 
     BaseType* for_type;
 
-    explicit AlignOfValue(
+    /**
+     * constructor
+     */
+    constexpr AlignOfValue(
         BaseType *for_type,
         SourceLocation location
     ) : Value(ValueKind::AlignOfValue, location), for_type(for_type) {

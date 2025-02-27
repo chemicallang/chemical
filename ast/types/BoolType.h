@@ -9,7 +9,10 @@ public:
 
     static const BoolType instance;
 
-    BoolType(SourceLocation location) : BaseType(BaseTypeKind::Bool, location) {
+    /**
+     * constructor
+     */
+    constexpr BoolType(SourceLocation location) : BaseType(BaseTypeKind::Bool, location) {
 
     }
 

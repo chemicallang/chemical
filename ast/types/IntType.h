@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    IntType(SourceLocation location) : IntNType(location) {
+    constexpr IntType(SourceLocation location) : IntNType(location) {
 
     }
 

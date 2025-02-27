@@ -27,11 +27,9 @@ public:
     BaseType* linked_type = nullptr;
 
     /**
-     * @brief Construct a new IntValue object.
-     *
-     * @param value The integer value.
+     * constructor
      */
-    explicit NumberValue(
+    constexpr NumberValue(
         uint64_t value,
         SourceLocation location
     ) : IntNumValue(ValueKind::NumberValue, location), value(value) {}

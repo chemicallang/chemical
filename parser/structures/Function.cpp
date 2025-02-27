@@ -36,7 +36,7 @@ InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::InitKw) {
         token++;
-        auto init = new (allocator.allocate<InitBlock>()) InitBlock({ nullptr, 0 }, parent_node, loc_single(tok));
+        auto init = new (allocator.allocate<InitBlock>()) InitBlock(parent_node, loc_single(tok));
         auto block = parseBraceBlock("init-block", init, allocator);
         if(block.has_value()) {
             init->scope = std::move(block.value());
@@ -53,7 +53,7 @@ UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::UnsafeKw) {
         token++;
-        auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock({ nullptr, 0 }, loc_single(tok));
+        auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock(parent_node, loc_single(tok));
         auto block = parseBraceBlock("unsafe_block", unsafe, allocator);
         if(block.has_value()) {
             unsafe->scope = std::move(block.value());

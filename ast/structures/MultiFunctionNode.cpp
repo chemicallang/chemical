@@ -47,7 +47,7 @@ OverridableFuncHandlingResult handle_name_overload_function(
         }
         if(!previous->do_param_types_match(declaration->params)) {
             // TODO VERY IMPORTANT Multi function node allocated without allocator
-            multi = new MultiFunctionNode(name.str());
+            multi = new MultiFunctionNode(declaration->name_view());
             multi->functions.emplace_back(previous);
             multi->functions.emplace_back(declaration);
             declaration->set_multi_func_index(1);

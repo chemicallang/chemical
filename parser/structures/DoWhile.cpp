@@ -17,7 +17,7 @@ DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
 
     token++;
 
-    auto loop = new (allocator.allocate<DoWhileLoop>()) DoWhileLoop(nullptr, { nullptr, 0 }, parent_node, loc_single(tok));
+    auto loop = new (allocator.allocate<DoWhileLoop>()) DoWhileLoop(nullptr, parent_node, loc_single(tok));
 
     // { statement(s) } with continue & break support
     auto prev_loop_node = current_loop_node;

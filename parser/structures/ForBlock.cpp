@@ -60,7 +60,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
 
     token++;
 
-    auto loop = new (allocator.allocate<ForLoop>()) ForLoop(nullptr, nullptr, nullptr, { nullptr, 0 }, parent_node, loc_single(tok));
+    auto loop = new (allocator.allocate<ForLoop>()) ForLoop(nullptr, nullptr, nullptr, parent_node, loc_single(tok));
 
     // start parenthesis
     if(!consumeToken(TokenType::LParen)) {
@@ -153,7 +153,7 @@ LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) 
 
     token++;
 
-    auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock({ parent_node, 0 }, parent_node, loc_single(tok));
+    auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock(parent_node, loc_single(tok));
 
     // { statement(s) } with continue & break support
     auto prev_loop_node = current_loop_node;

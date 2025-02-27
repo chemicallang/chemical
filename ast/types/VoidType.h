@@ -9,7 +9,10 @@ public:
 
     static const VoidType instance;
 
-    VoidType(SourceLocation location) : BaseType(BaseTypeKind::Void, location) {
+    /**
+     * constructor
+     */
+    constexpr VoidType(SourceLocation location) : BaseType(BaseTypeKind::Void, location) {
 
     }
 

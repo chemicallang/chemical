@@ -13,7 +13,7 @@ public:
     /**
      * constructor
      */
-    explicit UShortValue(
+    constexpr UShortValue(
         unsigned short value,
         SourceLocation location
     ) : IntNumValue(ValueKind::UShort, location), value(value) {

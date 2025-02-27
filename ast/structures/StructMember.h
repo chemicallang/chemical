@@ -24,7 +24,10 @@ public:
     ASTNode* parent_node;
     StructMemberAttributes attrs;
 
-    StructMember(
+    /**
+     * constructor
+     */
+    constexpr StructMember(
             chem::string_view name,
             BaseType* type,
             Value* defValue,

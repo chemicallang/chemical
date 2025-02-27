@@ -79,7 +79,7 @@ ChainValue* build_parent_chain(std::vector<ChainValue*>& values, ASTAllocator& a
             return values.front();
         } else {
             const auto first = values.front();
-            const auto parent = new (allocator.allocate<AccessChain>()) AccessChain({}, false, first->encoded_location());
+            const auto parent = new (allocator.allocate<AccessChain>()) AccessChain(false, first->encoded_location());
             unsigned i = 0;
             while(i < values.size() - 1) {
                 parent->values.emplace_back(values[i]);
@@ -123,7 +123,7 @@ FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* exp
     auto str = allocator.allocate_str(id_view.data(), id_view.size());
     auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(str, id_view.size()), location);
     id->linked = decl;
-    auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(id, std::vector<Value*> {}, location);
+    auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(id, location);
     imp_call->parent_val = id;
     imp_call->values.emplace_back(arg);
     imp_call->fix_generic_iteration(diagnoser, expected_type);
@@ -167,7 +167,7 @@ void infer_generic_args(
 void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value) {
     VariableIdentifier id(decl->name_view(), ZERO_LOC);
     id.linked = decl;
-    FunctionCall imp_call(&id, std::vector<Value*>{}, ZERO_LOC);
+    FunctionCall imp_call(&id, ZERO_LOC);
     imp_call.values.emplace_back(value);
     imp_call.find_link_in_parent(resolver, nullptr, false);
     const auto replaced = imp_call.values[0];

@@ -34,7 +34,7 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
 LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
     if (consumeToken(TokenType::LBracket)) {
 
-        auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction({}, {}, false, { nullptr, 0 }, parent_node, 0);
+        auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
 
         auto prev_func_type = current_func_type;
         current_func_type = lambda;

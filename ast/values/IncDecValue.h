@@ -14,7 +14,7 @@ public:
     /**
      * constructor
      */
-    IncDecValue(
+    constexpr IncDecValue(
         Value* value,
         bool increment,
         bool post,

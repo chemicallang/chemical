@@ -11,7 +11,10 @@ public:
     BaseType* type;
     bool is_mutable;
 
-    ReferenceType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), BaseType(BaseTypeKind::Reference, location), is_mutable(is_mutable) {
+    /**
+     * constructor
+     */
+    constexpr ReferenceType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), BaseType(BaseTypeKind::Reference, location), is_mutable(is_mutable) {
 
     }
 

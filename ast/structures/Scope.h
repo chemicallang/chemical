@@ -18,14 +18,14 @@ public:
     /**
      * empty constructor
      */
-    Scope(ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, location), parent_node(parent_node) {
+    constexpr Scope(ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, location), parent_node(parent_node) {
 
     }
 
     /**
      * constructor
      */
-    Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, location), nodes(std::move(nodes)), parent_node(parent_node) {
+    constexpr Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, location), nodes(std::move(nodes)), parent_node(parent_node) {
 
     }
 

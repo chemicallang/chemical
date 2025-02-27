@@ -15,7 +15,7 @@ public:
     /**
      * constructor
      */
-    ThrowStatement(
+    constexpr ThrowStatement(
         Value* value,
         ASTNode* parent_node,
         SourceLocation location

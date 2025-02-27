@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    DynamicType(
+    constexpr DynamicType(
         BaseType* referenced,
         SourceLocation location
     ) : referenced(referenced), BaseType(BaseTypeKind::Dynamic, location) {

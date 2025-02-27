@@ -10,7 +10,10 @@ public:
 
     long long value;
 
-    explicit BigIntValue(
+    /**
+     * constructor
+     */
+    constexpr BigIntValue(
         long long value,
         SourceLocation location
     ) : IntNumValue(ValueKind::BigInt, location), value(value) {

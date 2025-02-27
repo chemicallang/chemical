@@ -57,7 +57,7 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
 
     token++;
 
-    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, { nullptr, 0 }, {}, std::nullopt, parent_node, is_value, loc_single(first));
+    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, parent_node, is_value, loc_single(first));
 
     auto exprBlock = parseIfExprAndBlock(allocator, is_value, parse_value_node, top_level);
     if(exprBlock.has_value()) {

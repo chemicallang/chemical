@@ -31,30 +31,13 @@ public:
 #endif
 
     /**
-     * @brief Construct a new IntValue object.
-     *
-     * @param value The integer value.
-     */
-    LambdaFunction(
-            std::vector<CapturedVariable*> captureList,
-            std::vector<FunctionParam*> params,
-            bool isVariadic,
-            Scope scope,
-            ASTNode* parent_node,
-            SourceLocation location
-    ) : Value(ValueKind::LambdaFunc, location), captureList(std::move(captureList)), FunctionTypeBody(std::move(params), nullptr, isVariadic, !captureList.empty(), parent_node, location), scope(std::move(scope)) {
-
-    }
-
-    /**
      * constructor
      */
-    LambdaFunction(
+    constexpr LambdaFunction(
             bool isVariadic,
-            Scope scope,
             ASTNode* parent_node,
             SourceLocation location
-    ) : Value(ValueKind::LambdaFunc, location), FunctionTypeBody(nullptr, isVariadic, !captureList.empty(), parent_node, location), scope(std::move(scope)) {
+    ) : Value(ValueKind::LambdaFunc, location), FunctionTypeBody(nullptr, isVariadic, false, parent_node, location), scope(parent_node, location) {
 
     }
 

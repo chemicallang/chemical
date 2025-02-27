@@ -9,7 +9,7 @@ public:
 
     static const AnyType instance;
 
-    inline AnyType(SourceLocation location) : BaseType(BaseTypeKind::Any, location) {
+    inline constexpr AnyType(SourceLocation location) : BaseType(BaseTypeKind::Any, location) {
 
     }
 

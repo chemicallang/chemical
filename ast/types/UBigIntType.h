@@ -9,7 +9,10 @@ public:
 
     static const UBigIntType instance;
 
-    UBigIntType(SourceLocation location) : IntNType(location) {
+    /**
+     * constructor
+     */
+    constexpr UBigIntType(SourceLocation location) : IntNType(location) {
 
     }
 

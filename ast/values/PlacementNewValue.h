@@ -13,7 +13,10 @@ public:
     // TODO remove this
     PointerType ptr_type;
 
-    inline PlacementNewValue(
+    /**
+     * constructor
+     */
+    inline constexpr PlacementNewValue(
         Value* pointer,
         Value* value,
         SourceLocation location

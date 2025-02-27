@@ -22,11 +22,10 @@ public:
     /**
      * constructor
      */
-    LoopBlock(
-        Scope scope,
-        ASTNode* parent_node,
-        SourceLocation location
-    ) : LoopASTNode(std::move(scope), ASTNodeKind::LoopBlock, location), Value(ValueKind::LoopValue, location), parent_node(parent_node) {
+    constexpr LoopBlock(
+            ASTNode* parent_node,
+            SourceLocation location
+    ) : LoopASTNode(ASTNodeKind::LoopBlock, location), Value(ValueKind::LoopValue, location), parent_node(parent_node) {
 
     }
 

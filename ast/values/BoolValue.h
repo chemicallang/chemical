@@ -15,11 +15,9 @@ public:
     bool value;
 
     /**
-     * @brief Construct a new CharValue object.
-     *
-     * @param value The character value.
+     * constructor
      */
-    explicit BoolValue(
+    constexpr BoolValue(
         bool value,
         SourceLocation location
     ) : Value(ValueKind::Bool, location), value(value) {

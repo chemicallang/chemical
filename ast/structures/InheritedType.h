@@ -10,10 +10,15 @@ public:
     AccessSpecifier specifier;
     BaseType* type;
 
-    explicit InheritedType(
-            BaseType* type,
-            AccessSpecifier specifier = AccessSpecifier::Public
-    );
+    /**
+     * constructor
+     */
+    constexpr InheritedType(
+        BaseType* type,
+        AccessSpecifier specifier = AccessSpecifier::Public
+    ) : type(type), specifier(specifier) {
+
+    }
 
     /**
      * the name of the referenced type

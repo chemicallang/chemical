@@ -27,7 +27,10 @@ public:
     Value* defValue;
     const bool is_implicit;
 
-    FunctionParam(
+    /**
+     * constructor
+     */
+    constexpr FunctionParam(
             chem::string_view name,
             BaseType* type,
             unsigned int index,
@@ -39,6 +42,9 @@ public:
         defValue(defValue), is_implicit(is_implicit) {}
 
 
+    /**
+     * get the parent
+     */
     ASTNode *parent() final {
         return (ASTNode*) func_type;
     }

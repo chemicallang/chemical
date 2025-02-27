@@ -11,7 +11,10 @@ public:
     long value;
     bool is64Bit;
 
-    LongValue(
+    /**
+     * constructor
+     */
+    constexpr LongValue(
         long value,
         bool is64Bit,
         SourceLocation location

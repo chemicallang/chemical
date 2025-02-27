@@ -15,7 +15,7 @@ public:
     /**
      * constructor
      */
-    NewValue(
+    constexpr NewValue(
         Value* value,
         SourceLocation location
     ) : Value(ValueKind::NewValue, location), value(value), ptr_type(nullptr, 0, false) {

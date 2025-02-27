@@ -17,7 +17,10 @@ public:
     PointerType _ptr_type;
     bool is_value_mutable = false;
 
-    explicit AddrOfValue(
+    /**
+     * constructor
+     */
+    constexpr AddrOfValue(
         Value* value,
         SourceLocation location
     ) : Value(ValueKind::AddrOfValue, location), value(value), _ptr_type(nullptr, location) {

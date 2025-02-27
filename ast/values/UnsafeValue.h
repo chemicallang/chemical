@@ -24,7 +24,7 @@ public:
     /**
      * constructor
      */
-    inline UnsafeValue(
+    inline constexpr UnsafeValue(
         ASTAllocator* allocator,
         Value* value
     ) : Value(ValueKind::UnsafeValue, value->encoded_location()), allocator(allocator), value(value) {

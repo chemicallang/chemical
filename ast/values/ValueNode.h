@@ -30,7 +30,7 @@ public:
     /**
      * constructor
      */
-    ValueNode(
+    constexpr ValueNode(
         Value* value,
         ASTNode* parent_node,
         SourceLocation location

@@ -23,7 +23,7 @@ public:
     /**
      * constructor
      */
-    Expression(
+    constexpr Expression(
             Value* firstValue,
             Value* secondValue,
             Operation operation,

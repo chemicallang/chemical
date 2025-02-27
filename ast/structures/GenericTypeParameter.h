@@ -18,7 +18,7 @@ public:
     /**
      * constructor
      */
-    GenericTypeParameter(
+    constexpr GenericTypeParameter(
         chem::string_view identifier,
         BaseType* at_least_type,
         BaseType* def_type,

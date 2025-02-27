@@ -13,7 +13,7 @@ public:
     /**
      * constructor
      */
-    explicit UCharValue(
+    constexpr UCharValue(
         unsigned char value,
         SourceLocation location
     ) : IntNumValue(ValueKind::UChar, location), value(value) {

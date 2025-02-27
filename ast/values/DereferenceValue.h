@@ -15,7 +15,10 @@ public:
 
     Value* value;
 
-    explicit DereferenceValue(
+    /**
+     * constructor
+     */
+    constexpr DereferenceValue(
         Value* value,
         SourceLocation location
     ) : Value(ValueKind::DereferenceValue, location), value(value) {

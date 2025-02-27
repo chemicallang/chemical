@@ -14,7 +14,7 @@ public:
     /**
      * constructor
      */
-    ULongValue(
+    constexpr ULongValue(
         unsigned long value,
         bool is64Bit,
         SourceLocation location

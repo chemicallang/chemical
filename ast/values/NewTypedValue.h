@@ -16,7 +16,10 @@ public:
     // TODO remove this
     PointerType ptr_type;
 
-    inline NewTypedValue(
+    /**
+     * constructor
+     */
+    inline constexpr NewTypedValue(
         BaseType* type,
         SourceLocation location
     ) : Value(ValueKind::NewTypedValue, location), type(type), ptr_type(nullptr, 0 , false) {

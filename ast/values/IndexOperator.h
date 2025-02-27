@@ -19,11 +19,10 @@ public:
     /**
      * constructor
      */
-    IndexOperator(
+    constexpr IndexOperator(
             ChainValue* parent,
-            std::vector<Value*> indexes,
             SourceLocation location
-    ) : ChainValue(ValueKind::IndexOperator, location), parent_val(parent), values(std::move(indexes)) {
+    ) : ChainValue(ValueKind::IndexOperator, location), parent_val(parent) {
 
     }
 

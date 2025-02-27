@@ -18,7 +18,7 @@ public:
     ASTNode* parent_node;
     bool is_value;
 
-    SwitchStatement(
+    constexpr SwitchStatement(
         Value* expression,
         ASTNode* parent_node,
         bool is_value,

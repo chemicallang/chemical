@@ -13,24 +13,9 @@ public:
     SwitchStatement* switch_statement;
 
     /**
-     * this will not only take the access chain, but also find the last function call
-     * and take identifiers properly
-     * this also takes a diagnoser reference, so it can report errors
-     */
-    VariantCase(
-            Value* parent_val,
-            std::vector<Value*>& identifier_list,
-            ASTDiagnoser& resolver,
-            SwitchStatement* statement,
-            SourceLocation location
-    ) : Value(ValueKind::VariantCase, location), parent_val(parent_val), switch_statement(statement) {
-
-    }
-
-    /**
      * constructor
      */
-    VariantCase(
+    constexpr VariantCase(
             Value* parent_val,
             SwitchStatement* statement,
             SourceLocation location

@@ -19,9 +19,9 @@ public:
     Value* value;
 
     /**
-     * @brief Construct a new ReturnStatement object.
+     * Construct a new ReturnStatement object.
      */
-    ReturnStatement(
+    constexpr ReturnStatement(
             Value* value,
             FunctionTypeBody* declaration,
             ASTNode* parent_node,

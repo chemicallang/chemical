@@ -23,7 +23,7 @@ public:
     /**
      * constructor
      */
-    PointerValue(
+    constexpr PointerValue(
         void* data,
         BaseType* type,
         size_t behind,

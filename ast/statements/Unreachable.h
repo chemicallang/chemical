@@ -15,9 +15,9 @@ public:
     ASTNode* parent_node;
 
     /**
-     * Construct a new ContinueStatement object.
+     * constructor
      */
-    UnreachableStmt(
+    constexpr UnreachableStmt(
         ASTNode* parent_node,
         SourceLocation location
     ) : ASTNode(ASTNodeKind::UnreachableStmt, location), parent_node(parent_node) {

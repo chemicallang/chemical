@@ -40,7 +40,7 @@ public:
     /**
      * constructor
      */
-    DestructStmt(
+    constexpr DestructStmt(
         Value* array_value,
         Value* value,
         bool is_array,

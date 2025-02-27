@@ -18,11 +18,9 @@ public:
     double value; ///< The double value.
 
     /**
-     * @brief Construct a new DoubleValue object.
-     *
-     * @param value The double value.
+     * constructor
      */
-    explicit DoubleValue(
+    constexpr DoubleValue(
         double value,
         SourceLocation location
     ) : Value(ValueKind::Double, location), value(value) {}

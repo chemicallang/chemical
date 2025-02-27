@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    ExtensionFuncReceiver(
+    constexpr ExtensionFuncReceiver(
         chem::string_view name,
         BaseType* type,
         ASTNode* parent_node,

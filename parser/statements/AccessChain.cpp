@@ -217,7 +217,7 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, AccessChain* ch
     auto& lParenTok = *token;
     if(lParenTok.type == TokenType::LParen) {
         const auto location = loc_single(lParenTok);
-        auto call = new (allocator.allocate<FunctionCall>()) FunctionCall(take_parent(allocator, chain, location), {}, location);
+        auto call = new (allocator.allocate<FunctionCall>()) FunctionCall(take_parent(allocator, chain, location), location);
         token++;
         do {
             consumeNewLines();
@@ -303,7 +303,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
     while(token->type == TokenType::LParen || token->type == TokenType::LBracket) {
         if(token->type == TokenType::LBracket) {
             const auto location = loc_single(token);
-            auto indexOp = new (allocator.allocate<IndexOperator>()) IndexOperator(take_parent(allocator, chain, location), {}, location);
+            auto indexOp = new (allocator.allocate<IndexOperator>()) IndexOperator(take_parent(allocator, chain, location), location);
             chain->values.emplace_back(indexOp);
             while (token->type == TokenType::LBracket) {
                 token++;

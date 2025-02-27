@@ -15,7 +15,7 @@ public:
     BaseType* elem_type;
     Value* array_size_value;
 
-    inline ArrayType(
+    inline constexpr ArrayType(
         BaseType* elem_type,
         Value* array_size_val,
         SourceLocation location
@@ -23,7 +23,7 @@ public:
 
     }
 
-    inline ArrayType(
+    inline constexpr ArrayType(
             BaseType* elem_type,
             uint64_t array_size,
             SourceLocation location

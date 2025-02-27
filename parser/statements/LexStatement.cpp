@@ -186,7 +186,7 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
         token++;
         auto has_namespace = consumeWSOfType(TokenType::NamespaceKw);
         const auto location = loc_single(tok);
-        auto chain = new (allocator.allocate<AccessChain>()) AccessChain({}, false, location);
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, location);
         auto stmt = new (allocator.allocate<UsingStmt>()) UsingStmt(chain, parent_node, has_namespace, location);
         do {
             auto id = parseVariableIdentifier(allocator);
@@ -263,7 +263,7 @@ ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::ProvideKw) {
         token++;
-        auto stmt = new (allocator.allocate<ProvideStmt>()) ProvideStmt(nullptr, "", { nullptr, 0 }, parent_node, loc_single(tok));
+        auto stmt = new (allocator.allocate<ProvideStmt>()) ProvideStmt(nullptr, "", parent_node, loc_single(tok));
         auto val = parseProvideValue(allocator);
         if(val) {
             stmt->value = val;
@@ -300,7 +300,7 @@ ComptimeBlock* Parser::parseComptimeBlock(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::ComptimeKw) {
         token++;
-        auto ctBlock = new (allocator.allocate<ComptimeBlock>()) ComptimeBlock({ nullptr, 0 }, parent_node, loc_single(tok));
+        auto ctBlock = new (allocator.allocate<ComptimeBlock>()) ComptimeBlock(parent_node, loc_single(tok));
         auto block = parseBraceBlock("comptime", ctBlock, allocator);
         if(block.has_value()) {
             ctBlock->body = std::move(block.value());

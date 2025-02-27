@@ -9,7 +9,10 @@ public:
 
     static const UIntType instance;
 
-    UIntType(SourceLocation location) : IntNType(location) {
+    /**
+     * constructor
+     */
+    constexpr UIntType(SourceLocation location) : IntNType(location) {
 
     }
 

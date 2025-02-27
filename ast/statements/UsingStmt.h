@@ -30,7 +30,7 @@ public:
     UsingStmtAttributes attrs;
     ASTNode* parent_node;
 
-    UsingStmt(
+    constexpr UsingStmt(
             AccessChain* chain,
             ASTNode* parent_node,
             bool is_namespace,

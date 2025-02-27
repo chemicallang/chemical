@@ -21,11 +21,13 @@ public:
     std::vector<Value*> values;
     int16_t generic_iteration = -1;
 
-    FunctionCall(
+    /**
+     * constructor
+     */
+    constexpr FunctionCall(
             ChainValue* parent,
-            std::vector<Value*> values,
             SourceLocation location
-    ) : ChainValue(ValueKind::FunctionCall, location), parent_val(parent), values(std::move(values)) {
+    ) : ChainValue(ValueKind::FunctionCall, location), parent_val(parent) {
 
     }
 

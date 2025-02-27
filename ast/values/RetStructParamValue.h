@@ -13,7 +13,10 @@
 class RetStructParamValue : public Value {
 public:
 
-    explicit RetStructParamValue(SourceLocation location) : Value(ValueKind::RetStructParamValue, location) {
+    /**
+     * constructor
+     */
+    explicit constexpr RetStructParamValue(SourceLocation location) : Value(ValueKind::RetStructParamValue, location) {
 
     }
 

@@ -12,7 +12,10 @@ public:
     static const ULongType instance64Bit;
     static const ULongType instance32Bit;
 
-    ULongType(bool is64Bit, SourceLocation location) : is64Bit(is64Bit), IntNType(location) {
+    /**
+     * constructor
+     */
+    constexpr ULongType(bool is64Bit, SourceLocation location) : is64Bit(is64Bit), IntNType(location) {
 
     }
 

@@ -143,7 +143,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
     // lambda with no params
     if(consumeToken(TokenType::RParen)) {
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, { nullptr, 0 }, parent_node, 0);;
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);;
         auto prev_func_type = current_func_type;
         current_func_type = lamb;
         parseLambdaAfterParamsList(allocator, lamb);
@@ -159,7 +159,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
     }
 
     if (consumeToken(TokenType::RParen)) {
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, { nullptr, 0 }, parent_node, 0);
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
         auto prev_func_type = current_func_type;
@@ -173,7 +173,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         } else {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, { nullptr, 0 }, parent_node, 0);
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), type, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
         auto prev_func_type = current_func_type;
@@ -185,7 +185,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         current_func_type = prev_func_type;
         return lamb;
     } else if (consumeToken(TokenType::CommaSym)) {
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, { nullptr, 0 }, parent_node, 0);
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
         lamb->params.emplace_back(param);
         auto prev_func_type = current_func_type;

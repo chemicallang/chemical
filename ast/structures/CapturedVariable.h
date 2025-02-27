@@ -16,7 +16,7 @@ public:
     PointerType ptrType;
 
 
-    CapturedVariable(
+    constexpr CapturedVariable(
         chem::string_view name,
         unsigned int index,
         bool capture_by_ref,

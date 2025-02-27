@@ -13,7 +13,7 @@ public:
     /**
      * constructor
      */
-    explicit UBigIntValue(
+    constexpr UBigIntValue(
         unsigned long long value,
         SourceLocation location
     ) : IntNumValue(ValueKind::UBigInt, location), value(value) {

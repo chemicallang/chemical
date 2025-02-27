@@ -12,7 +12,10 @@ public:
 
     bool is64Bit;
 
-    explicit LongType(bool is64Bit, SourceLocation location) : is64Bit(is64Bit), IntNType(location) {
+    /**
+     * constructor
+     */
+    constexpr LongType(bool is64Bit, SourceLocation location) : is64Bit(is64Bit), IntNType(location) {
 
     }
 

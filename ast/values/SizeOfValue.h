@@ -12,7 +12,10 @@ public:
 
     BaseType* for_type;
 
-    explicit SizeOfValue(
+    /**
+     * constructor
+     */
+    constexpr SizeOfValue(
         BaseType *for_type,
         SourceLocation location
     ) : Value(ValueKind::SizeOfValue, location), for_type(for_type) {

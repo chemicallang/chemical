@@ -18,7 +18,7 @@ public:
     /**
      * constructor
      */
-    inline explicit NullValue(SourceLocation location) : Value(ValueKind::NullValue, location) {
+    inline explicit constexpr NullValue(SourceLocation location) : Value(ValueKind::NullValue, location) {
 
     }
 

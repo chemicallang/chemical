@@ -22,7 +22,7 @@ public:
     /**
      * this will take the access chain, if has function call at least, own it's values
      */
-    explicit VariantCall(
+    constexpr VariantCall(
         Value* parent_val,
         SourceLocation location
     ) : Value(ValueKind::VariantCall, location), parent_val(parent_val) {

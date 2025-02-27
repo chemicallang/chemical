@@ -9,7 +9,10 @@ public:
 
     BaseType* elem_type;
 
-    ComplexType(
+    /**
+     * constructor
+     */
+    constexpr ComplexType(
         BaseType* elem_type,
         SourceLocation location
     ) : BaseType(BaseTypeKind::Complex, location), elem_type(elem_type) {

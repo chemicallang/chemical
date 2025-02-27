@@ -14,11 +14,10 @@ public:
     /**
      * constructor
      */
-    ComptimeBlock(
-        Scope body,
-        ASTNode* parent,
-        SourceLocation location
-    ) : ASTNode(ASTNodeKind::ComptimeBlock, location), body(std::move(body)), parent_node(parent) {
+    constexpr ComptimeBlock(
+            ASTNode* parent,
+            SourceLocation location
+    ) : ASTNode(ASTNodeKind::ComptimeBlock, location), body(this, location), parent_node(parent) {
 
     }
 

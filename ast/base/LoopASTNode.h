@@ -20,7 +20,21 @@ public:
     /**
      * constructor
      */
-    explicit LoopASTNode(Scope body, ASTNodeKind k, SourceLocation loc) : ASTNode(k, loc), body(std::move(body)) {
+    LoopASTNode(Scope body, ASTNodeKind k, SourceLocation loc) : ASTNode(k, loc), body(std::move(body)) {
+
+    }
+
+    /**
+     * constructor
+     */
+    constexpr LoopASTNode(ASTNodeKind k, SourceLocation loc) : ASTNode(k, loc), body(this, loc) {
+
+    }
+
+    /**
+     * constructor
+     */
+    constexpr LoopASTNode(ASTNode* parent_node, ASTNodeKind k, SourceLocation loc) : ASTNode(k, loc), body(this, loc) {
 
     }
 

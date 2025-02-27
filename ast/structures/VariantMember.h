@@ -23,6 +23,9 @@ public:
     LinkedType ref_type;
     VariantMemberAttributes attrs;
 
+    /**
+     * constructor
+     */
     VariantMember(
             chem::string_view name,
             VariantDefinition* parent_node,

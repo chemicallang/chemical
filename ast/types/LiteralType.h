@@ -9,7 +9,10 @@ public:
 
     BaseType* underlying;
 
-    explicit LiteralType(BaseType* underlying, SourceLocation location) : underlying(underlying), BaseType(BaseTypeKind::Literal, location) {
+    /**
+     * constructor
+     */
+    constexpr LiteralType(BaseType* underlying, SourceLocation location) : underlying(underlying), BaseType(BaseTypeKind::Literal, location) {
         // do nothing
     }
 

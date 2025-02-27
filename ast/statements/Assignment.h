@@ -26,7 +26,7 @@ public:
      * @param identifier The identifier being assigned.
      * @param value The value being assigned to the identifier.
      */
-    AssignStatement(
+    constexpr AssignStatement(
             Value* lhs,
             Value* value,
             Operation assOp,

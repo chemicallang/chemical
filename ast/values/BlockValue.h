@@ -16,6 +16,13 @@ public:
     /**
      * constructor
      */
+    constexpr BlockValue(ASTNode* parent_node, SourceLocation location) : Value(ValueKind::BlockValue, location), scope(parent_node, location) {
+
+    }
+
+    /**
+     * constructor
+     */
     BlockValue(Scope scope) : Value(ValueKind::BlockValue, scope.encoded_location()), scope(std::move(scope)) {
 
     }

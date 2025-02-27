@@ -16,7 +16,10 @@ public:
     unsigned index;
     bool is_const;
 
-    VariantMemberParam(
+    /**
+     * constructor
+     */
+    constexpr VariantMemberParam(
         chem::string_view name,
         unsigned index,
         bool is_const,

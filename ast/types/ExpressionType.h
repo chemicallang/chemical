@@ -12,7 +12,10 @@ public:
     BaseType* secondType;
     bool isLogicalAnd;
 
-    ExpressionType(
+    /**
+     * contructor
+     */
+    constexpr ExpressionType(
         BaseType* firstType,
         BaseType* secondType,
         bool isLogicalAnd,

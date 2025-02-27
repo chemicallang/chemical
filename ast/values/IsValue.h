@@ -19,7 +19,7 @@ public:
     /**
      * constructor
      */
-    IsValue(
+    constexpr IsValue(
             Value* value,
             BaseType* type,
             bool is_negating,

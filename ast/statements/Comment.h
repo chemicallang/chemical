@@ -15,7 +15,7 @@ public:
     chem::string_view comment;
     bool multiline;
 
-    Comment(
+    constexpr Comment(
             chem::string_view comment,
             bool multiline,
             ASTNode* parent,

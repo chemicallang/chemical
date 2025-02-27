@@ -240,25 +240,6 @@ public:
      */
     FunctionDeclaration(
             LocatedIdentifier identifier,
-            std::vector<FunctionParam*> params,
-            BaseType* returnType,
-            bool isVariadic,
-            ASTNode* parent_node,
-            SourceLocation location,
-            std::optional<Scope> body = std::nullopt,
-            AccessSpecifier specifier = AccessSpecifier::Internal,
-            bool signature_resolved = false,
-            ASTNodeKind k = ASTNodeKind::FunctionDecl
-    ) : ASTNode(k, location), FunctionTypeBody(std::move(params), returnType, isVariadic, false, parent_node, location, signature_resolved),
-         identifier(identifier), body(std::move(body)),
-         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
-    }
-
-    /**
-     * constructor
-     */
-    FunctionDeclaration(
-            LocatedIdentifier identifier,
             BaseType* returnType,
             bool isVariadic,
             ASTNode* parent_node,

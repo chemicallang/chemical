@@ -16,7 +16,7 @@ WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
 
     token++;
 
-    auto loop = new (allocator.allocate<WhileLoop>()) WhileLoop(nullptr, { nullptr, 0 }, parent_node, loc_single(tok));
+    auto loop = new (allocator.allocate<WhileLoop>()) WhileLoop(nullptr, parent_node, loc_single(tok));
 
     if(!consumeToken(TokenType::LParen)) {
         error("expected a starting parenthesis ( after keyword while for while block");

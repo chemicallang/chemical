@@ -18,7 +18,7 @@ public:
     /**
      * variant case
      */
-    VariantCaseVariable(
+    constexpr VariantCaseVariable(
             chem::string_view name,
             VariableIdentifier* parent_val,
             SwitchStatement* switch_statement,

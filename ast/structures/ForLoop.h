@@ -23,14 +23,13 @@ public:
     /**
      * @brief Construct a new ForLoop object.
      */
-    ForLoop(
+    constexpr ForLoop(
             VarInitStatement* initializer,
             Value* conditionExpr,
             ASTNode* incrementerExpr,
-            Scope body,
             ASTNode* parent_node,
             SourceLocation location
-    ) : LoopASTNode(std::move(body), ASTNodeKind::ForLoopStmt, location), initializer(initializer), conditionExpr(conditionExpr),
+    ) : LoopASTNode(ASTNodeKind::ForLoopStmt, location), initializer(initializer), conditionExpr(conditionExpr),
         incrementerExpr(incrementerExpr), parent_node(parent_node) {
 
     }

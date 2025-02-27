@@ -9,7 +9,10 @@ public:
 
     static const UInt128Type instance;
 
-    UInt128Type(SourceLocation location) : IntNType(location) {
+    /**
+     * constructor
+     */
+    constexpr UInt128Type(SourceLocation location) : IntNType(location) {
 
     }
 

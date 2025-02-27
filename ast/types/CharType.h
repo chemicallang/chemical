@@ -9,7 +9,10 @@ public:
 
     static const CharType instance;
 
-    CharType(SourceLocation location) : IntNType(location) {
+    /**
+     * constructor
+     */
+    constexpr CharType(SourceLocation location) : IntNType(location) {
 
     }
 

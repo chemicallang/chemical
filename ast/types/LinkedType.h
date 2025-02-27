@@ -13,16 +13,16 @@ public:
     chem::string_view type;
     ASTNode *linked;
 
-    LinkedType(chem::string_view type, SourceLocation location) : type(type), BaseType(BaseTypeKind::Linked, location), linked(nullptr) {
+    constexpr LinkedType(chem::string_view type, SourceLocation location) : type(type), BaseType(BaseTypeKind::Linked, location), linked(nullptr) {
 
     }
 
     [[deprecated]]
-    LinkedType(chem::string_view type, SourceLocation location, ASTNode* linked) : type(type), BaseType(BaseTypeKind::Linked, location), linked(linked) {
+    constexpr LinkedType(chem::string_view type, SourceLocation location, ASTNode* linked) : type(type), BaseType(BaseTypeKind::Linked, location), linked(linked) {
 
     }
 
-    LinkedType(chem::string_view type, ASTNode* linked, SourceLocation location) : type(type), BaseType(BaseTypeKind::Linked, location), linked(linked) {
+    constexpr LinkedType(chem::string_view type, ASTNode* linked, SourceLocation location) : type(type), BaseType(BaseTypeKind::Linked, location), linked(linked) {
 
     }
 

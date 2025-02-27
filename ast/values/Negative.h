@@ -15,10 +15,15 @@ public:
 
     Value* value;
 
-    explicit NegativeValue(
+    /**
+     * constructor
+     */
+    constexpr NegativeValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NegativeValue, location), value(value) {}
+    ) : Value(ValueKind::NegativeValue, location), value(value) {
+
+    }
 
 
 //    hybrid_ptr<BaseType> get_base_type() final;

@@ -774,7 +774,7 @@ FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allo
 }
 
 FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(Scope{nullptr, ZERO_LOC});
     decl->set_delete_fn(true);
@@ -783,7 +783,7 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
 }
 
 FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("clear"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("clear"), new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(Scope{nullptr, ZERO_LOC});
     decl->set_clear_fn(true);
@@ -792,7 +792,7 @@ FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) 
 }
 
 FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
     decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(Scope{nullptr, ZERO_LOC});
@@ -802,7 +802,7 @@ FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
 }
 
 FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("move"), {}, new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC, std::nullopt);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("move"), new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
     decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 1, nullptr, true, decl, ZERO_LOC));
     decl->body.emplace(Scope{nullptr, ZERO_LOC});
@@ -994,10 +994,6 @@ void VariablesContainer::declare_and_link(SymbolResolver &linker, ASTNode*& node
     for (auto& variable : variables) {
         variable.second->declare_and_link(linker, (ASTNode*&) variable.second);
     }
-}
-
-InheritedType::InheritedType(BaseType* type, AccessSpecifier specifier) : type(type), specifier(specifier) {
-
 }
 
 const chem::string_view& InheritedType::ref_type_name() {

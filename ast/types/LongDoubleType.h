@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    LongDoubleType(SourceLocation location) : BaseType(BaseTypeKind::LongDouble, location) {
+    constexpr LongDoubleType(SourceLocation location) : BaseType(BaseTypeKind::LongDouble, location) {
 
     }
 

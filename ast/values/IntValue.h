@@ -21,7 +21,7 @@ public:
     /**
      * constructor
      */
-    explicit IntValue(
+    constexpr IntValue(
         int value,
         SourceLocation location
     ) : IntNumValue(ValueKind::Int, location), value(value) {}

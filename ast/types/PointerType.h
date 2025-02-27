@@ -14,7 +14,10 @@ public:
     bool is_mutable;
     std::vector<std::unique_ptr<BaseType>> pures{};
 
-    PointerType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), BaseType(BaseTypeKind::Pointer, location), is_mutable(is_mutable) {
+    /**
+     * constructor
+     */
+    constexpr PointerType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), BaseType(BaseTypeKind::Pointer, location), is_mutable(is_mutable) {
 
     }
 

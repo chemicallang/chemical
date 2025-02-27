@@ -51,13 +51,13 @@ static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::st
             return true;
         }
     }
-    std::cerr << "[BuildLab] lab file at " << abs_path << " is a library, so it's build method's signature should return a Module*" << std::endl;
+    std::cerr << "[lab] lab file at " << abs_path << " is a library, so it's build method's signature should return a Module*" << std::endl;
     return false;
 }
 
 static bool verify_app_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() != BaseTypeKind::Void) {
-        std::cerr << "[BuildLab] the root .lab file at " << abs_path << " provided to compiler should use a void return type in it's build method" << std::endl;
+        std::cerr << "[lab] the root .lab file at " << abs_path << " provided to compiler should use a void return type in it's build method" << std::endl;
         return false;
     }
     return true;
@@ -327,8 +327,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     const bool use_tcc = options->use_tcc || job_type == LabJobType::ToCTranslation || job_type == LabJobType::CBI;
 
     const auto caching = options->is_caching_enabled;
+    const auto verbose = options->verbose;
 
-    std::cout << rang::bg::blue << rang::fg::black << "[BuildLab]" << ' ';
+    std::cout << rang::bg::blue << rang::fg::black << "[lab] ";
     switch(job_type) {
         case LabJobType::Executable:
             std::cout << "Building executable";
@@ -359,10 +360,17 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
     std::string exe_build_dir = exe->build_dir.to_std_string();
     if(!exe_build_dir.empty()) {
+        if(verbose) {
+            std::cout << "[lab] " << "creating build directory at '" << exe_build_dir << "'" << std::endl;
+        }
         // create the build directory for this executable
         if (!std::filesystem::exists(exe_build_dir)) {
             std::filesystem::create_directory(exe_build_dir);
         }
+    }
+
+    if(verbose) {
+        std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
     }
 
     // an interpretation scope for interpreting compile time function calls
@@ -386,7 +394,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     ASTProcessor processor(options, loc_man, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
     Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
     LLVMBackendContext g_context(&gen);
-    CodegenEmitterOptions emitter_options;
     // set the context so compile time calls are sent to it
     global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
 #else
@@ -398,10 +405,16 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
     if(container) {
+        if(verbose) {
+            std::cout << "[lab] " << "rebinding comptime methods" << std::endl;
+        }
         // bind global container that contains namespaces like std and compiler
         // reusing it, if we created it before
         global.rebind_container(resolver, container);
     } else {
+        if(verbose) {
+            std::cout << "[lab] " << "creating comptime methods" << std::endl;
+        }
         // allow user the compiler (namespace) functions in @comptime
         // we create the new global container here once
         container = global.create_container(resolver);
@@ -412,25 +425,13 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         output_ptr.clear();
         output_ptr.str("");
     }
-#ifdef COMPILER_BUILD
-    else {
-        // emitter options allow to configure type of build (debug or release)
-        // configuring the emitter options
-        configure_emitter_opts(options->outMode, &emitter_options);
-        if (options->def_lto_on) {
-            emitter_options.lto = true;
-        }
-        if(options->debug_ir) {
-            emitter_options.debug_ir = true;
-        }
-        if (options->def_assertions_on) {
-            emitter_options.assertions_on = true;
-        }
-    }
-#endif
 
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
+
+    if(verbose) {
+        std::cout << "[lab] " << "flattening the module structure" << std::endl;
+    }
 
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(exe->dependencies);
@@ -441,6 +442,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
     // create cbi before hand, for reserving allocation
     if(job_type == LabJobType::CBI) {
+        if(verbose) {
+            std::cout << "[lab] " << "creating a compiler binding interface for '" << exe->name << "'" << std::endl;
+        }
         binder.create_cbi(exe->name.to_std_string(), dependencies.size());
     }
 
@@ -448,6 +452,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     int mod_index = -1;
     for(auto mod : dependencies) {
         mod_index++;
+
+        if(verbose) {
+            std::cout << "[lab] " << "processing module '" << mod->name << '\'' << std::endl;
+        }
 
         auto found = generated.find(mod);
         if(found != generated.end() && job_type != LabJobType::ToCTranslation) {
@@ -461,6 +469,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         if(!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
             const auto mod_dir_exists = fs::exists(module_dir_path);
             if (!mod_dir_exists) {
+                if(verbose) {
+                    std::cout << "[lab] " << "creating module directory at path '" << module_dir_path << "'" << std::endl;
+                }
                 fs::create_directory(module_dir_path);
             }
         }
@@ -487,11 +498,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             switch (mod->type) {
                 case LabModuleType::CFile:
                 case LabModuleType::CPPFile: {
-                    std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]";
+                    std::cout << rang::bg::gray << rang::fg::black << "[lab] ";
                     if(mod->type == LabModuleType::CFile) {
-                        std::cout << " Compiling c ";
+                        std::cout << "compiling c ";
                     } else {
-                        std::cout << " Compiling c++ ";
+                        std::cout << "compiling c++ ";
                     }
                     if (!mod->name.empty()) {
                         std::cout << '\'' << mod->name.data() << "' ";
@@ -540,7 +551,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
         const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
         if(mod_data_path && do_compile) {
-            std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module ";
+            std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
             if (!mod->name.empty()) {
                 std::cout << '\'' << mod->name.data() << "' ";
             }
@@ -567,6 +578,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         // importing files user imported using includes
         if(!mod->includes.empty()) {
             for(auto& include : mod->includes) {
+                if(verbose) {
+                    std::cout << "[lab] " << "including chemical file '" << include << '\'' << std::endl;
+                }
                 const auto abs_path = include.to_std_string();
                 unsigned fileId = loc_man.encodeFile(abs_path);
                 ASTFileResultNew imported_file;
@@ -585,6 +599,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #ifdef COMPILER_BUILD
         // importing c headers of the module before processing files
         if(!mod->headers.empty()) {
+            if(verbose) {
+                std::cout << "[lab] " << "including c headers for module" << std::endl;
+            }
             // args to clang
             std::vector<std::string> args;
             args.emplace_back(options->exe_path);
@@ -616,6 +633,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 #endif
 
+        if(verbose) {
+            std::cout << "[lab] " << "detecting import cycles in the imports" << std::endl;
+        }
+
         // check module files for import cycles (direct or indirect)
         ImportCycleCheckResult importCycle { false, loc_man };
         check_imports_for_cycles(importCycle, module_files);
@@ -624,14 +645,26 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             break;
         }
 
+        if(verbose) {
+            std::cout << "[lab] " << "flattening the module import graph" << std::endl;
+        }
+
         // get the files flattened
         auto flattened_files = flatten(module_files);
+
+        if(verbose) {
+            std::cout << "[lab] " << "resolving symbols in the module" << std::endl;
+        }
 
         // symbol resolve all the files in the module
         const auto sym_res_status = processor.sym_res_files(flattened_files);
         if(sym_res_status == 1) {
             compile_result = 1;
             break;
+        }
+
+        if(verbose) {
+            std::cout << "[lab] " << "compiling module files" << std::endl;
         }
 
         // compile the whole module
@@ -645,6 +678,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 gen, mod, flattened_files
             );
 #endif
+        }
+
+        if(verbose) {
+            std::cout << "[lab] " << "disposing symbols in the module" << std::endl;
         }
 
         // going over each file in the module, to remove non-public nodes
@@ -699,11 +736,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             // compiling the c program, if required
             if(do_compile) {
                 auto obj_path = mod->object_path.to_std_string();
+                if(verbose) {
+                    std::cout << "[lab] emitting the module '" << mod->name <<  "' object file at path '" << obj_path << '\'' << std::endl;
+                }
                 compile_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, options->outMode == OutputMode::DebugComplete);
                 if (compile_result == 1) {
                     const auto out_path = resolve_sibling(obj_path, mod->name.to_std_string() + ".debug.c");
                     writeToFile(out_path, program);
-                    std::cerr << rang::fg::red << "[LabBuild] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
+                    std::cerr << rang::fg::red << "[lab] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
                     break;
                 }
                 exe->linkables.emplace_back(obj_path);
@@ -749,14 +789,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 );
                 if(options->verbose || options->benchmark || !bResult.error.empty()) {
                     for(auto& diag : binder.diagnostics) {
-                        std::cerr << rang::fg::red << "[BuildLab:CBI] " << diag << std::endl << rang::fg::reset;
+                        std::cerr << rang::fg::red << "[lab:cbi] " << diag << std::endl << rang::fg::reset;
                     }
                 }
                 binder.diagnostics.clear();
                 if(!bResult.error.empty()) {
                     auto out_path = resolve_rel_child_path_str(exe->build_dir.data(),mod->name.to_std_string() + ".2c.c");
                     writeToFile(out_path, program);
-                    std::cerr << rang::fg::red << "[BuildLab] failed to compile CBI module with name '" << mod->name.data() << "' in '" << exe->name.data() << "' with error '" << bResult.error << "' written at '" << out_path << '\'' << rang::fg::reset << std::endl;
+                    std::cerr << rang::fg::red << "[lab] failed to compile CBI module with name '" << mod->name.data() << "' in '" << exe->name.data() << "' with error '" << bResult.error << "' written at '" << out_path << '\'' << rang::fg::reset << std::endl;
                     compile_result = 1;
                     break;
                 }
@@ -775,9 +815,26 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #ifdef COMPILER_BUILD
         else {
 
+            CodegenEmitterOptions emitter_options;
+            // emitter options allow to configure type of build (debug or release)
+            // configuring the emitter options
+            configure_emitter_opts(options->outMode, &emitter_options);
+            if (options->def_lto_on) {
+                emitter_options.lto = true;
+            }
+            if(options->debug_ir) {
+                emitter_options.debug_ir = true;
+            }
+            if (options->def_assertions_on) {
+                emitter_options.assertions_on = true;
+            }
+
             // which files to emit
             if(!mod->llvm_ir_path.empty()) {
                 if(options->debug_ir) {
+                    if(verbose) {
+                        std::cout << "[lab] saving debug llvm ir at path '" << mod->llvm_ir_path << '\'' << std::endl;
+                    }
                     gen.save_to_ll_file_for_debugging(mod->llvm_ir_path.data());
                 } else {
                     emitter_options.ir_path = mod->llvm_ir_path.data();
@@ -794,8 +851,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             }
 
             const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
-            if(options->verbose) {
-                std::cout << "[Compiler] emitting the module '" << mod->name <<  "' object file at path '" << gen_path << '\'' << std::endl;
+            if(verbose) {
+                std::cout << "[lab] emitting the module '" << mod->name << "' file at '" << gen_path << '\'' << std::endl;
             }
 
             // creating a object or bitcode file
@@ -809,7 +866,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     }
                 }
             } else {
-                std::cerr << "[BuildLab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
+                std::cerr << "[lab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
             }
 
         }
@@ -868,7 +925,7 @@ int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::stri
 //        flags.emplace_back("-gdwarf-4");
     }
     if(options->verbose) {
-        std::cout << "[Compiler] linking objects ";
+        std::cout << "[lab] linking objects ";
         for(auto& obj : linkables) {
             std::cout << '\'' << obj.to_view() << '\'' << ' ';
         }
@@ -905,7 +962,7 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
     std::ofstream output;
     output.open(job->abs_path.data());
     if(!output.is_open()) {
-        std::cerr << rang::fg::red << "[BuildLab] " << "couldn't open the file for writing translated chemical from c at '" << job->abs_path.data() << '\'' << rang::fg::reset << std::endl;
+        std::cerr << rang::fg::red << "[lab] " << "couldn't open the file for writing translated chemical from c at '" << job->abs_path.data() << '\'' << rang::fg::reset << std::endl;
         return 1;
     }
     for(auto mod : job->dependencies) {
@@ -1025,10 +1082,10 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             if(func) {
                 return func;
             } else if(error){
-                std::cerr << "[LabBuild] expected build to be a function in the root lab build file " << abs_path << std::endl;
+                std::cerr << "[lab] expected build to be a function in the root lab build file " << abs_path << std::endl;
             }
         } else if(error) {
-            std::cerr << "[LabBuild] No build method found in the root lab build file " << abs_path << std::endl;
+            std::cerr << "[lab] No build method found in the root lab build file " << abs_path << std::endl;
         }
         return nullptr;
     };
@@ -1087,7 +1144,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             } else if (file.abs_path.ends_with(".lab")) {
                 if (file.as_identifier.empty()) {
                     std::cerr
-                            << "[BuildLab] lab file cannot be imported without an 'as' identifier in import statement, error importing "
+                            << "[lab] lab file cannot be imported without an 'as' identifier in import statement, error importing "
                             << file.abs_path << std::endl;
                     compile_result = 1;
                     break;
@@ -1136,14 +1193,14 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     if(state == nullptr) {
         const auto out_path = resolve_rel_child_path_str(context.build_dir, "build.lab.c");
         writeToFile(out_path, str);
-        std::cerr << rang::fg::red << "[LabBuild] couldn't build lab file due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
+        std::cerr << rang::fg::red << "[lab] couldn't build lab file due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
         return nullptr;
     }
 
     // import all compiler interfaces the lab files import
     for(const auto& interface : compiler_interfaces) {
         if(!binder.import_compiler_interface(interface, state)) {
-            std::cerr << rang::fg::red << "[LabBuild] failed to import compiler binding interface '" << interface << '\'' << rang::fg::reset << std::endl;
+            std::cerr << rang::fg::red << "[lab] failed to import compiler binding interface '" << interface << '\'' << rang::fg::reset << std::endl;
             tcc_delete(state);
             return nullptr;
         }
@@ -1204,7 +1261,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // get the build method
     auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
     if(!build) {
-        std::cerr << rang::fg::red << "[LabBuild] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
+        std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
         return 1;
     }
 
@@ -1238,7 +1295,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
         job_result = do_job(exe.get());
         if(job_result == 1) {
-            std::cerr << rang::fg::red << "[BuildLab]" << " error performing job '" << exe->name.data() << "', returned status code 1" << rang::fg::reset << std::endl;
+            std::cerr << rang::fg::red << "[lab] " << "error performing job '" << exe->name.data() << "', returned status code 1" << rang::fg::reset << std::endl;
         }
 
         // clearing all allocations done in all the allocators

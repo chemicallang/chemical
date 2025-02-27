@@ -33,13 +33,15 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
     auto lib_dir = resolve_rel_child_path_str(tcc_dir, "lib");
     result = tcc_add_include_path(s, include_dir.data());;
     if (result == -1) {
-        std::cerr << "[Compiler] Couldn't include tcc include package" << std::endl;
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't include tcc include package" << std::endl;
         return nullptr;
     }
 
     result = tcc_add_library_path(s, lib_dir.data());
     if (result == -1) {
-        std::cerr << "[Compiler] Couldn't add tcc library package" << std::endl;
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't add tcc library package" << std::endl;
         return nullptr;
     }
 

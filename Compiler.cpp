@@ -439,7 +439,8 @@ int main(int argc, char *argv[]) {
     auto get_resources_path = [&res, &argv]() -> std::string {
         auto resources_path = res.has_value() ? std::string(res.value()) : resources_path_rel_to_exe(std::string(argv[0]));
         if(resources_path.empty()) {
-            std::cerr << "[Compiler] Couldn't locate resources path relative to compiler's executable" << std::endl;
+            std::cerr << rang::fg::yellow << "warning: " << rang::fg::reset;
+            std::cerr << "couldn't locate resources path relative to compiler's executable" << std::endl;
         }
         return resources_path;
     };
@@ -481,7 +482,7 @@ int main(int argc, char *argv[]) {
         target.emplace(llvm::sys::getDefaultTargetTriple());
     }
     if(verbose) {
-        std::cout << "[Target] " << target.value() << std::endl;
+        std::cout << "target: " << target.value() << std::endl;
     }
 
     // determine if is 64bit
@@ -506,29 +507,31 @@ int main(int argc, char *argv[]) {
         } else if(mode_opt.value() == "debug_quick") {
             mode = OutputMode::DebugQuick;
             if(verbose) {
-                std::cout << "[Compiler] Debug Quick Enabled" << std::endl;
+                std::cout << "mode: Debug Quick Enabled (debug_quick)" << std::endl;
             }
         } else if(mode_opt.value() == "debug_complete") {
             mode = OutputMode::DebugComplete;
             if(verbose) {
-                std::cout << "[Compiler] Debug Complete Enabled" << std::endl;
+                std::cout << "mode: Debug Complete Enabled (debug_complete)" << std::endl;
             }
         } else if(mode_opt.value() == "release" || mode_opt.value() == "release_fast") {
             mode = OutputMode::ReleaseFast;
             if(verbose) {
-                std::cout << "[Compiler] Release Fast Enabled" << std::endl;
+                std::cout << "mode: Release Fast Enabled (release_fast)" << std::endl;
             }
         } else if(mode_opt.value() == "release_small") {
             if(verbose) {
-                std::cout << "[Compiler] Release Small Enabled" << std::endl;
+                std::cout << "mode: Release Small Enabled (release_small)" << std::endl;
             }
             mode = OutputMode::ReleaseSmall;
         } else {
-            std::cout << "Unknown mode '" << mode_opt.value() << '\'' << std::endl;
+            std::cerr << rang::fg::yellow << "warning: " << rang::fg::reset;
+            std::cout << "unknown mode '" << mode_opt.value() << '\'' << std::endl;
         }
     }
 #ifdef DEBUG
     else {
+        std::cout << "mode: Debug Quick Enabled (debug_quick)" << std::endl;
         mode = OutputMode::DebugQuick;
     }
 #endif

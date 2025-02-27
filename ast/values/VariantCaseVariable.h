@@ -55,7 +55,7 @@ public:
 
     llvm::Value* llvm_pointer(Codegen &gen) final;
 
-    llvm::Value* llvm_load(Codegen &gen) final;
+    llvm::Value* llvm_load(Codegen& gen, SourceLocation location) final;
 
     llvm::Type* llvm_type(Codegen &gen) final;
 

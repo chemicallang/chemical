@@ -204,10 +204,9 @@ llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
     return nullptr;
 }
 
-llvm::Value* BaseDefMember::llvm_load(Codegen &gen) {
+llvm::Value* BaseDefMember::llvm_load(Codegen& gen, SourceLocation location) {
     auto pointer = llvm_pointer(gen);
-    // TODO use the location of the loader, not what's being loaded
-    return Value::load_value(gen, known_type(), llvm_type(gen), pointer, encoded_location());
+    return Value::load_value(gen, known_type(), llvm_type(gen), pointer, location);
 }
 
 llvm::Type* StructMember::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {

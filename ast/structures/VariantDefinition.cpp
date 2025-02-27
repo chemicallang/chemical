@@ -212,11 +212,11 @@ llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
     return ptr;
 }
 
-llvm::Value* VariantCaseVariable::llvm_load(Codegen &gen) {
+llvm::Value* VariantCaseVariable::llvm_load(Codegen& gen, SourceLocation location) {
     const auto expr = switch_statement->expression;
     const auto expr_type = expr->create_type(gen.allocator);
     const auto prev_itr = expr_type->set_generic_iteration(expr_type->get_generic_iteration());
-    const auto value = Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer_no_itr(gen), encoded_location());
+    const auto value = Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer_no_itr(gen), location);
     expr_type->set_generic_iteration(prev_itr);
     return value;
 }

@@ -87,7 +87,7 @@ void put_self_param(
             //    however now we aren't going to do this here, it should be done in symbol resolution
             //    this is because, function in inherited interfaces, their self arg doesn't have the same type
             if(passing_self_arg) {
-                args.emplace_back(passing_self_arg->llvm_load(gen));
+                args.emplace_back(passing_self_arg->llvm_load(gen, call->encoded_location()));
             } else {
                 gen.error("function without a self argument cannot call methods that require self arg", call);
                 return;
@@ -446,7 +446,7 @@ llvm::Value *FunctionCall::llvm_linked_func_callee(Codegen& gen) {
     }
     const auto linked = parent_val->linked_node();
     if(linked != nullptr) {
-        return linked->llvm_load(gen);
+        return linked->llvm_load(gen, parent_val->encoded_location());
     } else {
         return nullptr;
     }

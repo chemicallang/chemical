@@ -202,7 +202,7 @@ public:
     /**
      * current function type, for which code is being linked
      */
-    FunctionType* current_func_type = nullptr;
+    FunctionTypeBody* current_func_type = nullptr;
 
     /**
      * nodes that are created during symbol resolution, that must be retained

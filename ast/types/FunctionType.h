@@ -64,21 +64,6 @@ public:
     FunctionTypeData data;
 
     /**
-     * moved identifiers are stored in this vector, this is similar to moved_chains, single variable
-     * identifiers are not stored in access chains, so to simplify storage and so to not having to deal with
-     * multiple types in the vector, this vector has been created for singular identifiers, why is this simple
-     * since when finding a moved chain, we find the smallest chain possible, the singular identifiers are
-     * smallest, so if we find a single identifier which are easier to search we can return fast
-     */
-    std::vector<VariableIdentifier*> moved_identifiers;
-    /**
-     * moved chains are stored in current function type, which are filled when a function is linked
-     * moved chains belong to this function (inside the function's body), these chains tell which objects have
-     * been moved inside them
-     */
-    std::vector<AccessChain*> moved_chains;
-
-    /**
      * constructor
      */
     constexpr FunctionType(
@@ -188,6 +173,87 @@ public:
     FunctionType* copy(ASTAllocator& allocator) const final;
 
     bool link(SymbolResolver &linker) final;
+
+#ifdef COMPILER_BUILD
+
+    virtual std::vector<llvm::Type *> param_types(Codegen &gen);
+
+    void queue_destruct_params(Codegen &gen);
+
+    llvm::Type *llvm_type(Codegen &gen);
+
+    llvm::FunctionType *llvm_func_type(Codegen &gen);
+
+#endif
+
+    /**
+     * assigns func_type field of each function parameter to this
+     */
+    void assign_params();
+
+    /**
+     * get the self parameter of the function if it exists
+     */
+    virtual BaseFunctionParam* get_self_param();
+
+    /**
+     * whether this function requires self parameter
+     */
+    bool has_self_param() {
+        return get_self_param() != nullptr;
+    }
+
+    /**
+     * does function has explicit parameters
+     */
+    bool has_explicit_params();
+
+    /**
+     * start index of c or llvm functions for this type
+     */
+    virtual unsigned c_or_llvm_arg_start_index();
+
+    /**
+     * check if this function type is equal to other
+     */
+    bool equal(FunctionType *other) const;
+
+    /**
+     * virtual destructor
+     */
+    ~FunctionType() override = default;
+
+};
+
+/**
+ * this should only be inherited by functions or lambdas
+ * those that have bodies
+ */
+class FunctionTypeBody : public FunctionType {
+public:
+
+    using FunctionType::FunctionType;
+
+    /**
+     * moved identifiers are stored in this vector, this is similar to moved_chains, single variable
+     * identifiers are not stored in access chains, so to simplify storage and so to not having to deal with
+     * multiple types in the vector, this vector has been created for singular identifiers, why is this simple
+     * since when finding a moved chain, we find the smallest chain possible, the singular identifiers are
+     * smallest, so if we find a single identifier which are easier to search we can return fast
+     */
+    std::vector<VariableIdentifier*> moved_identifiers;
+    /**
+     * moved chains are stored in current function type, which are filled when a function is linked
+     * moved chains belong to this function (inside the function's body), these chains tell which objects have
+     * been moved inside them
+     */
+    std::vector<AccessChain*> moved_chains;
+
+    /**
+     * called by return statement to set the return value and stop
+     * interpretation of function body
+     */
+    virtual void set_return(InterpretScope& scope, Value* value) = 0;
 
     /**
      * un_move a chain, if found to be moved
@@ -326,72 +392,6 @@ public:
      * being done, when called the access chain or identifier is un moved. making it usable
      */
     bool mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_type);
-
-#ifdef COMPILER_BUILD
-
-    virtual std::vector<llvm::Type *> param_types(Codegen &gen);
-
-    void queue_destruct_params(Codegen &gen);
-
-    llvm::Type *llvm_type(Codegen &gen);
-
-    llvm::FunctionType *llvm_func_type(Codegen &gen);
-
-#endif
-
-    /**
-     * assigns func_type field of each function parameter to this
-     */
-    void assign_params();
-
-    /**
-     * get the self parameter of the function if it exists
-     */
-    virtual BaseFunctionParam* get_self_param();
-
-    /**
-     * whether this function requires self parameter
-     */
-    bool has_self_param() {
-        return get_self_param() != nullptr;
-    }
-
-    /**
-     * does function has explicit parameters
-     */
-    bool has_explicit_params();
-
-    /**
-     * start index of c or llvm functions for this type
-     */
-    virtual unsigned c_or_llvm_arg_start_index();
-
-    /**
-     * check if this function type is equal to other
-     */
-    bool equal(FunctionType *other) const;
-
-    /**
-     * virtual destructor
-     */
-    ~FunctionType() override = default;
-
-};
-
-/**
- * this should only be inherited by functions or lambdas
- * those that have bodies
- */
-class FunctionTypeBody : public FunctionType {
-public:
-
-    using FunctionType::FunctionType;
-
-    /**
-     * called by return statement to set the return value and stop
-     * interpretation of function body
-     */
-    virtual void set_return(InterpretScope& scope, Value* value) = 0;
 
 };
 

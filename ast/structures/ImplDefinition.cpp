@@ -89,7 +89,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr
     }
     const auto linked = linked_node->as_interface_def();
     if(!linked) {
-        linker.error("couldn't find interface by name " + interface_name.str() + " for implementation", interface_type);
+        linker.error(interface_type) << "couldn't find interface by name " << interface_name << " for implementation";
         return;
     }
     for(auto& func : functions()) {

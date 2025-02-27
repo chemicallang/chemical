@@ -70,7 +70,7 @@ void UnionDef::code_gen_external_declare(Codegen &gen) {
 llvm::Type *UnionDef::llvm_type(Codegen &gen) {
     auto largest = largest_member();
     if(!largest) {
-        gen.error("Couldn't determine the largest member of the union with name " + name_view().str(), this);
+        gen.error(this) << "Couldn't determine the largest member of the union with name " << name_view();
         return nullptr;
     }
     auto stored = llvm_union_get_stored_type();

@@ -22,7 +22,7 @@ void ASTProcessor::code_gen_declare(
         print_benchmarks(std::cout, "Declare", bm_results.get());
     }
     if(!gen.diagnostics.empty()) {
-        gen.print_diagnostics(abs_path, "Declare");
+        gen.print_diagnostics(chem::string_view(abs_path), "Declare");
         gen.diagnostics.clear();
     }
 }
@@ -44,7 +44,7 @@ void ASTProcessor::code_gen_compile(
         print_benchmarks(std::cout, "Compile", abs_path, bm_results.get());
     }
     if(!gen.diagnostics.empty()) {
-        gen.print_diagnostics(abs_path, "Compile");
+        gen.print_diagnostics(chem::string_view(abs_path), "Compile");
         gen.diagnostics.clear();
     }
 }
@@ -73,7 +73,7 @@ void ASTProcessor::declare_and_compile(
         print_benchmarks(std::cout, "Compile", bm_results.get());
     }
     if(!gen.diagnostics.empty()) {
-        gen.print_diagnostics(abs_path, "Compile");
+        gen.print_diagnostics(chem::string_view(abs_path), "Compile");
         gen.diagnostics.clear();
     }
 }
@@ -95,7 +95,7 @@ void ASTProcessor::external_declare_nodes(
         print_benchmarks(std::cout, "Declare", bm_results.get());
     }
     if(!gen.diagnostics.empty()) {
-        gen.print_diagnostics(abs_path, "Declare");
+        gen.print_diagnostics(chem::string_view(abs_path), "Declare");
         gen.diagnostics.clear();
     }
 }
@@ -202,7 +202,7 @@ int ASTProcessor::compile_module(
         // print the benchmark or verbose output received from processing
         if((options->benchmark || options->verbose) && !empty_diags(result)) {
             std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-            print_results(result, file.abs_path, options->benchmark);
+            print_results(result, chem::string_view(file.abs_path), options->benchmark);
         }
 
         // do not continue processing

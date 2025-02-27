@@ -115,11 +115,11 @@ void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_
             if(func_res != found->second.end()) {
                 llvm_pointers.emplace_back(func_res->second);
             } else {
-                gen.error("couldn't find function impl pointer, name '" + func->name_str() + "' for struct '" + for_struct->name_str() + "' for interface '" + name_str() + "'", (AnnotableNode*) func);
+                gen.error((AnnotableNode*) func) << "couldn't find function impl pointer, name '" << func->name_view() << "' for struct '" << for_struct->name_view() << "' for interface '" << name_view() << "'";
             }
         }
     } else {
-        gen.error("couldn't find struct '" + for_struct->name_str() + "' implementation pointers for interface '" + name_str() + "'", (AnnotableNode*) for_struct);
+        gen.error((AnnotableNode*) for_struct) << "couldn't find struct '" << for_struct->name_view() << "' implementation pointers for interface '" << name_view() << "'";
     }
 }
 

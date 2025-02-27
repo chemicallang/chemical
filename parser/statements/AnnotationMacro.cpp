@@ -256,7 +256,7 @@ bool Parser::parseAnnotation(ASTAllocator& allocator) {
         annotations.emplace_back(name_view, found->second);
         return true;
     } else {
-        error("unknown annotation found '" + annot->value.str() + "'");
+        error() << "unknown annotation found '" << annot->value << "'";
         return true;
     }
 }
@@ -271,7 +271,7 @@ Value* Parser::parseMacroValue(ASTAllocator& allocator) {
             token++;
             return found->second(this, &allocator);
         } else {
-            error("couldn't find macro parser for '" + t.value.str() + "'");
+            error() << "couldn't find macro parser for '" << t.value << "'";
         }
     }
     return nullptr;
@@ -287,7 +287,7 @@ ASTNode* Parser::parseMacroNode(ASTAllocator& allocator) {
             token++;
             return found->second(this, &allocator);
         } else {
-            error("couldn't find macro parser for '" + t.value.str() + "'");
+            error() << "couldn't find macro parser for '" << t.value << "'";
         }
     }
     return nullptr;

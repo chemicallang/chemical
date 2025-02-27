@@ -76,7 +76,7 @@ bool ASTProcessor::empty_diags(ASTFileResultNew& result) {
     return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
 }
 
-void ASTProcessor::print_results(ASTFileResultNew& result, const std::string& abs_path, bool benchmark) {
+void ASTProcessor::print_results(ASTFileResultNew& result, const chem::string_view& abs_path, bool benchmark) {
     CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
     CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Parser");
     if(benchmark) {
@@ -160,7 +160,7 @@ void ASTProcessor::sym_res_c_file(Scope& scope, const std::string& abs_path) {
         print_benchmarks(std::cout, "SymRes:" + abs_path, bm_results.get());
     }
     if(!resolver->diagnostics.empty()) {
-        resolver->print_diagnostics(abs_path, "SymRes");
+        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes");
     }
     resolver->diagnostics = std::move(previous);
     resolver->has_errors = prev_has_errors;
@@ -180,7 +180,7 @@ long long ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string
         print_benchmarks(std::cout, "SymRes:declare", abs_path, bm_results.get());
     }
     if(!resolver->diagnostics.empty()) {
-        resolver->print_diagnostics(abs_path, "SymRes");
+        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes");
     }
     return scope_ind;
 }
@@ -199,7 +199,7 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
         print_benchmarks(std::cout, "SymRes:link", abs_path, bm_results.get());
     }
     if(!resolver->diagnostics.empty()) {
-        resolver->print_diagnostics(abs_path, "SymRes");
+        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes");
     }
 }
 
@@ -492,8 +492,7 @@ void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int f
         auto& last_token = tokens.back();
         if (last_token.type == TokenType::Unexpected) {
             parser.diagnostics.emplace_back(
-                    CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", abs_path,
-                                            last_token.position, last_token.position, DiagSeverity::Warning));
+                    CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", chem::string_view(abs_path), last_token.position, last_token.position, DiagSeverity::Warning));
         }
     }
 //        if(options->isCBIEnabled) {
@@ -546,7 +545,7 @@ void ASTProcessor::declare_before_translation(
         print_benchmarks(std::cout, "2cTranslation:declare", bm_results.get());
     }
     if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(abs_path, "2cTranslation");
+        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
         std::cout << std::endl;
     }
     visitor.reset_errors();
@@ -569,7 +568,7 @@ void ASTProcessor::translate_after_declaration(
         print_benchmarks(std::cout, "2cTranslation:translate", abs_path, bm_results.get());
     }
     if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(abs_path, "2cTranslation");
+        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
         std::cout << std::endl;
     }
     visitor.reset_errors();
@@ -592,7 +591,7 @@ void ASTProcessor::translate_to_c(
         print_benchmarks(std::cout, "2cTranslation", bm_results.get());
     }
     if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(abs_path, "2cTranslation");
+        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
         std::cout << std::endl;
     }
     visitor.reset_errors();
@@ -612,7 +611,7 @@ void ASTProcessor::external_declare_in_c(
 //    visitor.translate(imported_generics);
     visitor.external_declare(import_res.nodes);
     if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(abs_path, "2cTranslation");
+        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
         std::cout << std::endl;
     }
     visitor.reset_errors();
@@ -698,7 +697,7 @@ int ASTProcessor::translate_module(
         // print the benchmark or verbose output received from processing
         if((options->benchmark || options->verbose) && !empty_diags(result)) {
             std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-            print_results(result, file.abs_path, options->benchmark);
+            print_results(result, chem::string_view(file.abs_path), options->benchmark);
         }
 
         // do not continue processing

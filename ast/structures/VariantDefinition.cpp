@@ -181,7 +181,7 @@ llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
     const auto linked_member = parent_val->linked_node()->as_variant_member();
     auto index = linked_member->parent_node->direct_child_index(linked_member->name);
     if(index == -1) {
-        gen.error("couldn't find case index of variant member '" + parent_val->representation() + "'", this);
+        gen.error(this) << "couldn't find case index of variant member '" << parent_val->representation() << "'";
         return nullptr;
     } else {
         return gen.builder->getInt32(index);
@@ -545,7 +545,7 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& nod
     const auto member = parent_val->linked_node()->as_variant_member();
     auto node = member->values.find(name);
     if(node == member->values.end()) {
-        linker.error("variant case member variable not found in switch statement, name '" + name.str() + "' not found", this);
+        linker.error(this) << "variant case member variable not found in switch statement, name '" << name << "' not found";
         return;
     }
     member_param = node->second;

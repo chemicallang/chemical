@@ -833,117 +833,92 @@ public:
     /**
      * make a diagnostic with given parameters, for the current file
      */
-    Diag make_diag(Position start, const std::string &message, DiagSeverity severity) {
-        return CSTDiagnoser::make_diag(message, file_path(), start, token->position, severity);
+    Diag make_diag(Position start, const chem::string_view &message, DiagSeverity severity) {
+        return CSTDiagnoser::make_diag(message, chem::string_view(file_path()), start, token->position, severity);
     }
 
     /**
-     * adds an error at the current stream position (which is the end), starting from the last token's end,
-     * @param position the position (in the tokens vector) of the token at end of which error started
-     * @param message the message for the error
+     * get an empty diagnostic to append to
      */
-    void diagnostic(Position start, const std::string_view &message, DiagSeverity severity) {
-        add_diag(CSTDiagnoser::make_diag(message, file_path(), start, token->position, severity));
+    Diag& empty_diagnostic(const Position& start, const Position& end, DiagSeverity severity) {
+        return CSTDiagnoser::empty_diagnostic(chem::string_view(file_path()), start, end, severity);
     }
 
     /**
-     * This just calls the diagnostic method above
-     * It has a range, so it will start at the last token that was consumed
-     * and up until the current stream position
+     * record a diagnostic at the given position
      */
-    inline void diagnostic(const std::string &message, DiagSeverity severity) {
-        diagnostic(token->position, message + " got \"" + token->value.data() + "\"", severity);
+    inline Diag& empty_diagnostic(const Position& start, DiagSeverity severity) {
+        return empty_diagnostic(start, start, severity);
     }
 
     /**
-     * create a diagnostic with given position
+     * record a diagnostic with the given severity at token position
      */
-    inline void diagnostic(std::string& message, const Position& start, const Position& end, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, file_path(), start, end, severity);
+    inline Diag& diagnostic(DiagSeverity severity) {
+        return empty_diagnostic(token->position, severity) << " got \"" << token->value << "\"";
     }
 
     /**
-     * create a diagnostic with given position
+     * create hint diagnostic at current token position
      */
-    inline void diagnostic(std::string_view& message, const Position& start, const Position& end, DiagSeverity severity) {
-        CSTDiagnoser::diagnostic(message, file_path(), start, end, severity);
+    inline Diag& hint() {
+        return diagnostic(DiagSeverity::Hint);
     }
 
     /**
-     * a helper function
+     * create info diagnostic at current token position
      */
-    inline void diagnostic(std::string& message, DiagSeverity severity) {
-        diagnostic(message, token->position, token->position, severity);
+    inline Diag& info() {
+        return diagnostic(DiagSeverity::Information);
     }
 
     /**
-     * a helper function
+     * create warning diagnostic at current token position
      */
-    inline void diagnostic(std::string_view& message, DiagSeverity severity) {
-        diagnostic(message, token->position, token->position, severity);
+    inline Diag& warning() {
+        return diagnostic(DiagSeverity::Warning);
     }
 
     /**
-     * This just calls the diagnostic method above with DiagSeverity::Warning
+     * create info diagnostic at current token position
      */
-    inline void warning(std::string &message) {
-        diagnostic(message, DiagSeverity::Warning);
+    inline Diag& error() {
+        return diagnostic(DiagSeverity::Error);
     }
 
     /**
-     * This just calls the diagnostic method above with DiagSeverity::Information
+     * create hint diagnostic with the following message at current token position
      */
-    inline void info(std::string &message) {
-        diagnostic(message, DiagSeverity::Information);
+    inline void hint(const chem::string_view& message) {
+        diagnostic(DiagSeverity::Hint) << message;
     }
 
     /**
-     * This just calls the diagnostic method above with DiagSeverity::Hint
+     * create info diagnostic with the following message at current token position
      */
-    inline void hint(std::string &message) {
-        diagnostic(message, DiagSeverity::Hint);
+    inline void info(const chem::string_view& message) {
+        diagnostic(DiagSeverity::Information) << message;
     }
 
     /**
-     * This just calls the diagnostic method above with DiagSeverity::Error
+     * create warning diagnostic with the following message at current token position
      */
-    inline void error(std::string &message) {
-        diagnostic(message, DiagSeverity::Error);
+    inline void warning(const chem::string_view& message) {
+        diagnostic(DiagSeverity::Warning) << message;
     }
 
     /**
-     * This just calls the diagnostic method above with DiagSeverity::Warning
+     * create info diagnostic with the following message at current token position
      */
-    inline void warning(std::string_view message) {
-        diagnostic(message, DiagSeverity::Warning);
-    }
-
-    /**
-     * This just calls the diagnostic method above with DiagSeverity::Information
-     */
-    inline void info(std::string_view message) {
-        diagnostic(message, DiagSeverity::Information);
-    }
-
-    /**
-     * This just calls the diagnostic method above with DiagSeverity::Hint
-     */
-    inline void hint(std::string_view message) {
-        diagnostic(message, DiagSeverity::Hint);
-    }
-
-    /**
-     * This just calls the diagnostic method above with DiagSeverity::Error
-     */
-    inline void error(std::string_view message) {
-        diagnostic(message, DiagSeverity::Error);
+    inline void error(const chem::string_view& message) {
+        diagnostic(DiagSeverity::Error) << message;
     }
 
     /**
      * save error at given error token position
      */
-    inline void error(std::string_view message, Token* err_token) {
-        diagnostic(err_token->position, message, DiagSeverity::Error);
+    inline void error(const chem::string_view& message, const Position& position) {
+        empty_diagnostic(position, DiagSeverity::Error) << message;
     }
 
 };

@@ -15,7 +15,7 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
             auto id = consumeIdentifierOrKeyword();
             if(id) {
                 if(!consumeToken(TokenType::ColonSym)) {
-                    error("expected a ':' for initializing struct member " + id->value.str());
+                    error() << "expected a ':' for initializing struct member " << id->value;
                     return structValue;
                 }
                 auto expression = parseExpression(allocator, true);
@@ -28,7 +28,7 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
                         const auto id_view = allocate_view(allocator, id->value);
                         structValue->values.emplace(id_view, StructMemberInitializer { id_view, arrayInit });
                     } else {
-                        error("expected an expression after ':' for struct member " + id->value.str());
+                        error() << "expected an expression after ':' for struct member " << id->value;
                         return structValue;
                     }
                 }

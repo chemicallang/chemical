@@ -119,7 +119,7 @@ void put_implicit_params(
                     if(between_param) {
                         args.emplace_back(gen.current_function->getArg(between_param->calculate_c_or_llvm_index()));
                     } else {
-                        gen.error("couldn't provide implicit argument '" + param->name.str() + "'", call);
+                        gen.error(call) << "couldn't provide implicit argument '" << param->name << "'";
                     }
                 }
             }
@@ -290,7 +290,7 @@ void to_llvm_args(
             if(param->defValue) {
                 args.emplace_back(arg_value(gen, call, func_type, param, param->defValue, -1));
             } else if(!func_type->isInVarArgs(i)) {
-                gen.error("function param '" + param->name.str() + "' doesn't have a default value, however no argument exists for it", call);
+                gen.error(call) << "function param '" << param->name << "' doesn't have a default value, however no argument exists for it";
             }
         } else {
 #ifdef DEBUG
@@ -531,7 +531,7 @@ bool is_node_decl(ASTNode* linked) {
 bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member, FunctionCall* call) {
     const auto member_index = member->parent_node->direct_child_index(member->name);
     if(member_index == -1) {
-        gen.error("couldn't find member index for the variant member with name '" + member->name.str() + "'", call);
+        gen.error(call) << "couldn't find member index for the variant member with name '" << member->name << "'";
         return false;
     }
     // storing the type index in the enum inside variant
@@ -677,7 +677,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
             if(callee_value == nullptr) {
                 callee_value = parent_val->llvm_value(gen, nullptr);
                 if(callee_value == nullptr) {
-                    gen.error("Couldn't get callee value for the function call to " + representation(), this);
+                    gen.error(this) << "Couldn't get callee value for the function call to " << representation();
                     return nullptr;
                 }
             } else {
@@ -996,7 +996,7 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
         const auto arg_type = values[arg_offset]->known_type();
         if(!arg_type) {
 #ifdef DEBUG
-            diagnoser.error("couldn't get arg type " + values[arg_offset]->representation() + " in function call " + representation(), this);
+            diagnoser.error(this) << "couldn't get arg type " << values[arg_offset]->representation() << " in function call " << representation();
             std::cout << "couldn't get arg type " << values[arg_offset]->representation() + " in function call " + representation();
 #endif
             arg_offset++;
@@ -1113,7 +1113,7 @@ int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocat
                 return prev_itr;
             }
         } else {
-            diagnoser.error("struct with name " + parent_struct->name_str() + " doesn't have a constructor that satisfies given arguments " + call->representation(), parent_id);
+            diagnoser.error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
         }
     }
     return -2;

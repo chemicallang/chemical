@@ -40,7 +40,7 @@ public:
     /**
      * create a diag with parameters
      */
-    static Diag make_diag(const std::string_view& message, const std::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity);
+    static Diag make_diag(const chem::string_view& message, const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity);
 
     /**
      * add the given diagnostic
@@ -48,9 +48,17 @@ public:
     void add_diag(Diag diag);
 
     /**
+     * get diagnostic
+     */
+    Diag& empty_diagnostic(const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity) {
+        diagnostics.emplace_back(Range { start, end }, severity, file_path.str(), "");
+        return diagnostics.back();
+    }
+
+    /**
      * the actual diagnostic function that does everything
      */
-    void diagnostic(const std::string_view& message, const std::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity) {
+    void diagnostic(const chem::string_view& message, const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity) {
         add_diag(make_diag(message, file_path, start, end, severity));
     }
 
@@ -58,7 +66,7 @@ public:
      * record a diagnostic
      */
     [[deprecated]]
-    void diagnostic(const std::string_view& message, DiagSeverity severity);
+    void diagnostic(const chem::string_view& message, DiagSeverity severity);
 
     /**
      * resets the diagnostics
@@ -71,12 +79,12 @@ public:
     /**
      * would print the diagnostics to console
      */
-    static void print_diagnostics(std::vector<Diag>& diagnostics, const std::string_view& path, const std::string& tag);
+    static void print_diagnostics(std::vector<Diag>& diagnostics, const chem::string_view& path, const chem::string_view& tag);
 
     /**
      * would print diagnostics to console
      */
-    void print_diagnostics(const std::string_view& path, const std::string& tag) {
+    void print_diagnostics(const chem::string_view& path, const chem::string_view& tag) {
         print_diagnostics(diagnostics, path, tag);
     }
 

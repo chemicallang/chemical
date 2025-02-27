@@ -291,18 +291,20 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
             idxList.clear();
         } else {
             if (!values[i]->add_member_index(gen, values[i - 1], idxList)) {
-                std::string err = "couldn't add member index for fragment '" + values[i]->representation() + "' in access chain ";
+                auto& diag = gen.error(values[i]);
+                diag << "couldn't add member index for fragment '";
+                diag << values[i]->representation();
+                diag << "' in access chain ";
                 bool is_first = true;
                 for(auto& val : values) {
                     if(!is_first) {
-                        err += ',';
+                        diag << ',';
                     }
-                    err += '\'';
-                    err += val->representation();
-                    err += '\'';
+                    diag << '\'';
+                    diag << val->representation();
+                    diag << '\'';
                     is_first = false;
                 }
-                gen.error(err, values[i]);
             }
         }
         i++;

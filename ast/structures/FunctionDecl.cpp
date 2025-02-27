@@ -60,7 +60,7 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
     }
     auto index = calculate_c_or_llvm_index();
     if(index > gen.current_function->arg_size()) {
-        gen.error("couldn't get argument with name " + name.str() + " since function has " + std::to_string(gen.current_function->arg_size()) + " arguments", this);
+        gen.error(this) << "couldn't get argument with name " << name << " since function has " << std::to_string(gen.current_function->arg_size()) << " arguments";
         return nullptr;
     }
     auto arg = gen.current_function->getArg(index);
@@ -78,7 +78,7 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
         }
         return arg;
     } else {
-        gen.error("couldn't get argument with name " + name.str(), this);
+        gen.error(this) << "couldn't get argument with name " << name;
         return nullptr;
     }
 }
@@ -346,7 +346,7 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
 #ifdef DEBUG
     auto existing_func = gen.module->getFunction(name);
     if(existing_func && !existing_func->isDeclaration()) {
-        gen.error("function with name '" + name + "' already exists in the module", (ASTNode*) decl);
+        gen.error((ASTNode*) decl) << "function with name '" << name << "' already exists in the module";
     }
 #endif
     auto func_type = decl->create_llvm_func_type(gen);
@@ -1354,7 +1354,7 @@ void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMem
 
 void check_returns_void(SymbolResolver& resolver, FunctionDeclaration* decl) {
     if(decl->returnType->kind() != BaseTypeKind::Void) {
-        resolver.error(decl->name_str() + " function return type should be void", (ASTNode*) decl);
+        resolver.error((ASTNode*) decl) << decl->name_view() << " function return type should be void";
     }
 }
 
@@ -1365,7 +1365,7 @@ void check_self_param(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNo
             return;
         }
     }
-    resolver.error(decl->name_str() + " must have a single implicit self reference parameter", (ASTNode*) decl);
+    resolver.error((ASTNode*) decl) << decl->name_view() << " must have a single implicit self reference parameter";
 }
 
 void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNode* self) {
@@ -1379,7 +1379,7 @@ void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl
             return;
         }
     }
-    resolver.error(decl->name_str() + " function must have two implicit reference parameters", (ASTNode*) decl);
+    resolver.error((ASTNode*) decl) << decl->name_view() << " function must have two implicit reference parameters";
 }
 
 void FunctionDeclaration::ensure_constructor(SymbolResolver& resolver, StructDefinition* def) {

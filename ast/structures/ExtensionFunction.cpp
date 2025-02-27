@@ -74,7 +74,7 @@ void ExtensionFunction::link_signature(SymbolResolver &linker) {
     }
     auto linked = type->linked_node();
     if(!linked) {
-        linker.error("couldn't find container in extension function ith receiver type \"" + type->representation() + "\"", (AnnotableNode*) this);
+        linker.error((AnnotableNode*) this) << "couldn't find container in extension function ith receiver type \"" << type->representation() << "\"";
         return;
     }
     const auto linked_kind = linked->kind();
@@ -87,7 +87,7 @@ void ExtensionFunction::link_signature(SymbolResolver &linker) {
     }
     auto container = linked->as_extendable_members_container();
     if(!container) {
-        linker.error("type doesn't support extension functions " + type->representation(), receiver.type);
+        linker.error(receiver.type) << "type doesn't support extension functions " << type->representation();
         return;
     }
 
@@ -100,9 +100,8 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker, ASTNode*& node_
     if(linked) {
         const auto field_func = linked->child(name_view());
         if (field_func != this) {
-            linker.error("couldn't declare extension function with name '" + name_str() + "' because type '" +
-                         receiver.type->representation() + "' already has a field / function with same name \n",
-                         receiver.type);
+            linker.error(receiver.type) << "couldn't declare extension function with name '" << name_view() << "' because type '" <<
+                         chem::string_view(receiver.type->representation()) << "' already has a field / function with same name \n";
             return;
         }
     } else {

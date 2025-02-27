@@ -307,7 +307,7 @@ Token read_double_quoted_string(Lexer& lexer, SerialStrAllocator& str, SourcePro
         switch(current) {
             case '\\':
                 if(!read_escapable_char(str, provider)) {
-                    lexer.diagnoser.diagnostic("unknown escape sequence", lexer.file_path, provider.position(), provider.position(), DiagSeverity::Error);
+                    lexer.diagnoser.diagnostic("unknown escape sequence", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
                 }
                 break;
             case '"':
@@ -336,11 +336,11 @@ Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider
     switch(current) {
         case '\\':
             if(!read_escapable_char(str, provider)) {
-                lexer.diagnoser.diagnostic("unknown escape sequence", lexer.file_path, provider.position(), provider.position(), DiagSeverity::Error);
+                lexer.diagnoser.diagnostic("unknown escape sequence", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
             }
             break;
         case '\'':
-            lexer.diagnoser.diagnostic("no value given inside single quotes", lexer.file_path, pos, provider.position(), DiagSeverity::Error);
+            lexer.diagnoser.diagnostic("no value given inside single quotes", chem::string_view(lexer.file_path), pos, provider.position(), DiagSeverity::Error);
             str.append('\0');
             return Token(TokenType::Char, str.finalize_view(), pos);
         case -1:
@@ -354,7 +354,7 @@ Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider
         str.append(provider.readCharacter());
         return Token(TokenType::Char, str.finalize_view(), pos);
     } else {
-        lexer.diagnoser.diagnostic("expected a single quote after the value", lexer.file_path, provider.position(), provider.position(), DiagSeverity::Error);
+        lexer.diagnoser.diagnostic("expected a single quote after the value", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
         read_current_line(str, provider);
         return Token(TokenType::Char, str.finalize_view(), pos);
     }

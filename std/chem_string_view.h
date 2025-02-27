@@ -34,6 +34,10 @@ namespace chem {
         constexpr string_view(const char* str, size_type len)
                 : data_(str), size_(len) {}
 
+        explicit string_view(const std::string& str) : data_(str.data()), size_(str.size()) {}
+
+        explicit string_view(const std::string_view& view) : data_(view.data()), size_(view.size()) {}
+
         constexpr reference operator[](size_type idx) const {
 //            if (idx >= size_) throw std::out_of_range("string_view index out of range");
             return data_[idx];

@@ -408,14 +408,8 @@ bool FunctionTypeBody::check_chain(AccessChain* chain, bool assigning, ASTDiagno
         moved = find_moved_chain_value(chain);
     }
     if(moved) {
-        std::string err("cannot ");
-        if(assigning) {
-            err += "assign";
-        } else {
-            err += "access";
-        }
-        err += " \'" + chain->chain_representation() + "' as '" + moved->representation() + "' has been moved";
-        diagnoser.error(err, (ASTNode*) chain, (ASTNode*) moved);
+        auto& saved_message = (diagnoser.error((ASTNode*) chain) << "cannot " << (assigning ? "assign" : "access") << " \'" << chain->chain_representation() << "' as '" << moved->representation() << "' has been moved").message;
+        diagnoser.error((ASTNode*) moved) << saved_message;
         return false;
     }
     return true;
@@ -424,7 +418,10 @@ bool FunctionTypeBody::check_chain(AccessChain* chain, bool assigning, ASTDiagno
 bool FunctionTypeBody::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
     const auto moved = find_moved_chain_value(id);
     if(moved) {
-        diagnoser.error("cannot access identifier '" + id->representation() + "' as '" + moved->representation() + "' has been moved" , id, moved);
+        auto& diag = diagnoser.error(id);
+        diag << "cannot access identifier '" << id->representation() << "' as '" << moved->representation() << "' has been moved";
+        auto message = diag.message;
+        diagnoser.error(moved) << message;
         return false;
     }
     const auto linked = id->linked_node();
@@ -433,7 +430,7 @@ bool FunctionTypeBody::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser)
         const auto init = linked->as_var_init_unsafe();
 #ifdef DEBUG
         if(init->get_has_moved()) {
-            diagnoser.error("found var init that skipped move check, identifier '" + init->name_str() + "' has already been moved", id);
+            diagnoser.error(id) << "found var init that skipped move check, identifier '" << init->name_view() << "' has already been moved";
             return false;
         }
 #endif
@@ -441,7 +438,7 @@ bool FunctionTypeBody::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser)
         const auto param = linked->as_func_param_unsafe();
 #ifdef DEBUG
         if(param->get_has_moved()) {
-            diagnoser.error("found function param that skipped move check, identifier '" + param->name.str() + "' has already been moved", id);
+            diagnoser.error(id) << "found function param that skipped move check, identifier '" << param->name << "' has already been moved";
             return false;
         }
 #endif
@@ -452,7 +449,10 @@ bool FunctionTypeBody::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser)
 bool FunctionTypeBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
     const auto moved = find_moved_chain_value(id);
     if(moved) {
-        diagnoser.error("cannot move '" + id->representation() + "' as '" + moved->representation() + "' has been moved" , id, moved);
+        auto& diag = diagnoser.error(id);
+        diag << "cannot move '" << id->representation() << "' as '" << moved->representation() << "' has been moved";
+        auto message = diag.message;
+        diagnoser.error(moved) << message;
         return false;
     }
     const auto linked = id->linked;
@@ -461,7 +461,7 @@ bool FunctionTypeBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagn
         const auto init = linked->as_var_init_unsafe();
 #ifdef DEBUG
         if(init->get_has_moved()) {
-            diagnoser.error("found var init that skipped move check, identifier '" + init->name_str() + "' has already been moved", id);
+            diagnoser.error(id) << "found var init that skipped move check, identifier '" << init->name_view() << "' has already been moved";
             return false;
         }
 #endif
@@ -470,7 +470,7 @@ bool FunctionTypeBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagn
         const auto param = linked->as_func_param_unsafe();
 #ifdef DEBUG
         if(param->get_has_moved()) {
-            diagnoser.error("found function param that skipped move check, identifier '" + param->name.str() + "' has already been moved", id);
+            diagnoser.error(id) << "found function param that skipped move check, identifier '" << param->name << "' has already been moved";
             return false;
         }
 #endif
@@ -495,7 +495,10 @@ bool FunctionTypeBody::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
         }
         const auto moved = find_moved_chain_value(chain);
         if(moved) {
-            diagnoser.error("cannot move '" + chain->chain_representation() + "' as '" + moved->representation() + "' has been moved" , (ASTNode*) chain, (ASTNode*) moved);
+            auto& diag = diagnoser.error((ASTNode*) chain);
+            diag << "cannot move '" << chain->chain_representation() << "' as '" << moved->representation() << "' has been moved";
+            auto message = diag.message;
+            diagnoser.error((ASTNode*) moved) << message;
             return false;
         }
         mark_moved_no_check(chain);

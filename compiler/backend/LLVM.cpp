@@ -117,7 +117,7 @@ llvm::Type *FloatType::llvm_type(Codegen &gen) {
 llvm::Type *IntNType::llvm_type(Codegen &gen) {
     auto ty = gen.builder->getIntNTy(num_bits());
     if(!ty) {
-        gen.error("Couldn't get intN type for int:" + std::to_string(num_bits()), this);
+        gen.error(this) << "Couldn't get intN type for int:" << std::to_string(num_bits());
     }
     return ty;
 }
@@ -409,7 +409,7 @@ llvm::Type *DereferenceValue::llvm_type(Codegen &gen) {
     } else if(addr_kind == BaseTypeKind::Reference) {
         return ((ReferenceType*) (addr))->type->llvm_type(gen);
     } else {
-        gen.error("De-referencing a value that is not a pointer " + value->representation(), this);
+        gen.error(this) << "De-referencing a value that is not a pointer " << value->representation();
         return nullptr;
     }
 }
@@ -1180,7 +1180,7 @@ void DestructStmt::code_gen(Codegen &gen) {
 //    }
     if(!is_array && !determined_array) {
         if(pure_type->kind() != BaseTypeKind::Pointer) {
-            gen.error("value given to destruct statement must be of pointer type, value '" + identifier->representation() + "'", this);
+            gen.error(this) << "value given to destruct statement must be of pointer type, value '" << identifier->representation() << "'";
             return;
         }
         const auto struct_type = ((PointerType*) pure_type)->type->pure_type();
@@ -1222,24 +1222,24 @@ void DestructStmt::code_gen(Codegen &gen) {
         auto arr_type = (ArrayType*) pure_type;
         elem_type = arr_type->elem_type->pure_type();
         if (!is_array) {
-            gen.error("expected brackets '[]' after 'destruct' for destructing an array, with value " + identifier->representation(), this);
+            gen.error(this) << "expected brackets '[]' after 'destruct' for destructing an array, with value " << identifier->representation();
             return;
         } else if (arr_type->has_array_size() && array_value) {
-            gen.error("array size given in brackets '[" + array_value->representation() + "]' is redundant as array size is known to be " + std::to_string(arr_type->get_array_size()) + " with value " + identifier->representation(), this);
+            gen.error(this) << "array size given in brackets '[" << array_value->representation() << "]' is redundant as array size is known to be " << std::to_string(arr_type->get_array_size()) << " with value " << identifier->representation();
             return;
         } else if (arr_type->has_no_array_size() && !array_value) {
-            gen.error("array is size is not known, so it must be provided in brackets for destructing value " + identifier->representation(), this);
+            gen.error(this) << "array is size is not known, so it must be provided in brackets for destructing value " << identifier->representation();
             return;
         }
         auto def = elem_type->get_direct_linked_struct();
         if(!def) {
-            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
+            gen.error(this) << "value given to destruct statement, doesn't reference a struct directly, value '" << identifier->representation() << "'";
             return;
         }
         arr_size_llvm = arr_type->has_array_size() ? gen.builder->getInt32(arr_type->get_array_size()) : array_value->llvm_value(gen);
     } else if(pure_type->kind() == BaseTypeKind::Pointer) {
         if(!array_value) {
-            gen.error("array size is required when destructing a pointer, for destructing array pointer value" + identifier->representation(), this);
+            gen.error(this) << "array size is required when destructing a pointer, for destructing array pointer value" << identifier->representation();
             return;
         }
         auto ptr_type = (PointerType*) pure_type;

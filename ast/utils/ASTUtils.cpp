@@ -294,7 +294,7 @@ void infer_types_by_args(
                     i++;
                 }
             } else {
-                diagnoser.error("given types generic arguments don't have equal length, for " + param_type_gen->representation() + ", given " + arg_type_gen->representation(), debug_value);
+                diagnoser.error(debug_value) << "given types generic arguments don't have equal length, for " << param_type_gen->representation() << ", given " << arg_type_gen->representation();
             }
         }
     }

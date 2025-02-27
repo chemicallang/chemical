@@ -23,17 +23,11 @@ SymbolResolver::SymbolResolver(
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
-    std::string err("duplicate symbol being declared, symbol '" + name.str() + "' already exists");
-//    err.append("\nprevious : " + previous->representation() + "\n");
-//    err.append("new : " + new_node->representation() + "\n");
-    error(err, new_node);
+    error(new_node) << "duplicate symbol being declared, symbol '" << name << "' already exists";
 }
 
 void SymbolResolver::dup_runtime_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
-    std::string err("duplicate runtime symbol being declared " + name.str() + " symbol already exists");
-//    err.append("\nprevious : " + previous->representation() + "\n");
-//    err.append("new : " + new_node->representation() + "\n");
-    error(err, new_node); // < --- this is a warning at the moment
+    error(new_node) << "duplicate runtime symbol being declared " << name << " symbol already exists";
 }
 
 ASTNode *SymbolResolver::find_in_current_file(const chem::string_view& name) {
@@ -195,7 +189,7 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode*& 
             return true;
         } else {
             dup_sym_error(declaration->name_view(), previous, declaration);
-            error("function " + declaration->name_str() + " cannot override because it's parameter types and return type don't match", (AnnotableNode*) declaration);
+            error((AnnotableNode*) declaration) << "function " << declaration->name_view() << " cannot override because it's parameter types and return type don't match";
             return false;
         }
     }
@@ -389,7 +383,7 @@ void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string
             declare_node(id->identifier, node, specifier, true);
         }
     }
-    print_diagnostics(path, "SymRes");
+    print_diagnostics(chem::string_view(path), "SymRes");
     diagnostics.clear();
 }
 
@@ -426,8 +420,8 @@ void SymbolResolver::dispose_module_symbols_now(const std::string& module_name) 
 void SymbolResolver::unsatisfied_type_err(Value* value, BaseType* type) {
     const auto val_type = value->create_type(allocator);
     if(val_type) {
-        error("value with type '" + val_type->representation() + "' does not satisfy type '" + type->representation() + "'", value);
+        error(value) << "value with type '" << val_type->representation() << "' does not satisfy type '" << type->representation() << "'";
     } else {
-        error("value does not satisfy type '" + type->representation() + "'", value);
+        error(value) << "value does not satisfy type '" << type->representation() << "'";
     }
 }

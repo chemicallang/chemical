@@ -45,7 +45,7 @@ std::optional<Scope> Parser::parseBraceBlock(const std::string_view &forThing, A
 
     // ending brace
     if (!consumeToken(TokenType::RBrace)) {
-        error("expected a closing brace '}' for [" + std::string(forThing) + "]");
+        error() << "expected a closing brace '}' for [" << forThing << "]";
     }
 
     return scope;
@@ -107,7 +107,7 @@ std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator,
     // ending brace
     auto rb = consumeOfType(TokenType::RBrace);
     if (!rb) {
-        error("expected a closing brace '}' for [" + std::string(forThing) + "]");
+        error() << "expected a closing brace '}' for [" << forThing << "]";
         return scope;
     }
 

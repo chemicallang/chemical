@@ -83,12 +83,11 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
     }
 }
 
-llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
+llvm::Value *BaseFunctionParam::llvm_load(Codegen& gen, SourceLocation location) {
     if (gen.current_function != nullptr) {
         if(pointer) {
             const auto loadInstr = gen.builder->CreateLoad(type->llvm_type(gen), pointer);
-            // TODO this is not the actual location, it should correspond to the variable that requires the load
-            gen.di.instr(loadInstr, this);
+            gen.di.instr(loadInstr, location);
             return loadInstr;
         } else {
             return llvm_pointer(gen);
@@ -1129,9 +1128,9 @@ llvm::Type *FunctionDeclaration::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Value *CapturedVariable::llvm_load(Codegen &gen) {
+llvm::Value *CapturedVariable::llvm_load(Codegen& gen, SourceLocation location) {
     const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), llvm_pointer(gen));
-    gen.di.instr(loadInst, encoded_location());
+    gen.di.instr(loadInst, location);
     return loadInst;
 }
 

@@ -163,7 +163,7 @@ llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<ChainValue
     if(kind == ValueKind::Identifier) {
         const auto id = last->as_identifier_unsafe();
         if(id->linked->kind() == ASTNodeKind::EnumMember) {
-            return id->linked->llvm_load(gen);
+            return id->linked->llvm_load(gen, id->encoded_location());
         }
     }
     return Value::load_value(gen, last, access_chain_pointer(gen, values, destructibles, until));

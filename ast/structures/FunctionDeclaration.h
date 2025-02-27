@@ -535,7 +535,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
-    inline llvm::Value* llvm_load(Codegen &gen) final {
+    inline llvm::Value* llvm_load(Codegen& gen, SourceLocation location) final {
         return (llvm::Value*) get_llvm_data();
     }
 

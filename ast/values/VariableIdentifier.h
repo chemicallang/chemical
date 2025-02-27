@@ -105,8 +105,6 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
-    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) final;
-
 #endif
 
     Value* evaluated_value(InterpretScope &scope) final;

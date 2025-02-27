@@ -453,14 +453,7 @@ public:
      * loads the value of the given ASTNode
      * this is called by variable identifier, on linked nodes (var init, function parameters)
      */
-    virtual llvm::Value *llvm_load(Codegen &gen);
-
-    /**
-     * loads the value of the given ASTNode for returning
-     */
-    virtual llvm::Value *llvm_ret_load(Codegen &gen, ReturnStatement* returnStmt) {
-        return llvm_load(gen);
-    }
+    virtual llvm::Value* llvm_load(Codegen &gen, SourceLocation location);
 
 #endif
 

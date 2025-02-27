@@ -65,7 +65,7 @@ public:
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
-    llvm::Value *llvm_load(Codegen &gen) final;
+    llvm::Value *llvm_load(Codegen& gen, SourceLocation location) final;
 
     void code_gen(Codegen &gen) override;
 

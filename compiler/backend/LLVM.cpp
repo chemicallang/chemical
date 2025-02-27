@@ -387,7 +387,7 @@ llvm::Value *VariableIdentifier::llvm_value(Codegen &gen, BaseType* expected_typ
     if(linked_type->kind() == BaseTypeKind::Array) {
         return gen.builder->CreateGEP(llvm_type(gen), llvm_pointer(gen), {gen.builder->getInt32(0), gen.builder->getInt32(0)}, "", gen.inbounds);;
     }
-    return linked->llvm_load(gen);
+    return linked->llvm_load(gen, encoded_location());
 }
 
 bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
@@ -399,10 +399,6 @@ bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vect
 
 bool VariableIdentifier::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return linked->add_child_index(gen, indexes, name);
-}
-
-llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
-    return linked->llvm_ret_load(gen, returnStmt);
 }
 
 llvm::Type *DereferenceValue::llvm_type(Codegen &gen) {
@@ -1313,7 +1309,9 @@ llvm::Type *EnumDeclaration::llvm_type(Codegen &gen) {
 
 // ----------- Members
 
-llvm::Value *EnumMember::llvm_load(Codegen &gen) {
+llvm::Value *EnumMember::llvm_load(Codegen& gen, SourceLocation location) {
+    // we aren't supplying debug information for the load of this value
+    // it's a constant integer, but we need to supply this location information somehow
     if(init_value) {
         return init_value->llvm_value(gen, nullptr);
     } else {

@@ -176,7 +176,7 @@ void VarInitStatement::code_gen_external_declare(Codegen &gen) {
     code_gen_global_var(gen, false);
 }
 
-llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
+llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) {
     if(is_const()) {
         if(is_top_level()) {
             if (is_comptime()) {
@@ -203,8 +203,7 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
     auto v = llvm_pointer(gen);
     const auto& name = name_view();
     const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), v, llvm::StringRef(name.data(), name.size()));
-    // TODO use the location for loader, not what's being loaded
-    gen.di.instr(loadInst, encoded_location());
+    gen.di.instr(loadInst, location);
     return loadInst;
 }
 

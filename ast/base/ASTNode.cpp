@@ -398,7 +398,7 @@ bool ASTNode::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes,
 #endif
 }
 
-llvm::Value *ASTNode::llvm_load(Codegen &gen) {
+llvm::Value *ASTNode::llvm_load(Codegen& gen, SourceLocation location) {
 #ifdef DEBUG
     throw std::runtime_error("llvm_load called on a ASTNode");
 #else

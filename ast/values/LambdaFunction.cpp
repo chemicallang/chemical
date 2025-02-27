@@ -38,7 +38,7 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
             const auto instr = gen.builder->CreateStore(cap->linked->llvm_pointer(gen), ptr);
             gen.di.instr(instr, cap);
         } else {
-            const auto instr = gen.builder->CreateStore(cap->linked->llvm_load(gen), ptr);
+            const auto instr = gen.builder->CreateStore(cap->linked->llvm_load(gen, cap->encoded_location()), ptr);
             gen.di.instr(instr, cap);
         }
         i++;

@@ -67,7 +67,7 @@ void ExtensionFunction::link_signature(SymbolResolver &linker) {
     linker.scope_end();
 
     const auto type = receiver.type;
-    const auto pure_receiver = type->pure_type();
+    const auto pure_receiver = type->pure_type(linker.allocator);
     const auto receiver_kind = pure_receiver->kind();
     if(receiver_kind != BaseTypeKind::Reference) {
         linker.error("receiver in extension function must always be a reference", type);

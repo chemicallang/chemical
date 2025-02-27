@@ -225,7 +225,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
 
 void ArrayValue::relink_after_generic(SymbolResolver &linker, BaseType *expected_type) {
     if(!created_type->elem_type && expected_type && expected_type->kind() == BaseTypeKind::Array) {
-        const auto known_elem_type = ((ArrayType*) expected_type)->elem_type->pure_type();
+        const auto known_elem_type = ((ArrayType*) expected_type)->elem_type->pure_type(linker.allocator);
         if(known_elem_type) {
             created_type->elem_type = known_elem_type->copy(*linker.ast_allocator);
         }

@@ -383,7 +383,7 @@ llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *VariableIdentifier::llvm_value(Codegen &gen, BaseType* expected_type) {
-    const auto linked_type = linked->create_value_type(gen.allocator)->pure_type();
+    const auto linked_type = linked->create_value_type(gen.allocator)->pure_type(gen.allocator);
     if(linked_type->kind() == BaseTypeKind::Array) {
         return gen.builder->CreateGEP(llvm_type(gen), llvm_pointer(gen), {gen.builder->getInt32(0), gen.builder->getInt32(0)}, "", gen.inbounds);;
     }
@@ -450,8 +450,8 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
 llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto firstType = firstValue->create_type(gen.allocator);
     auto secondType = secondValue->create_type(gen.allocator);
-    auto first_pure = firstType->pure_type();
-    auto second_pure = secondType->pure_type();
+    auto first_pure = firstType->pure_type(gen.allocator);
+    auto second_pure = secondType->pure_type(gen.allocator);
     // promote literal values is using gen allocator
     // TODO there's probably a better way of doing this
     auto prev_firstValue = firstValue;
@@ -460,9 +460,9 @@ llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     // shrink_literal_values(gen.allocator, first_pure, second_pure);
     // promote_literal_values(gen.allocator, first_pure, second_pure);
     firstType = firstValue->create_type(gen.allocator);
-    first_pure = firstType->pure_type();
+    first_pure = firstType->pure_type(gen.allocator);
     secondType = secondValue->create_type(gen.allocator);
-    second_pure = secondType->pure_type();
+    second_pure = secondType->pure_type(gen.allocator);
     auto logical = llvm_logical_expr(gen, first_pure, second_pure);
     if(logical) return logical;
     auto value = gen.operate(operation, firstValue, secondValue, first_pure, second_pure);
@@ -505,14 +505,14 @@ bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 }
 
 llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
-    auto type = value->create_type(gen.allocator)->pure_type();
+    auto type = value->create_type(gen.allocator)->pure_type(gen.allocator);
     const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, encoded_location());
     auto value_pointer = value->llvm_pointer(gen);
     // TODO loading the value after pointer, value is not being loaded using the pointer we have
     auto value_loaded = value->llvm_value(gen);
     const auto op = increment ? Operation::Addition : Operation::Subtraction;
     // automatic de-referencing
-    const auto referred = type->getLoadableReferredType();
+    const auto referred = type->pure_type(gen.allocator)->getLoadableReferredType();
     if(referred) {
         value_pointer = value_loaded;
         const auto loadInst = gen.builder->CreateLoad(referred->llvm_type(gen), value_loaded);
@@ -533,8 +533,8 @@ llvm::Type *CastedValue::llvm_type(Codegen &gen) {
 llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto llvm_val = value->llvm_value(gen);
     const auto value_type_real = value->create_type(gen.allocator);
-    const auto value_type = value_type_real->pure_type();
-    const auto pure_type = type->pure_type();
+    const auto value_type = value_type_real->pure_type(gen.allocator);
+    const auto pure_type = type->pure_type(gen.allocator);
     if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::IntN) {
         auto from_num_type = (IntNType*) value_type;
         auto to_num_type = (IntNType*) pure_type;
@@ -944,7 +944,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             return_value = value->llvm_ret_value(gen, this);
             if(func_type) {
                 auto value_type = value->get_pure_type(gen.allocator);
-                auto to_type = func_type->returnType->pure_type();
+                auto to_type = func_type->returnType->pure_type(gen.allocator);
 
                 // automatic dereference if required
                 const auto derefType = value_type->getAutoDerefType(to_type);
@@ -1113,7 +1113,7 @@ bool Codegen::requires_memcpy_ref_struct(BaseType* known_type, Value* value) {
 }
 
 llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* llvm_ptr, llvm::Type* type) {
-//    const auto pure = known_type->pure_type();
+//    const auto pure = known_type->pure_type(allocator);
     if(requires_memcpy_ref_struct(known_type->pure_type(allocator), value)) {
         if(!llvm_ptr) {
             const auto allocaInst = builder->CreateAlloca(type, nullptr);
@@ -1164,8 +1164,8 @@ void AssignStatement::code_gen(Codegen &gen) {
 void DestructStmt::code_gen(Codegen &gen) {
 
     auto created_type = identifier->create_type(gen.allocator);
-    auto pure_type = created_type->pure_type();
-//    auto pure_type = identifier->get_pure_type();
+    auto pure_type = created_type->pure_type(gen.allocator);
+//    auto pure_type = identifier->get_pure_type(gen.allocator);
     bool determined_array = false;
     if(pure_type->kind() == BaseTypeKind::Array) {
         determined_array = true;
@@ -1183,7 +1183,7 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error(this) << "value given to destruct statement must be of pointer type, value '" << identifier->representation() << "'";
             return;
         }
-        const auto struct_type = ((PointerType*) pure_type)->type->pure_type();
+        const auto struct_type = ((PointerType*) pure_type)->type->pure_type(gen.allocator);
         auto def = struct_type->get_direct_linked_struct();
         if(!def) {
             return;
@@ -1220,7 +1220,7 @@ void DestructStmt::code_gen(Codegen &gen) {
     BaseType* elem_type;
     if(pure_type->kind() == BaseTypeKind::Array) {
         auto arr_type = (ArrayType*) pure_type;
-        elem_type = arr_type->elem_type->pure_type();
+        elem_type = arr_type->elem_type->pure_type(gen.allocator);
         if (!is_array) {
             gen.error(this) << "expected brackets '[]' after 'destruct' for destructing an array, with value " << identifier->representation();
             return;
@@ -1243,8 +1243,8 @@ void DestructStmt::code_gen(Codegen &gen) {
             return;
         }
         auto ptr_type = (PointerType*) pure_type;
-        elem_type = ptr_type->type->pure_type();
-        auto def = ptr_type->type->pure_type()->get_direct_linked_struct();
+        elem_type = ptr_type->type->pure_type(gen.allocator);
+        auto def = ptr_type->type->pure_type(gen.allocator)->get_direct_linked_struct();
         if(!def) {
             return;
         }

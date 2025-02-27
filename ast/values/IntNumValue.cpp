@@ -14,7 +14,7 @@ Value* IncDecValue::evaluated_value(InterpretScope &scope) {
 
 BaseType* IncDecValue::create_type(ASTAllocator &allocator) {
     const auto type = value->create_type(allocator);
-    const auto pure = type->pure_type();
+    const auto pure = type->pure_type(allocator);
     if(pure && pure->kind() == BaseTypeKind::Reference) {
         const auto ref = pure->as_reference_type_unsafe();
         if(BaseType::isLoadableReferencee(ref->type->kind())) {

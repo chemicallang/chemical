@@ -468,9 +468,8 @@ bool BaseType::is_reference_to(ASTNode* node) {
 }
 
 BaseType* BaseType::getLoadableReferredType() {
-    const auto pure = pure_type();
-    if(pure->kind() == BaseTypeKind::Reference) {
-        const auto ref = pure->as_reference_type_unsafe()->type->pure_type();
+    if(kind() == BaseTypeKind::Reference) {
+        const auto ref = as_reference_type_unsafe()->type->pure_type();
         const auto ref_kind = ref->kind();
         if(BaseType::isLoadableReferencee(ref_kind)) {
             return ref;
@@ -509,7 +508,7 @@ BaseType* BaseType::removeReferenceFromType(ASTAllocator& allocator) {
 
 bool BaseType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
     const auto val_type = value->create_type(allocator);
-    return val_type != nullptr && satisfies(val_type->pure_type());
+    return val_type != nullptr && satisfies(val_type->pure_type(allocator));
 }
 
 int16_t BaseType::get_generic_iteration() {

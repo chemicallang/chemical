@@ -100,9 +100,9 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
     if(expr_type) {
 
         // automatic dereference
-        const auto pure_type = expr_type->pure_type();
+        const auto pure_type = expr_type->pure_type(gen.allocator);
         if(pure_type->kind() == BaseTypeKind::Reference) {
-            const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type();
+            const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type(gen.allocator);
             const auto ref_kind = ref->kind();
             if(BaseType::isIntNType(ref_kind) || ref_kind == BaseTypeKind::Bool) {
                 const auto loadInst = gen.builder->CreateLoad(ref->llvm_type(gen), expr_value);

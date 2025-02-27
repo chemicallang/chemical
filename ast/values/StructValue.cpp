@@ -197,7 +197,7 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
         if(!definition->destructor_func() && !definition->clear_func() && allows_direct_init()) {
             const auto deref = lhs->as_deref_value();
             const auto deref_type = deref->value->create_type(gen.allocator);
-            if (deref_type->pure_type()->is_pointer()) {
+            if (deref_type->pure_type(gen.allocator)->is_pointer()) {
                 auto allocated = deref->llvm_pointer(gen);
                 initialize_alloca(allocated, gen, nullptr);
                 return;

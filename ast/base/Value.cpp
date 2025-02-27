@@ -93,7 +93,7 @@ unsigned int Value::store_in_struct(
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
 
-        const auto value_pure = create_type(gen.allocator)->pure_type();
+        const auto value_pure = create_type(gen.allocator)->pure_type(gen.allocator);
         const auto derefType = value_pure->getAutoDerefType(expected_type);
 
         llvm::Value* Val = value;
@@ -122,7 +122,7 @@ unsigned int Value::store_in_array(
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
-        const auto value_pure = create_type(gen.allocator)->pure_type();
+        const auto value_pure = create_type(gen.allocator)->pure_type(gen.allocator);
         const auto derefType = value_pure->getAutoDerefType(expected_type);
 
         llvm::Value* Val = value;
@@ -859,7 +859,7 @@ Value* Value::scope_value(InterpretScope& scope) {
 
 BaseType* Value::get_pure_type(ASTAllocator& allocator) {
     auto base_type = create_type(allocator);
-    auto pure_type = base_type->pure_type();
+    auto pure_type = base_type->pure_type(allocator);
     if(pure_type == base_type) {;
         return base_type;
     } else {

@@ -43,7 +43,7 @@ llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
 }
 
 bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
-    const auto parent_type = parent->create_type(gen.allocator)->pure_type();
+    const auto parent_type = parent->create_type(gen.allocator)->pure_type(gen.allocator);
     if (parent_type->kind() == BaseTypeKind::Array && indexes.empty() && (parent->linked_node() == nullptr || parent->linked_node()->as_func_param() == nullptr )) {
         indexes.push_back(gen.builder->getInt32(0));
     }

@@ -18,7 +18,7 @@
 llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs) {
     auto firstType = lhs->create_type(allocator);
     auto secondType = rhs->create_type(allocator);
-    return operate(op, lhs, rhs, firstType->pure_type(), secondType->pure_type());
+    return operate(op, lhs, rhs, firstType->pure_type(allocator), secondType->pure_type(allocator));
 }
 
 llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs, BaseType* lhsType, BaseType* rhsType) {
@@ -53,7 +53,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
     // automatically dereference reference types
     if(firstType->kind() == BaseTypeKind::Reference) {
         const auto ref_type = firstType->as_reference_type_unsafe();
-        const auto referred = ref_type->type->pure_type();
+        const auto referred = ref_type->type->pure_type(allocator);
         const auto ref_kind = referred->kind();
         if(BaseType::isLoadableReferencee(ref_kind)) {
             const auto loadInst = builder->CreateLoad(referred->llvm_type(*this), lhs);
@@ -64,7 +64,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
     }
     if(secondType->kind() == BaseTypeKind::Reference) {
         const auto ref_type = secondType->as_reference_type_unsafe();
-        const auto referred = ref_type->type->pure_type();
+        const auto referred = ref_type->type->pure_type(allocator);
         const auto ref_kind = referred->kind();
         if(BaseType::isLoadableReferencee(ref_kind)) {
             const auto loadInst = builder->CreateLoad(referred->llvm_type(*this), rhs);

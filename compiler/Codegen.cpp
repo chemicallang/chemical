@@ -1047,7 +1047,7 @@ void configure_emitter_opts(OutputMode mode, CodegenEmitterOptions* options) {
             break;
 #ifdef DEBUG
         default:
-            throw std::runtime_error("[Compiler] unknown output mode");
+            throw std::runtime_error("[lab] unknown output mode");
 #endif
     }
 }

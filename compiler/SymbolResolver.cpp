@@ -273,7 +273,8 @@ void SymbolResolver::declare_file_disposable(const chem::string_view &name, ASTN
 void SymbolResolver::declare_function(const chem::string_view& name, FunctionDeclaration* declaration) {
 #ifdef DEBUG
     if(name.empty()) {
-        std::cerr << rang::fg::red << "error: empty symbol being declared" << rang::fg::reset << std::endl;
+        std::cerr << rang::fg::red << "error: ";
+        std::cerr << "empty symbol being declared" << rang::fg::reset << std::endl;
         return;
     }
 #endif

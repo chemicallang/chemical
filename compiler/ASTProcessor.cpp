@@ -29,7 +29,8 @@ std::string ASTProcessorOptions::get_resources_path() {
     if(!resources_path.empty()) return resources_path;
     resources_path = resources_path_rel_to_exe(exe_path);
     if(resources_path.empty()) {
-        std::cerr << "[Compiler] Couldn't locate resources path relative to compiler's executable" << std::endl;
+        std::cerr << rang::fg::yellow << "warning: " << rang::fg::reset;
+        std::cerr << "couldn't locate resources path relative to compiler's executable" << std::endl;
     }
     return resources_path;
 }

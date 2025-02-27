@@ -47,7 +47,7 @@ void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string>
 bool LabBuildContext::declare_user_alias(LabJob* job, std::string alias, std::string path) {
     auto found = job->path_aliases.find(alias);
     if(found != job->path_aliases.end()) {
-        std::cerr << "[LabBuild] error declaring alias '" << alias << "' for path '" << path << "', an alias with same already exists in job '" << job->name << "'" << std::endl;
+        std::cerr << "[lab] error declaring alias '" << alias << "' for path '" << path << "', an alias with same already exists in job '" << job->name << "'" << std::endl;
         return false;
     }
     while(path[0] == '@') {
@@ -55,7 +55,7 @@ bool LabBuildContext::declare_user_alias(LabJob* job, std::string alias, std::st
         if(result.error.empty()) {
             path = std::move(result.replaced);
         } else {
-            std::cerr << "[LabBuild] error declaring alias '" << alias << "' for path '" << path << "', " << result.error << " in job '" << job->name << "'" << std::endl;
+            std::cerr << "[lab] error declaring alias '" << alias << "' for path '" << path << "', " << result.error << " in job '" << job->name << "'" << std::endl;
             return false;
         }
     }

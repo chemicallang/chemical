@@ -453,6 +453,10 @@ public:
         return !generic_params.empty();
     }
 
+    bool is_exported() {
+        return specifier() == AccessSpecifier::Public;
+    }
+
     bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;
     }

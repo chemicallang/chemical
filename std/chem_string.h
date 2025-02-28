@@ -56,7 +56,7 @@ namespace chem {
         }
 
         constexpr string() {
-            storage.constant.data = nullptr;
+            storage.constant.data = "";
             storage.constant.length = 0;
             state = '0';
         }
@@ -389,7 +389,7 @@ namespace chem {
                 case '2':
                     return storage.heap.data;
                 default:
-                    return nullptr;
+                    return "";
             }
         }
 

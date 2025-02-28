@@ -141,6 +141,7 @@ AccessSpecifier ASTNode::specifier() {
         case ASTNodeKind::EnumDecl:
             return as_enum_decl_unsafe()->specifier();
         case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::ExtensionFunctionDecl:
             return as_function_unsafe()->specifier();
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->specifier();

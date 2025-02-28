@@ -20,6 +20,18 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
+void VariableIdentifier::process_linked(ASTDiagnoser& linker) {
+    const auto linkedKind = linked->kind();
+    if(linkedKind == ASTNodeKind::FunctionDecl || linkedKind == ASTNodeKind::ExtensionFunctionDecl) {
+        // if this is not set, function won't generate code (very important)
+        // this doesn't account for recursion though, this identifier maybe present inside with linked function
+        linked->as_function_unsafe()->set_has_usage(true);
+    } else if(linkedKind == ASTNodeKind::NamespaceDecl && !is_ns){
+        // TODO enable this, so we can check user uses :: for static access
+//            linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
+    }
+}
+
 bool VariableIdentifier::link(SymbolResolver &linker, bool check_access) {
     linked = linker.find(value);
     if(linked) {
@@ -27,10 +39,7 @@ bool VariableIdentifier::link(SymbolResolver &linker, bool check_access) {
             // check for validity if accessible or assignable (because moved)
             linker.current_func_type->check_id(this, linker);
         }
-        if(linked->as_namespace() && !is_ns){
-            // TODO enable this, so we can check user uses :: for static access
-//            linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
-        }
+        process_linked(linker);
         return true;
     } else {
         linker.error(this) << "unresolved variable identifier '" << value << "' not found";
@@ -48,6 +57,7 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
     if(linked_node) {
         linked = linked_node->child(value);
         if(linked) {
+            process_linked(*diagnoser);
             return true;
         } else if(diagnoser) {
             diagnoser->error(this) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";

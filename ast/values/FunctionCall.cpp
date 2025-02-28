@@ -1077,6 +1077,7 @@ void relink_multi_id(
             auto func = multi->func_for_call(allocator, values);
             if(func) {
                 parent->linked = func;
+                parent->process_linked(*diagnoser);
             } else {
                 diagnoser->error("couldn't find function that satisfies given arguments", parent);
             }
@@ -1196,18 +1197,18 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
     int16_t struct_itr = link_constructor(resolver.allocator, *resolver.ast_allocator, resolver);
     if(struct_itr > -2) {
         prev_itr = struct_itr;
-    } else if(func_decl && !func_decl->generic_params.empty()) {
+    } else if(func_decl && func_decl->is_generic()) {
         const auto func_type = resolver.current_func_type;
         const auto curr_func = func_type->as_function();
         // curr_func == func_decl when this function call is calling current function (recursion)
         // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle
-        if(curr_func && curr_func != func_decl) {
-            if(curr_func->is_generic()) {
+        if (curr_func && curr_func != func_decl) {
+            if (curr_func->is_generic()) {
                 // current function is generic, do not register generic iterations of the call
                 curr_func->call_subscribers.emplace_back(this, expected_type ? expected_type->copy(*resolver.ast_allocator) : nullptr);
             } else {
                 const auto parent = curr_func->parent_node;
-                if(parent) {
+                if (parent) {
                     const auto container = parent->as_members_container();
                     if (container && container->is_generic()) {
                         // current function has a generic parent (struct), we will not register generic iterations of the call

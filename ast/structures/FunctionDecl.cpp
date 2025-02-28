@@ -218,7 +218,7 @@ void body_gen(Codegen &gen, FunctionDeclaration* decl, llvm::Function* funcCalle
 }
 
 void func_body_gen_no_scope(FunctionDeclaration* decl, Codegen& gen) {
-    if(decl->is_comptime()) {
+    if(!decl->exists_at_runtime()) {
         return;
     }
     if(decl->generic_params.empty()) {
@@ -236,7 +236,7 @@ void func_body_gen_no_scope(FunctionDeclaration* decl, Codegen& gen) {
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     if(generic_params.empty()) {
@@ -254,7 +254,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     if(parent_node) {
@@ -428,7 +428,7 @@ void create_or_declare_fn(Codegen& gen, FunctionDeclaration* decl) {
 }
 
 void FunctionDeclaration::code_gen_declare_normal(Codegen& gen) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     create_or_declare_fn(gen, this);
@@ -436,7 +436,7 @@ void FunctionDeclaration::code_gen_declare_normal(Codegen& gen) {
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     if(parent_node) {
@@ -507,14 +507,14 @@ void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     create_or_declare_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, VariantDefinition* def) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     create_or_declare_fn(gen, this);
@@ -533,14 +533,14 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, InterfaceDefinition* de
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, UnionDef* def) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     create_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     if(is_constructor_fn()) {
@@ -575,7 +575,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, InterfaceDefinition* def) 
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     if(is_copy_fn()) {
@@ -599,7 +599,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, UnionDef* def) {
-    if(is_comptime()) {
+    if(!exists_at_runtime()) {
         return;
     }
     gen.current_function = nullptr;

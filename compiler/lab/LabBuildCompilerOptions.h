@@ -52,11 +52,7 @@ public:
     /**
      * whether the generated ir should be debuggable ir
      */
-#ifdef DEBUG
-    bool debug_ir = true;
-#else
     bool debug_ir = false;
-#endif
 
     /**
      * lto is on or not, mostly re configured using the output mode above

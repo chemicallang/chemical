@@ -208,6 +208,7 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
 }
 
 const auto include_cmd_desc = "include a c header or a chemical file in compilation";
+const auto build_dir_desc = "specify a build directory to output build files or create module directory";
 const auto link_lib_cmd_desc = "link the given library when compiling";
 const auto cc_cmd_desc = "invokes the cc tool";
 const auto configure_cmd_desc = "configures the compiler for this OS";
@@ -233,7 +234,6 @@ const auto jit_desc = "just in time compile the given input";
 const auto output_desc = "the output at which file(s) will be generated";
 const auto resources_desc = "the path to resources directory required";
 const auto ignore_extension_desc = "compiler will ignore the extension of the file";
-const auto cbi_m_desc = "compile a compiler binding interface that provides support for macros";
 const auto ll_out_desc = "specify output path for .ll (llvm ir) file";
 const auto bc_out_desc = "specify output path for .bc (bitcode) file";
 const auto obj_out_desc = "specify output path for .o (object) file";
@@ -242,6 +242,9 @@ const auto bin_out_desc = "specify output path for binary file";
 const auto debug_ir_desc = "set debug mode for generated llvm ir";
 const auto dash_c_desc = "generate objects without linking them into final executable";
 const auto no_caching_desc = "no caching will be done for future invocations";
+const auto cbi_m_desc = "compile a compiler binding interface that provides support for macros";
+const auto mod_f_desc = "compile a file as a module, the argument must be in syntax <mod-name>:<file-path>";
+const auto mod_d_desc = "compile a directory as a module, the argument must be in syntax <mod-name>:<dir-path>";
 
 inline std::vector<std::string_view>& get_includes(CmdOptions& options) {
     return options.data.find("include")->second.multi_value.values;
@@ -315,6 +318,54 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
     }
 }
 
+LabModule* create_or_find_module(std::vector<std::unique_ptr<LabModule>>& modules, const chem::string_view& name, const chem::string_view& path, LabModuleType mod_type) {
+    // we use the previously created module with same name, if it's a files module (to append the file to same module created before)
+    if(mod_type == LabModuleType::Files) {
+        for (auto& mod: modules) {
+            if (mod->name.to_chem_view() == name) {
+                return mod.get();
+            }
+        }
+    }
+    const auto mod = new LabModule(mod_type, chem::string(name), chem::string(""), chem::string(""), chem::string(""), chem::string(""), chem::string(""), {}, {}, { chem::string(path) }, {});
+    modules.emplace_back(mod);
+    return mod;
+}
+
+void include_mod_command_modules(
+    std::vector<std::unique_ptr<LabModule>>& modules,
+    const std::string_view& command_key,
+    std::vector<std::string_view>& command_values,
+    LabJob& job,
+    LabModule* main_mod,
+    LabModuleType mod_type
+) {
+    if(command_values.empty()) return;
+    for(auto& lib : command_values) {
+        auto found = lib.find(':');
+        if(found != std::string::npos) {
+            auto name = chem::string_view(lib.data(), found);
+            auto path = chem::string_view(lib.data() + (found + 1));
+            const auto mod = create_or_find_module(modules, name, path, mod_type);
+            if(mod_type == LabModuleType::Directory) {
+                job.path_aliases[name.str()] = path.str();
+            }
+            main_mod->dependencies.emplace_back(mod);
+        } else {
+            std::cerr << rang::fg::red << "the argument to --" << command_key << " must be formatted as <name>:<path>" << rang::fg::reset;
+        }
+    }
+}
+
+void include_mod_d_modules(std::vector<std::unique_ptr<LabModule>>& modules, CmdOptions& options, LabJob& job, LabModule* main_mod) {
+    auto& libs = options.data.find("mod-d")->second.multi_value.values;
+    include_mod_command_modules(modules, "mod-d", libs, job, main_mod, LabModuleType::Directory);
+}
+void include_mod_f_modules(std::vector<std::unique_ptr<LabModule>>& modules, CmdOptions& options, LabJob& job, LabModule* main_mod) {
+    auto& libs = options.data.find("mod-f")->second.multi_value.values;
+    include_mod_command_modules(modules, "mod-f", libs, job, main_mod, LabModuleType::Files);
+}
+
 int main(int argc, char *argv[]) {
 
 #ifdef COMPILER_BUILD
@@ -328,6 +379,7 @@ int main(int argc, char *argv[]) {
     CmdOptions options;
     CmdOption cmd_data[] = {
         CmdOption("include", CmdOptionType::MultiValued, include_cmd_desc),
+        CmdOption("build-dir", CmdOptionType::SingleValue, build_dir_desc),
         CmdOption("library", "l", CmdOptionType::MultiValued, link_lib_cmd_desc),
         CmdOption("cc", CmdOptionType::SubCommand, cc_cmd_desc),
         CmdOption("configure", CmdOptionType::SubCommand, configure_cmd_desc),
@@ -354,7 +406,6 @@ int main(int argc, char *argv[]) {
         CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
         CmdOption("ignore-extension", CmdOptionType::NoValue, ignore_extension_desc),
         CmdOption("no-caching", CmdOptionType::NoValue, no_caching_desc),
-        CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued, cbi_m_desc),
         CmdOption("out-ll", CmdOptionType::SingleValue, ll_out_desc),
         CmdOption("out-bc", CmdOptionType::SingleValue, bc_out_desc),
         CmdOption("out-obj", CmdOptionType::SingleValue, obj_out_desc),
@@ -362,6 +413,9 @@ int main(int argc, char *argv[]) {
         CmdOption("out-bin", CmdOptionType::SingleValue, bin_out_desc),
         CmdOption("debug-ir", CmdOptionType::NoValue, debug_ir_desc),
         CmdOption("", "c", CmdOptionType::NoValue, dash_c_desc),
+        CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued, cbi_m_desc),
+        CmdOption("mod-f", "", CmdOptionType::MultiValued, mod_f_desc),
+        CmdOption("mod-d", "", CmdOptionType::MultiValued, mod_d_desc),
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);
@@ -625,7 +679,7 @@ int main(int argc, char *argv[]) {
         bin_out.emplace("compiled");
     }
 
-    LabModule module(LabModuleType::Files);
+    LabModule module(LabModuleType::Files, chem::string::make_view("main"));
     take_include_options(module, options);
 
     // have object file output for the binary we are outputting
@@ -670,6 +724,13 @@ int main(int argc, char *argv[]) {
 
     LabJob job(LabJobType::Executable);
     take_linked_libs(job, options);
+    include_mod_d_modules(dependencies, options, job, &module);
+    include_mod_f_modules(dependencies, options, job, &module);
+    const auto build_dir = options.option_new("build-dir");
+    if(build_dir.has_value()) {
+        job.build_dir = chem::string::make_view(build_dir.value());
+    }
+
     if(dash_c.has_value() || !bin_out.has_value()) {
         job.type = LabJobType::ProcessingOnly;
     } else if(output.has_value()) {

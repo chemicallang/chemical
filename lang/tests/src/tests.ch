@@ -49,6 +49,7 @@ public func main() : int {
     // test_unordered_map();
     test_abstract_structs();
     test_generic_static_interfaces();
+    test_external_interfaces();
     print_test_stats();
     return 0;
 }

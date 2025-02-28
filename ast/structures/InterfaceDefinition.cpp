@@ -81,6 +81,44 @@ void InterfaceDefinition::code_gen(Codegen &gen) {
     }
 }
 
+void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
+    if(is_static()) {
+        extendable_external_declare(gen);
+    } else {
+        // for functions that don't take a self parameter, we just straight up declare them
+        // because they have already been generated in other module
+        for (auto& func: functions()) {
+            if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
+                func->code_gen_external_declare(gen);
+            }
+        }
+        // for each function:
+        // we find their users, which contain function pointers, if function pointer exists, we declare the function
+        // if no function pointer exists, we have to assume no implementation exists, and generate as usual, so users can override it
+        for(auto& func : functions()) {
+            for (auto& use: users) {
+                auto& user = users[use.first];
+                active_user = use.first;
+                auto found = user.find(func);
+                if (func->has_self_param()) {
+                    if((found == user.end() || found->second == nullptr)) {
+                        // if no implementation (function pointer exists, we declare and generate the body so users (structs) can override it)
+                        func->code_gen_declare(gen, this);
+                        func->code_gen_body(gen, this);
+                    } else {
+                        // since function pointer exists and is not null pointer
+                        // however because the function is from other module, this function pointer is invalid in this module
+                        // we must declare the function and reset the function pointer for the user
+                        func->code_gen_external_declare(gen);
+                    }
+                }
+                user[func] = (llvm::Function*) func->llvm_pointer(gen);
+            }
+            active_user = nullptr;
+        }
+    }
+}
+
 llvm::Type* InterfaceDefinition::llvm_type(Codegen &gen) {
     // the reason it returns void is that
     // when interface functions require the type in parameter, a pointer to interface would mean

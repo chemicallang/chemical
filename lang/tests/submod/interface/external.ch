@@ -1,30 +1,40 @@
-@static
-public interface ExternallyImplementedInterface {
+public interface ExtPubNormInterface {
 
-    func give_number(&self) : int
-
-}
-
-public func (check : &mut ExternallyImplementedInterface) pls_give_ext_num() : int {
-    return check.give_number();
-}
-
-@static
-public interface ImplementedPublicInterface {
-
-    func give_number(&self) : int
+    func sum(&self) : int
 
 }
 
-public func (c : &mut ImplementedPublicInterface) inc_imp_pub_int() : int {
-    return c.give_number() + 1;
-}
+public struct ExtPubNormInterfaceImpl1 : ExtPubNormInterface {
 
-public struct CurrModPubIntImpl : ImplementedPublicInterface {
+    var a : int
+    var b : int
 
     @override
-    func give_number(&self) : int {
-        return 8787
+    func sum(&self) : int {
+        return a + b;
     }
 
+}
+
+public func test_ext_pub_norm_inter_impl1() : int {
+    var ext = ExtPubNormInterfaceImpl1 { a : 10, b : 20 }
+    return ext.sum();
+}
+
+public struct ExtPubNormInterfaceImpl2 : ExtPubNormInterface {
+
+    var a : int
+    var b : int
+    var c : int
+
+    @override
+    func sum(&self) : int {
+        return a + b + c;
+    }
+
+}
+
+public func test_ext_pub_norm_inter_impl2() : int {
+    var ext = ExtPubNormInterfaceImpl2 { a : 10, b : 20, c : 30 }
+    return ext.sum();
 }

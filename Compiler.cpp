@@ -243,8 +243,9 @@ const auto debug_ir_desc = "set debug mode for generated llvm ir";
 const auto dash_c_desc = "generate objects without linking them into final executable";
 const auto no_caching_desc = "no caching will be done for future invocations";
 const auto cbi_m_desc = "compile a compiler binding interface that provides support for macros";
-const auto mod_f_desc = "compile a file as a module, the argument must be in syntax <mod-name>:<file-path>";
-const auto mod_d_desc = "compile a directory as a module, the argument must be in syntax <mod-name>:<dir-path>";
+const auto mod_f_desc = "compile a file as a module, the argument must be in format <mod-name>:<file-path>";
+const auto mod_d_desc = "compile a directory as a module, the argument must be in format <mod-name>:<dir-path>";
+const auto out_dash_all_desc = "generate a corresponding file for every additional module specific via --mod";
 
 inline std::vector<std::string_view>& get_includes(CmdOptions& options) {
     return options.data.find("include")->second.multi_value.values;
@@ -269,52 +270,6 @@ void take_linked_libs(LabJob& job, CmdOptions& options) {
     const auto& libs2 = options.data.find("l")->second.multi_value.values;
     for(auto& lib : libs2) {
         job.linkables.emplace_back(chem::string::make_view(lib));
-    }
-}
-
-void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
-    auto& libs = options.data.find("cbi-m")->second.multi_value.values;
-    for(auto& lib : libs) {
-        auto found = lib.find(':');
-        if(found != std::string::npos) {
-            auto name = chem::string_view(lib.data(), found);
-            auto path = chem::string_view(lib.data() + (found + 1));
-            LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_folder), LabJobStatus::Pending, {}, {}, {}, {});
-            LabModule mod(LabModuleType::Directory, chem::string(name), chem::string(""), chem::string(""), chem::string(""), chem::string(""), chem::string(""), {}, {}, { chem::string(path) }, {});
-            job.dependencies.emplace_back(&mod);
-            compiler.do_job_allocating(&job);
-            auto cbiDataItr = compiler.binder.data.find(name.str());
-            if(cbiDataItr != compiler.binder.data.end()) {
-                auto& cbiData = cbiDataItr->second;
-                if(cbiData.modules.empty()) {
-                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't have any data present" << rang::fg::reset << std::endl;
-                    continue;
-                }
-                cbiData.entry_module = cbiData.modules[0];
-                auto sym = tcc_get_symbol(cbiData.entry_module, "initializeLexer");
-                if(!sym) {
-                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'initializeLexer'" << rang::fg::reset << std::endl;
-                    continue;
-                }
-                auto sym2 = tcc_get_symbol(cbiData.entry_module, "parseMacroValue");
-                if(!sym2) {
-                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'parseMacroValue'" << rang::fg::reset << std::endl;
-                    continue;
-                }
-                auto sym3 = tcc_get_symbol(cbiData.entry_module, "parseMacroNode");
-                if(!sym3) {
-                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'parseMacroNode'" << rang::fg::reset << std::endl;
-                    continue;
-                }
-                auto& cbi_name_ref = cbiDataItr->first;
-                auto cbi_name = chem::string_view(cbi_name_ref.data(), cbi_name_ref.size());
-                compiler.binder.initializeLexerFunctions[cbi_name] = (UserLexerInitializeFn) sym;
-                compiler.binder.parseMacroValueFunctions[cbi_name] = (UserParserParseMacroValueFn) sym2;
-                compiler.binder.parseMacroNodeFunctions[cbi_name] = (UserParserParseMacroNodeFn) sym3;
-            }
-        } else {
-            std::cerr << rang::fg::red << "the argument to --cbi must be formatted as <name>:<directory_path>" << rang::fg::reset;
-        }
     }
 }
 
@@ -366,6 +321,91 @@ void include_mod_f_modules(std::vector<std::unique_ptr<LabModule>>& modules, Cmd
     include_mod_command_modules(modules, "mod-f", libs, job, main_mod, LabModuleType::Files);
 }
 
+void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& module, std::vector<std::unique_ptr<LabModule>>& dependencies) {
+
+    // set the build directory for the job
+    const auto build_dir = options.option_new("build-dir");
+    if(build_dir.has_value()) {
+        job.build_dir = chem::string::make_view(build_dir.value());
+    }
+
+    take_include_options(module, options);
+    take_linked_libs(job, options);
+
+    auto start = dependencies.size(); // where additional modules begin
+
+    include_mod_d_modules(dependencies, options, job, &module);
+    include_mod_f_modules(dependencies, options, job, &module);
+
+    // setting output for ll, bc, obj and asm files for corresponding modules
+    const auto has_ll = options.has_value("out-ll-all");
+    const auto has_asm = options.has_value("out-asm-all");
+    const auto size = dependencies.size();
+    while(start < size) {
+        const auto mod = dependencies[start].get();
+        const auto mod_dir = resolve_rel_child_path_str(job.build_dir.to_std_string(), mod->name.to_std_string());
+        if(has_ll) {
+            mod->llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
+        }
+        if(has_asm) {
+            mod->asm_path.append(resolve_rel_child_path_str(mod_dir, "mod_asm.s"));
+        }
+        start++;
+    }
+
+}
+
+void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
+    auto& libs = options.data.find("cbi-m")->second.multi_value.values;
+    for(auto& lib : libs) {
+        auto found = lib.find(':');
+        if(found != std::string::npos) {
+            auto name = chem::string_view(lib.data(), found);
+            auto path = chem::string_view(lib.data() + (found + 1));
+
+            // creating the job and module and setting options for it
+            LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_folder), LabJobStatus::Pending, {}, {}, {}, {});
+            LabModule mod(LabModuleType::Directory, chem::string(name), chem::string(""), chem::string(""), chem::string(""), chem::string(""), chem::string(""), {}, {}, { chem::string(path) }, {});
+            job.dependencies.emplace_back(&mod);
+            std::vector<std::unique_ptr<LabModule>> dependencies;
+            set_options_for_main_job(options, job, mod, dependencies);
+
+            compiler.do_job_allocating(&job);
+            auto cbiDataItr = compiler.binder.data.find(name.str());
+            if(cbiDataItr != compiler.binder.data.end()) {
+                auto& cbiData = cbiDataItr->second;
+                if(cbiData.modules.empty()) {
+                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't have any data present" << rang::fg::reset << std::endl;
+                    continue;
+                }
+                cbiData.entry_module = cbiData.modules[0];
+                auto sym = tcc_get_symbol(cbiData.entry_module, "initializeLexer");
+                if(!sym) {
+                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'initializeLexer'" << rang::fg::reset << std::endl;
+                    continue;
+                }
+                auto sym2 = tcc_get_symbol(cbiData.entry_module, "parseMacroValue");
+                if(!sym2) {
+                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'parseMacroValue'" << rang::fg::reset << std::endl;
+                    continue;
+                }
+                auto sym3 = tcc_get_symbol(cbiData.entry_module, "parseMacroNode");
+                if(!sym3) {
+                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'parseMacroNode'" << rang::fg::reset << std::endl;
+                    continue;
+                }
+                auto& cbi_name_ref = cbiDataItr->first;
+                auto cbi_name = chem::string_view(cbi_name_ref.data(), cbi_name_ref.size());
+                compiler.binder.initializeLexerFunctions[cbi_name] = (UserLexerInitializeFn) sym;
+                compiler.binder.parseMacroValueFunctions[cbi_name] = (UserParserParseMacroValueFn) sym2;
+                compiler.binder.parseMacroNodeFunctions[cbi_name] = (UserParserParseMacroNodeFn) sym3;
+            }
+        } else {
+            std::cerr << rang::fg::red << "the argument to --cbi must be formatted as <name>:<directory_path>" << rang::fg::reset;
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
 
 #ifdef COMPILER_BUILD
@@ -411,6 +451,8 @@ int main(int argc, char *argv[]) {
         CmdOption("out-obj", CmdOptionType::SingleValue, obj_out_desc),
         CmdOption("out-asm", CmdOptionType::SingleValue, asm_out_desc),
         CmdOption("out-bin", CmdOptionType::SingleValue, bin_out_desc),
+        CmdOption("out-ll-all", CmdOptionType::NoValue, out_dash_all_desc),
+        CmdOption("out-asm-all", CmdOptionType::NoValue, out_dash_all_desc),
         CmdOption("debug-ir", CmdOptionType::NoValue, debug_ir_desc),
         CmdOption("", "c", CmdOptionType::NoValue, dash_c_desc),
         CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued, cbi_m_desc),
@@ -514,6 +556,9 @@ int main(int argc, char *argv[]) {
         if(options.has_value("no-caching")) {
             opts->is_caching_enabled = false;
         }
+        if(options.has_value("debug-ir")) {
+            opts->debug_ir = true;
+        }
 //        opts->isCBIEnabled = !options.option("no-cbi").has_value();
         if(options.has_value("lto")) {
             opts->def_lto_on = true;
@@ -607,11 +652,11 @@ int main(int argc, char *argv[]) {
         // translate the build.lab to a c file (for debugging)
         if(output.has_value() && output.value().ends_with(".c")) {
             LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_folder), { }, { });
-            take_linked_libs(job, options);
             LabModule module(LabModuleType::Files, chem::string("[BuildLabFile]"), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), { }, { });
-            take_include_options(module, options);
             module.paths.emplace_back(std::string(args[0]));
             job.dependencies.emplace_back(&module);
+            std::vector<std::unique_ptr<LabModule>> dependencies;
+            set_options_for_main_job(options, job, module, dependencies);
             return compiler.do_job_allocating(&job);
         }
 
@@ -648,27 +693,40 @@ int main(int argc, char *argv[]) {
     // build cbi modules
     build_cbi_modules(compiler, options);
 
+    // if not empty, this file will be removed at the end
+    std::string_view temporary_obj;
+
+    LabModule module(LabModuleType::Files, chem::string::make_view("main"));
+
+    // setting extra files to emit, like ll, bc, obj, asm (absolute paths)
     auto& ll_out = options.option_new("out-ll");
     auto& bc_out = options.option_new("out-bc");
     auto& obj_out = options.option_new("out-obj");
     auto& asm_out = options.option_new("out-asm");
     auto& bin_out = options.option_new("out-bin");
 
-    // if not empty, this file will be removed at the end
-    std::string_view temporary_obj;
+    if(ll_out.has_value())
+        module.llvm_ir_path = chem::string::make_view(ll_out.value());
+    if(bc_out.has_value())
+        module.bitcode_path = chem::string::make_view(bc_out.value());
+    if(obj_out.has_value())
+        module.object_path = chem::string::make_view(obj_out.value());
+    if(asm_out.has_value())
+        module.asm_path = chem::string::make_view(asm_out.value());
 
+    // setting output flag according to extension
     if(output.has_value()) {
         if(!options.has_value("ignore-extension")) {
             auto& output_val = output.value();
             // determining output file based on extension
             if (output_val.ends_with(".o")) {
-                obj_out.emplace(output.value());
+                module.object_path = chem::string::make_view(output.value());
             } else if (output_val.ends_with(".s")) {
-                asm_out.emplace(output.value());
+                module.asm_path = chem::string::make_view(output.value());
             } else if (output_val.ends_with(".ll")) {
-                ll_out.emplace(output.value());
+                module.llvm_ir_path = chem::string::make_view(output.value());
             } else if (output_val.ends_with(".bc")) {
-                bc_out.emplace(output.value());
+                module.bitcode_path = chem::string::make_view(output.value());
             } else if(!bin_out.has_value()) {
                 bin_out.emplace(output.value());
             }
@@ -676,14 +734,16 @@ int main(int argc, char *argv[]) {
             bin_out.emplace(output.value());
         }
     } else if(!bin_out.has_value()){
-        bin_out.emplace("compiled");
+        // clang also outputs a.exe, so we will too
+#ifdef _WIN32
+        bin_out.emplace("a.exe");
+#else
+        bin_out.emplace("a");
+#endif
     }
 
-    LabModule module(LabModuleType::Files, chem::string::make_view("main"));
-    take_include_options(module, options);
-
     // have object file output for the binary we are outputting
-    if (!obj_out.has_value() && bin_out.has_value()) {
+    if (module.object_path.empty() && bin_out.has_value()) {
         module.object_path.append(bin_out.value());
         module.object_path.append(std::string_view(".o"));
         if(!dash_c.has_value()) {
@@ -708,28 +768,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // files to emit
-    if(ll_out.has_value()) {
-        module.llvm_ir_path.append(ll_out.value());
-        if (options.has_value("debug-ir")) {
-            compiler_opts.debug_ir = true;
-        }
-    }
-    if(bc_out.has_value())
-        module.bitcode_path.append(bc_out.value());
-    if(obj_out.has_value())
-        module.object_path.append(obj_out.value());
-    if(asm_out.has_value())
-        module.asm_path.append(asm_out.value());
-
     LabJob job(LabJobType::Executable);
-    take_linked_libs(job, options);
-    include_mod_d_modules(dependencies, options, job, &module);
-    include_mod_f_modules(dependencies, options, job, &module);
-    const auto build_dir = options.option_new("build-dir");
-    if(build_dir.has_value()) {
-        job.build_dir = chem::string::make_view(build_dir.value());
-    }
+    set_options_for_main_job(options, job, module, dependencies);
 
     if(dash_c.has_value() || !bin_out.has_value()) {
         job.type = LabJobType::ProcessingOnly;

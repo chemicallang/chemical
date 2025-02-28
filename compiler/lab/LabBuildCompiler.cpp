@@ -482,7 +482,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         cTranslator.module_begin();
 #endif
 
-        if(job_type == LabJobType::Executable || job_type == LabJobType::Library) {
+        if(job_type == LabJobType::Executable || job_type == LabJobType::ProcessingOnly || job_type == LabJobType::Library) {
             if (is_use_obj_format || mod->type == LabModuleType::CFile) {
                 if (mod->object_path.empty()) {
                     mod->object_path.append(mod_obj_path);
@@ -852,7 +852,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
             const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
             if(verbose) {
-                std::cout << "[lab] emitting the module '" << mod->name << "' file at '" << gen_path << '\'' << std::endl;
+                std::cout << "[lab] emitting the module '" << mod->name << "' at '" << gen_path << '\'' << std::endl;
             }
 
             // creating a object or bitcode file

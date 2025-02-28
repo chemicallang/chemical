@@ -141,7 +141,7 @@ public:
 #ifdef COMPILER_BUILD
         users[definition] = {};
 #else
-        users[definition] = true;
+        users[definition] = false;
 #endif
         attrs.has_implementation = true;
     }
@@ -214,14 +214,7 @@ public:
     /**
      * externally declares the
      */
-    void code_gen_external_declare(Codegen &gen) override {
-        // TODO this would just declare any functions that are declared within the interface
-        extendable_external_declare(gen);
-        // TODO
-        //    1 - declare the vtable (vtable pointers map needs to be rebuilt with declarations)
-        //    2 - generate implementations of new users (if that's what we do)
-        //    3 - declare all the users (the users map needs to be rebuilt with declarations)
-    }
+    void code_gen_external_declare(Codegen &gen) override;
 
 #endif
 

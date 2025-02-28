@@ -2829,8 +2829,11 @@ void CTopLevelDeclarationVisitor::VisitVariantDecl(VariantDefinition *def) {
     declare_variant_iterations(def);
 }
 
-void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
+void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition, bool declare_only) {
     visitor.new_line_and_indent();
+    if(declare_only) {
+        visitor.write("extern ");
+    }
     visitor.write("const");
     visitor.write(' ');
     visitor.write("struct");
@@ -2860,23 +2863,25 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
     visitor.write('}');
     visitor.space();
     vtable_name(visitor, interface, definition);
-    visitor.write(" = ");
-    visitor.write('{');
-    visitor.indentation_level += 1;
+    if(!declare_only) {
+        visitor.write(" = ");
+        visitor.write('{');
+        visitor.indentation_level += 1;
 
-    // func pointer values
-    for(auto& func : interface->functions()) {
-        if(func->has_self_param()) {
-            visitor.new_line_and_indent();
-            visitor.write(definition->name_view());
-            visitor.write(func->name_view());
-            visitor.write(',');
+        // func pointer values
+        for (auto& func: interface->functions()) {
+            if (func->has_self_param()) {
+                visitor.new_line_and_indent();
+                visitor.write(definition->name_view());
+                visitor.write(func->name_view());
+                visitor.write(',');
+            }
         }
-    }
 
-    visitor.indentation_level -=1;
-    visitor.new_line_and_indent();
-    visitor.write('}');
+        visitor.indentation_level -= 1;
+        visitor.new_line_and_indent();
+        visitor.write('}');
+    }
     visitor.write(';');
 }
 
@@ -2920,6 +2925,15 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
             declare_contained_func(this, func, false);
         }
     }
+#ifdef COMPILER_BUILD
+    if(!redefining && !def->vtable_pointers.empty()) {
+        // this only occurs because when we generate interface with both backends without re-parsing, this module
+        visitor.error("interface has already vtable pointers generated, suspected interface being used in both backends", def);
+#ifdef DEBUG
+        throw std::runtime_error("interface being used in both backends c and llvm");
+#endif
+    }
+#endif
     if(!is_static) {
         for (auto& use: def->users) {
             def->active_user = use.first;
@@ -2934,7 +2948,22 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
         for(auto& user : def->users) {
             const auto linked_struct = user.first;
             if(linked_struct) {
-                create_v_table(visitor, def, linked_struct);
+#ifdef COMPILER_BUILD
+                auto vtable_done = def->vtable_pointers.find(linked_struct);
+                const auto has_vtable_impl = vtable_done != def->vtable_pointers.end();
+#else
+                const auto has_vtable_impl = user.second;
+#endif
+                create_v_table(visitor, def, linked_struct, has_vtable_impl);
+#ifdef COMPILER_BUILD
+                if(!has_vtable_impl) {
+                    vtable_done->second = nullptr;
+                }
+#else
+                if(!has_vtable_impl) {
+                    def->users[linked_struct] = true;
+                }
+#endif
             }
         }
     }

@@ -256,7 +256,27 @@ BaseType* BaseType::pure_type() {
     }
 }
 
-BaseType* BaseType::pure_type(ASTAllocator& allocator) {
+BaseType* BaseType::canonical() {
+    switch(kind()) {
+        case BaseTypeKind::Literal: {
+            const auto type = as_literal_type_unsafe();
+            return type->underlying;
+        }
+        case BaseTypeKind::Linked: {
+            const auto linked = as_linked_type_unsafe()->linked;
+            if (linked) {
+                const auto known = linked->known_type();
+                return known ? known != this ? known->canonical() : known : this;
+            } else {
+                return this;
+            }
+        }
+        default:
+            return this;
+    }
+}
+
+BaseType* BaseType::deep_canonical(ASTAllocator& allocator) {
     switch(kind()) {
         case BaseTypeKind::Literal: {
             const auto type = as_literal_type_unsafe();

@@ -129,6 +129,11 @@ struct FuncDeclAttributes {
      */
     bool is_override;
 
+    /**
+     * has usage is set to true if function's pointer is taken or function is called
+     */
+    bool has_usage;
+
 };
 
 class FunctionDeclaration : public ASTNode, public FunctionTypeBody {
@@ -249,7 +254,7 @@ public:
             ASTNodeKind k = ASTNodeKind::FunctionDecl
     )  : ASTNode(k, location), FunctionTypeBody(returnType, isVariadic, false, parent_node, location, signature_resolved),
          identifier(identifier),
-         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false) {
+         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false, false) {
     }
 
     /**
@@ -364,6 +369,14 @@ public:
         attrs.is_copy_fn = value;
     }
 
+    inline bool has_usage() {
+        return attrs.has_usage;
+    }
+
+    inline void set_has_usage(bool usage) {
+        attrs.has_usage = usage;
+    }
+
     [[deprecated]]
     inline bool is_clear_fn() {
         return attrs.is_post_move_fn;
@@ -412,6 +425,18 @@ public:
 
     inline void set_override(bool value) {
         attrs.is_override = value;
+    }
+
+    inline bool is_auto_called_func() {
+        return is_delete_fn() || is_copy_fn() || is_post_move_fn() || is_move_fn() || is_constructor_fn();
+    }
+
+    /**
+     * check if the function actually exits at runtime
+     * comptime functions or functions which have no usage do not exist
+     */
+    inline bool exists_at_runtime() {
+        return !is_comptime() && (has_usage() || is_exported_fast() || is_auto_called_func());
     }
 
     /**

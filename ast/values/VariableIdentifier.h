@@ -56,6 +56,8 @@ public:
 
     void set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation location);
 
+    void process_linked(ASTDiagnoser& linker);
+
     bool link(SymbolResolver &linker, bool check_access);
 
     bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) final {

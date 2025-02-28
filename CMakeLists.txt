@@ -507,6 +507,11 @@ set(COMMON_SOURCES
         ast/base/ast_fwd.h
         ast/base/IntNTypeKind.h
         preprocess/visitors/RecursiveValueVisitor.h
+        ast/structures/GenericFuncDecl.h
+        ast/structures/BaseGenericDecl.h
+        compiler/generics/GenericInstantiator.h
+        preprocess/visitors/RecursiveVisitor.h
+        compiler/generics/GenericInstantiator.cpp
 )
 
 # Chemical LSP Executable Target

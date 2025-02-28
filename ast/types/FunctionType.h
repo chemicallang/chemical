@@ -51,7 +51,23 @@ struct FunctionTypeData {
 
 static_assert(sizeof(FunctionTypeData) <= 8);
 
+class FunctionDeclaration;
+
 class FunctionType : public BaseType {
+protected:
+
+    /**
+     * copy constructor is protected
+     */
+    FunctionType(
+        const FunctionType& other
+    ) : BaseType(BaseTypeKind::Function, other.encoded_location()),
+        params(other.params), returnType(other.returnType),
+        parent_node(other.parent_node), data(other.data)
+    {
+
+    }
+
 public:
 
     std::vector<FunctionParam*> params;
@@ -230,6 +246,14 @@ public:
  * those that have bodies
  */
 class FunctionTypeBody : public FunctionType {
+protected:
+
+    // TODO if symbol resolution is performed again on shallow copied declarations
+    // we should not copy moved_identifiers and moved_chains
+    FunctionTypeBody(const FunctionTypeBody& other) : FunctionType(other) {
+
+    }
+
 public:
 
     using FunctionType::FunctionType;

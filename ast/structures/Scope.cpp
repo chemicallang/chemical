@@ -61,12 +61,10 @@ void Scope::interpret(InterpretScope &scope) {
     }
 }
 
-Scope Scope::shallow_copy() {
-    Scope copied(parent_node, encoded_location());
+void Scope::shallow_copy_into(Scope& copied) const {
     for(const auto node : nodes) {
         copied.nodes.emplace_back(node);
     }
-    return copied;
 }
 
 void Scope::tld_declare(SymbolResolver &linker) {

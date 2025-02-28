@@ -9,6 +9,7 @@ class FunctionType;
 
 class FunctionParam : public BaseFunctionParam {
 private:
+
     /**
      * has moved is used to indicate that an object at this location has moved
      * destructor is not called on moved objects, once moved, any attempt to access
@@ -21,6 +22,15 @@ private:
      * var init statement
      */
     bool has_assignment = false;
+
+public:
+
+    FunctionParam(
+        const FunctionParam& other
+    ) : BaseFunctionParam(other), index(other.index), defValue(other.defValue), is_implicit(other.is_implicit) {
+
+    }
+
 public:
 
     unsigned int index;
@@ -92,6 +102,12 @@ public:
 
     BaseType *known_type() final {
         return type;
+    }
+
+    FunctionParam* shallow_copy(ASTAllocator& allocator) const {
+        const auto func_param = allocator.allocate<FunctionParam>();
+        new (func_param) FunctionParam(*this);
+        return func_param;
     }
 
     [[nodiscard]]

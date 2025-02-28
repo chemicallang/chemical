@@ -30,11 +30,6 @@ public:
     }
 
     /**
-     * deleted copy constructor
-     */
-    Scope(const Scope& other) = delete;
-
-    /**
      * move constructor
      */
     Scope(Scope&& other) : ASTNode(other.kind(), other.encoded_location()), nodes(std::move(other.nodes)), parent_node(other.parent_node) {
@@ -51,8 +46,13 @@ public:
         return *this;
     }
 
-    Scope shallow_copy();
+    void shallow_copy_into(Scope& other) const;
 
+    Scope shallow_copy() const {
+        Scope copied(parent_node, encoded_location());
+        shallow_copy_into(copied);
+        return copied;
+    }
 
     void set_parent(ASTNode* new_parent) final {
         parent_node = new_parent;

@@ -170,6 +170,23 @@ private:
 
     void set_gen_itr_no_subs(int16_t iteration);
 
+protected:
+
+    /**
+     * the copy constructor is protected so implicit invocations are not possible
+     */
+    FunctionDeclaration(
+        const FunctionDeclaration& decl
+    ) : ASTNode(ASTNodeKind::FunctionDecl, decl.ASTNode::encoded_location()),
+        FunctionTypeBody(decl), identifier(decl.identifier),
+        generic_params(decl.generic_params), body(std::nullopt),
+        attrs(decl.attrs)
+    {
+        if(decl.body.has_value()){
+            decl.body.value().shallow_copy_into(body.value());
+        }
+    }
+
 public:
 
     /**
@@ -482,6 +499,11 @@ public:
     LocatedIdentifier* get_func_name_id() final {
         return &identifier;
     }
+
+    /**
+     * this would allow us to shallow copy the function
+     */
+    FunctionDeclaration* shallow_copy(ASTAllocator& allocator);
 
     void make_destructor(ASTAllocator&, ExtendableMembersContainerNode* def);
 

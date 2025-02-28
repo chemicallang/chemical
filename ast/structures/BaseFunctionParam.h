@@ -16,6 +16,16 @@ struct FunctionParamAttributes {
 };
 
 class BaseFunctionParam : public ASTNode {
+protected:
+
+    BaseFunctionParam(
+        const BaseFunctionParam& other
+    ) : ASTNode(other.kind(), other.encoded_location()),
+        name(other.name), type(other.type), func_type(other.func_type),
+        attrs(other.attrs) {
+
+    }
+
 public:
 
     chem::string_view name;

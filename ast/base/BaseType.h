@@ -124,9 +124,23 @@ public:
     BaseType* pure_type();
 
     /**
+     * important to note that this type doesn't canonicalize deeply
+     * a pointer to a MyInt remains a pointer to MyInt however MyInt
+     * becomes an int, it's only direct canonicalization
+     */
+    BaseType* canonical();
+
+    /**
      * get pure type, this is the method to use
      */
-    BaseType* pure_type(ASTAllocator& allocator);
+    BaseType* deep_canonical(ASTAllocator& allocator);
+
+    /**
+     * pure type is an alias for deep canonical type
+     */
+    BaseType* pure_type(ASTAllocator& allocator) {
+        return deep_canonical(allocator);
+    }
 
     /**
      * copy the type, along with linked node

@@ -212,11 +212,19 @@ void DebugInfoBuilder::end_di_compile_unit() {
  * replaceable types, this should be called right after you complete your type
  */
 void finalizeReplaceableType(DebugInfoBuilder& di) {
-    for(auto& rep : di.replaceAbleTypes) {
-        const auto finalizedType = to_di_type(di, rep.first, false);
-        rep.second->replaceAllUsesWith(finalizedType);
-    }
+    // this method is called recursively (in to_di_type), so we must create a copy
+    auto copied_replaceable = di.replaceAbleTypes;
     di.replaceAbleTypes.clear();
+    for(auto& rep : copied_replaceable) {
+        const auto finalizedType = to_di_type(di, rep.first, false);
+        if(rep.second->isTemporary()) {
+            rep.second->replaceAllUsesWith(finalizedType);
+        } else {
+#ifdef DEBUG
+            throw std::runtime_error("type no longer temporary");
+#endif
+        }
+    }
 }
 
 void DebugInfoBuilder::finalize() {

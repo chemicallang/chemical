@@ -62,6 +62,19 @@ public:
         }
     }
 
+    /**
+     * this method is called by the generic instantiator
+     * @return
+     */
+    inline BaseType* concrete_type() {
+#ifdef DEBUG
+        if(active_iteration == -1 || usage.empty()) {
+            throw std::runtime_error("no active iteration");
+        }
+#endif
+        return usage[active_iteration];
+    }
+
     BaseType* type_for_itr(int16_t iteration) {
         return usage[iteration];
     }

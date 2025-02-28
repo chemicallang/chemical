@@ -1344,6 +1344,12 @@ int16_t FunctionDeclaration::total_generic_iterations() {
     return ::total_generic_iterations(generic_params);
 }
 
+FunctionDeclaration* FunctionDeclaration::shallow_copy(ASTAllocator& allocator) {
+    const auto decl = allocator.allocate<FunctionDeclaration>();
+    new (decl) FunctionDeclaration(*this);
+    return decl;
+}
+
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();

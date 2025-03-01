@@ -111,6 +111,9 @@ public:
     inline void VisitFunctionDecl(FunctionDeclaration* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitGenericFuncDecl(GenericFuncDecl* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitExtensionFunctionDecl(ExtensionFunction* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -540,6 +543,9 @@ public:
                 return;
             case ASTNodeKind::ExtensionFunctionDecl:
                 static_cast<Derived*>(this)->VisitExtensionFunctionDecl((ExtensionFunction*) node);
+                return;
+            case ASTNodeKind::GenericFuncDecl:
+                static_cast<Derived*>(this)->VisitGenericFuncDecl((GenericFuncDecl*) node);
                 return;
             case ASTNodeKind::MultiFunctionNode:
                 static_cast<Derived*>(this)->VisitMultiFunctionNode((MultiFunctionNode*) node);
@@ -1243,6 +1249,9 @@ public:
     }
     inline void visit(BaseType* type) {
         VisitTypeNoNullCheck(type);
+    }
+    inline void visit(Scope& scope) {
+        static_cast<Derived*>(this)->VisitScope(&scope);
     }
 
 };

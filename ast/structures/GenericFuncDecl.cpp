@@ -79,6 +79,8 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     }
 #endif
 
+    created->generic_instantiation = instantiations.size();
+
     instantiations.emplace_back(created);
 
     return created;

@@ -29,7 +29,14 @@ public:
     }
 
 
-    IsValue *copy(ASTAllocator& allocator) final;
+    IsValue *copy(ASTAllocator& allocator) final {
+        return new (allocator.allocate<IsValue>()) IsValue(
+                value->copy(allocator),
+                type->copy(allocator),
+                is_negating,
+                encoded_location()
+        );
+    }
 
     /**
      * std::nullopt means unknown, true or false means it evaluated

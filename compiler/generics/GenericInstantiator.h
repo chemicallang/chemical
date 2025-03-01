@@ -9,14 +9,6 @@ class GenericInstantiator : public RecursiveVisitor<GenericInstantiator> {
 public:
 
     ASTAllocator& allocator;
-
-    /**
-     * the replacement pointer is the pointer to the location where the holder of the current
-     * type is, we can replace the holder of the type with a new shallow clone that contains a different
-     * type, this is how we change types of nodes
-     */
-    ASTAny** replacement_pointer = nullptr;
-
     /**
      * constructor
      * the allocator must be an ast allocator
@@ -25,27 +17,13 @@ public:
 
     }
 
-    inline void visit(Scope& scope) {
-        RecursiveVisitor<GenericInstantiator>::visit_it(scope);
-    }
-
-    inline void visit_it(FunctionDeclaration* decl) {
-        RecursiveVisitor<GenericInstantiator>::visit_it(decl);
-    }
-
-    /**
-     * we override the visit method, non recursive visitor calls this method
-     * this then calls appropriate method according to type to visit this type
-     */
-    template<typename T>
-    inline void visit(T*& ptr) {
-        const auto prev_ptr = replacement_pointer;
-        replacement_pointer = ((ASTAny**) (&ptr));
-        RecursiveVisitor<GenericInstantiator>::visit(ptr);
-        replacement_pointer = prev_ptr;
-    }
-
     void VisitFunctionParam(FunctionParam *param);
+
+    void VisitIsValue(IsValue* value);
+
+    void VisitSizeOfValue(SizeOfValue* value);
+
+    void VisitAlignOfValue(AlignOfValue* value);
 
     FunctionDeclaration* Instantiate(GenericFuncDecl* decl, size_t itr);
 

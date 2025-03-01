@@ -18,6 +18,7 @@
 #include "ast/values/RetStructParamValue.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Typealias.h"
 #include "ast/utils/GenericUtils.h"
@@ -1333,6 +1334,10 @@ void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
     if(multi_func_index() != 0) {
         stream << "__cmf_";
         stream << std::to_string(multi_func_index());
+    }
+    if(generic_instantiation != -1) {
+        stream << "__cfg_";
+        stream << generic_instantiation;
     }
     if(is_generic()) {
         stream << "__cgf_";

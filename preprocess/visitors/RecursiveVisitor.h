@@ -94,8 +94,13 @@ template<typename Derived>
 class RecursiveVisitor : public NonRecursiveVisitor<Derived> {
 public:
 
-    // TODO we should remove this, as parent_node can be checked
-    bool is_top_level_node;
+    inline void visit_it(Scope& scope) {
+        static_cast<Derived*>(this)->VisitScope(&scope);
+    }
+
+    inline void visit_it(FunctionDeclaration* decl) {
+        static_cast<Derived*>(this)->VisitFunctionDecl(decl);
+    }
 
     template<typename T>
     inline void visit_it(T*& thing) {
@@ -103,12 +108,9 @@ public:
     }
 
     void VisitScope(Scope *scope) {
-        auto prev = is_top_level_node;
-        is_top_level_node = false;
         for(auto& node : scope->nodes) {
             visit_it(node);
         }
-        is_top_level_node = prev;
     }
 
     void VisitFunctionCall(FunctionCall *call) {
@@ -138,7 +140,7 @@ public:
     }
 
     void VisitUnsafeBlock(UnsafeBlock *block) {
-        visit_it(&block->scope);
+        visit_it(block->scope);
     }
 
     void VisitValueWrapper(ValueWrapperNode *node) {
@@ -169,7 +171,7 @@ public:
             visit_it(param);
         }
         if(decl->body.has_value()) {
-            visit_it(&decl->body.value());
+            visit_it(decl->body.value());
         }
         visit_it(decl->returnType);
     }
@@ -182,8 +184,10 @@ public:
     }
 
     void VisitStructDecl(StructDefinition *def) {
-        for(auto& mem : def->variables) {
-            visit_it(mem.second);
+        auto itr = def->variables.begin();
+        while(itr != def->variables.end()) {
+            visit_it(itr.value());
+            itr++;
         }
         for(auto& func : def->functions()) {
             visit_it(func);
@@ -191,7 +195,7 @@ public:
     }
 
     void VisitNamespaceDecl(Namespace *ns) {
-        for(const auto node : ns->nodes){
+        for(auto& node : ns->nodes){
             visit_it(node);
         }
     }
@@ -204,18 +208,18 @@ public:
     }
 
     void VisitLambdaFunction(LambdaFunction *func) {
-        visit_it(&func->scope);
+        visit_it(func->scope);
     }
 
     void VisitIfStmt(IfStatement *stmt) {
         visit_it(stmt->condition);
-        visit_it(&stmt->ifBody);
+        visit_it(stmt->ifBody);
         for (auto& elif : stmt->elseIfs) {
             visit_it(elif.first);
-            visit_it(&elif.second);
+            visit_it(elif.second);
         }
         if(stmt->elseBody.has_value()) {
-            visit_it(&stmt->elseBody.value());
+            visit_it(stmt->elseBody.value());
         }
     }
 
@@ -225,24 +229,24 @@ public:
 
     void VisitWhileLoopStmt(WhileLoop *loop) {
         visit_it(loop->condition);
-        visit_it(&loop->body);
+        visit_it(loop->body);
     }
 
     void VisitDoWhileLoopStmt(DoWhileLoop *loop) {
-        visit_it(&loop->body);
+        visit_it(loop->body);
         visit_it(loop->condition);
     }
 
     void VisitForLoopStmt(ForLoop *loop) {
         visit_it(loop->initializer);
         visit_it(loop->incrementerExpr);
-        visit_it(&loop->body);
+        visit_it(loop->body);
     }
 
     void VisitSwitchStmt(SwitchStatement *stmt) {
         visit_it(stmt->expression);
         for(auto& scope : stmt->scopes) {
-            visit_it(&scope);
+            visit_it(scope);
         }
     }
 

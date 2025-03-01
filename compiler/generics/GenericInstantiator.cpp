@@ -51,6 +51,9 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
         param->active_iteration = -1;
     }
 
+    // visiting the scope
+    visit(impl->body.value());
+
     // returning the new implementation
     return impl;
 

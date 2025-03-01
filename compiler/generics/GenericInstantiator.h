@@ -25,6 +25,14 @@ public:
 
     }
 
+    inline void visit(Scope& scope) {
+        RecursiveVisitor<GenericInstantiator>::visit_it(scope);
+    }
+
+    inline void visit_it(FunctionDeclaration* decl) {
+        RecursiveVisitor<GenericInstantiator>::visit_it(decl);
+    }
+
     /**
      * we override the visit method, non recursive visitor calls this method
      * this then calls appropriate method according to type to visit this type

@@ -20,6 +20,7 @@
 #include "std/chem_string_view.h"
 #include "backend/DebugInfoBuilder.h"
 #include "compiler/backend/include/LLVMArrayDestructor.h"
+#include "CodegenOptions.h"
 
 class ASTAllocator;
 
@@ -49,6 +50,11 @@ public:
      * of code
      */
     GlobalInterpretScope& comptime_scope;
+
+    /**
+     * the codegen options determine what kind of code is generated
+     */
+    CodegenOptions& options;
 
     /**
      * the clang codegen class, that allows to control clang code generation without importing
@@ -174,7 +180,8 @@ public:
     /**
      * constructor
      */
-    explicit Codegen(
+    Codegen(
+            CodegenOptions& options,
             GlobalInterpretScope& comptime_scope,
             std::string target_triple,
             std::string curr_exe_path,

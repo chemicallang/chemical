@@ -575,6 +575,7 @@ set(COMPILER_SOURCES
         compiler/ClangCodegen.h
         preprocess/2c/SubVisitor.h
         compiler/backend/include/LLVMArrayDestructor.h
+        compiler/CodegenOptions.h
 )
 
 # add Compiler executable

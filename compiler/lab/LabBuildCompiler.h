@@ -17,6 +17,8 @@ class CTranslator;
 
 struct GlobalContainer;
 
+class CmdOptions;
+
 /**
  * lab build compiler, doesn't relate to building a .lab file
  * it provides easy methods to do what can be done with a .lab file
@@ -60,6 +62,11 @@ public:
     LabBuildContext* build_context;
 
     /**
+     * when given, we check for any command line options that configure the code generator
+     */
+    CmdOptions* cmd = nullptr;
+
+    /**
      * the global container contains namespaces like std and compiler
      */
     GlobalContainer* container = nullptr;
@@ -86,6 +93,13 @@ public:
      * constructor
      */
     explicit LabBuildCompiler(CompilerBinder& binder, LabBuildCompilerOptions* options);
+
+    /**
+     * set the cmd options to allow checking for any command line options given to configure the code generation process
+     */
+    void set_cmd_options(CmdOptions* ptr) {
+        cmd = ptr;
+    }
 
     /**
      * this prepares the build compiler for a session of multiple jobs

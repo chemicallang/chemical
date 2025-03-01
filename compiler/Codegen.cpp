@@ -76,13 +76,14 @@
 #include "compiler/lab/LabBuildCompiler.h"
 
 Codegen::Codegen(
+        CodegenOptions& options,
         GlobalInterpretScope& comptime_scope,
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit,
         ASTAllocator& allocator,
         const std::string& module_name
-) : ASTDiagnoser(comptime_scope.loc_man), comptime_scope(comptime_scope), allocator(allocator),
+) : ASTDiagnoser(comptime_scope.loc_man), options(options), comptime_scope(comptime_scope), allocator(allocator),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple),
     di(comptime_scope.loc_man, nullptr, *this), mode(comptime_scope.build_compiler->options->outMode) {
     // create llvm context
@@ -164,7 +165,7 @@ llvm::Function* create_func(
     fn->setDSOLocal(true);
     // we add the uwtable attribute in debug mode, because we need it to be generated (at least on windows, I think)
     // this will generate the unwind tables, which are required for call stack information
-    if(is_debug(gen.mode)) {
+    if(is_debug_or_compl(gen.mode) && !gen.options.fno_unwind_tables) {
         fn->addFnAttr(llvm::Attribute::UWTable);
     } else {
         fn->addFnAttr(llvm::Attribute::NoUnwind);

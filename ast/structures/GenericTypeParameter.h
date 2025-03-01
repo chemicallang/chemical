@@ -11,6 +11,7 @@ public:
     BaseType* at_least_type;
     BaseType* def_type;
     std::vector<BaseType*> usage;
+    // TODO use int32 here
     int16_t active_iteration = -1; // <-- index of active type in usage vector
     ASTNode* parent_node;
     unsigned param_index = 0; // <-- index in the generic type parameters

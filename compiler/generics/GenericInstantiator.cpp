@@ -22,10 +22,16 @@ void GenericInstantiator::VisitFunctionParam(FunctionParam *param) {
     }
 }
 
-FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, std::vector<BaseType*>& gen_args) {
+FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, size_t itr) {
 
     // creating a shallow copy of the function
     const auto impl = decl->master_impl->shallow_copy(allocator);
+
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        // TODO cast to int32
+        param->active_iteration = (int16_t) itr;
+    }
 
     // replacing parameter types in the function
     auto& params = impl->params;
@@ -38,6 +44,12 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, std
 
     // replace the return type
     impl->returnType = get_concrete_gen_type(impl->returnType);
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->active_iteration = -1;
+    }
 
     // returning the new implementation
     return impl;

@@ -1,5 +1,6 @@
 
 #include "GenericInstantiator.h"
+#include "GenInstantiatorAPI.h"
 
 BaseType* get_concrete_gen_type(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked){
@@ -56,5 +57,15 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
 
     // returning the new implementation
     return impl;
+
+}
+
+// Generic Instantiator API
+
+FunctionDeclaration* Instantiate(ASTAllocator& astAllocator, GenericFuncDecl* decl, size_t itr) {
+
+    auto inst = GenericInstantiator(astAllocator);
+
+    return inst.Instantiate(decl, itr);
 
 }

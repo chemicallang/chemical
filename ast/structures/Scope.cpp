@@ -61,12 +61,6 @@ void Scope::interpret(InterpretScope &scope) {
     }
 }
 
-void Scope::shallow_copy_into(Scope& copied) const {
-    for(const auto node : nodes) {
-        copied.nodes.emplace_back(node);
-    }
-}
-
 void Scope::tld_declare(SymbolResolver &linker) {
     for (auto &node: nodes) {
         node->declare_top_level(linker, node);

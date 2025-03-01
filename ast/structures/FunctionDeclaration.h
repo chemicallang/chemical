@@ -177,15 +177,7 @@ protected:
      */
     FunctionDeclaration(
         const FunctionDeclaration& decl
-    ) : ASTNode(ASTNodeKind::FunctionDecl, decl.ASTNode::encoded_location()),
-        FunctionTypeBody(decl), identifier(decl.identifier),
-        generic_params(decl.generic_params), body(std::nullopt),
-        attrs(decl.attrs)
-    {
-        if(decl.body.has_value()){
-            decl.body.value().shallow_copy_into(body.value());
-        }
-    }
+    );
 
 public:
 

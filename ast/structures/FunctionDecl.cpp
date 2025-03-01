@@ -1344,6 +1344,19 @@ int16_t FunctionDeclaration::total_generic_iterations() {
     return ::total_generic_iterations(generic_params);
 }
 
+FunctionDeclaration::FunctionDeclaration(
+        const FunctionDeclaration& decl
+) : ASTNode(ASTNodeKind::FunctionDecl, decl.ASTNode::encoded_location()),
+    FunctionTypeBody(decl), identifier(decl.identifier),
+    generic_params(decl.generic_params), body(std::nullopt),
+    attrs(decl.attrs)
+{
+    if(decl.body.has_value()) {
+        body.emplace(Scope(decl.body->parent_node, decl.body->encoded_location()));
+        decl.body->shallow_copy_into(body.value());
+    }
+}
+
 FunctionDeclaration* FunctionDeclaration::shallow_copy(ASTAllocator& allocator) {
     const auto decl = allocator.allocate<FunctionDeclaration>();
     new (decl) FunctionDeclaration(*this);

@@ -28,11 +28,7 @@ constexpr LocatedIdentifier ZERO_LOC_ID(const char* str) {
     } else {
         size = 0;
     }
-#ifdef LSP_BUILD
-    return { chem::string_view(str, size), ZERO_LOC };
-#else
     return { chem::string_view(str, size) };
-#endif
 }
 
 LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier);

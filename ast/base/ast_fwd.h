@@ -42,6 +42,8 @@ class FunctionParam;
 
 class FunctionDeclaration;
 
+class GenericFuncDecl;
+
 class IfStatement;
 
 class ImplDefinition;

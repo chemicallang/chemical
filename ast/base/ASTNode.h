@@ -1087,6 +1087,13 @@ public:
     }
 
     /**
+     * as generic func decl
+     */
+    inline GenericFuncDecl* as_gen_func_decl_unsafe() {
+        return (GenericFuncDecl*) this;
+    }
+
+    /**
      * as namespace
      */
     inline Namespace* as_namespace_unsafe() {

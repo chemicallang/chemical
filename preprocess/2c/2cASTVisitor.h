@@ -387,6 +387,8 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration* node);
 
+    void VisitGenericFuncDecl(GenericFuncDecl* node);
+
     void VisitExtensionFunctionDecl(ExtensionFunction* node);
 
     // TODO handle multi function node

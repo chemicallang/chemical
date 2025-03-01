@@ -22,7 +22,22 @@ public:
 
     }
 
+    /**
+     * constructor
+     */
+    constexpr NewValue(
+            Value* value,
+            SourceLocation location,
+            const PointerType& ptrType
+    ) : Value(ValueKind::NewValue, location), value(value), ptr_type(ptrType.type, ptrType.encoded_location(), ptrType.is_mutable) {
+
+    }
+
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
+
+    NewValue* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<NewValue>()) NewValue(value->copy(allocator), encoded_location(), ptr_type);
+    }
 
     BaseType* create_type(ASTAllocator &allocator) override;
 

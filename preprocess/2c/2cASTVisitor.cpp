@@ -38,6 +38,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/ComptimeBlock.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/CapturedVariable.h"
 #include "ast/structures/MembersContainer.h"
@@ -3880,6 +3881,12 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
 
 void ToCAstVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     func_decl_with_name(*this, decl);
+}
+
+void ToCAstVisitor::VisitGenericFuncDecl(GenericFuncDecl* decl) {
+    for(const auto node : decl->instantiations) {
+        func_decl_with_name(*this, node);
+    }
 }
 
 void ToCAstVisitor::VisitExtensionFunctionDecl(ExtensionFunction *decl) {

@@ -236,6 +236,10 @@ public:
      * have been generated, so next time we should start at this index to generate bodies
      */
     int16_t bodies_gen_index = 0;
+    /**
+     * this is set by generic func decl
+     */
+    int generic_instantiation = -1;
 
     /**
      * the llvm data

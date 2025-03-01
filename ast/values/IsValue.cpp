@@ -6,15 +6,6 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
 
-IsValue *IsValue::copy(ASTAllocator& allocator) {
-    return new (allocator.allocate<IsValue>()) IsValue(
-            value->copy(allocator),
-            type->copy(allocator),
-            is_negating,
-            encoded_location()
-    );
-}
-
 bool IsValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     value->link(linker, value);
     type->link(linker);

@@ -72,8 +72,11 @@
 //#include "ast/values/CharValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
+#include "ast/values/IsValue.h"
 //#include "ast/values/FloatValue.h"
 #include "ast/values/ValueNode.h"
+#include "ast/values/SizeOfValue.h"
+#include "ast/values/AlignOfValue.h"
 //#include "ast/values/Int128Value.h"
 //#include "ast/values/IntNumValue.h"
 //#include "ast/values/LongValue.h"
@@ -268,17 +271,30 @@ public:
         }
     }
 
-    void VisitArrayType(ArrayType *type) {
+    inline void VisitArrayType(ArrayType *type) {
         visit_it(type->elem_type);
     }
 
-    void VisitNewValue(NewValue *value) {
+    inline void VisitIsValue(IsValue* value) {
+        visit_it(value->value);
+        visit_it(value->type);
+    }
+
+    inline void VisitNewValue(NewValue *value) {
         visit_it(value->value);
     }
 
     void VisitPlacementNewValue(PlacementNewValue *value) {
         visit_it(value->pointer);
         visit_it(value->value);
+    }
+
+    inline void VisitSizeOfValue(SizeOfValue* value) {
+        visit_it(value->for_type);
+    }
+
+    inline void VisitAlignOfValue(AlignOfValue* value) {
+        visit_it(value->for_type);
     }
 
 };

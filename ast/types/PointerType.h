@@ -6,7 +6,15 @@
 #include <memory>
 
 class PointerType : public BaseType {
+protected:
+
+    PointerType(const PointerType& other) : BaseType(BaseTypeKind::Pointer, other.encoded_location()), type(other.type), is_mutable(other.is_mutable) {
+
+    }
+
 public:
+
+    friend class NewValue;
 
     static const PointerType void_ptr_instance;
 

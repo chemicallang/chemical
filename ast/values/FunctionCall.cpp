@@ -19,6 +19,7 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/types/LinkedType.h"
 #include "ast/structures/MultiFunctionNode.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/DynamicType.h"
 #include "ast/structures/InterfaceDefinition.h"
@@ -1145,11 +1146,38 @@ int16_t FunctionCall::link_constructor(ASTAllocator& allocator, ASTAllocator& as
     }
 }
 
+VariableIdentifier* get_parent_id(ChainValue* value) {
+    switch(value->kind()) {
+        case ValueKind::AccessChain:
+            return value->as_access_chain_unsafe()->values.back()->as_identifier();
+        case ValueKind::Identifier:
+            return value->as_identifier_unsafe();
+        default:
+            return nullptr;
+    }
+}
+
 void FunctionCall::relink_parent(ChainValue *parent) {
     // TODO remove this method, relinking parent is not required as we store the parent val nested in value
 }
 
 bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
+
+    GenericFuncDecl* gen_decl = nullptr;
+
+    // relinking generic decl
+    const auto parent_id = get_parent_id(parent_val);
+    if(parent_id && parent_id->linked->kind() == ASTNodeKind::GenericFuncDecl) {
+
+        gen_decl = (GenericFuncDecl*) parent_id->linked;
+
+        // TODO we link with the master implementation currently, however we require to instantiate a new implementation
+        parent_id->linked = gen_decl->master_impl;
+
+
+
+    }
+
     const auto linked = parent_val->linked_node();
     // enum member being used as a no value
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
@@ -1226,6 +1254,10 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
         }
     }
 
+    if(gen_decl) {
+        goto instantiate_block;
+    }
+
     ending_block:
         // relink values, because now we know the function type, so we know expected type
         relink_values(resolver);
@@ -1239,6 +1271,10 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
     register_block:
         prev_itr = func_decl->active_iteration;
         generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
+        goto ending_block;
+    instantiate_block:
+        auto new_link = gen_decl->instantiate_call(resolver, this, expected_type);
+        parent_id->linked = new_link;
         goto ending_block;
 }
 

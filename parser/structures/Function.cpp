@@ -14,6 +14,7 @@
 #include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/InitBlock.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/DestructStmt.h"
 
@@ -211,7 +212,9 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
     }
 }
 
-FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool allow_declaration, bool allow_extensions) {
+const auto GENv2 = false;
+
+ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool allow_declaration, bool allow_extensions) {
 
     if(!consumeWSOfType(TokenType::FuncKw)) {
         return nullptr;
@@ -271,21 +274,37 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& passed_a
     for(auto param : gen_params) {
         param->parent_node = decl;
     }
-    decl->generic_params = std::move(gen_params);
-
-    annotate(decl);
 
     auto name = consumeIdentifierOrKeyword();
-    if(name) {
-        decl->set_identifier(loc_id(allocator, name));
-    } else {
+
+    if(!name) {
         error("function name is missing after the keyword 'func'");
         return decl;
     }
 
+    ASTNode* final_node = decl;
+
+    if(GENv2 && !gen_params.empty()) {
+
+        const auto gen_decl = new (allocator.allocate<GenericFuncDecl>()) GenericFuncDecl(decl, loc_single(name));
+
+        gen_decl->generic_params = std::move(gen_params);
+
+        final_node = gen_decl;
+
+    } else {
+
+        decl->generic_params = std::move(gen_params);
+
+    }
+
+    annotate(decl);
+
+    decl->set_identifier(loc_id(allocator, name));
+
     if(!consumeToken(TokenType::LParen)) {
         error("expected a starting parenthesis ( in a function signature");
-        return decl;
+        return final_node;
     }
 
     // inside the block allow return statements
@@ -301,7 +320,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& passed_a
 
     if(!consumeToken(TokenType::RParen)) {
         error("expected a closing parenthesis ) when ending a function signature");
-        return decl;
+        return final_node;
     }
 
     auto& tok = *token;
@@ -312,7 +331,7 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& passed_a
             decl->returnType = type;
         } else {
             error("expected a return type for function after ':'");
-            return decl;
+            return final_node;
         }
     } else {
         decl->returnType = new (allocator.allocate<VoidType>()) VoidType(loc_single(tok));
@@ -328,6 +347,6 @@ FunctionDeclaration* Parser::parseFunctionStructureTokens(ASTAllocator& passed_a
     current_func_type = prev_func_type;
     parent_node = prev_parent_node;
 
-    return decl;
+    return final_node;
 
 }

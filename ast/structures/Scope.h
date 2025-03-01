@@ -46,7 +46,9 @@ public:
         return *this;
     }
 
-    void shallow_copy_into(Scope& other) const;
+    inline void shallow_copy_into(Scope& other) const {
+        other.nodes = nodes;
+    }
 
     Scope shallow_copy() const {
         Scope copied(parent_node, encoded_location());

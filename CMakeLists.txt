@@ -512,6 +512,8 @@ set(COMMON_SOURCES
         compiler/generics/GenericInstantiator.h
         preprocess/visitors/RecursiveVisitor.h
         compiler/generics/GenericInstantiator.cpp
+        ast/structures/GenericFuncDecl.cpp
+        compiler/generics/GenInstantiatorAPI.h
 )
 
 # Chemical LSP Executable Target

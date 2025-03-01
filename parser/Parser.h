@@ -571,7 +571,7 @@ public:
      * lexes a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
      */
-    FunctionDeclaration* parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allow_declaration = false, bool allow_extensions = false);
+    ASTNode* parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allow_declaration = false, bool allow_extensions = false);
 
     /**
      * parses a interface structure

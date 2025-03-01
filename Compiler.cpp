@@ -243,6 +243,7 @@ const auto debug_ir_desc = "set debug mode for generated llvm ir";
 const auto dash_c_desc = "generate objects without linking them into final executable";
 const auto no_caching_desc = "no caching will be done for future invocations";
 const auto cbi_m_desc = "compile a compiler binding interface that provides support for macros";
+const auto fno_unwind_desc = "no unwind tables would be generated";
 const auto mod_f_desc = "compile a file as a module, the argument must be in format <mod-name>:<file-path>";
 const auto mod_d_desc = "compile a directory as a module, the argument must be in format <mod-name>:<dir-path>";
 const auto out_dash_all_desc = "generate a corresponding file for every additional module specific via --mod";
@@ -456,6 +457,8 @@ int main(int argc, char *argv[]) {
         CmdOption("debug-ir", CmdOptionType::NoValue, debug_ir_desc),
         CmdOption("", "c", CmdOptionType::NoValue, dash_c_desc),
         CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued, cbi_m_desc),
+        CmdOption("", "fno-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
+        CmdOption("", "fno-asynchronous-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
         CmdOption("mod-f", "", CmdOptionType::MultiValued, mod_f_desc),
         CmdOption("mod-d", "", CmdOptionType::MultiValued, mod_d_desc),
     };
@@ -642,6 +645,7 @@ int main(int argc, char *argv[]) {
         LabBuildCompilerOptions compiler_opts(argv[0], std::string(target.value()), is64Bit);
         CompilerBinder binder(argv[0]);
         LabBuildCompiler compiler(binder, &compiler_opts);
+        compiler.set_cmd_options(&options);
 
         // Prepare compiler options
         prepare_options(&compiler_opts);
@@ -683,6 +687,7 @@ int main(int argc, char *argv[]) {
     LabBuildCompilerOptions compiler_opts(argv[0], std::string(target.value()), is64Bit);
     CompilerBinder binder(argv[0]);
     LabBuildCompiler compiler(binder, &compiler_opts);
+    compiler.set_cmd_options(&options);
 
     // set default compiler options
     compiler_opts.is_caching_enabled = false;
@@ -770,6 +775,19 @@ int main(int argc, char *argv[]) {
 
     LabJob job(LabJobType::Executable);
     set_options_for_main_job(options, job, module, dependencies);
+
+    // checking if user requires ll, asm output at default location for the module
+    const auto has_ll = options.has_value("out-ll-all");
+    const auto has_asm = options.has_value("out-asm-all");
+    if(has_ll || has_asm) {
+        const auto mod_dir = resolve_rel_child_path_str(job.build_dir.to_std_string(), module.name.to_std_string());
+        if (has_ll) {
+            module.llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
+        }
+        if (has_asm) {
+            module.asm_path.append(resolve_rel_child_path_str(mod_dir, "mod_asm.s"));
+        }
+    }
 
     if(dash_c.has_value() || !bin_out.has_value()) {
         job.type = LabJobType::ProcessingOnly;

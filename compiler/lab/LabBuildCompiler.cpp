@@ -33,6 +33,7 @@
 #include "preprocess/2c/2cBackendContext.h"
 #include "parser/model/CompilerBinder.h"
 #include "compiler/SelfInvocation.h"
+#include "utils/CmdUtils.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
@@ -392,7 +393,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, options->is64Bit);
     ASTProcessor processor(options, loc_man, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
-    Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
+    CodegenOptions code_gen_options;
+    if(cmd) {
+        code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
+        code_gen_options.fno_asynchronous_unwind_tables = cmd->has_value("", "fno-asynchronous-unwind-tables");
+    }
+    Codegen gen(code_gen_options, global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
     LLVMBackendContext g_context(&gen);
     // set the context so compile time calls are sent to it
     global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;

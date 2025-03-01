@@ -5,6 +5,7 @@
 #include "StructMember.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/types/LinkedType.h"
+#include <sstream>
 
 #ifdef COMPILER_BUILD
 
@@ -78,6 +79,10 @@ void InterfaceDefinition::code_gen(Codegen &gen) {
         for (const auto& function: functions()) {
             code_gen_for_users(gen, function);
         }
+        // generating vtables for each user struct
+        for(auto& user : users) {
+            llvm_build_vtable(gen, user.first);
+        }
     }
 }
 
@@ -116,6 +121,12 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
             }
             active_user = nullptr;
         }
+        // now we regenerate the vtables, for which vtables exist we declare them, otherwise we rebuilt vtables
+        for(auto& use : users) {
+            auto found = vtable_pointers.find(use.first);
+            // we found the vtable, we must redeclare it in this module otherwise we regenerate it
+            create_global_vtable(gen, use.first, found != vtable_pointers.end());
+        }
     }
 }
 
@@ -139,10 +150,11 @@ void InterfaceDefinition::llvm_vtable_type(Codegen& gen, std::vector<llvm::Type*
     }
 }
 
-llvm::Type* InterfaceDefinition::llvm_vtable_type(Codegen& gen) {
-    std::vector<llvm::Type*> types;
-    llvm_vtable_type(gen, types);
-    return llvm::StructType::get(*gen.ctx, types);
+llvm::StructType* InterfaceDefinition::llvm_vtable_type(Codegen& gen) {
+    std::vector<llvm::Type*> struct_types;
+    llvm_build_inherited_vtable_type(gen, struct_types);
+    llvm_vtable_type(gen, struct_types);
+    return llvm::StructType::get(*gen.ctx, struct_types);
 }
 
 void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
@@ -161,29 +173,25 @@ void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_
     }
 }
 
-llvm::Constant* InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_struct) {
+llvm::Constant* InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, llvm::StructType* vtable_type) {
     std::vector<llvm::Constant*> llvm_pointers;
     llvm_build_inherited_vtable(gen, for_struct, llvm_pointers);
     llvm_build_vtable(gen, for_struct, llvm_pointers);
-    std::vector<llvm::Type*> struct_types;
-    llvm_build_inherited_vtable_type(gen, struct_types);
-    llvm_vtable_type(gen, struct_types);
-    return llvm::ConstantStruct::get(llvm::StructType::get(*gen.ctx, struct_types), llvm_pointers);
+    return llvm::ConstantStruct::get(vtable_type, llvm_pointers);
 }
 
-llvm::Value* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinition* for_struct) {
-    auto found = vtable_pointers.find(for_struct);
-    if(found != vtable_pointers.end()) {
-        return found->second;
-    }
+llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, StructDefinition* for_struct, bool declare_only) {
     // building vtable
-    auto constant = llvm_build_vtable(gen, for_struct);
+    const auto constant = declare_only ? nullptr : llvm_build_vtable(gen, for_struct);
+    const auto vtable_type = declare_only ? llvm_vtable_type(gen) : constant->getType();
+    const auto linkage = specifier() == AccessSpecifier::Public ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
     auto table = new llvm::GlobalVariable(
             *gen.module,
-            constant->getType(),
+            vtable_type,
             true,
-            llvm::GlobalValue::InternalLinkage,
-            constant
+            linkage,
+            constant,
+            runtime_vtable_name(for_struct)
     );
     // an alias to the first pointer in the llvm_vtable
     // since we are using structs, we don't need to create an alias to the first pointer
@@ -195,6 +203,18 @@ llvm::Value* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinit
 }
 
 #endif
+
+void InterfaceDefinition::runtime_vtable_name(std::ostream& stream, StructDefinition* def) {
+    runtime_name(stream);
+    def->runtime_name(stream);
+}
+
+std::string InterfaceDefinition::runtime_vtable_name(StructDefinition* def) {
+    std::ostringstream str;
+    runtime_name(str);
+    def->runtime_name(str);
+    return str.str();
+}
 
 BaseType* InterfaceDefinition::create_value_type(ASTAllocator& allocator) {
     return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), this, encoded_location());

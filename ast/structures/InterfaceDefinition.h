@@ -132,6 +132,10 @@ public:
         return parent_node;
     }
 
+    void runtime_vtable_name(std::ostream& stream, StructDefinition* def);
+
+    std::string runtime_vtable_name(StructDefinition* def);
+
     /**
      * direct usage of this struct is registered with this interface
      * the interfaces inherited by this interface aren't registered
@@ -191,25 +195,46 @@ public:
     void llvm_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types);
 
     /**
-     * get the vtable type for this interface
+     * create a vtable type for the given struct, only call this if you don't need to create
+     * the vtable constant, otherwise you can call getType on the constant vtable pointer
      */
-    llvm::Type* llvm_vtable_type(Codegen& gen);
+    llvm::StructType* llvm_vtable_type(Codegen& gen);
 
     /**
      * build the vtable, put the cconstant function pointers into given llvm_pointer vector
      */
     void llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers);
 
+protected:
+
     /**
      * a helper function to build the vtable as a constant
      */
-    llvm::Constant* llvm_build_vtable(Codegen& gen, StructDefinition* for_struct);
+    llvm::Constant* llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, llvm::StructType* vtable_type);
+
+    /**
+     * a helper function to build the vtable as a constant
+     */
+    inline llvm::Constant* llvm_build_vtable(Codegen& gen, StructDefinition* for_struct) {
+        return llvm_build_vtable(gen, for_struct, llvm_vtable_type(gen));
+    }
+
+public:
 
     /**
      * the vtable will be created as a global constant for the given struct
      * if a vtable already exists for the given struct, we just return it without creating another one
      */
-    llvm::Value* llvm_global_vtable(Codegen& gen, StructDefinition* for_struct);
+    llvm::Value* create_global_vtable(Codegen& gen, StructDefinition* for_struct, bool declare_only);
+
+    /**
+     * the vtable will be created as a global constant for the given struct
+     * if a vtable already exists for the given struct, we just return it without creating another one
+     */
+    llvm::Value* llvm_global_vtable(Codegen& gen, StructDefinition* for_struct) {
+        auto found = vtable_pointers.find(for_struct);
+        return found != vtable_pointers.end() ? found->second : create_global_vtable(gen, for_struct, false);
+    }
 
     /**
      * externally declares the

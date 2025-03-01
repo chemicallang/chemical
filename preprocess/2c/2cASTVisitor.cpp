@@ -435,9 +435,8 @@ StructDefinition* get_func_param_ref_struct(ASTNode* node) {
     return param->type->get_direct_linked_struct();
 }
 
-void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
-    visitor.write(interface->name_view());
-    visitor.write(definition->name_view());
+inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
+    interface->runtime_vtable_name(*visitor.output, definition);
 }
 
 std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* type, Value* value) {

@@ -52,6 +52,10 @@ enum class OutputMode {
 
 };
 
+inline bool is_debug_or_compl(OutputMode mode) {
+    return mode == OutputMode::Debug || mode == OutputMode::DebugComplete;
+}
+
 inline bool is_debug(OutputMode mode) {
     return mode == OutputMode::Debug || mode == OutputMode::DebugQuick || mode == OutputMode::DebugComplete;
 }

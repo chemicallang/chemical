@@ -39,6 +39,6 @@ public:
 
     void VisitFunctionParam(FunctionParam *param);
 
-    FunctionDeclaration* Instantiate(GenericFuncDecl* decl, std::vector<BaseType*>& gen_args);
+    FunctionDeclaration* Instantiate(GenericFuncDecl* decl, size_t itr);
 
 };

@@ -28,17 +28,27 @@ public:
 
     AccessChain* chain;
     UsingStmtAttributes attrs;
-    ASTNode* parent_node;
 
     constexpr UsingStmt(
             AccessChain* chain,
             ASTNode* parent_node,
             bool is_namespace,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::UsingStmt, location), chain(chain), parent_node(parent_node),
+    ) : ASTNode(ASTNodeKind::UsingStmt, parent_node, location), chain(chain),
         attrs(is_namespace, false)
     {
 
+    }
+
+    UsingStmt* copy(ASTAllocator &allocator) override {
+        const auto stmt = new (allocator.allocate<UsingStmt>()) UsingStmt(
+            chain->copy(allocator),
+            parent(),
+            false,
+            encoded_location()
+        );
+        stmt->attrs = attrs;
+        return stmt;
     }
 
     inline bool is_namespace() {
@@ -57,13 +67,6 @@ public:
         attrs.propagate = value;
     }
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

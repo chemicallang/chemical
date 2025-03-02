@@ -196,7 +196,7 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
 }
 
 void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    auto func = parent_node->as_function();
+    auto func = parent()->as_function();
     if(!func) {
         linker.error("expected init block to be in a function", (ASTNode*) this);
         return;

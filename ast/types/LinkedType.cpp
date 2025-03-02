@@ -45,7 +45,7 @@ bool LinkedType::satisfies(BaseType *other) {
                 } else {
                     const auto other_kind = other_linked->kind();
                     if(other_kind == ASTNodeKind::VariantMember) {
-                        return other_linked->as_variant_member_unsafe()->parent_node == linked->as_variant_def_unsafe();
+                        return other_linked->as_variant_member_unsafe()->parent() == linked->as_variant_def_unsafe();
                     } else {
                         return false;
                     }

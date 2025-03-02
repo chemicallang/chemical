@@ -35,7 +35,7 @@ void stop_interpretation_above(ASTNode* node) {
 
 void ReturnStatement::interpret(InterpretScope &scope) {
     func_type->set_return(scope, value);
-    stop_interpretation_above(parent_node);
+    stop_interpretation_above(parent());
 }
 
 void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {

@@ -15,7 +15,6 @@ public:
     // cases store the index of scope, if value is nullptr it means default case
     std::vector<std::pair<Value*, int>> cases;
     int defScopeInd = -1;
-    ASTNode* parent_node;
     bool is_value;
 
     constexpr SwitchStatement(
@@ -23,17 +22,27 @@ public:
         ASTNode* parent_node,
         bool is_value,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::SwitchStmt, location), Value(ValueKind::SwitchValue, location), expression(expression), parent_node(parent_node), is_value(is_value) {
+    ) : ASTNode(ASTNodeKind::SwitchStmt, parent_node, location), Value(ValueKind::SwitchValue, location), expression(expression), is_value(is_value) {
 
     }
 
-
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
+    SwitchStatement* copy(ASTAllocator &allocator) override {
+        const auto stmt = new (allocator.allocate<SwitchStatement>()) SwitchStatement(
+            expression,
+            parent(),
+            is_value,
+            ASTNode::encoded_location()
+        );
+        stmt->cases.reserve(cases.size());
+        for(auto& aCase : cases) {
+            stmt->cases.emplace_back(aCase.first->copy(allocator), aCase.second);
+        }
+        stmt->scopes.reserve(scopes.size());
+        for(auto& scope : scopes) {
+            stmt->scopes.emplace_back(scope.parent(), scope.encoded_location());
+            scope.copy_into(stmt->scopes.back(), allocator);
+        }
+        return stmt;
     }
 
     bool declare_and_link(SymbolResolver &linker, Value** value_ptr);

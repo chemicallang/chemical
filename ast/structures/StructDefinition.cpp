@@ -291,7 +291,7 @@ BaseType* StructMember::create_value_type(ASTAllocator& allocator) {
 
 BaseDefMember *StructMember::copy_member(ASTAllocator& allocator) {
     Value* def_value = defValue ? defValue->copy(allocator) : nullptr;
-    return new (allocator.allocate<StructMember>()) StructMember(name, type->copy(allocator), def_value, parent_node, encoded_location());
+    return new (allocator.allocate<StructMember>()) StructMember(name, type->copy(allocator), def_value, parent(), encoded_location());
 }
 
 void StructMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
@@ -318,7 +318,7 @@ void UnnamedStruct::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr)
 }
 
 BaseDefMember *UnnamedStruct::copy_member(ASTAllocator& allocator) {
-    auto unnamed = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct(name, parent_node, encoded_location());
+    auto unnamed = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct(name, parent(), encoded_location());
     for(auto& variable : variables) {
         unnamed->variables[variable.first] = variable.second->copy_member(allocator);
     }
@@ -437,7 +437,7 @@ ASTNode *StructDefinition::child(const chem::string_view &name) {
 }
 
 VariablesContainer *StructDefinition::copy_container(ASTAllocator& allocator) {
-    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(identifier, parent_node, encoded_location());
+    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(identifier, parent(), encoded_location());
     for(auto& inherits : inherited) {
         def->inherited.emplace_back(inherits.copy(allocator));
     }

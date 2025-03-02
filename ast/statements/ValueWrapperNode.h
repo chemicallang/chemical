@@ -9,17 +9,19 @@ class ValueWrapperNode : public ASTNode {
 public:
 
     Value* value;
-    ASTNode* parent_node;
 
     constexpr ValueWrapperNode(
         Value* value,
         ASTNode* parent_node
-    ) : ASTNode(ASTNodeKind::ValueWrapper, value->encoded_location()), value(value), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::ValueWrapper, parent_node, value->encoded_location()), value(value) {
 
     }
 
-    ASTNode* parent() override {
-        return parent_node;
+    ValueWrapperNode* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(
+            value->copy(allocator),
+            parent()
+        );
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override {

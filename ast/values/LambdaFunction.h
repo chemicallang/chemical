@@ -45,9 +45,6 @@ public:
         return this;
     }
 
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     int data_struct_index() {
         return has_self_param() ? 1 : 0;

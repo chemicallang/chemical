@@ -12,7 +12,6 @@ public:
     chem::string_view name;
     BaseType* type;
     Value* def_value;
-    VariantMember* parent_node;
     unsigned index;
     bool is_const;
 
@@ -27,11 +26,18 @@ public:
         Value* def_value,
         VariantMember* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::VariantMemberParam, location), name(name), index(index), type(type), def_value(def_value),
-        parent_node(parent_node), is_const(is_const) {
+    ) : ASTNode(ASTNodeKind::VariantMemberParam, (ASTNode*) parent_node, location), name(name), index(index),
+        type(type), def_value(def_value), is_const(is_const) {
 
     }
 
+    inline ASTNode* parent_node() {
+        return ASTNode::parent();
+    }
+
+    inline VariantMember* parent() {
+        return (VariantMember*) ASTNode::parent();
+    }
 
     VariantMemberParam* copy(ASTAllocator& allocator);
 
@@ -43,10 +49,6 @@ public:
 
     BaseType* known_type() final {
         return type;
-    }
-
-    ASTNode* parent() final {
-        return (ASTNode*) parent_node;
     }
 
     ASTNode* child(int index) final;

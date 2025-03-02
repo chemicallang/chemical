@@ -117,7 +117,7 @@ bool Parser::parseParameterList(
                     const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), nullptr, loc_single(id)), loc_single(id), is_mutable);
                     auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), ref_to_linked,
                                                                                         index, nullptr, true,
-                                                                                        current_func_type, loc(ampersand, id));
+                                                                                        current_func_type, parent_node, loc(ampersand, id));
                     parameters.emplace_back(param);
                     index++;
                     continue;
@@ -133,7 +133,7 @@ bool Parser::parseParameterList(
                 auto type = parseType(allocator);
                 if(type) {
                     if(variadicParam && consumeToken(TokenType::TripleDotSym)) {
-                        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), type, index, nullptr, false, current_func_type, loc_single(id));
+                        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), type, index, nullptr, false, current_func_type, parent_node, loc_single(id));
                         parameters.emplace_back(param);
                         return true;
                     }
@@ -149,7 +149,7 @@ bool Parser::parseParameterList(
                             }
                         }
                     }
-                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), type, index, defValue, false, current_func_type, loc_single(id));
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), type, index, defValue, false, current_func_type, parent_node, loc_single(id));
                     parameters.emplace_back(param);
                 } else {
                     error("missing a type token for the function parameter, expected type after the colon");
@@ -157,7 +157,7 @@ bool Parser::parseParameterList(
                 }
             } else {
                 if(optionalTypes) {
-                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), nullptr, index, nullptr, false, current_func_type, loc_single(id));
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), nullptr, index, nullptr, false, current_func_type, parent_node, loc_single(id));
                     parameters.emplace_back(param);
                 } else {
                     error("expected colon ':' in function parameter list after the parameter name ");
@@ -272,7 +272,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
     }
 
     for(auto param : gen_params) {
-        param->parent_node = decl;
+        param->set_parent(decl);
     }
 
     auto name = consumeIdentifierOrKeyword();
@@ -286,7 +286,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
 
     if(GENv2 && !gen_params.empty()) {
 
-        const auto gen_decl = new (allocator.allocate<GenericFuncDecl>()) GenericFuncDecl(decl, loc_single(name));
+        const auto gen_decl = new (allocator.allocate<GenericFuncDecl>()) GenericFuncDecl(decl, parent_node, loc_single(name));
 
         gen_decl->generic_params = std::move(gen_params);
 
@@ -339,7 +339,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
 
     auto block = parseBraceBlock("function", decl, allocator);
     if(block.has_value()) {
-        decl->body.emplace(block->parent_node, block->encoded_location());
+        decl->body.emplace(block->parent(), block->encoded_location());
         decl->body->nodes = std::move(block->nodes);
     } else if(!allow_declaration) {
         error("expected the function definition after the signature");

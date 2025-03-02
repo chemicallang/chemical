@@ -70,7 +70,7 @@ public:
     LocatedIdentifier located_id; ///< The identifier being initialized.
     BaseType* type;
     Value* value; ///< The value being assigned to the identifier.
-    ASTNode* parent_node;
+
 #ifdef COMPILER_BUILD
     llvm::Value *llvm_ptr;
 #endif
@@ -92,9 +92,23 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ASTNode(ASTNodeKind::VarInitStmt, location), attrs(specifier, false, false, false, false, is_const, is_reference, false), located_id(identifier),
-        type(type), value(value), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::VarInitStmt, parent_node, location), attrs(specifier, false, false, false, false, is_const, is_reference, false),
+        located_id(identifier), type(type), value(value) {
 
+    }
+
+    ASTNode* copy(ASTAllocator &allocator) override {
+        const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(
+            false, false,
+            located_id,
+            type->copy(allocator),
+            value->copy(allocator),
+            parent(),
+            encoded_location(),
+            AccessSpecifier::Internal
+        );
+        stmt->attrs = attrs;
+        return stmt;
     }
 
     /**
@@ -214,13 +228,6 @@ public:
     }
 
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     Value* holding_value() final {
         return value;
@@ -228,7 +235,9 @@ public:
 
     BaseType* known_type() final;
 
-    bool is_top_level();
+    bool is_top_level() {
+        return parent() == nullptr || parent()->as_namespace();
+    }
 
     BaseType* type_ptr_fast() {
         return type;
@@ -263,7 +272,7 @@ public:
     }
 
     inline std::string runtime_name_str() {
-        return parent_node ? ASTNode::runtime_name_str() : name_str();
+        return parent() ? ASTNode::runtime_name_str() : name_str();
     }
 
     /**

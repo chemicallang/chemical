@@ -7,7 +7,7 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
 
     if(consumeToken(TokenType::LBrace)) {
 
-        auto structValue = new (allocator.allocate<StructValue>()) StructValue(refType, 0, parent_node);
+        auto structValue = new (allocator.allocate<StructValue>()) StructValue(refType, 0);
 
         // lex struct member value tokens
         do {

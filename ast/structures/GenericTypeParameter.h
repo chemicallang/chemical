@@ -13,7 +13,6 @@ public:
     std::vector<BaseType*> usage;
     // TODO use int32 here
     int16_t active_iteration = -1; // <-- index of active type in usage vector
-    ASTNode* parent_node;
     unsigned param_index = 0; // <-- index in the generic type parameters
 
     /**
@@ -26,8 +25,9 @@ public:
         ASTNode* parent_node,
         unsigned param_index,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::GenericTypeParam, location), identifier(identifier), at_least_type(at_least_type), def_type(def_type),
-        parent_node(parent_node), param_index(param_index) {
+    ) : ASTNode(ASTNodeKind::GenericTypeParam, parent_node, location), identifier(identifier),
+        at_least_type(at_least_type), def_type(def_type), param_index(param_index)
+    {
 
     }
 
@@ -119,8 +119,5 @@ public:
 
 #endif
 
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
 };

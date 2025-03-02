@@ -13,26 +13,26 @@ public:
 
     bool stoppedInterpretOnce = false;
     std::vector<ASTNode*> nodes;
-    ASTNode* parent_node;
+
 
     /**
      * empty constructor
      */
-    constexpr Scope(ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, location), parent_node(parent_node) {
+    constexpr Scope(ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, parent_node, location) {
 
     }
 
     /**
      * constructor
      */
-    constexpr Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, location), nodes(std::move(nodes)), parent_node(parent_node) {
+    constexpr Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, parent_node, location), nodes(std::move(nodes)) {
 
     }
 
     /**
      * move constructor
      */
-    Scope(Scope&& other) : ASTNode(other.kind(), other.encoded_location()), nodes(std::move(other.nodes)), parent_node(other.parent_node) {
+    Scope(Scope&& other) : ASTNode(other.kind(), other.parent(), other.encoded_location()), nodes(std::move(other.nodes)) {
 
     };
 
@@ -41,7 +41,7 @@ public:
      */
     Scope& operator=(Scope&& other) noexcept {
         nodes = std::move(other.nodes);
-        parent_node = other.parent_node;
+        set_parent(other.parent());
         set_encoded_location(other.encoded_location());
         return *this;
     }
@@ -50,18 +50,26 @@ public:
         other.nodes = nodes;
     }
 
+    void copy_into(Scope& other, ASTAllocator& allocator) const {
+        other.nodes.reserve(nodes.size());
+        for(auto& node : nodes) {
+            other.nodes.emplace_back(node->copy(allocator));
+        }
+    }
+
     Scope shallow_copy() const {
-        Scope copied(parent_node, encoded_location());
+        Scope copied(parent(), encoded_location());
         shallow_copy_into(copied);
         return copied;
     }
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
+    Scope* copy(ASTAllocator &allocator) override {
+        const auto scope = new (allocator.allocate<Scope>()) Scope(parent(), encoded_location());
+        scope->nodes = nodes;
+        for(auto& node : scope->nodes) {
+            node = node->copy(allocator);
+        }
+        return scope;
     }
 
     /**

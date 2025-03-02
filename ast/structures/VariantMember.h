@@ -19,7 +19,6 @@ class VariantMember : public BaseDefMember {
 public:
 
     tsl::ordered_map<chem::string_view, VariantMemberParam*> values;
-    VariantDefinition* parent_node;
     LinkedType ref_type;
     VariantMemberAttributes attrs;
 
@@ -30,7 +29,7 @@ public:
             chem::string_view name,
             VariantDefinition* parent_node,
             SourceLocation location
-    ) : BaseDefMember(name, ASTNodeKind::VariantMember, location), parent_node(parent_node),
+    ) : BaseDefMember(name, ASTNodeKind::VariantMember, (ASTNode*) parent_node, location),
         ref_type(name, this, location), attrs(false)
     {
 
@@ -52,8 +51,12 @@ public:
         return total_bytes;
     }
 
-    ASTNode *parent() final {
-        return (ASTNode*) parent_node;
+    inline ASTNode* parent_node() {
+        return ASTNode::parent();
+    }
+
+    inline VariantDefinition* parent() {
+        return (VariantDefinition*) ASTNode::parent();
     }
 
     BaseDefMember *copy_member(ASTAllocator& allocator) final;

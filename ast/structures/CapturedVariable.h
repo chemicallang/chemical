@@ -15,20 +15,18 @@ public:
     ASTNode *linked;
     PointerType ptrType;
 
-
+    /**
+     * constructor
+     */
     constexpr CapturedVariable(
         chem::string_view name,
         unsigned int index,
         bool capture_by_ref,
+        ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::CapturedVariable, location), name(name), index(index),
+    ) : ASTNode(ASTNodeKind::CapturedVariable, parent_node, location), name(name), index(index),
         capture_by_ref(capture_by_ref), ptrType(nullptr, location) {
 
-    }
-
-
-    ASTNode *parent() final {
-        return nullptr;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

@@ -160,7 +160,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
     if (consumeToken(TokenType::RParen)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, lamb, parent_node, loc_single(identifier));
         lamb->params.emplace_back(param);
         auto prev_func_type = current_func_type;
         current_func_type = lamb;
@@ -174,7 +174,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), type, 0, nullptr, false, lamb, loc_single(identifier));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), type, 0, nullptr, false, lamb, parent_node, loc_single(identifier));
         lamb->params.emplace_back(param);
         auto prev_func_type = current_func_type;
         current_func_type = lamb;
@@ -186,7 +186,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         return lamb;
     } else if (consumeToken(TokenType::CommaSym)) {
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, lamb, loc_single(identifier));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, lamb, parent_node, loc_single(identifier));
         lamb->params.emplace_back(param);
         auto prev_func_type = current_func_type;
         current_func_type = lamb;

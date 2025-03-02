@@ -844,7 +844,7 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def)
         return mem->requires_copy_fn();
     }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func, SourceLocation location) {
         auto otherArg = func->getArg(1);
-        auto other_struct_pointer = variant_struct_pointer(gen, otherArg, mem->parent_node);
+        auto other_struct_pointer = variant_struct_pointer(gen, otherArg, mem->parent());
         auto index = -1;
         for(auto& param : mem->values) {
             index++;
@@ -852,7 +852,7 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def)
             if(linked) {
                 auto container = linked->as_members_container();
                 if(container) {
-                    auto def = mem->parent_node;
+                    auto def = mem->parent();
                     auto decl = container->copy_func();
                     std::vector<llvm::Value*> args;
                     std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
@@ -906,7 +906,7 @@ void FunctionDeclaration::code_gen_move_fn(Codegen& gen, VariantDefinition* def)
         return mem->requires_move_fn();
     }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func, SourceLocation location) {
         auto otherArg = func->getArg(1);
-        auto other_struct_pointer = variant_struct_pointer(gen, otherArg, mem->parent_node);
+        auto other_struct_pointer = variant_struct_pointer(gen, otherArg, mem->parent());
         auto index = -1;
         for(auto& param : mem->values) {
             index++;
@@ -914,7 +914,7 @@ void FunctionDeclaration::code_gen_move_fn(Codegen& gen, VariantDefinition* def)
             if(linked) {
                 auto container = linked->as_members_container();
                 if(container) {
-                    auto def = mem->parent_node;
+                    auto def = mem->parent();
                     auto decl = container->pre_move_func();
                     std::vector<llvm::Value*> args;
                     std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
@@ -1168,7 +1168,7 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     if (defValue) {
         copied = defValue->copy(allocator);
     }
-    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, encoded_location());
+    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, parent(), encoded_location());
 }
 
 bool FunctionParam::link_param_type(SymbolResolver &linker) {
@@ -1184,7 +1184,7 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
             const auto parent_kind = parent_node->kind();
             ASTNode* parent;
             if(parent_kind == ASTNodeKind::StructMember) {
-                parent = parent_node->as_struct_member_unsafe()->parent_node;
+                parent = parent_node->as_struct_member_unsafe()->parent();
             } else if(parent_kind == ASTNodeKind::ImplDecl) {
                 parent = parent_node->as_impl_def_unsafe()->struct_type->linked_node();
             } else {
@@ -1274,7 +1274,7 @@ void GenericTypeParameter::register_usage(ASTAllocator& allocator, BaseType* typ
         if(def_type) {
             usage.emplace_back(def_type->copy(allocator));
         } else {
-            std::cerr << "expected a generic type argument for parameter " << identifier << " in node " << parent_node->get_located_id()->identifier << std::endl;
+            std::cerr << "expected a generic type argument for parameter " << identifier << " in node " << parent()->get_located_id()->identifier << std::endl;
         }
     }
 }
@@ -1349,29 +1349,19 @@ int16_t FunctionDeclaration::total_generic_iterations() {
     return ::total_generic_iterations(generic_params);
 }
 
-FunctionDeclaration::FunctionDeclaration(
-        const FunctionDeclaration& decl
-) : ASTNode(ASTNodeKind::FunctionDecl, decl.ASTNode::encoded_location()),
-    FunctionTypeBody(decl), identifier(decl.identifier),
-    generic_params(decl.generic_params), body(std::nullopt),
-    attrs(decl.attrs)
-{
-    if(decl.body.has_value()) {
-        body.emplace(Scope(decl.body->parent_node, decl.body->encoded_location()));
-        decl.body->shallow_copy_into(body.value());
-    }
-}
-
-FunctionDeclaration* FunctionDeclaration::shallow_copy(ASTAllocator& allocator) {
+FunctionDeclaration* FunctionDeclaration::copy(ASTAllocator& allocator) {
     const auto decl = allocator.allocate<FunctionDeclaration>();
-    new (decl) FunctionDeclaration(*this);
+    new (decl) FunctionDeclaration(
+        identifier, returnType, isVariadic(), ASTNode::parent(), ASTNode::encoded_location(), specifier(), FunctionType::data.signature_resolved
+    );
+    // TODO copy everything inside
     return decl;
 }
 
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, this, ZERO_LOC));
     }
     returnType = new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
 }

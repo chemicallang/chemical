@@ -80,7 +80,11 @@ public:
     /**
      * default constructor
      */
-    inline explicit MembersContainer(ASTNodeKind k, SourceLocation loc) noexcept : ASTNode(k, loc) {
+    inline explicit MembersContainer(
+        ASTNodeKind k,
+        ASTNode* parent,
+        SourceLocation loc
+    ) noexcept : ASTNode(k, parent, loc) {
         // does nothing
     }
 

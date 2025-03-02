@@ -11,7 +11,6 @@
 class Comment : public ASTNode {
 public:
 
-    ASTNode* parent_node;
     chem::string_view comment;
     bool multiline;
 
@@ -20,14 +19,16 @@ public:
             bool multiline,
             ASTNode* parent,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::CommentStmt, location), comment(comment), multiline(multiline), parent_node(parent) {}
+    ) : ASTNode(ASTNodeKind::CommentStmt, parent, location), comment(comment), multiline(multiline) {}
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
 
-    ASTNode *parent() final {
-        return parent_node;
+    Comment* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<Comment>()) Comment(
+            comment,
+            parent(),
+            parent(),
+            encoded_location()
+        );
     }
 
     void interpret(InterpretScope &scope) final {

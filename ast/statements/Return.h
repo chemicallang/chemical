@@ -14,7 +14,6 @@ class FunctionType;
 class ReturnStatement : public ASTNode {
 public:
 
-    ASTNode* parent_node;
     FunctionTypeBody* func_type = nullptr;
     Value* value;
 
@@ -26,17 +25,17 @@ public:
             FunctionTypeBody* declaration,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::ReturnStmt, location), value(value), func_type(declaration), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::ReturnStmt, parent_node, location), value(value), func_type(declaration) {
 
     }
 
-
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
+    ReturnStatement* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<ReturnStatement>()) ReturnStatement(
+            value->copy(allocator),
+            nullptr,
+            parent(),
+            encoded_location()
+        );
     }
 
     BaseType* known_type() final;

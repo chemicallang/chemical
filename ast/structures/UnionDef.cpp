@@ -130,7 +130,7 @@ llvm::Type *UnnamedUnion::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
 //}
 
 VariablesContainer *UnionDef::copy_container(ASTAllocator& allocator) {
-    auto container = new (allocator.allocate<UnionDef>()) UnionDef(identifier, parent_node, encoded_location());
+    auto container = new (allocator.allocate<UnionDef>()) UnionDef(identifier, parent(), encoded_location());
     for(auto& variable : variables) {
         container->variables[variable.first] = variable.second->copy_member(allocator);
     }
@@ -173,7 +173,7 @@ void UnnamedUnion::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) 
 }
 
 BaseDefMember *UnnamedUnion::copy_member(ASTAllocator& allocator) {
-    auto unnamed = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion(name, parent_node, encoded_location());
+    auto unnamed = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion(name, parent(), encoded_location());
     for(auto& variable : variables) {
         unnamed->variables[variable.first] = variable.second->copy_member(allocator);
     }

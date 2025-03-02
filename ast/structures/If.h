@@ -18,7 +18,6 @@ public:
     Scope ifBody;
     std::vector<std::pair<Value*, Scope>> elseIfs;
     std::optional<Scope> elseBody;
-    ASTNode* parent_node;
     bool is_value;
     bool is_computable = false;
     bool resolved_condition = true;
@@ -33,25 +32,16 @@ public:
             ASTNode* parent_node,
             bool is_value,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::IfStmt, location), Value(ValueKind::IfValue, location), condition(condition), ifBody(this, location),
-        elseBody(std::nullopt), parent_node(parent_node),
+    ) : ASTNode(ASTNodeKind::IfStmt, parent_node, location), Value(ValueKind::IfValue, location), condition(condition), ifBody(this, location),
+        elseBody(std::nullopt),
         is_value(is_value) {}
-
-
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     bool compile_time_computable() final;
 
     bool link_conditions(SymbolResolver &linker);
 
     bool is_top_level() {
-        return !parent_node || parent_node->kind() == ASTNodeKind::NamespaceDecl;
+        return !parent() || parent()->kind() == ASTNodeKind::NamespaceDecl;
     }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;

@@ -12,25 +12,21 @@
 class UnreachableStmt : public ASTNode {
 public:
 
-    ASTNode* parent_node;
-
     /**
      * constructor
      */
     constexpr UnreachableStmt(
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::UnreachableStmt, location), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::UnreachableStmt, parent_node, location) {
 
     }
 
-
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
+    UnreachableStmt* copy(ASTAllocator& allocator) final {
+        return new (allocator.allocate<UnreachableStmt>()) UnreachableStmt(
+            parent(),
+            encoded_location()
+        );
     }
 
 #ifdef COMPILER_BUILD

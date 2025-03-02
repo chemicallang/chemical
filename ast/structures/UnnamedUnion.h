@@ -9,15 +9,17 @@
 class UnnamedUnion : public BaseDefMember, public VariablesContainer {
 public:
 
-    ASTNode* parent_node;
     AccessSpecifier specifier;
 
+    /**
+     * constructor
+     */
     UnnamedUnion(
         chem::string_view name,
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : BaseDefMember(name, ASTNodeKind::UnnamedUnion, location), parent_node(parent_node), specifier(specifier) {
+    ) : BaseDefMember(name, ASTNodeKind::UnnamedUnion, parent_node, location), specifier(specifier) {
 
     }
 
@@ -39,13 +41,6 @@ public:
 
     VariablesContainer* copy_container(ASTAllocator &allocator) final;
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     void redeclare_top_level(SymbolResolver &linker) final;
 

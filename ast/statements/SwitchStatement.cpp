@@ -118,7 +118,7 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
             if(linked_kind == ASTNodeKind::VariantDecl) {
                 variant_def = linked->as_variant_def_unsafe();
             } else if(linked_kind == ASTNodeKind::VariantMember) {
-                variant_def = linked->as_variant_member_unsafe()->parent_node;
+                variant_def = linked->as_variant_member_unsafe()->parent();
             }
             if (variant_def) {
                 if (scopes.size() == variant_def->variables.size() && !has_default_case()) {
@@ -261,7 +261,7 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
                 const auto kind = linked->kind();
                 if(kind == ASTNodeKind::VariantMember) {
                     const auto member = linked->as_variant_member_unsafe();
-                    variant_def = member->parent_node;
+                    variant_def = member->parent();
                 } else if(kind == ASTNodeKind::VariantDecl) {
                     variant_def = linked->as_variant_def_unsafe();
                 }

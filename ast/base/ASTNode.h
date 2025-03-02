@@ -63,6 +63,11 @@ private:
     ASTNodeKind const _kind;
 
     /**
+     * the parent of this ast node
+     */
+    ASTNode* _parent;
+
+    /**
      * encoded source location
      */
     SourceLocation _location;
@@ -72,7 +77,11 @@ public:
     /**
      * default constructor
      */
-    inline explicit constexpr ASTNode(ASTNodeKind k, SourceLocation loc) noexcept : _kind(k), _location(loc) {
+    inline explicit constexpr ASTNode(
+        ASTNodeKind k,
+        ASTNode* parent,
+        SourceLocation loc
+    ) noexcept : _kind(k), _parent(parent), _location(loc) {
         // does nothing
     }
 
@@ -115,6 +124,21 @@ public:
     }
 
     /**
+     * this function provides a pointer to the parent ASTNode
+     * a var init inside for loop, gets a pointer to the for loop
+     */
+    inline ASTNode* parent() const noexcept {
+        return _parent;
+    }
+
+    /**
+     * update the parent node of this node
+     */
+    inline void set_parent(ASTNode* new_parent) noexcept {
+        _parent = new_parent;
+    }
+
+    /**
      * declare something on the scope map
      * that must be retained in nested level scopes
      * for example top level functions can be called within functions
@@ -151,10 +175,11 @@ public:
     }
 
     /**
-     * this function provides a pointer to the parent ASTNode
-     * a var init inside for loop, gets a pointer to the for loop
+     * create a deep copy of the node
      */
-    virtual ASTNode *parent() = 0;
+    virtual ASTNode* copy(ASTAllocator& allocator) {
+        return nullptr;
+    }
 
     /**
      * This get's the root parent of the current node
@@ -233,12 +258,6 @@ public:
      * check if the given type is movable
      */
     bool requires_moving(ASTNodeKind k);
-
-    /**
-     * this function provides a pointer to the parent ASTNode
-     * a var init inside for loop, gets a pointer to the for loop
-     */
-    virtual void set_parent(ASTNode*);
 
     /**
      * return a child ASTNode* at index, called by index operator

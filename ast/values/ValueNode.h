@@ -25,7 +25,6 @@ public:
      * actual value
      */
     Value* value;
-    ASTNode* parent_node;
 
     /**
      * constructor
@@ -34,7 +33,7 @@ public:
         Value* value,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::ValueNode, location), value(value), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::ValueNode, parent_node, location), value(value) {
 
     }
 
@@ -43,9 +42,6 @@ public:
         return value;
     }
 
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

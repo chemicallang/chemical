@@ -228,7 +228,8 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
                 if(!param_type) {
                     return nullptr;
                 }
-                const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam("", param_type, i, nullptr, false, functionType, ZERO_LOC);
+                // TODO using nullptr as parent node
+                const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam("", param_type, i, nullptr, false, functionType, nullptr, ZERO_LOC);
                 functionType->params.emplace_back(param);
                 i++;
             }
@@ -610,6 +611,8 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
                 index,
                 nullptr,
                 false,
+                nullptr,
+                // TODO using nullptr as parent node
                 nullptr,
                 ZERO_LOC
         ));

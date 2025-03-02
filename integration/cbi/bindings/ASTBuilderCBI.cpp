@@ -303,7 +303,8 @@ LambdaFunction* ASTBuildermake_lambda_function(ASTAllocator* allocator, Value* v
 }
 
 CapturedVariable* ASTBuildermake_captured_variable(ASTAllocator* allocator, chem::string_view* name, unsigned int index, bool capture_by_ref, long value, uint64_t location) {
-    return new (allocator->allocate<CapturedVariable>()) CapturedVariable(*name, index, capture_by_ref, location);
+    // TODO passing nullptr as parent in captured variable
+    return new (allocator->allocate<CapturedVariable>()) CapturedVariable(*name, index, capture_by_ref, nullptr, location);
 }
 
 LongValue* ASTBuildermake_long_value(ASTAllocator* allocator, long value, bool is64Bit, uint64_t location) {
@@ -339,7 +340,8 @@ StringValue* ASTBuildermake_string_value(ASTAllocator* allocator, chem::string_v
 }
 
 StructValue* ASTBuildermake_struct_value(ASTAllocator* allocator, BaseType* ref, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<StructValue>()) StructValue(ref, location, parent_node);
+    // TODO do not take parent_node as parameter
+    return new (allocator->allocate<StructValue>()) StructValue(ref, location);
 }
 
 UBigIntValue* ASTBuildermake_ubigint_value(ASTAllocator* allocator, unsigned long long value, uint64_t location) {
@@ -461,7 +463,8 @@ FunctionDeclaration* ASTBuildermake_function(ASTAllocator* allocator, chem::stri
 }
 
 FunctionParam* ASTBuildermake_function_param(ASTAllocator* allocator, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {
-    return new (allocator->allocate<FunctionParam>()) FunctionParam(*name, type, index, value, implicit, decl, location);
+    // TODO casting function type as parent node, this is wrong
+    return new (allocator->allocate<FunctionParam>()) FunctionParam(*name, type, index, value, implicit, decl, (ASTNode*) decl, location);
 }
 
 GenericTypeParameter* ASTBuildermake_generic_param(ASTAllocator* allocator, chem::string_view* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
@@ -670,13 +673,13 @@ std::vector<ASTNode*>* IfStatementget_body(IfStatement* stmt) {
 
 std::vector<ASTNode*>* IfStatementadd_else_body(IfStatement* stmt) {
     if(!stmt->elseBody.has_value()) {
-        stmt->elseBody.emplace(stmt->parent_node, stmt->ASTNode::encoded_location());
+        stmt->elseBody.emplace(stmt->parent(), stmt->ASTNode::encoded_location());
     }
     return &stmt->elseBody.value().nodes;
 }
 
 std::vector<ASTNode*>* IfStatementadd_else_if(IfStatement* stmt, Value* condition) {
-    stmt->elseIfs.emplace_back(condition, Scope(stmt->parent_node, stmt->ASTNode::encoded_location()));
+    stmt->elseIfs.emplace_back(condition, Scope(stmt->parent(), stmt->ASTNode::encoded_location()));
     return &stmt->elseIfs.back().second.nodes;
 }
 

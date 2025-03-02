@@ -11,7 +11,7 @@ class UnionType : public BaseType, public ASTNode, public VariablesContainer {
 public:
 
     chem::string_view name;
-    ASTNode* parent_node;
+
 
     /**
      * constructor
@@ -20,12 +20,8 @@ public:
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::UnionType, location), BaseType(BaseTypeKind::Union, location), name(name), parent_node(parent) {
+    ) : ASTNode(ASTNodeKind::UnionType, parent, location), BaseType(BaseTypeKind::Union, location), name(name) {
 
-    }
-
-    ASTNode* parent() override {
-        return parent_node;
     }
 
     uint64_t byte_size(bool is64Bit) {
@@ -41,7 +37,7 @@ public:
     }
 
     BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<UnionType>()) UnionType(name, parent_node, BaseType::encoded_location());
+        return new (allocator.allocate<UnionType>()) UnionType(name, parent(), BaseType::encoded_location());
     }
 
     bool link(SymbolResolver &linker) override;

@@ -26,7 +26,7 @@ DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
     if(block.has_value()) {
         auto& blk = block.value();
         loop->body.nodes = std::move(blk.nodes);
-        loop->body.parent_node = blk.parent_node;
+        loop->body.set_parent(blk.parent());
     } else {
         error("expected a brace block { statement(s) } when lexing a while block");
         current_loop_node = prev_loop_node;

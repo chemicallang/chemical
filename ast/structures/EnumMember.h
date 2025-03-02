@@ -21,7 +21,6 @@ private:
 public:
 
     chem::string_view name;
-    EnumDeclaration* parent_node;
     /**
      * this init_value may be nullptr, if user didn't specify an explicit value for
      * this enum member
@@ -38,10 +37,18 @@ public:
         Value* init_value,
         EnumDeclaration* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::EnumMember, location), name(name), index(index), init_value(init_value),
-        parent_node(parent_node), attrs(false)
+    ) : ASTNode(ASTNodeKind::EnumMember, (ASTNode*) parent_node, location), name(name), index(index),
+        init_value(init_value), attrs(false)
     {
 
+    }
+
+    inline EnumDeclaration* parent() {
+        return (EnumDeclaration*) ASTNode::parent();
+    }
+
+    inline ASTNode* parent_node() {
+        return (ASTNode*) ASTNode::parent();
     }
 
     inline bool deprecated() {
@@ -50,11 +57,6 @@ public:
 
     inline void set_deprecated(bool value) {
         attrs.deprecated = value;
-    }
-
-
-    ASTNode *parent() final {
-        return (ASTNode*) parent_node;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) final;

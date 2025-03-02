@@ -15,8 +15,6 @@ public:
 
     Value* condition;
     bool stoppedInterpretation = false;
-    ASTNode* parent_node;
-
 
     /**
      * constructor
@@ -25,17 +23,10 @@ public:
             Value* condition,
             ASTNode* parent_node,
             SourceLocation location
-    ) : LoopASTNode(ASTNodeKind::WhileLoopStmt, location), condition(condition), parent_node(parent_node) {
+    ) : LoopASTNode(ASTNodeKind::WhileLoopStmt, parent_node, location), condition(condition) {
 
     }
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

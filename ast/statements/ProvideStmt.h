@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ast/structures/Scope.h"
+#include "ast/base/Value.h"
 #include <unordered_map>
 
 class ProvideStmt : public ASTNode {
@@ -12,20 +13,7 @@ public:
     Value* value;
     chem::string_view identifier;
     Scope body;
-    ASTNode* parent_node;
 
-    /**
-     * constructor
-     */
-    ProvideStmt(
-        Value* value,
-        chem::string_view identifier,
-        Scope body,
-        ASTNode* parent,
-        SourceLocation location
-    ) : ASTNode(ASTNodeKind::ProvideStmt, location), value(value), identifier(identifier), body(std::move(body)), parent_node(parent) {
-
-    }
 
     /**
      * constructor
@@ -35,7 +23,7 @@ public:
             chem::string_view identifier,
             ASTNode* parent,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::ProvideStmt, location), value(value), identifier(identifier), body(this, location), parent_node(parent) {
+    ) : ASTNode(ASTNodeKind::ProvideStmt, parent, location), value(value), identifier(identifier), body(this, location) {
 
     }
 
@@ -46,8 +34,15 @@ public:
     template<typename T>
     void put_in(std::unordered_map<chem::string_view, T*>& value_map, T* new_value, void* data, void(*do_body)(ProvideStmt*, void*));
 
-    ASTNode* parent() final {
-        return parent_node;
+    ProvideStmt* copy(ASTAllocator &allocator) override {
+        const auto stmt = new (allocator.allocate<ProvideStmt>()) ProvideStmt(
+            value->copy(allocator),
+            identifier,
+            parent(),
+            encoded_location()
+        );
+        body.copy_into(stmt->body, allocator);
+        return stmt;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

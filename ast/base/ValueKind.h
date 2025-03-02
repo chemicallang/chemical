@@ -59,7 +59,6 @@ enum class ValueKind : uint8_t {
     UnsafeValue,
     ComptimeValue,
     AlignOfValue,
-    VariantCall,
     VariantCase,
     AddrOfValue,
     PointerValue,

@@ -60,7 +60,6 @@
 //#include "ast/values/IntValue.h"
 //#include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
-#include "ast/values/VariantCall.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
@@ -110,12 +109,6 @@ public:
     void VisitFunctionCall(FunctionCall *call) {
         visit(call->parent_val);
         for(auto val : call->values) {
-            visit(val);
-        }
-    }
-
-    void VisitVariantCall(VariantCall *call) {
-        for(auto& val : call->values) {
             visit(val);
         }
     }

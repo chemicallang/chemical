@@ -4,7 +4,6 @@
 #include "ast/types/FunctionType.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
-#include "ast/values/VariantCall.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/values/IndexOperator.h"
@@ -159,7 +158,7 @@ llvm::Value* arg_value(
     const auto linked = param_type->get_direct_linked_node();
 
     const auto is_param_ref = param_type_kind == BaseTypeKind::Reference;
-    const auto is_direct_value = value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue || value_kind == ValueKind::VariantCall;
+    const auto is_direct_value = value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue;
 
     if(!is_direct_value &&
             ((is_param_ref && !is_val_stored_ptr) || (

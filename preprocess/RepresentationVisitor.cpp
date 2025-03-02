@@ -72,7 +72,6 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/DoubleValue.h"
-#include "ast/values/VariantCall.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/CastedValue.h"
@@ -916,20 +915,6 @@ void RepresentationVisitor::VisitLoopBlock(LoopBlock *block) {
 
 void RepresentationVisitor::VisitValueNode(ValueNode *node) {
     visit(node->value);
-}
-
-void RepresentationVisitor::VisitVariantCall(VariantCall *call) {
-    visit(call->parent_val);
-    write('(');
-    bool is_first = true;
-    for(auto& value : call->values) {
-        if(!is_first) {
-            write(", ");
-        }
-        visit(value);
-        is_first = false;
-    }
-    write(')');
 }
 
 void RepresentationVisitor::VisitIsValue(IsValue *isVal) {

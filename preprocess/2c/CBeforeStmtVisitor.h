@@ -18,9 +18,7 @@ public:
 
     void VisitFunctionCall(FunctionCall *call);
 
-    void VisitAccessChain(AccessChain *chain) ;
-
-    void VisitVariantCall(VariantCall *call) ;
+    void VisitAccessChain(AccessChain *chain);
 
     void VisitVariableIdentifier(VariableIdentifier *identifier) ;
 

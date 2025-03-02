@@ -11,7 +11,6 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/structures/StructDefinition.h"
-#include "ast/values/VariantCall.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
 
@@ -124,10 +123,6 @@ bool VariantDefinition::add_child_index(Codegen& gen, std::vector<llvm::Value *>
     }
     indexes.emplace_back(gen.builder->getInt32(1));
     return llvm_union_child_index(gen, indexes, name);
-}
-
-void VariantDefinition::code_gen_generic(Codegen &gen) {
-    code_gen(gen);
 }
 
 void VariantDefinition::code_gen_external_declare(Codegen &gen) {
@@ -322,54 +317,6 @@ BaseType* VariantDefinition::create_value_type(ASTAllocator& allocator) {
 //}
 
 int16_t VariantDefinition::register_call(SymbolResolver& resolver, FunctionCall* call, BaseType* expected_type) {
-
-    const auto total = generic_params.size();
-    std::vector<BaseType*> generic_args(total);
-
-    // set all to default type (if default type is not present, it would automatically be nullptr)
-    unsigned i = 0;
-    while(i < total) {
-        generic_args[i] = generic_params[i]->def_type;
-        i++;
-    }
-
-    // set given generic args to generic parameters
-    i = 0;
-    for(auto& arg : call->generic_list) {
-        generic_args[i] = arg;
-        i++;
-    }
-
-    // infer args, if user gave less args than expected
-    if(call->generic_list.size() != total) {
-        call->infer_generic_args(resolver, generic_args);
-    }
-
-    // inferring type by expected type
-    if(expected_type && expected_type->kind() == BaseTypeKind::Generic) {
-        const auto type = ((GenericType*) expected_type);
-        if(type->linked_node() == this) {
-            i = 0;
-            for(auto& arg : type->types) {
-                generic_args[i] = arg;
-                i++;
-            }
-        }
-    }
-
-    // register and report to subscribers
-    auto& astAllocator = *resolver.ast_allocator;
-    const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
-    if(itr.second) {
-        for (auto sub: subscribers) {
-            sub->report_parent_usage(astAllocator, resolver, itr.first);
-        }
-    }
-
-    return itr.first;
-}
-
-int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* call, BaseType* expected_type) {
 
     const auto total = generic_params.size();
     std::vector<BaseType*> generic_args(total);

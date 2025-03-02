@@ -50,7 +50,6 @@ enum ValueKind {
     UnsafeValue,
     ComptimeValue,
     AlignOfValue,
-    VariantCall,
     VariantCase,
     AddrOfValue,
     PointerValue,

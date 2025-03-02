@@ -22,7 +22,6 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/UCharValue.h"
 #include "ast/values/DoubleValue.h"
-#include "ast/values/VariantCall.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/FunctionCall.h"
@@ -377,10 +376,6 @@ ValueNode* ASTBuildermake_value_node(ASTAllocator* allocator, Value* value, ASTN
 
 VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::string_view* value, bool is_ns, uint64_t location) {
     return new (allocator->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
-}
-
-VariantCall* ASTBuildermake_variant_call(ASTAllocator* allocator, AccessChain* chain, uint64_t location) {
-    return new (allocator->allocate<VariantCall>()) VariantCall(chain, location);
 }
 
 VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, Value* parent_value, SwitchStatement* stmt, uint64_t location) {

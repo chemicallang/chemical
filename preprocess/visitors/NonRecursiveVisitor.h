@@ -341,10 +341,6 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
-    inline void VisitVariantCall(VariantCall* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
     inline void VisitVariantCase(VariantCase* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -752,9 +748,6 @@ public:
             case ValueKind::AlignOfValue:
                 static_cast<Derived*>(this)->VisitAlignOfValue((AlignOfValue*) value);
                 return;
-            case ValueKind::VariantCall:
-                static_cast<Derived*>(this)->VisitVariantCall((VariantCall*) value);
-                return;
             case ValueKind::VariantCase:
                 static_cast<Derived*>(this)->VisitVariantCase((VariantCase*) value);
                 return;
@@ -867,9 +860,6 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(BreakStatement* node) {
         static_cast<Derived*>(this)->VisitBreakStmt(node);
-    }
-    inline void VisitByPtrTypeNoNullCheck(Comment* node) {
-        static_cast<Derived*>(this)->VisitCommentStmt(node);
     }
     inline void VisitByPtrTypeNoNullCheck(ContinueStatement* node) {
         static_cast<Derived*>(this)->VisitContinueStmt(node);
@@ -1128,9 +1118,6 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(AlignOfValue* value) {
         static_cast<Derived*>(this)->VisitAlignOfValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(VariantCall* value) {
-        static_cast<Derived*>(this)->VisitVariantCall(value);
     }
     inline void VisitByPtrTypeNoNullCheck(VariantCase* value) {
         static_cast<Derived*>(this)->VisitVariantCase(value);

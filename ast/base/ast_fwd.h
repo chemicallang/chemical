@@ -14,8 +14,6 @@ class BreakStatement;
 
 class UnreachableStmt;
 
-class Comment;
-
 class ContinueStatement;
 
 class VariantMember;
@@ -159,8 +157,6 @@ class RetStructParamValue;
 class DereferenceValue;
 
 class FunctionCall;
-
-class VariantCall;
 
 class BlockValue;
 

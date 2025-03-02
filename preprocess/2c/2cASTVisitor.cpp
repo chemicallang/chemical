@@ -98,7 +98,6 @@
 #include "ast/values/LongValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
-#include "ast/values/VariantCall.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/NumberValue.h"
@@ -1520,55 +1519,6 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
     }
 }
 
-void CBeforeStmtVisitor::VisitVariantCall(VariantCall *call) {
-
-    RecursiveValueVisitor::VisitVariantCall(call);
-    const auto member = call->parent_val->linked_node()->as_variant_member();
-    const auto linked = member->parent();
-    const auto index = linked->direct_child_index(member->name);
-
-    int16_t prev_itr;
-    if(!linked->generic_params.empty()) {
-        prev_itr = linked->get_active_iteration();
-        linked->set_active_iteration(call->generic_iteration);
-    }
-
-    visitor.write("struct ");
-    node_parent_name(visitor, linked);
-    struct_name(visitor, linked);
-    visitor.write(' ');
-    const auto local = visitor.get_local_temp_var_name();
-    visitor.write_str(local);
-    visitor.local_allocated[call] = local;
-    visitor.write(" = ");
-    visitor.write("{ ");
-    visitor.write_str(std::to_string(index));
-    visitor.write(", ");
-    unsigned i = 0;
-    auto prev_nested = visitor.nested_value;
-    visitor.nested_value = true;
-    for(auto& value : member->values) {
-        visitor.write('.');
-        visitor.write(member->name);
-        visitor.write('.');
-        visitor.write(value.second->name);
-        visitor.write(" = ");
-        const auto& val = call->values[i];
-        visitor.accept_mutating_value(value.second->type, val, false);
-        visitor.write(", ");
-        i++;
-    }
-    visitor.nested_value = prev_nested;
-    visitor.write('}');
-    visitor.write(';');
-    visitor.new_line_and_indent();
-
-    if(!linked->generic_params.empty()) {
-        linked->set_active_iteration(prev_itr);
-    }
-
-}
-
 void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const chem::string_view& identifier) {
     call->set_curr_itr_on_decl();
     auto eval = evaluated_func_val(visitor, decl, call);
@@ -2285,19 +2235,6 @@ void CValueDeclarationVisitor::VisitFunctionCall(FunctionCall *call) {
 //        }
 //    }
     RecursiveValueVisitor::VisitFunctionCall(call);
-}
-
-void CValueDeclarationVisitor::VisitVariantCall(VariantCall *call) {
-//    auto itr = call->get_member()->values.begin();
-//    for(auto& value_ptr : call->values) {
-//        // replace calls to implicit constructor with actual calls
-//        auto implicit_constructor = itr->second->type->implicit_constructor_for(visitor.allocator, value_ptr);
-//        if (implicit_constructor) {
-//            value_ptr = call_with_arg(implicit_constructor, value_ptr, itr->second->type, visitor.allocator, visitor);
-//        }
-//        itr++;
-//    }
-    RecursiveValueVisitor::VisitVariantCall(call);
 }
 
 void CValueDeclarationVisitor::VisitArrayValue(ArrayValue *arrayVal) {
@@ -4164,15 +4101,6 @@ void ToCAstVisitor::VisitLoopBlock(LoopBlock *loop) {
 void ToCAstVisitor::VisitVariantCase(VariantCase *variant_case) {
     const auto member = variant_case->parent_val->linked_node()->as_variant_member();
     *output << member->parent()->direct_child_index(member->name);
-}
-
-void ToCAstVisitor::VisitVariantCall(VariantCall *call) {
-    auto found = local_allocated.find(call);
-    if(found == local_allocated.end()) {
-        write("[VariantCallNotAllocated]");
-    } else {
-        write(found->second);
-    }
 }
 
 void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {

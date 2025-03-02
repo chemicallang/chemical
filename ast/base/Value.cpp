@@ -539,7 +539,6 @@ bool Value::is_ref_l_value() {
     const auto kind = val_kind();
     switch(kind) {
         case ValueKind::StructValue:
-        case ValueKind::VariantCall:
             return true;
         default: {
             const auto linked = linked_node();

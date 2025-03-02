@@ -2,7 +2,6 @@ enum ASTNodeKind {
 
     AssignmentStmt,
     BreakStmt,
-    CommentStmt,
     ContinueStmt,
     UnreachableStmt,
     DeleteStmt,

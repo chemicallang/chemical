@@ -82,12 +82,10 @@ class ULongValue;
 class UShortValue;
 class ValueNode;
 class VariableIdentifier;
-class VariantCall;
 class VariantCase;
 class VariantCaseVariable;
 class AssignStatement;
 class BreakStatement;
-class Comment;
 class ContinueStatement;
 class DestructStmt;
 class SwitchStatement;
@@ -262,8 +260,6 @@ extern "C" {
     ValueNode* ASTBuildermake_value_node(ASTAllocator* allocator, Value* value, ASTNode* parent_node, uint64_t location);
 
     VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::string_view* value, bool is_ns, uint64_t location);
-
-    VariantCall* ASTBuildermake_variant_call(ASTAllocator* allocator, AccessChain* chain, uint64_t location);
 
     VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, Value* parent_value, SwitchStatement* stmt, uint64_t location);
 

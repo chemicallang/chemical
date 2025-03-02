@@ -8,7 +8,6 @@
 #include "ast/base/BaseType.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
-#include "ast/values/VariantCall.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/base/ASTAllocator.h"
 

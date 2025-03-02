@@ -317,8 +317,6 @@ public:
         code_gen(gen, false);
     }
 
-    void code_gen_generic(Codegen &gen) final;
-
     void code_gen_external_declare(Codegen &gen) final;
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst, SourceLocation location);

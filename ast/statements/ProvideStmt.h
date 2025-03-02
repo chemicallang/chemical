@@ -41,7 +41,7 @@ public:
             parent(),
             encoded_location()
         );
-        body.copy_into(stmt->body, allocator);
+        body.copy_into(stmt->body, allocator, stmt);
         return stmt;
     }
 

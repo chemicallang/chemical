@@ -40,7 +40,7 @@ public:
         stmt->scopes.reserve(scopes.size());
         for(auto& scope : scopes) {
             stmt->scopes.emplace_back(scope.parent(), scope.encoded_location());
-            scope.copy_into(stmt->scopes.back(), allocator);
+            scope.copy_into(stmt->scopes.back(), allocator, stmt);
         }
         return stmt;
     }

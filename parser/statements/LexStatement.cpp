@@ -48,10 +48,9 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator
 }
 
 ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
-    // TODO comments should be attached to upcoming ast node
     while(true) {
         const auto type = token->type;
-        if(type == TokenType::SingleLineComment || type == TokenType::MultiLineComment || type == TokenType::NewLine) {
+        if(type == TokenType::NewLine) {
             token++;
         } else {
             break;
@@ -101,10 +100,9 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
 }
 
 ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool is_value, bool parse_value_node) {
-    // TODO comments should be attached to upcoming ast node
     while(true) {
         const auto type = token->type;
-        if(type == TokenType::SingleLineComment || type == TokenType::MultiLineComment || type == TokenType::NewLine) {
+        if(type == TokenType::NewLine) {
             token++;
         } else {
             break;

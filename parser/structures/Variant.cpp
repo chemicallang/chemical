@@ -65,16 +65,6 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
 }
 
 bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* decl, AccessSpecifier specifier) {
-    auto comment = parseSingleLineComment(allocator);
-    if(comment) {
-        // TODO store comments somewhere
-        return true;
-    }
-    auto multilineComment = parseMultiLineComment(allocator);
-    if(multilineComment) {
-        // TODO store multiline comments somewhere
-        return true;
-    }
     auto annotation = parseAnnotation(allocator);
     if(annotation) {
         return true;

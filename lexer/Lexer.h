@@ -95,10 +95,17 @@ public:
 
 #ifdef LSP_BUILD
     /**
-     * whitespace tokens will be lexed, only available in LSP
-     * where we check this boolean everytime whitespace is there
+     * keep whitespace tokens, should be manually enabled by LSP
+     * if it's not going to parse this output, because parser does not
+     * expect it, this is useful for providing format and other ide features
      */
     bool lex_whitespace = false;
+    /**
+     * keep comment tokens, should be manually enabled by LSP
+     * if it's not going to parse this output, because parser does not
+     * expect it, this is useful for providing documentation and other ide features
+     */
+    bool keep_comments = false;
 #endif
 
     /**

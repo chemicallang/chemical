@@ -445,16 +445,6 @@ public:
     void parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool is_value = false, bool parse_value_node = false);
 
     /**
-     * parse a single line comment node
-     */
-    Comment* parseSingleLineComment(ASTAllocator& allocator);
-
-    /**
-     * parses a multi line comment node
-     */
-    Comment* parseMultiLineComment(ASTAllocator& allocator);
-
-    /**
      * parses a brace block, { statement(s) }
      */
     std::optional<Scope> parseBraceBlock(const std::string_view &forThing, ASTAllocator& allocator, void(*nested_lexer)(Parser*, ASTAllocator& allocator, std::vector<ASTNode*>& nodes));

@@ -123,7 +123,6 @@ set(COMMON_SOURCES
         utils/JsonUtils.h
         utils/FileUtils.h
         utils/FileUtils.cpp
-        parser/statements/Comment.cpp
         parser/utils/Helpers.cpp
         parser/statements/AccessChain.cpp
         parser/structures/ForBlock.cpp

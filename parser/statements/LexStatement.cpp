@@ -11,6 +11,7 @@
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/values/CastedValue.h"
 #include "ast/statements/ThrowStatement.h"
+#include "ast/statements/AliasStmt.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
 
@@ -72,6 +73,8 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
             return (ASTNode*) parseProvideStatement(allocator);
         case TokenType::ComptimeKw:
             return (ASTNode*) parseComptimeBlock(allocator);
+        case TokenType::AliasKw:
+            return (ASTNode*) parseAliasStatement(allocator);
         case TokenType::EnumKw:
             return (ASTNode*) parseEnumStructureTokens(allocator, AccessSpecifier::Internal);
         case TokenType::StructKw:
@@ -124,6 +127,8 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             return (ASTNode*) parseContinueStatement(allocator);
         case TokenType::UnreachableKw:
             return (ASTNode*) parseUnreachableStatement(allocator);
+        case TokenType::AliasKw:
+            return (ASTNode*) parseAliasStatement(allocator);
         case TokenType::HashMacro:
             return parseMacroNode(allocator);
         case TokenType::ReturnKw:
@@ -199,6 +204,34 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
     } else {
         return nullptr;
     }
+}
+
+AliasStmt* Parser::parseAliasStatement(ASTAllocator& allocator) {
+    if(consumeToken(TokenType::AliasKw)) {
+        const auto id = consumeIdentifierOrKeyword();
+        if(!id) {
+            error() << "expected an identifier after the alias keyword";
+            return nullptr;
+        }
+
+        const auto alias = new (allocator.allocate<AliasStmt>()) AliasStmt(allocate_view(allocator, id->value), nullptr, parent_node, loc_single(id));
+
+        if(!consumeToken(TokenType::EqualSym)) {
+            error() << "expected an equal symbol after the alias keyword";
+            return alias;
+        }
+
+        const auto value = parseAccessChain(allocator);
+        if(!value) {
+            error() << "expected a value for alias statement";
+            return alias;
+        }
+
+        alias->value = value;
+
+        return alias;
+    }
+    return nullptr;
 }
 
 Value* Parser::parseProvideValue(ASTAllocator& allocator) {

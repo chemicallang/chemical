@@ -129,6 +129,7 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 { "impl", TokenType::ImplKw },
                 { "namespace", TokenType::NamespaceKw },
                 { "enum", TokenType::EnumKw },
+                { "alias", TokenType::AliasKw },
                 { "var", TokenType::VarKw },
                 { "using", TokenType::UsingKw },
                 { "comptime", TokenType::ComptimeKw },

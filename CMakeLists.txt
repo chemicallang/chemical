@@ -509,6 +509,8 @@ set(COMMON_SOURCES
         compiler/generics/GenericInstantiator.cpp
         ast/structures/GenericFuncDecl.cpp
         compiler/generics/GenInstantiatorAPI.h
+        ast/statements/AliasStmt.h
+        ast/statements/AliasStmt.cpp
 )
 
 # Chemical LSP Executable Target

@@ -70,6 +70,7 @@ enum class TokenType {
     ImplKw,
     NamespaceKw,
     EnumKw,
+    AliasKw,
     VarKw,
     UsingKw,
     ComptimeKw,

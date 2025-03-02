@@ -11,7 +11,6 @@ public:
     bool capture_by_ref;
     chem::string_view name;
     unsigned int index;
-    LambdaFunction *lambda;
     ASTNode *linked;
     PointerType ptrType;
 
@@ -41,6 +40,18 @@ public:
 
     int child_index(const chem::string_view &name) final {
         return linked->child_index(name);
+    }
+
+    CapturedVariable* copy(ASTAllocator &allocator) override {
+        const auto var = new (allocator.allocate<CapturedVariable>()) CapturedVariable(
+            name,
+            index,
+            capture_by_ref,
+            parent(),
+            encoded_location()
+        );
+        var->linked = linked;
+        return var;
     }
 
 #ifdef COMPILER_BUILD

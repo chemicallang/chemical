@@ -18,7 +18,7 @@ public:
     Scope ifBody;
     std::vector<std::pair<Value*, Scope>> elseIfs;
     std::optional<Scope> elseBody;
-    bool is_value;
+    bool is_value = false;
     bool is_computable = false;
     bool resolved_condition = true;
     // after resolving computed value, we store the scope, so we can visit it
@@ -35,6 +35,28 @@ public:
     ) : ASTNode(ASTNodeKind::IfStmt, parent_node, location), Value(ValueKind::IfValue, location), condition(condition), ifBody(this, location),
         elseBody(std::nullopt),
         is_value(is_value) {}
+
+    IfStatement* copy(ASTAllocator &allocator) override {
+        const auto stmt = new (allocator.allocate<IfStatement>()) IfStatement(
+            condition->copy(allocator),
+            parent(),
+            is_value,
+            ASTNode::encoded_location()
+        );
+        stmt->is_value = is_value;
+        stmt->is_computable = is_computable;
+        stmt->resolved_condition = resolved_condition;
+        ifBody.copy_into(stmt->ifBody, allocator, parent());
+        stmt->elseIfs.reserve(elseIfs.size());
+        for(auto& elif : elseIfs) {
+            stmt->elseIfs.emplace_back(elif.first->copy(allocator), Scope(elif.second.parent(), elif.second.encoded_location()));
+        }
+        if(elseBody.has_value()) {
+            stmt->elseBody.emplace(elseBody->parent(), elseBody->encoded_location());
+            elseBody->copy_into(stmt->elseBody.value(), allocator, stmt);
+        }
+        return stmt;
+    }
 
     bool compile_time_computable() final;
 

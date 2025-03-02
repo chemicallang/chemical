@@ -444,6 +444,27 @@ public:
     }
 
     /**
+     * this would copy the entire function and everything inside it, it's a deep copy
+     */
+    FunctionDeclaration* copy(ASTAllocator &allocator) override {
+        const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(
+            identifier,
+            returnType->copy(allocator),
+            isVariadic(),
+            parent(),
+            ASTNode::encoded_location(),
+            specifier(),
+            FunctionType::data.signature_resolved
+        );
+        if(body.has_value()) {
+            decl->body.emplace(decl, body->encoded_location());
+            body->copy_into(decl->body.value(), allocator, decl);
+        }
+        decl->attrs = attrs;
+        return decl;
+    }
+
+    /**
      * how many actual functions are generated from this generic function
      * non-generic functions return 1
      */
@@ -479,11 +500,6 @@ public:
     LocatedIdentifier* get_func_name_id() final {
         return &identifier;
     }
-
-    /**
-     * this would copy the entire function and everything inside it, it's a deep copy
-     */
-    FunctionDeclaration* copy(ASTAllocator& allocator);
 
     void make_destructor(ASTAllocator&, ExtendableMembersContainerNode* def);
 

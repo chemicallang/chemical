@@ -19,6 +19,11 @@ public:
 
     }
 
+    ExtensionFuncReceiver* copy(ASTAllocator &allocator) override {
+        // extension func receiver is composed inside the extension function and is the responsibility
+        // of extension function
+        return nullptr;
+    }
 
     ASTNode *child(const chem::string_view &name) final;
 

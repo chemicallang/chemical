@@ -10,31 +10,6 @@ public:
 
     ExtensionFuncReceiver receiver;
 
-//    ExtensionFunction(
-//            LocatedIdentifier identifier,
-//            ExtensionFuncReceiver receiver,
-//            std::vector<FunctionParam*> params,
-//            BaseType* returnType,
-//            bool isVariadic,
-//            ASTNode* parent_node,
-//            SourceLocation location,
-//            std::optional<Scope> body = std::nullopt,
-//            AccessSpecifier specifier = AccessSpecifier::Internal
-//    ) : FunctionDeclaration(
-//            identifier,
-//            std::move(params),
-//            returnType,
-//            isVariadic,
-//            parent_node,
-//            location,
-//            std::move(body),
-//            specifier,
-//            false,
-//            ASTNodeKind::ExtensionFunctionDecl
-//    ), receiver(std::move(receiver)) {
-//
-//    }
-
     ExtensionFunction(
             LocatedIdentifier identifier,
             ExtensionFuncReceiver receiver,
@@ -64,6 +39,25 @@ public:
 
     ExtensionFunction* as_extension_func() final {
         return this;
+    }
+
+    ExtensionFunction* copy(ASTAllocator &allocator) override {
+        const auto func = new (allocator.allocate<ExtensionFunction>()) ExtensionFunction(
+            identifier,
+            { receiver.name, receiver.type->copy(allocator), nullptr, receiver.encoded_location() },
+            returnType->copy(allocator),
+            isVariadic(),
+            parent(),
+            ASTNode::encoded_location(),
+            specifier()
+        );
+        func->receiver.set_parent(func);
+        func->attrs = attrs;
+        if(body.has_value()) {
+            func->body.emplace(func, body->encoded_location());
+            body->copy_into(func->body.value(), allocator, func);
+        }
+        return func;
     }
 
     /**

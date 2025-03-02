@@ -273,8 +273,6 @@ extern "C" {
 
     BreakStatement* ASTBuildermake_break_stmt(ASTAllocator* allocator, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location);
 
-    Comment* ASTBuildermake_comment_stmt(ASTAllocator* allocator, chem::string_view* value, bool multiline, ASTNode* parent_node, uint64_t location);
-
     ContinueStatement* ASTBuildermake_continue_stmt(ASTAllocator* allocator, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location);
 
     DestructStmt* ASTBuildermake_destruct_stmt(ASTAllocator* allocator, Value* array_value, Value* ptr_value, bool is_array, ASTNode* parent_node, uint64_t location);

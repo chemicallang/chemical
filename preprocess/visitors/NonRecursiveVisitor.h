@@ -36,9 +36,6 @@ public:
     inline void VisitBreakStmt(BreakStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    inline void VisitCommentStmt(Comment* node) {
-        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
-    }
     inline void VisitContinueStmt(ContinueStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -465,9 +462,6 @@ public:
                 return;
             case ASTNodeKind::BreakStmt:
                 static_cast<Derived*>(this)->VisitBreakStmt((BreakStatement*) node);
-                return;
-            case ASTNodeKind::CommentStmt:
-                static_cast<Derived*>(this)->VisitCommentStmt((Comment*) node);
                 return;
             case ASTNodeKind::ContinueStmt:
                 static_cast<Derived*>(this)->VisitContinueStmt((ContinueStatement*) node);

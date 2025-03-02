@@ -65,7 +65,6 @@
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/SwitchStatement.h"
-#include "ast/statements/Comment.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/structures/Namespace.h"
 #include "ast/statements/Break.h"
@@ -398,10 +397,6 @@ AssignStatement* ASTBuildermake_assignment_stmt(ASTAllocator* allocator, Value* 
 
 BreakStatement* ASTBuildermake_break_stmt(ASTAllocator* allocator, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location) {
     return new (allocator->allocate<BreakStatement>()) BreakStatement(loop_node, parent_node, location);
-}
-
-Comment* ASTBuildermake_comment_stmt(ASTAllocator* allocator, chem::string_view* value, bool multiline, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<Comment>()) Comment(*value, multiline, parent_node, location);
 }
 
 ContinueStatement* ASTBuildermake_continue_stmt(ASTAllocator* allocator, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location) {

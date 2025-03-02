@@ -134,8 +134,6 @@ public:
 
     void VisitBreakStmt(BreakStatement* node);
 
-    void VisitCommentStmt(Comment* node);
-
     void VisitContinueStmt(ContinueStatement* node);
 
     // TODO implement this

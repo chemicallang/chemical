@@ -18,8 +18,6 @@ public:
     std::unordered_map<chem::string_view, InitBlockInitializerValue> initializers;
     // the struct container for which init block is for
     ExtendableMembersContainerNode* container;
-    // the function in which init block appears
-    FunctionDeclaration* func_decl;
 
     /**
      * constructor
@@ -29,6 +27,18 @@ public:
         SourceLocation location
     ) : ASTNode(ASTNodeKind::InitBlock, parent_node, location), scope(this, location) {
 
+    }
+
+    InitBlock* copy(ASTAllocator &allocator) override {
+        const auto blk = new (allocator.allocate<InitBlock>()) InitBlock(
+            parent(),
+            encoded_location()
+        );
+        scope.copy_into(blk->scope, allocator, blk);
+        for(auto& init : initializers) {
+            blk->initializers[init.first] = { init.second.is_inherited_type, init.second.value->copy(allocator) };
+        }
+        return blk;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

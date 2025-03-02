@@ -23,7 +23,7 @@ public:
      * @brief Construct a new ForLoop object.
      */
     constexpr ForLoop(
-            VarInitStatement* initializer,
+            ASTNode* initializer,
             Value* conditionExpr,
             ASTNode* incrementerExpr,
             ASTNode* parent_node,
@@ -31,6 +31,22 @@ public:
     ) : LoopASTNode(ASTNodeKind::ForLoopStmt, parent_node, location), initializer(initializer), conditionExpr(conditionExpr),
         incrementerExpr(incrementerExpr) {
 
+    }
+
+    ForLoop* copy(ASTAllocator &allocator) override {
+        const auto copied_init = initializer->copy(allocator);
+        const auto copied_incrementerExpr = incrementerExpr->copy(allocator);
+        const auto loop = new (allocator.allocate<ForLoop>()) ForLoop(
+            copied_init,
+            conditionExpr->copy(allocator),
+            copied_incrementerExpr,
+            parent(),
+            encoded_location()
+        );
+        copied_init->set_parent(loop);
+        copied_incrementerExpr->set_parent(loop);
+        body.copy_into(loop->body, allocator, loop);
+        return loop;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

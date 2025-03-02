@@ -1131,6 +1131,7 @@ llvm::Value *CapturedVariable::llvm_load(Codegen& gen, SourceLocation location) 
 }
 
 llvm::Value *CapturedVariable::llvm_pointer(Codegen &gen) {
+    const auto lambda = gen.current_func_type->as_lambda();
     auto captured = gen.current_function->getArg(lambda->data_struct_index());
     return gen.builder->CreateStructGEP(lambda->capture_struct_type(gen), captured, index);
 }
@@ -1350,15 +1351,6 @@ void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
 
 int16_t FunctionDeclaration::total_generic_iterations() {
     return ::total_generic_iterations(generic_params);
-}
-
-FunctionDeclaration* FunctionDeclaration::copy(ASTAllocator& allocator) {
-    const auto decl = allocator.allocate<FunctionDeclaration>();
-    new (decl) FunctionDeclaration(
-        identifier, returnType, isVariadic(), ASTNode::parent(), ASTNode::encoded_location(), specifier(), FunctionType::data.signature_resolved
-    );
-    // TODO copy everything inside
-    return decl;
 }
 
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {

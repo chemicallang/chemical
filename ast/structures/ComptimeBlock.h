@@ -22,6 +22,15 @@ public:
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
+    ComptimeBlock* copy(ASTAllocator &allocator) override {
+        const auto blk = new (allocator.allocate<ComptimeBlock>()) ComptimeBlock(
+            parent(),
+            encoded_location()
+        );
+        body.copy_into(blk->body, allocator, blk);
+        return blk;
+    }
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) final;

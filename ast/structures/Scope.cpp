@@ -205,7 +205,6 @@ void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
         linker.error("init block must appear in a function that's marked constructor", (ASTNode*) this);
         return;
     }
-    func_decl = func;
     auto parent = func->parent();
     if(!parent) {
         linker.error("init block's function must be inside a struct", (ASTNode*) this);

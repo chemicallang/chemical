@@ -117,7 +117,20 @@ public:
         return default_starting_index;
     }
 
-
+    EnumDeclaration* copy(ASTAllocator &allocator) override {
+        const auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(
+            located_id,
+            underlying_type->copy(allocator),
+            parent(),
+            encoded_location(),
+            specifier()
+        );
+        for(auto& member : members) {
+            decl->members[member.first] = member.second->copy(allocator);
+        }
+        decl->default_starting_index = default_starting_index;
+        return decl;
+    }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

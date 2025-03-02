@@ -43,6 +43,18 @@ public:
 
     }
 
+    EnumMember* copy(ASTAllocator &allocator) override {
+        const auto member = new (allocator.allocate<EnumMember>()) EnumMember(
+            name,
+            index,
+            init_value ? init_value->copy(allocator) : nullptr,
+            parent(),
+            encoded_location()
+        );
+        member->attrs = attrs;
+        return member;
+    }
+
     inline EnumDeclaration* parent() {
         return (EnumDeclaration*) ASTNode::parent();
     }

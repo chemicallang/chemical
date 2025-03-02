@@ -31,6 +31,15 @@ public:
 
     }
 
+    DoWhileLoop* copy(ASTAllocator &allocator) override {
+        const auto loop = new (allocator.allocate<DoWhileLoop>()) DoWhileLoop(
+            condition->copy(allocator),
+            parent(),
+            encoded_location()
+        );
+        body.copy_into(loop->body, allocator, loop);
+        return loop;
+    }
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) final;

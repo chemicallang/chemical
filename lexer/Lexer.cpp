@@ -256,12 +256,36 @@ void read_zero_starting_number(SerialStrAllocator& str, SourceProvider& provider
     return read_number(str, provider);
 }
 
+void skip_current_line(SourceProvider& provider) {
+    while(true) {
+        auto p = provider.peek();
+        if(p != -1 && p != '\n' && p != '\r') {
+            provider.readCharacter();
+        } else {
+            return;
+        }
+    }
+}
+
 void read_current_line(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p != -1 && p != '\n' && p != '\r') {
             str.append(provider.readCharacter());
         } else {
+            return;
+        }
+    }
+}
+
+void skip_multi_line_comment_text(SourceProvider& provider) {
+    while(true) {
+        const auto read = provider.readCharacter();
+        if(read == -1) {
+            return;
+        }
+        if(read == '*' && provider.peek() == '/') {
+            provider.readCharacter();
             return;
         }
     }
@@ -497,15 +521,27 @@ Token Lexer::getNextToken() {
         case '/': {
             auto p = provider.peek();
             if (p == '/') {
-                str.append(current);
-                str.append(provider.readCharacter());
-                read_current_line(str, provider);
-                return Token(TokenType::SingleLineComment, str.finalize_view(), pos);
+#ifdef LSP_BUILD
+                if(keep_comments) {
+                    str.append(current);
+                    str.append(provider.readCharacter());
+                    read_current_line(str, provider);
+                    return Token(TokenType::SingleLineComment, str.finalize_view(), pos);
+                }
+#endif
+                skip_current_line(provider);
+                return getNextToken();
             } else if(p == '*') {
-                str.append(current);
-                str.append(provider.readCharacter());
-                read_multi_line_comment_text(str, provider);
-                return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
+#ifdef LSP_BUILD
+                if(keep_comments) {
+                    str.append(current);
+                    str.append(provider.readCharacter());
+                    read_multi_line_comment_text(str, provider);
+                    return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
+                }
+#endif
+                skip_multi_line_comment_text(provider);
+                return getNextToken();
             } else {
                 return Token(TokenType::DivideSym, view_str(DivOpCStr), pos);
             }

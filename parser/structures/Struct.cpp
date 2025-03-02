@@ -110,22 +110,6 @@ bool Parser::parseVariableMemberInto(VariablesContainer* decl, ASTAllocator& all
             }
             return false;
         }
-        case TokenType::SingleLineComment: {
-            auto comment = parseSingleLineComment(allocator);
-            if (comment) {
-                // TODO store comments somewhere
-                return true;
-            }
-            return false;
-        }
-        case TokenType::MultiLineComment: {
-            auto multilineComment = parseMultiLineComment(allocator);
-            if (multilineComment) {
-                // TODO store multiline comments somewhere
-                return true;
-            }
-            return false;
-        }
         case TokenType::Annotation:
             return parseAnnotation(allocator);
         case TokenType::StructKw:{

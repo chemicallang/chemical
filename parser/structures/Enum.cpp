@@ -72,15 +72,6 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& allocator, Acces
                     break;
                 }
             } else {
-                auto singly = parseSingleLineComment(allocator);
-                if(singly) {
-                    continue;
-                } else {
-                    auto multily = parseMultiLineComment(allocator);
-                    if(multily) {
-                        continue;
-                    }
-                }
                 break;
             }
         };

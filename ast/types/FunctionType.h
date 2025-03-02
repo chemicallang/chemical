@@ -59,8 +59,6 @@ public:
     std::vector<FunctionParam*> params;
     BaseType* returnType = nullptr;
     // if the function is variadic, the last type in params is the type given to the variadic parameter
-    // TODO try to eliminate access of this member
-    ASTNode* parent_node;
     /**
      * function type data
      */
@@ -73,11 +71,10 @@ public:
             BaseType* returnType,
             bool isVariadic,
             bool isCapturing,
-            ASTNode* parent_node,
             SourceLocation location,
             bool signature_resolved = false
     ) : data(isVariadic, isCapturing, signature_resolved), returnType(returnType),
-        parent_node(parent_node), BaseType(BaseTypeKind::Function, location) {
+        BaseType(BaseTypeKind::Function, location) {
 
     }
 
@@ -97,10 +94,6 @@ public:
 
     inline void setIsVariadic(bool variadic) {
         data.isVariadic = variadic;
-    }
-
-    virtual ASTNode* parent() {
-        return parent_node;
     }
 
     /**
@@ -188,11 +181,6 @@ public:
     llvm::FunctionType *llvm_func_type(Codegen &gen);
 
 #endif
-
-    /**
-     * assigns func_type field of each function parameter to this
-     */
-    void assign_params();
 
     /**
      * get the self parameter of the function if it exists

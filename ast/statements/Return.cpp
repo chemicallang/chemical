@@ -7,20 +7,8 @@
 #include "ast/base/LoopASTNode.h"
 #include "ast/base/GlobalInterpretScope.h"
 
-bool isLoopNode(ASTNodeKind k) {
-    switch(k) {
-        case ASTNodeKind::WhileLoopStmt:
-        case ASTNodeKind::DoWhileLoopStmt:
-        case ASTNodeKind::ForLoopStmt:
-        case ASTNodeKind::LoopBlock:
-            return true;
-        default:
-            return false;
-    }
-}
-
 LoopASTNode* asLoopNode(ASTNode* node) {
-    return isLoopNode(node->kind()) ? node->as_loop_node_unsafe() : nullptr;
+    return ASTNode::isLoopASTNode(node->kind()) ? node->as_loop_node_unsafe() : nullptr;
 }
 
 void stop_interpretation_above(ASTNode* node) {
@@ -51,7 +39,14 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
                 return;
             }
             const auto implicit = func_type->returnType->implicit_constructor_for(linker.allocator, value);
-            if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
+            if (implicit &&
+                // this check means current function is not the implicit constructor we're trying to link for value
+                // basically an implicit constructor can has a value returned of a type for which it's an implicit constructor of (in comptime)
+                implicit != func_type &&
+                // this check means current function's parent (if it's inside a struct) is not the same parent as the implicit constructor parent
+                // meaning implicit constructor and the function that's going to use the implicit constructor can't be inside same container
+                (func && func->parent() != implicit->parent())
+            ) {
                 link_with_implicit_constructor(implicit, linker, value);
                 return;
             }

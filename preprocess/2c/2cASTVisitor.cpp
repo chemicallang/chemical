@@ -575,7 +575,7 @@ void call_implicit_constructor_no_alloc(ToCAstVisitor& visitor, FunctionDeclarat
 
 void call_implicit_constructor_with_name(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, bool take_addr, const chem::string_view& var_name) {
     visitor.write("({");
-    allocate_struct_by_name_no_init(visitor, imp_constructor->parent_node, var_name);
+    allocate_struct_by_name_no_init(visitor, imp_constructor->parent(), var_name);
     visitor.write("; ");
     call_implicit_constructor_no_alloc(visitor, imp_constructor, value, var_name, false);
     visitor.write("; ");
@@ -2360,7 +2360,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
             i = 1;
         }
     };
-    const auto func_parent_kind = decl->parent_node->kind();
+    const auto func_parent_kind = decl->parent()->kind();
     auto is_parent_interface = func_parent_kind == ASTNodeKind::InterfaceDecl;
     const auto decl_return_func_type = decl->returnType->as_function_type();
     if(decl_return_func_type != nullptr && !decl_return_func_type->isCapturing()) {
@@ -3617,7 +3617,7 @@ void process_struct_members_using(
 }
 
 void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
-    auto parent = decl->parent_node;
+    auto parent = decl->parent();
     if(!parent) return;
     if(!decl->is_constructor_fn()) {
         return;
@@ -5199,13 +5199,13 @@ void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
             if (func && func->is_constructor_fn()) {
                 write("this->");
             }
-            else if(func->parent_node) {
+            else if(func->parent()) {
                 auto self_param = func->get_self_param();
-                if(self_param && ASTNode::isMembersContainer(func->parent_node->kind())) {
+                if(self_param && ASTNode::isMembersContainer(func->parent()->kind())) {
                     write(self_param->name);
                     write("->");
                 }
-                auto ext_node = func->parent_node->as_extendable_members_container_node();
+                auto ext_node = func->parent()->as_extendable_members_container_node();
                 if(ext_node) {
                     write_path_to_member(*this, ext_node, linked->as_base_def_member());
                 }

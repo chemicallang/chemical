@@ -10,8 +10,6 @@
 #include "ast/base/Value.h"
 
 class BreakStatement : public ASTNode {
-private:
-    LoopASTNode *node;
 public:
 
     /**
@@ -25,10 +23,9 @@ public:
      * constructor
      */
     constexpr BreakStatement(
-        LoopASTNode *node,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::BreakStmt, parent_node, location), node(node), value(nullptr) {
+    ) : ASTNode(ASTNodeKind::BreakStmt, parent_node, location), value(nullptr) {
 
     }
 
@@ -37,17 +34,15 @@ public:
      */
     constexpr BreakStatement(
             Value* value,
-            LoopASTNode *node,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::BreakStmt, parent_node, location), node(node), value(value) {
+    ) : ASTNode(ASTNodeKind::BreakStmt, parent_node, location), value(value) {
 
     }
 
     ASTNode* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<BreakStatement>()) BreakStatement(
             value ? value->copy(allocator) : nullptr,
-            node,
             parent(),
             encoded_location()
         );

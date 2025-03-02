@@ -32,10 +32,6 @@ extern "C" {
 
     ASTNode** ParsergetParentNodePtr(Parser* parser);
 
-    FunctionType** ParsergetCurrentFuncTypePtr(Parser* parser);
-
-    LoopASTNode** ParsergetCurrentLoopNodePtr(Parser* parser);
-
     void ParsergetCurrentFilePath(chem::string_view* view, Parser* parser);
 
     Value* ParserparseExpression(Parser* parser, ASTAllocator* allocator,  bool parseStruct, bool parseLambda);

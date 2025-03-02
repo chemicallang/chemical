@@ -105,8 +105,6 @@ void parser_symbol_map(std::unordered_map<std::string_view, void*>& sym_map) {
             {"ParsergetModuleBuilder",    (void*) ParsergetModuleBuilder },
             {"ParsergetIs64Bit",    (void*) ParsergetIs64Bit },
             {"ParsergetParentNodePtr",    (void*) ParsergetParentNodePtr },
-            {"ParsergetCurrentFuncTypePtr",    (void*) ParsergetCurrentFuncTypePtr },
-            {"ParsergetCurrentLoopNodePtr",    (void*) ParsergetCurrentLoopNodePtr },
             {"ParsergetCurrentFilePath",    (void*) ParsergetCurrentFilePath },
             {"ParserparseExpression",    (void*) ParserparseExpression },
             {"Parsererror_at",    (void*) Parsererror_at },

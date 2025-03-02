@@ -37,7 +37,7 @@ public:
             bool isVariadic,
             ASTNode* parent_node,
             SourceLocation location
-    ) : Value(ValueKind::LambdaFunc, location), FunctionTypeBody(nullptr, isVariadic, false, parent_node, location), scope(parent_node, location) {
+    ) : Value(ValueKind::LambdaFunc, location), FunctionTypeBody(nullptr, isVariadic, false, location), scope(parent_node, location) {
 
     }
 

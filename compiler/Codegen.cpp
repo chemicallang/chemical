@@ -182,16 +182,18 @@ llvm::Function *Codegen::create_function(const std::string_view &name, llvm::Fun
 
 llvm::Function *Codegen::create_nested_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, Scope &scope) {
 
-    auto prev_destruct_nodes = std::move(destruct_nodes);
-    auto prev_destroy_scope = destroy_current_scope;
-    auto prev_block_ended = has_current_block_ended;
-    auto prev_block = builder->GetInsertBlock();
-    auto prev_current_func = current_function;
+    const auto prev_destruct_nodes = std::move(destruct_nodes);
+    const auto prev_destroy_scope = destroy_current_scope;
+    const auto prev_block_ended = has_current_block_ended;
+    const auto prev_block = builder->GetInsertBlock();
+    const auto prev_current_func = current_function;
+    const auto prev_func_type = current_func_type;
 
     destroy_current_scope = true;
     SetInsertPoint(nullptr);
     auto nested_function = create_func(*this, name, type, llvm::Function::PrivateLinkage);
     current_function = nested_function;
+    current_func_type = func_type;
     const auto destruct_begin = destruct_nodes.size();
     // this begins the function scope by creating a di subprogram
     di.start_nested_function_scope(func_type, nested_function);
@@ -205,6 +207,7 @@ llvm::Function *Codegen::create_nested_function(const std::string_view &name, ll
     di.end_function_scope();
     has_current_block_ended = prev_block_ended;
     SetInsertPoint(prev_block);
+    current_func_type = prev_func_type;
     current_function = prev_current_func;
     destruct_nodes = std::move(prev_destruct_nodes);
     destroy_current_scope = prev_destroy_scope;

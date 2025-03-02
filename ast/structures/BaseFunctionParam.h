@@ -20,7 +20,6 @@ public:
 
     chem::string_view name;
     BaseType* type;
-    FunctionType* func_type;
     FunctionParamAttributes attrs;
 
 #ifdef COMPILER_BUILD
@@ -34,11 +33,10 @@ public:
     constexpr BaseFunctionParam(
             chem::string_view name,
             BaseType* type,
-            FunctionType* func_type,
             ASTNodeKind k,
             ASTNode* parent_node,
             SourceLocation loc
-    ) : ASTNode(k, parent_node, loc), name(name), type(type), func_type(func_type), attrs(false) {
+    ) : ASTNode(k, parent_node, loc), name(name), type(type), attrs(false) {
 
     };
 
@@ -50,7 +48,7 @@ public:
         attrs.has_address_taken_of = value;
     }
 
-    virtual unsigned calculate_c_or_llvm_index() = 0;
+    virtual unsigned calculate_c_or_llvm_index(FunctionType* func_type) = 0;
 
     BaseType* create_value_type(ASTAllocator &allocator) final;
 

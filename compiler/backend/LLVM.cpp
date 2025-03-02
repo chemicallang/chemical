@@ -919,7 +919,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
         const auto func = func_type->as_function();
         if (!(func && func->is_constructor_fn())) {
             const auto implicit = func_type->returnType->implicit_constructor_for(gen.allocator, value);
-            if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
+            if (implicit && implicit != func_type && (func && func->parent() != implicit->parent())) {
                 value = call_with_arg(implicit, value, func_type->returnType, gen.allocator, gen);
             }
         }

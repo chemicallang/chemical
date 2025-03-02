@@ -23,14 +23,6 @@ ASTNode** ParsergetParentNodePtr(Parser* parser) {
     return &parser->parent_node;
 }
 
-FunctionType** ParsergetCurrentFuncTypePtr(Parser* parser) {
-    return &parser->current_func_type;
-}
-
-LoopASTNode** ParsergetCurrentLoopNodePtr(Parser* parser) {
-    return &parser->current_loop_node;
-}
-
 void ParsergetCurrentFilePath(chem::string_view* view, Parser* parser) {
     *view = chem::string_view(parser->stored_file_path.data(), parser->stored_file_path.size());
 }

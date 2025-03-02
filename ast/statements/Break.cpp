@@ -12,11 +12,19 @@ void BreakStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr
     }
 }
 
-void BreakStatement::interpret(InterpretScope &scope) {
-    if(node == nullptr) {
-        scope.error("[Break] statement has nullptr to loop node", this);
+void stop_interpretation_above_once(ASTNode* node) {
+    if(ASTNode::isLoopASTNode(node->kind())) {
+        const auto loop_node = node->as_loop_node_unsafe();
+        loop_node->body.stopInterpretOnce();
+        loop_node->stopInterpretation();
         return;
     }
-    node->body.stopInterpretOnce();
-    node->stopInterpretation();
+    const auto parent = node->parent();
+    if(parent) {
+        stop_interpretation_above_once(parent);
+    }
+}
+
+void BreakStatement::interpret(InterpretScope &scope) {
+    stop_interpretation_above_once(parent());
 }

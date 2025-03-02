@@ -50,7 +50,7 @@ void BaseFunctionParam::code_gen(Codegen &gen) {
 void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
     if(!(returnValue && returnValue->linked_node() == this)) {
         // TODO wrong location sent, as we don't have the location
-        type->linked_node()->llvm_destruct(gen, gen.current_function->getArg(calculate_c_or_llvm_index()), encoded_location());
+        type->linked_node()->llvm_destruct(gen, gen.current_function->getArg(calculate_c_or_llvm_index(gen.current_func_type)), encoded_location());
     }
     pointer = nullptr;
 }
@@ -59,7 +59,7 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
     if(pointer) {
         return pointer;
     }
-    auto index = calculate_c_or_llvm_index();
+    auto index = calculate_c_or_llvm_index(gen.current_func_type);
     if(index > gen.current_function->arg_size()) {
         gen.error(this) << "couldn't get argument with name " << name << " since function has " << std::to_string(gen.current_function->arg_size()) << " arguments";
         return nullptr;
@@ -129,7 +129,7 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
 
 llvm::Function*& FunctionDeclaration::get_llvm_data() {
     if(active_iteration == llvm_data.size() && is_override()) {
-        const auto struct_def = parent_node->as_struct_def();
+        const auto struct_def = parent()->as_struct_def();
         if(struct_def) {
             const auto overriding = struct_def->get_overriding_info(this);
             if(overriding.first) {
@@ -150,10 +150,10 @@ llvm::Function*& FunctionDeclaration::get_llvm_data() {
             }
         }
     }
-    if(parent_node) {
-        auto k = parent_node->kind();
+    if(parent()) {
+        auto k = parent()->kind();
         if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::InterfaceDecl) {
-            auto container = parent_node->as_members_container_unsafe();
+            auto container = parent()->as_members_container_unsafe();
             if(!container->generic_params.empty()) { // container is generic
                 return container->generic_llvm_data[this][container->active_iteration][active_iteration];
             }
@@ -258,31 +258,31 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
     if (!exists_at_runtime()) {
         return;
     }
-    if (parent_node) {
-        auto k = parent_node->kind();
+    if (parent()) {
+        auto k = parent()->kind();
         switch (k) {
             case ASTNodeKind::StructDecl: {
-                const auto parent_decl = parent_node->as_struct_def_unsafe();
+                const auto parent_decl = parent()->as_struct_def_unsafe();
                 parent_decl->code_gen_function_body(gen, this);
                 return;
             }
             case ASTNodeKind::VariantDecl: {
-                const auto parent_decl = parent_node->as_variant_def_unsafe();
+                const auto parent_decl = parent()->as_variant_def_unsafe();
                 parent_decl->code_gen_function_body(gen, this);
                 return;
             }
             case ASTNodeKind::UnionDecl: {
-                const auto parent_decl = parent_node->as_union_def_unsafe();
+                const auto parent_decl = parent()->as_union_def_unsafe();
                 parent_decl->code_gen_function_body(gen, this);
                 return;
             }
             case ASTNodeKind::InterfaceDecl: {
-                const auto parent_decl = parent_node->as_interface_def_unsafe();
+                const auto parent_decl = parent()->as_interface_def_unsafe();
                 parent_decl->code_gen_function_body(gen, this);
                 return;
             }
             case ASTNodeKind::ImplDecl: {
-                const auto parent_decl = parent_node->as_impl_def_unsafe();
+                const auto parent_decl = parent()->as_impl_def_unsafe();
                 parent_decl->code_gen_function_body(gen, this);
                 return;
             }
@@ -435,26 +435,26 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen) {
     if(!exists_at_runtime()) {
         return;
     }
-    if(parent_node) {
-        auto k = parent_node->kind();
+    if(parent()) {
+        auto k = parent()->kind();
         switch(k) {
             case ASTNodeKind::StructDecl:{
-                const auto parent_decl = parent_node->as_struct_def_unsafe();
+                const auto parent_decl = parent()->as_struct_def_unsafe();
                 parent_decl->code_gen_function_declare(gen, this);
                 return;
             }
             case ASTNodeKind::VariantDecl: {
-                const auto parent_decl = parent_node->as_variant_def_unsafe();
+                const auto parent_decl = parent()->as_variant_def_unsafe();
                 parent_decl->code_gen_function_declare(gen, this);
                 return;
             }
             case ASTNodeKind::UnionDecl: {
-                const auto parent_decl = parent_node->as_union_def_unsafe();
+                const auto parent_decl = parent()->as_union_def_unsafe();
                 parent_decl->code_gen_function_declare(gen, this);
                 return;
             }
             case ASTNodeKind::InterfaceDecl: {
-                const auto parent_decl = parent_node->as_interface_def_unsafe();
+                const auto parent_decl = parent()->as_interface_def_unsafe();
                 parent_decl->code_gen_function_declare(gen, this);
                 return;
             }
@@ -1149,7 +1149,7 @@ bool BaseFunctionParam::add_child_index(Codegen& gen, std::vector<llvm::Value *>
 
 #endif
 
-unsigned FunctionParam::calculate_c_or_llvm_index() {
+unsigned FunctionParam::calculate_c_or_llvm_index(FunctionType* func_type) {
     const auto start = func_type->c_or_llvm_arg_start_index();
     return start + index;
 }
@@ -1163,27 +1163,35 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     if (defValue) {
         copied = defValue->copy(allocator);
     }
-    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, func_type, parent(), encoded_location());
+    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, parent(), encoded_location());
 }
 
 bool FunctionParam::link_param_type(SymbolResolver &linker) {
     if(is_implicit) {
         if(name == "self" || name == "other") { // name and other means pointers to parent node
-            if(!func_type->parent_node) {
-                linker.error("couldn't get implicit self / other type", this);
-                return false;
-            }
             const auto ptr_type = ((ReferenceType*) type);
             const auto linked_type = ((LinkedType*) ptr_type->type);
-            const auto parent_node = func_type->parent_node;
-            const auto parent_kind = parent_node->kind();
+            auto parent_node = parent();
+            auto parent_kind = parent_node->kind();
             ASTNode* parent;
-            if(parent_kind == ASTNodeKind::StructMember) {
-                parent = parent_node->as_struct_member_unsafe()->parent();
-            } else if(parent_kind == ASTNodeKind::ImplDecl) {
-                parent = parent_node->as_impl_def_unsafe()->struct_type->linked_node();
-            } else {
-                parent = func_type->parent_node;
+            if(parent_kind == ASTNodeKind::FunctionDecl || parent_kind == ASTNodeKind::StructMember) {
+                const auto p = parent_node->parent();
+                parent_node = p;
+                parent_kind = p->kind();
+            }
+            switch(parent_kind) {
+                case ASTNodeKind::ImplDecl:
+                    parent = parent_node->as_impl_def_unsafe()->struct_type->linked_node();
+                    break;
+                case ASTNodeKind::VariantDecl:
+                case ASTNodeKind::StructDecl:
+                case ASTNodeKind::UnionDecl:
+                case ASTNodeKind::InterfaceDecl:
+                    parent = parent_node;
+                    break;
+                default:
+                    parent = nullptr;
+                    break;
             }
             if(!parent) {
                 linker.error("couldn't get self / other implicit parameter type", this);
@@ -1281,11 +1289,11 @@ std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {
 }
 
 void FunctionDeclaration::runtime_name(std::ostream &stream) {
-    if(parent_node) {
-        const auto k = parent_node->kind();
+    if(parent()) {
+        const auto k = parent()->kind();
         switch(k) {
             case ASTNodeKind::InterfaceDecl: {
-                const auto interface = parent_node->as_interface_def_unsafe();
+                const auto interface = parent()->as_interface_def_unsafe();
                 if(interface->is_static()) {
                     interface->runtime_name(stream);
                 } else {
@@ -1295,7 +1303,7 @@ void FunctionDeclaration::runtime_name(std::ostream &stream) {
                 break;
             }
             case ASTNodeKind::StructDecl:{
-                const auto def = parent_node->as_struct_def_unsafe();
+                const auto def = parent()->as_struct_def_unsafe();
                 const auto interface = def->get_overriding_interface(this);
                 if(interface && interface->is_static()) {
                     interface->runtime_name(stream);
@@ -1306,7 +1314,7 @@ void FunctionDeclaration::runtime_name(std::ostream &stream) {
                 break;
             }
             case ASTNodeKind::ImplDecl: {
-                const auto def = parent_node->as_impl_def_unsafe();
+                const auto def = parent()->as_impl_def_unsafe();
                 if(has_self_param() && def->struct_type) {
                     const auto struct_def = def->struct_type->linked_struct_def();
                     struct_def->runtime_name(stream);
@@ -1317,7 +1325,7 @@ void FunctionDeclaration::runtime_name(std::ostream &stream) {
                 break;
             }
             default:
-                parent_node->runtime_name(stream);
+                parent()->runtime_name(stream);
                 break;
         }
     }
@@ -1356,7 +1364,7 @@ FunctionDeclaration* FunctionDeclaration::copy(ASTAllocator& allocator) {
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, this, ZERO_LOC));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
     }
     returnType = new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
 }
@@ -1482,8 +1490,8 @@ void FunctionDeclaration::register_parent_iteration(ASTAllocator& astAllocator, 
 }
 
 int16_t FunctionDeclaration::get_parent_iteration() {
-    if(parent_node) {
-        const auto container = parent_node->as_members_container();
+    if(parent()) {
+        const auto container = parent()->as_members_container();
         if(container && container->is_generic()) {
             return container->active_iteration;
         } else {
@@ -1535,7 +1543,7 @@ int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagno
 }
 
 BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
-    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isVariadic(), false, parent_node, ZERO_LOC, FunctionType::data.signature_resolved);
+    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isVariadic(), false, ZERO_LOC, FunctionType::data.signature_resolved);
     for(const auto param : params) {
         func_type->params.emplace_back(param->copy(allocator));
     }

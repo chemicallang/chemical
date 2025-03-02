@@ -166,7 +166,7 @@ namespace InterpretVector {
             call_scope->error("expected a generic argument for compiler::vector", call);
             return nullptr;
         }
-        const auto node = (InterpretVectorNode*) parent_node;
+        const auto node = (InterpretVectorNode*) parent();
         return new (allocator.allocate<InterpretVectorVal>()) InterpretVectorVal(node);
     }
 
@@ -178,7 +178,7 @@ namespace InterpretVector {
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), retType(ZERO_LOC), selfParam("self", &node->selfReference, 0, nullptr, true, this, this, ZERO_LOC) {
+    ), retType(ZERO_LOC), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC) {
         params.emplace_back(&selfParam);
     }
 
@@ -197,7 +197,7 @@ namespace InterpretVector {
             AccessSpecifier::Public,
             true
     ), returnLinkedType("T", &node->typeParam, ZERO_LOC),
-        selfParam("self", &node->selfReference, 0, nullptr, true, this, this, ZERO_LOC), indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, this, ZERO_LOC)
+        selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -223,8 +223,8 @@ namespace InterpretVector {
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, this, ZERO_LOC), returnVoidType(ZERO_LOC),
-        valueType("T", &node->typeParam, ZERO_LOC), valueParam("value", &valueType, 1, nullptr, false, this, this, ZERO_LOC)
+    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
+        valueType("T", &node->typeParam, ZERO_LOC), valueParam("value", &valueType, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&valueParam);
@@ -243,8 +243,8 @@ namespace InterpretVector {
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, this, ZERO_LOC), returnVoidType(ZERO_LOC),
-        indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, this, ZERO_LOC)
+    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
+        indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -399,7 +399,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), returnType(ZERO_LOC), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, this, ZERO_LOC) {
+    ), returnType(ZERO_LOC), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -531,7 +531,7 @@ public:
             AccessSpecifier::Public,
             true
     ), anyType(ZERO_LOC),
-        valueParam("value", &anyType, 0, nullptr, false, this, this, ZERO_LOC)
+        valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
@@ -561,7 +561,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, this, ZERO_LOC) {
+    ), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
@@ -818,7 +818,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, this, ZERO_LOC) {
+    ), boolType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -848,7 +848,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), voidType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, this, ZERO_LOC) {
+    ), voidType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -877,8 +877,8 @@ public:
             AccessSpecifier::Public,
             true
     ), returnType(ZERO_LOC), anyType(ZERO_LOC),
-    valueParam("value", &anyType, 0, nullptr, false, this, this, ZERO_LOC),
-    valueParam2("value2", &anyType, 1, nullptr, false, this, this, ZERO_LOC) {
+    valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC),
+    valueParam2("value2", &anyType, 1, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
         params.emplace_back(&valueParam2);
@@ -922,7 +922,7 @@ public:
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
-        valueParam("value", &ptrType, 0, nullptr, false, this, this, ZERO_LOC)
+        valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
@@ -951,7 +951,7 @@ public:
             AccessSpecifier::Public,
             true
     ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
-        valueParam("value", &ptrType, 0, nullptr, false, this, this, ZERO_LOC)
+        valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
@@ -977,8 +977,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(ZERO_LOC), stringType(ZERO_LOC), destValueParam("dest_value", &stringType, 0, nullptr, false, this, this, ZERO_LOC),
-      sourceValueParam("source_value", &stringType, 1, nullptr, false, this, this, ZERO_LOC){
+    ), boolType(ZERO_LOC), stringType(ZERO_LOC), destValueParam("dest_value", &stringType, 0, nullptr, false, this, ZERO_LOC),
+      sourceValueParam("source_value", &stringType, 1, nullptr, false, this, ZERO_LOC){
         set_compiler_decl(true);
         params.emplace_back(&destValueParam);
         params.emplace_back(&sourceValueParam);
@@ -1057,8 +1057,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), param("value", &anyType, 0, nullptr, false, this, this, 0),
-        methodParam("method", &strType, 1, nullptr, false, this, this, 0), anyType(0), strType(0) {
+    ), param("value", &anyType, 0, nullptr, false, this, 0),
+        methodParam("method", &strType, 1, nullptr, false, this, 0), anyType(0), strType(0) {
         set_compiler_decl(true);
         params = { &param, &methodParam };
     };

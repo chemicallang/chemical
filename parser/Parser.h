@@ -102,16 +102,6 @@ public:
     ASTNode* parent_node = nullptr;
 
     /**
-     * current function type
-     */
-    FunctionType* current_func_type = nullptr;
-
-    /**
-     * current loop node is stored here
-     */
-    LoopASTNode* current_loop_node = nullptr;
-
-    /**
      * initialize the lexer with this provider and path
      */
     Parser(

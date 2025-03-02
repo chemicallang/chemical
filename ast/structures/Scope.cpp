@@ -206,7 +206,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
         return;
     }
     func_decl = func;
-    auto parent = func->parent_node;
+    auto parent = func->parent();
     if(!parent) {
         linker.error("init block's function must be inside a struct", (ASTNode*) this);
         return;
@@ -268,7 +268,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
                 continue;
             }
             auto linked_func = linked->as_function();
-            auto func_parent = linked_func->parent_node;
+            auto func_parent = linked_func->parent();
             auto called_struc = func_parent ? func_parent->as_struct_def() : nullptr;
             if(!called_struc) {
                 linker.error("couldn't get struct of constructor in init block", (ASTNode*) chain);

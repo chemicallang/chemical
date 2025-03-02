@@ -18,10 +18,6 @@ struct Parser {
 
     func getParentNodePtr(&self) : *mut *mut ASTNode
 
-    func getCurrentFuncTypePtr(&self) : *mut *mut FunctionType
-
-    func getCurrentLoopNodePtr(&self) : *mut *mut LoopASTNode
-
     func getCurrentFilePath(&self) : std::string_view
 
     func parseExpression(&self, builder : *mut ASTBuilder, parseStruct : bool = false, parseLambda : bool = false) : *mut Value
@@ -70,27 +66,8 @@ func (parser : &mut Parser) getParentNode() : *mut ASTNode {
     return *parser.getParentNodePtr();
 }
 
-func (parser : &mut Parser) getCurrentFuncType() : *mut FunctionType {
-    return *parser.getCurrentFuncTypePtr();
-}
-
-func (parser : &mut Parser) getCurrentLoopNode() : *mut LoopASTNode {
-    return *parser.getCurrentLoopNodePtr();
-
-}
-
 func (parser : &mut Parser) setParentNode(node : *mut ASTNode) {
     var ptr = parser.getParentNodePtr();
-    *ptr = node;
-}
-
-func (parser : &mut Parser) setCurrentFuncType(type : *mut FunctionType) {
-    var ptr = parser.getCurrentFuncTypePtr();
-    *ptr = type;
-}
-
-func (parser : &mut Parser) setCurrentLoopNode(node : *mut LoopASTNode) {
-    var ptr = parser.getCurrentLoopNodePtr();
     *ptr = node;
 }
 

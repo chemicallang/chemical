@@ -42,7 +42,7 @@ OverridableFuncHandlingResult handle_name_overload_function(
         declaration->set_multi_func_index(multi->functions.size());
         multi->functions.emplace_back(declaration);
     } else if(previous) {
-        if(previous->parent_node != declaration->parent_node) {
+        if(previous->parent() != declaration->parent()) {
             return result;
         }
         if(!previous->do_param_types_match(declaration->params)) {

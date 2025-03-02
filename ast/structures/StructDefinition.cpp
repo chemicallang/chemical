@@ -188,7 +188,7 @@ llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
         } else {
             auto self_param = curr_func->get_self_param();
             if(self_param) {
-                auto self_ptr = gen.current_function->getArg(self_param->calculate_c_or_llvm_index());
+                auto self_ptr = gen.current_function->getArg(self_param->calculate_c_or_llvm_index(curr_func));
                 return child_of_self_ptr(gen, *this, self_ptr);
             }
         }

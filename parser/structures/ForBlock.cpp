@@ -15,7 +15,7 @@ ContinueStatement* Parser::parseContinueStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::ContinueKw) {
         token++;
-        auto stmt = new (allocator.allocate<ContinueStatement>()) ContinueStatement(current_loop_node, parent_node, loc_single(tok));
+        auto stmt = new (allocator.allocate<ContinueStatement>()) ContinueStatement(parent_node, loc_single(tok));
         return stmt;
     } else {
         return nullptr;
@@ -26,7 +26,7 @@ BreakStatement* Parser::parseBreakStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::BreakKw) {
         token++;
-        auto stmt = new (allocator.allocate<BreakStatement>()) BreakStatement(current_loop_node, parent_node, loc_single(tok));
+        auto stmt = new (allocator.allocate<BreakStatement>()) BreakStatement(parent_node, loc_single(tok));
         auto value = parseAccessChainOrValue(allocator);
         if(value) {
             stmt->value = value;
@@ -128,17 +128,13 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
     }
 
     // { statement(s) } with continue & break support
-    auto prev_loop_node = current_loop_node;
-    current_loop_node = loop;
     auto block = parseBraceBlock("forloop", loop, allocator);
     if(block.has_value()) {
         loop->body = std::move(block.value());
     } else {
         error("expected a brace block in a for block");
-        current_loop_node = prev_loop_node;
         return loop;
     }
-    current_loop_node = prev_loop_node;
 
     return loop;
 
@@ -156,17 +152,13 @@ LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) 
     auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock(parent_node, loc_single(tok));
 
     // { statement(s) } with continue & break support
-    auto prev_loop_node = current_loop_node;
-    current_loop_node = loopBlock;
     auto block = parseBraceBlock("loop", loopBlock, allocator);
     if(block.has_value()) {
         loopBlock->body = std::move(block.value());
     } else {
         error("expected a brace block in a for block");
-        current_loop_node = prev_loop_node;
         return loopBlock;
     }
-    current_loop_node = prev_loop_node;
 
     return loopBlock;
 

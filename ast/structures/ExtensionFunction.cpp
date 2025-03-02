@@ -19,7 +19,7 @@ std::vector<llvm::Type *> ExtensionFunction::param_types(Codegen &gen) {
 
 #endif
 
-unsigned int ExtensionFuncReceiver::calculate_c_or_llvm_index() {
+unsigned int ExtensionFuncReceiver::calculate_c_or_llvm_index(FunctionType* func_type) {
     return 0;
 }
 
@@ -130,7 +130,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker, ASTNode*& node_
 BaseType* ExtensionFunction::create_value_type(ASTAllocator& allocator) {
     auto value_type = FunctionDeclaration::create_value_type(allocator);
     auto functionType = (FunctionType*) value_type;
-    functionType->params.insert(functionType->params.begin(), new (allocator.allocate<FunctionParam>()) FunctionParam("self", receiver.type->copy(allocator), 0, nullptr, true, this, this, ZERO_LOC));
+    functionType->params.insert(functionType->params.begin(), new (allocator.allocate<FunctionParam>()) FunctionParam("self", receiver.type->copy(allocator), 0, nullptr, true, this, ZERO_LOC));
     return value_type;
 }
 

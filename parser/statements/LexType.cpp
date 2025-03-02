@@ -45,9 +45,7 @@ BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
     auto t1 = consumeOfType(TokenType::LParen);
     if(t1) {
 
-        auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(nullptr, false, isCapturing, parent_node, loc_single(t1));
-        auto prev_func_type = current_func_type;
-        current_func_type = func_type;
+        auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(nullptr, false, isCapturing, loc_single(t1));
         const auto isVariadic = parseParameterList(allocator, func_type->params);
         func_type->setIsVariadic(isVariadic);
         consumeNewLines();
@@ -64,7 +62,6 @@ BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
         } else {
             error("expected '=>' for lambda function type");
         }
-        current_func_type = prev_func_type;
         return func_type;
     } else {
         return nullptr;

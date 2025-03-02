@@ -117,7 +117,7 @@ void put_implicit_params(
                 } else {
                     const auto between_param = gen.current_func_type->implicit_param_for(param->name);
                     if(between_param) {
-                        args.emplace_back(gen.current_function->getArg(between_param->calculate_c_or_llvm_index()));
+                        args.emplace_back(gen.current_function->getArg(between_param->calculate_c_or_llvm_index(gen.current_func_type)));
                     } else {
                         gen.error(call) << "couldn't provide implicit argument '" << param->name << "'";
                     }
@@ -925,8 +925,8 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     const auto type = parent_val->create_type(allocator);
     auto func_type = type->pure_type(allocator)->as_function_type();
     const auto func_decl = safe_linked_func();
-    if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
-        const auto struct_def = func_decl->parent_node->as_struct_def();
+    if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent()) {
+        const auto struct_def = func_decl->parent()->as_struct_def();
         if(struct_def->is_generic()) {
             func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()), generic_iteration);
         }
@@ -960,7 +960,7 @@ int16_t FunctionCall::set_gen_itr_on_decl(int16_t itr, bool set_generic_calls) {
     if(ASTNode::isFunctionDecl(parent_kind)) {
         const auto decl = parent->as_function_unsafe();
         if(decl->is_constructor_fn()) {
-            const auto def = decl->parent_node->as_struct_def();
+            const auto def = decl->parent()->as_struct_def();
             if(def && def->is_generic()) {
                 const auto prev_itr = def->active_iteration;
                 def->set_active_iteration(itr);
@@ -1024,7 +1024,7 @@ void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expe
     switch(k) {
         case ASTNodeKind::FunctionDecl:
             if(node->as_function_unsafe()->is_constructor_fn()) {
-                const auto parent = node->as_function_unsafe()->parent_node;
+                const auto parent = node->as_function_unsafe()->parent();
                 const auto parent_kind = parent->kind();
                 switch(parent_kind) {
                     case ASTNodeKind::StructDecl: {
@@ -1234,7 +1234,7 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
                 // current function is generic, do not register generic iterations of the call
                 curr_func->call_subscribers.emplace_back(this, expected_type ? expected_type->copy(*resolver.ast_allocator) : nullptr);
             } else {
-                const auto parent = curr_func->parent_node;
+                const auto parent = curr_func->parent();
                 if (parent) {
                     const auto container = parent->as_members_container();
                     if (container && container->is_generic()) {
@@ -1347,8 +1347,8 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
             return linked->as_variant_member_unsafe()->known_type();
         } else if(ASTNode::isFunctionDecl(linked_kind)) {
             const auto func_decl = linked->as_function_unsafe();
-            if(func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent_node) {
-                const auto struct_def = func_decl->parent_node->as_struct_def();
+            if(func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent()) {
+                const auto struct_def = func_decl->parent()->as_struct_def();
                 if(struct_def->is_generic()) {
                     return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()), generic_iteration);
                 }

@@ -256,7 +256,7 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal,
             bool signature_resolved = false,
             ASTNodeKind k = ASTNodeKind::FunctionDecl
-    )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, parent_node, location, signature_resolved),
+    )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, location, signature_resolved),
          identifier(identifier),
          attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false, false) {
     }

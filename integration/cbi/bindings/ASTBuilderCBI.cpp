@@ -153,7 +153,8 @@ FloatType* ASTBuildermake_float_type(ASTAllocator* allocator, uint64_t location)
 }
 
 FunctionType* ASTBuildermake_func_type(ASTAllocator* allocator, BaseType* returnType, bool isVariadic, bool isCapturing, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<FunctionType>()) FunctionType(returnType, isVariadic, isCapturing, parent_node, location);
+    // TODO function type doesn't take a parent_node
+    return new (allocator->allocate<FunctionType>()) FunctionType(returnType, isVariadic, isCapturing, location);
 }
 
 GenericType* ASTBuildermake_generic_type(ASTAllocator* allocator, LinkedType* linkedType) {
@@ -391,11 +392,13 @@ AssignStatement* ASTBuildermake_assignment_stmt(ASTAllocator* allocator, Value* 
 }
 
 BreakStatement* ASTBuildermake_break_stmt(ASTAllocator* allocator, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<BreakStatement>()) BreakStatement(loop_node, parent_node, location);
+    // TODO do not take loop_node
+    return new (allocator->allocate<BreakStatement>()) BreakStatement(parent_node, location);
 }
 
 ContinueStatement* ASTBuildermake_continue_stmt(ASTAllocator* allocator, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<ContinueStatement>()) ContinueStatement(loop_node, parent_node, location);
+    // TODO do not take loop_node
+    return new (allocator->allocate<ContinueStatement>()) ContinueStatement(parent_node, location);
 }
 
 DestructStmt* ASTBuildermake_destruct_stmt(ASTAllocator* allocator, Value* array_value, Value* ptr_value, bool is_array, ASTNode* parent_node, uint64_t location) {
@@ -454,7 +457,7 @@ FunctionDeclaration* ASTBuildermake_function(ASTAllocator* allocator, chem::stri
 
 FunctionParam* ASTBuildermake_function_param(ASTAllocator* allocator, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {
     // TODO casting function type as parent node, this is wrong
-    return new (allocator->allocate<FunctionParam>()) FunctionParam(*name, type, index, value, implicit, decl, (ASTNode*) decl, location);
+    return new (allocator->allocate<FunctionParam>()) FunctionParam(*name, type, index, value, implicit, (ASTNode*) decl, location);
 }
 
 GenericTypeParameter* ASTBuildermake_generic_param(ASTAllocator* allocator, chem::string_view* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
@@ -652,7 +655,7 @@ std::vector<GenericTypeParameter*>* FunctionDeclarationget_generic_params(Functi
 
 std::vector<ASTNode*>* FunctionDeclarationadd_body(FunctionDeclaration* decl) {
     if(!decl->body.has_value()) {
-        decl->body.emplace(decl->parent_node, decl->ASTNode::encoded_location());
+        decl->body.emplace(decl->parent(), decl->ASTNode::encoded_location());
     }
     return &decl->body.value().nodes;
 }

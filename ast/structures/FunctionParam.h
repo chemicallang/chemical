@@ -38,10 +38,9 @@ public:
             unsigned int index,
             Value* defValue,
             bool is_implicit,
-            FunctionType* func_type,
             ASTNode* parent_node,
             SourceLocation location
-    ) : BaseFunctionParam(name, type, func_type, ASTNodeKind::FunctionParam, parent_node, location), index(index),
+    ) : BaseFunctionParam(name, type, ASTNodeKind::FunctionParam, parent_node, location), index(index),
         defValue(defValue), is_implicit(is_implicit) {}
 
     /**
@@ -79,7 +78,7 @@ public:
         has_assignment = true;
     }
 
-    unsigned int calculate_c_or_llvm_index() final;
+    unsigned int calculate_c_or_llvm_index(FunctionType* func_type) final;
 
     Value *holding_value() final {
         return defValue;

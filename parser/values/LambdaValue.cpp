@@ -36,9 +36,6 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
 
         auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
 
-        auto prev_func_type = current_func_type;
-        current_func_type = lambda;
-
         lambda->setIsCapturing(true);
 
         // the capture list
@@ -83,8 +80,6 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
         if(!parseLambdaAfterParamsList(allocator, lambda)) {
             return lambda;
         }
-
-        current_func_type = prev_func_type;
 
         return lambda;
     } else {

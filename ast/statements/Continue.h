@@ -10,26 +10,20 @@
 #include "ast/base/LoopASTNode.h"
 
 class ContinueStatement : public ASTNode {
-private:
-    LoopASTNode *node;
 public:
-
-
 
     /**
      * Construct a new ContinueStatement object.
      */
     constexpr ContinueStatement(
-        LoopASTNode *node,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::ContinueStmt, parent_node, location), node(node) {
+    ) : ASTNode(ASTNodeKind::ContinueStmt, parent_node, location) {
 
     }
 
     ContinueStatement* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<ContinueStatement>()) ContinueStatement(
-            node,
             parent(),
             encoded_location()
         );

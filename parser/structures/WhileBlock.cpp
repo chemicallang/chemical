@@ -37,8 +37,6 @@ WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
     }
 
     // { statement(s) } with continue & break support
-    auto prev_loop_node = current_loop_node;
-    current_loop_node = loop;
     auto block = parseBraceBlock("whileloop", loop, allocator);
     if(block.has_value()) {
         auto& blk = block.value();
@@ -46,10 +44,8 @@ WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
         loop->body.set_parent(blk.parent());
     } else {
         error("expected a brace block { statement(s) } when lexing a while block");
-        current_loop_node = prev_loop_node;
         return loop;
     }
-    current_loop_node = prev_loop_node;
 
     return loop;
 

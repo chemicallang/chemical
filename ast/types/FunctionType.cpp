@@ -154,12 +154,6 @@ bool FunctionType::do_param_types_match(std::vector<FunctionParam*>& param_types
     return true;
 }
 
-void FunctionType::assign_params() {
-    for(auto& param : params) {
-        param->func_type = this;
-    }
-}
-
 BaseFunctionParam* FunctionType::get_self_param() {
     if(!params.empty()) {
         auto& param = params[0];
@@ -208,7 +202,7 @@ bool FunctionType::equal(FunctionType *other) const {
 }
 
 FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
-    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isVariadic(), isCapturing(), parent_node, ZERO_LOC, data.signature_resolved);
+    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isVariadic(), isCapturing(), ZERO_LOC, data.signature_resolved);
     for (auto &param: params) {
         func_type->params.emplace_back(param->copy(allocator));
     }

@@ -213,7 +213,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto retType = protoType->getReturnType();
             const auto returnType = make_type(&retType);
             if(!returnType) return nullptr;
-            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType(returnType, false, false, nullptr, ZERO_LOC);
+            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType(returnType, false, false, ZERO_LOC);
             return functionType;
         }
         case clang::Type::FunctionProto:{
@@ -221,7 +221,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto retType = protoType->getReturnType();
             const auto returnType = make_type(&retType);
             if(!returnType) return nullptr;
-            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType(returnType, protoType->isVariadic(), false, nullptr, ZERO_LOC);
+            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType(returnType, protoType->isVariadic(), false, ZERO_LOC);
             unsigned i = 0;
             for(auto paramType : protoType->getParamTypes()) {
                 auto param_type = make_type(&paramType);
@@ -229,7 +229,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
                     return nullptr;
                 }
                 // TODO using nullptr as parent node
-                const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam("", param_type, i, nullptr, false, functionType, nullptr, ZERO_LOC);
+                const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam("", param_type, i, nullptr, false, nullptr, ZERO_LOC);
                 functionType->params.emplace_back(param);
                 i++;
             }
@@ -611,7 +611,6 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
                 index,
                 nullptr,
                 false,
-                nullptr,
                 // TODO using nullptr as parent node
                 nullptr,
                 ZERO_LOC
@@ -635,7 +634,6 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
             specifier
     );
     decl->params = std::move(params);
-    decl->assign_params();
     return decl;
 }
 

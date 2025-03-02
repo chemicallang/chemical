@@ -435,19 +435,19 @@ public:
     void parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool is_value = false, bool parse_value_node = false);
 
     /**
-     * parses a brace block, { statement(s) }
-     */
-    std::optional<Scope> parseBraceBlock(const std::string_view &forThing, ASTAllocator& allocator, void(*nested_lexer)(Parser*, ASTAllocator& allocator, std::vector<ASTNode*>& nodes));
-
-    /**
      * parses a brace bock with nested statements
      */
     std::optional<Scope> parseBraceBlock(const std::string_view &forThing, ASTNode* parent_node, ASTAllocator& allocator);
 
     /**
-     * lexes top level brace block
+     * parses top level brace block
      */
     std::optional<Scope> parseTopLevelBraceBlock(ASTAllocator& allocator, const std::string_view& forThing);
+
+    /**
+     * parses a nested level brace block
+     */
+    std::optional<Scope> parseNestedBraceBlock(const std::string_view &forThing, ASTAllocator& allocator);
 
     /**
      * parses a brace block or a value node

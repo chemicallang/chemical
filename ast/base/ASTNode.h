@@ -509,10 +509,6 @@ public:
         return k == ASTNodeKind::BreakStmt;
     }
 
-    static inline constexpr bool isCommentStmt(ASTNodeKind k) {
-        return k == ASTNodeKind::CommentStmt;
-    }
-
     static inline constexpr bool isContinueStmt(ASTNodeKind k) {
         return k == ASTNodeKind::ContinueStmt;
     }

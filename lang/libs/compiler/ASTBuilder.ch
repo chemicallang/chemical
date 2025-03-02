@@ -204,8 +204,6 @@ struct AssignStatement : ASTNode {}
 
 struct BreakStatement : ASTNode {}
 
-struct Comment : ASTNode {}
-
 struct ContinueStatement : ASTNode {}
 
 struct DestructStmt : ASTNode {}
@@ -516,8 +514,6 @@ public struct ASTBuilder : BatchAllocator {
     func make_assignment_stmt(&self, lhs : *Value, rhs : *Value, op : Operation, parent_node : *ASTNode, location : ubigint) : *mut AssignStatement
 
     func make_break_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *BreakStatement
-
-    func make_comment_stmt(&self, value : &string_view, multiline : bool, parent_node : *ASTNode, location : ubigint) : *mut Comment
 
     func make_continue_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *mut ContinueStatement
 

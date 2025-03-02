@@ -101,7 +101,6 @@
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
 #include "utils/RepresentationUtils.h"
-#include "ast/statements/Comment.h"
 #include "preprocess/2c/2cASTVisitor.h"
 
 RepresentationVisitor::RepresentationVisitor(std::ostream &output) : output(output) {
@@ -227,11 +226,6 @@ void RepresentationVisitor::VisitAssignmentStmt(AssignStatement *stmt) {
 
 void RepresentationVisitor::VisitBreakStmt(BreakStatement *breakStatement) {
     write("break;");
-}
-
-void RepresentationVisitor::VisitCommentStmt(Comment *comment) {
-    write("//");
-    write(comment->comment);
 }
 
 void RepresentationVisitor::VisitContinueStmt(ContinueStatement *continueStatement) {

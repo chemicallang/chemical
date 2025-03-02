@@ -178,7 +178,6 @@ set(COMMON_SOURCES
         ast/base/LoopASTNode.h
         ast/structures/ImplDefinition.h
         parser/structures/ImplDef.cpp
-        ast/statements/Comment.h
         parser/statements/AnnotationMacro.cpp
         ast/base/BaseType.h
         compiler/Operation.cpp

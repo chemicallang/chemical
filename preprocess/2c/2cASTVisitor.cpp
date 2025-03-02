@@ -3187,10 +3187,6 @@ void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
     write("break;");
 }
 
-void ToCAstVisitor::VisitCommentStmt(Comment *comment) {
-    // leave comments alone
-}
-
 void ToCAstVisitor::VisitContinueStmt(ContinueStatement *continueStatement) {
     write("continue;");
 }

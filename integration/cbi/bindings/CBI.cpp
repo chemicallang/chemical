@@ -202,7 +202,6 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "ASTBuildermake_variant_case_variable", (void*) ASTBuildermake_variant_case_variable },
             { "ASTBuildermake_assignment_stmt", (void*) ASTBuildermake_assignment_stmt },
             { "ASTBuildermake_break_stmt", (void*) ASTBuildermake_break_stmt },
-            { "ASTBuildermake_comment_stmt", (void*) ASTBuildermake_comment_stmt },
             { "ASTBuildermake_continue_stmt", (void*) ASTBuildermake_continue_stmt },
             { "ASTBuildermake_destruct_stmt", (void*) ASTBuildermake_destruct_stmt },
             { "ASTBuildermake_return_stmt", (void*) ASTBuildermake_return_stmt },

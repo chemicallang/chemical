@@ -27,8 +27,7 @@ void Parser::parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, s
     }
 }
 
-std::optional<Scope> Parser::parseBraceBlock(const std::string_view &forThing, ASTAllocator& allocator, void(*nested_lexer)(Parser*, ASTAllocator& allocator, std::vector<ASTNode*>& nodes)) {
-
+std::optional<Scope> Parser::parseTopLevelBraceBlock(ASTAllocator& allocator, const std::string_view& forThing) {
     // whitespace and new lines
     consumeNewLines();
 
@@ -41,7 +40,7 @@ std::optional<Scope> Parser::parseBraceBlock(const std::string_view &forThing, A
     Scope scope(parent_node, loc_single(lb));
 
     // multiple statements
-    nested_lexer(this, allocator, scope.nodes);
+    parseTopLevelMultipleStatements(allocator, scope.nodes, true);
 
     // ending brace
     if (!consumeToken(TokenType::RBrace)) {
@@ -49,23 +48,37 @@ std::optional<Scope> Parser::parseBraceBlock(const std::string_view &forThing, A
     }
 
     return scope;
-
 }
 
 std::optional<Scope> Parser::parseBraceBlock(const std::string_view &forThing, ASTNode* new_parent_node, ASTAllocator& allocator) {
     auto prev_parent = parent_node;
     parent_node = new_parent_node;
-    auto returnValue = parseBraceBlock(forThing, allocator, [](Parser* parser, ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
-        parser->parseNestedLevelMultipleStatementsTokens(allocator, nodes);
-    });
+    auto returnValue = parseNestedBraceBlock(forThing, allocator);
     parent_node = prev_parent;
     return returnValue;
 }
 
-std::optional<Scope> Parser::parseTopLevelBraceBlock(ASTAllocator& allocator, const std::string_view& forThing) {
-    return parseBraceBlock(forThing, allocator, [](Parser* parser, ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
-        parser->parseTopLevelMultipleStatements(allocator, nodes, true);
-    });
+std::optional<Scope> Parser::parseNestedBraceBlock(const std::string_view &forThing, ASTAllocator& allocator) {
+    // whitespace and new lines
+    consumeNewLines();
+
+    // starting brace
+    auto lb = consumeOfType(TokenType::LBrace);
+    if (!lb) {
+        return std::nullopt;
+    }
+
+    Scope scope(parent_node, loc_single(lb));
+
+    // multiple statements
+    parseNestedLevelMultipleStatementsTokens(allocator, scope.nodes);
+
+    // ending brace
+    if (!consumeToken(TokenType::RBrace)) {
+        error() << "expected a closing brace '}' for [" << forThing << "]";
+    }
+
+    return scope;
 }
 
 std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator, const std::string_view& forThing, bool is_value, bool parse_value_node) {

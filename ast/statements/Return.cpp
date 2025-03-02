@@ -5,6 +5,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/base/LoopASTNode.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 bool isLoopNode(ASTNodeKind k) {
     switch(k) {
@@ -34,12 +35,13 @@ void stop_interpretation_above(ASTNode* node) {
 }
 
 void ReturnStatement::interpret(InterpretScope &scope) {
-    func_type->set_return(scope, value);
+    scope.global->current_func_type->set_return(scope, value);
     stop_interpretation_above(parent());
 }
 
 void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if (value) {
+        const auto func_type = linker.current_func_type;
         if(!value->link(linker, value, func_type->returnType ? func_type->returnType : nullptr)) {
             return;
         }
@@ -58,8 +60,4 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
             }
         }
     }
-}
-
-BaseType* ReturnStatement::known_type() {
-    return func_type->returnType;
 }

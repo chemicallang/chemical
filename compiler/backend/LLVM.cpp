@@ -912,6 +912,8 @@ void UnreachableStmt::code_gen(Codegen &gen) {
 
 void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
 
+    const auto func_type = gen.current_func_type;
+
     if(value) {
         // replace value with call to implicit constructor if there is one
         const auto func = func_type->as_function();

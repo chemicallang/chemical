@@ -14,7 +14,6 @@ class FunctionType;
 class ReturnStatement : public ASTNode {
 public:
 
-    FunctionTypeBody* func_type = nullptr;
     Value* value;
 
     /**
@@ -22,23 +21,19 @@ public:
      */
     constexpr ReturnStatement(
             Value* value,
-            FunctionTypeBody* declaration,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::ReturnStmt, parent_node, location), value(value), func_type(declaration) {
+    ) : ASTNode(ASTNodeKind::ReturnStmt, parent_node, location), value(value) {
 
     }
 
     ReturnStatement* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<ReturnStatement>()) ReturnStatement(
             value->copy(allocator),
-            nullptr,
             parent(),
             encoded_location()
         );
     }
-
-    BaseType* known_type() final;
 
     void interpret(InterpretScope &scope) final;
 

@@ -50,10 +50,12 @@ public:
         other.nodes = nodes;
     }
 
-    void copy_into(Scope& other, ASTAllocator& allocator) const {
+    void copy_into(Scope& other, ASTAllocator& allocator, ASTNode* new_parent) const {
         other.nodes.reserve(nodes.size());
         for(auto& node : nodes) {
-            other.nodes.emplace_back(node->copy(allocator));
+            const auto copied = node->copy(allocator);
+            copied->set_parent(new_parent);
+            other.nodes.emplace_back(copied);
         }
     }
 

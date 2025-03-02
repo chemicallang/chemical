@@ -20,7 +20,7 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
     } else {
         auto expr = parseExpression(allocator);
         if(expr) {
-            auto returnStmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(expr, lambda, &lambda->scope, ZERO_LOC);
+            auto returnStmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(expr, &lambda->scope, ZERO_LOC);
             lambda->scope.nodes.emplace_back(returnStmt);
         } else {
             error("expected lambda body");

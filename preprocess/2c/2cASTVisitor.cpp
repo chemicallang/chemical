@@ -3218,7 +3218,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
 
 void ToCAstVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
     const auto val = returnStatement->value;
-    const auto return_type = returnStatement->func_type->returnType;
+    const auto return_type = current_func_type->returnType;
     std::string saved_into_temp_var;
     const auto has_struct_like_return = return_type->isStructLikeType();
     if(val && has_struct_like_return) {

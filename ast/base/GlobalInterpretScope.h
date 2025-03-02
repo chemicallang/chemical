@@ -55,6 +55,12 @@ public:
     BackendContext* backend_context;
 
     /**
+     * the current function body being interpreted, this would be
+     * nullptr if no function is being interpreted
+     */
+    FunctionTypeBody* current_func_type = nullptr;
+
+    /**
      * Currently InterpretScope
      * 1 - allocates everything on heap directly (no batch allocations) (bad thing)
      * 2 - free's everything when it dies (good thing)

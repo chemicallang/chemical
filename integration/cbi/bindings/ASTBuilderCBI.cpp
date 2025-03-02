@@ -403,7 +403,7 @@ DestructStmt* ASTBuildermake_destruct_stmt(ASTAllocator* allocator, Value* array
 }
 
 ReturnStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* value, FunctionTypeBody* decl, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<ReturnStatement>()) ReturnStatement(value, decl, parent_node, location);
+    return new (allocator->allocate<ReturnStatement>()) ReturnStatement(value, parent_node, location);
 }
 
 // TODO switch statement when multiple cases have been handled

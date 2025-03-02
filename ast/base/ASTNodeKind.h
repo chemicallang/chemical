@@ -23,6 +23,7 @@ enum class ASTNodeKind : uint8_t {
     SwitchStmt,
     ThrowStmt,
     TypealiasStmt,
+    AliasStmt,
     UsingStmt,
     VarInitStmt,
     LoopBlock,

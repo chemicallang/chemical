@@ -786,6 +786,11 @@ public:
     UsingStmt* parseUsingStatement(ASTAllocator& allocator);
 
     /**
+     * parse the alias statement
+     */
+    AliasStmt* parseAliasStatement(ASTAllocator& allocator);
+
+    /**
      * lex provide statement
      */
     ProvideStmt* parseProvideStatement(ASTAllocator& allocator);

@@ -51,6 +51,9 @@ public:
     inline void VisitReturnStmt(ReturnStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitAliasStmt(AliasStmt* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitSwitchStmt(SwitchStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -473,6 +476,9 @@ public:
                 return;
             case ASTNodeKind::ReturnStmt:
                 static_cast<Derived*>(this)->VisitReturnStmt((ReturnStatement*) node);
+                return;
+            case ASTNodeKind::AliasStmt:
+                static_cast<Derived*>(this)->VisitAliasStmt((AliasStmt*) node);
                 return;
             case ASTNodeKind::SwitchStmt:
                 static_cast<Derived*>(this)->VisitSwitchStmt((SwitchStatement*) node);

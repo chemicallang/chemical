@@ -24,7 +24,6 @@ class UnionDef : public ExtendableMembersContainerNode {
 public:
 
     UnionDeclAttributes attrs;
-    ASTNode* parent_node;
     LinkedType linked_type;
 
 #ifdef COMPILER_BUILD
@@ -36,7 +35,7 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::UnionDecl, location), parent_node(parent_node),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::UnionDecl, parent_node, location),
         attrs(specifier, false, false, false, false), linked_type("", this, location) {
 
     }
@@ -107,13 +106,6 @@ public:
 
     VariablesContainer* copy_container(ASTAllocator &allocator) final;
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     BaseType* create_value_type(ASTAllocator& allocator) final;
 

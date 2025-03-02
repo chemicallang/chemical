@@ -16,7 +16,6 @@ public:
 
     BaseType* interface_type;
     BaseType* struct_type;
-    ASTNode* parent_node;
 
     /**
      * constructor
@@ -26,10 +25,11 @@ public:
             BaseType* struct_type,
             ASTNode* parent_node,
             SourceLocation location
-    ) : MembersContainer(ASTNodeKind::ImplDecl, location), interface_type(interface_type), struct_type(struct_type), parent_node(parent_node) {
+    ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(interface_type),
+        struct_type(struct_type)
+    {
 
     }
-
 
     /**
      * constructor
@@ -37,17 +37,10 @@ public:
     ImplDefinition(
             ASTNode* parent_node,
             SourceLocation location
-    ) : MembersContainer(ASTNodeKind::ImplDecl, location), parent_node(parent_node) {
+    ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location) {
 
     }
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     uint64_t byte_size(bool is64Bit) final;
 

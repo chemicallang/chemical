@@ -239,10 +239,6 @@ llvm::Type *VarInitStatement::llvm_chain_type(Codegen &gen, std::vector<ChainVal
 
 #endif
 
-bool VarInitStatement::is_top_level() {
-    return parent_node == nullptr || parent_node->as_namespace();
-}
-
 BaseType* VarInitStatement::create_value_type(ASTAllocator& allocator) {
     if(type) {
         return type;

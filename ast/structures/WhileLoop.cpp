@@ -40,7 +40,7 @@ void WhileLoop::code_gen(Codegen &gen) {
  * initializes the loop with only a condition and empty body
  * @param condition
  */
-//WhileLoop::WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node, CSTToken* token) : condition(std::move(condition)), parent_node(parent_node), token(token) {
+//WhileLoop::WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node, CSTToken* token) : condition(std::move(condition)), token(token) {
 //
 //}
 

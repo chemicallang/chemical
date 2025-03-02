@@ -23,7 +23,6 @@ class VariantDefinition : public ExtendableMembersContainerNode {
 public:
 
     VariantDeclAttributes attrs;
-    ASTNode* parent_node;
     LinkedType ref_type;
 
 #ifdef COMPILER_BUILD
@@ -42,7 +41,7 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::VariantDecl, location), parent_node(parent_node),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::VariantDecl, parent_node, location),
         ref_type(name_view(), this, location), attrs(specifier, false, false, false, false) {
     }
 
@@ -95,15 +94,8 @@ public:
         attrs.anonymous = value;
     }
 
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    bool is_generic() {
+        bool is_generic() {
         return !generic_params.empty();
     }
 

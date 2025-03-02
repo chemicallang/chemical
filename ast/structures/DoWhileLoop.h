@@ -18,7 +18,7 @@ private:
 public:
 
     Value* condition;
-    ASTNode* parent_node;
+
 
     /**
      * constructor
@@ -27,14 +27,10 @@ public:
             Value* condition,
             ASTNode* parent_node,
             SourceLocation location
-    ) : condition(condition), LoopASTNode(ASTNodeKind::DoWhileLoopStmt, location), parent_node(parent_node) {
+    ) : condition(condition), LoopASTNode(ASTNodeKind::DoWhileLoopStmt, parent_node, location) {
 
     }
 
-
-    ASTNode * parent() final {
-        return parent_node;
-    }
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) final;

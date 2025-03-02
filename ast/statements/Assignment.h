@@ -16,9 +16,9 @@ public:
 
     Value* lhs;
     Value* value;
+    // TODO there's no usage of this, remove this
     InterfaceDefinition* definition;
     Operation assOp;
-    ASTNode* parent_node;
 
     /**
      * @brief Construct a new AssignStatement object.
@@ -32,16 +32,18 @@ public:
             Operation assOp,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::AssignmentStmt, location), lhs(lhs), value(value), assOp(assOp), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::AssignmentStmt, parent_node, location), lhs(lhs), value(value), assOp(assOp) {
 
     }
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
+    AssignStatement* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<AssignStatement>()) AssignStatement(
+            lhs->copy(allocator),
+            value->copy(allocator),
+            assOp,
+            parent(),
+            encoded_location()
+        );
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

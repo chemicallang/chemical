@@ -44,7 +44,6 @@ public:
     std::vector<ASTNode*> nodes;
     tsl::ordered_map<chem::string_view, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
-    ASTNode* parent_node;
     NamespaceDeclAttributes attrs;
 
     /**
@@ -55,7 +54,9 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ASTNode(ASTNodeKind::NamespaceDecl, location), identifier(identifier), parent_node(parent_node), attrs(specifier, false, false) {
+    ) : ASTNode(ASTNodeKind::NamespaceDecl, parent_node, location), identifier(identifier),
+        attrs(specifier, false, false)
+    {
 
     }
 
@@ -107,13 +108,6 @@ public:
     }
 
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

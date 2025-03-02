@@ -16,7 +16,6 @@
 class LoopBlock : public LoopASTNode, public Value {
 public:
 
-    ASTNode* parent_node;
     Value* first_broken = nullptr;
 
     /**
@@ -25,15 +24,11 @@ public:
     constexpr LoopBlock(
             ASTNode* parent_node,
             SourceLocation location
-    ) : LoopASTNode(ASTNodeKind::LoopBlock, location), Value(ValueKind::LoopValue, location), parent_node(parent_node) {
+    ) : LoopASTNode(ASTNodeKind::LoopBlock, parent_node, location), Value(ValueKind::LoopValue, location) {
 
     }
 
-    ASTNode* parent() final {
-        return parent_node;
-    }
-
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
+        void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type = nullptr) final;
 

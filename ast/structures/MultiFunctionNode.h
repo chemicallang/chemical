@@ -25,15 +25,15 @@ public:
     /**
      * constructor
      */
-    explicit constexpr MultiFunctionNode(chem::string_view name) : ASTNode(ASTNodeKind::MultiFunctionNode, ZERO_LOC), name(name) {
+    constexpr MultiFunctionNode(
+        chem::string_view name,
+        ASTNode* parent,
+        SourceLocation location
+    ) : ASTNode(ASTNodeKind::MultiFunctionNode, parent, location), name(name) {
 
     }
 
     FunctionDeclaration* func_for_call(ASTAllocator& allocator, std::vector<Value*>& args);
-
-    ASTNode *parent() final {
-        return nullptr;
-    }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

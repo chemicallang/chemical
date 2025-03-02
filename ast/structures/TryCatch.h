@@ -15,7 +15,6 @@ public:
     FunctionCall* tryCall;
     catch_var_type catchVar;
     std::optional<Scope> catchScope;
-    ASTNode* parent_node;
 
     /**
      * constructor
@@ -25,17 +24,8 @@ public:
             catch_var_type catchVar,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::TryStmt, location), tryCall(tryCall), catchVar(std::move(catchVar)), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::TryStmt, parent_node, location), tryCall(tryCall), catchVar(std::move(catchVar)) {
 
-    }
-
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-
-    ASTNode *parent() final {
-        return parent_node;
     }
 
 #ifdef COMPILER_BUILD

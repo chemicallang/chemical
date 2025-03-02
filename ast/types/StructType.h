@@ -11,22 +11,18 @@ class StructType : public BaseType, public ASTNode, public VariablesContainer {
 public:
 
     chem::string_view name;
-    ASTNode* parent_node;
+
 
     StructType(
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::StructType, location), BaseType(BaseTypeKind::Struct, location), name(name), parent_node(parent) {
+    ) : ASTNode(ASTNodeKind::StructType, parent, location), BaseType(BaseTypeKind::Struct, location), name(name) {
 
-    }
-
-    ASTNode* parent() override {
-        return parent_node;
     }
 
     BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<StructType>()) StructType(name, parent_node, BaseType::encoded_location());
+        return new (allocator.allocate<StructType>()) StructType(name, parent(), BaseType::encoded_location());
     }
 
     bool equals(StructType *type);

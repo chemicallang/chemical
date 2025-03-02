@@ -25,14 +25,6 @@ private:
 
 public:
 
-    FunctionParam(
-        const FunctionParam& other
-    ) : BaseFunctionParam(other), index(other.index), defValue(other.defValue), is_implicit(other.is_implicit) {
-
-    }
-
-public:
-
     unsigned int index;
     Value* defValue;
     const bool is_implicit;
@@ -47,17 +39,10 @@ public:
             Value* defValue,
             bool is_implicit,
             FunctionType* func_type,
+            ASTNode* parent_node,
             SourceLocation location
-    ) : BaseFunctionParam(name, type, func_type, ASTNodeKind::FunctionParam, location), index(index),
+    ) : BaseFunctionParam(name, type, func_type, ASTNodeKind::FunctionParam, parent_node, location), index(index),
         defValue(defValue), is_implicit(is_implicit) {}
-
-
-    /**
-     * get the parent
-     */
-    ASTNode *parent() final {
-        return (ASTNode*) func_type;
-    }
 
     /**
      * check this variable has been moved
@@ -102,12 +87,6 @@ public:
 
     BaseType *known_type() final {
         return type;
-    }
-
-    FunctionParam* shallow_copy(ASTAllocator& allocator) const {
-        const auto func_param = allocator.allocate<FunctionParam>();
-        new (func_param) FunctionParam(*this);
-        return func_param;
     }
 
     [[nodiscard]]

@@ -23,13 +23,10 @@ public:
      */
     GenericFuncDecl(
         FunctionDeclaration* master_impl,
+        ASTNode* parent_node,
         SourceLocation location
-    ) : BaseGenericDecl(ASTNodeKind::GenericFuncDecl, location), master_impl(master_impl) {
+    ) : BaseGenericDecl(ASTNodeKind::GenericFuncDecl, parent_node, location), master_impl(master_impl) {
 
-    }
-
-    ASTNode* parent() {
-        return master_impl->parent();
     }
 
     void declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) override;

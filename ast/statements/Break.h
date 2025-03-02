@@ -7,13 +7,13 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/base/Value.h"
 
 class BreakStatement : public ASTNode {
 private:
     LoopASTNode *node;
 public:
 
-    ASTNode* parent_node;
     /**
      * sometimes a break statement can break with a value, in cases where break is within
      * a loop block, that is itself a value, so this value is assigned to the variable owning the loop
@@ -22,22 +22,35 @@ public:
     Value* value;
 
     /**
-     * @brief Construct a new Break statement object.
+     * constructor
      */
     constexpr BreakStatement(
         LoopASTNode *node,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::BreakStmt, location), node(node), parent_node(parent_node), value(nullptr) {
+    ) : ASTNode(ASTNodeKind::BreakStmt, parent_node, location), node(node), value(nullptr) {
 
     }
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
+    /**
+     * constructor
+     */
+    constexpr BreakStatement(
+            Value* value,
+            LoopASTNode *node,
+            ASTNode* parent_node,
+            SourceLocation location
+    ) : ASTNode(ASTNodeKind::BreakStmt, parent_node, location), node(node), value(value) {
+
     }
 
-    ASTNode *parent() final {
-        return parent_node;
+    ASTNode* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<BreakStatement>()) BreakStatement(
+            value ? value->copy(allocator) : nullptr,
+            node,
+            parent(),
+            encoded_location()
+        );
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

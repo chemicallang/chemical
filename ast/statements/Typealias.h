@@ -35,10 +35,9 @@ public:
     LocatedIdentifier located_id;
     // after equal
     BaseType* actual_type;
-    ASTNode* parent_node;
 
     /**
-     * @brief Construct a new TypealiasStatement object.
+     * constructor
      */
     TypealiasStatement(
             LocatedIdentifier identifier,
@@ -46,9 +45,21 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableNode(ASTNodeKind::TypealiasStmt, location), located_id(identifier), actual_type(actual_type),
-        parent_node(parent_node), attrs(specifier, false, false) {
+    ) : ExtendableNode(ASTNodeKind::TypealiasStmt, parent_node, location), located_id(identifier),
+        actual_type(actual_type), attrs(specifier, false, false) {
 
+    }
+
+    TypealiasStatement* copy(ASTAllocator &allocator) override {
+        const auto stmt = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(
+            located_id,
+            actual_type->copy(allocator),
+            parent(),
+            encoded_location(),
+            specifier()
+        );
+        stmt->attrs = attrs;
+        return stmt;
     }
 
     /**
@@ -91,17 +102,10 @@ public:
     }
 
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    bool is_exported_fast() {
+        bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;
     }
 
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     uint64_t byte_size(bool is64Bit) final;
 

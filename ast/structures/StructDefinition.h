@@ -77,7 +77,6 @@ private:
     StructDeclAttributes attrs;
 
 public:
-    ASTNode* parent_node;
     LinkedType linked_type;
 
 #ifdef COMPILER_BUILD
@@ -100,7 +99,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::StructDecl, location), parent_node(parent_node),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::StructDecl, parent_node, location),
         attrs(specifier, false, false, false, false, false, false, false, false, false),
         linked_type(identifier.identifier, this, location) {
 
@@ -219,14 +218,7 @@ public:
 //        return this;
 //    }
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
 
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     VariablesContainer *as_variables_container() final {
         return this;

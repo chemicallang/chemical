@@ -20,7 +20,7 @@ public:
     std::vector<chem::string_view> identifiers;
     chem::string_view filePath; ///< The file path to import.
     chem::string_view as_identifier;
-    ASTNode* parent_node;
+
 
     /**
      * constructor
@@ -29,17 +29,19 @@ public:
         chem::string_view filePath,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::ImportStmt, location), filePath(filePath), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::ImportStmt, parent_node, location), filePath(filePath) {
 
     }
 
-
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
+    ImportStatement* copy(ASTAllocator &allocator) override {
+        const auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement(
+            filePath,
+            parent(),
+            encoded_location()
+        );
+        stmt->identifiers = identifiers;
+        stmt->as_identifier = as_identifier;
+        return stmt;
     }
 
 #ifdef COMPILER_BUILD

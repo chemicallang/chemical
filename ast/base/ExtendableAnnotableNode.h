@@ -11,7 +11,11 @@ public:
     /**
      * constructor
      */
-    inline ExtendableNode(ASTNodeKind k, SourceLocation loc) noexcept : ASTNode(k, loc) {
+    inline ExtendableNode(
+        ASTNodeKind k,
+        ASTNode* parent_node,
+        SourceLocation loc
+    ) noexcept : ASTNode(k, parent_node, loc) {
 
     }
 

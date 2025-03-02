@@ -62,11 +62,6 @@ public:
     void* data_ptr;
 
     /**
-     * parent node
-     */
-    ASTNode* parent_node;
-
-    /**
      * constructor
      */
     inline constexpr SymResNode(
@@ -76,19 +71,16 @@ public:
             void* data_ptr,
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::SymResNode, location), allocator(allocator), decl_fn(decl_fn), repl_fn(repl_fn), data_ptr(data_ptr), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::SymResNode, parent_node, location), allocator(allocator), decl_fn(decl_fn), repl_fn(repl_fn), data_ptr(data_ptr) {
 
     }
 
-    ASTNode* parent() override {
-        return parent_node;
+    ASTNode* copy(ASTAllocator &allocator) override {
+#ifdef DEBUG
+        throw std::runtime_error("an attempt to copy sym res node");
+#endif
+        return nullptr;
     }
-
-//    Value* copy(ASTAllocator &alloc) override {
-//        return new (alloc.allocate<SymResNode>()) SymResNode(
-//            this->allocator, fn, data_ptr, location
-//        );
-//    }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override {
         decl_fn(allocator, &linker, &data_ptr);

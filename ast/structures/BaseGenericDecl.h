@@ -9,7 +9,14 @@ public:
 
     std::vector<GenericTypeParameter*> generic_params;
 
-    inline constexpr BaseGenericDecl(ASTNodeKind k, SourceLocation location) : ASTNode(k, location) {
+    /**
+     * constructor
+     */
+    inline constexpr BaseGenericDecl(
+        ASTNodeKind k,
+        ASTNode* parent_node,
+        SourceLocation location
+    ) : ASTNode(k, parent_node, location) {
 
     }
 

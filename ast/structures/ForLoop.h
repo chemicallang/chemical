@@ -14,7 +14,6 @@
 class ForLoop : public LoopASTNode {
 public:
 
-    ASTNode* parent_node;
     ASTNode* initializer;
     Value* conditionExpr;
     ASTNode* incrementerExpr;
@@ -29,18 +28,9 @@ public:
             ASTNode* incrementerExpr,
             ASTNode* parent_node,
             SourceLocation location
-    ) : LoopASTNode(ASTNodeKind::ForLoopStmt, location), initializer(initializer), conditionExpr(conditionExpr),
-        incrementerExpr(incrementerExpr), parent_node(parent_node) {
+    ) : LoopASTNode(ASTNodeKind::ForLoopStmt, parent_node, location), initializer(initializer), conditionExpr(conditionExpr),
+        incrementerExpr(incrementerExpr) {
 
-    }
-
-
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

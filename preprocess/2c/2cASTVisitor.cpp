@@ -1482,7 +1482,7 @@ void CBeforeStmtVisitor::VisitAccessChain(AccessChain *chain) {
 void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
 
     const auto member = call->parent_val->linked_node()->as_variant_member();
-    const auto linked = member->parent_node;
+    const auto linked = member->parent();
     const auto index = linked->direct_child_index(member->name);
 
     int16_t prev_itr;
@@ -1524,7 +1524,7 @@ void CBeforeStmtVisitor::VisitVariantCall(VariantCall *call) {
 
     RecursiveValueVisitor::VisitVariantCall(call);
     const auto member = call->parent_val->linked_node()->as_variant_member();
-    const auto linked = member->parent_node;
+    const auto linked = member->parent();
     const auto index = linked->direct_child_index(member->name);
 
     int16_t prev_itr;
@@ -1911,7 +1911,7 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
         const auto linked_kind = linked->kind();
         if(linked_kind == ASTNodeKind::VariantMember) {
             const auto member = linked->as_variant_member_unsafe();
-            const auto variant = member->parent_node;
+            const auto variant = member->parent();
             queue_destruct(self_name, initializer, return_type->get_generic_iteration(), variant);
             return;
         }
@@ -3174,7 +3174,7 @@ void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
     if(node->value) {
         auto val_kind = node->value->val_kind();
         if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
-            write_assignable(*this, node->parent_node);
+            write_assignable(*this, node->parent());
             write(" = ");
         }
         auto prev = nested_value;
@@ -4167,7 +4167,7 @@ void ToCAstVisitor::VisitLoopBlock(LoopBlock *loop) {
 
 void ToCAstVisitor::VisitVariantCase(VariantCase *variant_case) {
     const auto member = variant_case->parent_val->linked_node()->as_variant_member();
-    *output << member->parent_node->direct_child_index(member->name);
+    *output << member->parent()->direct_child_index(member->name);
 }
 
 void ToCAstVisitor::VisitVariantCall(VariantCall *call) {
@@ -4247,7 +4247,7 @@ void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func
 
 // this automatically determines which parent to pass through
 void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node) {
-    const auto parent = func_node->parent();
+    const auto parent = func_node->ASTNode::parent();
     if(parent) {
         const auto struct_parent = parent->as_struct_def();
         const auto impl_parent = parent->as_impl_def();
@@ -5001,7 +5001,7 @@ void ToCAstVisitor::VisitSwitchStmt(SwitchStatement *statement) {
             if(linked_kind == ASTNodeKind::VariantDecl) {
                 variant = linked->as_variant_def_unsafe();
             } else if(linked_kind == ASTNodeKind::VariantMember) {
-                variant = linked->as_variant_member_unsafe()->parent_node;
+                variant = linked->as_variant_member_unsafe()->parent();
             }
             if (variant) {
                 // turn on the active iteration of the variant
@@ -5465,7 +5465,7 @@ void ToCAstVisitor::VisitNullValue(NullValue *nullValue) {
 void ToCAstVisitor::VisitValueNode(ValueNode *node) {
     auto val_kind = node->value->val_kind();
     if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
-        write_assignable(*this, node->parent_node);
+        write_assignable(*this, node->parent());
         write(" = ");
     }
     auto prev = nested_value;
@@ -5665,7 +5665,7 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
             return;
         case ASTNodeKind::VariantMember:
             write("struct ");
-            linked.as_variant_member_unsafe()->parent_node->runtime_name(*output);
+            linked.as_variant_member_unsafe()->parent()->runtime_name(*output);
             return;
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:

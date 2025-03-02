@@ -10,7 +10,12 @@ public:
 
     chem::string_view name;
 
-    constexpr BaseDefMember(chem::string_view name, ASTNodeKind k, SourceLocation loc) : ASTNode(k, loc), name(name) {
+    constexpr BaseDefMember(
+        chem::string_view name,
+        ASTNodeKind k,
+        ASTNode* parent_node,
+        SourceLocation loc
+    ) : ASTNode(k, parent_node, loc), name(name) {
 
     }
 

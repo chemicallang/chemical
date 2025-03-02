@@ -14,7 +14,7 @@ private:
     LoopASTNode *node;
 public:
 
-    ASTNode* parent_node;
+
 
     /**
      * Construct a new ContinueStatement object.
@@ -23,16 +23,16 @@ public:
         LoopASTNode *node,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::ContinueStmt, location), node(node), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::ContinueStmt, parent_node, location), node(node) {
 
     }
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
+    ContinueStatement* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<ContinueStatement>()) ContinueStatement(
+            node,
+            parent(),
+            encoded_location()
+        );
     }
 
 #ifdef COMPILER_BUILD

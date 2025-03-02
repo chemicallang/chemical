@@ -170,15 +170,6 @@ private:
 
     void set_gen_itr_no_subs(int16_t iteration);
 
-protected:
-
-    /**
-     * the copy constructor is protected so implicit invocations are not possible
-     */
-    FunctionDeclaration(
-        const FunctionDeclaration& decl
-    );
-
 public:
 
     /**
@@ -265,7 +256,7 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal,
             bool signature_resolved = false,
             ASTNodeKind k = ASTNodeKind::FunctionDecl
-    )  : ASTNode(k, location), FunctionTypeBody(returnType, isVariadic, false, parent_node, location, signature_resolved),
+    )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, parent_node, location, signature_resolved),
          identifier(identifier),
          attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false, false) {
     }
@@ -458,10 +449,6 @@ public:
      */
     int16_t total_generic_iterations();
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
     bool is_generic() {
         return !generic_params.empty();
     }
@@ -475,7 +462,7 @@ public:
     }
 
     std::string runtime_name_fast() {
-        return parent_node ? runtime_name_str() : runtime_name_no_parent_fast_str();
+        return ASTNode::parent() ? runtime_name_str() : runtime_name_no_parent_fast_str();
     }
 
     void runtime_name_no_parent_fast(std::ostream &stream);
@@ -488,18 +475,15 @@ public:
 
     void runtime_name(std::ostream &stream) final;
 
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     LocatedIdentifier* get_func_name_id() final {
         return &identifier;
     }
 
     /**
-     * this would allow us to shallow copy the function
+     * this would copy the entire function and everything inside it, it's a deep copy
      */
-    FunctionDeclaration* shallow_copy(ASTAllocator& allocator);
+    FunctionDeclaration* copy(ASTAllocator& allocator);
 
     void make_destructor(ASTAllocator&, ExtendableMembersContainerNode* def);
 

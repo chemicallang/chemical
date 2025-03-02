@@ -15,12 +15,8 @@ public:
     constexpr UnsafeBlock(
             ASTNode* parent_node,
             SourceLocation location
-    ) : ASTNode(ASTNodeKind::UnsafeBlock, location), scope(parent_node, location) {
+    ) : ASTNode(ASTNodeKind::UnsafeBlock, parent_node, location), scope(parent_node, location) {
 
-    }
-
-    ASTNode* parent() final {
-        return scope.parent_node;
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

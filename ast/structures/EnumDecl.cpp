@@ -13,16 +13,16 @@ void EnumMember::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
 }
 
 unsigned int EnumMember::get_default_index() {
-    const auto starting_index = parent_node->get_default_starting_index();
+    const auto starting_index = parent()->get_default_starting_index();
     return starting_index + index;
 }
 
 BaseType* EnumMember::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(parent_node->name_view(), (ASTNode*) parent_node, encoded_location());
+    return new (allocator.allocate<LinkedType>()) LinkedType(parent()->name_view(), parent_node(), encoded_location());
 }
 
 BaseType* EnumMember::known_type() {
-    return parent_node->known_type();
+    return parent()->known_type();
 };
 
 ASTNode *EnumDeclaration::child(const chem::string_view &name) {

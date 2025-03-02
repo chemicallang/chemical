@@ -17,7 +17,7 @@
 #include "compiler/llvmimpl.h"
 
 bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member) {
-    const auto member_index = member->parent_node->direct_child_index(member->name);
+    const auto member_index = member->parent()->direct_child_index(member->name);
     if(member_index == -1) {
         gen.error(this) << "couldn't find member index for the variant member with name '" << member->name << "'";
         return false;
@@ -101,12 +101,12 @@ llvm::AllocaInst* VariantCall::llvm_allocate(Codegen &gen, const std::string &id
 
 llvm::Type* VariantCall::llvm_type(Codegen &gen) {
     const auto member = parent_val->linked_node()->as_variant_member();
-    const auto largest_member = member->parent_node->largest_member();
+    const auto largest_member = member->parent()->largest_member();
     llvm::Type* def_type;
     if(largest_member == member) {
-        def_type = member->parent_node->llvm_type(gen);
+        def_type = member->parent()->llvm_type(gen);
     } else {
-        def_type = member->parent_node->llvm_type_with_member(gen, member);
+        def_type = member->parent()->llvm_type_with_member(gen, member);
     }
     return def_type;
 }
@@ -143,7 +143,7 @@ VariantMember* VariantCall::get_member() {
 }
 
 VariantDefinition* VariantCall::get_definition() {
-    return get_member()->parent_node;
+    return get_member()->parent();
 }
 
 void VariantCall::relink_values(SymbolResolver& linker) {
@@ -159,7 +159,7 @@ void VariantCall::relink_values(SymbolResolver& linker) {
 
 void VariantCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred) {
     const auto member = get_member();
-    const auto def = member->parent_node;
+    const auto def = member->parent();
     // going over function parameters to see which arguments have been given, if they do have a generic type
     // going over only explicit function params
     const auto values_size = values.size();
@@ -233,7 +233,7 @@ bool VariantCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
 
 void VariantCall::set_created_type(ASTAllocator& allocator) {
     const auto member = parent_val->linked_node()->as_variant_member();
-    const auto parent_node = member->parent_node;
+    const auto parent_node = member->parent();
     const auto largest_member = parent_node->largest_member();
     if(largest_member == member) {
         cached_type = parent_node->create_value_type(allocator);

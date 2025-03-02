@@ -10,7 +10,6 @@ class ThrowStatement : public ASTNode {
 public:
 
     Value* value;
-    ASTNode* parent_node;
 
     /**
      * constructor
@@ -19,17 +18,12 @@ public:
         Value* value,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::ThrowStmt, location), value(value), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::ThrowStmt, parent_node, location), value(value) {
 
     }
 
-
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
+    ThrowStatement* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<ThrowStatement>()) ThrowStatement(value->copy(allocator), parent(), encoded_location());
     }
 
 #ifdef COMPILER_BUILD

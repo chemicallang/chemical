@@ -498,7 +498,7 @@ void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
         }
     } else if(linked_kind == ASTNodeKind::VariantMember) {
         const auto member = linked->as_variant_member_unsafe();
-        const auto variant = member->parent_node;
+        const auto variant = member->parent();
         variant->llvm_destruct(gen, allocaInst, encoded_location());
         return;
     }
@@ -530,7 +530,7 @@ bool is_node_decl(ASTNode* linked) {
 }
 
 bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member, FunctionCall* call) {
-    const auto member_index = member->parent_node->direct_child_index(member->name);
+    const auto member_index = member->parent()->direct_child_index(member->name);
     if(member_index == -1) {
         gen.error(call) << "couldn't find member index for the variant member with name '" << member->name << "'";
         return false;
@@ -589,10 +589,10 @@ bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* d
 }
 
 llvm::Type* variant_llvm_type(Codegen &gen, VariantMember* member) {
-    const auto largest_member = member->parent_node->largest_member();
+    const auto largest_member = member->parent()->largest_member();
     llvm::Type* def_type;
     if(largest_member == member) {
-        def_type = member->parent_node->llvm_type(gen);
+        def_type = member->parent()->llvm_type(gen);
     } else {
         def_type = VariantDefinition::llvm_type_with_member(gen, member);
     }
@@ -794,7 +794,7 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
     const auto linked = parent_val->linked_node();
     if(linked && linked->kind() == ASTNodeKind::VariantMember) {
         const auto variant_mem = linked->as_variant_member_unsafe();
-        const auto variant = variant_mem->parent_node;
+        const auto variant = variant_mem->parent();
         const auto variant_type = variant_llvm_type(gen, variant_mem);
         const auto allocated = gen.builder->CreateAlloca(variant_type);
         gen.di.instr(allocated, this);
@@ -974,7 +974,7 @@ int16_t FunctionCall::set_gen_itr_on_decl(int16_t itr, bool set_generic_calls) {
         }
     } else if(parent_kind == ASTNodeKind::VariantMember) {
         const auto member = parent->as_variant_member_unsafe();
-        const auto variant = member->parent_node;
+        const auto variant = member->parent();
         if(variant->is_generic()) {
             variant->active_iteration = itr;
         }
@@ -1215,7 +1215,7 @@ bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expec
     // find the constructor based on linked values
     if(linked_kind == ASTNodeKind::VariantMember) {
         const auto member = linked->as_variant_member_unsafe();
-        const auto variant = member->parent_node;
+        const auto variant = member->parent();
         if(variant->is_generic()) {
             prev_itr = variant->active_iteration;
             generic_iteration = variant->register_call(resolver, this, expected_type);

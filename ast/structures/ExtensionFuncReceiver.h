@@ -7,8 +7,6 @@
 class ExtensionFuncReceiver : public BaseFunctionParam {
 public:
 
-    ASTNode* parent_node;
-
     /**
      * constructor
      */
@@ -17,14 +15,10 @@ public:
         BaseType* type,
         ASTNode* parent_node,
         SourceLocation location
-    ) : BaseFunctionParam(name, type, nullptr, ASTNodeKind::ExtensionFuncReceiver, location), parent_node(parent_node) {
+    ) : BaseFunctionParam(name, type, nullptr, ASTNodeKind::ExtensionFuncReceiver, parent_node, location) {
 
     }
 
-
-    ASTNode * parent() final {
-        return parent_node;
-    }
 
     ASTNode *child(const chem::string_view &name) final;
 

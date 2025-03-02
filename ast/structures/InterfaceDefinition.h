@@ -46,7 +46,6 @@ public:
     /**
      * the parent node of the interface
      */
-    ASTNode* parent_node;
     /**
      * users are registered so we can declare functions before hand
      */
@@ -82,7 +81,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::InterfaceDecl, location), parent_node(parent_node),
+    ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::InterfaceDecl, parent_node, location),
         attrs(specifier, false, false, false) {
 
     }
@@ -124,13 +123,6 @@ public:
     }
 
 
-    void set_parent(ASTNode* new_parent) final {
-        parent_node = new_parent;
-    }
-
-    ASTNode *parent() final {
-        return parent_node;
-    }
 
     void runtime_vtable_name(std::ostream& stream, StructDefinition* def);
 

@@ -25,7 +25,7 @@ bool GenericType::subscribe_to_parent_generic() {
         if(type->kind() == BaseTypeKind::Linked) {
             const auto gen_param = type->linked_node()->as_generic_type_param();
             if(gen_param) {
-                gen_param->parent_node->subscribe(this);
+                gen_param->parent()->subscribe(this);
                 return true;
             }
         }

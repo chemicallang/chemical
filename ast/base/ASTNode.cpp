@@ -365,12 +365,6 @@ bool ASTNode::requires_moving(ASTNodeKind k) {
 //    }
 //}
 
-void ASTNode::set_parent(ASTNode* parent) {
-#ifdef DEBUG
-    throw std::runtime_error("set_parent called on base ast node");
-#endif
-}
-
 #ifdef COMPILER_BUILD
 
 llvm::Value *ASTNode::llvm_pointer(Codegen &gen) {

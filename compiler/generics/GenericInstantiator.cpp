@@ -41,7 +41,7 @@ void GenericInstantiator::VisitAlignOfValue(AlignOfValue* value) {
 FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, size_t itr) {
 
     // creating a shallow copy of the function
-    const auto impl = decl->master_impl->shallow_copy(allocator);
+    const auto impl = decl->master_impl->copy(allocator);
 
     // activating iteration in params
     for(const auto param : decl->generic_params) {

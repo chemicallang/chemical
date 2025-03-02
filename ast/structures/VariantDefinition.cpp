@@ -34,7 +34,7 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, Variant
     if(anonymous) {
         return llvm::StructType::get(*gen.ctx, elements);
     } else {
-        return llvm::StructType::create(*gen.ctx, elements, member->parent_node->runtime_name_str());
+        return llvm::StructType::create(*gen.ctx, elements, member->parent()->runtime_name_str());
     }
 }
 
@@ -179,7 +179,7 @@ bool VariantMemberParam::add_child_index(Codegen& gen, std::vector<llvm::Value *
 
 llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
     const auto linked_member = parent_val->linked_node()->as_variant_member();
-    auto index = linked_member->parent_node->direct_child_index(linked_member->name);
+    auto index = linked_member->parent()->direct_child_index(linked_member->name);
     if(index == -1) {
         gen.error(this) << "couldn't find case index of variant member '" << parent_val->representation() << "'";
         return nullptr;
@@ -191,7 +191,7 @@ llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
 llvm::Value* VariantCaseVariable::llvm_pointer_no_itr(Codegen& gen) {
     const auto holder_pointer = switch_statement->expression->llvm_pointer(gen);
     const auto linked_member = parent_val->linked_node()->as_variant_member();
-    const auto linked_def = linked_member->parent_node;
+    const auto linked_def = linked_member->parent();
     const auto largest_member = linked_def->largest_member()->as_variant_member_unsafe();
     llvm::Type* container_type;
     if(largest_member == linked_member) {
@@ -418,7 +418,7 @@ int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* 
 }
 
 BaseDefMember *VariantMember::copy_member(ASTAllocator& allocator) {
-    const auto member = new (allocator.allocate<VariantMember>()) VariantMember(name, parent_node, encoded_location());
+    const auto member = new (allocator.allocate<VariantMember>()) VariantMember(name, parent(), encoded_location());
     for(auto& value : values) {
         member->values[value.first] = value.second->copy(allocator);
     }
@@ -506,7 +506,7 @@ BaseTypeKind VariantMember::type_kind() const {
 }
 
 VariantMemberParam* VariantMemberParam::copy(ASTAllocator& allocator) {
-    return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, is_const, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent_node, encoded_location());
+    return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, is_const, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent(), encoded_location());
 }
 
 void VariantMemberParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {

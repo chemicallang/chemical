@@ -257,7 +257,7 @@ void infer_types_by_args(
             // directly linked generic param like func <T> add(param : T) or func add() : T
             // so we have param type T which is linked with a generic type parameter and arg type the inferred type
             const auto gen_param = linked->as_generic_type_param_unsafe();
-            if(gen_param->parent_node == params_node && gen_param->param_index >= generic_list_size) {
+            if(gen_param->parent() == params_node && gen_param->param_index >= generic_list_size) {
                 // get the function argument for this arg_offset
                 inferred[gen_param->param_index] = arg_type;
             }

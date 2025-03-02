@@ -32,10 +32,6 @@ public:
      * free function is linked
      */
     FunctionDeclaration* free_func_linked = nullptr;
-    /**
-     * parent node
-     */
-    ASTNode* parent_node;
 
     /**
      * constructor
@@ -46,14 +42,20 @@ public:
         bool is_array,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::DeleteStmt, location), array_value(array_value), identifier(value), is_array(is_array), parent_node(parent_node) {
+    ) : ASTNode(ASTNodeKind::DeleteStmt, parent_node, location), array_value(array_value), identifier(value), is_array(is_array) {
 
     }
 
     DestructData get_data(ASTAllocator& allocator);
 
-    ASTNode* parent() final {
-        return parent_node;
+    DestructStmt* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<DestructStmt>()) DestructStmt(
+            array_value->copy(allocator),
+            identifier->copy(allocator),
+            is_array,
+            parent(),
+            encoded_location()
+        );
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;

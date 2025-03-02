@@ -23,14 +23,18 @@ public:
             VariableIdentifier* parent_val,
             SwitchStatement* switch_statement,
             SourceLocation token
-    ) : ASTNode(ASTNodeKind::VariantCaseVariable, parent_val->encoded_location()), name(name), parent_val(parent_val), switch_statement(switch_statement) {
+    ) : ASTNode(ASTNodeKind::VariantCaseVariable, (ASTNode*) switch_statement, parent_val->encoded_location()), name(name), parent_val(parent_val), switch_statement(switch_statement) {
 
     }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
-    ASTNode* parent() final {
-        return (ASTNode*) switch_statement;
+    inline ASTNode* parent_node() {
+        return ASTNode::parent();
+    }
+
+    inline SwitchStatement* parent() {
+        return (SwitchStatement*) ASTNode::parent();
     }
 
 //    hybrid_ptr<BaseType> get_value_type() final;

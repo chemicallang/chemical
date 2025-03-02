@@ -25,16 +25,14 @@ public:
     BaseType* refType;
     std::unordered_map<chem::string_view, StructMemberInitializer> values;
     int16_t generic_iteration = 0;
-    ASTNode* parent_node;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst = nullptr;
 #endif
 
     StructValue(
         BaseType* refType,
-        SourceLocation location,
-        ASTNode* parent
-    ) : Value(ValueKind::StructValue, location), refType(refType), definition(nullptr), container(nullptr), parent_node(parent)
+        SourceLocation location
+    ) : Value(ValueKind::StructValue, location), refType(refType), definition(nullptr), container(nullptr)
     {
 
     }
@@ -43,9 +41,8 @@ public:
         BaseType* refType,
         ExtendableMembersContainerNode *definition,
         VariablesContainer* container,
-        SourceLocation location,
-        ASTNode* parent
-    ) : Value(ValueKind::StructValue, location), refType(refType), definition(definition), container(container), parent_node(parent)
+        SourceLocation location
+    ) : Value(ValueKind::StructValue, location), refType(refType), definition(definition), container(container)
     {
 
     }

@@ -126,13 +126,6 @@ public:
     int16_t register_call(SymbolResolver& resolver, FunctionCall* call, BaseType* expected_type);
 
     /**
-     * a variant call notifies a definition, during symbol resolution that it exists
-     * when this happens, generics are checked, proper types are registered in generic
-     * @return iteration that corresponds to this call
-     */
-    int16_t register_call(SymbolResolver& resolver, VariantCall* call, BaseType* expected_type);
-
-    /**
      * check if it includes any member who has a struct, that requires a destructor
      */
     bool requires_destructor();
@@ -172,8 +165,6 @@ public:
     void code_gen(Codegen &gen) final {
         code_gen(gen, false);
     }
-
-    void code_gen_generic(Codegen &gen) final;
 
     void code_gen_external_declare(Codegen &gen) final;
 

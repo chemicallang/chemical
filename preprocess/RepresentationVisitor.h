@@ -338,8 +338,6 @@ public:
 
     void VisitAlignOfValue(AlignOfValue* value);
 
-    void VisitVariantCall(VariantCall* value);
-
     void VisitVariantCase(VariantCase* value);
 
     void VisitAddrOfValue(AddrOfValue* value);

@@ -197,7 +197,6 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "ASTBuildermake_block_value", (void*) ASTBuildermake_block_value },
             { "ASTBuildermake_value_node", (void*) ASTBuildermake_value_node },
             { "ASTBuildermake_identifier", (void*) ASTBuildermake_identifier },
-            { "ASTBuildermake_variant_call", (void*) ASTBuildermake_variant_call },
             { "ASTBuildermake_variant_case", (void*) ASTBuildermake_variant_case },
             { "ASTBuildermake_variant_case_variable", (void*) ASTBuildermake_variant_case_variable },
             { "ASTBuildermake_assignment_stmt", (void*) ASTBuildermake_assignment_stmt },

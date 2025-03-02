@@ -742,10 +742,6 @@ public:
         return k == ValueKind::SizeOfValue;
     }
 
-    static constexpr inline bool isVariantCall(ValueKind k) {
-        return k == ValueKind::VariantCall;
-    }
-
     static constexpr inline bool isVariantCase(ValueKind k) {
         return k == ValueKind::VariantCase;
     }
@@ -902,10 +898,6 @@ public:
         return isSizeOfValue(val_kind()) ? ((SizeOfValue*) this) : nullptr;
     }
 
-    inline VariantCall* as_variant_call() {
-        return isVariantCall(val_kind()) ? ((VariantCall*) this) : nullptr;
-    }
-
     inline VariantCase* as_variant_case() {
         return isVariantCase(val_kind()) ? ((VariantCase*) this) : nullptr;
     }
@@ -1056,10 +1048,6 @@ public:
 
     inline SizeOfValue* as_sizeof_value_unsafe() {
         return ((SizeOfValue*) this);
-    }
-
-    inline VariantCall* as_variant_call_unsafe() {
-        return ((VariantCall*) this);
     }
 
     inline VariantCase* as_variant_case_unsafe() {

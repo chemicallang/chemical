@@ -44,8 +44,6 @@ public:
 
     void VisitFunctionCall(FunctionCall *call);
 
-    void VisitVariantCall(VariantCall *call);
-
     void VisitArrayValue(ArrayValue *arrayVal);
 
     void VisitStructValue(StructValue *structValue);

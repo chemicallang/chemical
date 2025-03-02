@@ -255,13 +255,13 @@ void FunctionDeclaration::code_gen_body(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
-    if(!exists_at_runtime()) {
+    if (!exists_at_runtime()) {
         return;
     }
-    if(parent_node) {
+    if (parent_node) {
         auto k = parent_node->kind();
-        switch(k) {
-            case ASTNodeKind::StructDecl:{
+        switch (k) {
+            case ASTNodeKind::StructDecl: {
                 const auto parent_decl = parent_node->as_struct_def_unsafe();
                 parent_decl->code_gen_function_body(gen, this);
                 return;
@@ -294,11 +294,6 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
     } else {
         code_gen_body(gen);
     }
-}
-
-void FunctionDeclaration::code_gen_generic(Codegen &gen) {
-    code_gen_declare(gen);
-    code_gen_body(gen);
 }
 
 void FunctionDeclaration::llvm_attributes(llvm::Function* func) {

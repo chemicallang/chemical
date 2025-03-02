@@ -732,11 +732,6 @@ public:
     void code_gen(Codegen &gen) final;
 
     /**
-     * generic code gen
-     */
-    void code_gen_generic(Codegen &gen) final;
-
-    /**
      * (this) is the function that is overriding
      * the given decl is the function that is being overridden
      * in the struct when a function is overriding another function, this method is

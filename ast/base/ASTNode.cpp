@@ -402,14 +402,6 @@ llvm::Value *ASTNode::llvm_load(Codegen& gen, SourceLocation location) {
 #endif
 }
 
-void ASTNode::code_gen_generic(Codegen &gen) {
-#ifdef DEBUG
-    throw std::runtime_error("llvm_load called on a ASTNode");
-#else
-    std::cerr << ("ASTNode::llvm_load called, on node : " + representation());
-#endif
-}
-
 void ASTNode::llvm_destruct(Codegen& gen, llvm::Value* allocaInst, SourceLocation location) {
     switch(kind()) {
         case ASTNodeKind::StructDecl:

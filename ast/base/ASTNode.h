@@ -454,16 +454,6 @@ public:
     }
 
     /**
-     * this function allows us to code_gen for imported generics
-     * generic nodes emit code once, their usage is detected at symbol resolution, however
-     * when generic nodes are imported from other files, they can't emit code, because code_gen
-     * is not called on them, however this function is called on imported nodes, that registered
-     * themselves in symbol resolver because of another usage for which code wasn't generated before
-     * function checks strictly that no code is generated for already present functions
-     */
-    virtual void code_gen_generic(Codegen &gen);
-
-    /**
      * add child index in llvm indexes vector
      */
     virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name);

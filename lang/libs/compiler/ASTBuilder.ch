@@ -190,8 +190,6 @@ struct StructMemberInitializer : ASTNode {}
 
 struct CapturedVariable : ASTNode {}
 
-struct VariantCall : ASTNode {}
-
 struct VariantCase : ASTNode {
 
     func add_variable(&self, variable : *VariantCaseVariable);
@@ -504,8 +502,6 @@ public struct ASTBuilder : BatchAllocator {
     func make_value_node(&self, value : *Value, parent_node : *ASTNode, location : ubigint) : *mut ValueNode
 
     func make_identifier(&self, value : &string_view, is_ns : bool, location : ubigint) : *mut VariableIdentifier
-
-    func make_variant_call(&self, chain : *AccessChain, location : ubigint) : *mut VariantCall
 
     func make_variant_case(&self, chain : *AccessChain, stmt : *SwitchStatement, location : ubigint) : *mut VariantCase
 

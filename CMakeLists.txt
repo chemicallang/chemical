@@ -159,7 +159,6 @@ set(COMMON_SOURCES
         ast/statements/Return.h
         ast/statements/Break.h
         ast/statements/Continue.h
-        parser/model/LexTokenType.h
         utils/Utils.cpp
         ast/structures/Scope.h
         ast/values/AccessChain.h
@@ -410,8 +409,6 @@ set(COMMON_SOURCES
         parser/structures/Variant.cpp
         ast/base/ASTNodeKind.h
         ast/values/VariantCase.h
-        ast/values/VariantCall.h
-        ast/values/VariantCall.cpp
         ast/values/VariantCaseVariable.h
         ast/values/IsValue.cpp
         ast/values/ValueNode.h

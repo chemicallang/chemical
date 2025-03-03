@@ -33,12 +33,10 @@ void VariableIdentifier::process_linked(ASTDiagnoser& linker) {
     }
 }
 
-const auto GENv2 = false;
-
 bool VariableIdentifier::link(SymbolResolver &linker, bool check_access, Value** ptr_ref) {
     linked = linker.find(value);
     if(linked) {
-        if(linked->kind() == ASTNodeKind::GenericTypeParam && GENv2) {
+        if(linked->kind() == ASTNodeKind::GenericTypeParam) {
             if(ptr_ref) {
                 auto& allocator = *linker.ast_allocator;
                 const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(value, linked, encoded_location());

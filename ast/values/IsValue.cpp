@@ -4,6 +4,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/values/BoolValue.h"
+#include "ast/values/TypeInsideValue.h"
 #include "ast/values/NullValue.h"
 
 bool IsValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
@@ -21,8 +22,7 @@ Value* IsValue::evaluated_value(InterpretScope &scope) {
     }
 }
 
-std::optional<bool> IsValue::get_comp_time_result() {
-    const auto linked = value->linked_node();
+std::optional<bool> get_from_node(BaseType* type, ASTNode* linked, bool is_negating) {
     if(linked) {
         const auto param = linked->as_generic_type_param();
         if (param) {
@@ -41,4 +41,17 @@ std::optional<bool> IsValue::get_comp_time_result() {
         }
     }
     return std::nullopt;
+}
+
+std::optional<bool> IsValue::get_comp_time_result() {
+    if(value->kind() == ValueKind::TypeInsideValue) {
+        const auto typeInside = (TypeInsideValue*) value;
+        if(typeInside->type->kind() == BaseTypeKind::Linked) {
+            return get_from_node(type, typeInside->type->linked_node(), is_negating);
+        } else {
+            const auto result = type->is_same(typeInside->type->pure_type());
+            return is_negating ? !result : result;
+        }
+    }
+    return get_from_node(type, value->linked_node(), is_negating);
 }

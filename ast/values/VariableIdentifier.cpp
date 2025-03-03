@@ -21,15 +21,19 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-void VariableIdentifier::process_linked(ASTDiagnoser& linker) {
+void VariableIdentifier::process_linked(ASTDiagnoser* linker) {
     const auto linkedKind = linked->kind();
     if(linkedKind == ASTNodeKind::FunctionDecl || linkedKind == ASTNodeKind::ExtensionFunctionDecl) {
         // if this is not set, function won't generate code (very important)
         // this doesn't account for recursion though, this identifier maybe present inside with linked function
         linked->as_function_unsafe()->set_has_usage(true);
     } else if(linkedKind == ASTNodeKind::NamespaceDecl && !is_ns){
-        // TODO enable this, so we can check user uses :: for static access
+        if(linker) {
+            // TODO enable this, so we can check user uses :: for static access
 //            linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
+        } else {
+            // TODO complain that the diagnoser wasn't received
+        }
     }
 }
 
@@ -50,7 +54,7 @@ bool VariableIdentifier::link(SymbolResolver &linker, bool check_access, Value**
                 // check for validity if accessible or assignable (because moved)
                 linker.current_func_type->check_id(this, linker);
             }
-            process_linked(linker);
+            process_linked(&linker);
         }
         return true;
     } else {
@@ -64,12 +68,11 @@ ASTNode* VariableIdentifier::linked_node() {
 }
 
 bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
-    parent_val = parent;
     auto linked_node = parent->linked_node();
     if(linked_node) {
         linked = linked_node->child(value);
         if(linked) {
-            process_linked(*diagnoser);
+            process_linked(diagnoser);
             return true;
         } else if(diagnoser) {
             diagnoser->error(this) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
@@ -78,10 +81,6 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
         diagnoser->error(this) << "unresolved child '" << value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
     }
     return false;
-}
-
-void VariableIdentifier::relink_parent(ChainValue *parent) {
-    find_link_in_parent(parent, nullptr);
 }
 
 bool VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {

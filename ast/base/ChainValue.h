@@ -25,19 +25,6 @@ public:
     }
 
     /**
-     * relink with the parent chain value, as it has changed
-     *
-     * This allows re linking values when parent has changed due to copying of
-     * access chain, which happens a lot in comptime functions
-     */
-    virtual void relink_parent(ChainValue* parent);
-
-//    /**
-//     * when value is part of access chain, this should be called
-//     */
-//    virtual std::unique_ptr<BaseType> create_type(std::vector<ChainValue*>& chain, unsigned int index);
-
-    /**
      * an empty vector should be provided, so we can store all the generic iterations for the access chain
      * and restore them later
      * this function set's the generic iterations (what's that mean ?) ok, consider the chain p.a.b

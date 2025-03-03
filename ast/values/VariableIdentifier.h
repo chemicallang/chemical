@@ -27,7 +27,6 @@ public:
      */
     chem::string_view value;
     ASTNode *linked = nullptr;
-    ChainValue* parent_val = nullptr;
     bool is_ns;
     bool is_moved = false;
 
@@ -56,7 +55,7 @@ public:
 
     void set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation location);
 
-    void process_linked(ASTDiagnoser& linker);
+    void process_linked(ASTDiagnoser* linker);
 
     bool link(SymbolResolver &linker, bool check_access, Value** ptr_ref);
 
@@ -67,8 +66,6 @@ public:
     bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) final {
         return link(linker, false, &value_ptr);
     }
-
-    void relink_parent(ChainValue *parent) final;
 
     ASTNode *linked_node() final;
 

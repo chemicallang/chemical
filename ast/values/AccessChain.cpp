@@ -28,11 +28,13 @@ void AccessChain::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expec
 }
 
 void AccessChain::relink_parent() {
-    // TODO remove this method, relinking parent is not required as we store the parent val nested in values
-    if (values.size() > 1) {
+    const auto values_size = values.size();
+    if (values_size > 1) {
         unsigned i = 1;
-        while (i < values.size()) {
-            values[i]->relink_parent(values[i - 1]);
+        while (i < values_size) {
+            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], nullptr)) {
+                break;
+            }
             i++;
         }
     }
@@ -79,9 +81,6 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
             if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], linker, i == values.size() - 1 ? expected_type : nullptr)) {
                 return false;
             }
-//            if(!link_at(values, i, linker, expected_type)) {
-//                return false;
-//            }
             i++;
         }
     }
@@ -159,7 +158,6 @@ AccessChain *AccessChain::copy(ASTAllocator& allocator) {
     for(auto& value : values) {
         chain->values.emplace_back((ChainValue*) value->copy(allocator));
     }
-    chain->relink_parent();
     return chain;
 }
 

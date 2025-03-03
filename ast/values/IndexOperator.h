@@ -32,8 +32,6 @@ public:
 
     ASTNode *linked_node() final;
 
-    void relink_parent(ChainValue *parent) final;
-
     bool primitive() final {
         return false;
     }

@@ -324,6 +324,8 @@ public:
      */
     void return_value(Value* val, BaseType* type);
 
+    void write_identifier(VariableIdentifier* value, bool is_first);
+
     void visit_scope(Scope *scope, unsigned destruct_begin);
 
     // NODES

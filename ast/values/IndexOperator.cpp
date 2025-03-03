@@ -159,10 +159,6 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     return nullptr;
 }
 
-void IndexOperator::relink_parent(ChainValue *parent) {
-    // TODO remove this method, relinking parent is not required as we store the parent val nested in value
-}
-
 IndexOperator* IndexOperator::copy(ASTAllocator& allocator) {
     auto op = new (allocator.allocate<IndexOperator>()) IndexOperator((ChainValue*) parent_val->copy(allocator), encoded_location());
     for(const auto value : values) {

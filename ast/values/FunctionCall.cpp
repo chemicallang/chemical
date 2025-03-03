@@ -1060,7 +1060,7 @@ void relink_multi_id(
             auto func = multi->func_for_call(allocator, values);
             if(func) {
                 parent->linked = func;
-                parent->process_linked(*diagnoser);
+                parent->process_linked(diagnoser);
             } else {
                 diagnoser->error("couldn't find function that satisfies given arguments", parent);
             }
@@ -1137,10 +1137,6 @@ VariableIdentifier* get_parent_id(ChainValue* value) {
         default:
             return nullptr;
     }
-}
-
-void FunctionCall::relink_parent(ChainValue *parent) {
-    // TODO remove this method, relinking parent is not required as we store the parent val nested in value
 }
 
 bool FunctionCall::instantiate_gen_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, BaseType* expected_type) {

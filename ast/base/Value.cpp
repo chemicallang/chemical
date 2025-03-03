@@ -1016,10 +1016,6 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
     return false;
 }
 
-void ChainValue::relink_parent(ChainValue* parent) {
-    throw std::runtime_error("relink_parent called on base chain value");
-}
-
 void Value::set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) {
     switch(val_kind()) {
         case ValueKind::StructValue:

@@ -4476,6 +4476,8 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
 //                    }
             }
         }
+        visitor.write_identifier(id, previous == nullptr);
+        return;
     }
 //    if(previous != nullptr && linked && linked->as_variant_case_var()) {
 //        const auto var = linked->as_variant_case_var();
@@ -5183,7 +5185,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
 //    }
 //}
 
-void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
+void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_first) {
     if(identifier->is_moved) {
         auto found = local_allocated.find(identifier);
         if(found != local_allocated.end()) {
@@ -5194,12 +5196,12 @@ void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
     const auto linked = identifier->linked_node();
     const auto linked_kind = linked->kind();
     if(ASTNode::isAnyStructMember(linked_kind)) {
-        if(identifier->parent_val == nullptr) {
+        if(is_first) {
             const auto func = current_func_type->as_function();
             if (func && func->is_constructor_fn()) {
                 write("this->");
             }
-            else if(func->parent()) {
+            else if(func && func->parent()) {
                 auto self_param = func->get_self_param();
                 if(self_param && ASTNode::isMembersContainer(func->parent()->kind())) {
                     write(self_param->name);
@@ -5270,6 +5272,10 @@ void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
 //        }
 //    }
     write(identifier->value);
+}
+
+void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
+    write_identifier(identifier, true);
 }
 
 void ToCAstVisitor::VisitSizeOfValue(SizeOfValue *size_of) {

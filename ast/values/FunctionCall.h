@@ -101,8 +101,6 @@ public:
             bool link_implicit_constructor
     );
 
-    void relink_parent(ChainValue *parent) final;
-
     bool primitive() final;
 
     bool compile_time_computable() final;

@@ -512,6 +512,7 @@ set(COMMON_SOURCES
         ast/statements/AliasStmt.h
         ast/statements/AliasStmt.cpp
         ast/values/TypeInsideValue.h
+        compiler/symres/SymbolTable.h
 )
 
 # Chemical LSP Executable Target

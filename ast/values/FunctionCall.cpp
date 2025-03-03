@@ -1143,6 +1143,22 @@ void FunctionCall::relink_parent(ChainValue *parent) {
     // TODO remove this method, relinking parent is not required as we store the parent val nested in value
 }
 
+bool FunctionCall::instantiate_gen_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, BaseType* expected_type) {
+    // relinking generic decl
+    const auto parent_id = get_parent_id(parent_val);
+    if(parent_id && parent_id->linked->kind() == ASTNodeKind::GenericFuncDecl) {
+
+        const auto gen_decl = (GenericFuncDecl*) parent_id->linked;
+
+        auto new_link = gen_decl->instantiate_call(astAllocator, diagnoser, this, expected_type);
+        parent_id->linked = new_link;
+
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
 
     GenericFuncDecl* gen_decl = nullptr;
@@ -1155,8 +1171,6 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
 
         // TODO we link with the master implementation currently, however we require to instantiate a new implementation
         parent_id->linked = gen_decl->master_impl;
-
-
 
     }
 
@@ -1255,6 +1269,16 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
         generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
         goto ending_block;
     instantiate_block:
+        const auto func_type = resolver.current_func_type;
+        const auto curr_func = func_type->as_function();
+        // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle
+        if (curr_func && curr_func->generic_parent != nullptr) {
+            // since current function has a generic parent (it is generic), we do not want to instantiate this call here
+            // this call will be instantiated by the instantiator, even if this calls itself (recursion), instantiator checks that
+            // changing back to generic decl, since instantiator needs access to it
+            parent_id->linked = gen_decl;
+            return true;
+        }
         auto new_link = gen_decl->instantiate_call(resolver, this, expected_type);
         parent_id->linked = new_link;
         goto ending_block;

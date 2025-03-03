@@ -39,6 +39,18 @@ public:
      * @return iteration that corresponds to this call
      */
     FunctionDeclaration* instantiate_call(
+            ASTAllocator& astAllocator,
+            ASTDiagnoser& diagnoser,
+            FunctionCall* call,
+            BaseType* expected_type
+    );
+
+    /**
+     * a call notifies a function, during symbol resolution that it exists
+     * when this happens, generics are checked, proper types are registered in generic
+     * @return iteration that corresponds to this call
+     */
+    FunctionDeclaration* instantiate_call(
         SymbolResolver& resolver,
         FunctionCall* call,
         BaseType* expected_type

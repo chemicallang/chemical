@@ -9,11 +9,14 @@ class GenericInstantiator : public RecursiveVisitor<GenericInstantiator> {
 public:
 
     ASTAllocator& allocator;
+
+    ASTDiagnoser& diagnoser;
+
     /**
      * constructor
      * the allocator must be an ast allocator
      */
-    GenericInstantiator(ASTAllocator& allocator) : allocator(allocator) {
+    GenericInstantiator(ASTAllocator& allocator, ASTDiagnoser& diagnoser) : allocator(allocator), diagnoser(diagnoser) {
 
     }
 
@@ -52,6 +55,8 @@ public:
     inline void visit(Scope& scope) {
         VisitScope(&scope);
     }
+
+    void VisitFunctionCall(FunctionCall *call);
 
     FunctionDeclaration* Instantiate(GenericFuncDecl* decl, size_t itr);
 

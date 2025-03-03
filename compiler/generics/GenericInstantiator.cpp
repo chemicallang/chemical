@@ -12,11 +12,13 @@ BaseType* GenericInstantiator::get_concrete_gen_type(BaseType* type) {
     return nullptr;
 }
 
-inline void replace_gen_type(BaseType*& type_ref) {
-    const auto concrete = GenericInstantiator::get_concrete_gen_type(type_ref);
-    if(concrete) {
-        type_ref = concrete;
-    }
+void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
+    // visit, this would replace generic args and arguments of this call
+    RecursiveVisitor<GenericInstantiator>::VisitFunctionCall(call);
+    // now this call can be generic, in this case this call probably doesn't have an implementation
+    // since current function is generic as well, let's check this
+    // TODO passing nullptr as expected type
+    call->instantiate_gen_call(allocator, diagnoser, nullptr);
 }
 
 FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, size_t itr) {
@@ -40,7 +42,7 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
     }
 
     // replace the return type
-    replace_gen_type(impl->returnType);
+    visit(impl->returnType);
 
     // visiting the scope
     visit(impl->body.value());
@@ -58,9 +60,9 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
 
 // Generic Instantiator API
 
-FunctionDeclaration* Instantiate(ASTAllocator& astAllocator, GenericFuncDecl* decl, size_t itr) {
+FunctionDeclaration* Instantiate(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, GenericFuncDecl* decl, size_t itr) {
 
-    auto inst = GenericInstantiator(astAllocator);
+    auto inst = GenericInstantiator(astAllocator, diagnoser);
 
     return inst.Instantiate(decl, itr);
 

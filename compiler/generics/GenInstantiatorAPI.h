@@ -4,6 +4,7 @@
 
 class FunctionDeclaration;
 class ASTAllocator;
+class ASTDiagnoser;
 class GenericFuncDecl;
 
-FunctionDeclaration* Instantiate(ASTAllocator& astAllocator, GenericFuncDecl* decl, size_t itr);
+FunctionDeclaration* Instantiate(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, GenericFuncDecl* decl, size_t itr);

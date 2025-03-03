@@ -16,21 +16,21 @@ struct SymbolEntry {
     std::string_view key;  // AST-owned key; no extra allocation.
     size_t hash;           // Precomputed hash.
     int prev;              // Index of previous declaration for shadowing (-1 if none).
+    Node* node;            // Pointer to the associated AST node.
 };
 
 struct Bucket {
     std::string_view key;  // Key stored for verification.
     size_t hash;           // Precomputed hash for this bucket.
-    int index;             // Index into the symbol metadata & node pointer arrays (-1 if empty).
+    int index;             // Index into the symbol metadata array (-1 if empty).
     Node* activeNode;      // Directly stores the active node pointer.
 };
 
 class SymbolResolver {
 private:
+
     // Contiguous metadata for symbols.
     std::vector<SymbolEntry> symbols;
-    // Parallel array storing the node pointers corresponding to symbols.
-    std::vector<Node*> nodePtrs;
     // Open-addressing hash table for fast resolution.
     std::vector<Bucket> buckets;
     size_t bucketMask;  // Used for fast modulo assuming buckets.size() is a power of 2.
@@ -62,7 +62,7 @@ private:
     }
 
     // Optional: rehash the buckets if the load factor exceeds a threshold.
-    // Not the focus here since resizing is expected to be rare.
+    // Resizing is rare, so details are omitted.
     void rehash() {
         size_t newBucketCount = buckets.size() * 2;
         std::vector<Bucket> newBuckets(newBucketCount, Bucket{"", 0, -1, nullptr});
@@ -91,8 +91,8 @@ public:
         // initialBucketCount must be a power of 2.
         buckets.resize(initialBucketCount, Bucket{"", 0, -1, nullptr});
         bucketMask = initialBucketCount - 1;
-        symbols.reserve(100);
-        nodePtrs.reserve(100);
+        symbols.reserve(initialBucketCount);  // Typical number of symbols per function.
+        scopeStack.reserve(20);
     }
 
     // declare: add a new symbol (with key and node pointer) to the current scope.
@@ -101,13 +101,12 @@ public:
         int bucketIndex = findBucketForHash(hash, key);
         Bucket& bucket = buckets[bucketIndex];
 
-        // The current bucket holds the index of any previous declaration.
+        // Save previous declaration index.
         int prevIndex = bucket.index;
-        // Create the symbol metadata entry (without storing the node pointer here).
-        SymbolEntry entry { key, hash, prevIndex };
+        // Create a new symbol entry with the node pointer.
+        SymbolEntry entry { key, hash, prevIndex, node };
         int newIndex = static_cast<int>(symbols.size());
         symbols.push_back(entry);
-        nodePtrs.push_back(node);
 
         // Update the bucket with the new symbol.
         bucket.key = key;
@@ -135,7 +134,6 @@ public:
         assert(!scopeStack.empty());
         int marker = scopeStack.back();
         scopeStack.pop_back();
-
         // Roll back all symbols declared in the current scope.
         for (int i = static_cast<int>(symbols.size()) - 1; i >= marker; --i) {
             SymbolEntry& entry = symbols[i];
@@ -144,16 +142,11 @@ public:
             // If the bucket currently points to the symbol being removed, restore its previous value.
             if (bucket.index == i) {
                 bucket.index = entry.prev;
-                if (entry.prev != -1) {
-                    bucket.activeNode = nodePtrs[entry.prev];
-                } else {
-                    bucket.activeNode = nullptr;
-                    // Optionally clear bucket.key if desired.
-                }
+                bucket.activeNode = (entry.prev != -1) ? symbols[entry.prev].node : nullptr;
+                // Optionally clear bucket.key if bucket.index becomes -1.
             }
         }
-        // Remove symbols from the metadata and node pointer arrays.
+        // Remove symbols from the metadata array.
         symbols.resize(marker);
-        nodePtrs.resize(marker);
     }
 };

@@ -37,10 +37,13 @@ public:
         return false;
     }
 
-    BaseDefMember* copy_member(ASTAllocator &allocator) final;
+    UnnamedUnion* copy_member(ASTAllocator &allocator) final {
+        auto unnamed = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion(name, parent(), encoded_location());
+        VariablesContainer::copy_into(*unnamed, allocator, this);
+        return unnamed;
+    }
 
     VariablesContainer* copy_container(ASTAllocator &allocator) final;
-
 
     void redeclare_top_level(SymbolResolver &linker) final;
 

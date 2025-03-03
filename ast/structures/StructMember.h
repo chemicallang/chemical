@@ -4,6 +4,7 @@
 
 #include <map>
 #include "ast/base/Value.h"
+#include "ast/base/BaseType.h"
 #include "BaseDefMember.h"
 
 struct StructMemberAttributes {
@@ -69,7 +70,12 @@ public:
         return nullptr;
     }
 
-    BaseDefMember *copy_member(ASTAllocator& allocator) final;
+    BaseDefMember *copy_member(ASTAllocator& allocator) final {
+        Value* def_value = defValue ? defValue->copy(allocator) : nullptr;
+        const auto new_mem = new (allocator.allocate<StructMember>()) StructMember(name, type->copy(allocator), def_value, parent(), encoded_location());
+        new_mem->attrs = attrs;
+        return new_mem;
+    }
 
     bool get_is_const() final {
         return is_const();

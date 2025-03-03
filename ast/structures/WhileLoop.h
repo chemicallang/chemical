@@ -27,6 +27,13 @@ public:
 
     }
 
+    WhileLoop* copy(ASTAllocator &allocator) override {
+        const auto loop = new (allocator.allocate<WhileLoop>()) WhileLoop(
+            condition->copy(allocator), parent(), encoded_location()
+        );
+        body.copy_into(loop->body, allocator, loop);
+        return loop;
+    }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

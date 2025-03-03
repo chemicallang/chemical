@@ -39,7 +39,11 @@ public:
         return (VariantMember*) ASTNode::parent();
     }
 
-    VariantMemberParam* copy(ASTAllocator& allocator);
+    VariantMemberParam* copy(ASTAllocator& allocator) {
+        return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(
+                name, index, is_const, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent(), encoded_location()
+        );
+    }
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

@@ -122,7 +122,14 @@ public:
         return attrs.has_implementation;
     }
 
-
+    InterfaceDefinition* copy(ASTAllocator &allocator) override {
+        const auto def = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(
+            identifier, parent(), encoded_location(), specifier()
+        );
+        def->attrs = attrs;
+        ExtendableMembersContainerNode::copy_into(*def, allocator);
+        return def;
+    }
 
     void runtime_vtable_name(std::ostream& stream, StructDefinition* def);
 

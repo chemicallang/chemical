@@ -364,14 +364,6 @@ int16_t VariantDefinition::register_call(SymbolResolver& resolver, FunctionCall*
     return itr.first;
 }
 
-BaseDefMember *VariantMember::copy_member(ASTAllocator& allocator) {
-    const auto member = new (allocator.allocate<VariantMember>()) VariantMember(name, parent(), encoded_location());
-    for(auto& value : values) {
-        member->values[value.first] = value.second->copy(allocator);
-    }
-    return member;
-}
-
 void VariantMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
 
 }
@@ -450,10 +442,6 @@ BaseType* VariantMember::create_value_type(ASTAllocator& allocator) {
 
 BaseTypeKind VariantMember::type_kind() const {
     return BaseTypeKind::Struct;
-}
-
-VariantMemberParam* VariantMemberParam::copy(ASTAllocator& allocator) {
-    return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, is_const, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent(), encoded_location());
 }
 
 void VariantMemberParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {

@@ -58,25 +58,14 @@ public:
 
     void process_linked(ASTDiagnoser& linker);
 
-    bool link(SymbolResolver &linker, bool check_access);
-
-    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) final {
-        const auto values_size = values.size();
-        const auto parent_index = index - 1;
-        const auto parent = parent_index < values_size ? values[parent_index] : nullptr;
-        if(parent) {
-            return find_link_in_parent(parent, linker, expected_type);
-        } else {
-            return link(linker, false);
-        }
-    }
+    bool link(SymbolResolver &linker, bool check_access, Value** ptr_ref);
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final {
-        return link(linker, true);
+        return link(linker, true, &value_ptr);
     }
 
     bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) final {
-        return link(linker, false);
+        return link(linker, false, &value_ptr);
     }
 
     void relink_parent(ChainValue *parent) final;

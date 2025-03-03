@@ -169,7 +169,7 @@ void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& r
     id.linked = decl;
     FunctionCall imp_call(&id, ZERO_LOC);
     imp_call.values.emplace_back(value);
-    imp_call.find_link_in_parent(resolver, nullptr, false);
+    imp_call.link_without_parent(resolver, nullptr, false);
     const auto replaced = imp_call.values[0];
 #ifdef DEBUG
     if(replaced != value) {

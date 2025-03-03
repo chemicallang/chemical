@@ -59,7 +59,16 @@ public:
         return (VariantDefinition*) ASTNode::parent();
     }
 
-    BaseDefMember *copy_member(ASTAllocator& allocator) final;
+    VariantMember *copy_member(ASTAllocator& allocator) final {
+        const auto member = new (allocator.allocate<VariantMember>()) VariantMember(name, parent(), encoded_location());
+        for(auto& value : values) {
+            const auto param_copy = value.second->copy(allocator);
+            param_copy->set_parent(this);
+            member->values[value.first] = param_copy;
+        }
+        member->attrs = attrs;
+        return member;
+    }
 
     bool get_is_const() final {
         return true;

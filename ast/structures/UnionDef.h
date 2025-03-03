@@ -92,6 +92,15 @@ public:
         attrs.anonymous = value;
     }
 
+    UnionDef* copy(ASTAllocator &allocator) override {
+        const auto def = new (allocator.allocate<UnionDef>()) UnionDef(
+                identifier, parent(), encoded_location(), specifier()
+        );
+        def->attrs = attrs;
+        ExtendableMembersContainerNode::copy_into(*def, allocator);
+        return def;
+    }
+
     uint64_t byte_size(bool is64Bit) final {
         return largest_member_byte_size(is64Bit);
     }

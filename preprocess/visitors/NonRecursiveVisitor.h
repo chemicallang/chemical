@@ -360,6 +360,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitTypeInsideValue(TypeInsideValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitWrapValue(WrapValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -762,6 +766,9 @@ public:
                 return;
             case ValueKind::PointerValue:
                 static_cast<Derived*>(this)->VisitPointerValue((PointerValue*) value);
+                return;
+            case ValueKind::TypeInsideValue:
+                static_cast<Derived*>(this)->VisitTypeInsideValue((TypeInsideValue*) value);
                 return;
             case ValueKind::BlockValue:
                 static_cast<Derived*>(this)->VisitBlockValue((BlockValue*) value);

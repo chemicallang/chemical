@@ -172,14 +172,6 @@ void UnnamedUnion::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) 
     linker.declare(name, this);
 }
 
-BaseDefMember *UnnamedUnion::copy_member(ASTAllocator& allocator) {
-    auto unnamed = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion(name, parent(), encoded_location());
-    for(auto& variable : variables) {
-        unnamed->variables[variable.first] = variable.second->copy_member(allocator);
-    }
-    return unnamed;
-}
-
 VariablesContainer *UnnamedUnion::copy_container(ASTAllocator& allocator) {
     return (VariablesContainer*) copy_member(allocator);
 }

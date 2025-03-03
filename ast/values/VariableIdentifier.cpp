@@ -6,6 +6,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
+#include "TypeInsideValue.h"
 
 VarInitStatement* declaration(Value* value) {
     if(value->val_kind() == ValueKind::Identifier) {
@@ -32,14 +33,27 @@ void VariableIdentifier::process_linked(ASTDiagnoser& linker) {
     }
 }
 
-bool VariableIdentifier::link(SymbolResolver &linker, bool check_access) {
+const auto GENv2 = false;
+
+bool VariableIdentifier::link(SymbolResolver &linker, bool check_access, Value** ptr_ref) {
     linked = linker.find(value);
     if(linked) {
-        if(check_access && linker.current_func_type) {
-            // check for validity if accessible or assignable (because moved)
-            linker.current_func_type->check_id(this, linker);
+        if(linked->kind() == ASTNodeKind::GenericTypeParam && GENv2) {
+            if(ptr_ref) {
+                auto& allocator = *linker.ast_allocator;
+                const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(value, linked, encoded_location());
+                *ptr_ref = new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(linked_type);
+                return true;
+            } else {
+                linker.error(this) << "cannot replace identifier '" << value << "' that references a generic type parameter";
+            }
+        } else {
+            if (check_access && linker.current_func_type) {
+                // check for validity if accessible or assignable (because moved)
+                linker.current_func_type->check_id(this, linker);
+            }
+            process_linked(linker);
         }
-        process_linked(linker);
         return true;
     } else {
         linker.error(this) << "unresolved variable identifier '" << value << "' not found";

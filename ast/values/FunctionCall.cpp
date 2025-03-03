@@ -898,23 +898,6 @@ void FunctionCall::link_gen_args(SymbolResolver &linker) {
     }
 }
 
-bool FunctionCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType* expected_type) {
-    parent_val->link(linker, (Value*&) parent_val, nullptr);
-
-    // replace variant calls during symbol resolution
-//    const auto linked = parent_val->linked_node();
-//    if (linked && linked->as_variant_member()) {
-//        const auto call = new (linker.ast_allocator->allocate<VariantCall>()) VariantCall(parent_val, location);
-//        call->values = std::move(values);
-//        call->generic_list = std::move(generic_list);
-//        value_ptr = call;
-//        return call->link(linker, value_ptr, expected_type);
-//    }
-
-    find_link_in_parent(linker, expected_type, true);
-    return true;
-}
-
 //std::unique_ptr<FunctionType> FunctionCall::create_function_type() {
 //    auto func_type = parent_val->known_type();
 //    return std::unique_ptr<FunctionType>((FunctionType*) func_type.release());
@@ -1160,7 +1143,7 @@ void FunctionCall::relink_parent(ChainValue *parent) {
     // TODO remove this method, relinking parent is not required as we store the parent val nested in value
 }
 
-bool FunctionCall::find_link_in_parent(SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
+bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
 
     GenericFuncDecl* gen_decl = nullptr;
 

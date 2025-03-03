@@ -50,7 +50,12 @@ public:
 
     void link_gen_args(SymbolResolver &linker);
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final {
+        if(!parent_val->link(linker, (Value*&) parent_val, nullptr)) {
+            return false;
+        }
+        return link_without_parent(linker, expected_type, true);
+    }
 
     /**
      * get the function type
@@ -88,20 +93,11 @@ public:
 
     int16_t link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser);
 
-    bool find_link_in_parent(
+    bool link_without_parent(
             SymbolResolver &resolver,
             BaseType *expected_type,
             bool link_implicit_constructor
     );
-
-    bool link(
-        SymbolResolver &linker,
-        std::vector<ChainValue*> &values,
-        unsigned int index,
-        BaseType *expected_type
-    ) final {
-        return link(linker, (Value*&) values[index], expected_type);
-    }
 
     void relink_parent(ChainValue *parent) final;
 

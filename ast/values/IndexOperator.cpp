@@ -159,13 +159,6 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     return nullptr;
 }
 
-bool IndexOperator::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
-    for(auto& value : values) {
-        value->link(resolver, value);
-    }
-    return true;
-}
-
 void IndexOperator::relink_parent(ChainValue *parent) {
     // TODO remove this method, relinking parent is not required as we store the parent val nested in value
 }

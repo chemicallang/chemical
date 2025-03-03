@@ -77,6 +77,7 @@
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 //#include "ast/values/Int128Value.h"
+#include "ast/values/TypeInsideValue.h"
 //#include "ast/values/IntNumValue.h"
 //#include "ast/values/LongValue.h"
 //#include "ast/values/Negative.h"
@@ -288,6 +289,10 @@ public:
 
     inline void VisitAlignOfValue(AlignOfValue* value) {
         visit_it(value->for_type);
+    }
+
+    void VisitTypeInsideValue(TypeInsideValue* value) {
+        visit_it(value->type);
     }
 
 };

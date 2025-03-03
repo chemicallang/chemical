@@ -84,6 +84,14 @@ public:
         return this;
     }
 
+    void copy_into(ExtendableMembersContainerNode& other, ASTAllocator& allocator) {
+        MembersContainer::copy_into(other, allocator);
+        other.extension_functions.reserve(extension_functions.size());
+        for(const auto ext_func : extension_functions) {
+            other.extension_functions[ext_func.first] = ext_func.second;
+        }
+    }
+
 #ifdef COMPILER_BUILD
 
     /**

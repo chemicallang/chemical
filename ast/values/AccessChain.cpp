@@ -15,10 +15,6 @@ uint64_t AccessChain::byte_size(bool is64Bit) {
     return values[values.size() - 1]->byte_size(is64Bit);
 }
 
-bool AccessChain::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
-    throw std::runtime_error("AccessChain doesn't support find_link_in_parent, because it can't be embedded in itself");
-}
-
 void AccessChain::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type) {
     unsigned i = 0;
     const auto size = values.size();
@@ -42,15 +38,9 @@ void AccessChain::relink_parent() {
     }
 }
 
-// for easier invocation
-// type is only passed to the last value in the chain
-bool link_at(std::vector<ChainValue*>& values, unsigned int index, SymbolResolver& linker, BaseType* expected_type) {
-    return values[index]->link(linker, values, index, index == values.size() - 1 ? expected_type : nullptr);
-}
-
 bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, unsigned int end_offset, bool check_validity, bool assign) {
 
-    if(!values[0]->link(linker, values, 0, values.size() == 1 ? expected_type : nullptr)) {
+    if(!values[0]->link(linker, *value_ptr, values.size() == 1 ? expected_type : nullptr)) {
         return false;
     }
 
@@ -86,9 +76,12 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
     if (values_size > 1) {
         unsigned i = 1;
         while (i < values_size) {
-            if(!link_at(values, i, linker, expected_type)) {
+            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], linker, i == values.size() - 1 ? expected_type : nullptr)) {
                 return false;
             }
+//            if(!link_at(values, i, linker, expected_type)) {
+//                return false;
+//            }
             i++;
         }
     }

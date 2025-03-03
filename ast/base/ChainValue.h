@@ -25,17 +25,6 @@ public:
     }
 
     /**
-     * called by access chain, to link a value inside values in a chain
-     * it allows variable identifier to prevent auto appending self, when access chain has already done it
-     */
-    virtual bool link(
-            SymbolResolver& linker,
-            std::vector<ChainValue*>& values,
-            unsigned index,
-            BaseType* expected_type
-    ) = 0;
-
-    /**
      * relink with the parent chain value, as it has changed
      *
      * This allows re linking values when parent has changed due to copying of

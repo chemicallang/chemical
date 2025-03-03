@@ -5,6 +5,7 @@
 #include "ordered_map.h"
 #include "BaseDefMember.h"
 #include "InheritedType.h"
+#include "ast/base/BaseType.h"
 #include <string>
 #include <memory>
 
@@ -61,6 +62,22 @@ public:
      * check if given interface is overridden by this
      */
     bool does_override(InterfaceDefinition* interface);
+
+    /**
+     * deep copies this container into the given container
+     */
+    void copy_into(VariablesContainer& other, ASTAllocator& allocator, ASTNode* new_parent) {
+        other.inherited.reserve(inherited.size());
+        for(auto& inh : inherited) {
+            other.inherited.emplace_back(inh.type->copy(allocator), inh.specifier);
+        }
+        other.variables.reserve(variables.size());
+        for(auto& var : variables) {
+            const auto var_copy = var.second->copy_member(allocator);
+            var_copy->set_parent(new_parent);
+            other.variables[var.first] = var_copy;
+        }
+    }
 
     virtual VariablesContainer* copy_container(ASTAllocator& allocator) {
         throw std::runtime_error("copy container called on variables container, should be overridden");

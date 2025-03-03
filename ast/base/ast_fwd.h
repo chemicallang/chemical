@@ -184,6 +184,8 @@ class AlignOfValue;
 
 class LambdaFunction;
 
+class TypeInsideValue;
+
 class AnyType;
 
 class ArrayType;

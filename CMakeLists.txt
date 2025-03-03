@@ -511,6 +511,7 @@ set(COMMON_SOURCES
         compiler/generics/GenInstantiatorAPI.h
         ast/statements/AliasStmt.h
         ast/statements/AliasStmt.cpp
+        ast/values/TypeInsideValue.h
 )
 
 # Chemical LSP Executable Target

@@ -49,10 +49,13 @@ public:
         return false;
     }
 
-    BaseDefMember* copy_member(ASTAllocator &allocator) final;
+    UnnamedStruct* copy_member(ASTAllocator &allocator) final {
+        const auto unnamed = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct(name, parent(), encoded_location());
+        VariablesContainer::copy_into(*unnamed, allocator, this);
+        return unnamed;
+    }
 
     VariablesContainer *copy_container(ASTAllocator& allocator) final;
-
 
     void redeclare_top_level(SymbolResolver &linker) final;
 

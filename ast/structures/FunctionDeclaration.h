@@ -228,7 +228,14 @@ public:
      */
     int16_t bodies_gen_index = 0;
     /**
-     * this is set by generic func decl
+     * if this function an instantiation of a generic function, this field is set to the
+     * generic decl, of which function this is instantiation of, which field helps us
+     * register generic calls inside the current function
+     */
+    GenericFuncDecl* generic_parent = nullptr;
+    /**
+     * this is set by generic func decl only when this function is an instantiation of a generic function
+     * this is the instantiation number of the generic function, this helps us identify this function in generic decl
      */
     int generic_instantiation = -1;
 

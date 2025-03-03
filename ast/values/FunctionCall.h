@@ -93,6 +93,8 @@ public:
 
     int16_t link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser);
 
+    bool instantiate_gen_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, BaseType* expected_type);
+
     bool link_without_parent(
             SymbolResolver &resolver,
             BaseType *expected_type,

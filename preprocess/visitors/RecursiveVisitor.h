@@ -118,6 +118,9 @@ public:
 
     void VisitFunctionCall(FunctionCall *call) {
         visit_it(call->parent_val);
+        for(auto& arg : call->generic_list) {
+            visit_it(arg);
+        }
         for(auto& val : call->values) {
             visit_it(val);
         }

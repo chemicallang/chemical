@@ -11,11 +11,12 @@ void GenericFuncDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_p
 void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
     // symbol resolve the master declaration
     // TODO this creates an extra scope
+    master_impl->generic_parent = this;
     linker.scope_start();
     for(auto& param : generic_params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
-    master_impl->link_signature(linker);
+    master_impl->link_signature_no_scope(linker);
     master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
     // we set it has usage, so every shallow copy or instantiation has usage
     master_impl->set_has_usage(true);
@@ -23,13 +24,19 @@ void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
 }
 
 FunctionDeclaration* GenericFuncDecl::instantiate_call(
-    SymbolResolver& resolver,
+        SymbolResolver& resolver,
+        FunctionCall* call,
+        BaseType* expected_type
+) {
+    return instantiate_call(*resolver.ast_allocator, resolver, call, expected_type);
+}
+
+FunctionDeclaration* GenericFuncDecl::instantiate_call(
+    ASTAllocator& astAllocator,
+    ASTDiagnoser& diagnoser,
     FunctionCall* call,
     BaseType* expected_type
 ) {
-
-    auto& diagnoser = resolver;
-    auto& astAllocator = *resolver.ast_allocator;
 
     const auto total = generic_params.size();
     std::vector<BaseType*> generic_args(total);
@@ -71,7 +78,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
 
     }
 
-    auto created = Instantiate(astAllocator, this, itr.first);
+    auto created = Instantiate(astAllocator, diagnoser, this, itr.first);
 
 #ifdef DEBUG
     if(itr.first != instantiations.size()) {
@@ -79,7 +86,8 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     }
 #endif
 
-    created->generic_instantiation = instantiations.size();
+    created->generic_parent = this;
+    created->generic_instantiation = (int) instantiations.size();
 
     instantiations.emplace_back(created);
 

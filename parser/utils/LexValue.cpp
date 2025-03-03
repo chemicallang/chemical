@@ -48,7 +48,7 @@
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
     auto& t = *token;
     if(t.type == TokenType::Char) {
-        // consume it
+        // consume the token
         token++;
         // the value will contain single quotes around it
         return new (allocator.allocate<CharValue>()) CharValue(*(t.value.data() + 1), loc_single(t));

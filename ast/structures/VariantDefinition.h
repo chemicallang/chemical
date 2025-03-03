@@ -95,12 +95,21 @@ public:
     }
 
 
-        bool is_generic() {
+    bool is_generic() {
         return !generic_params.empty();
     }
 
     bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;
+    }
+
+    VariantDefinition* copy(ASTAllocator &allocator) override {
+        const auto def = new (allocator.allocate<VariantDefinition>()) VariantDefinition(
+                identifier, parent(), encoded_location(), specifier()
+        );
+        def->attrs = attrs;
+        ExtendableMembersContainerNode::copy_into(*def, allocator);
+        return def;
     }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;

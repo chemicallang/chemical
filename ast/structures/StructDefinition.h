@@ -218,7 +218,14 @@ public:
 //        return this;
 //    }
 
-
+    StructDefinition* copy(ASTAllocator &allocator) override {
+        const auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(
+                identifier, parent(), encoded_location(), specifier()
+        );
+        def->attrs = attrs;
+        ExtendableMembersContainerNode::copy_into(*def, allocator);
+        return def;
+    }
 
     VariablesContainer *as_variables_container() final {
         return this;

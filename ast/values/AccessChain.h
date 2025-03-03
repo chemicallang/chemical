@@ -95,19 +95,6 @@ public:
         link(linker, (BaseType*) nullptr, nullptr, 0, false, false);
     }
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type);
-
-    bool link(SymbolResolver &linker, std::vector<ChainValue *> &values, unsigned int index, BaseType *expected_type) final {
-        const auto values_size = values.size();
-        const auto parent_index = index - 1;
-        const auto parent = parent_index < values_size ? values[parent_index] : nullptr;
-        if(parent) {
-            return find_link_in_parent(parent, linker, expected_type);
-        } else {
-            return link(linker, (Value*&) values[index], expected_type);
-        }
-    }
-
     void fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type);
 
     /**

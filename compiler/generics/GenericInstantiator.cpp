@@ -2,7 +2,7 @@
 #include "GenericInstantiator.h"
 #include "GenInstantiatorAPI.h"
 
-BaseType* get_concrete_gen_type(BaseType* type) {
+BaseType* GenericInstantiator::get_concrete_gen_type(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked){
         const auto linked_type = type->as_linked_type_unsafe();
         if(linked_type->linked->kind() == ASTNodeKind::GenericTypeParam) {
@@ -13,29 +13,10 @@ BaseType* get_concrete_gen_type(BaseType* type) {
 }
 
 inline void replace_gen_type(BaseType*& type_ref) {
-    const auto concrete = get_concrete_gen_type(type_ref);
+    const auto concrete = GenericInstantiator::get_concrete_gen_type(type_ref);
     if(concrete) {
         type_ref = concrete;
     }
-}
-
-void GenericInstantiator::VisitFunctionParam(FunctionParam *param) {
-    replace_gen_type(param->type);
-}
-
-void GenericInstantiator::VisitIsValue(IsValue* value) {
-    replace_gen_type(value->type);
-    visit(value->value);
-}
-
-void GenericInstantiator::VisitSizeOfValue(SizeOfValue* value) {
-    replace_gen_type(value->for_type);
-    visit(value->for_type);
-}
-
-void GenericInstantiator::VisitAlignOfValue(AlignOfValue* value) {
-    replace_gen_type(value->for_type);
-    visit(value->for_type);
 }
 
 FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, size_t itr) {

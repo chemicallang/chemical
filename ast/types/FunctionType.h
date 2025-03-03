@@ -8,6 +8,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/ValueKind.h"
 #include "std/common.h"
+#include "ast/structures/FunctionParam.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/llvmfwd.h"
@@ -94,6 +95,20 @@ public:
 
     inline void setIsVariadic(bool variadic) {
         data.isVariadic = variadic;
+    }
+
+    /**
+     * copy this function type into another
+     */
+    void copy_into(FunctionType& other, ASTAllocator& allocator, ASTNode* new_parent) {
+        other.params.reserve(params.size());
+        for(auto& param : params) {
+            const auto new_param = param->copy(allocator);
+            new_param->set_parent(new_parent);
+            other.params.emplace_back(new_param);
+        }
+        other.returnType = returnType->copy(allocator);
+        other.data = data;
     }
 
     /**
@@ -239,6 +254,13 @@ public:
      * been moved inside them
      */
     std::vector<AccessChain*> moved_chains;
+
+    /**
+     * copy function type body into the other
+     */
+    void copy_into(FunctionTypeBody& other, ASTAllocator& allocator, ASTNode* new_parent) {
+        FunctionType::copy_into(other, allocator, new_parent);
+    }
 
     /**
      * called by return statement to set the return value and stop

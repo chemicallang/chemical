@@ -284,11 +284,6 @@ BaseType* StructMember::create_value_type(ASTAllocator& allocator) {
     return type->copy(allocator);
 }
 
-BaseDefMember *StructMember::copy_member(ASTAllocator& allocator) {
-    Value* def_value = defValue ? defValue->copy(allocator) : nullptr;
-    return new (allocator.allocate<StructMember>()) StructMember(name, type->copy(allocator), def_value, parent(), encoded_location());
-}
-
 void StructMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
 }
@@ -310,14 +305,6 @@ void UnnamedStruct::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr)
     VariablesContainer::declare_and_link(linker, node_ptr);
     linker.scope_end();
     linker.declare(name, this);
-}
-
-BaseDefMember *UnnamedStruct::copy_member(ASTAllocator& allocator) {
-    auto unnamed = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct(name, parent(), encoded_location());
-    for(auto& variable : variables) {
-        unnamed->variables[variable.first] = variable.second->copy_member(allocator);
-    }
-    return unnamed;
 }
 
 VariablesContainer *UnnamedStruct::copy_container(ASTAllocator& allocator) {

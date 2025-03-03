@@ -449,13 +449,15 @@ public:
     FunctionDeclaration* copy(ASTAllocator &allocator) override {
         const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(
             identifier,
-            returnType->copy(allocator),
+            // return type is copied by the function type
+            returnType,
             isVariadic(),
             parent(),
             ASTNode::encoded_location(),
             specifier(),
             FunctionType::data.signature_resolved
         );
+        FunctionTypeBody::copy_into(*decl, allocator, decl);
         if(body.has_value()) {
             decl->body.emplace(decl, body->encoded_location());
             body->copy_into(decl->body.value(), allocator, decl);

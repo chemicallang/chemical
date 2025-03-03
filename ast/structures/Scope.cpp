@@ -263,7 +263,8 @@ void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
             continue;
         } else if(linked_kind == ASTNodeKind::FunctionDecl) {
             // linking the last function call, since function call is valid
-            if(!call_ptr->link(linker, chain->values, 0, nullptr)) {
+            // call_ptr being sent as Value*&, if replaced other than ChainValue, it maybe invalid inside access chain
+            if(!call_ptr->link(linker, (Value*&) call_ptr, nullptr)) {
                 continue;
             }
             auto linked_func = linked->as_function();

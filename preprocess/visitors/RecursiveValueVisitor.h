@@ -51,7 +51,7 @@
 //#include "ast/types/StructType.h"
 //#include "ast/types/UBigIntType.h"
 //#include "ast/types/UInt128Type.h"
-//#include "ast/types/UIntType.h"
+#include "ast/values/TypeInsideValue.h"
 //#include "ast/types/ULongType.h"
 //#include "ast/types/UShortType.h"
 //#include "ast/types/VoidType.h"
@@ -264,6 +264,10 @@ public:
     void VisitPlacementNewValue(PlacementNewValue *value) {
         visit(value->pointer);
         visit(value->value);
+    }
+
+    void VisitTypeInsideValue(TypeInsideValue* value) {
+        visit(value->type);
     }
 
 };

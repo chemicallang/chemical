@@ -282,6 +282,20 @@ public:
     }
 
     /**
+     * deep copies this container into the given container (including functions, variables)
+     */
+    void copy_into(MembersContainer& other, ASTAllocator& allocator) {
+        VariablesContainer::copy_into(other, allocator, this);
+        other.functions_container.reserve(functions_container.size());
+        for(auto& func : functions_container) {
+            const auto func_copy = func->copy(allocator);
+            func_copy->set_parent(this);
+            other.functions_container.emplace_back(func_copy);
+            other.indexes[func_copy->name_view()] = func_copy;
+        }
+    }
+
+    /**
      * required size for initializing this struct using values
      */
     unsigned int init_values_req_size();

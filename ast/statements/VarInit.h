@@ -97,12 +97,12 @@ public:
 
     }
 
-    ASTNode* copy(ASTAllocator &allocator) override {
+    VarInitStatement* copy(ASTAllocator &allocator) override {
         const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(
             false, false,
             located_id,
-            type->copy(allocator),
-            value->copy(allocator),
+            type ? type->copy(allocator) : nullptr,
+            value ? value->copy(allocator) : nullptr,
             parent(),
             encoded_location(),
             AccessSpecifier::Internal

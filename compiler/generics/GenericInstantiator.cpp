@@ -42,14 +42,14 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
     // replace the return type
     replace_gen_type(impl->returnType);
 
+    // visiting the scope
+    visit(impl->body.value());
+
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
         param->active_iteration = -1;
     }
-
-    // visiting the scope
-    visit(impl->body.value());
 
     // returning the new implementation
     return impl;

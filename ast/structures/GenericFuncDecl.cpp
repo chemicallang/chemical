@@ -16,18 +16,27 @@ BaseType* GenericFuncDecl::create_value_type(ASTAllocator &allocator) {
     return master_impl->create_value_type(allocator);
 }
 
-void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+void GenericFuncDecl::link_signature(SymbolResolver &linker) {
     // symbol resolve the master declaration
     linker.scope_start();
     for(auto& param : generic_params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
     master_impl->link_signature_no_scope(linker);
-    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
     // we set it has usage, so every shallow copy or instantiation has usage
     // since we create instantiation only when calls are detected, so no declaration will be created
     // when there's no usage
     master_impl->set_has_usage(true);
+    linker.scope_end();
+}
+
+void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+    // symbol resolve the master declaration
+    linker.scope_start();
+    for(auto& param : generic_params) {
+        param->declare_and_link(linker, (ASTNode*&) param);
+    }
+    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
     linker.scope_end();
 }
 

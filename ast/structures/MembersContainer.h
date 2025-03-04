@@ -14,6 +14,8 @@
 
 class MembersContainer;
 
+class GenericMembersDecl;
+
 struct FunctionOverridingInfo {
 
     /**
@@ -64,6 +66,16 @@ public:
      * this is an index, so next starts at this index
      */
     int16_t iterations_body_done = 0;
+
+    /**
+     * this is set by generic declarations that invoke this container as implementation
+     */
+    GenericMembersDecl* generic_parent = nullptr;
+
+    /**
+     * this is the generic instantiation that is instantiated by the generic parent
+     */
+    int generic_instantiation = -1;
 
 #ifdef COMPILER_BUILD
     /**
@@ -285,11 +297,11 @@ public:
      * deep copies this container into the given container (including functions, variables)
      */
     void copy_into(MembersContainer& other, ASTAllocator& allocator) {
-        VariablesContainer::copy_into(other, allocator, this);
+        VariablesContainer::copy_into(other, allocator, &other);
         other.functions_container.reserve(functions_container.size());
         for(auto& func : functions_container) {
             const auto func_copy = func->copy(allocator);
-            func_copy->set_parent(this);
+            func_copy->set_parent(&other);
             other.functions_container.emplace_back(func_copy);
             other.indexes[func_copy->name_view()] = func_copy;
         }

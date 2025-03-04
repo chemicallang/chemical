@@ -5,16 +5,31 @@
 #include "compiler/SymbolResolver.h"
 #include "LinkedType.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/GenericStructDecl.h"
+
+bool are_all_specialized(std::vector<BaseType*>& types) {
+    for(const auto ty : types) {
+        if(ty->kind() == BaseTypeKind::Linked && ty->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+            return false;
+        }
+    }
+    return true;
+}
 
 bool GenericType::link(SymbolResolver &linker) {
     referenced->link(linker);
-    if(!referenced->linked) {
+    const auto linked = referenced->linked;
+    if(!linked) {
         return false;
     }
     for(auto& type : types) {
         if(!type->link(linker)) {
             return false;
         }
+    }
+    if(linked->kind() == ASTNodeKind::GenericStructDecl && are_all_specialized(types)) {
+        // relink generic struct decl with instantiated type, only if all types are specialized
+        referenced->linked = ((GenericStructDecl*) linked)->register_generic_args(*linker.ast_allocator, linker, types);
     }
     report_generic_usage(*linker.ast_allocator, linker);
     return true;

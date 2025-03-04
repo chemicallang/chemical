@@ -1014,10 +1014,16 @@ public:
 
     /**
      * return if this is a function decl
-     * @return
      */
     inline FunctionDeclaration *as_function_unsafe() {
         return (FunctionDeclaration*) this;
+    }
+
+    /**
+     * return if this is a generic func decl
+     */
+    inline GenericFuncDecl* as_gen_func_unsafe() {
+        return (GenericFuncDecl*) this;
     }
 
     /**
@@ -1095,6 +1101,13 @@ public:
      */
     inline StructDefinition *as_struct_def_unsafe() {
         return (StructDefinition*) this;
+    }
+
+    /**
+     * return if this is a generic struct decl
+     */
+    inline GenericStructDecl* as_gen_struct_def_unsafe() {
+        return (GenericStructDecl*) this;
     }
 
     /**

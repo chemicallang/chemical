@@ -9,6 +9,7 @@
 #include "ast/structures/UnnamedStruct.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
+#include "ast/structures/GenericStructDecl.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LinkedType.h"
 #include "StructMemberInitializer.h"
@@ -394,14 +395,19 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         if(!refType->link(linker)) {
             return false;
         }
-        auto found = refType->linked_node();
+        const auto found = refType->linked_node();
         if(!found) {
             linker.error(this) << "couldn't find struct definition for struct name " << refType->representation();
             return false;
         }
-        definition = (ExtendableMembersContainerNode*) found;
+        if(found->kind() == ASTNodeKind::GenericStructDecl) {
+            auto gen_args = create_generic_list();
+            definition = ((GenericStructDecl*) found)->register_generic_args(*linker.ast_allocator, linker, gen_args);
+        } else {
+            definition = (ExtendableMembersContainerNode*) found;
+        }
         container = definition;
-        const auto k = found->kind();
+        const auto k = definition->kind();
         switch (k) {
             case ASTNodeKind::UnionDecl:
             case ASTNodeKind::UnnamedUnion:

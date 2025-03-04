@@ -8,11 +8,31 @@
 class GenericInstantiator : public RecursiveVisitor<GenericInstantiator> {
 public:
 
+    /**
+     * the allocator which allows to allocate memory for all instantiations
+     */
     ASTAllocator& allocator;
 
+    /**
+     * the diagnoser to report errors
+     */
     ASTDiagnoser& diagnoser;
 
+    /**
+     * the symbol table to use for declaring and resolving nodes
+     */
     SymbolTable table;
+
+    /**
+     * this points to the node being instantiated
+     * this allows us to check self-referential pointers to generic decls
+     */
+    BaseGenericDecl* current_gen = nullptr;
+
+    /**
+     * allows relinking generic type pointers to it's new implementation
+     */
+    ASTNode* current_impl_ptr = nullptr;
 
     /**
      * constructor
@@ -63,6 +83,8 @@ public:
     }
 
     void VisitLinkedType(LinkedType* type);
+
+    void VisitGenericType(GenericType* type);
 
     void VisitScope(Scope* node) {
         table.scope_start();

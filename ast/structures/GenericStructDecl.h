@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "BaseGenericDecl.h"
+#include "GenericMembersDecl.h"
 #include "ast/structures/StructDefinition.h"
 
-class GenericStructDecl : public BaseGenericDecl {
+class GenericStructDecl : public GenericMembersDecl {
 public:
 
     /**
@@ -25,19 +25,30 @@ public:
         StructDefinition* master_impl,
         ASTNode* parent_node,
         SourceLocation location
-    ) : BaseGenericDecl(ASTNodeKind::GenericStructDecl, parent_node, location), master_impl(master_impl) {
+    ) : GenericMembersDecl(ASTNodeKind::GenericStructDecl, parent_node, location), master_impl(master_impl) {
 
     }
 
+    BaseType* create_value_type(ASTAllocator &allocator) override;
+
     void declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) override;
 
+    void link_signature(SymbolResolver &linker) override;
+
     void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
+
+    /**
+     * register generic args
+     */
+    StructDefinition* register_generic_args(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, std::vector<BaseType*>& types);
 
 #ifdef COMPILER_BUILD
 
     void code_gen_declare(Codegen &gen) override;
 
     void code_gen(Codegen &gen) override;
+
+    void code_gen_external_declare(Codegen &gen) override;
 
 #endif
 

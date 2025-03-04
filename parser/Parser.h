@@ -580,7 +580,7 @@ public:
     /**
      * lexes a struct block
      */
-    StructDefinition* parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
+    ASTNode* parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * parses a single variant member

@@ -28,7 +28,6 @@
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/types/DynamicType.h"
-#include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/SizeOfValue.h"
@@ -1007,22 +1006,6 @@ void RepresentationVisitor::VisitUnnamedUnion(UnnamedUnion *def) {
 
 void RepresentationVisitor::VisitUnionDecl(UnionDef *def) {
     write("[UnimplementedUnionDef]");
-}
-
-void RepresentationVisitor::VisitExtensionFunctionDecl(ExtensionFunction *extensionFunc) {
-    write_ws(extensionFunc->specifier());
-    write("func ");
-    visit(&extensionFunc->receiver);
-    write(' ');
-    write("TODO");
-}
-
-void RepresentationVisitor::VisitExtensionFuncReceiver(ExtensionFuncReceiver *receiver) {
-    write('(');
-    write(receiver->name);
-    write(" : ");
-    visit(receiver->type);
-    write(')');
 }
 
 void RepresentationVisitor::VisitThrowStmt(ThrowStatement *throwStmt) {

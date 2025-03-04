@@ -18,7 +18,6 @@ bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
         if(linked) {
             switch (linked->kind()) {
                 case ASTNodeKind::FunctionParam:
-                case ASTNodeKind::ExtensionFuncReceiver:
                     linked->as_base_func_param_unsafe()->set_has_address_taken(true);
                     break;
                 default:

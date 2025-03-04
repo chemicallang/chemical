@@ -11,7 +11,6 @@
 #include "ast/types/VoidType.h"
 #include "ast/structures/GenericTypeParameter.h"
 #include "ast/structures/FunctionDeclaration.h"
-#include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/InitBlock.h"
 #include "ast/structures/GenericFuncDecl.h"

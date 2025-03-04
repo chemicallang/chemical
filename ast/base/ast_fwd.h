@@ -262,10 +262,6 @@ class VoidType;
 
 class DynamicType;
 
-class ExtensionFunction;
-
-class ExtensionFuncReceiver;
-
 class ThrowStatement;
 
 class DestructStmt;

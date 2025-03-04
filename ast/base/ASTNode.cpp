@@ -90,7 +90,6 @@ LocatedIdentifier* ASTNode::get_located_id() {
         case ASTNodeKind::EnumDecl:
             return as_enum_decl_unsafe()->get_located_id();
         case ASTNodeKind::FunctionDecl:
-        case ASTNodeKind::ExtensionFunctionDecl:
             return as_function_unsafe()->get_located_id();
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->get_located_id();
@@ -141,7 +140,6 @@ AccessSpecifier ASTNode::specifier() {
         case ASTNodeKind::EnumDecl:
             return as_enum_decl_unsafe()->specifier();
         case ASTNodeKind::FunctionDecl:
-        case ASTNodeKind::ExtensionFunctionDecl:
             return as_function_unsafe()->specifier();
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->specifier();
@@ -258,7 +256,6 @@ bool ASTNode::set_comptime(bool value) {
             as_namespace_unsafe()->set_comptime(value);
             return true;
         case ASTNodeKind::FunctionDecl:
-        case ASTNodeKind::ExtensionFunctionDecl:
             as_function_unsafe()->set_comptime(value);
             return true;
         case ASTNodeKind::TypealiasStmt:
@@ -299,7 +296,6 @@ bool ASTNode::is_stored_ptr_or_ref(ASTAllocator& allocator, ASTNodeKind k) {
 bool ASTNode::is_ptr_or_ref(ASTAllocator& allocator, ASTNodeKind k) {
     switch(k) {
         case ASTNodeKind::FunctionParam:
-        case ASTNodeKind::ExtensionFuncReceiver:
             return as_base_func_param_unsafe()->type->is_pointer_or_ref();
         default:
             return is_stored_ptr_or_ref(allocator, k);
@@ -310,7 +306,6 @@ bool ASTNode::is_stored_ref(ASTAllocator& allocator) {
     const auto k = kind();
     switch(k) {
         case ASTNodeKind::FunctionParam:
-        case ASTNodeKind::ExtensionFuncReceiver:
             return false;
         default:
             const auto type = get_stored_value_type(allocator, k);
@@ -322,7 +317,6 @@ bool ASTNode::is_ref(ASTAllocator& allocator) {
     const auto k = kind();
     switch(k) {
         case ASTNodeKind::FunctionParam:
-        case ASTNodeKind::ExtensionFuncReceiver:
             return as_func_param_unsafe()->type->is_reference();
         default:
             const auto type = get_stored_value_type(allocator, k);

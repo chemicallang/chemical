@@ -23,7 +23,7 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
 
 void VariableIdentifier::process_linked(ASTDiagnoser* linker) {
     const auto linkedKind = linked->kind();
-    if(linkedKind == ASTNodeKind::FunctionDecl || linkedKind == ASTNodeKind::ExtensionFunctionDecl) {
+    if(linkedKind == ASTNodeKind::FunctionDecl) {
         // if this is not set, function won't generate code (very important)
         // this doesn't account for recursion though, this identifier maybe present inside with linked function
         linked->as_function_unsafe()->set_has_usage(true);
@@ -91,7 +91,6 @@ bool VariableIdentifier::compile_time_computable() {
     if(!linked) return false;
     switch(linked->kind()) {
         case ASTNodeKind::FunctionDecl:
-        case ASTNodeKind::ExtensionFunctionDecl:
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::NamespaceDecl:
         case ASTNodeKind::UnionDecl:

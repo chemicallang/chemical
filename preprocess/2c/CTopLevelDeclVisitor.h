@@ -54,8 +54,6 @@ public:
 
     void VisitGenericFuncDecl(GenericFuncDecl* node);
 
-    void VisitExtensionFunctionDecl(ExtensionFunction *extensionFunc);
-
     void VisitStructDecl(StructDefinition *structDefinition);
 
     void VisitGenericStructDecl(GenericStructDecl* node);

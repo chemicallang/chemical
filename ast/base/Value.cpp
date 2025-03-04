@@ -483,8 +483,7 @@ bool is_node_assignable(ASTNode* node) {
         case ASTNodeKind::VarInitStmt:{
             return !node->as_var_init_unsafe()->is_const();
         }
-        case ASTNodeKind::FunctionParam:
-        case ASTNodeKind::ExtensionFuncReceiver: {
+        case ASTNodeKind::FunctionParam: {
             return false;
         }
         case ASTNodeKind::VariantCaseVariable: {
@@ -508,8 +507,7 @@ bool is_node_mutable(ASTNode* node, FunctionType* func_type, SymbolResolver& res
             const auto type = node->as_var_init_unsafe()->create_value_type(resolver.allocator);
             return type->is_mutable();
         }
-        case ASTNodeKind::FunctionParam:
-        case ASTNodeKind::ExtensionFuncReceiver: {
+        case ASTNodeKind::FunctionParam: {
             const auto type = node->as_base_func_param_unsafe()->type;
             return type->is_mutable();
         }

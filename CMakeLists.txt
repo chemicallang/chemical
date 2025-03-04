@@ -340,12 +340,9 @@ set(COMMON_SOURCES
         ast/types/FunctionType.h
         ast/types/FunctionType.cpp
         ast/base/AnnotationParent.h
-        ast/structures/ExtensionFunction.h
         ast/base/ExtendableBase.h
         ast/base/ExtendableBase.cpp
         ast/base/ExtendableMembersContainerNode.h
-        ast/structures/ExtensionFuncReceiver.h
-        ast/structures/ExtensionFunction.cpp
         ast/structures/BaseFunctionParam.h
         compiler/OutputMode.h
         compiler/CodegenEmitterOptions.h

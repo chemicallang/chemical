@@ -187,8 +187,6 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration* node);
 
-    void VisitExtensionFunctionDecl(ExtensionFunction* node);
-
     // TODO handle this
     void VisitMultiFunctionNode(MultiFunctionNode* node) {}
 
@@ -221,8 +219,6 @@ public:
     void VisitUnsafeBlock(UnsafeBlock* node);
 
     void VisitFunctionParam(FunctionParam* node);
-
-    void VisitExtensionFuncReceiver(ExtensionFuncReceiver* node);
 
     void VisitGenericTypeParam(GenericTypeParameter* node);
 

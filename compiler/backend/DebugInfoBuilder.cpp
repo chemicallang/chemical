@@ -11,8 +11,6 @@
 #include "cst/LocationManager.h"
 #include "compiler/Codegen.h"
 #include "ast/structures/FunctionDeclaration.h"
-#include "ast/structures/ExtensionFunction.h"
-#include "ast/structures/ExtensionFuncReceiver.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"

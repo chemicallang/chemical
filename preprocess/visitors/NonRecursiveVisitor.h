@@ -117,9 +117,6 @@ public:
     inline void VisitGenericStructDecl(GenericStructDecl* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    inline void VisitExtensionFunctionDecl(ExtensionFunction* node) {
-        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
-    }
     inline void VisitMultiFunctionNode(MultiFunctionNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -163,9 +160,6 @@ public:
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
     inline void VisitFunctionParam(FunctionParam* node) {
-        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
-    }
-    inline void VisitExtensionFuncReceiver(ExtensionFuncReceiver* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
     inline void VisitGenericTypeParam(GenericTypeParameter* node) {
@@ -544,9 +538,6 @@ public:
             case ASTNodeKind::FunctionDecl:
                 static_cast<Derived*>(this)->VisitFunctionDecl((FunctionDeclaration*) node);
                 return;
-            case ASTNodeKind::ExtensionFunctionDecl:
-                static_cast<Derived*>(this)->VisitExtensionFunctionDecl((ExtensionFunction*) node);
-                return;
             case ASTNodeKind::GenericFuncDecl:
                 static_cast<Derived*>(this)->VisitGenericFuncDecl((GenericFuncDecl*) node);
                 return;
@@ -597,9 +588,6 @@ public:
                 return;
             case ASTNodeKind::FunctionParam:
                 static_cast<Derived*>(this)->VisitFunctionParam((FunctionParam*) node);
-                return;
-            case ASTNodeKind::ExtensionFuncReceiver:
-                static_cast<Derived*>(this)->VisitExtensionFuncReceiver((ExtensionFuncReceiver*) node);
                 return;
             case ASTNodeKind::GenericTypeParam:
                 static_cast<Derived*>(this)->VisitGenericTypeParam((GenericTypeParameter*) node);
@@ -952,9 +940,6 @@ public:
     inline void VisitByPtrTypeNoNullCheck(FunctionDeclaration* node) {
         static_cast<Derived*>(this)->VisitFunctionDecl(node);
     }
-    inline void VisitByPtrTypeNoNullCheck(ExtensionFunction* node) {
-        static_cast<Derived*>(this)->VisitExtensionFunctionDecl(node);
-    }
     inline void VisitByPtrTypeNoNullCheck(MultiFunctionNode* node) {
         static_cast<Derived*>(this)->VisitMultiFunctionNode(node);
     }
@@ -999,9 +984,6 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(FunctionParam* node) {
         static_cast<Derived*>(this)->VisitFunctionParam(node);
-    }
-    inline void VisitByPtrTypeNoNullCheck(ExtensionFuncReceiver* node) {
-        static_cast<Derived*>(this)->VisitExtensionFuncReceiver(node);
     }
     inline void VisitByPtrTypeNoNullCheck(GenericTypeParameter* node) {
         static_cast<Derived*>(this)->VisitGenericTypeParam(node);

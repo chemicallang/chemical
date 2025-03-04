@@ -391,8 +391,6 @@ public:
 
     void VisitGenericStructDecl(GenericStructDecl* node);
 
-    void VisitExtensionFunctionDecl(ExtensionFunction* node);
-
     // TODO handle multi function node
     void VisitMultiFunctionNode(MultiFunctionNode* node) {}
 
@@ -424,9 +422,6 @@ public:
     void VisitUnsafeBlock(UnsafeBlock* node);
 
     void VisitFunctionParam(FunctionParam* node);
-
-    // we handle extension func receiver when extension func is received
-    void VisitExtensionFuncReceiver(ExtensionFuncReceiver* node) {}
 
     // we handle generic type parameters along with function / struct
     void VisitGenericTypeParam(GenericTypeParameter* node) {}

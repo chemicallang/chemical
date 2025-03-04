@@ -1028,9 +1028,6 @@ void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expe
                 generic_iteration = node->as_function_unsafe()->register_call_with_existing(diagnoser, this, expected_type);
             }
             return;
-        case ASTNodeKind::ExtensionFunctionDecl:
-            generic_iteration = node->as_function_unsafe()->register_call_with_existing(diagnoser, this, expected_type);
-            return;
         case ASTNodeKind::StructDecl:
             generic_iteration = node->as_struct_def_unsafe()->register_with_existing(diagnoser, generic_list);
             return;

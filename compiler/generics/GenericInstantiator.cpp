@@ -21,6 +21,21 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     call->instantiate_gen_call(allocator, diagnoser, nullptr);
 }
 
+void GenericInstantiator::VisitAccessChain(AccessChain* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitAccessChain(value);
+
+    // relink first identifier in access chains
+    const auto val = value->values.front();
+    if(val->kind() == ValueKind::Identifier) {
+        const auto id = val->as_identifier_unsafe();
+        const auto node = table.resolve(id->value);
+        if(node) {
+            id->linked = node;
+        }
+    }
+
+}
+
 FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, size_t itr) {
 
     // creating a shallow copy of the function
@@ -29,15 +44,17 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
     // activating iteration in params
     for(const auto param : decl->generic_params) {
         // TODO cast to int32
-        param->active_iteration = (int16_t) itr;
+        param->set_active_iteration((int) itr);
     }
 
     // replacing parameter types in the function
+    // also declaring them as we must relink with copied nodes
     auto& params = impl->params;
     const auto total_params = params.size();
     auto i = 0;
     while(i < total_params) {
         visit(params[i]);
+        table.declare(params[i]->name_view(), params[i]);
         i++;
     }
 
@@ -50,7 +67,7 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->active_iteration = -1;
+        param->set_active_iteration(-1);
     }
 
     // returning the new implementation

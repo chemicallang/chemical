@@ -40,6 +40,10 @@ public:
 
     };
 
+    inline const chem::string_view& name_view() {
+        return name;
+    }
+
     inline bool has_address_taken() {
         return attrs.has_address_taken_of;
     }

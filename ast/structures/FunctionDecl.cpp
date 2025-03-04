@@ -1614,7 +1614,7 @@ void FunctionDeclaration::link_signature_no_scope(SymbolResolver &linker) {
                 linker.error(receiver.type) << "couldn't declare extension function with name '" << name_view() << "' because type '" << receiver.type->representation() << "' already has a field / function with same name \n";
                 return;
             }
-            container->extension_functions[name_view()] = this;
+            container->add_extension_func(name_view(), this);
         }
     }
 

@@ -4,6 +4,7 @@
 
 #include "ExtendableBase.h"
 #include "ast/structures/MembersContainer.h"
+#include "ast/structures/GenericFuncDecl.h"
 
 class ExtendableMembersContainerNode : public MembersContainer, public ExtendableBase {
 public:
@@ -104,7 +105,11 @@ public:
     void extendable_external_declare(Codegen& gen) {
         external_declare(gen);
         for(auto& pair : extension_functions) {
-            pair.second->code_gen_external_declare(gen);
+            if(pair.second.is_generic) {
+                pair.second.decl.gen->code_gen_external_declare(gen);
+            } else {
+                pair.second.decl.normal->code_gen_external_declare(gen);
+            }
         }
     }
 

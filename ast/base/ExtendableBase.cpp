@@ -4,10 +4,11 @@
 #include "ast/structures/MembersContainer.h"
 #include <sstream>
 
-FunctionDeclaration *ExtendableBase::extended_child(const chem::string_view &name) {
+ASTNode* ExtendableBase::extended_child(const chem::string_view &name) {
     auto func = extension_functions.find(name);
     if(func != extension_functions.end()) {
-        return func->second;
+        auto& pair = func->second;
+        return pair.is_generic ? (ASTNode*) pair.decl.gen : (ASTNode*) pair.decl.normal;
     }
     return nullptr;
 }
@@ -17,7 +18,7 @@ void ExtendableBase::adopt(MembersContainer* definition) {
         adopt((MembersContainer*) inherits.type->linked_node());
     }
     for(auto& func : definition->functions()) {
-        extension_functions[func->name_view()] = func;
+        extension_functions[func->name_view()] = { false, { .normal = func } };
     }
 }
 

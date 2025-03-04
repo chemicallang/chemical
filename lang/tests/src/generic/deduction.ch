@@ -41,10 +41,12 @@ func test_generic_type_deduction() {
         }
         return deduce_thing(s) == 40;
     })
+    // TODO these types weren't being inferred, however we are unsure if we should
+    //    infer the type from return statement
     test("generic return type can be deduced when in function call - 1", () => {
-        return take_gen_ret(give_gen_ret(16, 16)) == 42;
+        return take_gen_ret(give_gen_ret<int>(16, 16)) == 42;
     })
     test("generic return type can be deduced when in function call - 2", () => {
-        return take_gen_ret_long(give_gen_ret(15, 15)) == 50;
+        return take_gen_ret_long(give_gen_ret<int>(15, 15)) == 50;
     })
 }

@@ -50,7 +50,7 @@ public:
 
     DestructStmt* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<DestructStmt>()) DestructStmt(
-            array_value->copy(allocator),
+            array_value ? array_value->copy(allocator) : nullptr,
             identifier->copy(allocator),
             is_array,
             parent(),

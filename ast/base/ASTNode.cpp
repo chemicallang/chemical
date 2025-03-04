@@ -13,6 +13,8 @@
 #include "ast/values/AccessChain.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
@@ -91,8 +93,12 @@ LocatedIdentifier* ASTNode::get_located_id() {
             return as_enum_decl_unsafe()->get_located_id();
         case ASTNodeKind::FunctionDecl:
             return as_function_unsafe()->get_located_id();
+        case ASTNodeKind::GenericFuncDecl:
+            return as_gen_func_decl_unsafe()->master_impl->get_located_id();
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->get_located_id();
+        case ASTNodeKind::GenericStructDecl:
+            return as_gen_struct_def_unsafe()->master_impl->get_located_id();
         case ASTNodeKind::StructDecl:
             return as_struct_def_unsafe()->get_located_id();
         case ASTNodeKind::UnionDecl:

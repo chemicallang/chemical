@@ -162,6 +162,19 @@ void infer_generic_args(
         call->infer_return_type(diagnoser, out_generic_args, expected_type);
     }
 
+    // check all types have been inferred
+    i = 0;
+    for(const auto arg : out_generic_args) {
+        if(arg) {
+//            if(arg->kind() == BaseTypeKind::Linked && arg->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+//                diagnoser.error(call) << "couldn't infer type for generic parameter at index " << std::to_string(i);
+//            }
+        } else {
+            diagnoser.error(call) << "couldn't infer type for generic parameter at index " << std::to_string(i);
+        }
+        i++;
+    }
+
 }
 
 void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value) {

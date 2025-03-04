@@ -10,6 +10,7 @@
 #include "ast/values/LambdaFunction.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/GenericStructDecl.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
@@ -913,7 +914,7 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     const auto func_decl = safe_linked_func();
     if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent()) {
         const auto struct_def = func_decl->parent()->as_struct_def();
-        if(struct_def->is_generic()) {
+        if(struct_def->is_generic() || struct_def->generic_parent != nullptr) {
             func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()), generic_iteration);
         }
     }
@@ -1085,8 +1086,10 @@ void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diag
 }
 
 int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionCall* call) {
-    if(parent_id->linked && parent_id->linked->as_struct_def()) {
-        StructDefinition* parent_struct = parent_id->linked->as_struct_def();
+    if(!parent_id->linked) return -2;
+    const auto linked_kind = parent_id->linked->kind();
+    if(linked_kind == ASTNodeKind::StructDecl) {
+        StructDefinition* parent_struct = parent_id->linked->as_struct_def_unsafe();
         auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
@@ -1096,6 +1099,15 @@ int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocat
                 call->generic_iteration = parent_struct->register_generic_args(astAllocator, diagnoser, call->generic_list);
                 return prev_itr;
             }
+        } else {
+            diagnoser.error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+        }
+    } else if(linked_kind == ASTNodeKind::GenericStructDecl) {
+        const auto gen_struct = parent_id->linked->as_gen_struct_def_unsafe();
+        const auto parent_struct = gen_struct->register_generic_args(astAllocator, diagnoser, call->generic_list);
+        auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
+        if(constructorFunc) {
+            parent_id->linked = constructorFunc;
         } else {
             diagnoser.error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
         }
@@ -1348,11 +1360,11 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
         const auto linked_kind = linked->kind();
         if(linked_kind == ASTNodeKind::VariantMember) {
             return linked->as_variant_member_unsafe()->known_type();
-        } else if(ASTNode::isFunctionDecl(linked_kind)) {
+        } else if(linked_kind == ASTNodeKind::FunctionDecl) {
             const auto func_decl = linked->as_function_unsafe();
             if(func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent()) {
                 const auto struct_def = func_decl->parent()->as_struct_def();
-                if(struct_def->is_generic()) {
+                if(struct_def->is_generic() || struct_def->generic_parent != nullptr) {
                     return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()), generic_iteration);
                 }
             }

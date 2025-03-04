@@ -6,6 +6,7 @@
 
 #include "parser/Parser.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
 
@@ -18,7 +19,6 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
             return nullptr;
         }
     }
-
 
     auto identifier = consumeIdentifierOrKeyword();
     if(!identifier) {
@@ -147,7 +147,9 @@ bool Parser::parseVariableAndFunctionInto(MembersContainer* decl, ASTAllocator& 
     return false;
 }
 
-StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+const auto GENv2 = false;
+
+ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::StructKw)) {
 
         auto identifier = consumeIdentifierOrKeyword();
@@ -156,27 +158,46 @@ StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, Ac
             return nullptr;
         }
 
-        auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(loc_id(allocator, identifier), parent_node, 0, specifier);
-
+        const auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(loc_id(allocator, identifier), parent_node, 0, specifier);
         annotate(decl);
+
+        std::vector<GenericTypeParameter*> gen_params;
 
         auto prev_parent_node = parent_node;
         parent_node = decl;
+        parseGenericParametersList(allocator, gen_params);
 
-        parseGenericParametersList(allocator, decl->generic_params);
+        ASTNode* final_decl = decl;
+
+        if(GENv2 && !gen_params.empty()) {
+
+            const auto gen_decl = new (allocator.allocate<GenericStructDecl>()) GenericStructDecl(
+                decl, parent_node, loc_single(identifier)
+            );
+
+            gen_decl->generic_params = std::move(gen_params);
+
+            final_decl = gen_decl;
+
+        } else {
+
+            decl->generic_params = std::move(gen_params);
+
+        }
+
         if(consumeToken(TokenType::ColonSym)) {
             do {
                 auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
                 auto type = parseLinkedOrGenericType(allocator);
                 if(!type) {
-                    return decl;
+                    return final_decl;
                 }
                 decl->inherited.emplace_back(type, in_spec);
             } while(consumeToken(TokenType::CommaSym));
         }
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
-            return decl;
+            return final_decl;
         }
 
         do {
@@ -190,12 +211,13 @@ StructDefinition* Parser::parseStructStructureTokens(ASTAllocator& allocator, Ac
 
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");
-            return decl;
+            return final_decl;
         }
 
         parent_node = prev_parent_node;
 
-        return decl;
+        return final_decl;
+
     } else {
         return nullptr;
     }

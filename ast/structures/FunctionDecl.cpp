@@ -1171,7 +1171,8 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
     if(is_implicit) {
         if(name == "self" || name == "other") { // name and other means pointers to parent node
             const auto ptr_type = ((ReferenceType*) type);
-            const auto linked_type = ((LinkedType*) ptr_type->type);
+            auto& linked_type_ref = ptr_type->type;
+            const auto linked_type = ((LinkedType*) linked_type_ref);
             auto parent_node = parent();
             auto parent_kind = parent_node->kind();
             ASTNode* parent;
@@ -1184,8 +1185,12 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
                 case ASTNodeKind::ImplDecl:
                     parent = parent_node->as_impl_def_unsafe()->struct_type->linked_node();
                     break;
+                case ASTNodeKind::StructDecl: {
+                    const auto def = parent_node->as_struct_def_unsafe();
+                    parent = def->generic_parent ? (ASTNode*) def->generic_parent : parent_node;
+                    break;
+                }
                 case ASTNodeKind::VariantDecl:
-                case ASTNodeKind::StructDecl:
                 case ASTNodeKind::UnionDecl:
                 case ASTNodeKind::InterfaceDecl:
                     parent = parent_node;

@@ -27,6 +27,8 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/UnsafeBlock.h"
+#include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/UnnamedStruct.h"
 //#include "ast/structures/CapturedVariable.h"
 //#include "ast/structures/MembersContainer.h"
 #include "ast/structures/Scope.h"
@@ -34,7 +36,7 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/types/PointerType.h"
 //#include "ast/types/FunctionType.h"
-//#include "ast/types/GenericType.h"
+#include "ast/types/GenericType.h"
 //#include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
 //#include "ast/types/BigIntType.h"
@@ -170,16 +172,31 @@ public:
         for(auto& param : decl->params) {
             visit_it(param);
         }
+        visit_it(decl->returnType);
         if(decl->body.has_value()) {
             visit_it(decl->body.value());
         }
-        visit_it(decl->returnType);
     }
 
     void VisitFunctionParam(FunctionParam *param) {
         visit_it(param->type);
         if(param->defValue) {
             visit_it(param->defValue);
+        }
+    }
+
+    void VisitUnnamedStruct(UnnamedStruct* def) {
+        auto itr = def->variables.begin();
+        while(itr != def->variables.end()) {
+            visit_it(itr.value());
+            itr++;
+        }
+    }
+    void VisitUnnamedUnion(UnnamedUnion* def) {
+        auto itr = def->variables.begin();
+        while(itr != def->variables.end()) {
+            visit_it(itr.value());
+            itr++;
         }
     }
 
@@ -304,6 +321,13 @@ public:
 
     inline void VisitPointerType(PointerType* type) {
         visit_it(type->type);
+    }
+
+    void VisitGenericType(GenericType* type) {
+        visit_it(type->referenced);
+        for(auto& ty : type->types) {
+            visit_it(ty);
+        }
     }
 
 };

@@ -1,6 +1,8 @@
 
 #include "GenericInstantiator.h"
 #include "GenInstantiatorAPI.h"
+#include "ast/structures/GenericFuncDecl.h"
+#include "ast/structures/GenericStructDecl.h"
 
 BaseType* GenericInstantiator::get_concrete_gen_type(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked){
@@ -43,7 +45,6 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
 
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        // TODO cast to int32
         param->set_active_iteration((int) itr);
     }
 
@@ -67,7 +68,27 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
     // deactivating iteration in parameters
     // activating iteration in params
     for(const auto param : decl->generic_params) {
-        param->set_active_iteration(-1);
+        param->deactivate_iteration();
+    }
+
+    // returning the new implementation
+    return impl;
+
+}
+
+StructDefinition* GenericInstantiator::Instantiate(GenericStructDecl* decl, size_t itr) {
+
+    const auto impl = decl->master_impl->copy(allocator);
+
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->set_active_iteration((int) itr);
+    }
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->deactivate_iteration();
     }
 
     // returning the new implementation
@@ -78,9 +99,11 @@ FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, siz
 // Generic Instantiator API
 
 FunctionDeclaration* Instantiate(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, GenericFuncDecl* decl, size_t itr) {
-
     auto inst = GenericInstantiator(astAllocator, diagnoser);
-
     return inst.Instantiate(decl, itr);
+}
 
+StructDefinition* Instantiate(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, GenericStructDecl* decl, size_t itr) {
+    auto inst = GenericInstantiator(astAllocator, diagnoser);
+    return inst.Instantiate(decl, itr);
 }

@@ -2,9 +2,8 @@
 
 #pragma once
 
-class FunctionDeclaration;
-class ASTAllocator;
-class ASTDiagnoser;
-class GenericFuncDecl;
+#include "ast/base/ast_fwd.h"
 
 FunctionDeclaration* Instantiate(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, GenericFuncDecl* decl, size_t itr);
+
+StructDefinition* Instantiate(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, GenericStructDecl* decl, size_t itr);

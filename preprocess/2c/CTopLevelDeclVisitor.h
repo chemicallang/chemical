@@ -52,9 +52,13 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration *functionDeclaration);
 
+    void VisitGenericFuncDecl(GenericFuncDecl* node);
+
     void VisitExtensionFunctionDecl(ExtensionFunction *extensionFunc);
 
     void VisitStructDecl(StructDefinition *structDefinition);
+
+    void VisitGenericStructDecl(GenericStructDecl* node);
 
     void VisitVariantDecl(VariantDefinition *variant_def);
 

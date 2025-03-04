@@ -39,6 +39,7 @@
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/GenericFuncDecl.h"
+#include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/CapturedVariable.h"
 #include "ast/structures/MembersContainer.h"
@@ -2483,6 +2484,12 @@ void CTopLevelDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     declare_func(decl);
 }
 
+void CTopLevelDeclarationVisitor::VisitGenericFuncDecl(GenericFuncDecl* node) {
+    for(const auto impl : node->instantiations) {
+        declare_func(impl);
+    }
+}
+
 void CTopLevelDeclarationVisitor::VisitExtensionFunctionDecl(ExtensionFunction *decl) {
     declare_func(decl);
 }
@@ -2655,6 +2662,12 @@ void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
         interfaces.emplace_back(def->name_view().str());
     }
     declare_struct_iterations(def);
+}
+
+void CTopLevelDeclarationVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
+    for(const auto impl : node->instantiations) {
+        VisitStructDecl(impl);
+    }
 }
 
 void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
@@ -3820,6 +3833,10 @@ void ToCAstVisitor::VisitGenericFuncDecl(GenericFuncDecl* decl) {
     for(const auto node : decl->instantiations) {
         func_decl_with_name(*this, node);
     }
+}
+
+void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
+
 }
 
 void ToCAstVisitor::VisitExtensionFunctionDecl(ExtensionFunction *decl) {

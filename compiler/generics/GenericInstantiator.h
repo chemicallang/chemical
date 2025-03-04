@@ -3,7 +3,6 @@
 #pragma once
 
 #include "preprocess/visitors/RecursiveVisitor.h"
-#include "ast/structures/GenericFuncDecl.h"
 #include "compiler/symres/SymbolTable.h"
 
 class GenericInstantiator : public RecursiveVisitor<GenericInstantiator> {
@@ -78,5 +77,7 @@ public:
     void VisitFunctionCall(FunctionCall *call);
 
     FunctionDeclaration* Instantiate(GenericFuncDecl* decl, size_t itr);
+
+    StructDefinition* Instantiate(GenericStructDecl* decl, size_t itr);
 
 };

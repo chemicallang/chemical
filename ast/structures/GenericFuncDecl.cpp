@@ -3,15 +3,21 @@
 #include "ast/utils/GenericUtils.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/values/FunctionCall.h"
 
 void GenericFuncDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) {
-    linker.declare(master_impl->name_view(), this);
+    master_impl->generic_parent = this;
+    if(!master_impl->isExtensionFn()) {
+        linker.declare(master_impl->name_view(), this);
+    }
+}
+
+BaseType* GenericFuncDecl::create_value_type(ASTAllocator &allocator) {
+    return master_impl->create_value_type(allocator);
 }
 
 void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
     // symbol resolve the master declaration
-    // TODO this creates an extra scope
-    master_impl->generic_parent = this;
     linker.scope_start();
     for(auto& param : generic_params) {
         param->declare_and_link(linker, (ASTNode*&) param);
@@ -19,6 +25,8 @@ void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
     master_impl->link_signature_no_scope(linker);
     master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
     // we set it has usage, so every shallow copy or instantiation has usage
+    // since we create instantiation only when calls are detected, so no declaration will be created
+    // when there's no usage
     master_impl->set_has_usage(true);
     linker.scope_end();
 }
@@ -78,13 +86,17 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
 
     }
 
-    auto created = Instantiate(astAllocator, diagnoser, this, itr.first);
-
 #ifdef DEBUG
     if(itr.first != instantiations.size()) {
+        // TODO enable this error, currently when a type deduction fails, we expect the type to be specified in argument list
+        if(itr.first < instantiations.size()) {
+            return instantiations[itr.first];
+        }
         throw std::runtime_error("iteration registered, that is not on the expected index");
     }
 #endif
+
+    auto created = Instantiate(astAllocator, diagnoser, this, itr.first);
 
     created->generic_parent = this;
     created->generic_instantiation = (int) instantiations.size();

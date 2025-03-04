@@ -56,6 +56,7 @@ public:
             // then replace the type pointer ref with the concrete type
             type_ref = concrete;
         }
+        VisitTypeNoNullCheck(type_ref);
     }
     inline void visit(Scope& scope) {
         VisitScope(&scope);

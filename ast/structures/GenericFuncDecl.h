@@ -33,6 +33,8 @@ public:
 
     void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
 
+    BaseType* create_value_type(ASTAllocator &allocator) override;
+
     /**
      * a call notifies a function, during symbol resolution that it exists
      * when this happens, generics are checked, proper types are registered in generic

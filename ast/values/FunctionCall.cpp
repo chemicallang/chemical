@@ -104,6 +104,9 @@ void put_implicit_params(
         llvm::Value* self_arg_val,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
+    if(func_type->isExtensionFn()) {
+        put_self_param(gen, call, func_type, args, self_arg_val);
+    }
     for(auto& param : func_type->params) {
         if(param->is_implicit) {
             if(param->name == "self") {

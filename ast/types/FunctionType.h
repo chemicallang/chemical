@@ -37,6 +37,10 @@ class ASTDiagnoser;
 
 struct FunctionTypeData {
     /**
+     * extension functions are same as functions, however are children of containers
+     */
+    bool isExtension;
+    /**
      * is the function variadic
      */
     bool isVariadic;
@@ -74,9 +78,34 @@ public:
             bool isCapturing,
             SourceLocation location,
             bool signature_resolved = false
-    ) : data(isVariadic, isCapturing, signature_resolved), returnType(returnType),
+    ) : data(false, isVariadic, isCapturing, signature_resolved), returnType(returnType),
         BaseType(BaseTypeKind::Function, location) {
 
+    }
+
+    /**
+     * constructor
+     */
+    constexpr FunctionType(
+            BaseType* returnType,
+            bool isExtension,
+            bool isVariadic,
+            bool isCapturing,
+            SourceLocation location,
+            bool signature_resolved = false
+    ) : data(isExtension, isVariadic, isCapturing, signature_resolved), returnType(returnType),
+        BaseType(BaseTypeKind::Function, location) {
+
+    }
+
+
+    [[nodiscard]]
+    inline bool isExtensionFn() const {
+        return data.isExtension;
+    }
+
+    inline void setIsExtension(bool value) {
+        data.isExtension = value;
     }
 
     [[nodiscard]]
@@ -128,7 +157,8 @@ public:
      * the index of arguments would start at 1
      */
     inline unsigned explicit_func_arg_offset() {
-        return total_implicit_params();
+        const auto ext_offset = isExtensionFn() ? 1 : 0;
+        return total_implicit_params() + ext_offset;
     }
 
     /**

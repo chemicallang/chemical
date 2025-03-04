@@ -1387,6 +1387,20 @@ void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
 }
 
 void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool has_comma_before = true) {
+    if(func_type->isExtensionFn()) {
+        const auto firstParam = func_type->params[0];
+        const auto grandpa = get_parent_from(call->parent_val);
+        if(grandpa) {
+            if(!has_comma_before) {
+                visitor.write(", ");
+            }
+            const auto till_grandpa = build_parent_chain(call->parent_val, visitor.allocator);
+            write_self_arg(visitor, till_grandpa, call);
+            has_comma_before = false;
+        } else {
+            visitor.error("couldn't get the self parameter for the extension function receiver parameter", firstParam);
+        }
+    }
     for(const auto param : func_type->params) {
         if(param->is_implicit) {
             if(param->name == "self") {

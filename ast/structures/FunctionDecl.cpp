@@ -60,7 +60,7 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
         return pointer;
     }
     auto index = calculate_c_or_llvm_index(gen.current_func_type);
-    if(index > gen.current_function->arg_size()) {
+    if(index >= gen.current_function->arg_size()) {
         gen.error(this) << "couldn't get argument with name " << name << " since function has " << std::to_string(gen.current_function->arg_size()) << " arguments";
         return nullptr;
     }
@@ -1151,7 +1151,7 @@ bool BaseFunctionParam::add_child_index(Codegen& gen, std::vector<llvm::Value *>
 #endif
 
 unsigned FunctionParam::calculate_c_or_llvm_index(FunctionType* func_type) {
-    const auto start = func_type->c_or_llvm_arg_start_index();
+    const auto start = func_type->c_or_llvm_arg_start_index() - (func_type->isExtensionFn() ? 1 : 0);
     return start + index;
 }
 
@@ -1535,7 +1535,7 @@ int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagno
 }
 
 BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
-    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isVariadic(), false, ZERO_LOC, FunctionType::data.signature_resolved);
+    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isExtensionFn(), isVariadic(), false, ZERO_LOC, FunctionType::data.signature_resolved);
     for(const auto param : params) {
         func_type->params.emplace_back(param->copy(allocator));
     }
@@ -1551,7 +1551,10 @@ void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.declare_function(name_view(), this, specifier());
+    // extension functions do not declare themselves
+    if(!isExtensionFn()) {
+        linker.declare_function(name_view(), this, specifier());
+    }
 }
 
 void FunctionDeclaration::link_signature_no_scope(SymbolResolver &linker) {
@@ -1575,6 +1578,46 @@ void FunctionDeclaration::link_signature_no_scope(SymbolResolver &linker) {
     if(resolved) {
         FunctionType::data.signature_resolved = true;
     }
+
+    // extension functions declare themselves inside the container
+    if(isExtensionFn()) {
+        auto& receiver = *params[0];
+        const auto type = receiver.type;
+        const auto pure_receiver = type->pure_type(linker.allocator);
+        const auto receiver_kind = pure_receiver->kind();
+        if (receiver_kind != BaseTypeKind::Reference) {
+            linker.error("receiver in extension function must always be a reference", type);
+        }
+        auto linked = type->linked_node();
+        if (!linked) {
+            linker.error((AnnotableNode*) this) << "couldn't find container in extension function ith receiver type \"" << type->representation() << "\"";
+            return;
+        }
+        const auto linked_kind = linked->kind();
+        if (linked_kind == ASTNodeKind::InterfaceDecl) {
+            const auto interface = linked->as_interface_def_unsafe();
+            if (!interface->is_static()) {
+                linker.error("extension functions are only supported on static interfaces, either make the interface static or move the function inside the interface", receiver.type);
+                return;
+            }
+        }
+        auto container = linked->as_extendable_members_container();
+        if (!container) {
+            linker.error(receiver.type) << "type doesn't support extension functions " << type->representation();
+            return;
+        }
+        if(container->extension_functions.contains(name_view())) {
+            linker.error(receiver.type) << "container already contains an extension function by the same name";
+        } else {
+            const auto field_func = linked->child(name_view());
+            if (field_func != nullptr) {
+                linker.error(receiver.type) << "couldn't declare extension function with name '" << name_view() << "' because type '" << receiver.type->representation() << "' already has a field / function with same name \n";
+                return;
+            }
+            container->extension_functions[name_view()] = this;
+        }
+    }
+
 }
 
 void FunctionDeclaration::link_signature(SymbolResolver &linker)  {

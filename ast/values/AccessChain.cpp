@@ -273,6 +273,9 @@ std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& a
     const auto linked_kind = linked->kind();
     if(linked_kind == ASTNodeKind::FunctionDecl) {
         const auto func_decl = linked->as_function_unsafe();
+        if(func_decl->isExtensionFn()) {
+            return { nullptr, -1 };
+        }
         const auto gran = get_parent_from(parent_val);
         if(gran) {
             // grandpa value can refer to a namespace, which is unable to create_type

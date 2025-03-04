@@ -44,6 +44,8 @@ class FunctionDeclaration;
 
 class GenericFuncDecl;
 
+class GenericStructDecl;
+
 class IfStatement;
 
 class ImplDefinition;

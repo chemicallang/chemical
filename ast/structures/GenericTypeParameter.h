@@ -54,6 +54,10 @@ public:
         active_iteration = (int16_t) iteration;
     }
 
+    void deactivate_iteration() {
+        active_iteration = -1;
+    }
+
     [[nodiscard]]
     BaseTypeKind type_kind() const final {
         if(active_iteration == -1) {

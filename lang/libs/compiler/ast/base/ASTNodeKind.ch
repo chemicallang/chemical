@@ -52,4 +52,13 @@ enum ASTNodeKind {
     CapturedVariable,
     VariantCaseVariable,
 
+    StructType,
+    UnionType,
+
+    GenericFuncDecl,
+    GenericStructDecl,
+    GenericVariantDecl,
+    GenericUnionDecl,
+    GenericInterfaceDecl
+
 }

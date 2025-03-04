@@ -69,6 +69,9 @@ enum class ASTNodeKind : uint8_t {
     UnionType,
 
     GenericFuncDecl,
-
+    GenericStructDecl,
+    GenericVariantDecl,
+    GenericUnionDecl,
+    GenericInterfaceDecl
 
 };

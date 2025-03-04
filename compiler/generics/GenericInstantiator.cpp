@@ -38,6 +38,16 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
 
 }
 
+void GenericInstantiator::VisitLinkedType(LinkedType* type) {
+
+    // relink the type if found
+    const auto node = table.resolve(type->type);
+    if(node) {
+        type->linked = node;
+    }
+
+}
+
 FunctionDeclaration* GenericInstantiator::Instantiate(GenericFuncDecl* decl, size_t itr) {
 
     // creating a shallow copy of the function

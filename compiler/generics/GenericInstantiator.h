@@ -61,6 +61,8 @@ public:
         VisitScope(&scope);
     }
 
+    void VisitLinkedType(LinkedType* type);
+
     void VisitScope(Scope* node) {
         table.scope_start();
         RecursiveVisitor<GenericInstantiator>::VisitScope(node);
@@ -69,6 +71,11 @@ public:
 
     void VisitVarInitStmt(VarInitStatement* node) {
         RecursiveVisitor<GenericInstantiator>::VisitVarInitStmt(node);
+        table.declare(node->name_view(), node);
+    }
+
+    void VisitTypealiasStmt(TypealiasStatement* node) {
+        RecursiveVisitor<GenericInstantiator>::VisitTypealiasStmt(node);
         table.declare(node->name_view(), node);
     }
 

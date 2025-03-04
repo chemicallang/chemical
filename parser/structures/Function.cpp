@@ -238,14 +238,19 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         return nullptr;
     }
 
-    FunctionDeclaration* decl;
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id(allocator, "", {0, 0}), nullptr, false, parent_node, 0, specifier, false);
 
     if(allow_extensions && consumeToken(TokenType::LParen)) {
-        auto ext_func = new (allocator.allocate<ExtensionFunction>()) ExtensionFunction(loc_id(allocator, "", {0, 0}), { "", nullptr, nullptr, 0 }, nullptr, false, parent_node, 0, specifier);;
-        decl = ext_func;
+
+        // set the function is extension
+        decl->setIsExtension(true);
+
+        const auto receiverParam = new (allocator.allocate<FunctionParam>()) FunctionParam("", nullptr, 0, nullptr, false, decl, loc_single(token));
+        decl->params.emplace_back(receiverParam);
+
         auto id = consumeIdentifierOrKeyword();
         if(id) {
-            ext_func->receiver.name = allocate_view(allocator, id->value);
+            receiverParam->name = allocate_view(allocator, id->value);
         } else {
             error("expected identifier for receiver in extension function after '('");
             return decl;
@@ -256,7 +261,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         }
         auto type = parseType(allocator);
         if(type) {
-            ext_func->receiver.type = type;
+            receiverParam->type = type;
         } else {
             error("expected type after ':' in extension function for receiver");
             return decl;
@@ -265,8 +270,6 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
             error("expected ')' in extension function after receiver");
             return decl;
         }
-    } else {
-        decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id(allocator, "", {0, 0}), nullptr, false, parent_node, 0, specifier, false);
     }
 
     for(auto param : gen_params) {

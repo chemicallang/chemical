@@ -96,7 +96,7 @@ unsigned FunctionType::total_implicit_params() {
 }
 
 unsigned int FunctionType::expectedArgsSize() {
-    return params.size() - total_implicit_params();
+    return params.size() - total_implicit_params() - (isExtensionFn() ? 1 : 0);
 }
 
 FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
@@ -157,6 +157,10 @@ bool FunctionType::do_param_types_match(std::vector<FunctionParam*>& param_types
 BaseFunctionParam* FunctionType::get_self_param() {
     if(!params.empty()) {
         auto& param = params[0];
+        if(isExtensionFn()) {
+            // in extension functions, the first parameter is the receiver
+            return param;
+        }
         if(param->is_implicit && (param->name == "self" || param->name == "this")) {
             return param;
         }
@@ -172,15 +176,16 @@ bool FunctionType::has_explicit_params() {
 }
 
 unsigned FunctionType::c_or_llvm_arg_start_index() {
+    const auto offset = isExtensionFn() ? 1 : 0;
     if(returnType->isStructLikeType()) {
         auto func = as_function();
         if(func && (func->is_copy_fn() || func->is_move_fn())) {
-            return 0;
+            return 0 + offset;
         } else {
-            return 1;
+            return 1 + offset;
         }
     } else {
-        return 0;
+        return 0 + offset;
     }
 }
 
@@ -202,7 +207,7 @@ bool FunctionType::equal(FunctionType *other) const {
 }
 
 FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
-    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isVariadic(), isCapturing(), ZERO_LOC, data.signature_resolved);
+    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isExtensionFn(), isVariadic(), isCapturing(), ZERO_LOC, data.signature_resolved);
     for (auto &param: params) {
         func_type->params.emplace_back(param->copy(allocator));
     }

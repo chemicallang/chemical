@@ -27,7 +27,6 @@
 #include "ast/structures/Namespace.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
-#include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/VariantMember.h"
@@ -271,28 +270,14 @@ void write_struct_def_value_call(ToCAstVisitor& visitor, StructDefinition* def) 
     visitor.write(')');
 }
 
-void extension_func_param(ToCAstVisitor& visitor, ExtensionFunction* extension) {
-    visitor.visit(extension->receiver.type);
-    visitor.space();
-    visitor.write(extension->receiver.name);
-}
-
 void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0, bool has_params_before = false) {
     auto is_struct_return = visitor.pass_structs_to_initialize && decl->returnType->isStructLikeType();
     auto func = decl->as_function();
-    auto extension = decl->as_extension_func();
     if(is_struct_return && !(func && (func->is_copy_fn() || func->is_move_fn()))) {
         if(has_params_before) {
             visitor.write(", ");
         }
         write_struct_return_param(visitor, decl);
-        has_params_before = true;
-    }
-    if(extension) {
-        if(has_params_before) {
-            visitor.write(", ");
-        }
-        extension_func_param(visitor, extension);
         has_params_before = true;
     }
     FunctionParam* param;
@@ -464,8 +449,7 @@ bool is_value_passed_pointer_like(Value* value) {
     const auto linked = value->linked_node();
     if(linked) {
         switch(linked->kind()) {
-            case ASTNodeKind::FunctionParam:
-            case ASTNodeKind::ExtensionFuncReceiver:{
+            case ASTNodeKind::FunctionParam:{
                 const auto type = linked->as_func_param_unsafe()->type;
                 if(type->is_pointer_or_ref()) {
                     return true;
@@ -2504,17 +2488,7 @@ void CTopLevelDeclarationVisitor::VisitGenericFuncDecl(GenericFuncDecl* node) {
     }
 }
 
-void CTopLevelDeclarationVisitor::VisitExtensionFunctionDecl(ExtensionFunction *decl) {
-    declare_func(decl);
-}
-
 void CValueDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
-    if(decl->body.has_value() && !decl->is_comptime()) {
-        visit(&decl->body.value());
-    }
-}
-
-void CValueDeclarationVisitor::VisitExtensionFunctionDecl(ExtensionFunction *decl) {
     if(decl->body.has_value() && !decl->is_comptime()) {
         visit(&decl->body.value());
     }
@@ -3853,10 +3827,6 @@ void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
 
 }
 
-void ToCAstVisitor::VisitExtensionFunctionDecl(ExtensionFunction *decl) {
-    func_decl_with_name(*this, decl);
-}
-
 void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
     // generating code for compile time if statements
     if(decl->computed_scope.has_value()) {
@@ -4242,9 +4212,6 @@ void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node)
 // linked_node is the actual function node
 void func_container_name(ToCAstVisitor& visitor, ASTNode* parent_node, ASTNode* linked_node) {
     node_parent_name(visitor, parent_node);
-    if(linked_node && linked_node->as_extension_func()) {
-        return;
-    }
     if(!parent_node) return;
     const auto func_parent = linked_node->parent();
     const auto impl_def = func_parent->as_impl_def();
@@ -4645,7 +4612,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
     const auto linked = last->linked_node();
     if(linked) {
         const auto lastKind = linked->kind();
-        if(lastKind == ASTNodeKind::FunctionDecl || lastKind == ASTNodeKind::ExtensionFunctionDecl) {
+        if(lastKind == ASTNodeKind::FunctionDecl) {
             if(!linked->as_function_unsafe()->has_self_param()) {
                 // TODO calling functions above without destructing the structs
                 call_any_function_above(visitor, values, (int) start, (int) end - 1);

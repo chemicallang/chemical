@@ -564,11 +564,7 @@ public:
     }
 
     static inline constexpr bool isFunctionDecl(ASTNodeKind k) {
-        return k == ASTNodeKind::FunctionDecl || k == ASTNodeKind::ExtensionFunctionDecl;
-    }
-
-    static inline constexpr bool isExtensionFunctionDecl(ASTNodeKind k) {
-        return k == ASTNodeKind::ExtensionFunctionDecl;
+        return k == ASTNodeKind::FunctionDecl;
     }
 
     static inline constexpr bool isMultiFunctionNode(ASTNodeKind k) {
@@ -623,10 +619,6 @@ public:
         return k == ASTNodeKind::FunctionParam;
     }
 
-    static inline constexpr bool isExtensionFuncReceiver(ASTNodeKind k) {
-        return k == ASTNodeKind::ExtensionFuncReceiver;
-    }
-
     static inline constexpr bool isGenericTypeParam(ASTNodeKind k) {
         return k == ASTNodeKind::GenericTypeParam;
     }
@@ -644,7 +636,7 @@ public:
     }
 
     static inline constexpr bool isBaseFuncParam(ASTNodeKind k) {
-        return k == ASTNodeKind::ExtensionFuncReceiver || k == ASTNodeKind::FunctionParam;
+        return k == ASTNodeKind::FunctionParam;
     }
 
     static inline constexpr bool isLoopASTNode(ASTNodeKind k) {
@@ -761,13 +753,6 @@ public:
      */
     inline EnumMember* as_enum_member() {
         return isEnumMember(kind()) ? (EnumMember*) this : nullptr;
-    }
-
-    /**
-     * get as extension function
-     */
-    inline ExtensionFunction* as_extension_func() {
-        return isExtensionFunctionDecl(kind()) ? (ExtensionFunction*) this : nullptr;
     }
 
     /**
@@ -1018,13 +1003,6 @@ public:
      */
     inline EnumMember* as_enum_member_unsafe() {
         return (EnumMember*) this;
-    }
-
-    /**
-     * get as extension function
-     */
-    inline ExtensionFunction* as_extension_func_unsafe() {
-        return (ExtensionFunction*) this;
     }
 
     /**

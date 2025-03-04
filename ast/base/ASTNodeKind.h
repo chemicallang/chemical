@@ -41,7 +41,6 @@ enum class ASTNodeKind : uint8_t {
     EnumDecl,
     EnumMember,
     FunctionDecl,
-    ExtensionFunctionDecl,
     MultiFunctionNode,
     ImplDecl,
     InterfaceDecl,
@@ -59,7 +58,6 @@ enum class ASTNodeKind : uint8_t {
     UnsafeBlock,
 
     FunctionParam,
-    ExtensionFuncReceiver,
     GenericTypeParam,
     VariantMemberParam,
     CapturedVariable,

@@ -28,8 +28,6 @@ public:
 
     void VisitFunctionDecl(FunctionDeclaration *functionDeclaration);
 
-    void VisitExtensionFunctionDecl(ExtensionFunction *extensionFunc);
-
     void VisitEnumDecl(EnumDeclaration *enumDeclaration);
 
     void VisitTypealiasStmt(TypealiasStatement *statement);

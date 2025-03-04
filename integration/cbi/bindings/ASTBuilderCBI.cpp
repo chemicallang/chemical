@@ -76,7 +76,6 @@
 #include "ast/structures/LoopBlock.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/NumberValue.h"
-#include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/InitBlock.h"
 #include "ast/statements/ThrowStatement.h"
 #include "ast/statements/ValueWrapperNode.h"

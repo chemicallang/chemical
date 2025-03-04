@@ -28,7 +28,6 @@ enum ASTNodeKind {
     EnumDecl,
     EnumMember,
     FunctionDecl,
-    ExtensionFunctionDecl,
     MultiFunctionNode,
     ImplDecl,
     InterfaceDecl,
@@ -46,7 +45,6 @@ enum ASTNodeKind {
     UnsafeBlock,
 
     FunctionParam,
-    ExtensionFuncReceiver,
     GenericTypeParam,
     VariantMemberParam,
     CapturedVariable,

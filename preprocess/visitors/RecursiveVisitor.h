@@ -31,8 +31,8 @@
 //#include "ast/structures/MembersContainer.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/WhileLoop.h"
-//#include "ast/types/ReferencedType.h"
-//#include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
+#include "ast/types/PointerType.h"
 //#include "ast/types/FunctionType.h"
 //#include "ast/types/GenericType.h"
 //#include "ast/types/AnyType.h"
@@ -296,6 +296,14 @@ public:
 
     void VisitTypeInsideValue(TypeInsideValue* value) {
         visit_it(value->type);
+    }
+
+    inline void VisitReferenceType(ReferenceType* type) {
+        visit_it(type->type);
+    }
+
+    inline void VisitPointerType(PointerType* type) {
+        visit_it(type->type);
     }
 
 };

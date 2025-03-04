@@ -224,7 +224,8 @@ int16_t register_generic_usage_no_check(
 ) {
     int16_t i = 0;
     for (const auto param: generic_params) {
-        param->register_usage(allocator, i < generic_list.size() ? generic_list[i] : nullptr);
+        const auto arg_type = i < generic_list.size() ? generic_list[i] : param->def_type;
+        param->register_usage(allocator, arg_type);
         i++;
     }
     return (int16_t) ((int16_t) total_generic_iterations(generic_params) - (int16_t) 1);

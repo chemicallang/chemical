@@ -13,19 +13,43 @@ class FunctionDeclaration;
 
 class MembersContainer;
 
+class GenericFuncDecl;
+
+struct ExtensionFuncPair {
+    bool is_generic;
+    union {
+        FunctionDeclaration* normal;
+        GenericFuncDecl* gen;
+    } decl;
+};
+
 class ExtendableBase {
 public:
 
     /**
      * map suppose to contain references to extension functions
      */
-    std::unordered_map<chem::string_view, FunctionDeclaration*> extension_functions;
+    std::unordered_map<chem::string_view, ExtensionFuncPair> extension_functions;
+
+    /**
+     * add an extension function
+     */
+    void add_extension_func(const chem::string_view& name, FunctionDeclaration* decl) {
+        extension_functions[name] = { false, { .normal = decl } };
+    }
+
+    /**
+     * add extension function
+     */
+    void add_extension_func(const chem::string_view& name, GenericFuncDecl* decl) {
+        extension_functions[name] = { false, { .gen = decl } };
+    }
 
     /**
      * get the child member by name
      * this will also look for extension function by name, if there's no direct member
      */
-    FunctionDeclaration *extended_child(const chem::string_view &name);
+    ASTNode *extended_child(const chem::string_view &name);
 
     /**
      * all the methods of this interface will be extended to this

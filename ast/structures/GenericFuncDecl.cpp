@@ -109,4 +109,10 @@ void GenericFuncDecl::code_gen(Codegen &gen) {
     }
 }
 
+void GenericFuncDecl::code_gen_external_declare(Codegen &gen) {
+    for(const auto inst : instantiations) {
+        inst->code_gen_external_declare(gen);
+    }
+}
+
 #endif

@@ -1423,7 +1423,7 @@ void FunctionDeclaration::set_gen_itr_no_subs(int16_t iteration) {
 #endif
     active_iteration = iteration;
     for (auto& param: generic_params) {
-        param->active_iteration = iteration;
+        param->set_active_iteration(iteration);
     }
 }
 
@@ -1446,7 +1446,7 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration, bool set_gener
 #endif
     active_iteration = iteration;
     for (auto& param: generic_params) {
-        param->active_iteration = iteration;
+        param->set_active_iteration(iteration);
     }
     for (auto sub: subscribers) {
         sub->set_parent_iteration(iteration);

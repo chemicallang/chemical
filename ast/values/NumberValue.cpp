@@ -54,10 +54,11 @@ bool NumberValue::link(SymbolResolver &linker, BaseType *type) {
         if(linked) {
             const auto param = linked->as_generic_type_param();
             if(param) {
-                if(param->active_iteration < 0) {
-                    linked_type = type->copy(*linker.ast_allocator);
+                const auto known = param->known_type();
+                if(known) {
+                    linked_type = known->copy(*linker.ast_allocator);
                 } else {
-                    linked_type = param->known_type()->copy(*linker.ast_allocator);
+                    linked_type = type->copy(*linker.ast_allocator);
                 }
                 return true;
             }

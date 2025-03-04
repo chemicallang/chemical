@@ -2,31 +2,28 @@
 
 #pragma once
 
-#include <string_view>
+#include "std/chem_string_view.h"
 #include <vector>
 #include <functional>
 #include <cassert>
 
-// Dummy AST node struct for demonstration.
-struct Node {
-    // ... your AST node fields ...
-};
+class ASTNode;
 
 struct SymbolEntry {
-    std::string_view key;  // AST-owned key; no extra allocation.
+    chem::string_view key;  // AST-owned key; no extra allocation.
     size_t hash;           // Precomputed hash.
     int prev;              // Index of previous declaration for shadowing (-1 if none).
-    Node* node;            // Pointer to the associated AST node.
+    ASTNode* node;            // Pointer to the associated AST node.
 };
 
 struct Bucket {
-    std::string_view key;  // Key stored for verification.
+    chem::string_view key;  // Key stored for verification.
     size_t hash;           // Precomputed hash for this bucket.
     int index;             // Index into the symbol metadata array (-1 if empty).
-    Node* activeNode;      // Directly stores the active node pointer.
+    ASTNode* activeNode;      // Directly stores the active node pointer.
 };
 
-class SymbolResolver {
+class SymbolTable {
 private:
 
     // Contiguous metadata for symbols.
@@ -38,12 +35,12 @@ private:
     std::vector<int> scopeStack;
 
     // Compute the hash for a key.
-    inline size_t computeHash(std::string_view key) const {
-        return std::hash<std::string_view>{}(key);
+    inline size_t computeHash(chem::string_view key) const {
+        return std::hash<chem::string_view>{}(key);
     }
 
     // Find a bucket index given a precomputed hash and key using linear probing.
-    inline int findBucketForHash(size_t hash, std::string_view key) const {
+    inline int findBucketForHash(size_t hash, chem::string_view key) const {
         size_t i = hash & bucketMask;
         while (true) {
             const Bucket& b = buckets[i];
@@ -56,9 +53,8 @@ private:
     }
 
     // Compute hash and find bucket for a key.
-    inline int findBucket(std::string_view key) const {
-        size_t hash = computeHash(key);
-        return findBucketForHash(hash, key);
+    int findBucket(chem::string_view key) const {
+        return findBucketForHash(computeHash(key), key);
     }
 
     // Optional: rehash the buckets if the load factor exceeds a threshold.
@@ -86,8 +82,9 @@ private:
     }
 
 public:
+
     // Constructor: preallocate bucket table and reserve typical symbol count.
-    SymbolResolver(size_t initialBucketCount = 128) {
+    SymbolTable(size_t initialBucketCount = 128) {
         // initialBucketCount must be a power of 2.
         buckets.resize(initialBucketCount, Bucket{"", 0, -1, nullptr});
         bucketMask = initialBucketCount - 1;
@@ -96,7 +93,7 @@ public:
     }
 
     // declare: add a new symbol (with key and node pointer) to the current scope.
-    void declare(std::string_view key, Node* node) {
+    void declare(chem::string_view key, ASTNode* node) {
         size_t hash = computeHash(key);
         int bucketIndex = findBucketForHash(hash, key);
         Bucket& bucket = buckets[bucketIndex];
@@ -118,7 +115,7 @@ public:
     }
 
     // resolve: return the node pointer for the active symbol of the given key.
-    Node* resolve(std::string_view key) const {
+    ASTNode* resolve(chem::string_view key) const {
         int bucketIndex = findBucket(key);
         const Bucket& bucket = buckets[bucketIndex];
         return (bucket.index == -1) ? nullptr : bucket.activeNode;

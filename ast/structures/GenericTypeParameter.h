@@ -5,6 +5,8 @@
 #include "ast/base/ASTNode.h"
 
 class GenericTypeParameter : public ASTNode {
+private:
+    int16_t active_iteration = -1;
 public:
 
     chem::string_view identifier;
@@ -12,7 +14,7 @@ public:
     BaseType* def_type;
     std::vector<BaseType*> usage;
     // TODO use int32 here
-    int16_t active_iteration = -1; // <-- index of active type in usage vector
+     // <-- index of active type in usage vector
     unsigned param_index = 0; // <-- index in the generic type parameters
 
     /**
@@ -42,6 +44,14 @@ public:
             return nullptr;
         }
         return usage[active_iteration]->copy(allocator);
+    }
+
+    inline int16_t current_iteration() {
+        return active_iteration;
+    }
+
+    void set_active_iteration(int iteration) {
+        active_iteration = (int16_t) iteration;
     }
 
     [[nodiscard]]

@@ -4,6 +4,7 @@
 
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include "ast/structures/GenericFuncDecl.h"
+#include "compiler/symres/SymbolTable.h"
 
 class GenericInstantiator : public RecursiveVisitor<GenericInstantiator> {
 public:
@@ -12,11 +13,16 @@ public:
 
     ASTDiagnoser& diagnoser;
 
+    SymbolTable table;
+
     /**
      * constructor
      * the allocator must be an ast allocator
      */
-    GenericInstantiator(ASTAllocator& allocator, ASTDiagnoser& diagnoser) : allocator(allocator), diagnoser(diagnoser) {
+    GenericInstantiator(
+        ASTAllocator& allocator,
+        ASTDiagnoser& diagnoser
+    ) : allocator(allocator), diagnoser(diagnoser), table() {
 
     }
 
@@ -55,6 +61,19 @@ public:
     inline void visit(Scope& scope) {
         VisitScope(&scope);
     }
+
+    void VisitScope(Scope* node) {
+        table.scope_start();
+        RecursiveVisitor<GenericInstantiator>::VisitScope(node);
+        table.scope_end();
+    }
+
+    void VisitVarInitStmt(VarInitStatement* node) {
+        RecursiveVisitor<GenericInstantiator>::VisitVarInitStmt(node);
+        table.declare(node->name_view(), node);
+    }
+
+    void VisitAccessChain(AccessChain* value);
 
     void VisitFunctionCall(FunctionCall *call);
 

@@ -18,6 +18,7 @@
 #include "integration/cbi/bindings/CBI.h"
 #include "integration/common/Diagnostic.h"
 #include "cst/LocationManager.h"
+#include "compiler/symres/SymbolRange.h"
 #include <span>
 #include <mutex>
 
@@ -58,7 +59,7 @@ struct ASTFileMetaData {
     /**
      * the scope index is the index of scope where symbols in symbol resolver exist
      */
-    long long scope_index;
+    SymbolRange private_symbol_range;
 
     /**
      * the path used when user imported the file
@@ -302,13 +303,13 @@ public:
     /**
      * it declares all the symbols inside the file and returns a scope index for the file
      */
-    long long sym_res_tld_declare_file(Scope& scope, const std::string& abs_path);
+    SymbolRange sym_res_tld_declare_file(Scope& scope, const std::string& abs_path);
 
     /**
      * this function is used to resolve symbols inside the file, the scope_index is used to enable
      * the file's private symbols
      */
-    void sym_res_link_file(Scope& scope, const std::string& abs_path, long long scope_index);
+    void sym_res_link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
 
     /**
      * all these files would be symbol resolved, 1 is returned in case

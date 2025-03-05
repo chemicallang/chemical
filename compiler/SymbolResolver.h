@@ -8,6 +8,8 @@
 #include "ast/base/ASTAllocator.h"
 #include <memory>
 #include <ordered_map.h>
+#include "compiler/symres/SymbolTable.h"
+#include "compiler/symres/SymbolRange.h"
 
 class ASTNode;
 
@@ -242,10 +244,10 @@ public:
      * a file scope begins, a file scope should not be popped, this is because
      * symbols are expected to exist in other files
      */
-    long long file_scope_start() {
+    unsigned int file_scope_start() {
         const auto s = current.size();
         current.emplace_back(SymResScopeKind::File);
-        return (long long) s;
+        return (unsigned int) s;
     }
 
     /**
@@ -452,17 +454,17 @@ public:
     /**
      * top level declare all the symbols in a file
      */
-    long long tld_declare_file(Scope& scope, const std::string& abs_path);
+    SymbolRange tld_declare_file(Scope& scope, const std::string& abs_path);
 
     /**
      * link the signatures in the file
      */
-    void link_signature_file(Scope& scope, const std::string& abs_path, long long scope_index);
+    void link_signature_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
 
     /**
      * should be called, after tld_declare_file, if file's top level symbols have already been declared
      */
-    void link_file(Scope& scope, const std::string& abs_path, long long scope_index);
+    void link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
 
     /**
      * do not symbol resolve the file, just import it, it will just declare the symbols inside
@@ -472,7 +474,7 @@ public:
     /**
      * enable file symbols for given scope index
      */
-    void enable_file_symbols(long long scope_index);
+    void enable_file_symbols(const SymbolRange& range);
 
     /**
      * should be called after symbol resolving a single file
@@ -481,9 +483,9 @@ public:
     void dispose_all_file_symbols(const std::string_view& abs_path);
 
     /**
-     * dispose file symbols for given scope index
+     * provide a range of file symbols to dispose
      */
-    void dispose_file_symbols_now(const std::string_view& abs_path, long long scope_index);
+    void dispose_file_symbols_now(const std::string_view& abs_path, const SymbolRange& range);
 
     /**
      * should be called after symbol resolving a single module

@@ -23,6 +23,22 @@ struct Bucket {
     ASTNode* activeNode;      // Directly stores the active node pointer.
 };
 
+struct SymbolScope {
+
+    /**
+     * the start index at where this scope started
+     * this means the first symbol in this scope is at this index
+     */
+    int start;
+
+    /**
+     * this kind is provided by the user, if not then 0 is stored
+     * the kind tells us which kind of scope this is
+     */
+    int kind;
+
+};
+
 class SymbolTable {
 private:
 
@@ -32,7 +48,7 @@ private:
     std::vector<Bucket> buckets;
     size_t bucketMask;  // Used for fast modulo assuming buckets.size() is a power of 2.
     // Scope stack stores the symbol count marker at each scope start.
-    std::vector<int> scopeStack;
+    std::vector<SymbolScope> scopeStack;
 
     // Compute the hash for a key.
     inline size_t computeHash(chem::string_view key) const {
@@ -122,14 +138,18 @@ public:
     }
 
     // scope_start: record the current symbol count to mark the beginning of a new scope.
-    void scope_start() {
-        scopeStack.push_back(static_cast<int>(symbols.size()));
+    inline void scope_start() {
+        scopeStack.emplace_back(static_cast<int>(symbols.size()), 0);
+    }
+
+    inline void scope_start(int kind) {
+        scopeStack.emplace_back(static_cast<int>(symbols.size()), kind);
     }
 
     // scope_end: remove all symbols declared since the last scope_start.
     void scope_end() {
         assert(!scopeStack.empty());
-        int marker = scopeStack.back();
+        int marker = scopeStack.back().start;
         scopeStack.pop_back();
         // Roll back all symbols declared in the current scope.
         for (int i = static_cast<int>(symbols.size()) - 1; i >= marker; --i) {

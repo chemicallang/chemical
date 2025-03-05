@@ -513,6 +513,7 @@ set(COMMON_SOURCES
         ast/structures/GenericStructDecl.h
         ast/structures/GenericStructDecl.cpp
         ast/structures/GenericMembersDecl.h
+        compiler/symres/SymbolRange.h
 )
 
 # Chemical LSP Executable Target

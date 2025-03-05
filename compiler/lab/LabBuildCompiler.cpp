@@ -1047,7 +1047,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     // get flat imports
     ASTFileResultNew blResult;
     auto buildLabFileId = loc_man.encodeFile(path);
-    ASTFileMetaData buildLabMetaData(buildLabFileId, -1, path, path);
+    ASTFileMetaData buildLabMetaData(buildLabFileId, SymbolRange { 0, 0, 0 }, path, path);
 
     lab_processor.import_chemical_file(blResult, pool, buildLabMetaData);
 

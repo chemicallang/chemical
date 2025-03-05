@@ -253,7 +253,7 @@ public:
     
 }
 
-// causing the flat structure to be Something { BaseClass { int i }, AnotherClass { int x } }
+// causing the flat structure to be Something { BaseClass { int i }, AnotherClass { }, int x }
 class Something : BaseClass, AnotherClass {
     
     int x;

@@ -18,19 +18,18 @@ void GenericStructDecl::link_signature(SymbolResolver &linker) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
     master_impl->link_signature(linker);
-    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
     linker.scope_end();
 }
 
 void GenericStructDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
 ////    // symbol resolve the master declaration
 ////    // TODO this creates an extra scope
-//    linker.scope_start();
-//    for(auto& param : generic_params) {
-//        param->declare_and_link(linker, (ASTNode*&) param);
-//    }
-//    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
-//    linker.scope_end();
+    linker.scope_start();
+    for(auto& param : generic_params) {
+        param->declare_and_link(linker, (ASTNode*&) param);
+    }
+    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
+    linker.scope_end();
 }
 
 BaseType* GenericStructDecl::create_value_type(ASTAllocator &allocator) {

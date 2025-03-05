@@ -5,6 +5,7 @@
 #include "std/chem_string_view.h"
 #include <vector>
 #include <functional>
+#include <span>
 #include <cassert>
 
 class ASTNode;
@@ -40,6 +41,13 @@ struct SymbolScope {
 };
 
 class SymbolTable {
+public:
+
+    // Compute the hash for a key.
+    static inline size_t computeHash(const chem::string_view& key) {
+        return std::hash<chem::string_view>{}(key);
+    }
+
 private:
 
     // Contiguous metadata for symbols.
@@ -50,13 +58,8 @@ private:
     // Scope stack stores the symbol count marker at each scope start.
     std::vector<SymbolScope> scopeStack;
 
-    // Compute the hash for a key.
-    inline size_t computeHash(chem::string_view key) const {
-        return std::hash<chem::string_view>{}(key);
-    }
-
     // Find a bucket index given a precomputed hash and key using linear probing.
-    inline int findBucketForHash(size_t hash, chem::string_view key) const {
+    int findBucketForHash(size_t hash, const chem::string_view& key) const {
         size_t i = hash & bucketMask;
         while (true) {
             const Bucket& b = buckets[i];
@@ -69,7 +72,7 @@ private:
     }
 
     // Compute hash and find bucket for a key.
-    int findBucket(chem::string_view key) const {
+    inline int findBucket(const chem::string_view& key) const {
         return findBucketForHash(computeHash(key), key);
     }
 
@@ -99,9 +102,39 @@ private:
 
 public:
 
-    // Constructor: preallocate bucket table and reserve typical symbol count.
-    SymbolTable(size_t initialBucketCount = 128) {
-        // initialBucketCount must be a power of 2.
+    // Helper function to compute the next power of two for a given size.
+    static size_t next_power_of_two(size_t x) {
+        if (x == 0) return 1;
+        --x;
+        x |= x >> 1;
+        x |= x >> 2;
+        x |= x >> 4;
+        x |= x >> 8;
+        x |= x >> 16;
+        if (sizeof(size_t) > 4) {
+            x |= x >> 32;
+        }
+        return x + 1;
+    }
+
+    /**
+     * Constructor: preallocate bucket table and reserve typical symbol count.
+     */
+    SymbolTable() {
+        // Ensure initialBucketCount is a power of two.
+        const auto initialBucketCount = 128;
+        buckets.resize(initialBucketCount, Bucket{"", 0, -1, nullptr});
+        bucketMask = initialBucketCount - 1;
+        symbols.reserve(initialBucketCount);  // Typical number of symbols per function.
+        scopeStack.reserve(20);
+    }
+
+    /**
+     * Constructor: preallocate bucket table and reserve typical symbol count.
+     */
+    SymbolTable(size_t initialBucketCount) {
+        // Ensure initialBucketCount is a power of two.
+        initialBucketCount = next_power_of_two(initialBucketCount);
         buckets.resize(initialBucketCount, Bucket{"", 0, -1, nullptr});
         bucketMask = initialBucketCount - 1;
         symbols.reserve(initialBucketCount);  // Typical number of symbols per function.
@@ -110,6 +143,12 @@ public:
 
     // declare: add a new symbol (with key and node pointer) to the current scope.
     void declare(chem::string_view key, ASTNode* node) {
+
+        // Check load factor: if symbols exceed 90% of bucket capacity, rehash.
+        if (symbols.size() >= static_cast<size_t>(buckets.size() * 0.9)) {
+            rehash();
+        }
+
         size_t hash = computeHash(key);
         int bucketIndex = findBucketForHash(hash, key);
         Bucket& bucket = buckets[bucketIndex];
@@ -127,14 +166,56 @@ public:
         bucket.index = newIndex;
         bucket.activeNode = node;
 
-        // Optionally: if (loadFactor() > threshold) then rehash();
+    }
+
+    // declare: add a new symbol (with key and node pointer) to the current scope. without shadowing
+    // returns nullptr if symbol was declared, otherwise the previous symbol
+    ASTNode* declare_no_shadow(chem::string_view key, ASTNode* node) {
+
+        // Check load factor: if symbols exceed 90% of bucket capacity, rehash.
+        if (symbols.size() >= static_cast<size_t>(buckets.size() * 0.9)) {
+            rehash();
+        }
+
+        size_t hash = computeHash(key);
+        int bucketIndex = findBucketForHash(hash, key);
+        Bucket& bucket = buckets[bucketIndex];
+
+        // Save previous declaration index.
+        int prevIndex = bucket.index;
+        if(prevIndex == -1) {
+
+            // Create a new symbol entry with the node pointer.
+            SymbolEntry entry{key, hash, prevIndex, node};
+            int newIndex = static_cast<int>(symbols.size());
+            symbols.push_back(entry);
+
+            // Update the bucket with the new symbol.
+            bucket.key = key;
+            bucket.hash = hash;
+            bucket.index = newIndex;
+            bucket.activeNode = node;
+
+            return nullptr;
+
+        } else {
+            return bucket.activeNode;
+        }
     }
 
     // resolve: return the node pointer for the active symbol of the given key.
-    ASTNode* resolve(chem::string_view key) const {
+    ASTNode* resolve(const chem::string_view& key) const {
         int bucketIndex = findBucket(key);
         const Bucket& bucket = buckets[bucketIndex];
         return (bucket.index == -1) ? nullptr : bucket.activeNode;
+    }
+
+    // returns true if erase succeeds
+    bool erase(const chem::string_view& key) {
+        int bucketIndex = findBucket(key);
+        Bucket& bucket = buckets[bucketIndex];
+        bucket.index = -1;
+        return true;
     }
 
     // scope_start: record the current symbol count to mark the beginning of a new scope.
@@ -144,6 +225,23 @@ public:
 
     inline void scope_start(int kind) {
         scopeStack.emplace_back(static_cast<int>(symbols.size()), kind);
+    }
+
+    // apart from starting the scope, get an index of the scope
+    inline int scope_start_index(int kind) {
+        const auto scope_index = static_cast<int>(symbols.size());
+        scopeStack.emplace_back(scope_index, kind);
+        return scope_index;
+    }
+
+    // get the kind of the last (current) scope
+    inline int get_last_scope_kind() {
+        return scopeStack.back().kind;
+    }
+
+    inline std::span<SymbolEntry> last_scope() {
+        const auto start = scopeStack.back().start;
+        return {&symbols[start], symbols.size() - start};
     }
 
     // scope_end: remove all symbols declared since the last scope_start.

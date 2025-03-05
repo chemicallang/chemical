@@ -106,7 +106,7 @@ void ASTProcessor::determine_mod_imports(
                               << module->name << '\'' << std::endl;
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, -1, abs_path, abs_path);
+                files.emplace_back(fileId, SymbolRange { 0, 0, 0 }, abs_path, abs_path);
             }
             import_chemical_files(pool, out_files, files);
             return;
@@ -127,7 +127,7 @@ void ASTProcessor::determine_mod_imports(
             std::vector<ASTFileMetaData> files;
             for (auto& abs_path: filePaths) {
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, -1, abs_path, abs_path);
+                files.emplace_back(fileId, SymbolRange { 0, 0, 0 }, abs_path, abs_path);
             }
             import_chemical_files(pool, out_files, files);
             return;
@@ -166,7 +166,7 @@ void ASTProcessor::sym_res_c_file(Scope& scope, const std::string& abs_path) {
     resolver->has_errors = prev_has_errors;
 }
 
-long long ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string& abs_path) {
+SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string& abs_path) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
     std::unique_ptr<BenchmarkResults> bm_results;
@@ -174,7 +174,7 @@ long long ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    const auto scope_ind = resolver->tld_declare_file(scope, abs_path);
+    const auto range = resolver->tld_declare_file(scope, abs_path);
     if(options->benchmark) {
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "SymRes:declare", abs_path, bm_results.get());
@@ -182,10 +182,10 @@ long long ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(chem::string_view(abs_path), "SymRes");
     }
-    return scope_ind;
+    return range;
 }
 
-void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, long long scope_index) {
+void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
     std::unique_ptr<BenchmarkResults> bm_results;
@@ -193,7 +193,7 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    resolver->link_file(scope, abs_path, scope_index);
+    resolver->link_file(scope, abs_path, range);
     if(options->benchmark) {
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "SymRes:link", abs_path, bm_results.get());
@@ -212,7 +212,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
 
         if(!already_imported) {
-            file.scope_index = sym_res_tld_declare_file(file.unit.scope, file.abs_path);
+            file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope, file.abs_path);
             // report and clear diagnostics
             if (resolver->has_errors && !options->ignore_errors) {
                 std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
@@ -227,7 +227,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         auto& file = *file_ptr;
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
         if(!already_imported) {
-            resolver->link_signature_file(file.unit.scope, file.abs_path, file.scope_index);
+            resolver->link_signature_file(file.unit.scope, file.abs_path, file.private_symbol_range);
             // report and clear diagnostics
             if (resolver->has_errors && !options->ignore_errors) {
                 std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
@@ -247,12 +247,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
 
         // symbol resolution
         if(!already_imported) {
-#ifdef DEBUG
-            if(file.scope_index == -1) {
-                throw std::runtime_error("file's scope index is equal to -1");
-            }
-#endif
-            sym_res_link_file(file.unit.scope, file.abs_path, file.scope_index);
+            sym_res_link_file(file.unit.scope, file.abs_path, file.private_symbol_range);
             if (resolver->has_errors && !options->ignore_errors) {
                 std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
                 return 1;
@@ -429,7 +424,7 @@ void ASTProcessor::import_chemical_file(
             auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, stmt->filePath.str());
             if(replaceResult.error.empty()) {
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
-                imports.emplace_back(fileId, -1, stmt->filePath.str(), std::move(replaceResult.replaced));
+                imports.emplace_back(fileId, SymbolRange { 0, 0, 0 }, stmt->filePath.str(), std::move(replaceResult.replaced));
             } else {
                 std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
             }
@@ -520,7 +515,7 @@ void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, co
 
     result.abs_path = abs_path;
     result.file_id = fileId;
-    result.scope_index = -1;
+    result.private_symbol_range = { 0, 0, 0 };
     result.continue_processing = true;
     result.diCompileUnit = nullptr;
 

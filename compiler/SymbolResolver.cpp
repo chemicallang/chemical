@@ -325,25 +325,27 @@ void SymbolResolver::declare_function(const chem::string_view& name, FunctionDec
     }
 }
 
-void SymbolResolver::enable_file_symbols(long long scope_index) {
-    // TODO we're checking all the private symbols in the current module, which maybe a lot
-    auto& scope = current[scope_index];
-    for(auto& sym : dispose_file_symbols) {
-        if((long long) sym.scope_index == scope_index) {
-            scope.symbols[sym.symbol] = sym.node;
-        }
+void SymbolResolver::enable_file_symbols(const SymbolRange& range) {
+    if(range.symbol_start == range.symbol_end) return;
+    auto& scope = current[range.scope_index];
+    auto sym = dispose_file_symbols.data() + range.symbol_start;
+    const auto end = dispose_file_symbols.data() + range.symbol_end;
+    while(sym != end) {
+        scope.symbols[sym->symbol] = sym->node;
+        sym++;
     }
 }
 
-void SymbolResolver::dispose_file_symbols_now(const std::string_view& abs_path, long long scope_index) {
-    // TODO we're checking all the private symbols in the current module, which maybe a lot
-    auto& scope = current[scope_index];
-    for(auto& sym : dispose_file_symbols) {
-        if((long long) sym.scope_index == scope_index) {
-            if(scope.symbols.erase(sym.symbol) <= 0) {
-                std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym.symbol << " in file " << abs_path  << rang::fg::reset << std::endl;
-            }
+void SymbolResolver::dispose_file_symbols_now(const std::string_view& abs_path, const SymbolRange& range) {
+    if(range.symbol_start == range.symbol_end) return;
+    auto& scope = current[range.scope_index];
+    auto sym = dispose_file_symbols.data() + range.symbol_start;
+    const auto end = dispose_file_symbols.data() + range.symbol_end;
+    while(sym != end) {
+        if(scope.symbols.erase(sym->symbol) <= 0) {
+            std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym->symbol << " in file " << abs_path  << rang::fg::reset << std::endl;
         }
+        sym++;
     }
 }
 
@@ -353,24 +355,27 @@ void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {
     dispose_all_file_symbols(abs_path);
 }
 
-long long SymbolResolver::tld_declare_file(Scope& scope, const std::string& abs_path) {
-    const auto index = file_scope_start();
+SymbolRange SymbolResolver::tld_declare_file(Scope& scope, const std::string& abs_path) {
+    const auto scope_index = file_scope_start();
     auto& linker = *this;
+    const auto start = dispose_file_symbols.size();
     scope.tld_declare(linker);
-    dispose_file_symbols_now(abs_path, index);
-    return index;
+    const auto end = dispose_file_symbols.size();
+    auto range = SymbolRange { (unsigned int) scope_index, (unsigned int) start, (unsigned int) end };
+    dispose_file_symbols_now(abs_path, range);
+    return range;
 }
 
-void SymbolResolver::link_signature_file(Scope& scope, const std::string& abs_path, long long scope_index) {
-    enable_file_symbols(scope_index);
+void SymbolResolver::link_signature_file(Scope& scope, const std::string& abs_path, const SymbolRange& range) {
+    enable_file_symbols(range);
     scope.link_signature(*this);
-    dispose_file_symbols_now(abs_path, scope_index);
+    dispose_file_symbols_now(abs_path, range);
 }
 
-void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, long long scope_index) {
-    enable_file_symbols(scope_index);
+void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, const SymbolRange& range) {
+    enable_file_symbols(range);
     nodes_scope.declare_and_link(*this);
-    dispose_file_symbols_now(abs_path, scope_index);
+    dispose_file_symbols_now(abs_path, range);
 }
 
 void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string_view& path, bool restrict_public) {

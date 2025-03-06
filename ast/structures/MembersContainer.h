@@ -293,6 +293,27 @@ public:
     }
 
     /**
+     * shallow copy this container
+     */
+    void shallow_copy_functions_into(MembersContainer& other, ASTAllocator& allocator) {
+        other.functions_container.reserve(functions_container.size());
+        for(auto& func : functions_container) {
+            const auto func_copy = func->shallow_copy(allocator);
+            func_copy->set_parent(&other);
+            other.functions_container.emplace_back(func_copy);
+            other.indexes[func_copy->name_view()] = func_copy;
+        }
+    }
+
+    /**
+     * shallow copies this container into the given container (including functions, variables)
+     */
+    inline void shallow_copy_into(MembersContainer& other, ASTAllocator& allocator) {
+        VariablesContainer::shallow_copy_into(other, allocator);
+        shallow_copy_functions_into(other, allocator);
+    }
+
+    /**
      * deep copies this container into the given container (including functions, variables)
      */
     void copy_into(MembersContainer& other, ASTAllocator& allocator) {

@@ -129,6 +129,18 @@ public:
     /**
      * copy this function type into another
      */
+    void shallow_copy_into(FunctionType& other, ASTAllocator& allocator, ASTNode* new_parent) {
+        other.params.reserve(params.size());
+        for(auto& param : params) {
+            other.params.emplace_back(param);
+        }
+        other.returnType = returnType;
+        other.data = data;
+    }
+
+    /**
+     * copy this function type into another
+     */
     void copy_into(FunctionType& other, ASTAllocator& allocator, ASTNode* new_parent) {
         other.params.reserve(params.size());
         for(auto& param : params) {
@@ -286,9 +298,16 @@ public:
     std::vector<AccessChain*> moved_chains;
 
     /**
+       * copy function type body into the other
+       */
+    inline void shallow_copy_into(FunctionTypeBody& other, ASTAllocator& allocator, ASTNode* new_parent) {
+        FunctionType::shallow_copy_into(other, allocator, new_parent);
+    }
+
+    /**
      * copy function type body into the other
      */
-    void copy_into(FunctionTypeBody& other, ASTAllocator& allocator, ASTNode* new_parent) {
+    inline void copy_into(FunctionTypeBody& other, ASTAllocator& allocator, ASTNode* new_parent) {
         FunctionType::copy_into(other, allocator, new_parent);
     }
 

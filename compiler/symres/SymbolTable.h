@@ -573,6 +573,22 @@ public:
     }
 
     /**
+     * clear clears all symbols from this symbol resolver
+     * it basically makes the symbol resolver, as if you allocated it new (without allocating memory)
+     */
+    void clear() {
+        symbols.clear();
+        scopeStack.clear();
+        for (auto block : bucketSymbolBlocks) {
+            ::operator delete(block, std::align_val_t(alignof(BucketSymbol)));
+        }
+        bucketSymbolBlocks.clear();
+        currentBlock = nullptr;
+        currentBlockOffset = 0;
+        currentBlockCapacity = 0;
+    }
+
+    /**
      * @brief Destructor.
      *
      * Frees all memory blocks allocated for BucketSymbol objects.

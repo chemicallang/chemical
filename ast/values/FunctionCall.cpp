@@ -1085,7 +1085,7 @@ void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diag
     }
 }
 
-int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionCall* call) {
+int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, GenericInstantiatorAPI& genApi, FunctionCall* call) {
     if(!parent_id->linked) return -2;
     const auto linked_kind = parent_id->linked->kind();
     if(linked_kind == ASTNodeKind::StructDecl) {
@@ -1096,20 +1096,20 @@ int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocat
             // calling a constructor of a generic struct where constructor is not generic
             if(constructorFunc->generic_params.empty() && parent_struct->is_generic()) {
                 const auto prev_itr = parent_struct->active_iteration;
-                call->generic_iteration = parent_struct->register_generic_args(astAllocator, diagnoser, call->generic_list);
+                call->generic_iteration = parent_struct->register_generic_args(genApi.getAllocator(), genApi.getDiagnoser(), call->generic_list);
                 return prev_itr;
             }
         } else {
-            diagnoser.error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+            genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
         }
     } else if(linked_kind == ASTNodeKind::GenericStructDecl) {
         const auto gen_struct = parent_id->linked->as_gen_struct_def_unsafe();
-        const auto parent_struct = gen_struct->register_generic_args(astAllocator, diagnoser, call->generic_list);
+        const auto parent_struct = gen_struct->register_generic_args(genApi, call->generic_list);
         auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
         } else {
-            diagnoser.error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+            genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
         }
     }
     return -2;
@@ -1117,20 +1117,20 @@ int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocat
 
 // the returned generic iteration is the previous iteration of the struct of which constructor we linked with
 // when this method is called, it automatically register the generic arguments with the struct constructor getting the new iteration and setting it active
-int16_t FunctionCall::link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser) {
+int16_t FunctionCall::link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi) {
     // relinking parent with constructor of the struct
     // if it's linked with struct
     const auto parent_kind = parent_val->val_kind();
     switch(parent_kind) {
         case ValueKind::Identifier:{
             const auto parent_id = parent_val->as_identifier_unsafe();
-            return link_constructor_id(parent_id, allocator, astAllocator, diagnoser, this);
+            return link_constructor_id(parent_id, allocator, genApi, this);
         }
         case ValueKind::AccessChain:{
             const auto parent_chain = parent_val->as_access_chain_unsafe();
             const auto last = parent_chain->values.back()->as_identifier();
             if(last) {
-                return link_constructor_id(last, allocator, astAllocator, diagnoser, this);
+                return link_constructor_id(last, allocator, genApi, this);
             } else {
                 return -2;
             }
@@ -1151,14 +1151,14 @@ VariableIdentifier* get_parent_id(ChainValue* value) {
     }
 }
 
-bool FunctionCall::instantiate_gen_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, BaseType* expected_type) {
+bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type) {
     // relinking generic decl
     const auto parent_id = get_parent_id(parent_val);
     if(parent_id && parent_id->linked->kind() == ASTNodeKind::GenericFuncDecl) {
 
         const auto gen_decl = (GenericFuncDecl*) parent_id->linked;
 
-        auto new_link = gen_decl->instantiate_call(astAllocator, diagnoser, this, expected_type);
+        auto new_link = gen_decl->instantiate_call(genApi, this, expected_type);
         parent_id->linked = new_link;
 
         return true;
@@ -1226,7 +1226,7 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
             variant->set_active_iteration(generic_iteration);
         }
     }
-    int16_t struct_itr = link_constructor(resolver.allocator, *resolver.ast_allocator, resolver);
+    int16_t struct_itr = link_constructor(resolver.allocator, resolver.genericInstantiator);
     if(struct_itr > -2) {
         prev_itr = struct_itr;
     } else if(func_decl && func_decl->is_generic()) {

@@ -402,7 +402,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         }
         if(found->kind() == ASTNodeKind::GenericStructDecl) {
             auto gen_args = create_generic_list();
-            definition = ((GenericStructDecl*) found)->register_generic_args(*linker.ast_allocator, linker, gen_args);
+            definition = ((GenericStructDecl*) found)->register_generic_args(linker.genericInstantiator, gen_args);
         } else {
             definition = (ExtendableMembersContainerNode*) found;
         }

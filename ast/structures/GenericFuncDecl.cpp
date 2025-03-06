@@ -16,6 +16,32 @@ BaseType* GenericFuncDecl::create_value_type(ASTAllocator &allocator) {
     return master_impl->create_value_type(allocator);
 }
 
+void GenericFuncDecl::finalize_signature(ASTAllocator& allocator, FunctionDeclaration* decl) {
+
+    // copying parameters
+    for(auto& param : decl->params) {
+        const auto copied = param->copy(allocator);
+        copied->set_parent(decl);
+        param = copied;
+    }
+
+    // copying return type
+    decl->returnType = decl->returnType->copy(allocator);
+
+}
+
+void GenericFuncDecl::finalize_body(ASTAllocator& allocator, FunctionDeclaration* decl) {
+
+    if(decl->body.has_value()) {
+        for(auto& node : decl->body->nodes) {
+            const auto copied = node->copy(allocator);
+            copied->set_parent(decl);
+            node = copied;
+        }
+    }
+
+}
+
 void GenericFuncDecl::link_signature(SymbolResolver &linker) {
     // symbol resolve the master declaration
     linker.scope_start();
@@ -28,6 +54,15 @@ void GenericFuncDecl::link_signature(SymbolResolver &linker) {
     // when there's no usage
     master_impl->set_has_usage(true);
     linker.scope_end();
+    signature_linked = true;
+    // finalizing the signature of every function that was instantiated before link_signature
+    auto& allocator = *linker.ast_allocator;;
+    for(const auto inst : instantiations) {
+        finalize_signature(allocator, inst);
+    }
+    // finalize the signatures of all instantiations
+    // this basically visits the instantiations signature and makes the types concrete
+    linker.genericInstantiator.FinalizeSignature(this, instantiations);
 }
 
 void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
@@ -38,6 +73,15 @@ void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
     }
     master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
     linker.scope_end();
+    body_linked = true;
+    // finalizing the body of every function that was instantiated before declare_and_link
+    auto& allocator = *linker.ast_allocator;
+    for(const auto inst : instantiations) {
+        finalize_body(allocator, inst);
+    }
+    // finalize the body of all instantiations
+    // this basically visits the instantiations body and makes the types concrete
+    linker.genericInstantiator.FinalizeBody(this, instantiations);
 }
 
 FunctionDeclaration* GenericFuncDecl::instantiate_call(
@@ -45,15 +89,17 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         FunctionCall* call,
         BaseType* expected_type
 ) {
-    return instantiate_call(*resolver.ast_allocator, resolver, call, expected_type);
+    return instantiate_call(resolver.genericInstantiator, call, expected_type);
 }
 
 FunctionDeclaration* GenericFuncDecl::instantiate_call(
-    ASTAllocator& astAllocator,
-    ASTDiagnoser& diagnoser,
+    GenericInstantiatorAPI& instantiator,
     FunctionCall* call,
     BaseType* expected_type
 ) {
+
+    auto& allocator = instantiator.getAllocator();
+    auto& diagnoser = instantiator.getDiagnoser();
 
     const auto total = generic_params.size();
     std::vector<BaseType*> generic_args(total);
@@ -70,7 +116,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         }
         i++;
     }
-    const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
+    const auto itr = register_generic_usage(allocator, generic_params, generic_args);
     // we activate the iteration just registered, because below we make call to register_indirect_iteration below
     // which basically calls register_call recursive on function calls present inside this function that are generic
     // which resolve specialized type using pure_type we called in the above loop
@@ -78,19 +124,9 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     // set their corresponding iterations in their subscribed map, we're doing it in the loop below
     // therefore we don't need to set generic iterations of subscribers
 //    set_gen_itr_no_subs(itr.first);
-    if(itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
-        // TODO subscribers not done yet
-//        for (auto sub: subscribers) {
-//            sub->report_parent_usage(astAllocator, diagnoser, itr.first);
-//        }
-//        const auto parent_itr = get_parent_iteration();
-//        for(auto call_sub : call_subscribers) {
-//            const auto call_itr = call_sub.first->register_indirect_generic_iteration(astAllocator, diagnoser, call_sub.second);
-//            // saving the call iteration into the map
-//            gen_call_iterations[pack_gen_itr(parent_itr, itr.first)] = call_itr;
-//        }
-    } else {
+    if(!itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
 
+        // instantiation already exists
         return instantiations[itr.first];
 
     }
@@ -105,14 +141,39 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     }
 #endif
 
-    auto created = Instantiate(astAllocator, diagnoser, this, itr.first);
+    const auto impl = master_impl->shallow_copy(allocator);
 
-    created->generic_parent = this;
-    created->generic_instantiation = (int) instantiations.size();
+    impl->generic_parent = this;
+    impl->generic_instantiation = (int) instantiations.size();
+    instantiations.emplace_back(impl);
 
-    instantiations.emplace_back(created);
+    if(body_linked) {
 
-    return created;
+        // signature and body both have been linked for master_impl
+        // so all we need to do is
+        finalize_signature(allocator, impl);
+        finalize_body(allocator, impl);
+
+        // now finalize using instantiator
+        auto ptr = impl;
+        const auto span = std::span<FunctionDeclaration*>(&ptr, 1);
+        instantiator.FinalizeSignature(this, span);
+        instantiator.FinalizeBody(this, span);
+
+    } else if(signature_linked) {
+
+        // signature and body both have been linked for master_impl
+        // so all we need to do is
+        finalize_signature(allocator, impl);
+
+        // now finalize using instantiator
+        auto ptr = impl;
+        const auto span = std::span<FunctionDeclaration*>(&ptr, 1);
+        instantiator.FinalizeSignature(this, span);
+
+    }
+
+    return impl;
 
 }
 

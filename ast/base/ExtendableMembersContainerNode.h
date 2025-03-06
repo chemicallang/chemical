@@ -85,12 +85,21 @@ public:
         return this;
     }
 
-    void copy_into(ExtendableMembersContainerNode& other, ASTAllocator& allocator) {
-        MembersContainer::copy_into(other, allocator);
+    void put_extension_fns_into(ExtendableMembersContainerNode& other) {
         other.extension_functions.reserve(extension_functions.size());
         for(const auto ext_func : extension_functions) {
             other.extension_functions[ext_func.first] = ext_func.second;
         }
+    }
+
+    void copy_into(ExtendableMembersContainerNode& other, ASTAllocator& allocator) {
+        MembersContainer::copy_into(other, allocator);
+        put_extension_fns_into(other);
+    }
+
+    inline void shallow_copy_into(ExtendableMembersContainerNode& other, ASTAllocator& allocator) {
+        MembersContainer::shallow_copy_into(other, allocator);
+        put_extension_fns_into(other);
     }
 
 #ifdef COMPILER_BUILD

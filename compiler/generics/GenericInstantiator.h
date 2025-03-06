@@ -106,8 +106,31 @@ public:
 
     void VisitFunctionCall(FunctionCall *call);
 
-    FunctionDeclaration* Instantiate(GenericFuncDecl* decl, size_t itr);
+    /**
+     * this function allows to finalize the signature of a non generic function that is inside
+     * a generic struct / variable / union
+     */
+    void FinalizeSignature(FunctionDeclaration* decl);
 
-    StructDefinition* Instantiate(GenericStructDecl* decl, size_t itr);
+    void FinalizeSignature(GenericFuncDecl* gen_decl, FunctionDeclaration* decl, size_t itr);
+
+    void FinalizeBody(GenericFuncDecl* gen_decl, FunctionDeclaration* decl, size_t itr);
+
+    void FinalizeSignature(GenericStructDecl* gen_decl, StructDefinition* decl, size_t itr);
+
+    void FinalizeBody(GenericStructDecl* gen_decl, StructDefinition* decl, size_t itr);
+
+    /**
+     * clears the symbols from tables, from previous finalization
+     */
+    void Clear();
+
+    void FinalizeSignature(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations);
+
+    void FinalizeBody(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations);
+
+    void FinalizeSignature(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations);
+
+    void FinalizeBody(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations);
 
 };

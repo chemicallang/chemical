@@ -17,11 +17,11 @@ SymbolResolver::SymbolResolver(
     ASTAllocator* modAllocator,
     ASTAllocator* astAllocator
 ) : comptime_scope(global), ASTDiagnoser(global.loc_man), is64Bit(is64Bit), allocator(fileAllocator),
-    mod_allocator(modAllocator), ast_allocator(astAllocator), table(300)
+    mod_allocator(modAllocator), ast_allocator(astAllocator), genericInstantiator(*astAllocator, *this), table(512)
 {
     global_scope_start();
-    dispose_file_symbols.reserve(100);
-    dispose_module_symbols.reserve(100);
+    dispose_file_symbols.reserve(128);
+    dispose_module_symbols.reserve(128);
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {

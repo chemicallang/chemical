@@ -10,6 +10,7 @@
 #include <ordered_map.h>
 #include "compiler/symres/SymbolTable.h"
 #include "compiler/symres/SymbolRange.h"
+#include "compiler/generics/GenInstantiatorAPI.h"
 
 class ASTNode;
 
@@ -178,6 +179,11 @@ public:
      * symbol resolved
      */
     ASTAllocator& allocator;
+
+    /**
+     * the generic instantiator, that instantiates concrete generic implementations
+     */
+    GenericInstantiatorAPI genericInstantiator;
 
     /**
      * implicit arguments are provided using provide statements

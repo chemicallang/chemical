@@ -451,7 +451,29 @@ public:
     }
 
     /**
-     * this would copy the entire function and everything inside it, it's a deep copy
+     * this creates a shallow copy of the function, excluding the nodes in the body
+     */
+    FunctionDeclaration* shallow_copy(ASTAllocator& allocator) {
+        const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(
+                identifier,
+                returnType,
+                isVariadic(),
+                parent(),
+                ASTNode::encoded_location(),
+                specifier(),
+                FunctionType::data.signature_resolved
+        );
+        FunctionTypeBody::shallow_copy_into(*decl, allocator, decl);
+        if(body.has_value()) {
+            decl->body.emplace(decl, body->encoded_location());
+            body->shallow_copy_into(decl->body.value(), allocator, decl);
+        }
+        decl->attrs = attrs;
+        return decl;
+    }
+
+    /**
+     * this creates a shallow copy of the function, excluding the nodes in the body
      */
     FunctionDeclaration* copy(ASTAllocator &allocator) override {
         const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(

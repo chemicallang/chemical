@@ -29,7 +29,7 @@ class ChainValue;
 
 class VariableIdentifier;
 
-enum class SymResScopeKind : uint8_t {
+enum class SymResScopeKind : int {
     /**
      * a global namespace is much like default scope, however
      * only a single global scope exists, It's never created by the user
@@ -77,11 +77,6 @@ struct SymResScope {
 struct SymbolRef {
 
     /**
-     * the index to scope is stored
-     */
-    std::size_t scope_index;
-
-    /**
      * the symbol view
      */
     chem::string_view symbol;
@@ -107,11 +102,9 @@ class SymbolResolver : public ASTDiagnoser {
 private:
 
     /**
-     * when traversing nodes, a node can declare itself on the map
-     * this is vector of scopes, the last scope is current scope
-     * The first scope is the top level scope
+     * the symbol table is the one used to store symbols inside
      */
-    std::vector<SymResScope> current;
+    SymbolTable table;
 
     /**
      * runtime symbols that are checked for conflicts with other nodes
@@ -130,7 +123,7 @@ private:
      * if successfully overridden, it will modify the previous location inside the symbol table
      * to be this declaration and return true
      */
-    bool overload_function(const chem::string_view& name, ASTNode*& previous, FunctionDeclaration* declaration);
+    bool overload_function(const chem::string_view& name, ASTNode* const previous, FunctionDeclaration* declaration);
 
     /**
      * helper method that should be used to declare functions that takes into account
@@ -138,12 +131,19 @@ private:
      * @return true if a new symbol was declared
      */
     inline bool declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration) {
-        auto found = declare_function_no_overload(name, declaration);
-        if(found == nullptr) {
+        const auto previous = table.declare_no_shadow_sym(name, (ASTNode*) declaration);
+        if(previous == nullptr) {
             return true;
         } else {
-            overload_function(name, *found, declaration);
-            return false;
+            if(table.is_in_current_scope(previous)) {
+                overload_function(name, previous->activeNode, declaration);
+                return false;
+            } else {
+                dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
+                // shadow the symbol
+                table.declare(name, (ASTNode*) declaration);
+                return true;
+            };
         }
     }
 
@@ -207,15 +207,6 @@ public:
     FunctionTypeBody* current_func_type = nullptr;
 
     /**
-     * nodes that are created during symbol resolution, that must be retained
-     * during symbol resolution, for example when a function with two names
-     * exists, the second function creates a MultiFunctionNode and put's it on this
-     * vector, which is declared on the symbol map, when function calls link with it
-     * they are re-linked with correct function, based on arguments
-     */
-    std::vector<std::unique_ptr<ASTNode>> helper_nodes;
-
-    /**
      * stores symbols that will be disposed after this file has been completely symbol resolved
      * for example using namespace some; this will always be disposed unless propagate annotation exists
      * above it
@@ -244,10 +235,15 @@ public:
      * a file scope begins, a file scope should not be popped, this is because
      * symbols are expected to exist in other files
      */
-    unsigned int file_scope_start() {
-        const auto s = current.size();
-        current.emplace_back(SymResScopeKind::File);
-        return (unsigned int) s;
+    inline int file_scope_start() {
+        return table.scope_start_index((int) SymResScopeKind::File);
+    }
+
+    /**
+     * global scope start
+     */
+    inline void global_scope_start() {
+        table.scope_start((int) SymResScopeKind::Global);
     }
 
     /**
@@ -257,35 +253,32 @@ public:
      * a module is just there to indicate that a module exists, it helps us delete symbols
      * only in a specific module
      */
-    void module_scope_start() {
-        current.emplace_back(SymResScopeKind::Module);
+    inline void module_scope_start() {
+        table.scope_start((int) SymResScopeKind::Module);
     }
 
     /**
      * when a scope begins, this should be called
      * it would put a scope on current vector
      */
-    void scope_start() {
-        current.emplace_back(SymResScopeKind::Default);
+    inline void scope_start() {
+        table.scope_start((int) SymResScopeKind::Default);
     }
 
     /**
      * when a scope ends, this should be called
      * it would pop a scope map from the current vector
      */
-    void scope_end() {
-        current.pop_back();
+    inline void scope_end() {
+        table.scope_end();
     }
-
-    /**
-     * find a symbol only in current file
-     */
-    ASTNode *find_in_current_file(const chem::string_view& name);
 
     /**
      * find a symbol on current symbol map
      */
-    ASTNode *find(const chem::string_view& name);
+    ASTNode* find(const chem::string_view& name) {
+        return table.resolve(name);
+    }
 
     /**
      * find a symbol on current symbol map
@@ -298,7 +291,7 @@ public:
      * if the current where the symbols are being declared is a file scope
      */
     bool is_current_file_scope() {
-        return current.back().kind == SymResScopeKind::File;
+        return table.get_last_scope_kind() == (int) SymResScopeKind::File;
     }
 
     /**
@@ -375,43 +368,31 @@ public:
      */
     void declare_runtime(const chem::string_view& name, ASTNode* node);
 
-    /**
-     * declare an exported runtime symbol
-     */
-    void declare_exported_runtime(const chem::string_view& name, const chem::string_view& runtime_name, ASTNode* node);
+//    /**
+//     * declare an exported runtime symbol
+//     */
+//    void declare_exported_runtime(const chem::string_view& name, const chem::string_view& runtime_name, ASTNode* node);
+//
+//    /**
+//     * symbol will be undeclared if present, otherwise error if error_out
+//     */
+//    bool undeclare(const chem::string_view& name);
+//
+//    /**
+//     * symbol will be undecalred if present, only in the current scope
+//     */
+//    bool undeclare_in_current_file(const chem::string_view& name);
+//
+//    /**
+//     * undeclare in current module
+//     */
+//    bool undeclare_in_current_module(const chem::string_view& name);
 
-    /**
-     * symbol will be undeclared if present, otherwise error if error_out
-     */
-    bool undeclare(const chem::string_view& name);
-
-    /**
-     * symbol will be undecalred if present, only in the current scope
-     */
-    bool undeclare_in_current_file(const chem::string_view& name);
-
-    /**
-     * undeclare in current module
-     */
-    bool undeclare_in_current_module(const chem::string_view& name);
-
-    /**
-     * symbol will be undeclared in other files (not current file)
-     * only a single symbol is undeclared
-     */
-    bool undeclare_in_scopes_above(const chem::string_view& name, int until);
-
-    /**
-     * symbol will be checked for duplicates in other files (not current file)
-     * if a single symbol exists in other files, an dup sym error is created
-     */
-    bool dup_check_in_scopes_above(const chem::string_view& name, ASTNode* new_node, int until);
-
-    /**
-     * declare the function, without overloading, will NOT declare the function if a symbol already exists
-     * @return the symbol that already exists, if no declaration took place
-     */
-    ASTNode** declare_function_no_overload(const chem::string_view& name, FunctionDeclaration* declaration);
+//    /**
+//     * symbol will be undeclared in other files (not current file)
+//     * only a single symbol is undeclared
+//     */
+//    bool undeclare_in_scopes_above(const chem::string_view& name, int until);
 
     /**
      * helper method that should be used to declare functions that takes into account
@@ -438,13 +419,13 @@ public:
         declare_function_quietly(name, declaration);
     }
 
-    /**
-     * declare exported runtime function
-     */
-    void declare_exported_runtime_func(const chem::string_view& name, const chem::string_view& runtime_name, FunctionDeclaration* decl) {
-        declare_function_quietly(name, decl);
-        declare_runtime(runtime_name, (ASTNode*) decl);
-    }
+//    /**
+//     * declare exported runtime function
+//     */
+//    void declare_exported_runtime_func(const chem::string_view& name, const chem::string_view& runtime_name, FunctionDeclaration* decl) {
+//        declare_function_quietly(name, decl);
+//        declare_runtime(runtime_name, (ASTNode*) decl);
+//    }
 
     /**
      * symbol resolves a file

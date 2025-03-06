@@ -23,7 +23,7 @@ void MultiFunctionNode::declare_and_link(SymbolResolver &linker, ASTNode*& node_
 }
 
 OverridableFuncHandlingResult handle_name_overload_function(
-        const chem::string_view& name,
+        ASTAllocator& astAllocator,
         ASTNode* previous_node,
         FunctionDeclaration* declaration
 ) {
@@ -46,8 +46,7 @@ OverridableFuncHandlingResult handle_name_overload_function(
             return result;
         }
         if(!previous->do_param_types_match(declaration->params)) {
-            // TODO VERY IMPORTANT Multi function node allocated without allocator
-            multi = new MultiFunctionNode(declaration->name_view(), declaration->ASTNode::parent(), declaration->ASTNode::encoded_location());
+            multi = new (astAllocator.allocate<MultiFunctionNode>()) MultiFunctionNode(declaration->name_view(), declaration->ASTNode::parent(), declaration->ASTNode::encoded_location());
             multi->functions.emplace_back(previous);
             multi->functions.emplace_back(declaration);
             declaration->set_multi_func_index(1);

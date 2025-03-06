@@ -106,7 +106,7 @@ void ASTProcessor::determine_mod_imports(
                               << module->name << '\'' << std::endl;
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, SymbolRange { 0, 0, 0 }, abs_path, abs_path);
+                files.emplace_back(fileId, SymbolRange { 0, 0 }, abs_path, abs_path);
             }
             import_chemical_files(pool, out_files, files);
             return;
@@ -127,7 +127,7 @@ void ASTProcessor::determine_mod_imports(
             std::vector<ASTFileMetaData> files;
             for (auto& abs_path: filePaths) {
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, SymbolRange { 0, 0, 0 }, abs_path, abs_path);
+                files.emplace_back(fileId, SymbolRange { 0, 0 }, abs_path, abs_path);
             }
             import_chemical_files(pool, out_files, files);
             return;
@@ -424,7 +424,7 @@ void ASTProcessor::import_chemical_file(
             auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, stmt->filePath.str());
             if(replaceResult.error.empty()) {
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
-                imports.emplace_back(fileId, SymbolRange { 0, 0, 0 }, stmt->filePath.str(), std::move(replaceResult.replaced));
+                imports.emplace_back(fileId, SymbolRange { 0, 0 }, stmt->filePath.str(), std::move(replaceResult.replaced));
             } else {
                 std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
             }
@@ -515,7 +515,7 @@ void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, co
 
     result.abs_path = abs_path;
     result.file_id = fileId;
-    result.private_symbol_range = { 0, 0, 0 };
+    result.private_symbol_range = { 0, 0 };
     result.continue_processing = true;
     result.diCompileUnit = nullptr;
 

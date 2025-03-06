@@ -73,7 +73,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
     if(funcDecl) {
         annotate(funcDecl);
         // TODO this maybe a generic function declaration
-        decl->insert_multi_func((FunctionDeclaration*) funcDecl);
+        decl->insert_multi_func(allocator, (FunctionDeclaration*) funcDecl);
         return true;
     }
     auto variantMember = parseVariantMember(allocator, decl);

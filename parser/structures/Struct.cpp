@@ -141,7 +141,7 @@ bool Parser::parseVariableAndFunctionInto(MembersContainer* decl, ASTAllocator& 
     if(funcDecl) {
         annotate(funcDecl);
         // TODO this maybe a generic declaration
-        decl->insert_multi_func((FunctionDeclaration*) funcDecl);
+        decl->insert_multi_func(allocator, (FunctionDeclaration*) funcDecl);
         return true;
     }
     return false;

@@ -214,16 +214,12 @@ public:
 
     VariablesContainer *copy_container(ASTAllocator& allocator) final;
 
-//    ASTNode *linked_node() final {
-//        return this;
-//    }
-
-    StructDefinition* copy(ASTAllocator &allocator) override {
+    StructDefinition* shallow_copy(ASTAllocator& allocator) {
         const auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(
                 identifier, parent(), encoded_location(), specifier()
         );
         def->attrs = attrs;
-        ExtendableMembersContainerNode::copy_into(*def, allocator);
+        ExtendableMembersContainerNode::shallow_copy_into(*def, allocator);
         return def;
     }
 

@@ -13,6 +13,8 @@
 
 class ASTDiagnoser;
 
+class GenericInstantiatorAPI;
+
 class FunctionCall : public ChainValue {
 public:
 
@@ -91,9 +93,9 @@ public:
 
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
-    int16_t link_constructor(ASTAllocator& allocator, ASTAllocator& astAllocator, ASTDiagnoser& diagnoser);
+    int16_t link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi);
 
-    bool instantiate_gen_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, BaseType* expected_type);
+    bool instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type);
 
     bool link_without_parent(
             SymbolResolver &resolver,

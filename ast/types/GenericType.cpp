@@ -29,7 +29,7 @@ bool GenericType::link(SymbolResolver &linker) {
     }
     if(linked->kind() == ASTNodeKind::GenericStructDecl && are_all_specialized(types)) {
         // relink generic struct decl with instantiated type, only if all types are specialized
-        referenced->linked = ((GenericStructDecl*) linked)->register_generic_args(*linker.ast_allocator, linker, types);
+        referenced->linked = ((GenericStructDecl*) linked)->register_generic_args(linker.genericInstantiator, types);
     }
     report_generic_usage(*linker.ast_allocator, linker);
     return true;

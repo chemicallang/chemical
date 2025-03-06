@@ -12,77 +12,133 @@
 // Forward declaration.
 class ASTNode;
 
-//---------------------------------------------------------------------
-// The SymbolEntry remains as metadata storage for a declared symbol.
+/**
+ * @brief Holds metadata for a declared symbol.
+ *
+ * The SymbolEntry structure stores the symbol's key (as a string view),
+ * its precomputed hash, and a pointer to its associated AST node.
+ */
 struct SymbolEntry {
-    chem::string_view key;  // AST-owned key; no extra allocation.
-    size_t hash;            // Precomputed hash.
+    chem::string_view key;  // The symbol name (AST-owned; no extra allocation).
+    size_t hash;            // Precomputed hash value for fast lookup.
     ASTNode* node;          // Pointer to the associated AST node.
 };
 
+/**
+ * @brief Represents an entry in a bucket chain for shadowed symbols.
+ *
+ * BucketSymbol is used in two cases:
+ *  - When a symbol is shadowed (i.e. a later declaration of the same key),
+ *    the previous active symbol is stored in the chain via the `next` pointer.
+ *  - When a collision occurs (two different keys hash to the same bucket),
+ *    the collision chain is maintained via the `collision` pointer in Bucket.
+ */
 struct BucketSymbol {
-
-    chem::string_view key = "";    // Key for the active symbol in this bucket.
-    size_t hash = 0;              // Precomputed hash for the active symbol.
-    ASTNode* activeNode = nullptr;      // Direct pointer to the active AST node.
-    int index = -1;                // Index into the symbol metadata array for active symbol (-1 if empty).
-    BucketSymbol* next = nullptr;       // Pointer to next symbol in this chain
-
+    chem::string_view key = "";   // The symbol key.
+    size_t hash = 0;              // Precomputed hash for the symbol.
+    ASTNode* activeNode = nullptr;// Direct pointer to the AST node.
+    int index = -1;               // Index into the SymbolEntry vector (-1 if empty).
+    BucketSymbol* next = nullptr; // Pointer to the next symbol in the chain.
 };
 
-//---------------------------------------------------------------------
-// The Bucket now holds the direct (active) symbol plus a pointer to a
-// linked list of BucketSymbol nodes that represent shadowed entries (or
-// collisions with different keys).
+/**
+ * @brief Represents a hash table bucket.
+ *
+ * Inherits from BucketSymbol to directly store the "active" symbol
+ * in the bucket. In addition, it maintains a separate collision chain
+ * (via the collision pointer) for symbols with different keys that
+ * hash to the same index.
+ */
 struct Bucket : BucketSymbol {
-    BucketSymbol* collision = nullptr; // Symbols that have the same hash, we put these in this linked list chain of symbols
+    BucketSymbol* collision = nullptr; // Chain of symbols that collided (different keys).
 };
 
-//---------------------------------------------------------------------
-// Scope information remains the same.
+/**
+ * @brief Represents a lexical scope.
+ *
+ * Each SymbolScope records the index in the SymbolEntry vector at which
+ * the scope began, as well as a kind identifier.
+ */
 struct SymbolScope {
-    int start;  // Index in the symbols vector where this scope started.
-    int kind;   // Scope kind; 0 if not provided.
+    int start;  // The index in the symbols vector where this scope began.
+    int kind;   // An integer identifier for the scope type (0 if not specified).
 };
 
-//---------------------------------------------------------------------
-// The SymbolTable class using chaining (no probing).
+/**
+ * @brief A high-performance symbol table with custom chaining for shadowing and collisions.
+ *
+ * This SymbolTable maintains a contiguous array of SymbolEntry metadata and
+ * an array of Bucket entries for fast resolution. Shadowing (multiple declarations
+ * of the same key) is handled via a chain linked by the 'next' pointer, while hash
+ * collisions (different keys with the same hash bucket) are stored in a separate chain
+ * via the 'collision' pointer. Note that the collision chain is always checked,
+ * even if the bucket's active entry is removed.
+ */
 class SymbolTable {
 public:
-    // Compute the hash for a key.
+    // Computes the hash for a given key.
     static inline size_t computeHash(const chem::string_view& key) {
         return std::hash<chem::string_view>{}(key);
     }
 
 private:
-    // Contiguous metadata for symbols.
-    std::vector<SymbolEntry> symbols;
-    // Hash table: an array of buckets.
-    std::vector<Bucket> buckets;
-    size_t bucketMask;  // bucketMask = buckets.size() - 1 (buckets.size() is a power of two).
-    // Scope stack for managing declarations.
-    std::vector<SymbolScope> scopeStack;
-    // these are symbols allocated for collisions and shadowing
-    std::vector<BucketSymbol*> extra_symbols;
+    std::vector<SymbolEntry> symbols;    // Contiguous metadata for declared symbols.
+    std::vector<Bucket> buckets;           // Hash table: an array of buckets.
+    size_t bucketMask;                     // Mask used for fast modulo (buckets.size() is a power of two).
+    std::vector<SymbolScope> scopeStack;   // Stack of scopes for managing declarations.
+    std::vector<BucketSymbol*> extra_symbols; // Dynamically allocated BucketSymbol objects for shadowing and collisions.
 
-    // Dummy batch allocator for BucketSymbol; replace with your actual allocator.
+    /**
+     * @brief Dummy batch allocator for BucketSymbol objects.
+     *
+     * Replace this with your actual memory pool allocator if needed.
+     *
+     * @return Pointer to a newly allocated BucketSymbol.
+     */
     inline BucketSymbol* allocateBucketSymbol() {
-        const auto sym = (BucketSymbol*) ::operator new(sizeof(BucketSymbol), std::align_val_t(alignof(BucketSymbol)));
+        auto sym = reinterpret_cast<BucketSymbol*>(
+                ::operator new(sizeof(BucketSymbol), std::align_val_t(alignof(BucketSymbol)))
+        );
         extra_symbols.emplace_back(sym);
         return sym;
     }
 
+    /**
+     * @brief Allocates and constructs a BucketSymbol by copying an existing one.
+     *
+     * @param bucket The BucketSymbol to copy.
+     * @return Pointer to the newly allocated BucketSymbol.
+     */
     inline BucketSymbol* allocateBucketSymbol(const BucketSymbol& bucket) {
         return new (allocateBucketSymbol()) BucketSymbol(bucket);
     }
 
+    /**
+     * @brief Adds a new symbol entry to the symbols vector.
+     *
+     * @param key The symbol key.
+     * @param hash The precomputed hash.
+     * @param node Pointer to the associated AST node.
+     * @return The index of the new entry.
+     */
     inline int put_entry(const chem::string_view& key, const size_t hash, ASTNode* const node) noexcept {
         int newIndex = static_cast<int>(symbols.size());
         symbols.emplace_back(key, hash, node);
         return newIndex;
     }
 
-    inline void set_to_bucket(Bucket& bucket, const chem::string_view& key, const size_t hash, ASTNode* const node, int index, BucketSymbol* const next) noexcept {
+    /**
+     * @brief Sets the bucket's active fields.
+     *
+     * @param bucket The bucket to update.
+     * @param key The symbol key.
+     * @param hash The symbol hash.
+     * @param node Pointer to the AST node.
+     * @param index Index into the symbols vector.
+     * @param next Pointer to the next symbol in the shadow chain.
+     */
+    inline void set_to_bucket(Bucket& bucket, const chem::string_view& key, const size_t hash,
+                              ASTNode* const node, int index, BucketSymbol* const next) noexcept {
         bucket.key = key;
         bucket.hash = hash;
         bucket.index = index;
@@ -90,15 +146,30 @@ private:
         bucket.next = next;
     }
 
-    inline BucketSymbol* allocateBucketSymbol(const chem::string_view& key, const size_t hash, ASTNode* const node, int index, BucketSymbol* const next) noexcept {
-        return new (allocateBucketSymbol()) BucketSymbol(key, hash, node, index, next);
+    /**
+     * @brief Allocates and constructs a BucketSymbol with the given parameters.
+     *
+     * @param key The symbol key.
+     * @param hash The symbol hash.
+     * @param node Pointer to the AST node.
+     * @param index Index into the symbols vector.
+     * @param next Pointer to the next symbol in the chain.
+     * @return Pointer to the new BucketSymbol.
+     */
+    inline BucketSymbol* allocateBucketSymbol(const chem::string_view& key, const size_t hash,
+                                              ASTNode* const node, int index, BucketSymbol* const next) noexcept {
+        return new (allocateBucketSymbol()) BucketSymbol{key, hash, node, index, next};
     }
 
-    //-----------------------------------------------------------------
-    // Helper: Inserts a symbol entry (already in symbols vector) into a given
-    // new bucket array (used during rehashing).
+    /**
+     * @brief Inserts a symbol entry into a new bucket array during rehashing.
+     *
+     * @param index Index of the symbol entry.
+     * @param entry The symbol entry.
+     * @param targetBuckets The new bucket array.
+     * @param mask The new bucket mask.
+     */
     void insert_symbol(int index, const SymbolEntry &entry, std::vector<Bucket>& targetBuckets, size_t mask) {
-
         const auto bucketIndex = entry.hash & mask;
         Bucket &bucket = targetBuckets[bucketIndex];
 
@@ -112,28 +183,28 @@ private:
         } else {
             // Bucket already occupied.
             if (bucket.hash == entry.hash && bucket.key == entry.key) {
-                // Same key (shadowing). Allocate a new BucketSymbol for the current active entry.
-                // This puts this current symbol (stored) inside the new allocated bucket, also taking it's next chain
+                // Same key (shadowing): save the current active symbol in the shadow chain.
                 const auto extra = allocateBucketSymbol(bucket);
-                // Replace bucket's active entry with the new symbol.
+                // Update bucket's active entry with the new symbol.
                 bucket.key = entry.key;
                 bucket.hash = entry.hash;
                 bucket.index = index;
                 bucket.activeNode = entry.node;
                 bucket.next = extra;
             } else {
-                // Collision occurred since we hashed to same index but key doesn't match
-                // we allocate an extra symbol cor current entry and set it to collision pointer
+                // Collision: keys differ but hashed to the same bucket.
+                // Allocate a new symbol for the collision chain.
                 const auto extra = allocateBucketSymbol(entry.key, entry.hash, entry.node, index, bucket.collision);
-                // set the new collision chain to the bucket
                 bucket.collision = extra;
             }
         }
-
     }
 
-    //-----------------------------------------------------------------
-    // Rehash: double the bucket array and reinsert all symbols from 'symbols'.
+    /**
+     * @brief Rehashes the bucket array when load factor exceeds threshold.
+     *
+     * Doubles the bucket count (rounded to the next power of two) and reinserts all symbols.
+     */
     void rehash() {
         size_t newBucketCount = buckets.size() * 2;
         newBucketCount = next_power_of_two(newBucketCount);
@@ -149,8 +220,12 @@ private:
     }
 
 public:
-    //-----------------------------------------------------------------
-    // Helper: compute the next power of two for a given size.
+    /**
+     * @brief Computes the next power of two for a given size.
+     *
+     * @param x The input size.
+     * @return The next power of two.
+     */
     static size_t next_power_of_two(size_t x) {
         if (x == 0) return 1;
         --x;
@@ -165,16 +240,26 @@ public:
         return x + 1;
     }
 
-    //-----------------------------------------------------------------
-    // Constructors.
+    /**
+     * @brief Default constructor.
+     *
+     * Initializes the symbol table with an initial bucket count of 128 (a power of two).
+     */
     SymbolTable() {
-        const auto initialBucketCount = 128; // power of two
+        const auto initialBucketCount = 128; // Must be a power of two.
         buckets.resize(initialBucketCount, Bucket());
         bucketMask = initialBucketCount - 1;
         symbols.reserve(initialBucketCount);
         scopeStack.reserve(20);
     }
 
+    /**
+     * @brief Constructs a SymbolTable with a specified initial bucket count.
+     *
+     * The bucket count is rounded up to the next power of two.
+     *
+     * @param initialBucketCount The requested initial bucket count.
+     */
     SymbolTable(size_t initialBucketCount) {
         initialBucketCount = next_power_of_two(initialBucketCount);
         buckets.resize(initialBucketCount, Bucket());
@@ -183,40 +268,57 @@ public:
         scopeStack.reserve(20);
     }
 
-    //-----------------------------------------------------------------
-    // declare: add a new symbol to the current scope.
+    /**
+     * @brief Declares a new symbol in the current scope.
+     *
+     * Inserts the symbol into the hash table. If the bucket is empty,
+     * the symbol is placed directly; otherwise, if the same key exists,
+     * the new symbol shadows the current one via the shadow chain (next pointer).
+     * If the bucket is occupied by a different key (hash collision), the new
+     * symbol is added to the collision chain.
+     *
+     * @param key The symbol key.
+     * @param node Pointer to the associated AST node.
+     */
     void declare(const chem::string_view& key, ASTNode* const node) {
-
-        // Check load factor: if symbols exceed 90% of bucket capacity, rehash.
+        // Rehash if load factor exceeds 90%.
         if (symbols.size() >= static_cast<size_t>(buckets.size() * 0.9)) {
             rehash();
         }
 
         const auto hash = computeHash(key);
-        const auto  bucketIndex = hash & bucketMask;
+        const auto bucketIndex = hash & bucketMask;
         Bucket &bucket = buckets[bucketIndex];
-
         const auto index = put_entry(key, hash, node);
 
         if (bucket.index == -1) {
+            // Bucket is empty; insert directly.
             set_to_bucket(bucket, key, hash, node, index, nullptr);
         } else {
             if (bucket.hash == hash && bucket.key == key) {
-                // Same key: shadow the current symbol. by allocating previous symbol
+                // Same key: shadow the current active symbol.
                 const auto next = allocateBucketSymbol(bucket);
-                // Set the new symbol to bucket (the newer symbol is always the first one)
                 set_to_bucket(bucket, key, hash, node, index, next);
             } else {
-                // Collision since we hashed to same index but key is different
-                // we allocate an extra symbol cor current entry and set it to collision pointer
+                // Collision: different key but same bucket.
                 const auto extra = allocateBucketSymbol(key, hash, node, index, bucket.collision);
                 bucket.collision = extra;
             }
         }
     }
 
+    /**
+     * @brief Declares a symbol without allowing shadowing.
+     *
+     * If a symbol with the same key is already declared (either in the bucket or in the collision chain),
+     * returns a pointer to the existing BucketSymbol; otherwise, declares the new symbol.
+     *
+     * @param key The symbol key.
+     * @param node Pointer to the associated AST node.
+     * @return Pointer to an existing BucketSymbol if already declared, or nullptr otherwise.
+     */
     const BucketSymbol* declare_no_shadow_sym(const chem::string_view& key, ASTNode* const node) {
-        // Check load factor.
+        // Rehash if needed.
         if (symbols.size() >= static_cast<size_t>(buckets.size() * 0.9)) {
             rehash();
         }
@@ -234,8 +336,7 @@ public:
                 // Already declared in bucket.
                 return &bucket;
             } else {
-                // Collision since we hashed to same index however key is different
-                // check if key exists in collision chain
+                // Check collision chain for the key.
                 BucketSymbol* sym = bucket.collision;
                 while(sym) {
                     const auto& ptr = *sym;
@@ -244,39 +345,55 @@ public:
                     }
                     sym = ptr.next;
                 }
-                // Since key doesn't exist in collision chain, we must create a new key in collision chain
+                // Not found; add to collision chain.
                 const auto new_coll_chain = allocateBucketSymbol(key, hash, node, put_entry(key, hash, node), bucket.collision);
-                // Set the new collision chain to bucket
                 bucket.collision = new_coll_chain;
                 return nullptr;
             }
         }
-
     }
 
-    //-----------------------------------------------------------------
-    // declare_no_shadow: add a new symbol only if one with the same key isn't already declared.
-    // Returns nullptr if symbol was declared (i.e. no previous symbol existed for that key),
-    // otherwise returns the previous active node.
+    /**
+     * @brief Declares a symbol without allowing shadowing.
+     *
+     * If a symbol with the same key already exists, returns the active node of that symbol;
+     * otherwise, declares the symbol and returns nullptr.
+     *
+     * @param key The symbol key.
+     * @param node Pointer to the associated AST node.
+     * @return Pointer to the active AST node of an existing symbol if found, or nullptr otherwise.
+     */
     ASTNode* declare_no_shadow(const chem::string_view& key, ASTNode* const node) {
         const auto d = declare_no_shadow_sym(key, node);
         return d ? d->activeNode : nullptr;
     }
 
-    // check if given symbol is in current scope
+    /**
+     * @brief Checks if the given symbol is declared in the current scope.
+     *
+     * @param symbol Pointer to the BucketSymbol.
+     * @return True if the symbol's index is within the current scope; false otherwise.
+     */
     inline bool is_in_current_scope(const BucketSymbol* symbol) {
         return symbol->index >= scopeStack.back().start;
     }
 
-    //-----------------------------------------------------------------
-    // resolve: return the AST node pointer for the active symbol matching the given key.
+    /**
+     * @brief Resolves a symbol by its key.
+     *
+     * Returns the active AST node pointer for the symbol that matches the given key.
+     * It first checks the active bucket entry, then scans the collision chain if necessary.
+     *
+     * @param key The symbol key.
+     * @return Pointer to the associated AST node if found, or nullptr if not found.
+     */
     ASTNode* resolve(const chem::string_view& key) const {
         size_t hash = computeHash(key);
         size_t bucketIndex = hash & bucketMask;
         const Bucket &bucket = buckets[bucketIndex];
         if (bucket.index != -1 && bucket.hash == hash && bucket.key == key)
             return bucket.activeNode;
-        // check if symbol exists in the collision chain
+        // Scan collision chain even if bucket index is -1.
         auto sym = bucket.collision;
         while (sym) {
             const auto& ptr = *sym;
@@ -287,104 +404,139 @@ public:
         return nullptr;
     }
 
-    //-----------------------------------------------------------------
-    // erase: remove the symbol for the given key.
-    // Returns true if the erase succeeded.
+    /**
+     * @brief Erases a symbol with the given key.
+     *
+     * If the active bucket entry matches the key, it is removed.
+     * If a shadow chain exists (via the 'next' pointer), the next symbol is promoted.
+     * Otherwise, if the symbol exists in the collision chain, it is removed from that chain.
+     *
+     * @param key The symbol key to remove.
+     * @return True if the symbol was found and erased; false otherwise.
+     */
     bool erase(const chem::string_view& key) {
-
         const auto hash = computeHash(key);
         const auto bucketIndex = hash & bucketMask;
         Bucket &bucket = buckets[bucketIndex];
 
         if (bucket.index != -1 && bucket.hash == hash && bucket.key == key) {
-            if(bucket.next) {
-                // bucket is a shadowing symbol, so we'll bring that symbol back
+            if (bucket.next) {
+                // If a shadow chain exists, promote the next symbol.
                 const auto& current = *bucket.next;
                 bucket.index = current.index;
                 bucket.activeNode = current.activeNode;
                 bucket.next = current.next;
             } else {
-                // NOTE: we aren't going to touch the collision chain, because current symbol in the bucket and it's next chain
-                // must always contain the same key, so we can guarantee that a symbol's key would match everything present in it's next (shadow chain)
-                // even if collision chain is present, we'll make this key empty, so this means we must always check the collision chain even if the key is empty
+                // No shadow chain: mark the bucket as empty.
                 bucket.index = -1;
                 bucket.activeNode = nullptr;
             }
             return true;
-        } else if(bucket.collision) {
-            // Since the hash matches, key is different and there's a collision chain, we must check the entire collision chain
+        } else if (bucket.collision) {
+            // Check the collision chain for the symbol.
             BucketSymbol** sym_ptr_ref = &bucket.collision;
-            while (sym_ptr_ref) {
+            while (*sym_ptr_ref) {
                 BucketSymbol& sym = **sym_ptr_ref;
                 if (sym.hash == hash && sym.key == key) {
-                    // found it in the collision chain, we just need to relink the chain by removing this from in between
+                    // Remove the symbol from the collision chain.
                     *sym_ptr_ref = sym.next;
                     return true;
                 }
-               sym_ptr_ref = &sym.next;
+                sym_ptr_ref = &sym.next;
             }
             return false;
         }
-
         return false;
-
     }
 
-    //-----------------------------------------------------------------
-    // scope management
+    /**
+     * @brief Begins a new scope.
+     *
+     * Records the current number of symbols to mark the beginning of a new scope.
+     */
     inline void scope_start() {
         scopeStack.emplace_back(static_cast<int>(symbols.size()), 0);
     }
 
+    /**
+     * @brief Begins a new scope with a specified kind.
+     *
+     * @param kind The kind identifier for the scope.
+     */
     inline void scope_start(int kind) {
         scopeStack.emplace_back(static_cast<int>(symbols.size()), kind);
     }
 
+    /**
+     * @brief Begins a new scope and returns the starting index.
+     *
+     * @param kind The kind identifier for the scope.
+     * @return The starting index in the symbols vector for the new scope.
+     */
     inline int scope_start_index(int kind) {
         int scope_index = static_cast<int>(symbols.size());
         scopeStack.emplace_back(scope_index, kind);
         return scope_index;
     }
 
+    /**
+     * @brief Retrieves the kind of the most recent scope.
+     *
+     * @return The kind identifier of the last scope.
+     */
     inline int get_last_scope_kind() {
         return scopeStack.back().kind;
     }
 
-    // scope_end: remove all symbols declared since the last scope_start.
+    /**
+     * @brief Returns the symbols declared in the current scope.
+     *
+     * @return A span over the SymbolEntry objects for the current scope.
+     */
+    inline std::span<SymbolEntry> last_scope() {
+        int start = scopeStack.back().start;
+        return { &symbols[start], symbols.size() - start };
+    }
+
+    /**
+     * @brief Ends the current scope.
+     *
+     * Removes all symbols declared since the last scope_start(). For each symbol
+     * removed, if it was shadowing another symbol (via the 'next' chain), that
+     * shadowed symbol is restored. Additionally, symbols in the collision chain
+     * are removed if they were declared in the ending scope.
+     */
     void scope_end() {
         assert(!scopeStack.empty());
-        // get where the scope started (index)
         int marker = scopeStack.back().start;
         scopeStack.pop_back();
 
         // Roll back each symbol declared in the current scope.
         for (int i = static_cast<int>(symbols.size()) - 1; i >= marker; --i) {
-
             const SymbolEntry& entry = symbols[i];
             const auto bucketIndex = entry.hash & bucketMask;
             Bucket &bucket = buckets[bucketIndex];
 
             if (bucket.index == i) {
                 if (bucket.next) {
-                    // symbol has a shadow chain, so bring the shadowed chain symbol back
+                    // If a shadow chain exists, promote the next symbol.
                     auto& current = *bucket.next;
                     bucket.key = current.key;
                     bucket.hash = current.hash;
                     bucket.index = current.index;
-                    bucket.next = current.next;
                     bucket.activeNode = current.activeNode;
+                    bucket.next = current.next;
                 } else {
+                    // No shadow chain: mark the bucket as empty.
                     bucket.index = -1;
                     bucket.activeNode = nullptr;
                 }
-            } else if(bucket.collision) {
-
-                // check the collision chain for this symbol
+            } else if (bucket.collision) {
+                // Remove the symbol from the collision chain.
                 BucketSymbol** sym_ptr_ref = &bucket.collision;
-                while (sym_ptr_ref) {
+                while (*sym_ptr_ref) {
                     BucketSymbol& sym = **sym_ptr_ref;
                     if (sym.index == i) {
-                        // found it in the collision chain, we just need to relink the chain by removing this from in between
                         *sym_ptr_ref = sym.next;
                         break;
                     }
@@ -395,16 +547,18 @@ public:
                 throw std::runtime_error("couldn't erase the symbol when scope ended");
 #endif
             }
-
         }
         symbols.resize(marker);
-
     }
 
+    /**
+     * @brief Destructor.
+     *
+     * Frees all BucketSymbol objects allocated via the dummy batch allocator.
+     */
     ~SymbolTable() {
-        for(const auto sym : extra_symbols) {
+        for (const auto sym : extra_symbols) {
             ::operator delete(sym, std::align_val_t(alignof(BucketSymbol)));
         }
     }
-
 };

@@ -250,7 +250,8 @@ public:
         buckets.resize(initialBucketCount, Bucket());
         bucketMask = initialBucketCount - 1;
         symbols.reserve(initialBucketCount);
-        scopeStack.reserve(20);
+        extra_symbols.reserve(64);
+        scopeStack.reserve(64);
     }
 
     /**
@@ -265,7 +266,8 @@ public:
         buckets.resize(initialBucketCount, Bucket());
         bucketMask = initialBucketCount - 1;
         symbols.reserve(initialBucketCount);
-        scopeStack.reserve(20);
+        extra_symbols.reserve(64);
+        scopeStack.reserve(64);
     }
 
     /**
@@ -434,15 +436,15 @@ public:
             return true;
         } else if (bucket.collision) {
             // Check the collision chain for the symbol.
-            BucketSymbol** sym_ptr_ref = &bucket.collision;
-            while (*sym_ptr_ref) {
-                BucketSymbol& sym = **sym_ptr_ref;
-                if (sym.hash == hash && sym.key == key) {
-                    // Remove the symbol from the collision chain.
-                    *sym_ptr_ref = sym.next;
+            for (BucketSymbol* prev = nullptr, *cur = bucket.collision; cur; prev = cur, cur = cur->next) {
+                if (cur->hash == hash && cur->key == key) {
+                    if (prev) {
+                        prev->next = cur->next;
+                    } else {
+                        bucket.collision = cur->next;
+                    }
                     return true;
                 }
-                sym_ptr_ref = &sym.next;
             }
             return false;
         }
@@ -533,14 +535,15 @@ public:
                 }
             } else if (bucket.collision) {
                 // Remove the symbol from the collision chain.
-                BucketSymbol** sym_ptr_ref = &bucket.collision;
-                while (*sym_ptr_ref) {
-                    BucketSymbol& sym = **sym_ptr_ref;
-                    if (sym.index == i) {
-                        *sym_ptr_ref = sym.next;
+                for (BucketSymbol* prev = nullptr, *cur = bucket.collision; cur; prev = cur, cur = cur->next) {
+                    if (cur->index == i) {
+                        if (prev) {
+                            prev->next = cur->next;
+                        } else {
+                            bucket.collision = cur->next;
+                        }
                         break;
                     }
-                    sym_ptr_ref = &sym.next;
                 }
             } else {
 #ifdef DEBUG

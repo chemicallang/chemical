@@ -8,6 +8,7 @@
 #include <span>
 #include <cassert>
 #include <cstring>
+#include <stdexcept>
 
 // Forward declaration.
 class ASTNode;
@@ -34,9 +35,9 @@ struct SymbolEntry {
  *    the collision chain is maintained via the `collision` pointer in Bucket.
  */
 struct BucketSymbol {
-    chem::string_view key = "";   // The symbol key.
-    size_t hash = 0;              // Precomputed hash for the symbol.
-    ASTNode* activeNode = nullptr;// Direct pointer to the AST node.
+    chem::string_view key = "";
+    size_t hash = 0;
+    ASTNode* activeNode = nullptr;
     int index = -1;               // Index into the SymbolEntry vector (-1 if empty).
     BucketSymbol* next = nullptr; // Pointer to the next symbol in the chain.
 };
@@ -46,8 +47,7 @@ struct BucketSymbol {
  *
  * Inherits from BucketSymbol to directly store the "active" symbol
  * in the bucket. In addition, it maintains a separate collision chain
- * (via the collision pointer) for symbols with different keys that
- * hash to the same index.
+ * (via the collision pointer) for symbols with different keys.
  */
 struct Bucket : BucketSymbol {
     BucketSymbol* collision = nullptr; // Chain of symbols that collided (different keys).
@@ -62,6 +62,8 @@ struct Bucket : BucketSymbol {
 struct SymbolScope {
     int start;  // The index in the symbols vector where this scope began.
     int kind;   // An integer identifier for the scope type (0 if not specified).
+
+    SymbolScope(int s, int k) : start(s), kind(k) {}
 };
 
 /**
@@ -71,13 +73,12 @@ struct SymbolScope {
  * an array of Bucket entries for fast resolution. Shadowing (multiple declarations
  * of the same key) is handled via a chain linked by the 'next' pointer, while hash
  * collisions (different keys with the same hash bucket) are stored in a separate chain
- * via the 'collision' pointer. Note that the collision chain is always checked,
- * even if the bucket's active entry is removed.
+ * via the 'collision' pointer.
  */
 class SymbolTable {
 public:
     // Computes the hash for a given key.
-    static inline size_t computeHash(const chem::string_view& key) {
+    static inline size_t computeHash(const chem::string_view& key) noexcept {
         return std::hash<chem::string_view>{}(key);
     }
 
@@ -86,21 +87,42 @@ private:
     std::vector<Bucket> buckets;           // Hash table: an array of buckets.
     size_t bucketMask;                     // Mask used for fast modulo (buckets.size() is a power of two).
     std::vector<SymbolScope> scopeStack;   // Stack of scopes for managing declarations.
-    std::vector<BucketSymbol*> extra_symbols; // Dynamically allocated BucketSymbol objects for shadowing and collisions.
+
+    // --- Custom Memory Pool for BucketSymbol Objects ---
+    // Instead of allocating one BucketSymbol at a time, we allocate them in blocks.
+    static constexpr size_t POOL_BLOCK_SIZE = 4096;
+    std::vector<void*> bucketSymbolBlocks;
+    char* currentBlock = nullptr;
+    size_t currentBlockOffset = 0;
+    size_t currentBlockCapacity = 0;
 
     /**
-     * @brief Dummy batch allocator for BucketSymbol objects.
+     * @brief Allocates memory for a BucketSymbol from the memory pool.
      *
-     * Replace this with your actual memory pool allocator if needed.
+     * If the current block does not have enough space, a new block is allocated.
      *
-     * @return Pointer to a newly allocated BucketSymbol.
+     * @param size The size to allocate (should be sizeof(BucketSymbol)).
+     * @return Pointer to the allocated memory.
      */
-    inline BucketSymbol* allocateBucketSymbol() {
-        auto sym = reinterpret_cast<BucketSymbol*>(
-                ::operator new(sizeof(BucketSymbol), std::align_val_t(alignof(BucketSymbol)))
-        );
-        extra_symbols.emplace_back(sym);
-        return sym;
+    inline void* poolAllocate(size_t size) {
+        if (!currentBlock || currentBlockOffset + size > currentBlockCapacity) {
+            currentBlock = static_cast<char*>(::operator new(POOL_BLOCK_SIZE, std::align_val_t(alignof(BucketSymbol))));
+            bucketSymbolBlocks.push_back(currentBlock);
+            currentBlockOffset = 0;
+            currentBlockCapacity = POOL_BLOCK_SIZE;
+        }
+        void* ptr = currentBlock + currentBlockOffset;
+        currentBlockOffset += size;
+        return ptr;
+    }
+
+    /**
+     * @brief Allocates a new BucketSymbol using the custom memory pool.
+     *
+     * @return Pointer to uninitialized memory for a BucketSymbol.
+     */
+    inline BucketSymbol* allocateBucketSymbol() noexcept {
+        return reinterpret_cast<BucketSymbol*>(poolAllocate(sizeof(BucketSymbol)));
     }
 
     /**
@@ -109,7 +131,7 @@ private:
      * @param bucket The BucketSymbol to copy.
      * @return Pointer to the newly allocated BucketSymbol.
      */
-    inline BucketSymbol* allocateBucketSymbol(const BucketSymbol& bucket) {
+    inline BucketSymbol* allocateBucketSymbol(const BucketSymbol& bucket) noexcept {
         return new (allocateBucketSymbol()) BucketSymbol(bucket);
     }
 
@@ -203,17 +225,16 @@ private:
     /**
      * @brief Rehashes the bucket array when load factor exceeds threshold.
      *
-     * Doubles the bucket count (rounded to the next power of two) and reinserts all symbols.
+     * Doubles the bucket count and reinserts all symbols.
      */
     void rehash() {
-        size_t newBucketCount = buckets.size() * 2;
-        newBucketCount = next_power_of_two(newBucketCount);
+        size_t newBucketCount = buckets.size() * 2; // Buckets size is always a power of two.
         std::vector<Bucket> newBuckets(newBucketCount, Bucket());
         size_t newMask = newBucketCount - 1;
 
         // Reinsert every symbol in order.
-        for (int i = 0; i < static_cast<int>(symbols.size()); i++) {
-            insert_symbol(i, symbols[i], newBuckets, newMask);
+        for (size_t i = 0; i < symbols.size(); i++) {
+            insert_symbol(static_cast<int>(i), symbols[i], newBuckets, newMask);
         }
         buckets = std::move(newBuckets);
         bucketMask = newMask;
@@ -226,7 +247,7 @@ public:
      * @param x The input size.
      * @return The next power of two.
      */
-    static size_t next_power_of_two(size_t x) {
+    static size_t next_power_of_two(size_t x) noexcept {
         if (x == 0) return 1;
         --x;
         x |= x >> 1;
@@ -250,7 +271,6 @@ public:
         buckets.resize(initialBucketCount, Bucket());
         bucketMask = initialBucketCount - 1;
         symbols.reserve(initialBucketCount);
-        extra_symbols.reserve(64);
         scopeStack.reserve(64);
     }
 
@@ -266,7 +286,6 @@ public:
         buckets.resize(initialBucketCount, Bucket());
         bucketMask = initialBucketCount - 1;
         symbols.reserve(initialBucketCount);
-        extra_symbols.reserve(64);
         scopeStack.reserve(64);
     }
 
@@ -283,8 +302,8 @@ public:
      * @param node Pointer to the associated AST node.
      */
     void declare(const chem::string_view& key, ASTNode* const node) {
-        // Rehash if load factor exceeds 90%.
-        if (symbols.size() >= static_cast<size_t>(buckets.size() * 0.9)) {
+        // Rehash if load factor exceeds 90% (using integer arithmetic).
+        if (symbols.size() >= (buckets.size() * 9) / 10) {
             rehash();
         }
 
@@ -321,7 +340,7 @@ public:
      */
     const BucketSymbol* declare_no_shadow_sym(const chem::string_view& key, ASTNode* const node) {
         // Rehash if needed.
-        if (symbols.size() >= static_cast<size_t>(buckets.size() * 0.9)) {
+        if (symbols.size() >= (buckets.size() * 9) / 10) {
             rehash();
         }
 
@@ -340,12 +359,11 @@ public:
             } else {
                 // Check collision chain for the key.
                 BucketSymbol* sym = bucket.collision;
-                while(sym) {
-                    const auto& ptr = *sym;
-                    if(ptr.hash == hash && ptr.key == key) {
-                        return &ptr;
+                while (sym) {
+                    if (sym->hash == hash && sym->key == key) {
+                        return sym;
                     }
-                    sym = ptr.next;
+                    sym = sym->next;
                 }
                 // Not found; add to collision chain.
                 const auto new_coll_chain = allocateBucketSymbol(key, hash, node, put_entry(key, hash, node), bucket.collision);
@@ -376,7 +394,7 @@ public:
      * @param symbol Pointer to the BucketSymbol.
      * @return True if the symbol's index is within the current scope; false otherwise.
      */
-    inline bool is_in_current_scope(const BucketSymbol* symbol) {
+    inline bool is_in_current_scope(const BucketSymbol* symbol) const noexcept {
         return symbol->index >= scopeStack.back().start;
     }
 
@@ -389,19 +407,18 @@ public:
      * @param key The symbol key.
      * @return Pointer to the associated AST node if found, or nullptr if not found.
      */
-    ASTNode* resolve(const chem::string_view& key) const {
+    ASTNode* resolve(const chem::string_view& key) const noexcept {
         size_t hash = computeHash(key);
         size_t bucketIndex = hash & bucketMask;
         const Bucket &bucket = buckets[bucketIndex];
         if (bucket.index != -1 && bucket.hash == hash && bucket.key == key)
             return bucket.activeNode;
         // Scan collision chain even if bucket index is -1.
-        auto sym = bucket.collision;
+        BucketSymbol* sym = bucket.collision;
         while (sym) {
-            const auto& ptr = *sym;
-            if (ptr.hash == hash && ptr.key == key)
-                return ptr.activeNode;
-            sym = ptr.next;
+            if (sym->hash == hash && sym->key == key)
+                return sym->activeNode;
+            sym = sym->next;
         }
         return nullptr;
     }
@@ -416,7 +433,7 @@ public:
      * @param key The symbol key to remove.
      * @return True if the symbol was found and erased; false otherwise.
      */
-    bool erase(const chem::string_view& key) {
+    bool erase(const chem::string_view& key) noexcept {
         const auto hash = computeHash(key);
         const auto bucketIndex = hash & bucketMask;
         Bucket &bucket = buckets[bucketIndex];
@@ -456,7 +473,7 @@ public:
      *
      * Records the current number of symbols to mark the beginning of a new scope.
      */
-    inline void scope_start() {
+    inline void scope_start() noexcept {
         scopeStack.emplace_back(static_cast<int>(symbols.size()), 0);
     }
 
@@ -465,7 +482,7 @@ public:
      *
      * @param kind The kind identifier for the scope.
      */
-    inline void scope_start(int kind) {
+    inline void scope_start(int kind) noexcept {
         scopeStack.emplace_back(static_cast<int>(symbols.size()), kind);
     }
 
@@ -475,7 +492,7 @@ public:
      * @param kind The kind identifier for the scope.
      * @return The starting index in the symbols vector for the new scope.
      */
-    inline int scope_start_index(int kind) {
+    inline int scope_start_index(int kind) noexcept {
         int scope_index = static_cast<int>(symbols.size());
         scopeStack.emplace_back(scope_index, kind);
         return scope_index;
@@ -486,7 +503,7 @@ public:
      *
      * @return The kind identifier of the last scope.
      */
-    inline int get_last_scope_kind() {
+    inline int get_last_scope_kind() const noexcept {
         return scopeStack.back().kind;
     }
 
@@ -495,7 +512,7 @@ public:
      *
      * @return A span over the SymbolEntry objects for the current scope.
      */
-    inline std::span<SymbolEntry> last_scope() {
+    inline std::span<SymbolEntry> last_scope() noexcept {
         int start = scopeStack.back().start;
         return { &symbols[start], symbols.size() - start };
     }
@@ -545,11 +562,12 @@ public:
                         break;
                     }
                 }
-            } else {
-#ifdef DEBUG
-                throw std::runtime_error("couldn't erase the symbol when scope ended");
-#endif
             }
+#ifdef DEBUG
+            else {
+                throw std::runtime_error("couldn't erase the symbol when scope ended");
+            }
+#endif
         }
         symbols.resize(marker);
     }
@@ -557,11 +575,11 @@ public:
     /**
      * @brief Destructor.
      *
-     * Frees all BucketSymbol objects allocated via the dummy batch allocator.
+     * Frees all memory blocks allocated for BucketSymbol objects.
      */
     ~SymbolTable() {
-        for (const auto sym : extra_symbols) {
-            ::operator delete(sym, std::align_val_t(alignof(BucketSymbol)));
+        for (auto block : bucketSymbolBlocks) {
+            ::operator delete(block, std::align_val_t(alignof(BucketSymbol)));
         }
     }
 };

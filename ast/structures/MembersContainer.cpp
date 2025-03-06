@@ -336,6 +336,9 @@ void MembersContainer::link_signature(SymbolResolver &linker) {
     for (auto &var: variables) {
         var.second->declare_and_link(linker, (ASTNode*&) var.second);
     }
+    for(auto& func : functions()) {
+        func->link_signature(linker);
+    }
     linker.scope_end();
 }
 
@@ -357,9 +360,9 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& func : functions()) {
         func->declare_top_level(linker, (ASTNode*&) func);
     }
-    for(auto& func : functions()) {
-        func->link_signature(linker);
-    }
+//    for(auto& func : functions()) {
+//        func->link_signature(linker);
+//    }
     for (auto& func: functions()) {
         func->declare_and_link(linker, (ASTNode*&) func);
     }

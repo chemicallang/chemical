@@ -407,8 +407,10 @@ bool FunctionTypeBody::check_chain(AccessChain* chain, bool assigning, ASTDiagno
         moved = find_moved_chain_value(chain);
     }
     if(moved) {
-        auto& saved_message = (diagnoser.error((ASTNode*) chain) << "cannot " << (assigning ? "assign" : "access") << " \'" << chain->chain_representation() << "' as '" << moved->representation() << "' has been moved").message;
-        diagnoser.error((ASTNode*) moved) << saved_message;
+        auto& diag = diagnoser.error((ASTNode*) chain);
+        diag << "cannot " << (assigning ? "assign" : "access") << " \'" << chain->chain_representation() << "' as '" << moved->representation() << "' has been moved";
+        auto message = diag.message;
+        diagnoser.error((ASTNode*) moved) << message;
         return false;
     }
     return true;

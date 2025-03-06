@@ -20,7 +20,8 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
-    GenericInstantiatorAPI genApi(this);
+    GenericInstantiator instantiator(allocator, diagnoser);
+    GenericInstantiatorAPI genApi(&instantiator);
     call->instantiate_gen_call(genApi, nullptr);
 }
 
@@ -60,7 +61,8 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             linked_ptr = current_impl_ptr;
         } else {
             // relink generic struct decl with instantiated type
-            GenericInstantiatorAPI genApi(this);
+            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = ((GenericStructDecl*) linked)->register_generic_args(genApi, type->types);
         }
     }
@@ -179,8 +181,6 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
 
     // visiting functions
     for(const auto func : impl->functions()) {
-        // finalize the signature of functions
-        FinalizeSignature(func);
         // relink return type of constructors with implementations
         if(func->is_constructor_fn()) {
             const auto linkedType = func->returnType->as_linked_type_unsafe();
@@ -193,6 +193,8 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
                 param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
             }
         }
+        // finalize the signature of functions
+        FinalizeSignature(func);
     }
 
     // deactivating iteration in parameters

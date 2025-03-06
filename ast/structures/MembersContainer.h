@@ -40,7 +40,6 @@ private:
 
     std::vector<FunctionDeclaration*> functions_container;
     std::unordered_map<chem::string_view, FunctionDeclaration*> indexes;
-    std::vector<std::unique_ptr<MultiFunctionNode>> multi_nodes;
 
     void set_active_iteration_no_subs(int16_t iteration);
 
@@ -397,7 +396,7 @@ public:
      * insert a function that can have same name for multiple declarations
      * @return true, if could insert the function, false if there's a conflict
      */
-    bool insert_multi_func(FunctionDeclaration* decl);
+    bool insert_multi_func(ASTAllocator& astAllocator, FunctionDeclaration* decl);
 
     /**
      * is there a function with this name

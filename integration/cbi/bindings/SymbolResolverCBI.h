@@ -14,6 +14,4 @@ extern "C" {
 
     ASTNode* SymbolResolverfind(SymbolResolver* resolver, chem::string_view* name);
 
-    ASTNode* SymbolResolverfind_in_current_file(SymbolResolver* resolver, chem::string_view* name);
-
 }

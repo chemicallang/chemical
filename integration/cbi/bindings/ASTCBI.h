@@ -92,15 +92,15 @@ extern "C" {
 
     std::vector<ASTNode*>* IfStatementadd_else_if(IfStatement* stmt, Value* condition);
 
-    void ImplDefinitionadd_function(ImplDefinition* definition, FunctionDeclaration* decl);
+    void ImplDefinitionadd_function(ImplDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl);
 
     void StructDefinitionadd_member(StructDefinition* definition, chem::string_view* name, BaseDefMember* member);
 
-    void StructDefinitionadd_function(StructDefinition* definition, FunctionDeclaration* decl);
+    void StructDefinitionadd_function(StructDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl);
 
     std::vector<GenericTypeParameter*>* StructDefinitionget_generic_params(StructDefinition* definition);
 
-    void InterfaceDefinitionadd_function(InterfaceDefinition* definition, FunctionDeclaration* decl);
+    void InterfaceDefinitionadd_function(InterfaceDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl);
 
     std::vector<ASTNode*>* Namespaceget_body(Namespace* ns);
 
@@ -110,7 +110,7 @@ extern "C" {
 
     void UnionDefinitionadd_member(UnionDef* definition, chem::string_view* name, BaseDefMember* member);
 
-    void UnionDefinitionadd_function(UnionDef* definition, FunctionDeclaration* decl);
+    void UnionDefinitionadd_function(UnionDef* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl);
 
     std::vector<GenericTypeParameter*>* UnionDefinitionget_generic_params(UnionDef* definition);
 

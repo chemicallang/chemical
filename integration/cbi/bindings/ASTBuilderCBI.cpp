@@ -675,24 +675,24 @@ std::vector<ASTNode*>* IfStatementadd_else_if(IfStatement* stmt, Value* conditio
     return &stmt->elseIfs.back().second.nodes;
 }
 
-void ImplDefinitionadd_function(ImplDefinition* definition, FunctionDeclaration* decl) {
-    definition->insert_multi_func(decl);
+void ImplDefinitionadd_function(ImplDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
+    definition->insert_multi_func(*astAllocator, decl);
 }
 
 void StructDefinitionadd_member(StructDefinition* definition, chem::string_view* name, BaseDefMember* member) {
     definition->variables[*name] = member;
 }
 
-void StructDefinitionadd_function(StructDefinition* definition, FunctionDeclaration* decl) {
-    definition->insert_multi_func(decl);
+void StructDefinitionadd_function(StructDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
+    definition->insert_multi_func(*astAllocator, decl);
 }
 
 std::vector<GenericTypeParameter*>* StructDefinitionget_generic_params(StructDefinition* definition) {
     return &definition->generic_params;
 }
 
-void InterfaceDefinitionadd_function(InterfaceDefinition* definition, FunctionDeclaration* decl) {
-    definition->insert_multi_func(decl);
+void InterfaceDefinitionadd_function(InterfaceDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
+    definition->insert_multi_func(*astAllocator, decl);
 }
 
 std::vector<ASTNode*>* Namespaceget_body(Namespace* ns) {
@@ -711,8 +711,8 @@ void UnionDefinitionadd_member(UnionDef* definition, chem::string_view* name, Ba
     definition->variables[*name] = member;
 }
 
-void UnionDefinitionadd_function(UnionDef* definition, FunctionDeclaration* decl) {
-    definition->insert_multi_func(decl);
+void UnionDefinitionadd_function(UnionDef* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
+    definition->insert_multi_func(*astAllocator, decl);
 }
 
 std::vector<GenericTypeParameter*>* UnionDefinitionget_generic_params(UnionDef* definition) {

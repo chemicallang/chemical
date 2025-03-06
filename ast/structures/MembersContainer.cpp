@@ -856,16 +856,15 @@ FunctionDeclaration* MembersContainer::create_def_move_fn(ASTAllocator& allocato
     return create_move_fn(allocator);
 }
 
-bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
+bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDeclaration* decl) {
     auto found = indexes.find(decl->name_view());
     if(found == indexes.end()) {
         insert_func(decl);
     } else {
-        auto result = handle_name_overload_function(decl->name_view(), found->second, decl);
+        auto result = handle_name_overload_function(astAllocator, found->second, decl);
         if(!result.duplicates.empty()) {
             return false;
         } else if(result.new_multi_func_node) {
-            multi_nodes.emplace_back(result.new_multi_func_node);
             // storing pointer to MultiFunctionNode as FunctionDeclaration
             // this can create errors, if not handled properly
             indexes[decl->name_view()] = (FunctionDeclaration*) result.new_multi_func_node;

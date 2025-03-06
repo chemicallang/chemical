@@ -278,7 +278,7 @@ struct IfStatement : ASTNode {
 
 struct ImplDefinition : ASTNode {
 
-    func add_function(decl : *FunctionDeclaration)
+    func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
 
 }
 
@@ -290,7 +290,7 @@ struct InitBlock : ASTNode {
 
 struct InterfaceDefinition : ASTNode {
 
-    func add_function(decl : *FunctionDeclaration)
+    func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
 
 }
 
@@ -304,7 +304,7 @@ struct StructDefinition : ASTNode {
 
     func add_member(name : &string_view, member : *StructMember)
 
-    func add_function(decl : *FunctionDeclaration)
+    func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
 
     func get_generic_params(&self) : *VecRef<GenericTypeParameter>;
 
@@ -316,7 +316,7 @@ struct UnionDef : ASTNode {
 
     func add_member(name : &string_view, member : *StructMember)
 
-    func add_function(decl : *FunctionDeclaration)
+    func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
 
     func get_generic_params(&self) : *VecRef<GenericTypeParameter>;
 

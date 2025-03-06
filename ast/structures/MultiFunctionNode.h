@@ -40,7 +40,7 @@ public:
 };
 
 OverridableFuncHandlingResult handle_name_overload_function(
-        const chem::string_view& name,
+        ASTAllocator& astAllocator,
         ASTNode* previous_node,
         FunctionDeclaration* declaration
 );

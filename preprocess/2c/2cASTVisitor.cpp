@@ -173,6 +173,9 @@ void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
             case ASTNodeKind::GenericStructDecl:
                 VisitGenericStructDecl(node->as_gen_struct_def_unsafe());
                 break;
+            case ASTNodeKind::NamespaceDecl:
+                external_implement(node->as_namespace_unsafe()->nodes);
+                break;
             default:
                 break;
         }

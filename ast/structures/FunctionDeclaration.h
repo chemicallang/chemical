@@ -466,7 +466,7 @@ public:
         FunctionTypeBody::shallow_copy_into(*decl, allocator, decl);
         if(body.has_value()) {
             decl->body.emplace(decl, body->encoded_location());
-            body->shallow_copy_into(decl->body.value(), allocator, decl);
+            body->shallow_copy_into(decl->body.value());
         }
         decl->attrs = attrs;
         return decl;

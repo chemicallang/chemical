@@ -15,6 +15,7 @@
 #include "ast/values/CastedValue.h"
 #include "ast/types/LinkedType.h"
 #include "ast/structures/InitBlock.h"
+#include "ast/structures/GenericStructDecl.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"
@@ -1599,14 +1600,16 @@ void FunctionDeclaration::link_signature_no_scope(SymbolResolver &linker) {
             return;
         }
         const auto linked_kind = linked->kind();
+        auto container = linked->as_extendable_members_container();
         if (linked_kind == ASTNodeKind::InterfaceDecl) {
             const auto interface = linked->as_interface_def_unsafe();
             if (!interface->is_static()) {
                 linker.error("extension functions are only supported on static interfaces, either make the interface static or move the function inside the interface", receiver.type);
                 return;
             }
+        } else if(linked_kind == ASTNodeKind::GenericStructDecl) {
+            container = linked->as_gen_struct_def_unsafe()->master_impl;
         }
-        auto container = linked->as_extendable_members_container();
         if (!container) {
             linker.error(receiver.type) << "type doesn't support extension functions " << type->representation();
             return;
@@ -1618,6 +1621,9 @@ void FunctionDeclaration::link_signature_no_scope(SymbolResolver &linker) {
             if (field_func != nullptr) {
                 linker.error(receiver.type) << "couldn't declare extension function with name '" << name_view() << "' because type '" << receiver.type->representation() << "' already has a field / function with same name \n";
                 return;
+            }
+            if(name_view() == "ext_div") {
+                int i = 0;
             }
             if(generic_parent) {
                 container->add_extension_func(name_view(), generic_parent);

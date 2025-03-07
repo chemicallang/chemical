@@ -6,15 +6,7 @@
 #include "LinkedType.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
-
-bool are_all_specialized(std::vector<BaseType*>& types) {
-    for(const auto ty : types) {
-        if(ty->kind() == BaseTypeKind::Linked && ty->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
-            return false;
-        }
-    }
-    return true;
-}
+#include "ast/utils/GenericUtils.h"
 
 bool GenericType::link(SymbolResolver &linker) {
     referenced->link(linker);

@@ -134,6 +134,10 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
 
     } else if(signature_linked) {
 
+        // copy over the extension functions, if more functions were linked because of link_signature called upon function declarations
+        // TODO unsure this line is needed
+        // impl->extension_functions = master_impl->extension_functions;
+
         // signature and body both have been linked for master_impl
         // so all we need to do is
         finalize_signature(allocator, impl);

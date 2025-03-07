@@ -78,11 +78,11 @@
 #include "ast/values/ValueNode.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
-//#include "ast/values/Int128Value.h"
+#include "ast/values/IndexOperator.h"
 #include "ast/values/TypeInsideValue.h"
 //#include "ast/values/IntNumValue.h"
-//#include "ast/values/LongValue.h"
-//#include "ast/values/Negative.h"
+#include "ast/values/AddrOfValue.h"
+#include "ast/values/DereferenceValue.h"
 //#include "ast/values/NotValue.h"
 //#include "ast/values/NullValue.h"
 //#include "ast/values/NumberValue.h"
@@ -128,6 +128,13 @@ public:
         }
     }
 
+    void VisitIndexOperator(IndexOperator* value) {
+        visit_it(value->parent_val);
+        for(auto& val : value->values) {
+            visit_it(val);
+        }
+    }
+
     void VisitExpression(Expression *expr) {
         visit_it(expr->firstValue);
         visit_it(expr->secondValue);
@@ -166,6 +173,7 @@ public:
     }
 
     void VisitAssignmentStmt(AssignStatement *assign) {
+        visit_it(assign->lhs);
         visit_it(assign->value);
     }
 
@@ -296,6 +304,14 @@ public:
     }
 
     inline void VisitNewValue(NewValue *value) {
+        visit_it(value->value);
+    }
+
+    inline void VisitAddrOfValue(AddrOfValue* value) {
+        visit_it(value->value);
+    }
+
+    inline void VisitDereferenceValue(DereferenceValue* value) {
         visit_it(value->value);
     }
 

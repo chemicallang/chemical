@@ -50,6 +50,8 @@ public:
         stmt->elseIfs.reserve(elseIfs.size());
         for(auto& elif : elseIfs) {
             stmt->elseIfs.emplace_back(elif.first->copy(allocator), Scope(elif.second.parent(), elif.second.encoded_location()));
+            auto& last = stmt->elseIfs.back();
+            elif.second.copy_into(last.second, allocator, stmt);
         }
         if(elseBody.has_value()) {
             stmt->elseBody.emplace(elseBody->parent(), elseBody->encoded_location());

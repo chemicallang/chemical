@@ -11,6 +11,15 @@
 #include "GenericUtils.h"
 #include "compiler/SymbolResolver.h"
 
+bool are_all_specialized(const std::span<BaseType*>& types) {
+    for(const auto ty : types) {
+        if(!ty || ty->kind() == BaseTypeKind::Linked && ty->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool has_function_call_before(ChainValue* value) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:

@@ -612,6 +612,19 @@ void ASTProcessor::external_declare_in_c(
     visitor.reset_errors();
 }
 
+void ASTProcessor::external_implement_in_c(
+        ToCAstVisitor& visitor,
+        Scope& import_res,
+        const std::string& abs_path
+) {
+    visitor.external_implement(import_res.nodes);
+    if(!visitor.diagnostics.empty()) {
+        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
+        std::cout << std::endl;
+    }
+    visitor.reset_errors();
+}
+
 int ASTProcessor::translate_module(
     ToCAstVisitor& c_visitor,
     LabModule* module,
@@ -624,17 +637,6 @@ int ASTProcessor::translate_module(
 
         auto& file = *file_ptr;
         auto& result = file;
-
-        // check file exists
-        if(file.abs_path.empty()) {
-            std::cerr << rang::fg::red << "error: file not found '" << file.import_path << "'" << rang::fg::reset << std::endl;
-            return 1;
-        }
-
-        if(!result.read_error.empty()) {
-            std::cerr << rang::fg::red << "error: when reading file '" << file.abs_path << "' with message '" << result.read_error << "'" << rang::fg::reset << std::endl;
-            return 1;
-        }
 
         auto imported = shrinked_unit.find(file.abs_path);
         if(imported == shrinked_unit.end()) {
@@ -649,17 +651,10 @@ int ASTProcessor::translate_module(
             std::cout << rang::style::bold << rang::fg::magenta << "[ExtDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
         }
 
-        // do not continue processing
-        if(!result.continue_processing) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during lexing or parsing file '" << file.abs_path << '\'' << rang::fg::reset << std::endl;
-            return 1;
-        }
-
         auto declared_in = unit.declared_in.find(module);
         if(declared_in == unit.declared_in.end()) {
             // this is probably a different module, so we'll declare the file (if not declared)
             external_declare_in_c(c_visitor, unit.scope, file.abs_path);
-            unit.declared_in[module] = true;
         }
 
     }
@@ -703,6 +698,35 @@ int ASTProcessor::translate_module(
 
         // translating to c
         declare_before_translation(c_visitor, unit.scope.nodes, file.abs_path);
+
+    }
+
+    // The first loop deals with declaring files that have been imported from other modules
+    // declaring means (only prototypes, no function bodies, struct prototypes...)
+    for(auto file_ptr : files) {
+
+        auto& file = *file_ptr;
+        auto& result = file;
+
+        auto imported = shrinked_unit.find(file.abs_path);
+        if(imported == shrinked_unit.end()) {
+            // not external module file
+            continue;
+        }
+
+        ASTUnit& unit = imported->second;
+
+        // print the benchmark or verbose output received from processing
+        if((options->benchmark || options->verbose) && !empty_diags(result)) {
+            std::cout << rang::style::bold << rang::fg::magenta << "[ExtImplement] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+        }
+
+        auto declared_in = unit.declared_in.find(module);
+        if(declared_in == unit.declared_in.end()) {
+            // this is probably a different module, so we'll declare the file (if not declared)
+            external_implement_in_c(c_visitor, unit.scope, file.abs_path);
+            unit.declared_in[module] = true;
+        }
 
     }
 

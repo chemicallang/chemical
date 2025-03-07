@@ -369,6 +369,16 @@ public:
     );
 
     /**
+     * implement the external module, this is called
+     * to generate any generic instantiations we may have imported
+     */
+    void external_implement_in_c(
+        ToCAstVisitor& visitor,
+        Scope& import_res,
+        const std::string& file
+    );
+
+    /**
      * translates the given module to C
      */
     int translate_module(

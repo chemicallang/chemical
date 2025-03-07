@@ -137,6 +137,10 @@ AccessSpecifier ASTNode::specifier() {
     switch(k) {
         case ASTNodeKind::StructDecl:
             return as_struct_def_unsafe()->specifier();
+        case ASTNodeKind::GenericStructDecl:
+            return as_gen_struct_def_unsafe()->master_impl->specifier();
+        case ASTNodeKind::GenericFuncDecl:
+            return as_gen_func_decl_unsafe()->master_impl->specifier();
         case ASTNodeKind::VariantDecl:
             return as_variant_def_unsafe()->specifier();
         case ASTNodeKind::NamespaceDecl:

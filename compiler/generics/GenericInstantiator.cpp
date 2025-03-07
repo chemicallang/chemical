@@ -35,6 +35,8 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
         const auto node = table.resolve(id->value);
         if(node) {
             id->linked = node;
+            // since parent has changed, we must relink the chain
+            value->relink_parent();
         }
     }
 
@@ -52,6 +54,11 @@ void GenericInstantiator::VisitLinkedType(LinkedType* type) {
 
 void GenericInstantiator::VisitGenericType(GenericType* type) {
 
+    // we do this manually, first we replace any generic arguments given to this generic type
+    for(auto& t : type->types) {
+        visit(t);
+    }
+
     const auto referenced = type->referenced;
     auto& linked_ptr = referenced->linked;
     const auto linked = linked_ptr;
@@ -65,7 +72,11 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = ((GenericStructDecl*) linked)->register_generic_args(genApi, type->types);
         }
+    } else {
+        // we only visit the linked type in this case
+        visit(type->referenced);
     }
+
 }
 
 void GenericInstantiator::Clear() {
@@ -127,17 +138,21 @@ void GenericInstantiator::FinalizeBody(GenericFuncDecl* decl, FunctionDeclaratio
         param->set_active_iteration((int) itr);
     }
 
-    // start a symbol scope
-    table.scope_start();
-
-    // declaring them as we must relink with copied nodes
-    for(const auto param : impl->params) {
-        table.declare(param->name_view(), param);
-    }
-
     // visit the body if exists
     if(impl->body.has_value()) {
+        // start a symbol scope
+        table.scope_start();
+
+        // declaring them as we must relink with copied nodes
+        for(const auto param : impl->params) {
+            table.declare(param->name_view(), param);
+        }
+
+        // visit the function body
         visit(impl->body.value());
+
+        // end the body scope
+        table.scope_end();
     }
 
     // deactivating iteration in parameters
@@ -145,9 +160,6 @@ void GenericInstantiator::FinalizeBody(GenericFuncDecl* decl, FunctionDeclaratio
     for(const auto param : decl->generic_params) {
         param->deactivate_iteration();
     }
-
-    // end the symbol scope
-    table.scope_end();
 
     // reset the pointers
     current_gen = nullptr;
@@ -223,15 +235,9 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
     // create a symbol scope
     table.scope_start();
 
-    // visiting inherited types
-    for(auto& inh : impl->inherited) {
-        visit(inh.type);
-    }
-
-    // visiting variables
+    // declare variables
     for(auto& var : impl->variables) {
         table.declare(var.first, var.second);
-        visit(var.second);
     }
 
     // declare function names before visiting
@@ -241,9 +247,23 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
-    // visiting functions
+    // visiting function bodies (only bodies, because we finalized signature above)
     for(const auto func : impl->functions()) {
-        visit(func);
+        if(func->body.has_value()) {
+            // start scope for function body
+            table.scope_start();
+
+            // declare function parameters
+            for(const auto param : func->params) {
+                table.declare(param->name_view(), param);
+            }
+
+            // visit the body
+            visit(func->body.value());
+
+            // end the body scope
+            table.scope_end();
+        }
     }
 
     // end the symbol scope

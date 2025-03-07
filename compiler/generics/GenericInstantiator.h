@@ -78,6 +78,9 @@ public:
         }
         VisitTypeNoNullCheck(type_ref);
     }
+    inline void visit(LinkedType*& type_ref) {
+        visit((BaseType*&) type_ref);
+    }
     inline void visit(Scope& scope) {
         VisitScope(&scope);
     }

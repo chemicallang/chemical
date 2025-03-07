@@ -116,7 +116,19 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         }
         i++;
     }
+
+    // we return null when all types inferred aren't specialized
+    if(!are_all_specialized(generic_args)) {
+        return nullptr;
+    }
+
     const auto itr = register_generic_usage(allocator, generic_params, generic_args);
+
+    // this will only happen, when we probably couldn't infer the generic args
+    if(itr.first == -1) {
+        diagnoser.error("couldn't register generic instantiation", call);
+        return nullptr;
+    }
     // we activate the iteration just registered, because below we make call to register_indirect_iteration below
     // which basically calls register_call recursive on function calls present inside this function that are generic
     // which resolve specialized type using pure_type we called in the above loop

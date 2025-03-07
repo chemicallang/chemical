@@ -4,8 +4,11 @@
 
 #include <vector>
 #include <memory>
+#include <span>
 
 class BaseType;
+
+bool are_all_specialized(const std::span<BaseType*>& types);
 
 /**
  * get iteration for given generic args, if it exists, otherwise returns -1

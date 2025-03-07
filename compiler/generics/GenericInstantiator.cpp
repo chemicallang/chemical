@@ -6,9 +6,18 @@
 
 BaseType* GenericInstantiator::get_concrete_gen_type(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked){
-        const auto linked_type = type->as_linked_type_unsafe();
-        if(linked_type->linked->kind() == ASTNodeKind::GenericTypeParam) {
-            return linked_type->linked->as_generic_type_param_unsafe()->concrete_type();
+        const auto linked = type->as_linked_type_unsafe()->linked;
+        if(linked->kind() == ASTNodeKind::GenericTypeParam) {
+            const auto ty = linked->as_generic_type_param_unsafe()->concrete_type();
+#ifdef DEBUG
+            if(ty == nullptr) {
+                throw std::runtime_error("generic active type doesn't exist");
+            }
+            if(ty->kind() == BaseTypeKind::Linked && ty->linked_node()->kind() == ASTNodeKind::GenericTypeParam) {
+                throw std::runtime_error("unexpected generic type parameter usage");
+            }
+#endif
+            return ty;
         }
     }
     return nullptr;
@@ -22,7 +31,9 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     // TODO passing nullptr as expected type
     GenericInstantiator instantiator(allocator, diagnoser);
     GenericInstantiatorAPI genApi(&instantiator);
-    call->instantiate_gen_call(genApi, nullptr);
+    if(!call->instantiate_gen_call(genApi, nullptr)) {
+        diagnoser.error("couldn't instantiate call", call);
+    }
 }
 
 bool GenericInstantiator::relink_identifier(VariableIdentifier* val) const {

@@ -1161,11 +1161,15 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
         const auto gen_decl = (GenericFuncDecl*) parent_id->linked;
 
         auto new_link = gen_decl->instantiate_call(genApi, this, expected_type);
+        if(!new_link) {
+            return false;
+        }
+
         parent_id->linked = new_link;
 
         return true;
     } else {
-        return false;
+        return true;
     }
 }
 
@@ -1282,7 +1286,8 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
         const auto func_type = resolver.current_func_type;
         const auto curr_func = func_type->as_function();
         // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle
-        if (curr_func && curr_func->generic_parent != nullptr) {
+        // we also don't want to instantiate this call, if the generic list is not completely specialized
+        if ((curr_func && curr_func->generic_parent != nullptr) || !are_all_specialized(generic_list)) {
             // since current function has a generic parent (it is generic), we do not want to instantiate this call here
             // this call will be instantiated by the instantiator, even if this calls itself (recursion), instantiator checks that
             // changing back to generic decl, since instantiator needs access to it
@@ -1290,6 +1295,11 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
             return true;
         }
         auto new_link = gen_decl->instantiate_call(resolver, this, expected_type);
+        // instantiate call can return null, when the inferred types aren found to be not specialized
+        if(!new_link) {
+            parent_id->linked = gen_decl;
+            return true;
+        }
         parent_id->linked = new_link;
         goto ending_block;
 }

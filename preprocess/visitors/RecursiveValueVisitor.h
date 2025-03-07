@@ -56,7 +56,6 @@
 //#include "ast/types/UShortType.h"
 //#include "ast/types/VoidType.h"
 //#include "ast/values/UShortValue.h"
-//#include "ast/values/VariableIdentifier.h"
 //#include "ast/values/IntValue.h"
 //#include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"

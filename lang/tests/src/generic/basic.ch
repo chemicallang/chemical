@@ -156,7 +156,8 @@ func <T> gen_func_called_by_gen_struct(value : T) : T {
 
 struct gen_struct_calls_gen<T> {
     func call_it(value : T) : T {
-        return gen_func_called_by_gen_struct(value);
+        // TODO couldn't deduce this generic argument
+        return gen_func_called_by_gen_struct<T>(value);
     }
 }
 

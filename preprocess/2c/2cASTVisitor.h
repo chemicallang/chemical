@@ -315,6 +315,13 @@ public:
     void external_declare(std::vector<ASTNode*>& nodes);
 
     /**
+     * will add any implementations from external module
+     * why ? because usage of generics from imported module causes new instantiations
+     * which require generating code after both modules have declared themselves
+     */
+    void external_implement(std::vector<ASTNode*>& nodes);
+
+    /**
      * does the return value require 'return' keyword before it
      */
     bool requires_return(Value* val);

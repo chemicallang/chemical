@@ -164,6 +164,21 @@ void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
     vis.redefining = prev;
 }
 
+void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
+    for(const auto node : nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::GenericFuncDecl:
+                VisitGenericFuncDecl(node->as_gen_func_decl_unsafe());
+                break;
+            case ASTNodeKind::GenericStructDecl:
+                VisitGenericStructDecl(node->as_gen_struct_def_unsafe());
+                break;
+            default:
+                break;
+        }
+    }
+}
+
 class ToCAstVisitor;
 
 // will write a scope to visitor
@@ -3972,8 +3987,11 @@ void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
 }
 
 void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
-    for(const auto inst : node->instantiations) {
-        VisitStructDecl(inst);
+    auto& i = node->total_bodied_instantiations;
+    const auto total = node->instantiations.size();
+    while(i < total) {
+        VisitStructDecl(node->instantiations[i]);
+        i++;
     }
 }
 

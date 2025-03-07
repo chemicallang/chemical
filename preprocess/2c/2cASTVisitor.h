@@ -389,8 +389,6 @@ public:
 
     void VisitGenericFuncDecl(GenericFuncDecl* node);
 
-    void VisitGenericStructDecl(GenericStructDecl* node);
-
     // TODO handle multi function node
     void VisitMultiFunctionNode(MultiFunctionNode* node) {}
 
@@ -401,6 +399,8 @@ public:
     void VisitInitBlock(InitBlock* node);
 
     void VisitStructDecl(StructDefinition* node);
+
+    void VisitGenericStructDecl(GenericStructDecl* node);
 
     void VisitStructMember(StructMember* node);
 

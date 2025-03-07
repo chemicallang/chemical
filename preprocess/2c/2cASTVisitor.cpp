@@ -3838,9 +3838,12 @@ void ToCAstVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     func_decl_with_name(*this, decl);
 }
 
-void ToCAstVisitor::VisitGenericFuncDecl(GenericFuncDecl* decl) {
-    for(const auto node : decl->instantiations) {
-        func_decl_with_name(*this, node);
+void ToCAstVisitor::VisitGenericFuncDecl(GenericFuncDecl* node) {
+    auto& i = node->total_bodied_instantiations;
+    const auto total = node->instantiations.size();
+    while(i < total) {
+        func_decl_with_name(*this, node->instantiations[i]);
+        i++;
     }
 }
 

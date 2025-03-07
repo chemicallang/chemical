@@ -30,6 +30,12 @@ public:
     std::vector<FunctionDeclaration*> instantiations;
 
     /**
+     * this allows us to know how many instantiations we've generated code for
+     * so in the other modules we do not generate code for them, just declare them
+     */
+    unsigned total_bodied_instantiations = 0;
+
+    /**
      * we set this to true, after link_signature call
      */
     bool signature_linked = false;

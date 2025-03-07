@@ -147,7 +147,7 @@ bool Parser::parseVariableAndFunctionInto(MembersContainer* decl, ASTAllocator& 
     return false;
 }
 
-const auto GENv2 = false;
+const auto GENv2 = true;
 
 ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::StructKw)) {

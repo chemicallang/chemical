@@ -209,7 +209,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
     }
 }
 
-const auto GENv2 = false;
+const auto GENv2 = true;
 
 ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool allow_declaration, bool allow_extensions) {
 

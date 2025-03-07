@@ -25,19 +25,43 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     call->instantiate_gen_call(genApi, nullptr);
 }
 
+bool GenericInstantiator::relink_identifier(VariableIdentifier* val) const {
+    const auto id = val->as_identifier_unsafe();
+    const auto node = table.resolve(id->value);
+    if(node) {
+        id->linked = node;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void GenericInstantiator::VisitAccessChain(AccessChain* value) {
-    RecursiveVisitor<GenericInstantiator>::VisitAccessChain(value);
+
+    // NOTE:
+    // we handle the identifier manually BECAUSE during parsing
+    // we may create a single identifier, which is not wrapped in an access chain
+    // if it's just a single identifier it's always handled via VisitVariableIdentifier
+    // however if it's in access chain, we need to handle it here and not visit it again
 
     // relink first identifier in access chains
     const auto val = value->values.front();
     if(val->kind() == ValueKind::Identifier) {
-        const auto id = val->as_identifier_unsafe();
-        const auto node = table.resolve(id->value);
-        if(node) {
-            id->linked = node;
+        if(relink_identifier(val->as_identifier_unsafe())) {
             // since parent has changed, we must relink the chain
             value->relink_parent();
         }
+    } else {
+        // since it's not a identifier, we must visit it
+        visit(val);
+    }
+
+    // now we visit values (except first, since we handled it above)
+    unsigned i = 1;
+    const auto size = value->values.size();
+    while(i < size) {
+        visit(value->values[i]);
+        i++;
     }
 
 }

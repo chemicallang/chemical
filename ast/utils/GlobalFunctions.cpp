@@ -14,6 +14,7 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/CastedValue.h"
+#include "ast/values/WrapValue.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
@@ -434,20 +435,6 @@ public:
             default:
                 return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
         }
-    }
-};
-
-class WrapValue : public Value {
-public:
-    Value* underlying;
-    explicit WrapValue(Value* underlying) : Value(ValueKind::WrapValue, ZERO_LOC), underlying(underlying) {
-
-    }
-    Value *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<WrapValue>()) WrapValue(underlying->copy(allocator));
-    }
-    Value* evaluated_value(InterpretScope &scope) final {
-        return underlying;
     }
 };
 

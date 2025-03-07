@@ -1016,9 +1016,11 @@ void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expe
                 switch(parent_kind) {
                     case ASTNodeKind::StructDecl: {
                         const auto def = parent->as_struct_def_unsafe();
-                        std::vector<BaseType*> gen_args(def->generic_params.size());
-                        ::infer_generic_args(gen_args, def->generic_params, this, diagnoser, expected_type);
-                        generic_iteration = def->register_with_existing(diagnoser, gen_args);
+                        if(def->is_generic()) {
+                            std::vector<BaseType*> gen_args(def->generic_params.size());
+                            ::infer_generic_args(gen_args, def->generic_params, this, diagnoser, expected_type);
+                            generic_iteration = def->register_with_existing(diagnoser, gen_args);
+                        }
                         return;
                     }
                     default:

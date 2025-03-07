@@ -47,6 +47,8 @@ public:
 
     static BaseType* get_concrete_gen_type(BaseType* type);
 
+    bool relink_identifier(VariableIdentifier* identifier) const;
+
     // We want to override visit, what we want is a BaseType*& so we can replace
     // every BaseType*& with the appropriate concrete implementation if it's referencing a generic type
 
@@ -103,6 +105,10 @@ public:
     void VisitTypealiasStmt(TypealiasStatement* node) {
         RecursiveVisitor<GenericInstantiator>::VisitTypealiasStmt(node);
         table.declare(node->name_view(), node);
+    }
+
+    inline void VisitVariableIdentifier(VariableIdentifier* value) {
+        relink_identifier(value);
     }
 
     void VisitAccessChain(AccessChain* value);

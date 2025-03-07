@@ -251,12 +251,15 @@ void param_type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::stri
 }
 
 void write_struct_return_param(ToCAstVisitor& visitor, FunctionType* decl) {
-    visitor.visit(decl->returnType);
-    visitor.write("* ");
     const auto func = decl->as_function();
     if(func && func->is_constructor_fn()) {
+        visitor.write("struct ");
+        func->parent()->runtime_name(*visitor.output);
+        visitor.write("* ");
         visitor.write("this");
     } else {
+        visitor.visit(decl->returnType);
+        visitor.write("* ");
         visitor.write(struct_passed_param_name);
     }
 }
@@ -273,7 +276,7 @@ void write_struct_def_value_call(ToCAstVisitor& visitor, StructDefinition* def) 
 void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0, bool has_params_before = false) {
     auto is_struct_return = visitor.pass_structs_to_initialize && decl->returnType->isStructLikeType();
     auto func = decl->as_function();
-    if(is_struct_return && !(func && (func->is_copy_fn() || func->is_move_fn()))) {
+    if((is_struct_return || (func && func->is_constructor_fn())) && !(func && (func->is_copy_fn() || func->is_move_fn()))) {
         if(has_params_before) {
             visitor.write(", ");
         }
@@ -3823,10 +3826,6 @@ void ToCAstVisitor::VisitGenericFuncDecl(GenericFuncDecl* decl) {
     }
 }
 
-void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
-
-}
-
 void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
     // generating code for compile time if statements
     if(decl->computed_scope.has_value()) {
@@ -3970,6 +3969,12 @@ void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
         gen_generic_struct_functions(*this, def);
     }
     current_members_container = prev_members_container;
+}
+
+void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
+    for(const auto inst : node->instantiations) {
+        VisitStructDecl(inst);
+    }
 }
 
 void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
@@ -4798,7 +4803,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
 }
 
 void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
-    auto& container = initBlock->container;
+    const auto container = initBlock->getContainer();
     auto& initializers = initBlock->initializers;
     auto is_union = container->kind() == ASTNodeKind::UnionDecl;
     for(auto& init : initializers) {

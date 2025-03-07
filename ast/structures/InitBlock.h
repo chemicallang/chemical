@@ -16,8 +16,6 @@ public:
 
     Scope scope;
     std::unordered_map<chem::string_view, InitBlockInitializerValue> initializers;
-    // the struct container for which init block is for
-    ExtendableMembersContainerNode* container;
 
     /**
      * constructor
@@ -40,6 +38,8 @@ public:
         }
         return blk;
     }
+
+    ExtendableMembersContainerNode* getContainer();
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

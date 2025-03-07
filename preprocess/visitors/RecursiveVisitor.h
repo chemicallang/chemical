@@ -135,6 +135,7 @@ public:
 
     void VisitCastedValue(CastedValue *casted) {
         visit_it(casted->value);
+        visit_it(casted->type);
     }
 
     void VisitValueNode(ValueNode *node) {

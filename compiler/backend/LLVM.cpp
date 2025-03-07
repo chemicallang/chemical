@@ -1063,6 +1063,7 @@ void ComptimeBlock::code_gen(Codegen& gen) {
 }
 
 void InitBlock::code_gen(Codegen &gen) {
+    const auto container = getContainer();
     auto self_arg = gen.current_function->getArg(0);
     auto parent_type = container->llvm_type(gen);
     auto is_union = container->kind() == ASTNodeKind::UnionDecl;

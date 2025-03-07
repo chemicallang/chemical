@@ -153,7 +153,7 @@ BaseType* LoopBlock::known_type() {
 }
 
 bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
-    const auto definition = container;
+    const auto definition = getContainer();
     const auto linked_kind = definition->kind();
     auto& values = initializers;
     if(linked_kind == ASTNodeKind::UnionDecl) {
@@ -195,27 +195,27 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
-void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+ExtendableMembersContainerNode* InitBlock::getContainer() {
     auto func = parent()->as_function();
     if(!func) {
-        linker.error("expected init block to be in a function", (ASTNode*) this);
-        return;
+        return nullptr;
     }
     if(!func->is_constructor_fn()) {
-        linker.error("init block must appear in a function that's marked constructor", (ASTNode*) this);
-        return;
+        return nullptr;
     }
     auto parent = func->parent();
     if(!parent) {
-        linker.error("init block's function must be inside a struct", (ASTNode*) this);
-        return;
+        return nullptr;
     }
-    auto mems_container = parent->as_extendable_members_container_node();
+    return parent->as_extendable_members_container_node();
+}
+
+void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    auto mems_container = getContainer();
     if(!mems_container) {
-        linker.error("init block's function must be inside a struct", (ASTNode*) this);
+        linker.error("unexpected init block", this);
         return;
     }
-    container = mems_container;
     // now taking out initializers
     for(const auto node : scope.nodes) {
         const auto val_wrapper = node->as_value_wrapper();

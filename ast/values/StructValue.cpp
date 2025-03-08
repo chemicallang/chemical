@@ -10,6 +10,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LinkedType.h"
 #include "StructMemberInitializer.h"
@@ -400,11 +401,20 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             linker.error(this) << "couldn't find struct definition for struct name " << refType->representation();
             return false;
         }
-        if(found->kind() == ASTNodeKind::GenericStructDecl) {
-            auto gen_args = create_generic_list();
-            definition = ((GenericStructDecl*) found)->register_generic_args(linker.genericInstantiator, gen_args);
-        } else {
-            definition = (ExtendableMembersContainerNode*) found;
+        switch(found->kind()) {
+            case ASTNodeKind::GenericStructDecl:{
+                auto gen_args = create_generic_list();
+                definition = found->as_gen_struct_def_unsafe()->register_generic_args(linker.genericInstantiator, gen_args);
+                break;
+            }
+            case ASTNodeKind::GenericUnionDecl:{
+                auto gen_args = create_generic_list();
+                definition = found->as_gen_union_decl_unsafe()->register_generic_args(linker.genericInstantiator, gen_args);
+                break;
+            }
+            default:
+                definition = (ExtendableMembersContainerNode*) found;
+                break;
         }
         container = definition;
         const auto k = definition->kind();

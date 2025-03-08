@@ -87,6 +87,13 @@ public:
      */
     VariantDefinition* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<BaseType*>& types);
 
+    /**
+     * a variant call notifies a definition, during symbol resolution that it exists
+     * when this happens, generics are checked, proper types are registered in generic
+     * @return iteration that corresponds to this call
+     */
+    VariantDefinition* instantiate_call(GenericInstantiatorAPI& instantiator, FunctionCall* call, BaseType* expected_type);
+
     ASTNode* child(const chem::string_view &name) override {
         return master_impl->child(name);
     }

@@ -3,6 +3,8 @@
 #include "GenericVariantDecl.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/GenericUtils.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/types/GenericType.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
 
@@ -160,6 +162,50 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
     }
 
     return impl;
+
+}
+
+VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& instantiator, FunctionCall* call, BaseType* expected_type) {
+
+    auto& allocator = instantiator.getAllocator();
+    auto& diagnoser = instantiator.getDiagnoser();
+
+    const auto total = generic_params.size();
+    std::vector<BaseType*> generic_args(total);
+
+    // set all to default type (if default type is not present, it would automatically be nullptr)
+    unsigned i = 0;
+    while(i < total) {
+        generic_args[i] = generic_params[i]->def_type;
+        i++;
+    }
+
+    // set given generic args to generic parameters
+    i = 0;
+    for(auto& arg : call->generic_list) {
+        generic_args[i] = arg;
+        i++;
+    }
+
+    // infer args, if user gave less args than expected
+    if(call->generic_list.size() != total) {
+        call->infer_generic_args(diagnoser, generic_args);
+    }
+
+    // inferring type by expected type
+    if(expected_type && expected_type->kind() == BaseTypeKind::Generic) {
+        const auto type = ((GenericType*) expected_type);
+        if(type->linked_node() == this) {
+            i = 0;
+            for(auto& arg : type->types) {
+                generic_args[i] = arg;
+                i++;
+            }
+        }
+    }
+
+    // registers the generic args
+    return register_generic_args(instantiator, generic_args);
 
 }
 

@@ -346,8 +346,7 @@ void StructDefinition::link_signature(SymbolResolver &linker) {
     MembersContainer::link_signature(linker);
 }
 
-void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     bool has_def_constructor = false;
     bool has_destructor = false;
     bool has_clear_fn = false;
@@ -358,49 +357,46 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
             if(!func->has_explicit_params()) {
                 has_def_constructor = true;
             }
-            func->ensure_constructor(linker, this);
+            func->ensure_constructor(allocator, diagnoser, this);
         }
         if(func->is_delete_fn()) {
-            func->ensure_destructor(linker, this);
+            func->ensure_destructor(allocator, diagnoser, this);
             has_destructor = true;
         }
         if(func->is_post_move_fn()) {
-            func->ensure_clear_fn(linker, this);
+            func->ensure_clear_fn(allocator, diagnoser, this);
             has_clear_fn = true;
         }
         if(func->is_move_fn()) {
-            func->ensure_move_fn(linker, this);
+            func->ensure_move_fn(allocator, diagnoser, this);
             has_move_fn = true;
         }
         if(func->is_copy_fn()) {
-            func->ensure_copy_fn(linker, this);
+            func->ensure_copy_fn(allocator, diagnoser, this);
             has_copy_fn = true;
         }
     }
-    MembersContainer::declare_and_link(linker, node_ptr);
-    register_use_to_inherited_interfaces(this);
     if(!has_def_constructor && any_member_has_def_constructor()) {
-        create_def_constructor_checking(allocator, linker, name_view());
+        create_def_constructor_checking(allocator, diagnoser, name_view());
     }
     if(!has_copy_fn && any_member_has_copy_func()) {
-        create_def_copy_fn(allocator, linker);
+        create_def_copy_fn(allocator, diagnoser);
     }
     if(!has_clear_fn && any_member_has_clear_func()) {
-        create_def_clear_fn(allocator, linker);
+        create_def_clear_fn(allocator, diagnoser);
     }
     if(!has_move_fn && any_member_has_pre_move_func()) {
-        create_def_move_fn(allocator, linker);
+        create_def_move_fn(allocator, diagnoser);
     }
     if(!has_destructor && any_member_has_destructor()) {
-        create_def_destructor(allocator, linker);
+        create_def_destructor(allocator, diagnoser);
     }
-//    if(init_values_req_size() != 0) {
-//        for (auto& func: functions()) {
-//            if (func->has_annotation(AnnotationKind::Constructor) && !func->has_annotation(AnnotationKind::CompTime)) {
-//                func->ensure_has_init_block(linker);
-//            }
-//        }
-//    }
+}
+
+void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    declare_and_link_no_gen(linker, node_ptr);
+    generate_functions(allocator, linker);
 }
 
 ASTNode *StructDefinition::child(const chem::string_view &name) {

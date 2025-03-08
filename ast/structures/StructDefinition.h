@@ -245,6 +245,17 @@ public:
 
     void link_signature(SymbolResolver &linker) override;
 
+    /**
+     * generates any default constructors / destructors required
+     * should be called after link signature
+     */
+    void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+
+    inline void declare_and_link_no_gen(SymbolResolver &linker, ASTNode*& node_ptr) {
+        MembersContainer::declare_and_link(linker, node_ptr);
+        register_use_to_inherited_interfaces(this);
+    }
+
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     ASTNode *child(const chem::string_view &name) final;

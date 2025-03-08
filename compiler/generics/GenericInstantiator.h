@@ -129,6 +129,18 @@ public:
 
     void FinalizeBody(GenericStructDecl* gen_decl, StructDefinition* decl, size_t itr);
 
+    void FinalizeSignature(GenericUnionDecl* gen_decl, UnionDef* decl, size_t itr);
+
+    void FinalizeBody(GenericUnionDecl* gen_decl, UnionDef* decl, size_t itr);
+
+    void FinalizeSignature(GenericInterfaceDecl* gen_decl, InterfaceDefinition* decl, size_t itr);
+
+    void FinalizeBody(GenericInterfaceDecl* gen_decl, InterfaceDefinition* decl, size_t itr);
+
+    void FinalizeSignature(GenericVariantDecl* gen_decl, VariantDefinition* decl, size_t itr);
+
+    void FinalizeBody(GenericVariantDecl* gen_decl, VariantDefinition* decl, size_t itr);
+
     /**
      * clears the symbols from tables, from previous finalization
      */
@@ -141,5 +153,18 @@ public:
     void FinalizeSignature(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations);
 
     void FinalizeBody(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations);
+
+    void FinalizeSignature(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations);
+
+    void FinalizeBody(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations);
+
+    void FinalizeSignature(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations);
+
+    void FinalizeBody(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations);
+
+    void FinalizeSignature(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations);
+
+    void FinalizeBody(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations);
+
 
 };

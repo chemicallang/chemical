@@ -131,6 +131,15 @@ public:
         return def;
     }
 
+    InterfaceDefinition* shallow_copy(ASTAllocator& allocator) {
+        const auto def = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(
+                identifier, parent(), encoded_location(), specifier()
+        );
+        def->attrs = attrs;
+        ExtendableMembersContainerNode::shallow_copy_into(*def, allocator);
+        return def;
+    }
+
     void runtime_vtable_name(std::ostream& stream, StructDefinition* def);
 
     std::string runtime_vtable_name(StructDefinition* def);

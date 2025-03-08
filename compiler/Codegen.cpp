@@ -122,10 +122,10 @@ void Codegen::external_implement_nodes(std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
         switch(node->kind()) {
             case ASTNodeKind::GenericFuncDecl:
-                node->code_gen_declare(gen);
-                node->code_gen(gen);
-                break;
             case ASTNodeKind::GenericStructDecl:
+            case ASTNodeKind::GenericUnionDecl:
+            case ASTNodeKind::GenericInterfaceDecl:
+            case ASTNodeKind::GenericVariantDecl:
                 node->code_gen_declare(gen);
                 node->code_gen(gen);
                 break;

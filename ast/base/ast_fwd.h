@@ -46,6 +46,12 @@ class GenericFuncDecl;
 
 class GenericStructDecl;
 
+class GenericUnionDecl;
+
+class GenericInterfaceDecl;
+
+class GenericVariantDecl;
+
 class IfStatement;
 
 class ImplDefinition;

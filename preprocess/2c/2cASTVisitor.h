@@ -409,6 +409,12 @@ public:
 
     void VisitGenericStructDecl(GenericStructDecl* node);
 
+    void VisitGenericUnionDecl(GenericUnionDecl* node);
+
+    void VisitGenericInterfaceDecl(GenericInterfaceDecl* node);
+
+    void VisitGenericVariantDecl(GenericVariantDecl* node);
+
     void VisitStructMember(StructMember* node);
 
     void VisitNamespaceDecl(Namespace* node);

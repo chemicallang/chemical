@@ -1111,6 +1111,27 @@ public:
     }
 
     /**
+     * return if this is a generic union decl
+     */
+    inline GenericUnionDecl* as_gen_union_decl_unsafe() {
+        return (GenericUnionDecl*) this;
+    }
+
+    /**
+     * return if this is a generic interface decl
+     */
+    inline GenericInterfaceDecl* as_gen_interface_decl_unsafe() {
+        return (GenericInterfaceDecl*) this;
+    }
+
+    /**
+     * return if this is a generic variant decl
+     */
+    inline GenericVariantDecl* as_gen_variant_decl_unsafe() {
+        return (GenericVariantDecl*) this;
+    }
+
+    /**
      * return if this is an import statement
      */
     inline ImportStatement *as_import_stmt_unsafe() {

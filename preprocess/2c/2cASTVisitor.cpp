@@ -39,6 +39,9 @@
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/CapturedVariable.h"
 #include "ast/structures/MembersContainer.h"
@@ -172,6 +175,15 @@ void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
                 break;
             case ASTNodeKind::GenericStructDecl:
                 VisitGenericStructDecl(node->as_gen_struct_def_unsafe());
+                break;
+            case ASTNodeKind::GenericUnionDecl:
+                VisitGenericUnionDecl(node->as_gen_union_decl_unsafe());
+                break;
+            case ASTNodeKind::GenericInterfaceDecl:
+                VisitGenericInterfaceDecl(node->as_gen_interface_decl_unsafe());
+                break;
+            case ASTNodeKind::GenericVariantDecl:
+                VisitGenericVariantDecl(node->as_gen_variant_decl_unsafe());
                 break;
             case ASTNodeKind::NamespaceDecl:
                 external_implement(node->as_namespace_unsafe()->nodes);
@@ -2679,6 +2691,24 @@ void CTopLevelDeclarationVisitor::VisitGenericStructDecl(GenericStructDecl* node
     }
 }
 
+void CTopLevelDeclarationVisitor::VisitGenericUnionDecl(GenericUnionDecl* node) {
+    for(const auto impl : node->instantiations) {
+        VisitUnionDecl(impl);
+    }
+}
+
+void CTopLevelDeclarationVisitor::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
+    for(const auto impl : node->instantiations) {
+        VisitInterfaceDecl(impl);
+    }
+}
+
+void CTopLevelDeclarationVisitor::VisitGenericVariantDecl(GenericVariantDecl* node) {
+    for(const auto impl : node->instantiations) {
+        VisitVariantDecl(impl);
+    }
+}
+
 void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     for(auto& mem : def->variables) {
         value_visitor->visit(mem.second);
@@ -3997,6 +4027,33 @@ void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
     const auto total = node->instantiations.size();
     while(i < total) {
         VisitStructDecl(node->instantiations[i]);
+        i++;
+    }
+}
+
+void ToCAstVisitor::VisitGenericUnionDecl(GenericUnionDecl* node) {
+    auto& i = node->total_bodied_instantiations;
+    const auto total = node->instantiations.size();
+    while(i < total) {
+        VisitUnionDecl(node->instantiations[i]);
+        i++;
+    }
+}
+
+void ToCAstVisitor::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
+    auto& i = node->total_bodied_instantiations;
+    const auto total = node->instantiations.size();
+    while(i < total) {
+        VisitInterfaceDecl(node->instantiations[i]);
+        i++;
+    }
+}
+
+void ToCAstVisitor::VisitGenericVariantDecl(GenericVariantDecl* node) {
+    auto& i = node->total_bodied_instantiations;
+    const auto total = node->instantiations.size();
+    while(i < total) {
+        VisitVariantDecl(node->instantiations[i]);
         i++;
     }
 }

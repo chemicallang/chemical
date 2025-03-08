@@ -14,6 +14,9 @@
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"
@@ -99,6 +102,12 @@ LocatedIdentifier* ASTNode::get_located_id() {
             return as_interface_def_unsafe()->get_located_id();
         case ASTNodeKind::GenericStructDecl:
             return as_gen_struct_def_unsafe()->master_impl->get_located_id();
+        case ASTNodeKind::GenericUnionDecl:
+            return as_gen_union_decl_unsafe()->master_impl->get_located_id();
+        case ASTNodeKind::GenericInterfaceDecl:
+            return as_gen_interface_decl_unsafe()->master_impl->get_located_id();
+        case ASTNodeKind::GenericVariantDecl:
+            return as_gen_variant_decl_unsafe()->master_impl->get_located_id();
         case ASTNodeKind::StructDecl:
             return as_struct_def_unsafe()->get_located_id();
         case ASTNodeKind::UnionDecl:
@@ -137,10 +146,16 @@ AccessSpecifier ASTNode::specifier() {
     switch(k) {
         case ASTNodeKind::StructDecl:
             return as_struct_def_unsafe()->specifier();
-        case ASTNodeKind::GenericStructDecl:
-            return as_gen_struct_def_unsafe()->master_impl->specifier();
         case ASTNodeKind::GenericFuncDecl:
             return as_gen_func_decl_unsafe()->master_impl->specifier();
+        case ASTNodeKind::GenericStructDecl:
+            return as_gen_struct_def_unsafe()->master_impl->specifier();
+        case ASTNodeKind::GenericUnionDecl:
+            return as_gen_union_decl_unsafe()->master_impl->specifier();
+        case ASTNodeKind::GenericInterfaceDecl:
+            return as_gen_interface_decl_unsafe()->master_impl->specifier();
+        case ASTNodeKind::GenericVariantDecl:
+            return as_gen_variant_decl_unsafe()->master_impl->specifier();
         case ASTNodeKind::VariantDecl:
             return as_variant_def_unsafe()->specifier();
         case ASTNodeKind::NamespaceDecl:
@@ -179,6 +194,21 @@ bool ASTNode::set_deprecated(bool value) {
         case ASTNodeKind::InterfaceDecl:
             as_interface_def_unsafe()->set_deprecated(value);
             return true;
+        case ASTNodeKind::GenericFuncDecl:
+            as_gen_func_decl_unsafe()->master_impl->set_deprecated(value);
+            return true;
+        case ASTNodeKind::GenericStructDecl:
+            as_gen_struct_def_unsafe()->master_impl->set_deprecated(value);
+            return true;
+        case ASTNodeKind::GenericUnionDecl:
+            as_gen_union_decl_unsafe()->master_impl->set_deprecated(value);
+            return true;
+        case ASTNodeKind::GenericInterfaceDecl:
+            as_gen_interface_decl_unsafe()->master_impl->set_deprecated(value);
+            return true;
+        case ASTNodeKind::GenericVariantDecl:
+            as_gen_variant_decl_unsafe()->master_impl->set_deprecated(value);
+            return true;
         case ASTNodeKind::TypealiasStmt:
             as_typealias_unsafe()->set_deprecated(value);
             return true;
@@ -208,13 +238,25 @@ bool ASTNode::set_deprecated(bool value) {
 bool ASTNode::set_anonymous(bool value) {
     switch(kind()) {
         case ASTNodeKind::StructDecl:
-            as_struct_def_unsafe()->set_anonymous(true);
+            as_struct_def_unsafe()->set_anonymous(value);
             return true;
         case ASTNodeKind::UnionDecl:
-            as_union_def_unsafe()->set_anonymous(true);
+            as_union_def_unsafe()->set_anonymous(value);
             return true;
         case ASTNodeKind::VariantDecl:
-            as_variant_def_unsafe()->set_anonymous(true);
+            as_variant_def_unsafe()->set_anonymous(value);
+            return true;
+        case ASTNodeKind::GenericStructDecl:
+            as_gen_struct_def_unsafe()->master_impl->set_anonymous(value);
+            return true;
+        case ASTNodeKind::GenericUnionDecl:
+            as_gen_union_decl_unsafe()->master_impl->set_anonymous(value);
+            return true;
+        case ASTNodeKind::GenericInterfaceDecl:
+            as_gen_interface_decl_unsafe()->master_impl->set_anonymous(value);
+            return true;
+        case ASTNodeKind::GenericVariantDecl:
+            as_gen_variant_decl_unsafe()->master_impl->set_anonymous(value);
             return true;
         default:
             return false;
@@ -245,6 +287,21 @@ bool ASTNode::set_specifier(AccessSpecifier spec) {
         case ASTNodeKind::InterfaceDecl:
             as_interface_def_unsafe()->set_specifier_fast(spec);
             return true;
+        case ASTNodeKind::GenericFuncDecl:
+            as_gen_func_decl_unsafe()->master_impl->set_specifier_fast(spec);
+            return true;
+        case ASTNodeKind::GenericStructDecl:
+            as_gen_struct_def_unsafe()->master_impl->set_specifier(spec);
+            return true;
+        case ASTNodeKind::GenericUnionDecl:
+            as_gen_union_decl_unsafe()->master_impl->set_specifier(spec);
+            return true;
+        case ASTNodeKind::GenericInterfaceDecl:
+            as_gen_interface_decl_unsafe()->master_impl->set_specifier_fast(spec);
+            return true;
+        case ASTNodeKind::GenericVariantDecl:
+            as_gen_variant_decl_unsafe()->master_impl->set_specifier(spec);
+            return true;
         default:
             return false;
     }
@@ -270,6 +327,21 @@ bool ASTNode::set_comptime(bool value) {
             return true;
         case ASTNodeKind::TypealiasStmt:
             as_typealias_unsafe()->set_comptime(value);
+            return true;
+        case ASTNodeKind::GenericFuncDecl:
+            as_gen_func_decl_unsafe()->master_impl->set_comptime(value);
+            return true;
+        case ASTNodeKind::GenericStructDecl:
+            as_gen_struct_def_unsafe()->master_impl->set_comptime(value);
+            return true;
+        case ASTNodeKind::GenericUnionDecl:
+            as_gen_union_decl_unsafe()->master_impl->set_comptime(value);
+            return true;
+        case ASTNodeKind::GenericInterfaceDecl:
+            as_gen_interface_decl_unsafe()->master_impl->set_comptime(value);
+            return true;
+        case ASTNodeKind::GenericVariantDecl:
+            as_gen_variant_decl_unsafe()->master_impl->set_comptime(value);
             return true;
         default:
             return false;

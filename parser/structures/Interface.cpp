@@ -6,8 +6,11 @@
 
 #include "parser/Parser.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/GenericInterfaceDecl.h"
 
-InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+const auto GENv2 = false;
+
+ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
     auto& tok = *token;
 
@@ -25,14 +28,32 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
         auto prev_parent_node = parent_node;
         parent_node = decl;
 
-        parseGenericParametersList(allocator, decl->generic_params);
+        std::vector<GenericTypeParameter*> gen_params;
+
+        parseGenericParametersList(allocator, gen_params);
+
+        ASTNode* finalDecl = decl;
+
+        if(GENv2 && !gen_params.empty()) {
+
+            const auto gen_decl = new (allocator.allocate<GenericInterfaceDecl>()) GenericInterfaceDecl(
+                    decl, parent_node, loc_single(id)
+            );
+
+            gen_decl->generic_params = std::move(gen_params);
+
+            finalDecl = gen_decl;
+
+        } else {
+            decl->generic_params = std::move(gen_params);
+        }
 
         if(consumeToken(TokenType::ColonSym)) {
             do {
                 auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
                 auto type = parseLinkedOrGenericType(allocator);
                 if(!type) {
-                    return decl;
+                    return finalDecl;
                 }
                 decl->inherited.emplace_back(type, in_spec);
             } while(consumeToken(TokenType::CommaSym));
@@ -40,7 +61,7 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
 
         if (!consumeToken(TokenType::LBrace)) {
             error("expected a '{' when starting an interface block");
-            return decl;
+            return finalDecl;
         }
 
         do {
@@ -55,9 +76,10 @@ InterfaceDefinition* Parser::parseInterfaceStructureTokens(ASTAllocator& allocat
 
         if (!consumeToken(TokenType::RBrace)) {
             error("expected a '}' when ending an interface block");
-            return decl;
+            return finalDecl;
         }
-        return decl;
+
+        return finalDecl;
     }
     return nullptr;
 

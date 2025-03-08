@@ -6,6 +6,7 @@
 
 #include "parser/Parser.h"
 #include "ast/structures/UnionDef.h"
+#include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/UnnamedUnion.h"
 
 UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier specifier) {
@@ -52,7 +53,9 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
 }
 
-UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+const auto GENv2 = false;
+
+ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
     if(consumeWSOfType(TokenType::UnionKw)) {
 
@@ -64,9 +67,31 @@ UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpeci
 
         auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(allocator, identifier), parent_node, 0, specifier);
 
+        annotate(decl);
+
+        std::vector<GenericTypeParameter*> gen_params;
+
+        parseGenericParametersList(allocator, gen_params);
+
+        ASTNode* finalDecl = decl;
+
+        if(GENv2 && !gen_params.empty()) {
+
+            const auto gen_decl = new (allocator.allocate<GenericUnionDecl>()) GenericUnionDecl(
+                    decl, parent_node, loc_single(identifier)
+            );
+
+            gen_decl->generic_params = std::move(gen_params);
+
+            finalDecl = gen_decl;
+
+        } else {
+            decl->generic_params = std::move(gen_params);
+        }
+
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for union block");
-            return decl;
+            return finalDecl;
         }
 
         auto prev_parent_node = parent_node;
@@ -85,10 +110,10 @@ UnionDef* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpeci
 
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for union block");
-            return decl;
+            return finalDecl;
         }
 
-        return decl;
+        return finalDecl;
     } else {
         return nullptr;
     }

@@ -6,6 +6,7 @@
 
 #include "parser/Parser.h"
 #include "ast/structures/VariantDefinition.h"
+#include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantMemberParam.h"
 
@@ -85,7 +86,9 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
 
 }
 
-VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+const auto GENv2 = false;
+
+ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::VariantKw)) {
 
         auto id = consumeIdentifierOrKeyword();
@@ -94,18 +97,36 @@ VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, 
             return nullptr;
         }
 
-        auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(allocator, id), parent_node, 0, specifier);
+        const auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(allocator, id), parent_node, 0, specifier);
 
         auto prev_parent_type = parent_node;
         parent_node = decl;
 
         annotate(decl);
 
-        parseGenericParametersList(allocator, decl->generic_params);
+        std::vector<GenericTypeParameter*> gen_params;
+
+        parseGenericParametersList(allocator, gen_params);
+
+        ASTNode* finalDecl = decl;
+
+        if(GENv2 && !gen_params.empty()) {
+
+            const auto gen_decl = new (allocator.allocate<GenericVariantDecl>()) GenericVariantDecl(
+                decl, parent_node, loc_single(id)
+            );
+
+            gen_decl->generic_params = std::move(gen_params);
+
+            finalDecl = gen_decl;
+
+        } else {
+            decl->generic_params = std::move(gen_params);
+        }
 
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
-            return decl;
+            return finalDecl;
         }
 
         do {
@@ -121,9 +142,10 @@ VariantDefinition* Parser::parseVariantStructureTokens(ASTAllocator& allocator, 
 
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' for struct block");
-            return decl;
+            return finalDecl;
         }
-        return decl;
+
+        return finalDecl;
     } else {
         return nullptr;
     }

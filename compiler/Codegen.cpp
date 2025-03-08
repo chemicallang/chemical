@@ -11,6 +11,7 @@
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/Namespace.h"
 #include <string>
 #include <system_error>
 #include "lld/Common/Driver.h"
@@ -113,6 +114,27 @@ void Codegen::external_declare_nodes(std::vector<ASTNode*>& nodes_vec) {
     auto& gen = *this;
     for(const auto node : nodes_vec) {
         node->code_gen_external_declare(gen);
+    }
+}
+
+void Codegen::external_implement_nodes(std::vector<ASTNode*>& nodes) {
+    auto& gen = *this;
+    for(const auto node : nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::GenericFuncDecl:
+                node->code_gen_declare(gen);
+                node->code_gen(gen);
+                break;
+            case ASTNodeKind::GenericStructDecl:
+                node->code_gen_declare(gen);
+                node->code_gen(gen);
+                break;
+            case ASTNodeKind::NamespaceDecl:
+                external_implement_nodes(node->as_namespace_unsafe()->nodes);
+                break;
+            default:
+                break;
+        }
     }
 }
 
@@ -710,22 +732,21 @@ void Codegen::loop_body_gen(Scope& body, llvm::BasicBlock *currentBlock, llvm::B
     current_loop_exit = prev_loop_exit;
 }
 
-inline bool is_final_intN(BaseTypeKind kind) {
-    return kind == BaseTypeKind::IntN;
-}
-
-llvm::Value *Codegen::implicit_cast(llvm::Value* value, BaseType* from_type, BaseType* to_type) {
-    if(is_final_intN(from_type->kind()) && is_final_intN(to_type->kind())) {
-        auto from_num_type = (IntNType*) from_type;
-        auto to_num_type = (IntNType*) to_type;
-        if(from_num_type->num_bits() < to_num_type->num_bits()) {
-            if (from_num_type->is_unsigned()) {
-                return builder->CreateZExt(value, to_num_type->llvm_type(*this));
+llvm::Value *Codegen::implicit_cast(llvm::Value* value, BaseType* to_type, llvm::Type* to_type_llvm) {
+    const auto value_type = value->getType();
+    const auto exp_type = to_type_llvm;
+    if(value_type->isIntegerTy() && exp_type->isIntegerTy()) {
+        const auto fromIntTy = (llvm::IntegerType*) value_type;
+        const auto toIntTy = (llvm::IntegerType*) exp_type;
+        const auto to_intN = to_type->as_intn_type_unsafe();
+        if(fromIntTy->getBitWidth() < toIntTy->getBitWidth()) {
+            if (to_type->kind() == BaseTypeKind::IntN && to_type->as_intn_type_unsafe()->is_unsigned()) {
+                return builder->CreateZExt(value, toIntTy);
             } else {
-                return builder->CreateSExt(value, to_num_type->llvm_type(*this));
+                return builder->CreateSExt(value, toIntTy);
             }
-        } else if(from_num_type->num_bits() > to_num_type->num_bits()) {
-            return builder->CreateTrunc(value, to_num_type->llvm_type(*this));
+        } else if(fromIntTy->getBitWidth() > toIntTy->getBitWidth()) {
+            return builder->CreateTrunc(value, toIntTy);
         }
     }
     return value;

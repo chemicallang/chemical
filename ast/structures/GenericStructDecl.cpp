@@ -31,6 +31,9 @@ void GenericStructDecl::finalize_signature(ASTAllocator& allocator, StructDefini
 
     // finalizing the signature of functions
     for(const auto func : inst->functions()) {
+        // non generic functions inside struct must have active iteration zero
+        // when we add generic functions support inside containers, we'll change this
+        func->active_iteration = 0;
         GenericFuncDecl::finalize_signature(allocator, func);
     }
 
@@ -163,20 +166,30 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
 #ifdef COMPILER_BUILD
 
 void GenericStructDecl::code_gen_declare(Codegen &gen) {
-    for(const auto inst : instantiations) {
-        inst->code_gen_declare(gen);
+    auto i = total_bodied_instantiations;
+    const auto total = instantiations.size();
+    while(i < total) {
+        instantiations[i]->code_gen_declare(gen);
+        i++;
     }
 }
 
 void GenericStructDecl::code_gen(Codegen &gen) {
-    for(const auto inst : instantiations) {
-        inst->code_gen(gen);
+    auto i = total_bodied_instantiations;
+    const auto total = instantiations.size();
+    while(i < total) {
+        instantiations[i]->code_gen(gen);
+        i++;
     }
+    total_bodied_instantiations = instantiations.size();
 }
 
 void GenericStructDecl::code_gen_external_declare(Codegen &gen) {
-    for(const auto inst : instantiations) {
-        inst->code_gen_external_declare(gen);
+    // only declare the instantiations that have been bodied
+    auto i = 0;
+    while(i < total_bodied_instantiations) {
+        instantiations[i]->code_gen_external_declare(gen);
+        i++;
     }
 }
 

@@ -940,7 +940,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             }
         } else {
             return_value = value->llvm_ret_value(gen, this);
-            if(func_type) {
+            if(return_value && func_type) {
                 auto value_type = value->get_pure_type(gen.allocator);
                 auto to_type = func_type->returnType->pure_type(gen.allocator);
 
@@ -953,7 +953,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
                 }
 
                 // implicit cast to value that's required
-                return_value = gen.implicit_cast(return_value, value_type, to_type);
+                return_value = gen.implicit_cast(return_value, to_type, to_type->llvm_type(gen));
 
             }
         }

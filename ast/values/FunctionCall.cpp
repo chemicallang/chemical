@@ -192,24 +192,8 @@ llvm::Value* arg_value(
     } else {
 
         // cast integers implicitly
-        const auto argValueType = argValue->getType();
-        if(argValueType->isIntegerTy() && pure_type->kind() == BaseTypeKind::IntN) {
-            const auto expectedLLVMType = pure_type->llvm_param_type(gen);
-            if(expectedLLVMType->isIntegerTy()) {
-                const auto paramIntType = (llvm::IntegerType*) expectedLLVMType;
-                const auto argIntType = (llvm::IntegerType*) argValueType;
-                // implicit cast int n types to expected intN parameter types
-                if (argIntType->getBitWidth() < paramIntType->getBitWidth()) {
-                    if (pure_type->as_intn_type_unsafe()->is_unsigned()) {
-                        argValue = gen.builder->CreateZExt(argValue, paramIntType);
-                    } else {
-                        argValue = gen.builder->CreateSExt(argValue, paramIntType);
-                    }
-                }
-                else if(argIntType->getBitWidth() > paramIntType->getBitWidth()) {
-                     argValue = gen.builder->CreateTrunc(argValue, paramIntType);
-                }
-            }
+        if(pure_type->kind() != BaseTypeKind::Any) {
+            argValue = gen.implicit_cast(argValue, pure_type, pure_type->llvm_param_type(gen));
         }
 
         if(value->is_ref_value()) {

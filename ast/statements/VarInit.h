@@ -247,6 +247,11 @@ public:
 
     inline void check_has_type(Codegen &gen);
 
+    /**
+     * this just performs implicit cast for integers on values
+     */
+    llvm::Value* initializer_value(Codegen &gen);
+
     llvm::Value *llvm_pointer(Codegen &gen) final;
 
     llvm::Type *llvm_type(Codegen &gen) final;

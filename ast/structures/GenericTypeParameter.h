@@ -120,6 +120,9 @@ public:
     }
 
     llvm::Type *llvm_type(Codegen &gen) final {
+        if(active_iteration == -1) {
+            return nullptr;
+        }
         return usage[active_iteration]->llvm_type(gen);
     }
 

@@ -52,9 +52,9 @@
 llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     const auto value = llvm_value(gen, expected_type);
     const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
-    const auto alloc = gen.builder->CreateAlloca(type, nullptr);
+    auto alloc = gen.builder->CreateAlloca(type, nullptr);
     gen.di.instr(alloc, this);
-    const auto store = gen.builder->CreateStore(value, alloc);
+    const auto store = gen.builder->CreateStore(expected_type ? gen.implicit_cast(value, expected_type, type) : value, alloc);
     gen.di.instr(store, this);
     return alloc;
 }
@@ -80,6 +80,8 @@ llvm::Value* Value::get_element_pointer(
     return gen.builder->CreateGEP(in_type, ptr, idxList, "", gen.inbounds);
 }
 
+const auto GENv2 = false;
+
 unsigned int Value::store_in_struct(
         Codegen& gen,
         Value* parent,
@@ -101,6 +103,11 @@ unsigned int Value::store_in_struct(
             const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
             gen.di.instr(loadInstr, this);
             Val = loadInstr;
+        } else if(GENv2 && value->getType()->isIntegerTy()) {
+            const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
+            if(ll_type) {
+                Val = gen.implicit_cast(Val, expected_type, ll_type);
+            }
         }
 
         const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
@@ -130,6 +137,11 @@ unsigned int Value::store_in_array(
             const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
             gen.di.instr(loadInstr, this);
             Val = loadInstr;
+        } else if(GENv2 && value->getType()->isIntegerTy()) {
+            const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
+            if(ll_type) {
+                Val = gen.implicit_cast(Val, expected_type, ll_type);
+            }
         }
 
         const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);

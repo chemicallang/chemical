@@ -191,11 +191,6 @@ llvm::Value* arg_value(
         argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
     } else {
 
-        // cast integers implicitly
-        if(pure_type->kind() != BaseTypeKind::Any) {
-            argValue = gen.implicit_cast(argValue, pure_type, pure_type->llvm_param_type(gen));
-        }
-
         if(value->is_ref_value()) {
             if (value->is_ref_moved()) {
                 // move moved value using memcpy
@@ -221,6 +216,8 @@ llvm::Value* arg_value(
                 const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), argValue);
                 gen.di.instr(loadInstr, value);
                 argValue = loadInstr;
+            } else if(pure_type->kind() != BaseTypeKind::Any) {
+                argValue = gen.implicit_cast(argValue, pure_type, pure_type->llvm_param_type(gen));
             }
         }
     }

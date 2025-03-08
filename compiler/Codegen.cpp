@@ -309,6 +309,8 @@ void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::V
                 const auto loadInst = builder->CreateLoad(derefType->llvm_type(*this), value);
                 di.instr(loadInst, rhs);
                 Val = loadInst;
+            } else {
+                Val = implicit_cast(Val, lhsType, lhsType->llvm_type(*this));
             }
             // TODO not using the correct location for debugging
             const auto storeInst = builder->CreateStore(Val, pointer);

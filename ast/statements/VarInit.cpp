@@ -15,6 +15,12 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
+llvm::Value* VarInitStatement::initializer_value(Codegen &gen) {
+    const auto ty = type_ptr_fast();
+    const auto llvmValue = value->llvm_value(gen, ty);
+    return ty ? gen.implicit_cast(llvmValue, ty, ty->llvm_type(gen)) : llvmValue;
+}
+
 void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     llvm::Constant* initializer;
     llvm::GlobalValue::LinkageTypes linkage;
@@ -39,7 +45,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
             llvm_ptr = global;
             return;
         }
-        initializer = (llvm::Constant*) value->llvm_value(gen, type_ptr_fast());
+        initializer = (llvm::Constant*) initializer_value(gen);
     } else {
         initializer = nullptr;
     }
@@ -51,7 +57,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
 void VarInitStatement::code_gen(Codegen &gen) {
     if (gen.current_function == nullptr) {
         if(is_const() && is_comptime()) {
-            llvm_ptr = value->llvm_value(gen, type ? type : nullptr);
+            llvm_ptr = initializer_value(gen);
             gen.di.declare(this, llvm_ptr);
             return;
         }
@@ -62,7 +68,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
         if (value) {
 
             if(is_const() && !value->as_struct_value() && !value->as_array_value()) {
-                llvm_ptr = value->llvm_value(gen, type_ptr_fast());
+                llvm_ptr = initializer_value(gen);
                 gen.destruct_nodes.emplace_back(this);
                 gen.di.declare(this, llvm_ptr);
                 return;

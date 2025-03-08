@@ -556,7 +556,7 @@ public:
     /**
      * parses a interface structure
      */
-    InterfaceDefinition* parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
+    ASTNode* parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * parse namespace tokens
@@ -595,7 +595,7 @@ public:
     /**
      * lexes a struct block
      */
-    VariantDefinition* parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
+    ASTNode* parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * parses a single unnamed union
@@ -605,7 +605,7 @@ public:
     /**
      * lexes a struct block
      */
-    UnionDef* parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
+    ASTNode* parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * parses impl token

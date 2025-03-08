@@ -229,9 +229,15 @@ public:
     }
 
     /**
-     * this will only declare these nodes
+     * this will only declare these imported nodes
      */
     void external_declare_nodes(std::vector<ASTNode*>& nodes);
+
+    /**
+     * this will implement these imported nodes, please note first declare the external module, then
+     * declare current module, only then you can implement the external module
+     */
+    void external_implement_nodes(std::vector<ASTNode*>& nodes);
 
     /**
      * when a function ends, this method is called to basically end the block
@@ -606,7 +612,7 @@ public:
     /**
      * implicitly cast given value from type to to type, if no cast is available value is returned
      */
-    llvm::Value *implicit_cast(llvm::Value* value, BaseType* from_type, BaseType* to_type);
+    llvm::Value *implicit_cast(llvm::Value* value, BaseType* to_type, llvm::Type* to_type_llvm);
 
     /**
      * destructor takes care of deallocating members

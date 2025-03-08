@@ -37,7 +37,6 @@ void ASTProcessor::code_gen_compile(
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    // create a di compile unit
     gen.compile_nodes(nodes_vec);
     if(options->benchmark) {
         bm_results->benchmark_end();
@@ -45,6 +44,27 @@ void ASTProcessor::code_gen_compile(
     }
     if(!gen.diagnostics.empty()) {
         gen.print_diagnostics(chem::string_view(abs_path), "Compile");
+        gen.diagnostics.clear();
+    }
+}
+
+void ASTProcessor::code_gen_external_implement(
+        Codegen& gen,
+        std::vector<ASTNode*>& nodes_vec,
+        const std::string_view& abs_path
+) {
+    std::unique_ptr<BenchmarkResults> bm_results;
+    if(options->benchmark) {
+        bm_results = std::make_unique<BenchmarkResults>();
+        bm_results->benchmark_begin();
+    }
+    gen.external_implement_nodes(nodes_vec);
+    if(options->benchmark) {
+        bm_results->benchmark_end();
+        print_benchmarks(std::cout, "ExtCompile", abs_path, bm_results.get());
+    }
+    if(!gen.diagnostics.empty()) {
+        gen.print_diagnostics(chem::string_view(abs_path), "ExtCompile");
         gen.diagnostics.clear();
     }
 }
@@ -127,12 +147,6 @@ int ASTProcessor::compile_module(
             std::cout << rang::style::bold << rang::fg::magenta << "[ExtDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
         }
 
-        // do not continue processing
-        if(!result.continue_processing) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during lexing or parsing file '" << file.abs_path << '\'' << rang::fg::reset << std::endl;
-            return 1;
-        }
-
         auto& abs_path = file.abs_path;
 
         auto declared_in = unit.declared_in.find(module);
@@ -165,7 +179,6 @@ int ASTProcessor::compile_module(
 
             }
 
-            unit.declared_in[module] = true;
         }
 
         // clear everything we allocated using file allocator to make it re-usable
@@ -181,6 +194,11 @@ int ASTProcessor::compile_module(
         auto& file = *file_ptr;
         auto& result = file;
 
+        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
+            // external module file
+            continue;
+        }
+
         // check file exists
         if(file.abs_path.empty()) {
             std::cerr << rang::fg::red << "error: file not found '" << file.import_path << "'" << rang::fg::reset << std::endl;
@@ -192,23 +210,18 @@ int ASTProcessor::compile_module(
             return 1;
         }
 
-        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
-            // external module file
-            continue;
-        }
-
         ASTUnit& unit = file.unit;
-
-        // print the benchmark or verbose output received from processing
-        if((options->benchmark || options->verbose) && !empty_diags(result)) {
-            std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-            print_results(result, chem::string_view(file.abs_path), options->benchmark);
-        }
 
         // do not continue processing
         if(!result.continue_processing) {
             std::cerr << rang::fg::red << "couldn't perform job due to errors during lexing or parsing file '" << file.abs_path << '\'' << rang::fg::reset << std::endl;
             return 1;
+        }
+
+        // print the benchmark or verbose output received from processing
+        if((options->benchmark || options->verbose) && !empty_diags(result)) {
+            std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+            print_results(result, chem::string_view(file.abs_path), options->benchmark);
         }
 
         auto& abs_path = file.abs_path;
@@ -243,7 +256,61 @@ int ASTProcessor::compile_module(
 
     }
 
-    // The third loop also only compiles the files that present inside this module
+    // the third loop implements the externally imported nodes
+    // only generics require implementing nodes, because new instantiations may be generated
+    // due to usage in this module
+    for(auto file_ptr : files) {
+
+        auto& file = *file_ptr;
+        auto& result = file;
+
+        auto present_unit = shrinked_unit.find(file.abs_path);
+        if(present_unit == shrinked_unit.end()) {
+            // not external module file
+            continue;
+        }
+
+        ASTUnit& unit = present_unit->second;
+
+        // print the benchmark or verbose output received from processing
+        if((options->benchmark || options->verbose) && !empty_diags(result)) {
+            std::cout << rang::style::bold << rang::fg::magenta << "[ExtDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+        }
+
+        auto& abs_path = file.abs_path;
+
+        auto declared_in = unit.declared_in.find(module);
+        if(declared_in == unit.declared_in.end()) {
+
+            // this is probably a different module, so we'll declare the file (if not declared)
+            if(gen.di.isEnabled) {
+
+                // start the di compile unit
+                gen.di.start_di_compile_unit(file.diCompileUnit);
+
+                // declare external nodes
+                code_gen_external_implement(gen, unit.scope.nodes, file.abs_path);
+
+                // end the di compile unit scope
+                gen.di.end_di_compile_unit();
+
+            } else {
+
+                // declare external nodes
+                code_gen_external_implement(gen, unit.scope.nodes, file.abs_path);
+
+            }
+
+            unit.declared_in[module] = true;
+
+        }
+
+        // clear everything we allocated using file allocator to make it re-usable
+        safe_clear_file_allocator();
+
+    }
+
+    // The fourth loop also only compiles the files that present inside this module
     // This loop will compile the bodies of the functions inside the current module
     for(auto file_ptr : files) {
 

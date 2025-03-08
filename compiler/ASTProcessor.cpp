@@ -666,6 +666,11 @@ int ASTProcessor::translate_module(
         auto& file = *file_ptr;
         auto& result = file;
 
+        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
+            // external module file
+            continue;
+        }
+
         // check file exists
         if(file.abs_path.empty()) {
             std::cerr << rang::fg::red << "error: file not found '" << file.import_path << "'" << rang::fg::reset << std::endl;
@@ -675,11 +680,6 @@ int ASTProcessor::translate_module(
         if(!result.read_error.empty()) {
             std::cerr << rang::fg::red << "error: when reading file '" << file.abs_path << "' with message '" << result.read_error << "'" << rang::fg::reset << std::endl;
             return 1;
-        }
-
-        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
-            // external module file
-            continue;
         }
 
         ASTUnit& unit = file.unit;
@@ -701,8 +701,7 @@ int ASTProcessor::translate_module(
 
     }
 
-    // The first loop deals with declaring files that have been imported from other modules
-    // declaring means (only prototypes, no function bodies, struct prototypes...)
+    // The third loop deals with implementing files that have been imported from other modules
     for(auto file_ptr : files) {
 
         auto& file = *file_ptr;
@@ -726,11 +725,15 @@ int ASTProcessor::translate_module(
             // this is probably a different module, so we'll declare the file (if not declared)
             external_implement_in_c(c_visitor, unit.scope, file.abs_path);
             unit.declared_in[module] = true;
+
+            // clear everything we allocated using file allocator to make it re-usable
+            safe_clear_file_allocator();
+
         }
 
     }
 
-    // The third loop deals with generating function bodies present in the current module
+    // The fourth loop deals with generating function bodies present in the current module
     for(auto file_ptr : files) {
 
         auto& file = *file_ptr;
@@ -747,12 +750,10 @@ int ASTProcessor::translate_module(
         // save the file result, for future retrievals
         shrinked_unit[file.abs_path] = std::move(result.unit);
 
-    }
+        // clear everything we allocated using file allocator to make it re-usable
+        safe_clear_file_allocator();
 
-    // TODO we're clearing the allocator here, because some values are allocated during the
-    // value declaration phase inside the c visitor and retained, we should NOT do that !!!!
-    // clear everything we allocated using file allocator to make it re-usable
-    safe_clear_file_allocator();
+    }
 
     // resetting c visitor to use with another module
     c_visitor.reset();

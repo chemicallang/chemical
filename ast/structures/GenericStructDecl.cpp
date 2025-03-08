@@ -56,6 +56,10 @@ void GenericStructDecl::link_signature(SymbolResolver &linker) {
     auto& allocator = *linker.ast_allocator;
     for(const auto inst : instantiations) {
         finalize_signature(allocator, inst);
+        // since these instantiations were created before link_signature
+        // they don't have any generated functions like default constructor / destructor
+        // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module alloctor
+        inst->generate_functions(*linker.ast_allocator, linker);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
@@ -67,7 +71,8 @@ void GenericStructDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_
     for(auto& param : generic_params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
-    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
+    // declare and link, but don't generate any default constructors / destructors / such things
+    master_impl->declare_and_link_no_gen(linker, (ASTNode*&) master_impl);
     linker.scope_end();
     body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
@@ -125,6 +130,7 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
         // so all we need to do is
         finalize_signature(allocator, impl);
         finalize_body(allocator, impl);
+        impl->generate_functions(allocator, diagnoser);
 
         // now finalize using instantiator
         auto ptr = impl;
@@ -141,6 +147,7 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
         // signature and body both have been linked for master_impl
         // so all we need to do is
         finalize_signature(allocator, impl);
+        impl->generate_functions(allocator, diagnoser);
 
         // now finalize using instantiator
         auto ptr = impl;

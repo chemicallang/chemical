@@ -532,17 +532,17 @@ public:
         return &identifier;
     }
 
-    void make_destructor(ASTAllocator&, ExtendableMembersContainerNode* def);
+    void make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def);
 
-    void ensure_constructor(SymbolResolver& resolver, StructDefinition* def);
+    void ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, StructDefinition* def);
 
-    void ensure_destructor(SymbolResolver& resolver, ExtendableMembersContainerNode* def);
+    void ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
 
-    void ensure_clear_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def);
+    void ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
 
-    void ensure_copy_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def);
+    void ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
 
-    void ensure_move_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def);
+    void ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
 
     using FunctionType::as_extension_func;
 

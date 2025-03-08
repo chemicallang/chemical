@@ -254,24 +254,25 @@ void VariantDefinition::link_signature(SymbolResolver &linker) {
 
 void VariantDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    auto& diagnoser = linker;
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_move_fn = false;
     for(auto& func : functions()) {
         if(func->is_delete_fn()) {
-            func->ensure_destructor(linker, this);
+            func->ensure_destructor(allocator, diagnoser, this);
             has_destructor = true;
         }
         if(func->is_clear_fn()) {
-            func->ensure_clear_fn(linker, this);
+            func->ensure_clear_fn(allocator, diagnoser, this);
             has_clear_fn = true;
         }
         if(func->is_move_fn()) {
-            func->ensure_move_fn(linker, this);
+            func->ensure_move_fn(allocator, diagnoser, this);
             has_move_fn = true;
         }
         if(func->is_copy_fn()) {
-            func->ensure_copy_fn(linker, this);
+            func->ensure_copy_fn(allocator, diagnoser, this);
         }
     }
     MembersContainer::declare_and_link(linker, node_ptr);

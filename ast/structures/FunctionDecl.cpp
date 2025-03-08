@@ -1367,23 +1367,23 @@ void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMem
     returnType = new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
 }
 
-void check_returns_void(SymbolResolver& resolver, FunctionDeclaration* decl) {
+void check_returns_void(ASTDiagnoser& diagnoser, FunctionDeclaration* decl) {
     if(decl->returnType->kind() != BaseTypeKind::Void) {
-        resolver.error((ASTNode*) decl) << decl->name_view() << " function return type should be void";
+        diagnoser.error((ASTNode*) decl) << decl->name_view() << " function return type should be void";
     }
 }
 
-void check_self_param(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNode* self) {
+void check_self_param(ASTDiagnoser& diagnoser, FunctionDeclaration* decl, ASTNode* self) {
     if(decl->params.size() == 1) {
         const auto param = decl->params.front();
         if(param->is_implicit && param->name == "self") {
             return;
         }
     }
-    resolver.error((ASTNode*) decl) << decl->name_view() << " must have a single implicit self reference parameter";
+    diagnoser.error((ASTNode*) decl) << decl->name_view() << " must have a single implicit self reference parameter";
 }
 
-void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl, ASTNode* self) {
+void check_self_other_params(ASTDiagnoser& diagnoser, FunctionDeclaration* decl, ASTNode* self) {
     if(decl->params.size() == 2) {
         const auto param = decl->params.front();
         const auto second = decl->params[1];
@@ -1394,31 +1394,31 @@ void check_self_other_params(SymbolResolver& resolver, FunctionDeclaration* decl
             return;
         }
     }
-    resolver.error((ASTNode*) decl) << decl->name_view() << " function must have two implicit reference parameters";
+    diagnoser.error((ASTNode*) decl) << decl->name_view() << " function must have two implicit reference parameters";
 }
 
-void FunctionDeclaration::ensure_constructor(SymbolResolver& resolver, StructDefinition* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
+void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, StructDefinition* def) {
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
 }
 
-void FunctionDeclaration::ensure_destructor(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    check_returns_void(resolver, this);
-    check_self_param(resolver, this, def);
+void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
+    check_returns_void(diagnoser, this);
+    check_self_param(diagnoser, this, def);
 }
 
-void FunctionDeclaration::ensure_clear_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    check_returns_void(resolver, this);
-    check_self_param(resolver, this, def);
+void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
+    check_returns_void(diagnoser, this);
+    check_self_param(diagnoser, this, def);
 }
 
-void FunctionDeclaration::ensure_copy_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
-    check_self_other_params(resolver, this, def);
+void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
+    check_self_other_params(diagnoser, this, def);
 }
 
-void FunctionDeclaration::ensure_move_fn(SymbolResolver& resolver, ExtendableMembersContainerNode* def) {
-    returnType = new ((*resolver.ast_allocator).allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
-    check_self_other_params(resolver, this, def);
+void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
+    check_self_other_params(diagnoser, this, def);
 }
 
 void FunctionDeclaration::set_gen_itr_no_subs(int16_t iteration) {

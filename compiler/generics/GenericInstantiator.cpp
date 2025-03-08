@@ -3,6 +3,9 @@
 #include "GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
 
 BaseType* GenericInstantiator::get_concrete_gen_type(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked){
@@ -97,21 +100,52 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
     const auto referenced = type->referenced;
     auto& linked_ptr = referenced->linked;
     const auto linked = linked_ptr;
-    if(linked->kind() == ASTNodeKind::GenericStructDecl) {
-        if(linked == current_gen) {
-            // self referential data structure
-            linked_ptr = current_impl_ptr;
-        } else {
-            // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(allocator, diagnoser);
-            GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = ((GenericStructDecl*) linked)->register_generic_args(genApi, type->types);
-        }
-    } else {
-        // we only visit the linked type in this case
-        visit(type->referenced);
+    switch(linked->kind()) {
+        case ASTNodeKind::GenericStructDecl:
+            if(linked == current_gen) {
+                // self referential data structure
+                linked_ptr = current_impl_ptr;
+            } else {
+                // relink generic struct decl with instantiated type
+                GenericInstantiator instantiator(allocator, diagnoser);
+                GenericInstantiatorAPI genApi(&instantiator);
+                linked_ptr = linked->as_gen_struct_def_unsafe()->register_generic_args(genApi, type->types);
+            }
+        case ASTNodeKind::GenericUnionDecl:
+            if(linked == current_gen) {
+                // self referential data structure
+                linked_ptr = current_impl_ptr;
+            } else {
+                // relink generic struct decl with instantiated type
+                GenericInstantiator instantiator(allocator, diagnoser);
+                GenericInstantiatorAPI genApi(&instantiator);
+                linked_ptr = linked->as_gen_union_decl_unsafe()->register_generic_args(genApi, type->types);
+            }
+        case ASTNodeKind::GenericInterfaceDecl:
+            if(linked == current_gen) {
+                // self referential data structure
+                linked_ptr = current_impl_ptr;
+            } else {
+                // relink generic struct decl with instantiated type
+                GenericInstantiator instantiator(allocator, diagnoser);
+                GenericInstantiatorAPI genApi(&instantiator);
+                linked_ptr = linked->as_gen_interface_decl_unsafe()->register_generic_args(genApi, type->types);
+            }
+        case ASTNodeKind::GenericVariantDecl:
+            if(linked == current_gen) {
+                // self referential data structure
+                linked_ptr = current_impl_ptr;
+            } else {
+                // relink generic struct decl with instantiated type
+                GenericInstantiator instantiator(allocator, diagnoser);
+                GenericInstantiatorAPI genApi(&instantiator);
+                linked_ptr = linked->as_gen_variant_decl_unsafe()->register_generic_args(genApi, type->types);
+            }
+        default:
+            // we only visit the linked type in this case
+            visit(type->referenced);
+            break;
     }
-
 }
 
 void GenericInstantiator::Clear() {
@@ -316,6 +350,336 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
 
 }
 
+void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* impl, size_t itr) {
+    // set the pointers to gen decl and impl
+    current_gen = decl;
+    current_impl_ptr = impl;
+
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->set_active_iteration((int) itr);
+    }
+
+    // visiting inherited types
+    for(auto& inh : impl->inherited) {
+        visit(inh.type);
+    }
+
+    // visiting variables
+    for(auto& var : impl->variables) {
+        visit(var.second);
+    }
+
+    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
+
+    // visiting functions
+    for(const auto func : impl->functions()) {
+        // relink return type of constructors with implementations
+        if(func->is_constructor_fn()) {
+            const auto linkedType = func->returnType->as_linked_type_unsafe();
+            linkedType->linked = impl;
+        }
+        // replacing implicit parameters to self in functions
+        for(const auto param : func->params) {
+            if(param->is_implicit && param->name_view() == "self" || param->name_view() == "other") {
+                // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
+                param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
+            }
+        }
+        // finalize the signature of functions
+        FinalizeSignature(func);
+    }
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->deactivate_iteration();
+    }
+
+    // reset back the pointers to null
+    current_gen = nullptr;
+    current_impl_ptr = nullptr;
+
+}
+
+void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, size_t itr) {
+    // set the pointers to gen decl and impl
+    current_gen = decl;
+    current_impl_ptr = impl;
+
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->set_active_iteration((int) itr);
+    }
+
+    // create a symbol scope
+    table.scope_start();
+
+    // declare variables
+    for(auto& var : impl->variables) {
+        table.declare(var.first, var.second);
+    }
+
+    // declare function names before visiting
+    for(const auto func : impl->functions()) {
+        table.declare(func->name_view(), func);
+    }
+
+    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
+
+    // visiting function bodies (only bodies, because we finalized signature above)
+    for(const auto func : impl->functions()) {
+        if(func->body.has_value()) {
+            // start scope for function body
+            table.scope_start();
+
+            // declare function parameters
+            for(const auto param : func->params) {
+                table.declare(param->name_view(), param);
+            }
+
+            // visit the body
+            visit(func->body.value());
+
+            // end the body scope
+            table.scope_end();
+        }
+    }
+
+    // end the symbol scope
+    table.scope_end();
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->deactivate_iteration();
+    }
+
+    // reset back the pointers to null
+    current_gen = nullptr;
+    current_impl_ptr = nullptr;
+}
+
+void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, InterfaceDefinition* impl, size_t itr) {
+    // set the pointers to gen decl and impl
+    current_gen = decl;
+    current_impl_ptr = impl;
+
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->set_active_iteration((int) itr);
+    }
+
+    // visiting inherited types
+    for(auto& inh : impl->inherited) {
+        visit(inh.type);
+    }
+
+    // visiting variables
+    for(auto& var : impl->variables) {
+        visit(var.second);
+    }
+
+    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
+
+    // visiting functions
+    for(const auto func : impl->functions()) {
+        // relink return type of constructors with implementations
+        if(func->is_constructor_fn()) {
+            const auto linkedType = func->returnType->as_linked_type_unsafe();
+            linkedType->linked = impl;
+        }
+        // replacing implicit parameters to self in functions
+        for(const auto param : func->params) {
+            if(param->is_implicit && param->name_view() == "self" || param->name_view() == "other") {
+                // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
+                param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
+            }
+        }
+        // finalize the signature of functions
+        FinalizeSignature(func);
+    }
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->deactivate_iteration();
+    }
+
+    // reset back the pointers to null
+    current_gen = nullptr;
+    current_impl_ptr = nullptr;
+
+}
+
+void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, InterfaceDefinition* impl, size_t itr) {
+    // set the pointers to gen decl and impl
+    current_gen = decl;
+    current_impl_ptr = impl;
+
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->set_active_iteration((int) itr);
+    }
+
+    // create a symbol scope
+    table.scope_start();
+
+    // declare variables
+    for(auto& var : impl->variables) {
+        table.declare(var.first, var.second);
+    }
+
+    // declare function names before visiting
+    for(const auto func : impl->functions()) {
+        table.declare(func->name_view(), func);
+    }
+
+    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
+
+    // visiting function bodies (only bodies, because we finalized signature above)
+    for(const auto func : impl->functions()) {
+        if(func->body.has_value()) {
+            // start scope for function body
+            table.scope_start();
+
+            // declare function parameters
+            for(const auto param : func->params) {
+                table.declare(param->name_view(), param);
+            }
+
+            // visit the body
+            visit(func->body.value());
+
+            // end the body scope
+            table.scope_end();
+        }
+    }
+
+    // end the symbol scope
+    table.scope_end();
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->deactivate_iteration();
+    }
+
+    // reset back the pointers to null
+    current_gen = nullptr;
+    current_impl_ptr = nullptr;
+}
+
+void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, VariantDefinition* impl, size_t itr) {
+    // set the pointers to gen decl and impl
+    current_gen = decl;
+    current_impl_ptr = impl;
+
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->set_active_iteration((int) itr);
+    }
+
+    // visiting inherited types
+    for(auto& inh : impl->inherited) {
+        visit(inh.type);
+    }
+
+    // visiting variables
+    for(auto& var : impl->variables) {
+        visit(var.second);
+    }
+
+    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
+
+    // visiting functions
+    for(const auto func : impl->functions()) {
+        // relink return type of constructors with implementations
+        if(func->is_constructor_fn()) {
+            const auto linkedType = func->returnType->as_linked_type_unsafe();
+            linkedType->linked = impl;
+        }
+        // replacing implicit parameters to self in functions
+        for(const auto param : func->params) {
+            if(param->is_implicit && param->name_view() == "self" || param->name_view() == "other") {
+                // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
+                param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
+            }
+        }
+        // finalize the signature of functions
+        FinalizeSignature(func);
+    }
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->deactivate_iteration();
+    }
+
+    // reset back the pointers to null
+    current_gen = nullptr;
+    current_impl_ptr = nullptr;
+
+}
+
+void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefinition* impl, size_t itr) {
+    // set the pointers to gen decl and impl
+    current_gen = decl;
+    current_impl_ptr = impl;
+
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->set_active_iteration((int) itr);
+    }
+
+    // create a symbol scope
+    table.scope_start();
+
+    // declare variables
+    for(auto& var : impl->variables) {
+        table.declare(var.first, var.second);
+    }
+
+    // declare function names before visiting
+    for(const auto func : impl->functions()) {
+        table.declare(func->name_view(), func);
+    }
+
+    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
+
+    // visiting function bodies (only bodies, because we finalized signature above)
+    for(const auto func : impl->functions()) {
+        if(func->body.has_value()) {
+            // start scope for function body
+            table.scope_start();
+
+            // declare function parameters
+            for(const auto param : func->params) {
+                table.declare(param->name_view(), param);
+            }
+
+            // visit the body
+            visit(func->body.value());
+
+            // end the body scope
+            table.scope_end();
+        }
+    }
+
+    // end the symbol scope
+    table.scope_end();
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->deactivate_iteration();
+    }
+
+    // reset back the pointers to null
+    current_gen = nullptr;
+    current_impl_ptr = nullptr;
+}
+
 void GenericInstantiator::FinalizeSignature(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeSignature(decl, inst, inst->generic_instantiation);
@@ -336,6 +700,45 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, const std::
 }
 
 void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations) {
+    for(const auto inst : instantiations) {
+        FinalizeBody(decl, inst, inst->generic_instantiation);
+        Clear();
+    }
+}
+
+void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations) {
+    for(const auto inst : instantiations) {
+        FinalizeSignature(decl, inst, inst->generic_instantiation);
+    }
+}
+
+void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations) {
+    for(const auto inst : instantiations) {
+        FinalizeBody(decl, inst, inst->generic_instantiation);
+        Clear();
+    }
+}
+
+void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations) {
+    for(const auto inst : instantiations) {
+        FinalizeSignature(decl, inst, inst->generic_instantiation);
+    }
+}
+
+void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations) {
+    for(const auto inst : instantiations) {
+        FinalizeBody(decl, inst, inst->generic_instantiation);
+        Clear();
+    }
+}
+
+void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations) {
+    for(const auto inst : instantiations) {
+        FinalizeSignature(decl, inst, inst->generic_instantiation);
+    }
+}
+
+void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeBody(decl, inst, inst->generic_instantiation);
         Clear();
@@ -378,5 +781,29 @@ void GenericInstantiatorAPI::FinalizeSignature(GenericStructDecl* decl, const st
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations) {
+    giPtr->FinalizeBody(decl, instantiations);
+}
+
+void GenericInstantiatorAPI::FinalizeSignature(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations) {
+    giPtr->FinalizeSignature(decl, instantiations);
+}
+
+void GenericInstantiatorAPI::FinalizeBody(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations) {
+    giPtr->FinalizeBody(decl, instantiations);
+}
+
+void GenericInstantiatorAPI::FinalizeSignature(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations) {
+    giPtr->FinalizeSignature(decl, instantiations);
+}
+
+void GenericInstantiatorAPI::FinalizeBody(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations) {
+    giPtr->FinalizeBody(decl, instantiations);
+}
+
+void GenericInstantiatorAPI::FinalizeSignature(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations) {
+    giPtr->FinalizeSignature(decl, instantiations);
+}
+
+void GenericInstantiatorAPI::FinalizeBody(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations) {
     giPtr->FinalizeBody(decl, instantiations);
 }

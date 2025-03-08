@@ -101,6 +101,15 @@ public:
         return def;
     }
 
+    UnionDef* shallow_copy(ASTAllocator& allocator) {
+        const auto def = new (allocator.allocate<UnionDef>()) UnionDef(
+                identifier, parent(), encoded_location(), specifier()
+        );
+        def->attrs = attrs;
+        ExtendableMembersContainerNode::shallow_copy_into(*def, allocator);
+        return def;
+    }
+
     uint64_t byte_size(bool is64Bit) final {
         return largest_member_byte_size(is64Bit);
     }

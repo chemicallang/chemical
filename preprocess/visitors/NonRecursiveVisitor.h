@@ -117,6 +117,15 @@ public:
     inline void VisitGenericStructDecl(GenericStructDecl* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitGenericUnionDecl(GenericUnionDecl* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
+    inline void VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
+    inline void VisitGenericVariantDecl(GenericVariantDecl* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitMultiFunctionNode(MultiFunctionNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -543,6 +552,15 @@ public:
                 return;
             case ASTNodeKind::GenericStructDecl:
                 static_cast<Derived*>(this)->VisitGenericStructDecl((GenericStructDecl*) node);
+                return;
+            case ASTNodeKind::GenericUnionDecl:
+                static_cast<Derived*>(this)->VisitGenericUnionDecl((GenericUnionDecl*) node);
+                return;
+            case ASTNodeKind::GenericInterfaceDecl:
+                static_cast<Derived*>(this)->VisitGenericInterfaceDecl((GenericInterfaceDecl*) node);
+                return;
+            case ASTNodeKind::GenericVariantDecl:
+                static_cast<Derived*>(this)->VisitGenericVariantDecl((GenericVariantDecl*) node);
                 return;
             case ASTNodeKind::MultiFunctionNode:
                 static_cast<Derived*>(this)->VisitMultiFunctionNode((MultiFunctionNode*) node);

@@ -112,6 +112,17 @@ public:
         return def;
     }
 
+    VariantDefinition* shallow_copy(ASTAllocator& allocator) {
+        const auto def = new (allocator.allocate<VariantDefinition>()) VariantDefinition(
+                identifier, parent(), encoded_location(), specifier()
+        );
+        def->attrs = attrs;
+        ExtendableMembersContainerNode::shallow_copy_into(*def, allocator);
+        return def;
+    }
+
+    void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void link_signature(SymbolResolver &linker) override;

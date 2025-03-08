@@ -58,6 +58,12 @@ public:
 
     void VisitGenericStructDecl(GenericStructDecl* node);
 
+    void VisitGenericUnionDecl(GenericUnionDecl* node);
+
+    void VisitGenericInterfaceDecl(GenericInterfaceDecl* node);
+
+    void VisitGenericVariantDecl(GenericVariantDecl* node);
+
     void VisitVariantDecl(VariantDefinition *variant_def);
 
     void VisitNamespaceDecl(Namespace *ns);

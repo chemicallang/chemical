@@ -252,9 +252,7 @@ void VariantDefinition::link_signature(SymbolResolver &linker) {
     MembersContainer::link_signature(linker);
 }
 
-void VariantDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
-    auto& diagnoser = linker;
+void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_move_fn = false;
@@ -275,17 +273,22 @@ void VariantDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_
             func->ensure_copy_fn(allocator, diagnoser, this);
         }
     }
-    MembersContainer::declare_and_link(linker, node_ptr);
-//    register_use_to_inherited_interfaces(this);
     if(!has_clear_fn && any_member_has_clear_func()) {
-        create_def_clear_fn(allocator, linker);
+        create_def_clear_fn(allocator, diagnoser);
     }
     if(!has_move_fn && any_member_has_pre_move_func()) {
-        create_def_move_fn(allocator, linker);
+        create_def_move_fn(allocator, diagnoser);
     }
     if(!has_destructor && any_member_has_destructor()) {
-        create_def_destructor(allocator, linker);
+        create_def_destructor(allocator, diagnoser);
     }
+}
+
+void VariantDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    auto& diagnoser = linker;
+    MembersContainer::declare_and_link(linker, node_ptr);
+    generate_functions(allocator, diagnoser);
 }
 
 BaseType* VariantDefinition::known_type() {

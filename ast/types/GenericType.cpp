@@ -6,6 +6,9 @@
 #include "LinkedType.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
 #include "ast/utils/GenericUtils.h"
 
 bool GenericType::link(SymbolResolver &linker) {
@@ -19,13 +22,34 @@ bool GenericType::link(SymbolResolver &linker) {
             return false;
         }
     }
-    if(linked->kind() == ASTNodeKind::GenericStructDecl) {
-        if(are_all_specialized(types)) {
-            // relink generic struct decl with instantiated type, only if all types are specialized
-            referenced->linked = ((GenericStructDecl*) linked)->register_generic_args(linker.genericInstantiator, types);
-        }
-    } else {
-        report_generic_usage(*linker.ast_allocator, linker);
+    switch(linked->kind()) {
+        case ASTNodeKind::GenericStructDecl:
+            if(are_all_specialized(types)) {
+                // relink generic struct decl with instantiated type, only if all types are specialized
+                referenced->linked = linked->as_gen_struct_def_unsafe()->register_generic_args(linker.genericInstantiator, types);
+            }
+            break;
+        case ASTNodeKind::GenericUnionDecl:
+            if(are_all_specialized(types)) {
+                // relink generic struct decl with instantiated type, only if all types are specialized
+                referenced->linked = linked->as_gen_union_decl_unsafe()->register_generic_args(linker.genericInstantiator, types);
+            }
+            break;
+        case ASTNodeKind::GenericInterfaceDecl:
+            if(are_all_specialized(types)) {
+                // relink generic struct decl with instantiated type, only if all types are specialized
+                referenced->linked = linked->as_gen_interface_decl_unsafe()->register_generic_args(linker.genericInstantiator, types);
+            }
+            break;
+        case ASTNodeKind::GenericVariantDecl:
+            if(are_all_specialized(types)) {
+                // relink generic struct decl with instantiated type, only if all types are specialized
+                referenced->linked = linked->as_gen_variant_decl_unsafe()->register_generic_args(linker.genericInstantiator, types);
+            }
+            break;
+        default:
+            report_generic_usage(*linker.ast_allocator, linker);
+            break;
     }
     return true;
 }

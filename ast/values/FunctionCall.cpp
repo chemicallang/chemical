@@ -11,6 +11,7 @@
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
@@ -1137,35 +1138,63 @@ VariableIdentifier* get_parent_id(ChainValue* value) {
 bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type) {
     // relinking generic decl
     const auto parent_id = get_parent_id(parent_val);
-    if(parent_id && parent_id->linked->kind() == ASTNodeKind::GenericFuncDecl) {
+    if(!parent_id) return true;
 
-        const auto gen_decl = (GenericFuncDecl*) parent_id->linked;
-
-        auto new_link = gen_decl->instantiate_call(genApi, this, expected_type);
-        if(!new_link) {
-            return false;
+    const auto linked = parent_id->linked;
+    switch(linked->kind()) {
+        case ASTNodeKind::GenericFuncDecl:{
+            const auto gen_decl = linked->as_gen_func_decl_unsafe();
+            auto new_link = gen_decl->instantiate_call(genApi, this, expected_type);
+            if(!new_link) {
+                return false;
+            }
+            parent_id->linked = new_link;
+            return true;
         }
+        case ASTNodeKind::VariantMember:{
+            const auto mem = linked->as_variant_member_unsafe();
+            const auto mem_gen = mem->parent()->generic_parent;
+            if(mem_gen != nullptr) {
+                parent_id->linked = mem_gen->as_gen_variant_decl_unsafe()->instantiate_call(genApi, this, expected_type);
+            } else {
+                return true;
+            }
+        }
+        default:
+            return true;
 
-        parent_id->linked = new_link;
-
-        return true;
-    } else {
-        return true;
     }
 }
 
 bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
 
     GenericFuncDecl* gen_decl = nullptr;
+    GenericVariantDecl* gen_var_decl = nullptr;
 
     // relinking generic decl
     const auto parent_id = get_parent_id(parent_val);
-    if(parent_id && parent_id->linked->kind() == ASTNodeKind::GenericFuncDecl) {
+    if(parent_id) {
 
-        gen_decl = (GenericFuncDecl*) parent_id->linked;
+        const auto k = parent_id->linked->kind();
 
-        // TODO we link with the master implementation currently, however we require to instantiate a new implementation
-        parent_id->linked = gen_decl->master_impl;
+        if(k == ASTNodeKind::GenericFuncDecl) {
+
+            gen_decl = parent_id->linked->as_gen_func_decl_unsafe();
+
+            // TODO we link with the master implementation currently, however we require to instantiate a new implementation
+            parent_id->linked = gen_decl->master_impl;
+
+        } else if(k == ASTNodeKind::VariantMember) {
+
+            const auto mem = parent_id->linked->as_variant_member_unsafe();
+            const auto mem_gen = mem->parent()->generic_parent;
+            if(mem_gen != nullptr) {
+                gen_var_decl = mem_gen->as_gen_variant_decl_unsafe();
+                // we do not relink, because it's already linked with master implementation's variant member
+                // parent_id->linked = gen_decl->master_impl;
+            }
+
+        }
 
     }
 
@@ -1245,7 +1274,7 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
         }
     }
 
-    if(gen_decl) {
+    if(gen_decl || gen_var_decl) {
         goto instantiate_block;
     }
 
@@ -1275,13 +1304,28 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
             parent_id->linked = gen_decl;
             return true;
         }
-        auto new_link = gen_decl->instantiate_call(resolver, this, expected_type);
-        // instantiate call can return null, when the inferred types aren found to be not specialized
-        if(!new_link) {
-            parent_id->linked = gen_decl;
-            return true;
+        if(gen_decl) {
+            auto new_link = gen_decl->instantiate_call(resolver, this, expected_type);
+            // instantiate call can return null, when the inferred types aren found to be not specialized
+            if (!new_link) {
+                parent_id->linked = gen_decl;
+                return true;
+            }
+            parent_id->linked = new_link;
+        } else if(gen_var_decl) {
+            auto new_link = gen_var_decl->instantiate_call(resolver.genericInstantiator, this, expected_type);
+            if(!new_link) {
+                // no re-linkage required, because it's already linked with master implementation
+                return true;
+            }
+            const auto mem = parent_id->linked->as_variant_member_unsafe();
+            const auto new_mem = mem->parent()->variables[mem->name]->as_variant_member_unsafe();
+            parent_id->linked = new_mem;
+        } else {
+#ifdef DEBUG
+            throw std::runtime_error("no condition satisfied in function call");
+#endif
         }
-        parent_id->linked = new_link;
         goto ending_block;
 }
 

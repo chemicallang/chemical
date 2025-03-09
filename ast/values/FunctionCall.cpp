@@ -466,7 +466,7 @@ void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     }
     auto funcType = function_type(gen.allocator);
     if(funcType) {
-        auto return_linked = funcType->returnType->linked_node();
+        auto return_linked = funcType->returnType->get_direct_linked_node();
         if(return_linked) {
             return_linked->llvm_destruct(gen, allocaInst, encoded_location());
         }

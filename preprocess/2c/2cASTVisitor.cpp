@@ -1609,13 +1609,6 @@ public:
 
     std::vector<DestructionJob> destruct_jobs;
 
-    void destruct_no_gen(
-            const chem::string_view& self_name,
-            ExtendableMembersContainerNode* linked,
-            FunctionDeclaration* destructor,
-            bool is_pointer
-    );
-
     void destruct(
             const chem::string_view& self_name,
             ExtendableMembersContainerNode* linked,
@@ -1783,7 +1776,7 @@ void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 }
 
-void CDestructionVisitor::destruct_no_gen(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, FunctionDeclaration* destructor, bool is_pointer) {
+void CDestructionVisitor::destruct(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, FunctionDeclaration* destructor, bool is_pointer) {
     if(new_line_before) {
         visitor.new_line_and_indent();
     }
@@ -1801,10 +1794,6 @@ void CDestructionVisitor::destruct_no_gen(const chem::string_view& self_name, Ex
     if(!new_line_before) {
         visitor.new_line_and_indent();
     }
-}
-
-void CDestructionVisitor::destruct(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, FunctionDeclaration* destructor, bool is_pointer) {
-    destruct_no_gen(self_name, parent_node, destructor, is_pointer);
 }
 
 void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, ExtendableMembersContainerNode* linked, bool is_pointer) {
@@ -1855,7 +1844,7 @@ void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, V
     visitor.write("--){");
     visitor.indentation_level++;
     std::string name = self_name.str() + "[" + arr_val_itr_name + "]";
-    destruct_no_gen(chem::string_view(name.data(), name.size()), parent_node, destructorFunc, false);
+    destruct(chem::string_view(name.data(), name.size()), parent_node, destructorFunc, false);
     visitor.indentation_level--;
     visitor.new_line_and_indent();
     visitor.write('}');
@@ -3866,6 +3855,7 @@ void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
     } else {
         destructor->destruct(chem::string_view(self_name.data(), self_name.size()), data.parent_node, data.destructor_func, true);
     }
+
 }
 
 void ToCAstVisitor::VisitIsValue(IsValue *isValue) {

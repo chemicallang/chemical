@@ -15,7 +15,11 @@
 //#include "ast/statements/MacroValueStatement.h"
 //#include "ast/statements/Import.h"
 #include "ast/statements/ValueWrapperNode.h"
-//#include "ast/structures/EnumDeclaration.h"
+#include "ast/statements/Break.h"
+#include "ast/statements/ProvideStmt.h"
+#include "ast/statements/Typealias.h"
+#include "ast/structures/ComptimeBlock.h"
+#include "ast/structures/LoopBlock.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/FunctionParam.h"
@@ -89,7 +93,15 @@
 #include "ast/values/NotValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/IncDecValue.h"
-//#include "ast/values/NullValue.h"
+#include "ast/values/BlockValue.h"
+#include "ast/values/ComptimeValue.h"
+#include "ast/values/NewTypedValue.h"
+#include "ast/values/UnsafeValue.h"
+#include "ast/values/VariantCase.h"
+#include "ast/values/VariantCaseVariable.h"
+#include "ast/types/DynamicType.h"
+#include "ast/types/ExpressionType.h"
+#include "ast/statements/AliasStmt.h"
 //#include "ast/values/NumberValue.h"
 //#include "ast/values/ShortValue.h"
 //#include "ast/values/StringValue.h"
@@ -282,7 +294,25 @@ public:
         }
     }
 
+    void VisitBreakStmt(BreakStatement* node) {
+        if(node->value) {
+            visit_it(node->value);
+        }
+    }
+
+    void VisitProvideStmt(ProvideStmt* node) {
+        visit_it(node->value);
+        visit_it(node->body);
+    }
+
+    void VisitTypealiasStmt(TypealiasStatement* node) {
+        visit_it(node->actual_type);
+    }
+
     void VisitDeleteStmt(DestructStmt *stmt) {
+        if(stmt->array_value) {
+            visit_it(stmt->array_value);
+        }
         visit_it(stmt->identifier);
     }
 
@@ -311,6 +341,35 @@ public:
         for(auto& scope : stmt->scopes) {
             visit_it(scope);
         }
+    }
+
+    void VisitComptimeBlock(ComptimeBlock* node) {
+        visit_it(node->body);
+    }
+
+    void VisitLoopBlock(LoopBlock* node) {
+        visit_it(node->body);
+    }
+
+    void VisitBlockValue(BlockValue* value) {
+        visit_it(value->scope);
+    }
+
+    void VisitComptimeValue(ComptimeValue* value) {
+        visit_it(value->value);
+    }
+
+    void VisitNewTypedValue(NewTypedValue* value) {
+        visit_it(value->type);
+    }
+
+    void VisitUnsafeValue(UnsafeValue* value) {
+        visit_it(value->value);
+    }
+
+    void VisitVariantCase(VariantCase* value) {
+        visit_it(value->parent_val);
+        // TODO figure out how to handle variant case variables
     }
 
     void VisitAccessChain(AccessChain *chain) {
@@ -400,6 +459,19 @@ public:
 
     void VisitUnionType(UnionType* type) {
         VisitVariables(type->variables);
+    }
+
+    void VisitDynamicType(DynamicType* type) {
+        visit_it(type->referenced);
+    }
+
+    void VisitExpressionType(ExpressionType* type) {
+        visit_it(type->firstType);
+        visit_it(type->secondType);
+    }
+
+    void VisitAliasStmt(AliasStmt* node) {
+        visit_it(node->value);
     }
 
 };

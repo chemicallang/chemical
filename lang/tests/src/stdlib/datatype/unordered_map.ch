@@ -1,4 +1,3 @@
-/**
 import "@std/unordered_map.ch"
 
 using namespace std;
@@ -53,4 +52,3 @@ func test_unordered_map() {
         return first == 530 && second == 590 && third == 600 && fourth == 300
     })
 }
-**/

@@ -205,6 +205,16 @@ variant OptDestructible {
     None()
 }
 
+func test_variant_destruction_simple(count : *mut int) {
+    var d = OptDestructible.Some(Destructible {
+        count : count,
+        lamb : (count : *mut int) => {
+            *count = *count + 1;
+        },
+        data : 3422
+     })
+}
+
 func test_variant_param_destructor(d : OptDestructible) {
 
 }
@@ -569,6 +579,11 @@ func test_destructors() {
             data : 777, count : &count, lamb : destruct_inc_count
         }));
         return count == 0;
+    })
+    test("variant destruction occurs when allocated using var init", () => {
+        var count = 0
+        test_variant_destruction_simple(&count);
+        return count == 1
     })
     test("variant destruction at early return : true", () => {
          var count = 0;

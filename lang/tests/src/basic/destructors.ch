@@ -165,6 +165,10 @@ func test_return_struct_param(d : Destructible) : Destructible {
     return d;
 }
 
+func test_ret_ptr_to_d(d : *mut Destructible) : *mut Destructible {
+    return d;
+}
+
 func send_lambda_struct(data : int, count : *mut int, lamb : (d : Destructible) => void) {
     lamb(Destructible {
         data : data,
@@ -333,7 +337,7 @@ func test_destructors() {
         var data = get_int(create_destructible(&count, 363).data);
         return count == 1 && data == 363;
     })
-    test("destructor is not called on pointer types", () => {
+    test("destructor is not called on pointer types - 1", () => {
         var count = 0;
         if(count == 0) {
             var d : Destructible
@@ -344,6 +348,18 @@ func test_destructors() {
             var x : *Destructible
             x = &d;
             var y = &d
+        }
+        return count == 1;
+    })
+    test("destructor is not called on pointer types - 2", () => {
+        var count = 0;
+        if(count == 0) {
+            var d : Destructible
+            d.count = &count;
+            d.lamb = (count : *mut int) => {
+                *count = *count + 1;
+            }
+            const ptr_to_d = test_ret_ptr_to_d(&d)
         }
         return count == 1;
     })

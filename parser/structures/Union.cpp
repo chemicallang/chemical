@@ -53,7 +53,7 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
 }
 
-const auto GENv2 = false;
+const auto GENv2 = true;
 
 ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 

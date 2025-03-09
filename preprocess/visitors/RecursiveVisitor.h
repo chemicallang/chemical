@@ -10,6 +10,8 @@
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/structures/VariantMember.h"
+#include "ast/structures/VariantMemberParam.h"
 //#include "ast/statements/MacroValueStatement.h"
 //#include "ast/statements/Import.h"
 #include "ast/statements/ValueWrapperNode.h"
@@ -230,6 +232,22 @@ public:
         visit_it(member->type);
         if(member->defValue) {
             visit_it(member->defValue);
+        }
+    }
+
+    inline void VisitVariantMemberParam(VariantMemberParam* node) {
+        visit_it(node->type);
+        if(node->def_value) {
+            visit_it(node->def_value);
+        }
+    }
+
+    void VisitVariantMember(VariantMember* node) {
+        auto begin = node->values.begin();
+        auto end = node->values.end();
+        while(begin != end) {
+            static_cast<Derived*>(this)->VisitVariantMemberParam(begin.value());
+            begin++;
         }
     }
 

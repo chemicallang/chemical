@@ -86,7 +86,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
 
 }
 
-const auto GENv2 = false;
+const auto GENv2 = true;
 
 ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::VariantKw)) {

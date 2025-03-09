@@ -1155,7 +1155,17 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
             const auto mem = linked->as_variant_member_unsafe();
             const auto mem_gen = mem->parent()->generic_parent;
             if(mem_gen != nullptr) {
-                parent_id->linked = mem_gen->as_gen_variant_decl_unsafe()->instantiate_call(genApi, this, expected_type);
+                const auto new_link = mem_gen->as_gen_variant_decl_unsafe()->instantiate_call(genApi, this, expected_type);
+                if(!new_link) {
+                    return false;
+                }
+                const auto var_id = get_parent_from(parent_val);
+                if(var_id) {
+                    // every variable is like this MyVariant.Member() <-- get parent from parent is MyVariant
+                    var_id->as_identifier()->linked = new_link;
+                }
+                const auto new_mem = new_link->variables[mem->name]->as_variant_member_unsafe();
+                parent_id->linked = new_mem;
             } else {
                 return true;
             }
@@ -1318,8 +1328,13 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
                 // no re-linkage required, because it's already linked with master implementation
                 return true;
             }
+            const auto var_id = get_parent_from(parent_val);
+            if(var_id) {
+                // every variable is like this MyVariant.Member() <-- get parent from parent is MyVariant
+                var_id->as_identifier()->linked = new_link;
+            }
             const auto mem = parent_id->linked->as_variant_member_unsafe();
-            const auto new_mem = mem->parent()->variables[mem->name]->as_variant_member_unsafe();
+            const auto new_mem = new_link->variables[mem->name]->as_variant_member_unsafe();
             parent_id->linked = new_mem;
         } else {
 #ifdef DEBUG

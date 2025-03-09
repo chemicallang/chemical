@@ -703,6 +703,18 @@ public:
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
+    /**
+     * this function expects that this function is an extension function
+     * extension functions have first parameter which is a reference to the container
+     * @return true if succeeded
+     */
+    bool put_as_extension_function(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+
+    /**
+     * link signature without any scope creation, or extension function
+     */
+    void link_signature_no_ext_scope(SymbolResolver& linker);
+
     void link_signature_no_scope(SymbolResolver& linker);
 
     void link_signature(SymbolResolver &linker) override;

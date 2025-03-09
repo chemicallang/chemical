@@ -269,7 +269,7 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
         }
         // replacing implicit parameters to self in functions
         for(const auto param : func->params) {
-            if(param->is_implicit && param->name_view() == "self" || param->name_view() == "other") {
+            if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
                 // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
                 param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
             }
@@ -381,7 +381,7 @@ void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* im
         }
         // replacing implicit parameters to self in functions
         for(const auto param : func->params) {
-            if(param->is_implicit && param->name_view() == "self" || param->name_view() == "other") {
+            if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
                 // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
                 param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
             }
@@ -491,7 +491,7 @@ void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, Interfac
         }
         // replacing implicit parameters to self in functions
         for(const auto param : func->params) {
-            if(param->is_implicit && param->name_view() == "self" || param->name_view() == "other") {
+            if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
                 // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
                 param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
             }
@@ -601,7 +601,7 @@ void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, VariantDef
         }
         // replacing implicit parameters to self in functions
         for(const auto param : func->params) {
-            if(param->is_implicit && param->name_view() == "self" || param->name_view() == "other") {
+            if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
                 // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
                 param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
             }

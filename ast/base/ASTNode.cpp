@@ -378,7 +378,7 @@ bool ASTNode::is_stored_ptr_or_ref(ASTAllocator& allocator, ASTNodeKind k) {
 bool ASTNode::is_ptr_or_ref(ASTAllocator& allocator, ASTNodeKind k) {
     switch(k) {
         case ASTNodeKind::FunctionParam:
-            return as_base_func_param_unsafe()->type->is_pointer_or_ref();
+            return as_func_param_unsafe()->type->is_pointer_or_ref();
         default:
             return is_stored_ptr_or_ref(allocator, k);
     }

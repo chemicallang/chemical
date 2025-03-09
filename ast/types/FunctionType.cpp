@@ -86,7 +86,7 @@ uint64_t FunctionType::byte_size(bool is64Bit) {
 unsigned FunctionType::total_implicit_params() {
     unsigned i = 0;
     for(auto& param : params) {
-        if(param->is_implicit) {
+        if(param->is_implicit()) {
             i++;
         } else {
             break;
@@ -115,7 +115,7 @@ FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
 
 FunctionParam* FunctionType::implicit_param_for(const chem::string_view& name) {
     for(auto param : params) {
-        if(param->is_implicit && param->name == name) {
+        if(param->is_implicit() && param->name == name) {
             return param;
         } else {
             break;
@@ -154,14 +154,14 @@ bool FunctionType::do_param_types_match(std::vector<FunctionParam*>& param_types
     return true;
 }
 
-BaseFunctionParam* FunctionType::get_self_param() {
+FunctionParam* FunctionType::get_self_param() {
     if(!params.empty()) {
         auto& param = params[0];
         if(isExtensionFn()) {
             // in extension functions, the first parameter is the receiver
             return param;
         }
-        if(param->is_implicit && (param->name == "self" || param->name == "this")) {
+        if(param->is_implicit() && (param->name == "self" || param->name == "this")) {
             return param;
         }
     }
@@ -170,7 +170,7 @@ BaseFunctionParam* FunctionType::get_self_param() {
 
 bool FunctionType::has_explicit_params() {
     for(auto& param : params) {
-        if(!param->is_implicit) return true;
+        if(!param->is_implicit()) return true;
     }
     return false;
 }

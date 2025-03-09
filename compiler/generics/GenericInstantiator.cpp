@@ -70,21 +70,10 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
         visit(val);
     }
 
-    // now we visit values (except first, since we handled it above)
-    unsigned i = 1;
-    const auto size = value->values.size();
-    while(i < size) {
-        // identifiers are only handled, if they are not wrapped in access chain
-        // or they are the first one in the access chain
-        // we link those identifiers
-        // if they are not first or not wrapped in access chain, we do not visit them
-        // because if we visit the secondary identifiers they would be relinked causing different linkages
-        auto& secondary_val = value->values[i];
-        if(secondary_val->kind() != ValueKind::Identifier) {
-            visit(secondary_val);
-        }
-        i++;
-    }
+    // we do not need to visit values except the first one in access chain
+    // this is because, after the first value, only identifiers are present
+    // however we do not need to relink identifiers, if we did visit identifiers
+    // it would relink identifiers with any symbols found which would break everything
 
 }
 

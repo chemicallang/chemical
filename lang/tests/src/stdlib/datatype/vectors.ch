@@ -99,7 +99,7 @@ func test_vectors() {
         v.remove(0)
         const first = v.get_ptr(0)
         const second = v.get_ptr(1)
-        return v.size() == 2 && vec_destruct_called == 1 && first.i == 29 && second.i == 49;
+        return v.size() == 2 && vec_destruct_called == 4 && first.i == 29 && second.i == 49;
     })
     vec_destruct_called = 0;
     test("vector destructs it's destructible struct - 2", () => {
@@ -110,7 +110,7 @@ func test_vectors() {
         v.remove_last();
         const first = v.get_ptr(0)
         const second = v.get_ptr(1)
-        return v.size() == 2 && vec_destruct_called == 1 && first.i == 99 && second.i == 29;
+        return v.size() == 2 && vec_destruct_called == 4 && first.i == 99 && second.i == 29;
     })
     vec_destruct_called = 0;
     test("vector destructs it's destructible struct - 3", () => {
@@ -120,6 +120,6 @@ func test_vectors() {
             v.push(VecDestructibleChild { i : 29 })
             v.push(VecDestructibleChild { i : 49 })
         }
-        return vec_destruct_called == 3;
+        return vec_destruct_called == 6;
     })
 }

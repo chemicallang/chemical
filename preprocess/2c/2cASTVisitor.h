@@ -160,6 +160,11 @@ public:
      */
     std::string return_redirect_block;
 
+    /**
+     * sometimes temporary var names are allocated
+     */
+    std::vector<std::string> allocated_temp_var_names;
+
     // --------- Configuration Variables ------------------
 
     /**

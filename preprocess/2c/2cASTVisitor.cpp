@@ -1666,9 +1666,6 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     // assignment to a reference, automatic dereferencing
     if(type->kind() == BaseTypeKind::Reference) {
         visitor.write('*');
-        if(visitor.current_func_type->as_function() && visitor.current_func_type->as_function()->name_view() == "insert") {
-            int i = 0;
-        }
     }
     if(type->requires_moving() && !assign->lhs->is_ref_moved()) {
         auto container = type->linked_node()->as_members_container();
@@ -5074,6 +5071,22 @@ void ToCAstVisitor::VisitValueNode(ValueNode *node) {
 }
 
 void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
+    const auto val_type = node->value->create_type(allocator);
+    if(val_type->isStructLikeType()) {
+        const auto destr = val_type->get_destructor();
+        if (destr != nullptr) {
+            allocated_temp_var_names.emplace_back(get_local_temp_var_name());
+            const auto temp_name = chem::string_view(allocated_temp_var_names.back());
+            visit(val_type);
+            write(' ');
+            write(temp_name);
+            write(" = ");
+            visit(node->value);
+            write(';');
+            destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_members_container_node(), false);
+            return;
+        }
+    }
     visit(node->value);
     write(';');
 }

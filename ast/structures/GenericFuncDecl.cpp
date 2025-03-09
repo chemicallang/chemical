@@ -3,6 +3,14 @@
 #include "ast/utils/GenericUtils.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/types/ReferenceType.h"
+#include "ast/types/GenericType.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
+#include "ast/types/LinkedType.h"
 #include "ast/values/FunctionCall.h"
 
 void GenericFuncDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) {
@@ -48,6 +56,8 @@ void GenericFuncDecl::link_signature(SymbolResolver &linker) {
     for(auto& param : generic_params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
+    // we don't put the master implementation (into extendable container)
+    // because the receiver could be generic
     master_impl->link_signature_no_scope(linker);
     // we set it has usage, so every shallow copy or instantiation has usage
     // since we create instantiation only when calls are detected, so no declaration will be created
@@ -63,6 +73,14 @@ void GenericFuncDecl::link_signature(SymbolResolver &linker) {
     // finalize the signatures of all instantiations
     // this basically visits the instantiations signature and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(this, instantiations);
+    // now that we have completely finalized the signature of instantiations
+    // we will put all the functions if they are extension functions
+    // they will go into their appropriate structs
+//    if(master_impl->isExtensionFn()) {
+//        for(const auto inst : instantiations) {
+//            inst->put_as_extension_function(linker.allocator, linker);
+//        }
+//    }
 }
 
 void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
@@ -172,6 +190,12 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
 
+//        // since signature has already been linked, we need to manually put into
+//        // the appropriate struct for which this function is for
+//        if(impl->isExtensionFn()) {
+//            impl->put_as_extension_function(allocator, diagnoser);
+//        }
+
     } else if(signature_linked) {
 
         // signature and body both have been linked for master_impl
@@ -182,6 +206,12 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         auto ptr = impl;
         const auto span = std::span<FunctionDeclaration*>(&ptr, 1);
         instantiator.FinalizeSignature(this, span);
+
+//        // since signature has already been linked, we need to manually put into
+//        // the appropriate struct for which this function is for
+//        if(impl->isExtensionFn()) {
+//            impl->put_as_extension_function(allocator, diagnoser);
+//        }
 
     }
 

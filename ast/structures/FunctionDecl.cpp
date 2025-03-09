@@ -6,6 +6,9 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/UnionDef.h"
 #include "compiler/SymbolResolver.h"
 #include "CapturedVariable.h"
@@ -1344,7 +1347,67 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& no
     }
 }
 
-void FunctionDeclaration::link_signature_no_scope(SymbolResolver &linker) {
+bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+    // extension functions declare themselves inside the container
+    auto& receiver = *params[0];
+    const auto type = receiver.type;
+    const auto pure_receiver = type->pure_type(allocator);
+    const auto receiver_kind = pure_receiver->kind();
+    if (receiver_kind != BaseTypeKind::Reference) {
+        diagnoser.error("receiver in extension function must always be a reference", type);
+    }
+    auto linked = type->linked_node();
+    if (!linked) {
+        diagnoser.error((AnnotableNode*) this) << "couldn't find container in extension function ith receiver type \"" << type->representation() << "\"";
+        return false;
+    }
+    const auto linked_kind = linked->kind();
+    auto container = linked->as_extendable_members_container();
+    if (linked_kind == ASTNodeKind::InterfaceDecl) {
+        const auto interface = linked->as_interface_def_unsafe();
+        if (!interface->is_static() && generic_parent == nullptr) {
+            diagnoser.error("extension functions are only supported on static interfaces, either make the interface static or move the function inside the interface", receiver.type);
+            return false;
+        }
+    } else if(linked_kind == ASTNodeKind::GenericTypeParam) {
+        const auto param = linked->as_generic_type_param_unsafe();
+        if(param->at_least_type) {
+            const auto at_least_linked = param->at_least_type->get_direct_linked_node();
+            if(at_least_linked) {
+                container = at_least_linked->as_extendable_members_container_node();
+            }
+        }
+    } else if(linked_kind == ASTNodeKind::GenericStructDecl) {
+        container = linked->as_gen_struct_def_unsafe()->master_impl;
+    } else if(linked_kind == ASTNodeKind::GenericInterfaceDecl) {
+        container = linked->as_gen_interface_decl_unsafe()->master_impl;
+    } else if(linked_kind == ASTNodeKind::GenericUnionDecl) {
+        container = linked->as_gen_union_decl_unsafe()->master_impl;
+    } else if(linked_kind == ASTNodeKind::GenericVariantDecl) {
+        container = linked->as_gen_variant_decl_unsafe()->master_impl;
+    }
+    if (!container) {
+        diagnoser.error(receiver.type) << "type doesn't support extension functions " << type->representation();
+        return false;
+    }
+    if(container->extension_functions.contains(name_view())) {
+        diagnoser.error(receiver.type) << "container already contains an extension function by the same name";
+    } else {
+        const auto field_func = linked->child(name_view());
+        if (field_func != nullptr && field_func != generic_parent) {
+            diagnoser.error(receiver.type) << "couldn't declare extension function with name '" << name_view() << "' because type '" << receiver.type->representation() << "' already has a field / function with same name \n";
+            return false;
+        }
+        if(generic_parent) {
+            container->add_extension_func(name_view(), generic_parent);
+        } else {
+            container->add_extension_func(name_view(), this);
+        }
+        return true;
+    }
+}
+
+void FunctionDeclaration::link_signature_no_ext_scope(SymbolResolver &linker) {
     bool resolved = true;
     for(auto param : params) {
         if(!param->link_param_type(linker)) {
@@ -1357,60 +1420,21 @@ void FunctionDeclaration::link_signature_no_scope(SymbolResolver &linker) {
     if(resolved) {
         FunctionType::data.signature_resolved = true;
     }
+}
 
-    // extension functions declare themselves inside the container
+void FunctionDeclaration::link_signature_no_scope(SymbolResolver& linker) {
+    link_signature_no_ext_scope(linker);
     if(isExtensionFn()) {
-        auto& receiver = *params[0];
-        const auto type = receiver.type;
-        const auto pure_receiver = type->pure_type(linker.allocator);
-        const auto receiver_kind = pure_receiver->kind();
-        if (receiver_kind != BaseTypeKind::Reference) {
-            linker.error("receiver in extension function must always be a reference", type);
-        }
-        auto linked = type->linked_node();
-        if (!linked) {
-            linker.error((AnnotableNode*) this) << "couldn't find container in extension function ith receiver type \"" << type->representation() << "\"";
-            return;
-        }
-        const auto linked_kind = linked->kind();
-        auto container = linked->as_extendable_members_container();
-        if (linked_kind == ASTNodeKind::InterfaceDecl) {
-            const auto interface = linked->as_interface_def_unsafe();
-            if (!interface->is_static()) {
-                linker.error("extension functions are only supported on static interfaces, either make the interface static or move the function inside the interface", receiver.type);
-                return;
-            }
-        } else if(linked_kind == ASTNodeKind::GenericStructDecl) {
-            container = linked->as_gen_struct_def_unsafe()->master_impl;
-        }
-        if (!container) {
-            linker.error(receiver.type) << "type doesn't support extension functions " << type->representation();
-            return;
-        }
-        if(container->extension_functions.contains(name_view())) {
-            linker.error(receiver.type) << "container already contains an extension function by the same name";
-        } else {
-            const auto field_func = linked->child(name_view());
-            if (field_func != nullptr) {
-                linker.error(receiver.type) << "couldn't declare extension function with name '" << name_view() << "' because type '" << receiver.type->representation() << "' already has a field / function with same name \n";
-                return;
-            }
-            if(name_view() == "ext_div") {
-                int i = 0;
-            }
-            if(generic_parent) {
-                container->add_extension_func(name_view(), generic_parent);
-            } else {
-                container->add_extension_func(name_view(), this);
-            }
-        }
+        put_as_extension_function(linker.allocator, linker);
     }
-
 }
 
 void FunctionDeclaration::link_signature(SymbolResolver &linker)  {
     linker.scope_start();
-    link_signature_no_scope(linker);
+    link_signature_no_ext_scope(linker);
+    if(isExtensionFn()) {
+        put_as_extension_function(linker.allocator, linker);
+    }
     linker.scope_end();
 }
 

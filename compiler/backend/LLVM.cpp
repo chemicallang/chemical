@@ -194,19 +194,13 @@ llvm::Type *LinkedType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &
 
 llvm::Type *GenericType::llvm_type(Codegen &gen) {
     const auto gen_struct = referenced->linked_node()->as_members_container();
-    const auto prev_itr = gen_struct->get_active_iteration();
-    gen_struct->set_active_iteration(generic_iteration);
     auto type = referenced->llvm_type(gen);
-    gen_struct->set_active_iteration(prev_itr);
     return type;
 }
 
 llvm::Type *GenericType::llvm_param_type(Codegen &gen) {
     const auto gen_struct = referenced->linked;
-    const auto prev_itr = gen_struct->get_active_iteration();
-    gen_struct->set_active_iteration(generic_iteration);
     auto type = referenced->llvm_param_type(gen);
-    gen_struct->set_active_iteration(prev_itr);
     return type;
 }
 
@@ -722,10 +716,7 @@ llvm::Value* AlignOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 }
 
 llvm::Type *AccessChain::llvm_type(Codegen &gen) {
-    std::vector<int16_t> active;
-    set_generic_iteration(active, gen.allocator);
     auto type = values[values.size() - 1]->llvm_type(gen);
-    restore_generic_iteration(active, gen.allocator);
     return type;
 }
 
@@ -740,59 +731,41 @@ llvm::Value* AccessChain::llvm_value_no_itr(Codegen &gen, BaseType* expected_typ
 
 llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    std::vector<int16_t> active;
-    set_generic_iteration(active, gen.allocator);
     const auto last_ind = values.size() - 1;
     const auto last = values[last_ind];
     const auto value = last->access_chain_value(gen, values, last_ind, destructibles, expected_type);
     Value::destruct(gen, destructibles);
-    restore_generic_iteration(active, gen.allocator);
     return value;
 }
 
 void AccessChain::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    std::vector<int16_t> active;
-    set_generic_iteration(active, gen.allocator);
     const auto last_ind = values.size() - 1;
     auto& last = values[last_ind];
     last->access_chain_assign_value(gen, this, last_ind, destructibles, lhsPtr, lhs, nullptr);
-    restore_generic_iteration(active, gen.allocator);
     Value::destruct(gen, destructibles);
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    std::vector<int16_t> active;
-    set_generic_iteration(active, gen.allocator);
     auto value = values[values.size() - 1]->access_chain_pointer(gen, values, destructibles, values.size() - 1);
-    restore_generic_iteration(active, gen.allocator);
     Value::destruct(gen, destructibles);
     return value;
 }
 
 llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType* expected_type) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    std::vector<int16_t> active;
-    set_generic_iteration(active, gen.allocator);
     auto value = values[values.size() - 1]->access_chain_allocate(gen, values, values.size() - 1, expected_type);
-    restore_generic_iteration(active, gen.allocator);
     Value::destruct(gen, destructibles);
     return value;
 }
 
 void AccessChain::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
-    std::vector<int16_t> active;
-    set_generic_iteration(active, gen.allocator);
     values[values.size() - 1]->llvm_destruct(gen, allocaInst);
-    restore_generic_iteration(active, gen.allocator);
 }
 
 bool AccessChain::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
-    std::vector<int16_t> active;
-    set_generic_iteration(active, gen.allocator);
     auto result = values[values.size() - 1]->add_child_index(gen, indexes, name);
-    restore_generic_iteration(active, gen.allocator);
     return result;
 }
 

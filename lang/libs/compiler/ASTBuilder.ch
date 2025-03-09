@@ -256,8 +256,6 @@ struct FunctionDeclaration : ASTNode {
 
     func get_params(&self) : *VecRef<FunctionParam>;
 
-    func get_generic_params(&self) : *VecRef<GenericTypeParameter>;
-
     func add_body(&self) : *VecRef<ASTNode>
 
 }
@@ -306,8 +304,6 @@ struct StructDefinition : ASTNode {
 
     func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
 
-    func get_generic_params(&self) : *VecRef<GenericTypeParameter>;
-
 }
 
 struct StructMember : ASTNode {}
@@ -317,8 +313,6 @@ struct UnionDef : ASTNode {
     func add_member(name : &string_view, member : *StructMember)
 
     func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
-
-    func get_generic_params(&self) : *VecRef<GenericTypeParameter>;
 
 }
 

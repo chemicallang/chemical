@@ -95,8 +95,6 @@ public:
         link(linker, expected_type, nullptr, 0, false, false);
     }
 
-    void fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type);
-
     /**
      * will call relink_parent on values starting from second value
      */
@@ -179,8 +177,6 @@ public:
 };
 
 void copy_from(ASTAllocator& allocator, std::vector<ChainValue*>& destination, std::vector<ChainValue*>& source, unsigned from);
-
-std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& allocator, ChainValue* parent_val);
 
 Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Value* evaluated, unsigned i);
 

@@ -27,10 +27,9 @@ public:
 
 #ifdef COMPILER_BUILD
     /**
-     * the key here is the generic iteration, where as the value corresponds to
-     * a llvm struct type, we create a struct type once, and then cache it
+     * the llvm struct type
      */
-    std::unordered_map<int16_t, llvm::StructType*> llvm_struct_types;
+    llvm::StructType* llvm_struct_type = nullptr;
 #endif
 
     /**
@@ -94,11 +93,6 @@ public:
         attrs.anonymous = value;
     }
 
-
-    bool is_generic() {
-        return !generic_params.empty();
-    }
-
     bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;
     }
@@ -138,12 +132,6 @@ public:
     BaseType* create_value_type(ASTAllocator& allocator) final;
 
 //    hybrid_ptr<BaseType> get_value_type() final;
-    /**
-     * a variant call notifies a definition, during symbol resolution that it exists
-     * when this happens, generics are checked, proper types are registered in generic
-     * @return iteration that corresponds to this call
-     */
-    int16_t register_call(SymbolResolver& resolver, FunctionCall* call, BaseType* expected_type);
 
     /**
      * check if it includes any member who has a struct, that requires a destructor

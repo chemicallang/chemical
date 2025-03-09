@@ -41,20 +41,8 @@ private:
     std::vector<FunctionDeclaration*> functions_container;
     std::unordered_map<chem::string_view, FunctionDeclaration*> indexes;
 
-    void set_active_iteration_no_subs(int16_t iteration);
-
 public:
 
-    std::vector<GenericTypeParameter*> generic_params;
-    /**
-     * subscribers are reported with usages of this generic type
-     */
-    std::vector<GenericType*> subscribers;
-    /**
-     * generic parameters pretend to be different types on different iterations, iterations are number of usages
-     * that we determined during symbol resolution
-     */
-    int16_t active_iteration = -1;
     /**
      * the iterations for which functions have been declared
      * this is an index, so next starts at this index
@@ -75,18 +63,6 @@ public:
      * this is the generic instantiation that is instantiated by the generic parent
      */
     int generic_instantiation = -1;
-
-#ifdef COMPILER_BUILD
-    /**
-     * here the generic llvm data, which corresponds to generic iterations, for example
-     * if user types a generic struct, which contains a generic function
-     * the complete specializations of generics will be stored at different indexes
-     * where 0 would be the first complete specialization
-     * here the vector contains another vector, the contained corresponds to generic iterations of the
-     * functions, so that generic functions can be stored inside generic structs
-     */
-    std::unordered_map<FunctionDeclaration*, std::vector<std::vector<llvm::Function*>>> generic_llvm_data;
-#endif
 
     /**
      * default constructor
@@ -132,73 +108,11 @@ public:
 
     FunctionDeclaration *direct_child_function(const chem::string_view& name);
 
-    inline bool is_generic() {
-        return !generic_params.empty();
-    }
-
     /**
      * get child variable index, including the inherited types
      */
     int child_index(const chem::string_view &var_name) final {
         return VariablesContainer::variable_index(var_name);
-    }
-
-    /**
-     * how many actual functions are generated from this generic function
-     * non-generic functions return 1
-     */
-    int16_t total_generic_iterations();
-
-    /**
-     * this function reports the given iteration (of this container) to it's subscribers
-     * basically if this container is used with new generic arguments, we notify subscribers
-     * to generate implementations
-     */
-    void report_iteration_to_subs(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t itr);
-
-    /**
-     * register generic args, but with already existing generic iteration (iteration is returned)
-     */
-    int16_t register_with_existing(ASTDiagnoser& diagnoser, std::vector<BaseType*>& types);
-
-    /**
-     * register the generic args, so code is generated for these types, a generic iteration is returned
-     */
-    int16_t register_generic_args(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, std::vector<BaseType*>& types);
-
-    /**
-     * register value for the struct
-     */
-    int16_t register_value(SymbolResolver& resolver, StructValue* structValue);
-
-    /**
-     * get the active generic iteration
-     */
-    int16_t get_active_iteration() final {
-        return active_iteration;
-    }
-
-    /**
-     * set's the active iteration for a generic function
-     * this helps generics types pretend to be certain type
-     */
-    void set_active_iteration(int16_t iteration) final;
-
-    /**
-     * this sets the given iteration as active, and returns current iteration
-     */
-    int16_t set_active_itr_ret_prev(int16_t iteration) {
-        const auto active = active_iteration;
-        set_active_iteration(iteration);
-        return active;
-    }
-
-    /**
-     * set's the generic active iteration safely
-     */
-    inline void set_active_iteration_safely(int16_t itr) {
-        if(itr < -1) return;
-        set_active_iteration(itr);
     }
 
     /**
@@ -280,17 +194,6 @@ public:
      * get the byte size
      */
     virtual uint64_t byte_size(bool is64Bit) = 0;
-
-    /**
-     * get the bytesize at the folloing iteration
-     */
-    uint64_t byte_size(bool is64Bit, int16_t iteration) {
-        auto prev = active_iteration;
-        set_active_iteration(iteration);
-        auto size = byte_size(is64Bit);
-        set_active_iteration(prev);
-        return size;
-    }
 
     /**
      * shallow copy this container
@@ -431,13 +334,6 @@ public:
     BaseType* create_linked_type(const chem::string_view& name, ASTAllocator& allocator);
 
     /**
-     * this generic type is registered as a subscriber of this generic node
-     */
-    void subscribe(GenericType *subscriber) final {
-        subscribers.emplace_back(subscriber);
-    }
-
-    /**
      * check if the other node extends given node
      * for example this container represents a struct X : public Y
      */
@@ -490,36 +386,13 @@ public:
     void external_declare(Codegen& gen);
 
     /**
-     * for the given struct iteration, we acquire all the function iterations and put them
-     * in the llvm_struct types, this basically set's the given iteration so that when llvm_type is called
-     * or llvm_value, it will consider the struct iteration
+     * get the itr for function
+     * @deprecated
      */
-    void acquire_function_iterations(int16_t iteration);
-
-    /**
-     * will call code_gen_declare on generic arguments that are structs
-     * This ensures that struct's function being called inside generic structs
-     * are already declared before we call them
-     */
-    void early_declare_structural_generic_args(Codegen& gen);
-
-    /**
-     * inside a generic struct
-     * by giving struct's generic iteration, you can get llvm's function data for the given iteration of the function
-     * inside a generic struct
-     * where struct iteration means struct is generic and it's complete specialization for that itr
-     * where func iteration menas func is generic and it's complete specialization for that itr
-     * if function is not generic, just use 0 as func_itr, here if struct is generic, function will not be generic, unless
-     * function has other generic parameters that are not present in struct
-     */
-    llvm::Function*& llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr);
-
-    /**
-     * this uses active iteration of both the current members container and given function declaration
-     * to get the function's data, works for both even if function is generic or this members container is generic
-     * it'll always get the correct func callee and func type
-     */
-    llvm::Function* llvm_func_data(FunctionDeclaration* decl);
+    [[deprecated]]
+    inline llvm::Function* llvm_func_data(FunctionDeclaration* decl) {
+        return decl->llvm_func();
+    }
 
     /**
      * add child index
@@ -537,17 +410,6 @@ public:
      */
     llvm::Type* llvm_type(Codegen &gen) {
         return ASTAny::llvm_type(gen);
-    }
-
-    /**
-     * llvm type for the given generic iteration
-     */
-    llvm::Type *llvm_type(Codegen &gen, int16_t iteration) {
-        auto prev = active_iteration;
-        set_active_iteration(iteration);
-        auto type = llvm_type(gen);
-        set_active_iteration(prev);
-        return type;
     }
 
     /**

@@ -110,11 +110,7 @@ llvm::FunctionType *FunctionDeclaration::create_llvm_func_type(Codegen &gen) {
 }
 
 llvm::Function* FunctionDeclaration::known_func() {
-    if(!llvm_data.empty() && active_iteration < llvm_data.size()) {
-        return llvm_data[active_iteration];
-    } else {
-        return nullptr;
-    }
+    return llvm_data.empty() ? nullptr : llvm_data[0];
 }
 
 llvm::FunctionType *FunctionDeclaration::known_func_type() {
@@ -129,7 +125,7 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
 }
 
 llvm::Function*& FunctionDeclaration::get_llvm_data() {
-    if(active_iteration == llvm_data.size() && is_override()) {
+    if(llvm_data.empty() && is_override()) {
         const auto struct_def = parent()->as_struct_def();
         if(struct_def) {
             const auto overriding = struct_def->get_overriding_info(this);
@@ -151,16 +147,7 @@ llvm::Function*& FunctionDeclaration::get_llvm_data() {
             }
         }
     }
-    if(parent()) {
-        auto k = parent()->kind();
-        if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::InterfaceDecl) {
-            auto container = parent()->as_members_container_unsafe();
-            if(!container->generic_params.empty()) { // container is generic
-                return container->generic_llvm_data[this][container->active_iteration][active_iteration];
-            }
-        }
-    }
-    return llvm_data[active_iteration];
+    return llvm_data[0];
 }
 
 void FunctionType::queue_destruct_params(Codegen& gen) {
@@ -223,36 +210,14 @@ void func_body_gen_no_scope(FunctionDeclaration* decl, Codegen& gen) {
     if(!decl->exists_at_runtime()) {
         return;
     }
-    if(decl->generic_params.empty()) {
-        body_gen_no_scope(gen, decl, decl->llvm_func());
-    } else {
-        const auto total = decl->total_generic_iterations();
-        while(decl->bodies_gen_index < total) {
-            decl->set_active_iteration(decl->bodies_gen_index);
-            body_gen_no_scope(gen, decl, decl->llvm_func());
-            decl->bodies_gen_index++;
-        }
-        // we set active iteration to -1, so all generics would fail if acessed without setting active iteration
-        decl->set_active_iteration(-1);
-    }
+    body_gen_no_scope(gen, decl, decl->llvm_func());
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen) {
     if(!exists_at_runtime()) {
         return;
     }
-    if(generic_params.empty()) {
-        body_gen(gen, this, llvm_func());
-    } else {
-        const auto total = total_generic_iterations();
-        while(bodies_gen_index < total) {
-            set_active_iteration(bodies_gen_index);
-            body_gen(gen, this, llvm_func());
-            bodies_gen_index++;
-        }
-        // we set active iteration to -1, so all generics would fail if acessed without setting active iteration
-        set_active_iteration(-1);
-    }
+    body_gen(gen, this, llvm_func());
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
@@ -320,14 +285,14 @@ void FunctionDeclaration::llvm_attributes(llvm::Function* func) {
 
 void FunctionDeclaration::set_llvm_data(llvm::Function* func) {
 #ifdef DEBUG
-    if(active_iteration > (int) llvm_data.size()) {
+    if(0 > (int) llvm_data.size()) {
         throw std::runtime_error("decl's generic active iteration is greater than total llvm_data size");
     }
 #endif
-    if(active_iteration == llvm_data.size()) {
+    if(llvm_data.empty()) {
         llvm_data.emplace_back(func);
     } else {
-        llvm_data[active_iteration] = func;
+        llvm_data[0] = func;
     }
 }
 
@@ -352,22 +317,8 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     decl->set_llvm_data(func);
 }
 
-void create_fn(Codegen& gen, FunctionDeclaration *decl) {
-    if(decl->generic_params.empty()) {
-        // non generic functions always have generic iteration equal to zero
-        decl->active_iteration = 0;
-        create_non_generic_fn(gen, decl, decl->runtime_name_fast(gen));
-    } else {
-        const auto total_use = decl->total_generic_iterations();
-        auto i = (int16_t) decl->llvm_data.size();
-        while(i < total_use) {
-            decl->set_active_iteration(i);
-            create_non_generic_fn(gen, decl, decl->runtime_name_fast(gen));
-            i++;
-        }
-        // we set active iteration to -1, so all generics would fail without setting active_iteration
-        decl->set_active_iteration(-1);
-    }
+void create_fn(Codegen& gen, FunctionDeclaration *decl) {     // non generic functions always have generic iteration equal to zero
+    create_non_generic_fn(gen, decl, decl->runtime_name_fast(gen));
 }
 
 void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
@@ -381,39 +332,11 @@ void declare_non_gen_weak_fn(Codegen& gen, FunctionDeclaration *decl, const std:
 }
 
 void declare_fn_weak(Codegen& gen, FunctionDeclaration *decl, bool is_exported) {
-    if(decl->generic_params.empty()) {
-        // non generic functions always have generic iteration equal to zero
-        decl->active_iteration = 0;
-        declare_non_gen_weak_fn(gen, decl, decl->runtime_name_fast(gen), is_exported);
-    } else {
-        const auto total_use = decl->total_generic_iterations();
-        auto i = (int16_t) decl->llvm_data.size();
-        while(i < total_use) {
-            decl->set_active_iteration(i);
-            declare_non_gen_weak_fn(gen, decl, decl->runtime_name_fast(gen), is_exported);
-            i++;
-        }
-        // we set active iteration to -1, so all generics would fail without setting active_iteration
-        decl->set_active_iteration(-1);
-    }
+    declare_non_gen_weak_fn(gen, decl, decl->runtime_name_fast(gen), is_exported);
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
-    if(decl->generic_params.empty()) {
-        // non generic functions always have generic iteration equal to zero
-        decl->active_iteration = 0;
-        declare_non_gen_fn(gen, decl, decl->runtime_name_fast(gen));
-    } else {
-        const auto total_use = decl->total_generic_iterations();
-        auto i = (int16_t) decl->llvm_data.size();
-        while(i < total_use) {
-            decl->set_active_iteration(i);
-            declare_non_gen_fn(gen, decl, decl->runtime_name_fast(gen));
-            i++;
-        }
-        // we set active iteration to -1, so all generics would fail without setting active_iteration
-        decl->set_active_iteration(-1);
-    }
+    declare_non_gen_fn(gen, decl, decl->runtime_name_fast(gen));
 }
 
 void create_or_declare_fn(Codegen& gen, FunctionDeclaration* decl) {
@@ -486,21 +409,7 @@ void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
         // function wasn't exported
         return;
     }
-    if(!is_generic()) {
-        declare_non_gen_fn(gen, this, runtime_name_fast());
-    } else {
-        // declare functions for which bodies have been generated
-        int16_t i = 0;
-        while (i < bodies_gen_index) {
-            set_active_iteration(i);
-            declare_non_gen_fn(gen, this, runtime_name_fast());
-            i++;
-        }
-        // create functions and generate bodies for only those functions that
-        // do not have it, since create_fn and body_gen both use llvm_data.size() to start
-        code_gen_declare(gen);
-        code_gen_body(gen);
-    }
+    declare_non_gen_fn(gen, this, runtime_name_fast());
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {
@@ -1348,14 +1257,6 @@ void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
         stream << "__cfg_";
         stream << generic_instantiation;
     }
-    if(is_generic()) {
-        stream << "__cgf_";
-        stream << active_iteration;
-    }
-}
-
-int16_t FunctionDeclaration::total_generic_iterations() {
-    return ::total_generic_iterations(generic_params);
 }
 
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
@@ -1420,125 +1321,6 @@ void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& 
     check_self_other_params(diagnoser, this, def);
 }
 
-void FunctionDeclaration::set_gen_itr_no_subs(int16_t iteration) {
-#ifdef DEBUG
-    if(iteration < -1) {
-        throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
-    }
-#endif
-    active_iteration = iteration;
-    for (auto& param: generic_params) {
-        param->set_active_iteration(iteration);
-    }
-}
-
-void FunctionDeclaration::activate_gen_call_iterations(int16_t iteration) {
-    const auto parent_itr = get_parent_iteration();
-    for (const auto sub_call: call_subscribers) {
-        const auto compl_itr = pack_gen_itr(parent_itr, iteration);
-        auto found = gen_call_iterations.find(compl_itr);
-        if (found != gen_call_iterations.end()) {
-            sub_call.first->generic_iteration = found->second;
-        }
-    }
-}
-
-void FunctionDeclaration::set_active_iteration(int16_t iteration, bool set_generic_calls) {
-#ifdef DEBUG
-    if(iteration < -1) {
-        throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
-    }
-#endif
-    active_iteration = iteration;
-    for (auto& param: generic_params) {
-        param->set_active_iteration(iteration);
-    }
-    for (auto sub: subscribers) {
-        sub->set_parent_iteration(iteration);
-    }
-    // activating generic iterations of nested generic function calls that are present in the declaration
-    // generic calls within generic function needs explicit setting of generic iterations
-    if(set_generic_calls) {
-        activate_gen_call_iterations(iteration);
-    }
-}
-
-int16_t FunctionDeclaration::register_call_with_existing(ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type) {
-    const auto total = generic_params.size();
-    std::vector<BaseType*> generic_args(total);
-    ::infer_generic_args(generic_args, generic_params, call, diagnoser, expected_type);
-    // register and report to subscribers
-    auto itr = get_iteration_for(generic_params, generic_args);
-    if(itr == -1) {
-        diagnoser.error("generic iteration doesn't exist for call", (ASTNode*) this);
-        return -1;
-    }
-    return -1;
-}
-
-void FunctionDeclaration::register_parent_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t parent_itr) {
-    for(auto call_sub : call_subscribers) {
-        // recursive
-        const auto itr = call_sub.first->register_indirect_generic_iteration(astAllocator, diagnoser, call_sub.second);
-        // saving the generic iteration
-        const auto compl_itr = pack_gen_itr(parent_itr, active_iteration);
-        gen_call_iterations[compl_itr] = itr;
-    }
-}
-
-int16_t FunctionDeclaration::get_parent_iteration() {
-    if(parent()) {
-        const auto container = parent()->as_members_container();
-        if(container && container->is_generic()) {
-            return container->active_iteration;
-        } else {
-            // it's not a members container or not generic
-            return 0;
-        }
-    } else {
-        // struct has no parent
-        return 0;
-    }
-}
-
-int16_t FunctionDeclaration::register_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type) {
-    const auto total = generic_params.size();
-    std::vector<BaseType*> generic_args(total);
-    infer_generic_args(generic_args, generic_params, call, diagnoser, expected_type);
-    // purify generic args, this is done if this call is inside a generic function
-    // by calling pure we resolve that type to its specialized version
-    // because this function runs in a loop, below the function 'register_indirect_generic_iteration' calls this
-    // function on functions that registered as subscribers (generic calls were present inside this generic function)
-    unsigned i = 0;
-    while(i < generic_args.size()) {
-        auto& type = generic_args[i];
-        if(type) {
-            type = type->pure_type();
-        }
-        i++;
-    }
-    const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
-    // we activate the iteration just registered, because below we make call to register_indirect_iteration below
-    // which basically calls register_call recursive on function calls present inside this function that are generic
-    // which resolve specialized type using pure_type we called in the above loop
-    // this function sets the iterations of the call_subscribers, however we haven't even
-    // set their corresponding iterations in their subscribed map, we're doing it in the loop below
-    // therefore we don't need to set generic iterations of subscribers
-    set_gen_itr_no_subs(itr.first);
-    if(itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
-        for (auto sub: subscribers) {
-            sub->report_parent_usage(astAllocator, diagnoser, itr.first);
-        }
-        const auto parent_itr = get_parent_iteration();
-        for(auto call_sub : call_subscribers) {
-            const auto call_itr = call_sub.first->register_indirect_generic_iteration(astAllocator, diagnoser, call_sub.second);
-            // saving the call iteration into the map
-            gen_call_iterations[pack_gen_itr(parent_itr, itr.first)] = call_itr;
-        }
-    }
-    return itr.first;
-}
-
 BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
     const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isExtensionFn(), isVariadic(), false, ZERO_LOC, FunctionType::data.signature_resolved);
     for(const auto param : params) {
@@ -1564,14 +1346,6 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& no
 
 void FunctionDeclaration::link_signature_no_scope(SymbolResolver &linker) {
     bool resolved = true;
-    if(is_generic()) {
-        for (auto& gen_param: generic_params) {
-            gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
-        }
-    } else {
-        // non generic functions always have generic iteration equal to zero
-        active_iteration = 0;
-    }
     for(auto param : params) {
         if(!param->link_param_type(linker)) {
             resolved = false;
@@ -1657,9 +1431,6 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& nod
     linker.scope_start();
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
-    for(auto gen_param : generic_params) {
-        gen_param->declare_only(linker);
-    }
     for (auto& param : params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }

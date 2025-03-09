@@ -124,15 +124,7 @@ llvm::Value *StructValue::llvm_pointer(Codegen &gen) {
 
 void StructValue::llvm_destruct(Codegen &gen, llvm::Value *givenAlloca) {
     if(definition) {
-        int16_t prev_itr;
-        if (is_generic()) {
-            prev_itr = definition->active_iteration;
-            definition->set_active_iteration(generic_iteration);
-        }
         definition->llvm_destruct(gen, givenAlloca, encoded_location());
-        if (is_generic()) {
-            definition->set_active_iteration(prev_itr);
-        }
     } else {
         switch(refType->kind()) {
             case BaseTypeKind::Union:
@@ -237,11 +229,7 @@ llvm::Value *StructValue::llvm_ret_value(Codegen &gen, ReturnStatement *returnSt
 
 llvm::Type *StructValue::llvm_type(Codegen &gen) {
     if(definition) {
-        if (definition->generic_params.empty()) {
-            return definition->llvm_type(gen);
-        } else {
-            return definition->llvm_type(gen, generic_iteration);
-        }
+        return definition->llvm_type(gen);
     } else {
         switch(refType->kind()) {
             case BaseTypeKind::Struct:
@@ -270,14 +258,6 @@ bool StructValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& inde
 }
 
 #endif
-
-uint64_t StructValue::byte_size(bool is64Bit) {
-    if(definition->generic_params.empty()) {
-        return definition->byte_size(is64Bit);
-    } else {
-        return definition->byte_size(is64Bit, generic_iteration);
-    }
-}
 
 bool StructValue::primitive() {
     return false;
@@ -509,11 +489,6 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         }
     }
     int16_t prev_itr;
-    // setting active generic iteration
-    if(definition && !definition->generic_params.empty()) {
-        prev_itr = definition->active_iteration;
-        generic_iteration = definition->register_value(linker, this);
-    }
     auto& current_func_type = *linker.current_func_type;
     // linking values
     for (auto &val: values) {
@@ -538,10 +513,6 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             }
         }
     }
-    // setting iteration back
-    if(definition && !definition->generic_params.empty()) {
-        definition->set_active_iteration(prev_itr);
-    }
     return true;
 }
 
@@ -553,43 +524,17 @@ ASTNode *StructValue::linked_node() {
     }
 }
 
-bool StructValue::is_generic() {
-    if(!definition) return false;
-    switch(definition->kind()) {
-        case ASTNodeKind::UnionDecl:
-            return definition->as_union_def_unsafe()->is_generic();
-        case ASTNodeKind::StructDecl:
-            return definition->as_struct_def_unsafe()->is_generic();
-        default:
-            return false;
-    }
-}
-
 void StructValue::runtime_name(std::ostream& output) {
     if(definition) {
         switch (definition->kind()) {
             case ASTNodeKind::UnionDecl: {
                 const auto uni = definition->as_union_def_unsafe();
-                if (uni->is_generic()) {
-                    auto prev = uni->active_iteration;
-                    uni->set_active_iteration(generic_iteration);
-                    uni->runtime_name(output);
-                    uni->set_active_iteration(prev);
-                } else {
-                    uni->runtime_name(output);
-                }
+                uni->runtime_name(output);
                 return;
             }
             case ASTNodeKind::StructDecl: {
                 const auto decl = definition->as_struct_def_unsafe();
-                if (decl->is_generic()) {
-                    auto prev = decl->active_iteration;
-                    decl->set_active_iteration(generic_iteration);
-                    decl->runtime_name(output);
-                    decl->set_active_iteration(prev);
-                } else {
-                    decl->runtime_name(output);
-                }
+                decl->runtime_name(output);
                 return;
             }
             default:

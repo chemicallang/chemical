@@ -14,10 +14,6 @@
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
 
-inline void restore(std::pair<BaseType*, int16_t> pair) {
-    pair.first->set_generic_iteration(pair.second);
-}
-
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
@@ -38,21 +34,17 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, Variant
 }
 
 llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {
-    auto found = llvm_struct_types.find(active_iteration);
-    if(found != llvm_struct_types.end()) {
-        return found->second;
+    if(llvm_struct_type) {
+        return llvm_struct_type;
     }
     const auto largest = largest_member()->as_variant_member_unsafe();
     const auto type = llvm_type_with_member(gen, largest, is_anonymous());
-    llvm_struct_types[active_iteration] = type;
+    llvm_struct_type = type;
     return type;
 }
 
 llvm::Type *VariantDefinition::llvm_type(Codegen &gen, int16_t iteration) {
-    auto prev = active_iteration;
-    set_active_iteration(iteration);
     auto type = llvm_type(gen);
-    set_active_iteration(prev);
     return type;
 }
 
@@ -95,25 +87,9 @@ void VariantDefinition::code_gen_once(Codegen &gen, bool declare) {
 
 void VariantDefinition::code_gen(Codegen &gen, bool declare) {
     auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
-    if(generic_params.empty()) {
-        if(itr_ptr == 0) {
-            code_gen_once(gen, declare);
-            itr_ptr++;
-        }
-    } else {
-        const auto total = total_generic_iterations();
-        const auto prev_itr = active_iteration;
-        auto i = itr_ptr;
-        while(i < total) {
-            set_active_iteration(i);
-            if(declare) {
-                early_declare_structural_generic_args(gen);
-            }
-            code_gen_once(gen, declare);
-            i++;
-        }
-        set_active_iteration(prev_itr);
-        itr_ptr = total;
+    if(itr_ptr == 0) {
+        code_gen_once(gen, declare);
+        itr_ptr++;
     }
 }
 
@@ -127,7 +103,7 @@ bool VariantDefinition::add_child_index(Codegen& gen, std::vector<llvm::Value *>
 
 void VariantDefinition::code_gen_external_declare(Codegen &gen) {
     // clear the stored llvm types so they are generated again for this module
-    llvm_struct_types.clear();
+    llvm_struct_type = nullptr;
     for(auto& function : functions()) {
         function->code_gen_external_declare(gen);
     }
@@ -201,26 +177,20 @@ llvm::Value* VariantCaseVariable::llvm_pointer_no_itr(Codegen& gen) {
 llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
     const auto expr = switch_statement->expression;
     const auto expr_type = expr->create_type(gen.allocator);
-    const auto prev_itr = expr_type->set_generic_iteration(expr_type->get_generic_iteration());
     const auto ptr = llvm_pointer_no_itr(gen);
-    expr_type->set_generic_iteration(prev_itr);
     return ptr;
 }
 
 llvm::Value* VariantCaseVariable::llvm_load(Codegen& gen, SourceLocation location) {
     const auto expr = switch_statement->expression;
     const auto expr_type = expr->create_type(gen.allocator);
-    const auto prev_itr = expr_type->set_generic_iteration(expr_type->get_generic_iteration());
     const auto value = Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer_no_itr(gen), location);
-    expr_type->set_generic_iteration(prev_itr);
     return value;
 }
 
 llvm::Type* VariantCaseVariable::llvm_type(Codegen &gen) {
     if(is_generic_param()) {
-        auto itr = set_iteration();
         const auto result = member_param->type->llvm_type(gen);
-        restore(itr);
         return result;
     } else {
         return member_param->type->llvm_type(gen);
@@ -229,9 +199,7 @@ llvm::Type* VariantCaseVariable::llvm_type(Codegen &gen) {
 
 bool VariantCaseVariable::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     if(is_generic_param()) {
-        auto itr = set_iteration();
         const auto result = member_param->add_child_index(gen, indexes, name);
-        restore(itr);
         return result;
     } else {
         return member_param->add_child_index(gen, indexes, name);
@@ -319,54 +287,6 @@ BaseType* VariantDefinition::create_value_type(ASTAllocator& allocator) {
 //hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
 //    return hybrid_ptr<BaseType> { create_value_type(), true };
 //}
-
-int16_t VariantDefinition::register_call(SymbolResolver& resolver, FunctionCall* call, BaseType* expected_type) {
-
-    const auto total = generic_params.size();
-    std::vector<BaseType*> generic_args(total);
-
-    // set all to default type (if default type is not present, it would automatically be nullptr)
-    unsigned i = 0;
-    while(i < total) {
-        generic_args[i] = generic_params[i]->def_type;
-        i++;
-    }
-
-    // set given generic args to generic parameters
-    i = 0;
-    for(auto& arg : call->generic_list) {
-        generic_args[i] = arg;
-        i++;
-    }
-
-    // infer args, if user gave less args than expected
-    if(call->generic_list.size() != total) {
-        call->infer_generic_args(resolver, generic_args);
-    }
-
-    // inferring type by expected type
-    if(expected_type && expected_type->kind() == BaseTypeKind::Generic) {
-        const auto type = ((GenericType*) expected_type);
-        if(type->linked_node() == this) {
-            i = 0;
-            for(auto& arg : type->types) {
-                generic_args[i] = arg;
-                i++;
-            }
-        }
-    }
-
-    // register and report to subscribers
-    auto& astAllocator = *resolver.ast_allocator;
-    const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
-    if(itr.second) {
-        for (auto sub: subscribers) {
-            sub->report_parent_usage(astAllocator, resolver, itr.first);
-        }
-    }
-
-    return itr.first;
-}
 
 void VariantMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
 
@@ -498,9 +418,7 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& nod
 BaseType* VariantCaseVariable::create_value_type(ASTAllocator& allocator) {
     const auto expr = switch_statement->expression;
     const auto expr_type = expr->create_type(allocator);
-    const auto prev_itr = expr_type->set_generic_iteration(expr_type->get_generic_iteration());
     const auto copied_type = member_param->type->copy(allocator)->pure_type(allocator);
-    expr_type->set_generic_iteration(prev_itr);
     return copied_type;
 }
 
@@ -508,11 +426,6 @@ BaseType* VariantCaseVariable::known_type() {
     return member_param->type;
 }
 
-std::pair<BaseType*, int16_t> VariantCaseVariable::set_iteration() {
-    const auto known_type = switch_statement->expression->known_type();
-    const auto prev_itr = known_type->set_generic_iteration(known_type->get_generic_iteration());
-    return { known_type, prev_itr };
-}
 
 bool VariantCaseVariable::is_generic_param() {
     const auto linked = member_param->type->linked_node();
@@ -521,9 +434,7 @@ bool VariantCaseVariable::is_generic_param() {
 
 ASTNode* VariantCaseVariable::child(const chem::string_view &child_name) {
     if(is_generic_param()) {
-        auto itr = set_iteration();
         const auto result = member_param->child(child_name);
-        restore(itr);
         return result;
     } else {
         return member_param->child(child_name);
@@ -532,9 +443,7 @@ ASTNode* VariantCaseVariable::child(const chem::string_view &child_name) {
 
 int VariantCaseVariable::child_index(const chem::string_view &child_index) {
     if(is_generic_param()) {
-        auto itr = set_iteration();
         const auto result = member_param->child_index(child_index);
-        restore(itr);
         return result;
     } else {
         return member_param->child_index(child_index);
@@ -543,9 +452,7 @@ int VariantCaseVariable::child_index(const chem::string_view &child_index) {
 
 ASTNode* VariantCaseVariable::child(int index) {
     if(is_generic_param()) {
-        auto itr = set_iteration();
         const auto result = member_param->child(index);
-        restore(itr);
         return result;
     } else {
         return member_param->child(index);

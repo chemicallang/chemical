@@ -19,7 +19,6 @@ ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier
 
         annotate(impl);
 
-        parseGenericParametersList(allocator, impl->generic_params);
         auto type = parseLinkedOrGenericType(allocator);
         if(type) {
             impl->interface_type = type;

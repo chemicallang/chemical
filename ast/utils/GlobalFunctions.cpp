@@ -269,7 +269,6 @@ namespace InterpretVector {
         selfType("vector", this, ZERO_LOC), selfReference(&selfType, ZERO_LOC)
     {
         set_compiler_decl(true);
-        generic_params.emplace_back(&typeParam);
         insert_functions({ &constructorFn, &sizeFn, &getFn, &pushFn, &removeFn });
     }
 

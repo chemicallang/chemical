@@ -501,18 +501,6 @@ void ASTNode::subscribe(GenericType* subscriber) {
 #endif
 }
 
-int16_t ASTNode::get_active_iteration() {
-    return -1;
-}
-
-void ASTNode::set_active_iteration(int16_t iteration) {
-#ifdef DEBUG
-    throw std::runtime_error("ASTNode::set_active_iteration called");
-#else
-    std::cerr << "ASTNode::set_active_iteration called on node with representation " + representation() << std::endl;
-#endif
-}
-
 BaseType* ASTNode::create_value_type(ASTAllocator& allocator) {
     return nullptr;
 }

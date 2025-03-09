@@ -28,13 +28,7 @@ void ExtendableMembersContainerNode::runtime_name_no_parent(std::ostream &stream
         stream << "__cgs__";
         stream << generic_instantiation;
     } else {
-        if (generic_params.empty()) {
-            stream << name_view();
-        } else {
-            stream << name_view();
-            stream << "__cgs__";
-            stream << active_iteration;
-        }
+        stream << name_view();
     }
 }
 

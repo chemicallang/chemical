@@ -147,8 +147,6 @@ bool Parser::parseVariableAndFunctionInto(MembersContainer* decl, ASTAllocator& 
     return false;
 }
 
-const auto GENv2 = true;
-
 ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::StructKw)) {
 
@@ -169,7 +167,7 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpeci
 
         ASTNode* final_decl = decl;
 
-        if(GENv2 && !gen_params.empty()) {
+        if(!gen_params.empty()) {
 
             const auto gen_decl = new (allocator.allocate<GenericStructDecl>()) GenericStructDecl(
                 decl, parent_node, loc_single(identifier)
@@ -178,10 +176,6 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpeci
             gen_decl->generic_params = std::move(gen_params);
 
             final_decl = gen_decl;
-
-        } else {
-
-            decl->generic_params = std::move(gen_params);
 
         }
 

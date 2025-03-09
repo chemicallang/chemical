@@ -648,10 +648,6 @@ std::vector<FunctionParam*>* FunctionDeclarationget_params(FunctionDeclaration* 
     return &decl->params;
 }
 
-std::vector<GenericTypeParameter*>* FunctionDeclarationget_generic_params(FunctionDeclaration* decl) {
-    return &decl->generic_params;
-}
-
 std::vector<ASTNode*>* FunctionDeclarationadd_body(FunctionDeclaration* decl) {
     if(!decl->body.has_value()) {
         decl->body.emplace(decl->parent(), decl->ASTNode::encoded_location());
@@ -687,10 +683,6 @@ void StructDefinitionadd_function(StructDefinition* definition, ASTAllocator* as
     definition->insert_multi_func(*astAllocator, decl);
 }
 
-std::vector<GenericTypeParameter*>* StructDefinitionget_generic_params(StructDefinition* definition) {
-    return &definition->generic_params;
-}
-
 void InterfaceDefinitionadd_function(InterfaceDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
     definition->insert_multi_func(*astAllocator, decl);
 }
@@ -713,10 +705,6 @@ void UnionDefinitionadd_member(UnionDef* definition, chem::string_view* name, Ba
 
 void UnionDefinitionadd_function(UnionDef* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
     definition->insert_multi_func(*astAllocator, decl);
-}
-
-std::vector<GenericTypeParameter*>* UnionDefinitionget_generic_params(UnionDef* definition) {
-    return &definition->generic_params;
 }
 
 void VariantDefinitionadd_member(VariantDefinition* definition, chem::string_view* name, BaseDefMember* member) {

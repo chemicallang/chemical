@@ -104,71 +104,9 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
     return vec;
 }
 
-llvm::Function*& MembersContainer::llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr) {
-    return generic_llvm_data.at(decl).at(struct_itr).at(func_itr);
-}
-
 void MembersContainer::external_declare(Codegen& gen) {
-    if(generic_params.empty()) {
-        for (auto& function: functions()) {
-            function->code_gen_external_declare(gen);
-        }
-    } else {
-        if(functions().empty()) return;
-        // get the total number of iterations that already exist for each function
-        const auto total_existing_itr = generic_llvm_data[functions().front()].size();
-        // clear the existing iteration's llvm_data since that's out of module
-        for(auto& func : functions()) {
-            generic_llvm_data[func].clear();
-        }
-        int16_t i = 0;
-        const auto prev_active_iteration = active_iteration;
-        while(i < total_existing_itr) {
-            set_active_iteration(i);
-            // declare all the functions at iteration
-            for (auto& function: functions()) {
-                function->code_gen_external_declare(gen);
-            }
-            // acquire functions llvm data at iteration
-            acquire_function_iterations(i);
-            i++;
-        }
-        set_active_iteration_safely(prev_active_iteration);
-        // calling code_gen, this will generate any missing generic iterations
-        code_gen_declare(gen);
-        code_gen(gen);
-    }
-}
-
-void MembersContainer::acquire_function_iterations(int16_t iteration) {
-    for(auto& function : functions()) {
-        auto& func_data = generic_llvm_data[function];
-        if(iteration == func_data.size()) {
-            func_data.emplace_back(function->llvm_data);
-        } else {
-            func_data[iteration] = function->llvm_data;
-        }
-    }
-}
-
-void MembersContainer::early_declare_structural_generic_args(Codegen& gen) {
-    for(auto& type_param : generic_params) {
-        const auto type = type_param->known_type();
-        const auto direct_linked = type->get_direct_linked_node();
-        if (direct_linked) {
-            auto container = direct_linked->as_members_container();
-            if (container) {
-                container->code_gen_declare(gen);
-            }
-        }
-    }
-}
-
-llvm::Function* MembersContainer::llvm_func_data(FunctionDeclaration* decl) {
-    if(!generic_params.empty()) {
-        return llvm_generic_func_data(decl, active_iteration, decl->active_iteration);
-    } else {
-        return decl->llvm_func();
+    for (auto& function: functions()) {
+        function->code_gen_external_declare(gen);
     }
 }
 
@@ -327,9 +265,6 @@ unsigned int MembersContainer::init_values_req_size() {
 
 void MembersContainer::link_signature(SymbolResolver &linker) {
     linker.scope_start();
-    for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
-    }
     for(auto& inherits : inherited) {
         inherits.type->link(linker);
     }
@@ -343,9 +278,6 @@ void MembersContainer::link_signature(SymbolResolver &linker) {
 }
 
 void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
-    for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
-    }
     for(auto& inherits : inherited) {
         // TODO remove this type linking, since we do this in link_signature
         inherits.type->link(linker);
@@ -365,18 +297,6 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
 //    }
     for (auto& func: functions()) {
         func->declare_and_link(linker, (ASTNode*&) func);
-    }
-    if(is_generic()) {
-        // reporting iterations to subscribers
-        // WHY ? well, this container may have been used before it was linked (only signature linked)
-        // in files above, when functions inside the container aren't linked, meaning we
-        // have zero subscribers that are present inside the body of the functions that are in this container
-        const auto t = total_generic_iterations();
-        int16_t i = 0;
-        while (i < t) {
-            report_iteration_to_subs(*linker.ast_allocator, linker, i);
-            i++;
-        }
     }
 }
 
@@ -497,95 +417,6 @@ std::pair<InterfaceDefinition*, FunctionDeclaration*> MembersContainer::get_inte
 InterfaceDefinition* MembersContainer::get_overriding_interface(FunctionDeclaration* function) {
     const auto info = get_overriding_info(function);
     return info.first ? info.first->as_interface_def() : nullptr;
-}
-
-int16_t MembersContainer::register_with_existing(ASTDiagnoser& diagnoser, std::vector<BaseType*>& types) {
-    const auto types_size = types.size();
-    std::vector<BaseType*> generic_args(types_size);
-    unsigned i = 0;
-    for(auto& type : types) {
-        generic_args[i] = type;
-        i++;
-    }
-    const auto itr = get_iteration_for(generic_params, generic_args);
-    if(itr == -1) {
-        diagnoser.warn("iteration for declaration doesn't exist", (ASTNode*) this);
-    }
-    return itr;
-}
-
-void MembersContainer::report_iteration_to_subs(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t itr) {
-    for (auto sub: subscribers) {
-        if(sub->referenced->linked == this) {
-            continue;
-        }
-        sub->report_parent_usage(astAllocator, diagnoser, itr);
-    }
-    for(const auto func : functions()) {
-        func->register_parent_iteration(astAllocator, diagnoser, itr);
-    }
-}
-
-int16_t MembersContainer::register_generic_args(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, std::vector<BaseType*>& types) {
-    const auto types_size = types.size();
-    std::vector<BaseType*> generic_args(types_size);
-    unsigned i = 0;
-    for(auto& type : types) {
-        generic_args[i] = type;
-        i++;
-    }
-    const auto itr = register_generic_usage(astAllocator, generic_params, generic_args);
-    set_active_iteration_no_subs(itr.first);
-    if(itr.second) {
-        report_iteration_to_subs(astAllocator, diagnoser, itr.first);
-    }
-    return itr.first;
-}
-
-int16_t MembersContainer::register_value(SymbolResolver& resolver, StructValue* value) {
-    auto gen_list = value->create_generic_list();
-    return register_generic_args(*resolver.ast_allocator, resolver, gen_list);
-}
-
-int16_t MembersContainer::total_generic_iterations() {
-    return ::total_generic_iterations(generic_params);
-}
-
-void MembersContainer::set_active_iteration_no_subs(int16_t iteration) {
-#ifdef DEBUG
-    if(iteration < -1) {
-        throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
-    }
-#endif
-    if(is_generic()) {
-        active_iteration = iteration;
-        for (auto& param: generic_params) {
-            param->set_active_iteration(iteration);
-        }
-    }
-    for(auto& inh : inherited) {
-        inh.type->set_generic_iteration(inh.type->get_generic_iteration());
-    }
-}
-
-void MembersContainer::set_active_iteration(int16_t iteration) {
-#ifdef DEBUG
-    if(iteration < -1) {
-        throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
-    }
-#endif
-    if(is_generic()) {
-        active_iteration = iteration;
-        for (auto& param: generic_params) {
-            param->set_active_iteration(iteration);
-        }
-        for (auto sub: subscribers) {
-            sub->set_parent_iteration(iteration);
-        }
-    }
-    for(auto& inh : inherited) {
-        inh.type->set_generic_iteration(inh.type->get_generic_iteration());
-    }
 }
 
 FunctionDeclaration* MembersContainer::get_first_constructor() {
@@ -883,22 +714,7 @@ bool MembersContainer::contains_func(const chem::string_view& name) {
 
 BaseType* MembersContainer::create_linked_type(const chem::string_view& name, ASTAllocator& allocator) {
     const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(name, this, ZERO_LOC);
-    if(generic_params.empty()) {
-        return linked_type;
-    } else {
-        const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(linked_type, {});
-//        if(active_iteration == 0) {
-            // strut Thing<T> => Thing<T> where T references is linked with original type parameter T
-            for (auto& param: generic_params) {
-                gen_type->types.emplace_back(new(allocator.allocate<LinkedType>()) LinkedType(param->identifier, param, ZERO_LOC));
-            }
-//        } else {
-//            for (auto& param: generic_params) {
-//                gen_type->types.emplace_back(param->known_type());
-//            }
-//        }
-        return gen_type;
-    }
+    return linked_type;
 }
 
 bool MembersContainer::extends_node(ASTNode* other) {

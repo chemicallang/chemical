@@ -32,27 +32,9 @@ StructDefinition* BaseType::linked_struct_def() {
     return linked ? linked->as_struct_def() : nullptr;
 }
 
-StructDefinition* BaseType::get_generic_struct() {
-    auto linked_struct = linked_struct_def();
-    if(linked_struct && !linked_struct->generic_params.empty()) {
-        return linked_struct;
-    } else {
-        return nullptr;
-    }
-}
-
 InterfaceDefinition* BaseType::linked_interface_def() {
     const auto linked = linked_node();
     return linked ? linked->as_interface_def() : nullptr;
-}
-
-InterfaceDefinition* BaseType::get_generic_interface() {
-    auto linked_interface = linked_interface_def();
-    if(linked_interface && !linked_interface->generic_params.empty()) {
-        return linked_interface;
-    } else {
-        return nullptr;
-    }
 }
 
 InterfaceDefinition* BaseType::linked_dyn_interface() {
@@ -390,31 +372,10 @@ bool BaseType::requires_moving() {
 FunctionDeclaration* BaseType::implicit_constructor_for(ASTAllocator& allocator, Value *value) {
     const auto linked_def = linked_struct_def();
     if(linked_def) {
-        const auto prev_itr = linked_def->active_iteration;
-        const auto itr = get_generic_iteration();
-        if(itr != -1) {
-            linked_def->set_active_iteration(itr);
-        }
         const auto implicit_constructor = linked_def->implicit_constructor_func(allocator, value);
-        if(itr != -1) {
-            linked_def->set_active_iteration(prev_itr);
-        }
         return implicit_constructor;
     }
     return nullptr;
-}
-
-int16_t BaseType::set_generic_iteration(int16_t iteration) {
-    if(iteration > -2) {
-        const auto linked = linked_node();
-        if(linked) {
-            const auto members_container = linked->as_members_container();
-            if (members_container) {
-                return members_container->set_active_itr_ret_prev(iteration);
-            }
-        }
-    }
-    return -2;
 }
 
 bool BaseType::make_mutable() {
@@ -529,25 +490,6 @@ BaseType* BaseType::removeReferenceFromType(ASTAllocator& allocator) {
 bool BaseType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
     const auto val_type = value->create_type(allocator);
     return val_type != nullptr && satisfies(val_type->pure_type(allocator));
-}
-
-int16_t BaseType::get_generic_iteration() {
-    switch(kind()) {
-        case BaseTypeKind::Reference:
-            return as_reference_type_unsafe()->type->get_generic_iteration();
-        case BaseTypeKind::Pointer:
-            return as_pointer_type_unsafe()->type->get_generic_iteration();
-        case BaseTypeKind::Linked:{
-            const auto container = as_linked_type_unsafe()->linked->as_members_container();
-            return container ? container->active_iteration : (int16_t) -1;
-        }
-        case BaseTypeKind::Generic:
-            return as_generic_type_unsafe()->generic_iteration;
-        case BaseTypeKind::Array:
-            return as_array_type_unsafe()->elem_type->get_generic_iteration();
-        default:
-            return -1;
-    }
 }
 
 unsigned BaseType::type_alignment(bool is64Bit) {

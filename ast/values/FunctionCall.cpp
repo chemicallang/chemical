@@ -305,14 +305,12 @@ void to_llvm_args(
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
     const auto linked = parent_val->linked_node();
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
-    int16_t prev_itr = set_curr_itr_on_decl();
     llvm::Type* type;
     if(linked_kind == ASTNodeKind::VariantMember) {
         type = VariantDefinition::llvm_type_with_member(gen, linked->as_variant_member_unsafe());
     } else {
         type = create_type(gen.allocator)->llvm_type(gen);
     }
-    set_gen_itr_on_decl(prev_itr);
     return type;
 }
 
@@ -320,24 +318,7 @@ llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
     return create_type(gen.allocator)->llvm_chain_type(gen, values, index);
 }
 
-llvm::Function** FunctionCall::llvm_generic_func_data(ASTAllocator& allocator) {
-    auto gen_str = get_grandpa_generic_struct(allocator, parent_val);
-    if(gen_str.first) {
-        const auto func = safe_linked_func();
-        auto gen_itr = generic_iteration;
-        if(func && !func->is_generic()) {
-            gen_itr = 0;
-        }
-        return &gen_str.first->llvm_generic_func_data(linked_func(), gen_str.second, gen_itr);
-    }
-    return nullptr;
-}
-
 llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen) {
-    const auto generic_data = llvm_generic_func_data(gen.allocator);
-    if(generic_data) {
-        return (*generic_data)->getFunctionType();
-    }
     const auto func_type = function_type(gen.allocator);
     return func_type->llvm_func_type(gen);
 }
@@ -426,10 +407,6 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
 }
 
 llvm::Value *FunctionCall::llvm_linked_func_callee(Codegen& gen) {
-    const auto generic_data = llvm_generic_func_data(gen.allocator);
-    if(generic_data) {
-        return *generic_data;
-    }
     const auto linked = parent_val->linked_node();
     if(linked != nullptr) {
         return linked->llvm_load(gen, parent_val->encoded_location());
@@ -615,9 +592,6 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     auto decl = ASTNode::isFunctionDecl(linked_kind) ? parent_linked->as_function_unsafe() : nullptr;
-    if(decl && !decl->generic_params.empty()) {
-        decl->set_active_iteration(generic_iteration);
-    }
     llvm::Value* returnedValue = returnedStruct;
     auto returnsStruct = func_type->returnType->isStructLikeType();
 
@@ -894,10 +868,10 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     const auto type = parent_val->create_type(allocator);
     auto func_type = type->pure_type(allocator)->as_function_type();
     const auto func_decl = safe_linked_func();
-    if(func_decl && func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent()) {
+    if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {
         const auto struct_def = func_decl->parent()->as_struct_def();
-        if(struct_def->is_generic() || struct_def->generic_parent != nullptr) {
-            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()), generic_iteration);
+        if(struct_def->generic_parent != nullptr) {
+            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()));
         }
     }
     return func_type;
@@ -920,34 +894,6 @@ BaseType* FunctionCall::get_arg_type(unsigned int index) {
     auto func_type = parent_val->known_type()->as_function_type();
     auto param = func_type->func_param_for_arg_at(index);
     return param->type;
-}
-
-int16_t FunctionCall::set_gen_itr_on_decl(int16_t itr, bool set_generic_calls) {
-    const auto parent = parent_val->linked_node();
-    // enum member being used as a no value
-    const auto parent_kind = parent ? parent->kind() : ASTNodeKind::EnumMember;
-    if(ASTNode::isFunctionDecl(parent_kind)) {
-        const auto decl = parent->as_function_unsafe();
-        if(decl->is_constructor_fn()) {
-            const auto def = decl->parent()->as_struct_def();
-            if(def && def->is_generic()) {
-                const auto prev_itr = def->active_iteration;
-                def->set_active_iteration(itr);
-                return prev_itr;
-            }
-        } else if(decl->is_generic()) {
-            const auto prev_itr = decl->active_iteration;
-            decl->set_active_iteration(itr, set_generic_calls);
-            return prev_itr;
-        }
-    } else if(parent_kind == ASTNodeKind::VariantMember) {
-        const auto member = parent->as_variant_member_unsafe();
-        const auto variant = member->parent();
-        if(variant->is_generic()) {
-            variant->active_iteration = itr;
-        }
-    }
-    return -2;
 }
 
 
@@ -985,52 +931,6 @@ void FunctionCall::infer_return_type(ASTDiagnoser& diagnoser, std::vector<BaseTy
 ASTNode *FunctionCall::linked_node() {
     const auto known = known_type();
     return known ? known->linked_node() : nullptr;
-}
-
-void FunctionCall::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type) {
-    const auto node = parent_val->linked_node();
-    const auto k = node->kind();
-    switch(k) {
-        case ASTNodeKind::FunctionDecl:
-            if(node->as_function_unsafe()->is_constructor_fn()) {
-                const auto parent = node->as_function_unsafe()->parent();
-                const auto parent_kind = parent->kind();
-                switch(parent_kind) {
-                    case ASTNodeKind::StructDecl: {
-                        const auto def = parent->as_struct_def_unsafe();
-                        if(def->is_generic()) {
-                            std::vector<BaseType*> gen_args(def->generic_params.size());
-                            ::infer_generic_args(gen_args, def->generic_params, this, diagnoser, expected_type);
-                            generic_iteration = def->register_with_existing(diagnoser, gen_args);
-                        }
-                        return;
-                    }
-                    default:
-                        diagnoser.error("unknown parent of function in fix generic iteration", this);
-                        break;
-                }
-            } else {
-                generic_iteration = node->as_function_unsafe()->register_call_with_existing(diagnoser, this, expected_type);
-            }
-            return;
-        case ASTNodeKind::StructDecl:
-            generic_iteration = node->as_struct_def_unsafe()->register_with_existing(diagnoser, generic_list);
-            return;
-        default:
-            diagnoser.error("unknown declaration in function call for which generic iteration is being fixed", this);
-            return;
-    }
-}
-
-int16_t FunctionCall::register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, BaseType* expected_type) {
-    const auto func_decl = safe_linked_func();
-    if(func_decl) {
-        return func_decl->register_call(astAllocator, diagnoser, this, expected_type);
-    }
-#ifdef DEBUG
-    throw std::runtime_error("this call should not happen because this function is not generic");
-#endif
-    return -2;
 }
 
 void relink_multi_id(
@@ -1077,12 +977,6 @@ int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocat
         auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
-            // calling a constructor of a generic struct where constructor is not generic
-            if(constructorFunc->generic_params.empty() && parent_struct->is_generic()) {
-                const auto prev_itr = parent_struct->active_iteration;
-                call->generic_iteration = parent_struct->register_generic_args(genApi.getAllocator(), genApi.getDiagnoser(), call->generic_list);
-                return prev_itr;
-            }
         } else {
             genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
         }
@@ -1246,42 +1140,10 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
     if(linked_kind == ASTNodeKind::VariantMember) {
         const auto member = linked->as_variant_member_unsafe();
         const auto variant = member->parent();
-        if(variant->is_generic()) {
-            prev_itr = variant->active_iteration;
-            generic_iteration = variant->register_call(resolver, this, expected_type);
-            variant->set_active_iteration(generic_iteration);
-        }
     }
     int16_t struct_itr = link_constructor(resolver.allocator, resolver.genericInstantiator);
     if(struct_itr > -2) {
         prev_itr = struct_itr;
-    } else if(func_decl && func_decl->is_generic()) {
-        const auto func_type = resolver.current_func_type;
-        const auto curr_func = func_type->as_function();
-        // curr_func == func_decl when this function call is calling current function (recursion)
-        // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle
-        if (curr_func && curr_func != func_decl) {
-            if (curr_func->is_generic()) {
-                // current function is generic, do not register generic iterations of the call
-                curr_func->call_subscribers.emplace_back(this, expected_type ? expected_type->copy(*resolver.ast_allocator) : nullptr);
-            } else {
-                const auto parent = curr_func->parent();
-                if (parent) {
-                    const auto container = parent->as_members_container();
-                    if (container && container->is_generic()) {
-                        // current function has a generic parent (struct), we will not register generic iterations of the call
-                        // because when the generic parent get's reported an iteration, it'll ask all the functions to register calls
-                        curr_func->call_subscribers.emplace_back(this, expected_type ? expected_type->copy(*resolver.ast_allocator) : nullptr);
-                    } else {
-                        goto register_block;
-                    }
-                } else {
-                    goto register_block;
-                }
-            }
-        } else {
-            goto register_block;
-        }
     }
 
     if(gen_decl || gen_var_decl) {
@@ -1294,13 +1156,8 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
         if(link_implicit_constructor) {
             link_args_implicit_constructor(resolver, properly_linked_args);
         }
-        if(prev_itr > -2) {
-            set_gen_itr_on_decl(prev_itr);
-        }
     return true;
     register_block:
-        prev_itr = func_decl->active_iteration;
-        generic_iteration = func_decl->register_call(*resolver.ast_allocator, resolver, this, expected_type);
         goto ending_block;
     instantiate_block:
         const auto func_type = resolver.current_func_type;
@@ -1367,16 +1224,7 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
 Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent) {
     auto func = call->safe_linked_func();
     if (func) {
-        const auto is_gen = func->is_generic();
-        int16_t prev_itr;
-        if(is_gen) {
-            prev_itr = call->set_curr_itr_on_decl();
-        }
-        const auto retVal = func->call(&scope, scope.allocator, call, parent);
-        if(is_gen) {
-            call->set_gen_itr_on_decl(prev_itr);
-        }
-        return retVal;
+        return func->call(&scope, scope.allocator, call, parent);
     } else {
         scope.error("(function call) calling a function that is not found or has no body", call);
     }
@@ -1397,7 +1245,6 @@ FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
     for(const auto gen_arg : generic_list) {
         call->generic_list.emplace_back(gen_arg->copy(allocator));
     }
-    call->generic_iteration = generic_iteration;
     return call;
 }
 
@@ -1407,26 +1254,23 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
 //    parent_val->set_generic_iteration(active, allocator);
     if(!parent_val) return nullptr;
     const auto linked = parent_val->linked_node();
-    int16_t prev_itr = -2;
     if(linked) {
         const auto linked_kind = linked->kind();
         if(linked_kind == ASTNodeKind::VariantMember) {
             return linked->as_variant_member_unsafe()->known_type();
         } else if(linked_kind == ASTNodeKind::FunctionDecl) {
             const auto func_decl = linked->as_function_unsafe();
-            if(func_decl->generic_params.empty() && func_decl->is_constructor_fn() && func_decl->parent()) {
+            if(func_decl->is_constructor_fn() && func_decl->parent()) {
                 const auto struct_def = func_decl->parent()->as_struct_def();
-                if(struct_def->is_generic() || struct_def->generic_parent != nullptr) {
-                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()), generic_iteration);
+                if(struct_def->generic_parent != nullptr) {
+                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()));
                 }
             }
-            prev_itr = set_curr_itr_on_decl();
         }
     }
     auto func_type = function_type(allocator);
     if(!func_type) return nullptr;
     auto pure_type = func_type->returnType->pure_type(allocator);
-    if(prev_itr >= -1) set_gen_itr_on_decl(prev_itr);
     return pure_type;
 }
 
@@ -1474,9 +1318,7 @@ BaseType* FunctionCall::known_type() {
     if(parent_type) {
         switch(parent_type->kind()) {
             case BaseTypeKind::Function: {
-                const auto prev = set_curr_itr_on_decl(false);
                 const auto type = ((FunctionType*) parent_type)->returnType->pure_type();
-                set_gen_itr_on_decl(prev, false);
                 return type;
             }
             case BaseTypeKind::Linked:{

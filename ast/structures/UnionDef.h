@@ -72,10 +72,6 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    inline bool is_generic() {
-        return !generic_params.empty();
-    }
-
     inline bool is_comptime() {
         return attrs.is_comptime;
     }

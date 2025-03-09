@@ -25,25 +25,6 @@ public:
     }
 
     /**
-     * an empty vector should be provided, so we can store all the generic iterations for the access chain
-     * and restore them later
-     * this function set's the generic iterations (what's that mean ?) ok, consider the chain p.a.b
-     * in p.a.b, suppose the 'p' refers to a var declaration of a generic struct like var p = gen_struct<T>()
-     * now to access a inside p we must set the type (iteration) of T (the generic parameter in parent struct) so that type of
-     * a is concrete (if it depends on the type parameter), to access b we must set the generic iteration of a
-     * because the struct of 'p' can contain a member like struct gen_struct<T> { var a : T }
-     * so yeah this function goes ahead sets the generic iterations of p.a.b so types become concrete and access them
-     * which means now if we call create_type on p.a.b we will get the exact type represented by that generic
-     */
-    void set_generic_iteration(std::vector<int16_t>& active_iterations, ASTAllocator& allocator);
-
-    /**
-     * this restore the generic iterations, this vector must be the same one that was given to the set_generic_iteration
-     * this will take out iterations for each value in chain for example p.a.b and use the previously set iteration
-     */
-    void restore_generic_iteration(std::vector<int16_t>& active_iterations, ASTAllocator& allocator);
-
-    /**
      * will check contents, are they of the same kind
      * this method means are both chain values functionally equal
      * they don't mean to check if they have same names, but if both were exchanged

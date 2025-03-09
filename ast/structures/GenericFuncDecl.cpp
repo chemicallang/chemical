@@ -159,9 +159,6 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     impl->generic_instantiation = (int) instantiations.size();
     instantiations.emplace_back(impl);
 
-    // non generic functions should have active iteration zero
-    impl->active_iteration = 0;
-
     if(body_linked) {
 
         // signature and body both have been linked for master_impl

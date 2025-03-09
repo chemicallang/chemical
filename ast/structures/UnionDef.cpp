@@ -37,29 +37,9 @@ void UnionDef::code_gen(Codegen &gen, bool declare) {
         return;
     }
     auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
-    if(generic_params.empty()) {
-        if(itr_ptr == 0) {
-            func_gen(gen, declare);
-            itr_ptr++;
-        }
-    } else {
-        const auto total = total_generic_iterations();
-        if(total == 0) return; // generic type was never used
-        auto prev_active_iteration = active_iteration;
-        auto struct_itr = itr_ptr;
-        while(struct_itr < total) {
-            set_active_iteration(struct_itr);
-            if(declare) {
-                early_declare_structural_generic_args(gen);
-            }
-            func_gen(gen, declare);
-            if(declare) {
-                acquire_function_iterations(struct_itr);
-            }
-            struct_itr++;
-        }
-        itr_ptr = struct_itr;
-        set_active_iteration(prev_active_iteration);
+    if(itr_ptr == 0) {
+        func_gen(gen, declare);
+        itr_ptr++;
     }
 }
 

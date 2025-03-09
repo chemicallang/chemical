@@ -361,19 +361,9 @@ public:
     StructDefinition* linked_struct_def();
 
     /**
-     * get linked generic struct from this type, if there's any
-     */
-    StructDefinition* get_generic_struct();
-
-    /**
      * get linked interface definition
      */
     InterfaceDefinition* linked_interface_def();
-
-    /**
-     * get linked generic interface definition
-     */
-    InterfaceDefinition* get_generic_interface();
 
     /**
      * get linked interface definition if it's dynamic
@@ -417,13 +407,6 @@ public:
      * otherwise nullptr
      */
     FunctionDeclaration* implicit_constructor_for(ASTAllocator& allocator, Value* value);
-
-    /**
-     * if this type supports get_generic_struct
-     * this method get's the generic struct and set's the given iteration to it
-     * @return -2 if unsuccessful, otherwise previous iteration of the struct
-     */
-    int16_t set_generic_iteration(int16_t iteration);
 
 #ifdef COMPILER_BUILD
 

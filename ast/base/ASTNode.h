@@ -288,17 +288,6 @@ public:
     virtual void subscribe(GenericType* subscriber);
 
     /**
-     * get active iteration, if the underlying node doesn't support iteration -1 is returned
-     */
-    virtual int16_t get_active_iteration();
-
-    /**
-     * set's active iteration, this method will fail, if the given
-     * node doesn't support generics
-     */
-    virtual void set_active_iteration(int16_t iteration);
-
-    /**
      * any value held by this node, for example var init statement can hold an initializer
      */
     virtual Value* holding_value() {

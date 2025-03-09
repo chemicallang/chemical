@@ -209,8 +209,6 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
     }
 }
 
-const auto GENv2 = true;
-
 ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool allow_declaration, bool allow_extensions) {
 
     if(!consumeWSOfType(TokenType::FuncKw)) {
@@ -284,17 +282,13 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
 
     ASTNode* final_node = decl;
 
-    if(GENv2 && !gen_params.empty()) {
+    if(!gen_params.empty()) {
 
         const auto gen_decl = new (allocator.allocate<GenericFuncDecl>()) GenericFuncDecl(decl, parent_node, loc_single(name));
 
         gen_decl->generic_params = std::move(gen_params);
 
         final_node = gen_decl;
-
-    } else {
-
-        decl->generic_params = std::move(gen_params);
 
     }
 

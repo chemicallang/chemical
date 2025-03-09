@@ -135,7 +135,6 @@ FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* exp
     auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(id, location);
     imp_call->parent_val = id;
     imp_call->values.emplace_back(arg);
-    imp_call->fix_generic_iteration(diagnoser, expected_type);
     return imp_call;
 }
 
@@ -289,19 +288,7 @@ void infer_types_by_args(
             // however the param type is MyVector<T> and we must infer the types using the arg type
             const auto container = linked->as_members_container_unsafe();
             if(arg_type->kind() == BaseTypeKind::Generic) {
-                const auto gen_type = (GenericType*) arg_type;
-                unsigned i = 0;
-                const auto size = gen_type->types.size();
-                while(i < size) {
-                    const auto child_arg_type = gen_type->types[i];
-                    if(i < container->generic_params.size()) {
-                        const auto child_gen_param = container->generic_params[i];
-                        inferred[child_gen_param->param_index] = child_arg_type;
-                    } else {
-                        diagnoser.error("type has been given for a unknown generic type parameter", child_arg_type);
-                    }
-                    i++;
-                }
+                // TODO handle this case
             }
         }
     } else if(param_type_kind == BaseTypeKind::Generic) {

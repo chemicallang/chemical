@@ -640,18 +640,7 @@ Value* evaluated_func_val(
 }
 
 Value* evaluated_func_val_proper(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, FunctionCall* call) {
-    if(call->generic_iteration == -1) {
-        call->fix_generic_iteration(visitor, nullptr);
-    }
-    const auto prev_iteration = call->set_curr_itr_on_decl();
     auto eval = evaluated_func_val(visitor, func_decl, call);
-    const auto eval_kind = eval->val_kind();
-    if (eval_kind == ValueKind::AccessChain) {
-        const auto chain = eval->as_access_chain_unsafe();
-        chain->fix_generic_iteration(visitor, func_decl->returnType);
-    } else if(eval_kind == ValueKind::FunctionCall) {
-        eval->as_func_call_unsafe()->fix_generic_iteration(visitor, func_decl->returnType);
-    }
     return eval;
 }
 
@@ -993,12 +982,6 @@ void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& ident
 
 void value_init_default(ToCAstVisitor& visitor, const chem::string_view& identifier, BaseType* type, Value* value) {
     const auto struct_value = value->as_struct_value();
-    int16_t prev_itr = 0;
-    const auto is_generic = struct_value && struct_value->is_generic();
-    if(struct_value && is_generic) {
-        prev_itr = struct_value->get_active_iteration();
-        struct_value->set_active_iteration(struct_value->generic_iteration);
-    }
     bool write_id = true;
     auto type_kind = type->kind();
     switch(type_kind) {
@@ -1029,7 +1012,6 @@ void value_init_default(ToCAstVisitor& visitor, const chem::string_view& identif
     }
     visitor.space();
     value_assign_default(visitor, identifier, type, value, write_id);
-    if(struct_value && is_generic) struct_value->set_active_iteration(prev_itr);
 }
 
 void value_alloca_store(ToCAstVisitor& visitor, const chem::string_view& identifier, BaseType* type, Value* value) {
@@ -1118,23 +1100,9 @@ void allocate_struct_for_value(ToCAstVisitor& visitor, ExtendableMembersContaine
     allocate_struct_by_name(visitor, def, name, initializer);
 }
 
-//void allocate_struct_for_struct_value(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, StructValue* value, const std::string& name, Value* initializer = nullptr) {
-//    if(def->generic_params.empty()) {
-//        allocate_struct_for_value(visitor, def, value, name, initializer);
-//    } else {
-//        auto prev_itr = def->active_iteration;
-//        def->set_active_iteration(value->generic_iteration);
-//        allocate_struct_for_value(visitor, def, value, name, initializer);
-//        def->set_active_iteration(prev_itr);
-//    }
-//}
-
 void allocate_struct_for_func_call(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, FunctionCall* call, FunctionType* func_type, const chem::string_view& name, Value* initializer = nullptr) {
     if(func_type->returnType->kind() == BaseTypeKind::Generic) {
-        auto prev_itr = def->active_iteration;
-        def->set_active_iteration(func_type->returnType->get_generic_iteration());
         allocate_struct_for_value(visitor, def, call, name, initializer);
-        def->set_active_iteration(prev_itr);
     } else {
         allocate_struct_for_value(visitor, def, call, name, initializer);
     }
@@ -1516,16 +1484,6 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
     const auto linked = member->parent();
     const auto index = linked->direct_child_index(member->name);
 
-    int16_t prev_itr;
-    if(!linked->generic_params.empty()) {
-        prev_itr = linked->get_active_iteration();
-        linked->set_active_iteration(call->generic_iteration);
-    }
-
-    if(linked->generic_parent != nullptr) {
-        int i = 0;
-    }
-
     visitor.write("(struct ");
     linked->runtime_name(*visitor.output);
     visitor.write(") ");
@@ -1549,13 +1507,9 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
     visitor.nested_value = prev_nested;
     visitor.write('}');
 
-    if(!linked->generic_params.empty()) {
-        linked->set_active_iteration(prev_itr);
-    }
 }
 
 void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const chem::string_view& identifier) {
-    call->set_curr_itr_on_decl();
     auto eval = evaluated_func_val(visitor, decl, call);
     const auto eval_struct_val = eval->as_struct_value();
     if(eval_struct_val) {
@@ -1633,14 +1587,12 @@ struct DestructionJob {
     union {
         struct {
             ExtendableMembersContainerNode* parent_node;
-            int16_t generic_iteration;
             FunctionDeclaration* destructor;
             bool is_pointer;
         } default_job;
         struct {
             int array_size;
             ExtendableMembersContainerNode* linked;
-            int16_t generic_iteration;
             FunctionDeclaration* destructorFunc;
         } array_job;
     };
@@ -1660,7 +1612,6 @@ public:
     void destruct_no_gen(
             const chem::string_view& self_name,
             ExtendableMembersContainerNode* linked,
-            int16_t generic_iteration,
             FunctionDeclaration* destructor,
             bool is_pointer
     );
@@ -1668,7 +1619,6 @@ public:
     void destruct(
             const chem::string_view& self_name,
             ExtendableMembersContainerNode* linked,
-            int16_t generic_iteration,
             FunctionDeclaration* destructor,
             bool is_pointer
     );
@@ -1676,18 +1626,17 @@ public:
     void queue_destruct(
             const chem::string_view& self_name,
             ASTNode* initializer,
-            int16_t generic_iteration,
             ExtendableMembersContainerNode* linked,
             bool is_pointer = false
     );
 
     void queue_destruct(const chem::string_view& self_name, ASTNode* initializer, FunctionCall* call);
 
-    void destruct_arr_ptr(const chem::string_view& self_name, Value* array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructor);
+    void destruct_arr_ptr(const chem::string_view& self_name, Value* array_size, ExtendableMembersContainerNode* linked, FunctionDeclaration* destructor);
 
-    void destruct_arr(const chem::string_view& self_name, int array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructor) {
+    void destruct_arr(const chem::string_view& self_name, int array_size, ExtendableMembersContainerNode* linked, FunctionDeclaration* destructor) {
         IntValue siz(array_size, ZERO_LOC);
-        destruct_arr_ptr(self_name, &siz, linked, generic_iteration, destructor);
+        destruct_arr_ptr(self_name, &siz, linked, destructor);
     }
 
     void destruct(const DestructionJob& job, Value* current_return);
@@ -1767,10 +1716,6 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
                 auto linked = func_type->returnType->linked_node();
                 if(linked->as_struct_def()) {
                     const auto struct_def = linked->as_struct_def();
-                    int16_t generic_iteration = 0;
-                    if(!struct_def->generic_params.empty()) {
-                        generic_iteration = func_type->returnType->get_generic_iteration();
-                    }
                     auto destructor = struct_def->destructor_func();
                     if(destructor) {
                         auto destructible = visitor.local_allocated.find(call);
@@ -1778,7 +1723,6 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
                             visitor.destructor->destruct(
                                     chem::string_view(destructible->second.data(), destructible->second.size()),
                                     struct_def,
-                                    generic_iteration,
                                     destructor,
                                     false
                             );
@@ -1839,7 +1783,7 @@ void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 }
 
-void CDestructionVisitor::destruct_no_gen(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, int16_t generic_iteration, FunctionDeclaration* destructor, bool is_pointer) {
+void CDestructionVisitor::destruct_no_gen(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, FunctionDeclaration* destructor, bool is_pointer) {
     if(new_line_before) {
         visitor.new_line_and_indent();
     }
@@ -1859,19 +1803,11 @@ void CDestructionVisitor::destruct_no_gen(const chem::string_view& self_name, Ex
     }
 }
 
-void CDestructionVisitor::destruct(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, int16_t generic_iteration, FunctionDeclaration* destructor, bool is_pointer) {
-    int16_t prev_itr;
-    if(!parent_node->generic_params.empty()) {
-        prev_itr = parent_node->active_iteration;
-        parent_node->set_active_iteration(generic_iteration);
-    }
-    destruct_no_gen(self_name, parent_node, generic_iteration, destructor, is_pointer);
-    if(!parent_node->generic_params.empty()) {
-        parent_node->set_active_iteration(prev_itr);
-    }
+void CDestructionVisitor::destruct(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, FunctionDeclaration* destructor, bool is_pointer) {
+    destruct_no_gen(self_name, parent_node, destructor, is_pointer);
 }
 
-void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, int16_t generic_iteration, ExtendableMembersContainerNode* linked, bool is_pointer) {
+void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, ExtendableMembersContainerNode* linked, bool is_pointer) {
     if(!linked) return;
     auto destructorFunc = linked->destructor_func();
     if(destructorFunc) {
@@ -1881,7 +1817,6 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
                 .initializer = initializer,
                 .default_job = {
                         linked,
-                        generic_iteration,
                         destructorFunc,
                         is_pointer
                 }
@@ -1897,21 +1832,14 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
         if(linked_kind == ASTNodeKind::VariantMember) {
             const auto member = linked->as_variant_member_unsafe();
             const auto variant = member->parent();
-            queue_destruct(self_name, initializer, return_type->get_generic_iteration(), variant);
+            queue_destruct(self_name, initializer, variant);
             return;
         }
-        queue_destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_extendable_members_container_node());
+        queue_destruct(self_name, initializer, linked->as_extendable_members_container_node());
     }
 }
 
-void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, Value* array_size, ExtendableMembersContainerNode* parent_node, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {
-
-    int16_t prev_itr;
-    const auto is_generic = parent_node->is_generic();
-    if(is_generic) {
-        prev_itr = parent_node->active_iteration;
-        parent_node->set_active_iteration(generic_iteration);
-    }
+void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, Value* array_size, ExtendableMembersContainerNode* parent_node, FunctionDeclaration* destructorFunc) {
 
     std::string arr_val_itr_name = visitor.get_local_temp_var_name();
     visitor.new_line_and_indent();
@@ -1927,14 +1855,11 @@ void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, V
     visitor.write("--){");
     visitor.indentation_level++;
     std::string name = self_name.str() + "[" + arr_val_itr_name + "]";
-    destruct_no_gen(chem::string_view(name.data(), name.size()), parent_node, generic_iteration, destructorFunc, false);
+    destruct_no_gen(chem::string_view(name.data(), name.size()), parent_node, destructorFunc, false);
     visitor.indentation_level--;
     visitor.new_line_and_indent();
     visitor.write('}');
 
-    if(is_generic) {
-        parent_node->set_active_iteration(prev_itr);
-    }
 }
 
 void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_return) {
@@ -1958,10 +1883,10 @@ void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_ret
     }
     switch(job.type) {
         case DestructionJobType::Default:
-            destruct(job.self_name, job.default_job.parent_node, job.default_job.generic_iteration, job.default_job.destructor, job.default_job.is_pointer);
+            destruct(job.self_name, job.default_job.parent_node, job.default_job.destructor, job.default_job.is_pointer);
             break;
         case DestructionJobType::Array:
-            destruct_arr(job.self_name, job.array_job.array_size, job.array_job.linked, job.array_job.generic_iteration, job.array_job.destructorFunc);
+            destruct_arr(job.self_name, job.array_job.array_size, job.array_job.linked, job.array_job.destructorFunc);
             break;
     }
 }
@@ -1989,8 +1914,7 @@ void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
             if(members_container) {
                 const auto destructor_func = members_container->destructor_func();
                 if (destructor_func) {
-                    queue_destruct(d_param->name, d_param, d_param->type->get_generic_iteration(),
-                                   linked->as_extendable_members_container_node(), true);
+                    queue_destruct(d_param->name, d_param, linked->as_extendable_members_container_node(), true);
                 }
             }
         }
@@ -2007,11 +1931,6 @@ bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name,
             if (!destructorFunc) {
                 return false;
             }
-            int16_t generic_iteration = 0;
-            if(struc_def->is_generic()) {
-                auto type = initializer->create_value_type(visitor.allocator);
-                generic_iteration = type->get_generic_iteration();
-            }
             destruct_jobs.emplace_back(DestructionJob{
                 .type = DestructionJobType::Array,
                 .self_name = self_name,
@@ -2019,7 +1938,6 @@ bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name,
                 .array_job = {
                     array_size,
                     struc_def,
-                    generic_iteration,
                     destructorFunc
                 }
             });
@@ -2044,7 +1962,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
                 if(!linked) {
                     return;
                 }
-                queue_destruct(init->name_view(), init, init_type->get_generic_iteration(), linked->as_extendable_members_container_node());
+                queue_destruct(init->name_view(), init, linked->as_extendable_members_container_node());
             }
             return;
         }
@@ -2060,7 +1978,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             visitor.error("couldn't destruct var init", init);
             return;
         }
-        queue_destruct(init->name_view(), init, init_type->get_generic_iteration(), linked->as_extendable_members_container_node());
+        queue_destruct(init->name_view(), init, linked->as_extendable_members_container_node());
         return;
     }
     auto array_val = init_value->as_array_value_unsafe();
@@ -2077,7 +1995,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
 //    }
     auto struct_val = init_value->as_struct_value_unsafe();
     if(init_val_kind == ValueKind::StructValue) {
-        queue_destruct(init->name_view(), init, struct_val->generic_iteration, struct_val->linked_struct());
+        queue_destruct(init->name_view(), init, struct_val->linked_struct());
     }
 }
 
@@ -2114,8 +2032,7 @@ void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
         if(init->type->isStructLikeType()) {
             auto linked = init->type->linked_node();
             if (linked)
-                queue_destruct(init->name_view(), init, init->type->get_generic_iteration(),
-                               linked->as_struct_def());
+                queue_destruct(init->name_view(), init, linked->as_struct_def());
         } else if(init->type->kind() == BaseTypeKind::Array) {
             auto type = (ArrayType*) init->type;
             if(type->has_array_size()) {
@@ -2428,7 +2345,7 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
     const auto node_kind = node->kind();
     if (node_kind == ASTNodeKind::StructDecl) {
         const auto def = node->as_struct_def_unsafe();
-        if(visitor.redefining || def->iterations_declared < def->total_generic_iterations()) {
+        if(visitor.redefining) {
             // declare inherited types
             for(auto& inherit : def->inherited) {
                 auto in_node = inherit.type->get_direct_linked_node();
@@ -2447,7 +2364,7 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
         }
     } else if (node_kind == ASTNodeKind::VariantDecl) {
         const auto def = node->as_variant_def_unsafe();
-        if(visitor.redefining || def->iterations_declared < def->total_generic_iterations()) {
+        if(visitor.redefining) {
             visitor.declare_variant_iterations(def);
         }
     } else if (node_kind == ASTNodeKind::UnionDecl) {
@@ -2479,16 +2396,7 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
 
 // just generates the remaining functions
 void gen_generic_functions(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
-    int16_t itr = decl->bodies_gen_index;
-    int16_t total = decl->total_generic_iterations();
-    while(itr < total) {
-        decl->set_active_iteration(itr);
-        func_decl_with_name(visitor, decl, decl->name_view());
-        itr++;
-    }
-    // set to -1, so whoever tries to access generic parameters types, they receive an error if active iteration is not set again
-    decl->set_active_iteration(-1);
-    decl->bodies_gen_index = total;
+    func_decl_with_name(visitor, decl, decl->name_view());
 }
 
 void CTopLevelDeclarationVisitor::declare_func(FunctionDeclaration* decl) {
@@ -2496,22 +2404,7 @@ void CTopLevelDeclarationVisitor::declare_func(FunctionDeclaration* decl) {
 //    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {
 //        visitor->error("Function name " + decl->name + " returns a capturing lambda, which is not supported");
 //    }
-    if(decl->generic_params.empty()) {
-        declare_by_name(this, decl, decl->name_view());
-    } else {
-        auto size = decl->total_generic_iterations();
-        int16_t i = 0;
-        while(i < size) {
-            decl->set_active_iteration(i);
-            early_declare_gen_arg_structs(*this, decl->generic_params);
-            declare_by_name(this, decl, decl->name_view());
-            i++;
-        }
-        // set the active iteration to -1, so whoever accesses it without setting it to zero receives an error
-        decl->set_active_iteration(-1);
-        // generate remaining functions
-        gen_generic_functions(visitor, decl);
-    }
+    declare_by_name(this, decl, decl->name_view());
 }
 
 void CTopLevelDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
@@ -2638,46 +2531,11 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
 
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def);
 
-// just generates any remaining struct functions
-void gen_generic_struct_functions(ToCAstVisitor& visitor, StructDefinition* def) {
-    const auto total_itr = def->total_generic_iterations();
-    if(total_itr == 0) return; // generic type never used (yet)
-    int16_t itr = def->iterations_body_done;
-    if(itr >= total_itr) return;
-    auto prev = def->active_iteration;
-    while (itr < total_itr) {
-        def->set_active_iteration(itr);
-        contained_struct_functions(visitor, def);
-        itr++;
-    }
-    def->iterations_body_done = total_itr;
-    def->set_active_iteration(prev);
-}
-
 void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* def) {
-    if(def->generic_params.empty()) {
-        if(redefining || def->iterations_declared == 0) {
-            declare_struct(def);
-        }
-        def->iterations_declared = 1;
-    } else {
-        // when redefining (struct imported from other module), we declare all iterations, otherwise begin where left off
-        int16_t itr = redefining ? (int16_t) 0 : def->iterations_declared;
-        const auto total = def->total_generic_iterations();
-        while(itr < total) {
-            def->set_active_iteration(itr);
-            // early declare structs that are generic arguments
-            early_declare_gen_arg_structs(*this, def->generic_params);
-            declare_struct(def);
-            itr++;
-        }
-        def->iterations_declared = total;
-        def->set_active_iteration(-1);
-        // generate any remaining functions that haven't been generated
-        if(redefining) {
-            gen_generic_struct_functions(visitor, def);
-        }
+    if(redefining || def->iterations_declared == 0) {
+        declare_struct(def);
     }
+    def->iterations_declared = 1;
 }
 
 void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
@@ -2778,43 +2636,16 @@ void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def
 
 // just generates the remaining functions of the generic variant
 void gen_variant_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
-    const auto total_itr = def->total_generic_iterations();
-    if(total_itr == 0) return; // generic type never used (yet)
-    int16_t itr = def->iterations_body_done;
-    if(itr >= total_itr) return;
-    auto prev = def->active_iteration;
-    while (itr < total_itr) {
-        def->set_active_iteration(itr);
-        generate_contained_functions(visitor, def);
-        itr++;
-    }
-    def->set_active_iteration(prev);
-    def->iterations_body_done = total_itr;
+    generate_contained_functions(visitor, def);
 }
 
 void CTopLevelDeclarationVisitor::declare_variant_iterations(VariantDefinition* def) {
-    if(def->generic_params.empty()) {
-        if(redefining) {
-            declare_variant(def);
-        } else if(def->iterations_declared == 0) {
-            declare_variant(def);
-        }
-        def->iterations_declared = 1;
-    } else {
-        // when redefining (struct imported from other module), we declare all iterations, otherwise begin where left off
-        int16_t itr = redefining ? (int16_t) 0 : def->iterations_declared;
-        const auto total = def->total_generic_iterations();
-        while(itr < total) {
-            def->set_active_iteration(itr);
-            // early declare structs that are generic arguments
-            early_declare_gen_arg_structs(*this, def->generic_params);
-            declare_variant(def);
-            itr++;
-        }
-        def->iterations_declared = total;
-        // generating remaining functions of the variant (bodies)
-        gen_variant_functions(visitor, def);
+    if(redefining) {
+        declare_variant(def);
+    } else if(def->iterations_declared == 0) {
+        declare_variant(def);
     }
+    def->iterations_declared = 1;
 }
 
 void CTopLevelDeclarationVisitor::VisitVariantDecl(VariantDefinition *def) {
@@ -2881,37 +2712,13 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
 
 static void contained_interface_functions(ToCAstVisitor& visitor, InterfaceDefinition* def) {
     for(auto& func : def->functions()) {
-        if(func->is_generic()) {
-            visitor.write("[GENERIC_FUNCTIONS inside a interface not supported YET]");
-        } else {
-            // active iteration is probably going to zero here since function is non generic
-            // it get's the parent iteration and figures out which functions generic calls
-            // are calling inside the body of the function and activates it
-            func->activate_gen_call_iterations(func->active_iteration);
-            const auto interface = def->get_overriding_interface(func);
-            contained_func_decl(visitor, func, interface != nullptr, def);
-        }
+        const auto interface = def->get_overriding_interface(func);
+        contained_func_decl(visitor, func, interface != nullptr, def);
     }
-}
-
-void gen_generic_interface_functions(ToCAstVisitor& visitor, InterfaceDefinition* def) {
-    const auto total_itr = def->total_generic_iterations();
-    if(total_itr == 0) return; // generic type never used (yet)
-    int16_t itr = def->iterations_body_done;
-    if(itr >= total_itr) return;
-    auto prev = def->active_iteration;
-    while (itr < total_itr) {
-        def->set_active_iteration(itr);
-        contained_interface_functions(visitor, def);
-        itr++;
-    }
-    def->iterations_body_done = total_itr;
-    def->set_active_iteration(prev);
 }
 
 void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
     const auto is_static = def->is_static();
-    const auto is_generic = def->is_generic();
     for (auto& func: def->functions()) {
         if(is_static || !func->has_self_param()) {
             declare_contained_func(this, func, false);
@@ -2962,29 +2769,10 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::declare_interface_iterations(InterfaceDefinition* def) {
-    if(def->generic_params.empty()) {
-        if(redefining || def->iterations_declared == 0) {
-            declare_interface(def);
-        }
-        def->iterations_declared = 1;
-    } else {
-        // when redefining (struct imported from other module), we declare all iterations, otherwise begin where left off
-        int16_t itr = redefining ? (int16_t) 0 : def->iterations_declared;
-        const auto total = def->total_generic_iterations();
-        while(itr < total) {
-            def->set_active_iteration(itr);
-            // early declare structs that are generic arguments
-            early_declare_gen_arg_structs(*this, def->generic_params);
-            declare_interface(def);
-            itr++;
-        }
-        def->iterations_declared = total;
-        def->set_active_iteration(-1);
-        // generate any remaining functions that haven't been generated
-        if(redefining) {
-            gen_generic_interface_functions(visitor, def);
-        }
+    if(redefining || def->iterations_declared == 0) {
+        declare_interface(def);
     }
+    def->iterations_declared = 1;
 }
 
 void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
@@ -3381,11 +3169,7 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
 }
 
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
-    if(!decl->generic_params.empty()) {
-        gen_generic_functions(visitor, decl);
-    } else {
-        func_decl_with_name(visitor, decl, decl->name_view());
-    }
+    func_decl_with_name(visitor, decl, decl->name_view());
 }
 
 void call_variant_param_func(
@@ -3490,9 +3274,7 @@ void process_variant_member_using(
         if (!func) {
             return;
         }
-        const auto prev_itr = mem_def->set_active_itr_ret_prev(mem_type->get_generic_iteration());
         variant_member_process_fn(visitor, member, func, mem_def, mem_param);
-        mem_def->set_active_iteration(prev_itr);
     }
 }
 
@@ -3658,16 +3440,12 @@ void process_struct_members_using(
     for(auto& inherits : def->inherited) {
         auto linked = inherits.type->linked_struct_def();
         if(linked) {
-            const auto prev_itr = inherits.type->set_generic_iteration(inherits.type->get_generic_iteration());
             process_member(visitor, inherits.type, linked->name_view());
-            inherits.type->set_generic_iteration(prev_itr);
         }
     }
     for (auto& var: def->variables) {
         auto value_type = var.second->create_value_type(visitor.allocator);
-        const auto prev_itr = value_type->set_generic_iteration(value_type->get_generic_iteration());
         process_member(visitor, value_type, var.second->name);
-        value_type->set_generic_iteration(prev_itr);
     }
 }
 
@@ -3981,23 +3759,8 @@ void ToCAstVisitor::VisitUnnamedStruct(UnnamedStruct *def) {
 
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def) {
     for(auto& func : def->functions()) {
-        if(func->is_generic()) {
-            visitor.write("[GENERIC_FUNCTIONS inside a struct not supported YET]");
-        } else {
-            // active iteration is probably going to zero here since function is non generic
-            // it get's the parent iteration and figures out which functions generic calls
-            // are calling inside the body of the function and activates it
-            func->activate_gen_call_iterations(func->active_iteration);
-            const auto overriding = def->get_func_overriding_info(func);
-            if(overriding.type) {
-                const auto type = overriding.type->type;
-                const auto prev_gen_itr = overriding.base_container->set_active_itr_ret_prev(type->get_generic_iteration());
-                contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
-                overriding.base_container->set_active_iteration(prev_gen_itr);
-            } else {
-                contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
-            }
-        }
+        const auto overriding = def->get_func_overriding_info(func);
+        contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
     }
 }
 
@@ -4014,13 +3777,9 @@ void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
             }
         }
     }
-    if(def->generic_params.empty()) {
-        if(def->iterations_body_done == 0) {
-            contained_struct_functions(*this, def);
-            def->iterations_body_done = 1;
-        }
-    } else {
-        gen_generic_struct_functions(*this, def);
+    if(def->iterations_body_done == 0) {
+        contained_struct_functions(*this, def);
+        def->iterations_body_done = 1;
     }
     current_members_container = prev_members_container;
 }
@@ -4068,15 +3827,10 @@ void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def
 }
 
 void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
-    if(def->generic_params.empty()) {
-        if(def->iterations_body_done == 0) {
-            generate_contained_functions(*this, def);
-            def->iterations_body_done = 1;
-        }
-    } else {
-        gen_variant_functions(*this, def);
+    if(def->iterations_body_done == 0) {
+        generate_contained_functions(*this, def);
+        def->iterations_body_done = 1;
     }
-
 }
 
 void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
@@ -4108,9 +3862,9 @@ void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
     UBigIntValue siz_val(data.array_size, ZERO_LOC);
 
     if(stmt->is_array) {
-        destructor->destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, 0, data.destructor_func);
+        destructor->destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, data.destructor_func);
     } else {
-        destructor->destruct(chem::string_view(self_name.data(), self_name.size()), data.parent_node, 0, data.destructor_func, true);
+        destructor->destruct(chem::string_view(self_name.data(), self_name.size()), data.parent_node, data.destructor_func, true);
     }
 }
 
@@ -4329,171 +4083,6 @@ void func_container_name(ToCAstVisitor& visitor, ASTNode* parent_node, ASTNode* 
         }
     }
 }
-
-//class FuncGenericItrResetter {
-//public:
-//    FunctionDeclaration* decl;
-//    int16_t iteration;
-//    ~FuncGenericItrResetter() {
-//        if(decl) {
-//            decl->set_active_iteration(iteration);
-//        }
-//    }
-//};
-
-//void func_call(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
-//    auto last = values[end - 1]->as_func_call();
-//    auto func_decl = last->safe_linked_func();
-//    auto parent = values[end - 2];
-//    if(func_decl && func_decl->is_comptime()) {
-//        evaluate_func(visitor, &visitor, func_decl, last);
-//        return;
-//    }
-//    FuncGenericItrResetter resetter{};
-//    if(func_decl && !func_decl->generic_params.empty()) {
-//        resetter.decl = func_decl;
-//        resetter.iteration = func_decl->active_iteration;
-//        func_decl->set_active_iteration(last->generic_iteration);
-//    }
-//    auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3] : nullptr;
-//    auto parent_type = parent->create_type(visitor.allocator);
-//    auto func_type = parent_type->function_type();
-//    bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
-//    if(visitor.pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
-//        // functions that return struct
-//        auto allocated = visitor.local_allocated.find(last);
-//        if(allocated == visitor.local_allocated.end()) {
-//            visitor.write("[NotFoundAllocated in func_call]");
-//            return;
-//        }
-//        visitor.write(allocated->second);
-//    } else if(func_type->isCapturing()) {
-//        // function calls to capturing lambdas
-//        capture_call(visitor, func_type, last, [&](){
-//            auto prev = visitor.nested_value;
-//            visitor.nested_value = true;
-//            access_chain(visitor, values, start, end - 1);
-//            visitor.nested_value = prev;
-//        }, [&]() {
-//            auto prev = visitor.nested_value;
-//            visitor.nested_value = true;
-//            if(!values[end - 2]->is_stored_ptr_or_ref(visitor.allocator)) {
-//                visitor.write('&');
-//            }
-//            access_chain(visitor, values, start, end - 2);
-//            visitor.nested_value = prev;
-//        });
-//    } else if(grandpa && !grandpa->linked_node()->as_namespace()) {
-//        auto grandpaType = grandpa->create_type(visitor.allocator);
-//        auto pure_grandpa = grandpaType->pure_type(visitor.allocator);
-//        if(pure_grandpa && pure_grandpa->kind() == BaseTypeKind::Dynamic) {
-//            const auto interface = pure_grandpa->linked_node()->as_interface_def();
-//            if(interface && !interface->users.empty()) {
-//                // Dynamic dispatch
-//                // ((typeof(PhoneSmartPhone)*) phone.second)->call(phone.first);
-//                auto first = interface->users.begin();
-//                auto first_def = first->first;
-//                visitor.write('(');
-//                visitor.write('(');
-//                visitor.write("typeof");
-//                visitor.write('(');
-//                vtable_name(visitor, interface, first_def);
-//                visitor.write(')');
-//                visitor.write('*');
-//                visitor.write(')');
-//                visitor.space();
-//                func_name_chain(visitor, values, start, end - 2);
-//                if(end - 2 - start == 1) {
-//                    visitor.write('.');
-//                }
-//                visitor.write("second");
-//                visitor.write(')');
-//                visitor.write("->");
-//                func_name(visitor, parent, func_decl);
-//                visitor.write('(');
-//                if(write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last, true)) {
-//                    visitor.write('.');
-//                    visitor.write("first");
-//                    if (!last->values.empty()) {
-//                        visitor.write(", ");
-//                    }
-//                }
-//                func_call_args(visitor, last, func_type);
-//                visitor.write(')');
-//            } else {
-//                if(!interface) {
-//                    visitor.write("[Dynamic Dispatch used with type other than interface]");
-//                    visitor.error("Dynamic Dispatch used with a type other than interface", pure_grandpa->linked_node());
-//                } else {
-//                    visitor.write("[Dynamic Dispatch Interface has no known users]");
-//                }
-//            }
-//        } else if(grandpa->linked_node() && (grandpa->linked_node()->as_interface_def() || grandpa->linked_node()->as_struct_def())) {
-//            // direct functions on interfaces and structs
-//            func_container_name(visitor, grandpa->linked_node(), parent->linked_node());
-//            func_name(visitor, parent, func_decl);
-//            visitor.write('(');
-//            if(func_decl->has_self_param() && grandpa->as_func_call()) {
-//                auto found = visitor.local_allocated.find(grandpa);
-//                if(found != visitor.local_allocated.end()) {
-//                    visitor.write('&');
-//                    visitor.write(found->second);
-//                    if(!last->values.empty()) {
-//                        visitor.write(", ");
-//                    }
-//                }
-//            }
-//            func_call_args(visitor, last, func_type);
-//            visitor.write(')');
-//        } else if(pure_grandpa->linked_struct_def()) {
-//            if(parent->linked_node()->as_struct_member()) {
-//                goto normal_functions;
-//            }
-//            auto generic_struct = grandpaType->get_generic_struct();
-//            int16_t prev_iteration;
-//            if(generic_struct) {
-//                prev_iteration = generic_struct->active_iteration;
-//                generic_struct->set_active_iteration(grandpaType->get_generic_iteration());
-//            }
-//            // functions on struct values
-//            func_container_name(visitor, pure_grandpa->linked_node(), parent->linked_node());
-//            func_name(visitor, parent, func_decl);
-//            visitor.write('(');
-//            write_implicit_args(visitor, func_type, values, end, last);
-//            func_call_args(visitor, last, func_type);
-//            visitor.write(')');
-//            if(generic_struct) {
-//                generic_struct->set_active_iteration(prev_iteration);
-//            }
-//        } else {
-//            goto normal_functions;
-//        }
-//    } else {
-//        goto normal_functions;
-//    }
-//    return;
-//    normal_functions: {
-//        // normal functions
-//        auto linked_node = parent->linked_node();
-//        auto as_func_decl = linked_node ? linked_node->as_function() : nullptr;
-//        if(func_decl) {
-//            func_container_name(visitor, func_decl);
-//        } else {
-//            func_name_chain(visitor, values, start, end - 1);
-//        }
-//        visitor.write('(');
-//        write_implicit_args(visitor, func_type, values, end, last);
-//        func_call_args(visitor, last, func_type);
-//        visitor.write(')');
-////        if(!visitor->nested_value) {
-////            visitor->write(';');
-////        }
-//    };
-//}
-
-//void func_name_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, unsigned end) {
-//    access_chain(visitor, values, start, end, values.size());
-//}
 
 void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, ExtendableMembersContainerNode* def) {
     int i = 0;
@@ -4725,10 +4314,7 @@ void ToCAstVisitor::VisitAccessChain(AccessChain *chain) {
         }
     }
     const auto size = chain->values.size();
-    std::vector<int16_t> active;
-    chain->set_generic_iteration(active, allocator);
     access_chain(*this, chain->values, 0, size);
-    chain->restore_generic_iteration(active, allocator);
 }
 
 void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
@@ -4748,7 +4334,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
 
     // handling comptime functions
     if(func_decl && func_decl->is_comptime()) {
-        call->set_curr_itr_on_decl();
         const auto value = evaluated_func_val(*this, func_decl, call);
         visit(value);
         return;
@@ -4818,7 +4403,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
         const auto returnType = func_type->returnType->pure_type(allocator);
         const auto returnTypeKind = returnType->kind();
         if (returnTypeKind == BaseTypeKind::Dynamic) {
-            call->set_curr_itr_on_decl();
             write("(*({ __chemical_fat_pointer__ ");
             const auto temp_name = get_local_temp_var_name();
             write_str(temp_name);
@@ -4841,7 +4425,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
             if (return_linked) {
                 const auto returnKind = return_linked->kind();
                 if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
-                    call->set_curr_itr_on_decl();
                     write("(*({ ");
                     const auto temp_name = get_local_temp_var_name();
                     const auto temp_name_view = chem::string_view(temp_name.data(), temp_name.size());
@@ -4866,7 +4449,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 
     // normal functions
-    call->set_curr_itr_on_decl();
     visit(call->parent_val);
     write('(');
     write_implicit_args(*this, func_type, call);
@@ -5018,7 +4600,6 @@ void ToCAstVisitor::VisitSwitchStmt(SwitchStatement *statement) {
             }
             if (variant) {
                 // turn on the active iteration of the variant
-                variant->set_active_iteration(known_t->get_generic_iteration());
                 visit(statement->expression);
                 write_accessor(*this, statement->expression, nullptr);
                 write(variant_type_variant_name);
@@ -5183,12 +4764,6 @@ void ToCAstVisitor::VisitArrayValue(ArrayValue *arr) {
 void ToCAstVisitor::VisitStructValue(StructValue *val) {
     auto linked = val->linked_node();
     auto linked_kind = linked->kind();
-    int16_t prev_itr;
-    bool is_generic = val->is_generic();
-    if(is_generic) {
-        prev_itr = val->get_active_iteration();
-        val->set_active_iteration(val->generic_iteration);
-    }
     const auto runName = val->runtime_name_str();
     if(!runName.empty()) {
         write('(');
@@ -5247,9 +4822,6 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
     }
     nested_value = prev;
     write('}');
-    if(is_generic) {
-        val->set_active_iteration(prev_itr);
-    }
 }
 
 //void deref_id(ToCAstVisitor& visitor, VariableIdentifier* identifier) {
@@ -5600,10 +5172,7 @@ void ToCAstVisitor::VisitFunctionType(FunctionType *type) {
 
 void ToCAstVisitor::VisitGenericType(GenericType *gen_type) {
     const auto gen_struct = gen_type->referenced->linked->as_members_container();
-    const auto prev_itr = gen_struct->active_iteration;
-    gen_struct->set_active_iteration(gen_type->generic_iteration);
     visit(gen_type->referenced);
-    gen_struct->set_active_iteration(prev_itr);
 }
 
 void ToCAstVisitor::VisitIntNType(IntNType *type) {

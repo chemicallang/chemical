@@ -235,10 +235,6 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    bool is_generic() {
-        return !generic_params.empty();
-    }
-
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void redeclare_top_level(SymbolResolver &linker) final;

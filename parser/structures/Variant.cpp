@@ -86,8 +86,6 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
 
 }
 
-const auto GENv2 = true;
-
 ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::VariantKw)) {
 
@@ -110,7 +108,7 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpec
 
         ASTNode* finalDecl = decl;
 
-        if(GENv2 && !gen_params.empty()) {
+        if(!gen_params.empty()) {
 
             const auto gen_decl = new (allocator.allocate<GenericVariantDecl>()) GenericVariantDecl(
                 decl, parent_node, loc_single(id)
@@ -120,8 +118,6 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpec
 
             finalDecl = gen_decl;
 
-        } else {
-            decl->generic_params = std::move(gen_params);
         }
 
         if(!consumeToken(TokenType::LBrace)) {

@@ -49,8 +49,6 @@ public:
 
     ASTNode* child(int index) final;
 
-    std::pair<BaseType*, int16_t> set_iteration();
-
     bool is_generic_param();
 
 #ifdef COMPILER_BUILD

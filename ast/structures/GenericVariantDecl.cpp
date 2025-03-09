@@ -33,9 +33,6 @@ void GenericVariantDecl::finalize_signature(ASTAllocator& allocator, VariantDefi
 
     // finalizing the signature of functions
     for(const auto func : inst->functions()) {
-        // non generic functions inside struct must have active iteration zero
-        // when we add generic functions support inside containers, we'll change this
-        func->active_iteration = 0;
         GenericFuncDecl::finalize_signature(allocator, func);
     }
 

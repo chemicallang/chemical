@@ -15,18 +15,6 @@ uint64_t AccessChain::byte_size(bool is64Bit) {
     return values[values.size() - 1]->byte_size(is64Bit);
 }
 
-void AccessChain::fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type) {
-    unsigned i = 0;
-    const auto size = values.size();
-    while(i < size) {
-        const auto func_call = values[i]->as_func_call();
-        if(func_call) {
-            func_call->fix_generic_iteration(diagnoser, i == size - 1 ? expected_type : nullptr);
-        }
-        i++;
-    }
-}
-
 void AccessChain::relink_parent() {
     const auto values_size = values.size();
     if (values_size > 1) {
@@ -70,10 +58,6 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
         return true;
     }
 
-    std::vector<int16_t> iterations;
-
-    values[0]->set_generic_iteration(iterations, linker.allocator);
-
     const auto values_size = values.size() - end_offset;
     if (values_size > 1) {
         unsigned i = 1;
@@ -94,22 +78,7 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
 }
 
 BaseType* AccessChain::create_type(ASTAllocator& allocator) {
-    const auto values_size = values.size();
-    if(values_size == 1) {
-        return values[0]->create_type(allocator);
-    }
-    std::vector<int16_t> active;
-    set_generic_iteration(active, allocator);
-    const auto type = values[values.size() - 1]->create_type(allocator);
-    if(type) {
-        const auto pure = type->pure_type(allocator);
-        if(pure && type != pure) {
-            restore_generic_iteration(active, allocator);
-            return pure;
-        }
-    }
-    restore_generic_iteration(active, allocator);
-    return type;
+    return values[values.size() - 1]->create_type(allocator);
 }
 
 //hybrid_ptr<BaseType> AccessChain::get_base_type() {
@@ -265,28 +234,4 @@ ASTNode *AccessChain::linked_node() {
 
 BaseTypeKind AccessChain::type_kind() const {
     return values[values.size() - 1]->type_kind();
-}
-
-std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& allocator, ChainValue* parent_val) {
-    const auto linked = parent_val->linked_node();
-    if(!linked) return { nullptr, -1 };
-    const auto linked_kind = linked->kind();
-    if(linked_kind == ASTNodeKind::FunctionDecl) {
-        const auto func_decl = linked->as_function_unsafe();
-        if(func_decl->isExtensionFn()) {
-            return { nullptr, -1 };
-        }
-        const auto gran = get_parent_from(parent_val);
-        if(gran) {
-            // grandpa value can refer to a namespace, which is unable to create_type
-            const auto gran_type = gran->create_type(allocator);
-            if (gran_type) {
-                const auto generic_struct = gran_type->get_generic_struct();
-                if (generic_struct) {
-                    return {generic_struct, gran_type->get_generic_iteration()};
-                }
-            }
-        }
-    }
-    return { nullptr, -1 };
 }

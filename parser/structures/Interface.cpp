@@ -8,8 +8,6 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 
-const auto GENv2 = true;
-
 ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
     auto& tok = *token;
@@ -34,7 +32,7 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSp
 
         ASTNode* finalDecl = decl;
 
-        if(GENv2 && !gen_params.empty()) {
+        if(!gen_params.empty()) {
 
             const auto gen_decl = new (allocator.allocate<GenericInterfaceDecl>()) GenericInterfaceDecl(
                     decl, parent_node, loc_single(id)
@@ -44,8 +42,6 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSp
 
             finalDecl = gen_decl;
 
-        } else {
-            decl->generic_params = std::move(gen_params);
         }
 
         if(consumeToken(TokenType::ColonSym)) {

@@ -428,19 +428,10 @@ void comma_separated_accept(RepresentationVisitor& visitor, T& things) {
     }
 }
 
-void write_gen_params(RepresentationVisitor& visitor, StructDefinition* def) {
-    if(!def->generic_params.empty()) {
-        visitor.write('<');
-        comma_separated_accept(visitor, def->generic_params);
-        visitor.write('>');
-    }
-}
-
 void RepresentationVisitor::VisitStructDecl(StructDefinition *def) {
     write_ws(def->specifier());
     write("struct ");
     write(def->name_view());
-    write_gen_params(*this, def);
     if(!def->inherited.empty()) {
         write(" : ");
         unsigned i = 0;

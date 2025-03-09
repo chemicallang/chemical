@@ -21,7 +21,6 @@ public:
     ChainValue* parent_val;
     std::vector<BaseType*> generic_list;
     std::vector<Value*> values;
-    int16_t generic_iteration = -1;
 
     /**
      * constructor
@@ -81,16 +80,6 @@ public:
 
     ASTNode *linked_node() final;
 
-    void fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type);
-
-    /**
-     * called by the current function (in the body of which this function call exists)
-     * this means the current function is generic, and this call also calls a generic function
-     * and a generic iteration has been registered for current function, which means we must register
-     * a generic iteration of the called function
-     */
-    int16_t register_indirect_generic_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, BaseType* expected_type);
-
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
     int16_t link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi);
@@ -130,23 +119,6 @@ public:
     BaseTypeKind type_kind() const final;
 
     /**
-     * will set given generic iteration of function declaration
-     * if function is a constructor, will set the iteration on the struct instead
-     * previous iteration of declaration is returned
-     */
-    int16_t set_gen_itr_on_decl(int16_t itr, bool set_generic_calls = true);
-
-    /**
-     * will set the current generic iteration on function declaration
-     * returning the previous generic iteration, so you can restore it
-     * previous iteration is equal to -2, if couldn't set because it's
-     * not a generic function
-     */
-    inline int16_t set_curr_itr_on_decl(bool set_generic_calls = true) {
-        return set_gen_itr_on_decl(generic_iteration, set_generic_calls);
-    }
-
-    /**
      * if all generic arguments aren't given, for which default types also don't exist
      * this will be called to get inferred arguments, if parameter has default type, nullptr will be used,
      * for which arguments couldn't be inferred, nullptr would be used
@@ -171,8 +143,6 @@ public:
     ) final;
 
     llvm::FunctionType *llvm_linked_func_type(Codegen& gen);
-
-    llvm::Function** llvm_generic_func_data(ASTAllocator& allocator);
 
     llvm::Value *llvm_linked_func_callee(Codegen& gen);
 

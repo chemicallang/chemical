@@ -48,7 +48,6 @@ void StructDefinition::struct_func_gen(
                 }
                 continue;
             }
-            function->activate_gen_call_iterations(function->active_iteration);
             function->code_gen_body(gen, this);
         }
     }
@@ -64,7 +63,6 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
         // we always assume base container as interface, it could be something else (abstract struct maybe)
         if(interface->is_static()) {
             const auto inh_type = info.type->type;
-            const auto prev_itr = interface->set_active_itr_ret_prev(inh_type->get_generic_iteration());
             const auto func = info.base_func->llvm_func();
             const auto interfaceModule = func->getParent();
             if(interfaceModule != gen.module.get()) {
@@ -88,7 +86,6 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
                 gen.createFunctionBlock(func);
                 function->code_gen_override(gen, func);
             }
-            interface->set_active_iteration(prev_itr);
         } else {
             auto& user = interface->users[this];
             auto llvm_data = user.find(info.base_func);
@@ -126,38 +123,17 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
         return;
     }
     auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
-    if(generic_params.empty()) {
-        if(itr_ptr == 0) {
-            struct_func_gen(gen, functions(), declare);
-            if (!declare) {
-                for (auto& inherits: inherited) {
-                    const auto interface = inherits.type->linked_interface_def();
-                    if (interface && !interface->is_static()) {
-                        interface->llvm_global_vtable(gen, this);
-                    }
+    if(itr_ptr == 0) {
+        struct_func_gen(gen, functions(), declare);
+        if (!declare) {
+            for (auto& inherits: inherited) {
+                const auto interface = inherits.type->linked_interface_def();
+                if (interface && !interface->is_static()) {
+                    interface->llvm_global_vtable(gen, this);
                 }
             }
-            itr_ptr++;
         }
-    } else {
-        const auto total = total_generic_iterations();
-        if(total == 0) return; // generic type was never used
-        auto prev_active_iteration = active_iteration;
-        auto struct_itr = itr_ptr;
-        while(struct_itr < total) {
-            // generating code and copying iterations
-            set_active_iteration(struct_itr);
-            if(declare) {
-                early_declare_structural_generic_args(gen);
-            }
-            struct_func_gen(gen, functions(), declare);
-            if(declare) {
-                acquire_function_iterations(struct_itr);
-            }
-            struct_itr++;
-        }
-        itr_ptr = struct_itr;
-        set_active_iteration(prev_active_iteration);
+        itr_ptr++;
     }
 }
 
@@ -222,23 +198,19 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, Sour
         if(func->has_self_param()) {
             args.emplace_back(allocaInst);
         }
-        llvm::Function* func_data;
-        if(is_generic()) {
-            func_data = llvm_generic_func_data(func, active_iteration, func->active_iteration);
-        } else {
-            func_data = func->llvm_func();
-        }
+        llvm::Function* func_data = func->llvm_func();
         const auto instr = gen.builder->CreateCall(func_data, args);
         gen.di.instr(instr, location);
     }
 }
 
 llvm::StructType* StructDefinition::llvm_stored_type() {
-    return llvm_struct_types[active_iteration];
+    return llvm_struct_types[0];
 }
 
 void StructDefinition::llvm_store_type(llvm::StructType* type) {
-    llvm_struct_types[active_iteration] = type;
+    // auto creation
+    llvm_struct_types[0] = type;
 }
 
 llvm::Type* StructDefinition::with_elements_type(

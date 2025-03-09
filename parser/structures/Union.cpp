@@ -53,8 +53,6 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
 }
 
-const auto GENv2 = true;
-
 ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
     if(consumeWSOfType(TokenType::UnionKw)) {
@@ -75,7 +73,7 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecif
 
         ASTNode* finalDecl = decl;
 
-        if(GENv2 && !gen_params.empty()) {
+        if(!gen_params.empty()) {
 
             const auto gen_decl = new (allocator.allocate<GenericUnionDecl>()) GenericUnionDecl(
                     decl, parent_node, loc_single(identifier)
@@ -85,8 +83,6 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecif
 
             finalDecl = gen_decl;
 
-        } else {
-            decl->generic_params = std::move(gen_params);
         }
 
         if(!consumeToken(TokenType::LBrace)) {

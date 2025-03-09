@@ -24,7 +24,6 @@ public:
 
     BaseType* refType;
     std::unordered_map<chem::string_view, StructMemberInitializer> values;
-    int16_t generic_iteration = 0;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst = nullptr;
 #endif
@@ -87,19 +86,9 @@ public:
 
     ASTNode *linked_node() final;
 
-    bool is_generic();
-
     void runtime_name(std::ostream& output);
 
     std::string runtime_name_str();
-
-    int16_t get_active_iteration() {
-        return definition->active_iteration;
-    }
-
-    void set_active_iteration(int16_t itr) {
-        definition->active_iteration = itr;
-    }
 
     BaseDefMember* child_member(const chem::string_view& name){
         return container->child_member(name);
@@ -178,7 +167,9 @@ public:
 
     BaseType* known_type() final;
 
-    uint64_t byte_size(bool is64Bit) final;
+    uint64_t byte_size(bool is64Bit) final {
+        return definition->byte_size(is64Bit);
+    }
 
 //    hybrid_ptr<BaseType> get_base_type() final;
 

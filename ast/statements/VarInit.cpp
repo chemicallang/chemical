@@ -151,16 +151,9 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
         auto kind = type->kind();
         switch (kind) {
             case BaseTypeKind::Linked:
+            case BaseTypeKind::Generic:
                 type->linked_node()->llvm_destruct(gen, llvm_ptr, encoded_location());
                 break;
-            case BaseTypeKind::Generic: {
-                const auto generic_struct = type->get_generic_struct();
-                const auto prev_itr = generic_struct->active_iteration;
-                generic_struct->set_active_iteration(type->get_generic_iteration());
-                generic_struct->llvm_destruct(gen, llvm_ptr, encoded_location());
-                generic_struct->set_active_iteration(prev_itr);
-                break;
-            }
             case BaseTypeKind::Array: {
                 const auto arr_type = (ArrayType *) type;
                 if (arr_type->elem_type->kind() == BaseTypeKind::Linked ||

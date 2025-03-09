@@ -31,13 +31,13 @@
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
-//#include "ast/structures/CapturedVariable.h"
+#include "ast/structures/CapturedVariable.h"
 //#include "ast/structures/MembersContainer.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/PointerType.h"
-//#include "ast/types/FunctionType.h"
+#include "ast/types/FunctionType.h"
 #include "ast/types/GenericType.h"
 //#include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
@@ -52,7 +52,8 @@
 //#include "ast/types/LongType.h"
 //#include "ast/types/ShortType.h"
 //#include "ast/types/StringType.h"
-//#include "ast/types/StructType.h"
+#include "ast/types/StructType.h"
+#include "ast/types/UnionType.h"
 //#include "ast/types/UBigIntType.h"
 //#include "ast/types/UInt128Type.h"
 //#include "ast/types/UIntType.h"
@@ -210,27 +211,24 @@ public:
         }
     }
 
-    void VisitUnnamedStruct(UnnamedStruct* def) {
-        auto itr = def->variables.begin();
-        while(itr != def->variables.end()) {
-            visit_it(itr.value());
-            itr++;
-        }
-    }
-    void VisitUnnamedUnion(UnnamedUnion* def) {
-        auto itr = def->variables.begin();
-        while(itr != def->variables.end()) {
+    void VisitVariables(tsl::ordered_map<chem::string_view, BaseDefMember*>& variables) {
+        auto itr = variables.begin();
+        while(itr != variables.end()) {
             visit_it(itr.value());
             itr++;
         }
     }
 
-    void VisitStructDecl(StructDefinition *def) {
-        auto itr = def->variables.begin();
-        while(itr != def->variables.end()) {
-            visit_it(itr.value());
-            itr++;
-        }
+    inline void VisitUnnamedStruct(UnnamedStruct* def) {
+        VisitVariables(def->variables);
+    }
+
+    inline void VisitUnnamedUnion(UnnamedUnion* def) {
+        VisitVariables(def->variables);
+    }
+
+    inline void VisitStructDecl(StructDefinition *def) {
+        VisitVariables(def->variables);
         for(auto& func : def->functions()) {
             visit_it(func);
         }
@@ -266,6 +264,9 @@ public:
     }
 
     void VisitLambdaFunction(LambdaFunction *func) {
+        for(auto& var : func->captureList) {
+            visit_it(var);
+        }
         visit_it(func->scope);
     }
 
@@ -332,6 +333,9 @@ public:
 
     inline void VisitArrayType(ArrayType *type) {
         visit_it(type->elem_type);
+        if(type->array_size_value) {
+            visit_it(type->array_size_value);
+        }
     }
 
     inline void VisitIsValue(IsValue* value) {
@@ -381,6 +385,21 @@ public:
         for(auto& ty : type->types) {
             visit_it(ty);
         }
+    }
+
+    void VisitFunctionType(FunctionType* type) {
+        for(auto& ty : type->params) {
+            visit_it(ty);
+        }
+        visit_it(type->returnType);
+    }
+
+    void VisitStructType(StructType* type) {
+        VisitVariables(type->variables);
+    }
+
+    void VisitUnionType(UnionType* type) {
+        VisitVariables(type->variables);
     }
 
 };

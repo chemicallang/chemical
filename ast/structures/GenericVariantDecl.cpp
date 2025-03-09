@@ -58,14 +58,16 @@ void GenericVariantDecl::link_signature(SymbolResolver &linker) {
     auto& allocator = *linker.ast_allocator;
     for(const auto inst : instantiations) {
         finalize_signature(allocator, inst);
-        // since these instantiations were created before link_signature
-        // they don't have any generated functions like default constructor / destructor
+    }
+    // finalize the siganture of all instantiations
+    // this basically visits the instantiations body and makes the types concrete
+    linker.genericInstantiator.FinalizeSignature(this, instantiations);
+    // since these instantiations were created before link_signature
+    // they don't have any generated functions like default constructor / destructor
+    for(const auto inst : instantiations) {
         // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module alloctor
         inst->generate_functions(*linker.ast_allocator, linker);
     }
-    // finalize the body of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(this, instantiations);
 }
 
 void GenericVariantDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
@@ -137,13 +139,15 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
         // so all we need to do is
         finalize_signature(allocator, impl);
         finalize_body(allocator, impl);
-        impl->generate_functions(allocator, diagnoser);
 
         // now finalize using instantiator
         auto ptr = impl;
         const auto span = std::span<VariantDefinition*>(&ptr, 1);
         instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
+
+        // since signature has completely finalized, we know which types need a destructor
+        impl->generate_functions(allocator, diagnoser);
 
     } else if(signature_linked) {
 
@@ -154,12 +158,14 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
         // signature and body both have been linked for master_impl
         // so all we need to do is
         finalize_signature(allocator, impl);
-        impl->generate_functions(allocator, diagnoser);
 
         // now finalize using instantiator
         auto ptr = impl;
         const auto span = std::span<VariantDefinition*>(&ptr, 1);
         instantiator.FinalizeSignature(this, span);
+
+        // since signature has completely finalized, we know which types need a destructor
+        impl->generate_functions(allocator, diagnoser);
 
     }
 

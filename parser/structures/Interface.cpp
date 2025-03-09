@@ -8,7 +8,7 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 
-const auto GENv2 = false;
+const auto GENv2 = true;
 
 ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 

@@ -92,7 +92,7 @@ public:
     }
 
     void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) final {
-        link(linker, (BaseType*) nullptr, nullptr, 0, false, false);
+        link(linker, expected_type, nullptr, 0, false, false);
     }
 
     void fix_generic_iteration(ASTDiagnoser& diagnoser, BaseType* expected_type);

@@ -83,14 +83,8 @@ public:
      * shallow copies this container into the given container
      */
     void shallow_copy_into(VariablesContainer& other, ASTAllocator& allocator) {
-        other.inherited.reserve(inherited.size());
-        for(auto& inh : inherited) {
-            other.inherited.emplace_back(inh.type, inh.specifier);
-        }
-        other.variables.reserve(variables.size());
-        for(auto& var : variables) {
-            other.variables[var.first] = var.second;
-        }
+        other.inherited = inherited;
+        other.variables = variables;
     }
 
     virtual VariablesContainer* copy_container(ASTAllocator& allocator) {

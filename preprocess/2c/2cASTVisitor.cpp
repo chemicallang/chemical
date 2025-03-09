@@ -1522,9 +1522,12 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
         linked->set_active_iteration(call->generic_iteration);
     }
 
+    if(linked->generic_parent != nullptr) {
+        int i = 0;
+    }
+
     visitor.write("(struct ");
-    node_parent_name(visitor, linked);
-    struct_name(visitor, linked);
+    linked->runtime_name(*visitor.output);
     visitor.write(") ");
     visitor.write("{ ");
     visitor.write_str(std::to_string(index));

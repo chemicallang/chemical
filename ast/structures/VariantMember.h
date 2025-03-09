@@ -63,7 +63,7 @@ public:
         const auto member = new (allocator.allocate<VariantMember>()) VariantMember(name, parent(), encoded_location());
         for(auto& value : values) {
             const auto param_copy = value.second->copy(allocator);
-            param_copy->set_parent(this);
+            param_copy->set_parent(member);
             member->values[value.first] = param_copy;
         }
         member->attrs = attrs;

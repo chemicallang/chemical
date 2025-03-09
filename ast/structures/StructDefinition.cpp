@@ -315,7 +315,9 @@ void StructDefinition::redeclare_top_level(SymbolResolver &linker) {
 }
 
 void StructDefinition::link_signature(SymbolResolver &linker) {
-    MembersContainer::link_signature(linker);
+    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    link_signature_no_gen(linker);
+    generate_functions(allocator, linker);
 }
 
 void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
@@ -363,12 +365,6 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
     if(!has_destructor && any_member_has_destructor()) {
         create_def_destructor(allocator, diagnoser);
     }
-}
-
-void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
-    declare_and_link_no_gen(linker, node_ptr);
-    generate_functions(allocator, linker);
 }
 
 ASTNode *StructDefinition::child(const chem::string_view &name) {

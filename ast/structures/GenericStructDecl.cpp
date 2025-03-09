@@ -49,7 +49,7 @@ void GenericStructDecl::link_signature(SymbolResolver &linker) {
     for(auto& param : generic_params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
-    master_impl->link_signature(linker);
+    master_impl->link_signature_no_gen(linker);
     linker.scope_end();
     signature_linked = true;
     // finalizing signature of instantiations that occurred before link_signature
@@ -74,7 +74,7 @@ void GenericStructDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_
         param->declare_and_link(linker, (ASTNode*&) param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
-    master_impl->declare_and_link_no_gen(linker, (ASTNode*&) master_impl);
+    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
     linker.scope_end();
     body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link

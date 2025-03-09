@@ -217,7 +217,10 @@ void VariantDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node
 }
 
 void VariantDefinition::link_signature(SymbolResolver &linker) {
-    MembersContainer::link_signature(linker);
+    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
+    auto& diagnoser = linker;
+    link_signature_no_gen(linker);
+    generate_functions(allocator, diagnoser);
 }
 
 void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
@@ -250,13 +253,6 @@ void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser
     if(!has_destructor && any_member_has_destructor()) {
         create_def_destructor(allocator, diagnoser);
     }
-}
-
-void VariantDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
-    auto& diagnoser = linker;
-    MembersContainer::declare_and_link(linker, node_ptr);
-    generate_functions(allocator, diagnoser);
 }
 
 BaseType* VariantDefinition::known_type() {

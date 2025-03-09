@@ -119,9 +119,15 @@ public:
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
+    inline void link_signature_no_gen(SymbolResolver &linker) {
+        MembersContainer::link_signature(linker);
+    }
+
     void link_signature(SymbolResolver &linker) override;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
+    inline void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
+        MembersContainer::declare_and_link(linker, node_ptr);
+    }
 
     BaseType* known_type() final;
 

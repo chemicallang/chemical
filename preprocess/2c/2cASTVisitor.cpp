@@ -3069,7 +3069,7 @@ void ToCAstVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
         write(';');
         new_line_and_indent();
     } else if(val && BaseType::isPrimitiveType(return_type->pure_type(allocator)->kind()) && !destructor->destruct_jobs.empty()) {
-        saved_into_temp_var = "__chx_ret_val_res";
+        saved_into_temp_var = get_local_temp_var_name();
         write("const ");
         auto type = val->create_type(allocator);
         visit(type);

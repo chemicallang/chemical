@@ -51,7 +51,7 @@ void GenericVariantDecl::link_signature(SymbolResolver &linker) {
     for(auto& param : generic_params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
-    master_impl->link_signature(linker);
+    master_impl->link_signature_no_gen(linker);
     linker.scope_end();
     signature_linked = true;
     // finalizing signature of instantiations that occurred before link_signature

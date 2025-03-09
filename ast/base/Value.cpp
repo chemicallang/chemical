@@ -80,8 +80,6 @@ llvm::Value* Value::get_element_pointer(
     return gen.builder->CreateGEP(in_type, ptr, idxList, "", gen.inbounds);
 }
 
-const auto GENv2 = false;
-
 unsigned int Value::store_in_struct(
         Codegen& gen,
         Value* parent,
@@ -103,11 +101,9 @@ unsigned int Value::store_in_struct(
             const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
             gen.di.instr(loadInstr, this);
             Val = loadInstr;
-        } else if(GENv2 && value->getType()->isIntegerTy()) {
+        } else if(value->getType()->isIntegerTy()) {
             const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
-            if(ll_type) {
-                Val = gen.implicit_cast(Val, expected_type, ll_type);
-            }
+            Val = gen.implicit_cast(Val, expected_type, ll_type);
         }
 
         const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
@@ -137,11 +133,9 @@ unsigned int Value::store_in_array(
             const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
             gen.di.instr(loadInstr, this);
             Val = loadInstr;
-        } else if(GENv2 && value->getType()->isIntegerTy()) {
+        } else if(value->getType()->isIntegerTy()) {
             const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
-            if(ll_type) {
-                Val = gen.implicit_cast(Val, expected_type, ll_type);
-            }
+            Val = gen.implicit_cast(Val, expected_type, ll_type);
         }
 
         const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);

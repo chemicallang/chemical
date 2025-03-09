@@ -898,27 +898,43 @@ BaseType* FunctionCall::get_arg_type(unsigned int index) {
 
 
 void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred) {
-    const auto func = safe_linked_func();
-    if(!func) return;
-
-    // going over function parameters to see which arguments have been given, if they do have a generic type
-    // going over only explicit function params
-    auto arg_offset = func->explicit_func_arg_offset();
-    const auto values_size = values.size();
-    while(arg_offset < values_size) {
-        const auto param = func->params[arg_offset];
-        const auto param_type = param->type;
-        const auto arg_type = values[arg_offset]->known_type();
-        if(!arg_type) {
+    const auto func_type = known_func_type();
+    if(func_type) {
+        const auto func = func_type;
+        // going over function parameters to see which arguments have been given, if they do have a generic type
+        // going over only explicit function params
+        auto arg_offset = func->explicit_func_arg_offset();
+        const auto values_size = values.size();
+        while(arg_offset < values_size) {
+            const auto param = func->params[arg_offset];
+            const auto param_type = param->type;
+            const auto arg_type = values[arg_offset]->known_type();
+            if(!arg_type) {
 #ifdef DEBUG
-            diagnoser.error(this) << "couldn't get arg type " << values[arg_offset]->representation() << " in function call " << representation();
-            std::cout << "couldn't get arg type " << values[arg_offset]->representation() + " in function call " + representation();
+                diagnoser.error(this) << "couldn't get arg type " << values[arg_offset]->representation() << " in function call " << representation();
+                std::cout << "couldn't get arg type " << values[arg_offset]->representation() + " in function call " + representation();
 #endif
+                arg_offset++;
+                continue;
+            }
+            infer_types_by_args(diagnoser, parent_val->linked_node(), generic_list.size(), param_type, arg_type, inferred, this);
             arg_offset++;
-            continue;
         }
-        infer_types_by_args(diagnoser, func, generic_list.size(), param_type, arg_type, inferred, this);
-        arg_offset++;
+    } else {
+        const auto linked = parent_val->linked_node();
+        if(linked->kind() == ASTNodeKind::VariantMember) {
+            const auto member = linked->as_variant_member_unsafe();
+            const auto values_size = values.size();
+            auto i = 0;
+            while(i < values_size) {
+                const auto param_type = (member->values.begin() + i)->second->type;
+                const auto arg_type = values[i]->known_type();
+                if(arg_type) {
+                    infer_types_by_args(diagnoser, member->parent(), generic_list.size(), param_type, arg_type, inferred, this);
+                }
+                i++;
+            }
+        }
     }
 }
 

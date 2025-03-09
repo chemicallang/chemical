@@ -29,7 +29,7 @@ public:
 
     ReturnStatement* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<ReturnStatement>()) ReturnStatement(
-            value->copy(allocator),
+            value ? value->copy(allocator) : nullptr,
             parent(),
             encoded_location()
         );

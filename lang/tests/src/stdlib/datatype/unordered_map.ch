@@ -4,7 +4,7 @@ import "@std/unordered_map.ch"
 using namespace std;
 
 func test_unordered_map() {
-    /** TODO unordered map doesn't work yet, because cross module hash implementation starts referencing functions that haven't been generated
+    // TODO unordered map doesn't work yet, because cross module hash implementation starts referencing functions that haven't been generated
     test("unordered_map works with integer keys - 1", () => {
         var map = std::unordered_map<int, int>()
         map.insert(20, 200)

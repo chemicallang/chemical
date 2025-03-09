@@ -31,6 +31,15 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) override;
 
+    IncDecValue* copy(ASTAllocator &allocator) final {
+        return new (allocator.allocate<IncDecValue>()) IncDecValue(
+            value->copy(allocator),
+            increment,
+            post,
+            encoded_location()
+        );
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override {

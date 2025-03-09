@@ -74,7 +74,15 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
     unsigned i = 1;
     const auto size = value->values.size();
     while(i < size) {
-        visit(value->values[i]);
+        // identifiers are only handled, if they are not wrapped in access chain
+        // or they are the first one in the access chain
+        // we link those identifiers
+        // if they are not first or not wrapped in access chain, we do not visit them
+        // because if we visit the secondary identifiers they would be relinked causing different linkages
+        auto& secondary_val = value->values[i];
+        if(secondary_val->kind() != ValueKind::Identifier) {
+            visit(secondary_val);
+        }
         i++;
     }
 

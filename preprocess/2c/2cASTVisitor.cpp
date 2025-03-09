@@ -1666,6 +1666,9 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     // assignment to a reference, automatic dereferencing
     if(type->kind() == BaseTypeKind::Reference) {
         visitor.write('*');
+        if(visitor.current_func_type->as_function() && visitor.current_func_type->as_function()->name_view() == "insert") {
+            int i = 0;
+        }
     }
     if(type->requires_moving() && !assign->lhs->is_ref_moved()) {
         auto container = type->linked_node()->as_members_container();

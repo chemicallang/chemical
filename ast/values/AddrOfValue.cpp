@@ -4,7 +4,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/base/ASTNode.h"
 #include "ast/types/ReferenceType.h"
-#include "ast/structures/BaseFunctionParam.h"
+#include "ast/structures/FunctionParam.h"
 
 bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     auto res = value->link(linker, value);
@@ -18,7 +18,7 @@ bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
         if(linked) {
             switch (linked->kind()) {
                 case ASTNodeKind::FunctionParam:
-                    linked->as_base_func_param_unsafe()->set_has_address_taken(true);
+                    linked->as_func_param_unsafe()->set_has_address_taken(true);
                     break;
                 default:
                     break;

@@ -37,8 +37,6 @@ class ExtendableBase;
 
 class ExtendableMembersContainerNode;
 
-class BaseFunctionParam;
-
 class AnnotableNode;
 
 class MultiFunctionNode;
@@ -714,13 +712,6 @@ public:
     }
 
     /**
-     * return if this is a base function paam
-     */
-    inline BaseFunctionParam* as_base_func_param() {
-        return isBaseFuncParam(kind()) ? (BaseFunctionParam*) this : nullptr;
-    }
-
-    /**
      * return if this is a scope
      */
     inline Scope *as_scope() {
@@ -961,13 +952,6 @@ public:
      */
     inline LoopASTNode *as_loop_ast_unsafe() {
         return (LoopASTNode*) this;
-    }
-
-    /**
-     * return if this is a base function paam
-     */
-    inline BaseFunctionParam* as_base_func_param_unsafe() {
-        return (BaseFunctionParam*) this;
     }
 
     /**

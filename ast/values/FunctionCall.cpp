@@ -110,7 +110,7 @@ void put_implicit_params(
         put_self_param(gen, call, func_type, args, self_arg_val);
     }
     for(auto& param : func_type->params) {
-        if(param->is_implicit) {
+        if(param->is_implicit()) {
             if(param->name == "self") {
                 put_self_param(gen, call, func_type, args, self_arg_val);
             } else if(param->name == "other") {

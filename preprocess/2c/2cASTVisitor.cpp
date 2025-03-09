@@ -1419,7 +1419,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
         }
     }
     for(const auto param : func_type->params) {
-        if(param->is_implicit) {
+        if(param->is_implicit()) {
             if(param->name == "self") {
                 const auto grandpa = get_parent_from(call->parent_val);
                 if(grandpa) {

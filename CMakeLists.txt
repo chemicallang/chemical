@@ -343,7 +343,6 @@ set(COMMON_SOURCES
         ast/base/ExtendableBase.h
         ast/base/ExtendableBase.cpp
         ast/base/ExtendableMembersContainerNode.h
-        ast/structures/BaseFunctionParam.h
         compiler/OutputMode.h
         compiler/CodegenEmitterOptions.h
         ast/statements/ThrowStatement.h

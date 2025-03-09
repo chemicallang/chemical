@@ -1238,9 +1238,6 @@ public:
     inline void visit(BaseDefMember* node) {
         VisitNodeNoNullCheck(node);
     }
-    inline void visit(BaseFunctionParam* node) {
-        VisitNodeNoNullCheck(node);
-    }
     inline void visit(Value* value) {
         VisitValueNoNullCheck(value);
     }

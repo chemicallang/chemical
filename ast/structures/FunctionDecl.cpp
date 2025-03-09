@@ -36,19 +36,19 @@
 #include "ast/values/LambdaFunction.h"
 #include "ast/utils/ASTUtils.h"
 
-llvm::Type *BaseFunctionParam::llvm_type(Codegen &gen) {
+llvm::Type *FunctionParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-llvm::Type *BaseFunctionParam::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *FunctionParam::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
     return type->llvm_chain_type(gen, values, index);
 }
 
-void BaseFunctionParam::code_gen(Codegen &gen) {
+void FunctionParam::code_gen(Codegen &gen) {
     pointer = nullptr;
 }
 
-void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
+void FunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
     if(!(returnValue && returnValue->linked_node() == this)) {
         // TODO wrong location sent, as we don't have the location
         type->linked_node()->llvm_destruct(gen, gen.current_function->getArg(calculate_c_or_llvm_index(gen.current_func_type)), encoded_location());
@@ -56,7 +56,7 @@ void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
     pointer = nullptr;
 }
 
-llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
+llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
     if(pointer) {
         return pointer;
     }
@@ -85,7 +85,7 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
     }
 }
 
-llvm::Value *BaseFunctionParam::llvm_load(Codegen& gen, SourceLocation location) {
+llvm::Value *FunctionParam::llvm_load(Codegen& gen, SourceLocation location) {
     if (gen.current_function != nullptr) {
         if(pointer) {
             const auto loadInstr = gen.builder->CreateLoad(type->llvm_type(gen), pointer);
@@ -1145,7 +1145,7 @@ llvm::Type *CapturedVariable::llvm_type(Codegen &gen) {
     }
 }
 
-bool BaseFunctionParam::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
+bool FunctionParam::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     return type->linked_node()->add_child_index(gen, indexes, name);
 }
 
@@ -1156,20 +1156,26 @@ unsigned FunctionParam::calculate_c_or_llvm_index(FunctionType* func_type) {
     return start + index;
 }
 
-BaseTypeKind BaseFunctionParam::type_kind() const {
+BaseTypeKind FunctionParam::type_kind() const {
     return type->kind();
 }
 
 FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
-    Value* copied = nullptr;
-    if (defValue) {
-        copied = defValue->copy(allocator);
-    }
-    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, is_implicit, parent(), encoded_location());
+    const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(
+            name,
+            type->copy(allocator),
+            index,
+            defValue ? defValue->copy(allocator) : nullptr,
+            is_implicit(),
+            parent(),
+            encoded_location()
+    );
+    param->attrs = attrs;
+    return param;
 }
 
 bool FunctionParam::link_param_type(SymbolResolver &linker) {
-    if(is_implicit) {
+    if(is_implicit()) {
         if(name == "self" || name == "other") { // name and other means pointers to parent node
             const auto ptr_type = ((ReferenceType*) type);
             auto& linked_type_ref = ptr_type->type;
@@ -1234,6 +1240,10 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
     }
 }
 
+BaseType* FunctionParam::create_value_type(ASTAllocator& allocator) {
+    return type->copy(allocator);
+}
+
 void FunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
     if(defValue) {
@@ -1241,24 +1251,13 @@ void FunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr)
     }
 }
 
-BaseType* BaseFunctionParam::create_value_type(ASTAllocator& allocator) {
-    return type->copy(allocator);
-}
-
-void BaseFunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(!name.empty()) {
-        linker.declare(name, this);
-    }
-    type->link(linker);
-}
-
-void BaseFunctionParam::redeclare_top_level(SymbolResolver &linker) {
+void FunctionParam::redeclare_top_level(SymbolResolver &linker) {
     if(!name.empty()) {
         linker.declare(name, this);
     }
 }
 
-ASTNode *BaseFunctionParam::child(const chem::string_view &name) {
+ASTNode *FunctionParam::child(const chem::string_view &name) {
     const auto linked_node = type->linked_node();
     return linked_node ? linked_node->child(name) : nullptr;
 }
@@ -1376,7 +1375,7 @@ void check_returns_void(ASTDiagnoser& diagnoser, FunctionDeclaration* decl) {
 void check_self_param(ASTDiagnoser& diagnoser, FunctionDeclaration* decl, ASTNode* self) {
     if(decl->params.size() == 1) {
         const auto param = decl->params.front();
-        if(param->is_implicit && param->name == "self") {
+        if(param->is_implicit() && param->name == "self") {
             return;
         }
     }
@@ -1388,8 +1387,8 @@ void check_self_other_params(ASTDiagnoser& diagnoser, FunctionDeclaration* decl,
         const auto param = decl->params.front();
         const auto second = decl->params[1];
         if(
-            param->is_implicit && param->name == "self" &&
-            second->is_implicit && second->name == "other"
+            param->is_implicit() && param->name == "self" &&
+            second->is_implicit() && second->name == "other"
         ) {
             return;
         }

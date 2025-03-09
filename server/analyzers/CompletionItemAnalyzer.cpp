@@ -61,7 +61,7 @@ inline void put_function(CompletionItemAnalyzer* analyzer, FunctionDeclaration* 
     put_with_doc(analyzer, node->name(), lsCompletionItemKind::Function, node);
 }
 
-inline void put_func_param(CompletionItemAnalyzer* analyzer, BaseFunctionParam* node) {
+inline void put_func_param(CompletionItemAnalyzer* analyzer, FunctionParam* node) {
     put_with_doc(analyzer, node->name, lsCompletionItemKind::Variable, node);
 }
 

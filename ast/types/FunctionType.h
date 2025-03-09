@@ -19,8 +19,6 @@ class Codegen;
 
 class BaseType;
 
-class BaseFunctionParam;
-
 class FunctionParam;
 
 class ExtensionFunction;
@@ -130,10 +128,7 @@ public:
      * copy this function type into another
      */
     void shallow_copy_into(FunctionType& other, ASTAllocator& allocator, ASTNode* new_parent) {
-        other.params.reserve(params.size());
-        for(auto& param : params) {
-            other.params.emplace_back(param);
-        }
+        other.params = params;
         other.returnType = returnType;
         other.data = data;
     }
@@ -242,7 +237,7 @@ public:
     /**
      * get the self parameter of the function if it exists
      */
-    virtual BaseFunctionParam* get_self_param();
+    virtual FunctionParam* get_self_param();
 
     /**
      * whether this function requires self parameter

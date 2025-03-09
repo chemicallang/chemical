@@ -520,7 +520,7 @@ bool is_node_mutable(ASTNode* node, FunctionType* func_type, SymbolResolver& res
             return type->is_mutable();
         }
         case ASTNodeKind::FunctionParam: {
-            const auto type = node->as_base_func_param_unsafe()->type;
+            const auto type = node->as_func_param_unsafe()->type;
             return type->is_mutable();
         }
         case ASTNodeKind::VariantCaseVariable: {

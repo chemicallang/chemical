@@ -85,7 +85,9 @@
 //#include "ast/values/IntNumValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
-//#include "ast/values/NotValue.h"
+#include "ast/values/NotValue.h"
+#include "ast/values/Negative.h"
+#include "ast/values/IncDecValue.h"
 //#include "ast/values/NullValue.h"
 //#include "ast/values/NumberValue.h"
 //#include "ast/values/ShortValue.h"
@@ -140,6 +142,18 @@ public:
     void VisitExpression(Expression *expr) {
         visit_it(expr->firstValue);
         visit_it(expr->secondValue);
+    }
+
+    void VisitNegativeValue(NegativeValue* value) {
+        visit_it(value->value);
+    }
+
+    void VisitNotValue(NotValue* value) {
+        visit_it(value->value);
+    }
+
+    void VisitIncDecValue(IncDecValue* value) {
+        visit_it(value->value);
     }
 
     void VisitCastedValue(CastedValue *casted) {
@@ -283,12 +297,16 @@ public:
 
     void VisitForLoopStmt(ForLoop *loop) {
         visit_it(loop->initializer);
+        visit_it(loop->conditionExpr);
         visit_it(loop->incrementerExpr);
         visit_it(loop->body);
     }
 
     void VisitSwitchStmt(SwitchStatement *stmt) {
         visit_it(stmt->expression);
+        for(auto& thing : stmt->cases) {
+            visit_it(thing.first);
+        }
         for(auto& scope : stmt->scopes) {
             visit_it(scope);
         }

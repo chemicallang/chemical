@@ -1,4 +1,4 @@
-name: Test Latest Release Assets
+name: Test Compile Hello World
 
 on:
   workflow_dispatch:
@@ -111,7 +111,7 @@ jobs:
         shell: pwsh
 
       - name: Upload output artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}-output
           path: output.txt

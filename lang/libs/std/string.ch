@@ -85,7 +85,7 @@ public struct string : Hashable, Eq {
     @override
     func equals(&self, other : &string) : bool {
         const self_size = size();
-        return self_size == other.size() && memcmp(self.data(), other.data(), self_size) == 0;
+        return self_size == other.size() && strncmp(data(), other.data(), self_size) == 0;
     }
 
     func move_const_to_buffer(&mut self) {

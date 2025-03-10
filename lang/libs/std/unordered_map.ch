@@ -85,7 +85,7 @@ public struct unordered_map<Key, Value> {
     }
 
     // Insert or update a key-value pair
-    func insert(&self, key : &Key, value : &Value) {
+    func insert(&self, key : Key, value : Value) {
 
         if ((_size as float) / capacity > LOAD_FACTOR_THRESHOLD) {
             resize();
@@ -97,8 +97,6 @@ public struct unordered_map<Key, Value> {
         // Check if the key already exists in the chain, and update if so
         while (currentNode != null) {
             if (compare_now(currentNode.key, key)) {
-                // Destroy the previous value before updating it.
-                destruct currentNode.value;
                 currentNode.value = value; // Update value
                 return;
             }

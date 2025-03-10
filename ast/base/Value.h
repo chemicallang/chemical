@@ -115,6 +115,11 @@ public:
     static Value* get_first_value_from_value_node(ASTNode* node);
 
     /**
+     * check if given kind is a r value
+     */
+    bool isValueRValue(ASTAllocator& allocator);
+
+    /**
      * this function is called to allow variable identifiers to link with a node on the map
      * that will help it provide information, to allow it to generate code, or interpret
      * The reason it takes a reference to unique_ptr<Value> is because the current value

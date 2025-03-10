@@ -24,6 +24,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/statements/ValueWrapperNode.h"
+#include "ast/statements/Typealias.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
@@ -432,6 +433,67 @@ bool Value::isValueKindRValue(ValueKind kind) {
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
             return true;
+        default:
+            return false;
+    }
+}
+
+bool isTypeRValue(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Float128:
+            return true;
+        case BaseTypeKind::Linked: {
+            const auto linked = type->as_linked_type_unsafe()->linked;
+            switch (linked->kind()) {
+                case ASTNodeKind::TypealiasStmt:
+                    return isTypeRValue(linked->as_typealias_unsafe()->actual_type);
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
+bool Value::isValueRValue(ASTAllocator& allocator) {
+    switch(kind()) {
+        case ValueKind::Bool:
+        case ValueKind::NumberValue:
+        case ValueKind::Char:
+        case ValueKind::UChar:
+        case ValueKind::Short:
+        case ValueKind::UShort:
+        case ValueKind::Int:
+        case ValueKind::UInt:
+        case ValueKind::Long:
+        case ValueKind::ULong:
+        case ValueKind::BigInt:
+        case ValueKind::UBigInt:
+        case ValueKind::Double:
+        case ValueKind::Float:
+        case ValueKind::NegativeValue:
+        case ValueKind::SizeOfValue:
+        case ValueKind::AlignOfValue:
+            return true;
+        case ValueKind::FunctionCall:
+            return isTypeRValue(create_type(allocator));
+        case ValueKind::AccessChain:
+            return as_access_chain_unsafe()->values.back()->isValueRValue(allocator);
+        case ValueKind::Identifier:{
+            const auto linked = linked_node();
+            switch(linked->kind()) {
+                case ASTNodeKind::FunctionParam:
+                    return isTypeRValue(linked->as_func_param_unsafe()->type);
+                default:
+                    return false;
+            }
+        }
         default:
             return false;
     }

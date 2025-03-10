@@ -546,10 +546,11 @@ bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, ReferenceType*
         visitor.write_str(temp_var);
         visitor.write("; })");
         return true;
-    } else {
+    } else if(!is_value_passed_pointer_like(val)){
         visitor.write('&');
         return false;
     }
+    return false;
 }
 
 void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value, bool assigning_value) {

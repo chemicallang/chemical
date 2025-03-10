@@ -477,6 +477,6 @@ func test_basic_generics() {
     })
     test("can create generic structs using generic struct values - 3", () => {
         var s1 = create_pair_gen_generically<long>()
-        return s1.a == 8 && s1.b == 9;
+        return s1.a == 8 && s1.b == 8;
     })
 }

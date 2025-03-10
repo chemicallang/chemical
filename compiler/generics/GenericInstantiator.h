@@ -88,6 +88,8 @@ public:
 
     void VisitGenericType(GenericType* type);
 
+    void VisitStructValue(StructValue *val);
+
     void VisitScope(Scope* node) {
         table.scope_start();
         RecursiveVisitor<GenericInstantiator>::VisitScope(node);

@@ -1,5 +1,6 @@
 import "@std/unordered_map.ch"
 import "@std/string_view.ch"
+import "@std/string.ch"
 
 using namespace std;
 
@@ -62,6 +63,19 @@ func test_unordered_map() {
         map.find(std::string_view("fruit"), fruit)
         map.find(std::string_view("veg"), veg)
         map.find(std::string_view("nut"), nut)
+        return map.size() == 3 && fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut")
+    })
+    test("unordered map works with string as keys and values", () => {
+        var map = std::unordered_map<std::string, std::string>()
+        map.insert(std::string("fruit"), std::string("apple"))
+        map.insert(std::string("veg"), std::string("kale"))
+        map.insert(std::string("nut"), std::string("walnut"))
+        var fruit = std::string();
+        var veg = std::string();
+        var nut = std::string()
+        map.find(std::string("fruit"), fruit)
+        map.find(std::string("veg"), veg)
+        map.find(std::string("nut"), nut)
         return map.size() == 3 && fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut")
     })
 }

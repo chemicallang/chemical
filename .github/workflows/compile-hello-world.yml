@@ -42,10 +42,10 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           Set-Content -Path main.ch -Value @(
-            'public func printf(format : *char, _ : any...)'
-            'public func main() : int {'
-            '    printf("hello world")'
-            '    return 0;'
+            'public func printf(format : *char, _ : any...)',
+            'public func main() : int {',
+            '    printf("hello world")',
+            '    return 0;',
             '}'
           )
         shell: pwsh
@@ -103,13 +103,13 @@ jobs:
       - name: Compile source code (Linux)
         if: runner.os != 'Windows'
         run: |
-          # Determine where the compiler executable is located.
+          # Find the folder where the compiler executable resides.
           folder="."
           if [ ! -f "./${{ matrix.chemical_executable }}" ]; then
             folder=$(dirname "$(find . -type f -name "${{ matrix.chemical_executable }}" | head -n 1)")
           fi
           echo "Using folder: $folder"
-          # Copy the source file into that folder so that the compiler finds it with its resources.
+          # Copy the source file into that folder.
           cp main.ch "$folder/"
           pushd "$folder"
           ./${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v

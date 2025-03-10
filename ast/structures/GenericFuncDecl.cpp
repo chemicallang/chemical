@@ -20,10 +20,6 @@ void GenericFuncDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_p
     }
 }
 
-BaseType* GenericFuncDecl::create_value_type(ASTAllocator &allocator) {
-    return master_impl->create_value_type(allocator);
-}
-
 void GenericFuncDecl::finalize_signature(ASTAllocator& allocator, FunctionDeclaration* decl) {
 
     // copying parameters

@@ -718,29 +718,33 @@ BaseType* MembersContainer::create_linked_type(const chem::string_view& name, AS
 }
 
 bool MembersContainer::extends_node(ASTNode* other) {
-    if(!inherited.empty()) {
-        const auto otherKind = other->kind();
-        if (otherKind == ASTNodeKind::StructDecl) {
-            const auto inherited_node = inherited.front().type->get_direct_linked_node();
-            if(!inherited_node) return false;
+    if(inherited.empty()) {
+        return false;
+    }
+    const auto otherKind = other->kind();
+    if (otherKind == ASTNodeKind::StructDecl) {
+        const auto inherited_node = inherited.front().type->get_direct_linked_node();
+        if(!inherited_node) return false;
+        if(inherited_node == other) {
+            return true;
+        } else {
+            const auto container = inherited_node->get_members_container();
+            return container && container->extends_node(other);
+        }
+    } else if(otherKind == ASTNodeKind::InterfaceDecl) {
+        for(auto& inh : inherited) {
+            const auto inherited_node = inh.type->get_direct_linked_node();
+            if(!inherited_node) {
+                continue;
+            }
             if(inherited_node == other) {
                 return true;
-            } else {
-                const auto container = inherited_node->get_members_container();
-                return container && container->extends_node(other);
             }
-        } else if(otherKind == ASTNodeKind::InterfaceDecl) {
-            for(auto& inh : inherited) {
-                const auto inherited_node = inh.type->get_direct_linked_node();
-                if(!inherited_node) return false;
-                const auto container = inherited_node->get_members_container();
-                if(container && container->extends_node(other)) {
-                    return true;
-                }
+            const auto container = inherited_node->get_members_container();
+            if(container && container->extends_node(other)) {
+                return true;
             }
-            return false;
         }
-    } else {
         return false;
     }
 }

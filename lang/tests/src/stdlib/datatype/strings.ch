@@ -32,24 +32,24 @@ func test_strings() {
     test("two std::strings are equal", () => {
         var first = string("hello world");
         var second = string("hello world");
-        return first.equals(&second)
+        return first.equals(second)
     })
     test("two std::strings are not equal", () => {
         var first = string("hello world");
         var second = string("not hello world");
-        return !first.equals(&second)
+        return !first.equals(second)
     })
     test("two std::strings are not equal", () => {
         var first = string("hello world");
         var second = string("not hello world");
-        return !first.equals(&second)
+        return !first.equals(second)
     })
     test("can append in std::string", () => {
         var first = string("hello world");
         var second = string("hello worldwo");
         first.append('w');
         first.append('o')
-        return first.equals(&second)
+        return first.equals(second)
     })
     test("std::string has correct size", () => {
         var first = string("hello world");
@@ -74,7 +74,7 @@ func test_strings() {
             first.append('x');
         }
         var second = string("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-        return first.equals(&second);
+        return first.equals(second);
     })
     test("check multiline strings work", () => {
         var first = "abcdefghij

@@ -272,7 +272,7 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_vie
 }
 
 void param_type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_view& id) {
-    if(type->isStructLikeType() && type->kind() != BaseTypeKind::Dynamic) {
+    if(type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType()) {
         PointerType ptr_type(type, ZERO_LOC, true);
         type_with_id(visitor, &ptr_type, id);
     } else {
@@ -2653,6 +2653,9 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
     visitor.write('{');
     visitor.indentation_level += 1;
 
+    const auto prev_active = interface->active_user;
+    interface->active_user = definition;
+
     // type pointers
     for(auto& func : interface->functions()) {
         auto self_param = func->get_self_param();
@@ -2684,8 +2687,7 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
         for (auto& func: interface->functions()) {
             if (func->has_self_param()) {
                 visitor.new_line_and_indent();
-                visitor.write(definition->name_view());
-                visitor.write(func->name_view());
+                func->runtime_name(*visitor.output);
                 visitor.write(',');
             }
         }
@@ -2694,6 +2696,9 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
         visitor.new_line_and_indent();
         visitor.write('}');
     }
+
+    interface->active_user = prev_active;
+
     visitor.write(';');
 }
 
@@ -5250,7 +5255,12 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
     const auto kind = linked.kind();
     switch(kind) {
         case ASTNodeKind::InterfaceDecl:
-            write("void");
+            if(linked.as_interface_def_unsafe()->active_user) {
+                write("struct ");
+                linked.as_interface_def_unsafe()->active_user->runtime_name(*output);
+            } else {
+                write("void*");
+            }
             return;
         case ASTNodeKind::EnumDecl:
             write("int");

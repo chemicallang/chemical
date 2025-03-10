@@ -1,11 +1,13 @@
 import "./std.ch"
+import "./hashing/hash.ch"
+import "./hashing/fnv1.ch"
 
 public namespace std {
 
 @comptime
 public const STR_BUFF_SIZE = 16;
 
-public struct string {
+public struct string : Hashable, Eq {
 
     union {
         struct {
@@ -82,7 +84,8 @@ public struct string {
         return size() == 0
     }
 
-    func equals(&self, other : *string) : bool {
+    @override
+    func equals(&self, other : &string) : bool {
         const self_size = size();
         return self_size == other.size() && memcmp(self.data(), other.data(), self_size) == 0;
     }
@@ -321,6 +324,11 @@ public struct string {
 
             }
         }
+    }
+
+    @override
+    func hash(&self) : uint {
+        return fnv1a_hash_32(data());
     }
 
     @postmove

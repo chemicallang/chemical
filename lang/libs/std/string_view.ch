@@ -1,9 +1,10 @@
 import "./std.ch"
 import "./hashing/fnv1.ch"
+import "./hashing/hash.ch"
 
 public namespace std {
 
-    struct string_view {
+    struct string_view : Hashable, Eq {
 
         var _data : *char
         var _size : size_t
@@ -39,17 +40,15 @@ public namespace std {
             return _size == 0;
         }
 
+        @override
         func equals(&self, other : &std::string_view) : bool {
             const self_size = _size;
             return self_size == other.size() && strncmp(data(), other.data(), self_size) == 0;
         }
 
-        func unordered_map_compare(view1 : &string_view, view2 : &string_view) : bool {
-            return strcmp(view1.data(), view2.data()) == 0;
-        }
-
-        func unordered_map_hash(view : &string_view) : uint {
-            return fnv1a_hash_32(view.data());
+        @override
+        func hash(&self) : uint {
+            return fnv1a_hash_32(_data);
         }
 
     }

@@ -30,6 +30,16 @@ struct SumItExtFuncTestOne : GenericExtFuncTestInterface {
 
 }
 
+func <T> (thing : &mut SumItExtFuncTestOne) ext_func_gen_on_struct_1() : int {
+    if(T is short) {
+        return 2 + thing.sum_it();
+    } else if(T is int) {
+        return 4 + thing.sum_it()
+    } else {
+        return 8 + thing.sum_it();
+    }
+}
+
 struct SumItExtFuncTestTwo : GenericExtFuncTestInterface {
 
     var a : int
@@ -52,6 +62,18 @@ func test_extension_functions() {
             c : 2
         }
         return v.sum_ext_func_test_point() == 31
+    })
+    test("normal generic extension functions work - 1", () => {
+        var p = SumItExtFuncTestOne {}
+        return p.ext_func_gen_on_struct_1<short>() == 4
+    })
+    test("normal generic extension functions work - 2", () => {
+        var p = SumItExtFuncTestOne {}
+        return p.ext_func_gen_on_struct_1<int>() == 6
+    })
+    test("normal generic extension functions work - 3", () => {
+        var p = SumItExtFuncTestOne {}
+        return p.ext_func_gen_on_struct_1<long>() == 10
     })
     test("generic extension functions on interfaces work - 1", () => {
         var p = SumItExtFuncTestOne {}

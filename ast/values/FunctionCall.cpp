@@ -171,7 +171,7 @@ llvm::Value* arg_value(
             (isReferenceValue(value_kind) && pure_type->is_linked_struct())
     ))) {
         // passing r values as pointers by allocating them
-        if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && Value::isValueKindRValue(value->val_kind())) {
+        if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && value->isValueRValue(gen.allocator)) {
             const auto allocated = gen.builder->CreateAlloca(value->llvm_type(gen));
             gen.di.instr(allocated, value);
             const auto storeInstr = gen.builder->CreateStore(value->llvm_arg_value(gen, param_type), allocated);

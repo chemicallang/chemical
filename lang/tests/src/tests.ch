@@ -50,6 +50,7 @@ public func main() : int {
     test_abstract_structs();
     test_generic_static_interfaces();
     test_external_interfaces();
+    test_interface_generic_dispatch();
     print_test_stats();
     return 0;
 }

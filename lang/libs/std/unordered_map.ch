@@ -42,14 +42,14 @@ public struct unordered_map<Key, Value> {
         for (var i = 0; i < capacity; i++) {
             var currentNode = table[i];
             while (currentNode != null) {
-                var index = hash_now(currentNode.key) & (newCapacity - 1);
-                var newNode = malloc(sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
-                newNode.key = currentNode.key;
-                newNode.value = currentNode.value;
-                newNode.next = newTable[index];
-                newTable[index] = newNode;
+                var nextNode = currentNode.next; // Save next pointer before re-linking
 
-                currentNode = currentNode.next;
+                var index = hash_now(currentNode.key) & (newCapacity - 1);
+                // Reinsert the node into the new table's bucket chain
+                currentNode.next = newTable[index];
+                newTable[index] = currentNode;
+
+                currentNode = nextNode;
             }
         }
 

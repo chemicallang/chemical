@@ -379,6 +379,7 @@ public:
     }
 
     void VisitStructValue(StructValue *val) {
+        visit_it(val->refType);
         for(auto& value : val->values) {
             visit_it(value.second.value);
         }

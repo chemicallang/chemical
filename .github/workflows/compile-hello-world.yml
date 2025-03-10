@@ -41,6 +41,8 @@ jobs:
       - name: Create main.ch source file (Windows)
         if: runner.os == 'Windows'
         run: |
+          # Only create main.ch if it doesn't already exist
+          if (!(Test-Path -Path main.ch)) {
           Set-Content -Path main.ch -Value @(
             'public func printf(format : *char, _ : any...)',
             'public func main() : int {',
@@ -48,6 +50,7 @@ jobs:
             '    return 0;',
             '}'
           )
+        }
         shell: pwsh
 
       - name: Download release asset (Linux)
@@ -103,16 +106,26 @@ jobs:
       - name: Compile source code (Linux)
         if: runner.os != 'Windows'
         run: |
-          # Detect release root: if exactly one subdirectory exists, use it.
+          # Determine release root: if there is exactly one directory at top level, use it.
           release_root="."
-          dir_count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
-          if [ "$dir_count" -eq 1 ]; then
+          count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
+          if [ "$count" -eq 1 ]; then
             release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
           echo "Using release root: $release_root"
-          # Copy the source file into the release root.
-          cp main.ch "$release_root/"
+          # Copy main.ch if not already present.
+          if [ ! -f "$release_root/main.ch" ]; then
+            cp main.ch "$release_root/"
+          fi
           pushd "$release_root"
+          # If libtcc.so isn’t in the current directory, try to find its folder and add it to LD_LIBRARY_PATH.
+          libdir=$(find . -type f -name "libtcc.so" -exec dirname {} \; | head -n 1)
+          if [ -n "$libdir" ]; then
+            echo "Found libtcc.so in: $libdir"
+            export LD_LIBRARY_PATH="$libdir:$LD_LIBRARY_PATH"
+          else
+            echo "Warning: libtcc.so not found by search."
+          fi
           ./${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
           popd
         shell: bash
@@ -126,7 +139,10 @@ jobs:
             $releaseRoot = $dirs[0].FullName
           }
           Write-Host "Using release root: $releaseRoot"
-          Copy-Item -Path main.ch -Destination $releaseRoot
+          # Copy main.ch only if it doesn't already exist there.
+          if (-not (Test-Path -Path "$releaseRoot\main.ch")) {
+            Copy-Item -Path main.ch -Destination $releaseRoot
+          }
           Push-Location $releaseRoot
           .\${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
           Pop-Location
@@ -136,12 +152,17 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           release_root="."
-          dir_count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
-          if [ "$dir_count" -eq 1 ]; then
+          count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
+          if [ "$count" -eq 1 ]; then
             release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
           echo "Using release root: $release_root"
           pushd "$release_root"
+          # Set LD_LIBRARY_PATH if needed (as above)
+          libdir=$(find . -type f -name "libtcc.so" -exec dirname {} \; | head -n 1)
+          if [ -n "$libdir" ]; then
+            export LD_LIBRARY_PATH="$libdir:$LD_LIBRARY_PATH"
+          fi
           ./${{ matrix.binary_name }} | tee output.txt
           popd
           cp "$release_root/output.txt" .

@@ -52,6 +52,8 @@ public:
 
     bool primitive() final;
 
+    bool resolve_container(GenericInstantiatorAPI& instantiator);
+
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);

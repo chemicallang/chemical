@@ -237,7 +237,7 @@ llvm::Type *StructValue::llvm_type(Codegen &gen) {
             case BaseTypeKind::Union:
                 return refType->as_union_type_unsafe()->llvm_type(gen);
             default:
-                return nullptr;
+                return refType->linked_node()->llvm_type(gen);
         }
     }
 }
@@ -272,6 +272,8 @@ bool node_allows_direct_init(ASTNode* node) {
             return !node->as_union_def_unsafe()->has_constructor();
         case ASTNodeKind::UnnamedStruct:
         case ASTNodeKind::UnnamedUnion:
+        case ASTNodeKind::StructType:
+        case ASTNodeKind::UnionType:
             return true;
         default:
             return false;
@@ -296,21 +298,8 @@ const chem::string_view& StructValue::linked_name_view() {
 bool StructValue::allows_direct_init() {
     if(definition) {
         return node_allows_direct_init(definition);
-        const auto k = definition->kind();
-        switch (k) {
-            case ASTNodeKind::StructDecl:
-                return !definition->as_struct_def_unsafe()->has_constructor() || definition->as_struct_def_unsafe()->is_direct_init();
-            case ASTNodeKind::UnionDecl:
-                return !definition->as_union_def_unsafe()->has_constructor();
-            case ASTNodeKind::UnnamedStruct:
-            case ASTNodeKind::UnnamedUnion:
-                return true;
-            default:
-                return false;
-        }
     } else {
-        const auto k = refType->kind();
-        switch(k) {
+        switch(refType->kind()) {
             case BaseTypeKind::Struct:
             case BaseTypeKind::Union:
                 return true;
@@ -371,112 +360,86 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
+bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator) {
+    auto& diagnoser = instantiator.getDiagnoser();
+    switch(refType->kind()) {
+        case BaseTypeKind::Struct:
+            container = refType->as_struct_type_unsafe();
+            break;
+        case BaseTypeKind::Union:
+            container = refType->as_union_type_unsafe();
+            break;
+        default:
+        {
+            const auto found = refType->linked_node();
+            if(!found) {
+                diagnoser.error(this) << "couldn't find struct definition for struct name " << refType->representation();
+                return false;
+            }
+            switch(found->kind()) {
+                case ASTNodeKind::GenericStructDecl:{
+                    auto gen_args = create_generic_list();
+                    definition = found->as_gen_struct_def_unsafe()->register_generic_args(instantiator, gen_args);
+                    break;
+                }
+                case ASTNodeKind::GenericUnionDecl:{
+                    auto gen_args = create_generic_list();
+                    definition = found->as_gen_union_decl_unsafe()->register_generic_args(instantiator, gen_args);
+                    break;
+                }
+                case ASTNodeKind::UnnamedUnion:
+                    if(values.size() > 1) {
+                        diagnoser.error("initializing multiple values inside a union is not allowed", this);
+                        return false;
+                    }
+                    container = found->as_unnamed_union_unsafe();
+                    break;
+                case ASTNodeKind::UnionDecl:
+                    if(values.size() > 1) {
+                        diagnoser.error("initializing multiple values inside a union is not allowed", this);
+                        return false;
+                    }
+                    definition = found->as_union_def_unsafe();
+                    container = definition;
+                    break;
+                case ASTNodeKind::UnnamedStruct:
+                    container = found->as_unnamed_struct_unsafe();
+                    break;
+                case ASTNodeKind::StructDecl:
+                    definition = found->as_struct_def_unsafe();
+                    container = definition;
+                    break;
+                case ASTNodeKind::StructType:
+                    container = (StructType*) found;
+                    break;
+                case ASTNodeKind::UnionType:
+                    container = (UnionType*) found;
+                    break;
+                default:
+                    diagnoser.error("unknown struct/union being initialized via struct value", this);
+                    definition = found->as_extendable_members_container_node();
+                    container = definition;
+                    break;
+            }
+        }
+    }
+    return true;
+}
+
 bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {
     if(refType) {
         if(!refType->link(linker)) {
             return false;
-        }
-        const auto found = refType->linked_node();
-        if(!found) {
-            linker.error(this) << "couldn't find struct definition for struct name " << refType->representation();
-            return false;
-        }
-        switch(found->kind()) {
-            case ASTNodeKind::GenericStructDecl:{
-                auto gen_args = create_generic_list();
-                definition = found->as_gen_struct_def_unsafe()->register_generic_args(linker.genericInstantiator, gen_args);
-                break;
-            }
-            case ASTNodeKind::GenericUnionDecl:{
-                auto gen_args = create_generic_list();
-                definition = found->as_gen_union_decl_unsafe()->register_generic_args(linker.genericInstantiator, gen_args);
-                break;
-            }
-            default:
-                definition = (ExtendableMembersContainerNode*) found;
-                break;
-        }
-        container = definition;
-        const auto k = definition->kind();
-        switch (k) {
-            case ASTNodeKind::UnionDecl:
-            case ASTNodeKind::UnnamedUnion:
-                if(values.size() > 1) {
-                    linker.error("initializing multiple values inside a union is not allowed", this);
-                    return false;
-                }
-                break;
-            case ASTNodeKind::UnnamedStruct:
-            case ASTNodeKind::StructDecl:
-                break;
-            case ASTNodeKind::StructType:{
-                const auto structType = (StructType*) found; //StructType::castASTNode(found);
-                refType = structType;
-                definition = nullptr;
-                container = structType;
-                break;
-            }
-            case ASTNodeKind::UnionType: {
-                const auto unionType = (UnionType*) found; // UnionType::castASTNode(found);
-                refType = unionType;
-                definition = nullptr;
-                container = unionType;
-                break;
-            }
-            default:
-                linker.error(this) << "given struct name is not a struct definition : " << refType->representation();
-                return false;
         }
     } else {
         if(!expected_type) {
             linker.error("unnamed struct value cannot link without a type", this);
             return false;
         }
-        switch(expected_type->kind()) {
-            case BaseTypeKind::Struct:
-                refType = expected_type;
-                container = refType->as_struct_type_unsafe();
-                break;
-            case BaseTypeKind::Union:
-                refType = expected_type;
-                container = refType->as_union_type_unsafe();
-                break;
-            default:
-                const auto node = linked_node();
-                if(node) {
-                    const auto nodeKind = node->kind();
-                    switch(nodeKind) {
-                        case ASTNodeKind::UnnamedUnion:
-                            if(values.size() > 1) {
-                                linker.error("initializing multiple values inside a union is not allowed", this);
-                                return false;
-                            }
-                            container = node->as_unnamed_union_unsafe();
-                            break;
-                        case ASTNodeKind::UnnamedStruct:
-                            container = node->as_unnamed_struct_unsafe();
-                            break;
-                        case ASTNodeKind::StructDecl:
-                            definition = node->as_struct_def_unsafe();
-                            container = definition;
-                            break;
-                        case ASTNodeKind::UnionDecl:
-                            if(values.size() > 1) {
-                                linker.error("initializing multiple values inside a union is not allowed", this);
-                                return false;
-                            }
-                            definition = node->as_union_def_unsafe();
-                            container = definition;
-                            break;
-                        default:
-                            linker.error("unnamed struct value cannot link with an unknown node", this);
-                            return false;
-                    }
-                } else {
-                    linker.error("unnamed struct value cannot link without a node", this);
-                    return false;
-                }
-        }
+        refType = expected_type;
+    }
+    if(!resolve_container(linker.genericInstantiator)) {
+        return false;
     }
     diagnose_missing_members_for_init(linker);
     if(!allows_direct_init()) {
@@ -488,7 +451,6 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             arg->link(linker);
         }
     }
-    int16_t prev_itr;
     auto& current_func_type = *linker.current_func_type;
     // linking values
     for (auto &val: values) {

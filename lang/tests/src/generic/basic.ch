@@ -24,6 +24,18 @@ struct UnusedGenericInherited234234<T, U> : UnusedGeneric938374<T, U> {
     var d : U
 }
 
+func <T> create_pair_gen_generically() : PairGen<T, T, T> {
+    var i = 0;
+    if(T is short) {
+        i = 2
+    } else if(T is int) {
+        i = 4
+    } else if(T is long) {
+        i = 8
+    }
+    return PairGen<T, T, T> { a : i, b : i }
+}
+
 func create_pair_gen() : PairGen<int, int, int> {
     return PairGen <int,int,int> { a : 12, b : 13 }
 }
@@ -454,5 +466,17 @@ func test_basic_generics() {
     test("comptime function calls in generic structs are reevaluated between different types - 4", () => {
         var p1 = wrap_gen_comptime_func_call<ushort> {}
         return p1.do_call() == 0;
+    })
+    test("can create generic structs using generic struct values - 1", () => {
+        var s1 = create_pair_gen_generically<short>()
+        return s1.a == 2 && s1.b == 2;
+    })
+    test("can create generic structs using generic struct values - 2", () => {
+        var s1 = create_pair_gen_generically<int>()
+        return s1.a == 4 && s1.b == 4;
+    })
+    test("can create generic structs using generic struct values - 3", () => {
+        var s1 = create_pair_gen_generically<long>()
+        return s1.a == 8 && s1.b == 9;
     })
 }

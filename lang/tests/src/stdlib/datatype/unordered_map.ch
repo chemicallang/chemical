@@ -145,6 +145,6 @@ func test_unordered_map() {
             return false;
         }
 
-        return fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut") && rand1.equals("43") && rand2.equals("39") && rand3.equals("46")
+        return fruit.equals(std::string("apple")) && veg.equals(std::string("kale")) && nut.equals(std::string("walnut")) && rand1.equals(std::string("43")) && rand2.equals(std::string("39")) && rand3.equals(std::string("46"))
     })
 }

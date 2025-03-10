@@ -107,9 +107,11 @@ public struct unordered_map<Key, Value> {
 
         // Insert the new node at the front of the chain
         const newNode = malloc(sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
-        newNode.key = key;
-        newNode.value = value;
-        newNode.next = table[index];
+        new (newNode) unordered_map_node<Key, Value> {
+            key : key,
+            value : value,
+            next : table[index]
+        }
         table[index] = newNode;
         _size++;
     }

@@ -469,14 +469,14 @@ func test_basic_generics() {
     })
     test("can create generic structs using generic struct values - 1", () => {
         var s1 = create_pair_gen_generically<short>()
-        return s1.a == 2 && s1.b == 2;
+        return s1.a == 2 && s1.b == 2 && s1.add() == 4;
     })
     test("can create generic structs using generic struct values - 2", () => {
         var s1 = create_pair_gen_generically<int>()
-        return s1.a == 4 && s1.b == 4;
+        return s1.a == 4 && s1.b == 4 && s1.add() == 8;
     })
     test("can create generic structs using generic struct values - 3", () => {
         var s1 = create_pair_gen_generically<long>()
-        return s1.a == 8 && s1.b == 8;
+        return s1.a == 8 && s1.b == 8 && s1.add() == 16;
     })
 }

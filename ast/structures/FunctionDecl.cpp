@@ -1097,8 +1097,10 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
             ASTNode* parent;
             if(parent_kind == ASTNodeKind::FunctionDecl || parent_kind == ASTNodeKind::StructMember) {
                 const auto p = parent_node->parent();
-                parent_node = p;
-                parent_kind = p->kind();
+                if(p) {
+                    parent_node = p;
+                    parent_kind = p->kind();
+                }
             }
             switch(parent_kind) {
                 case ASTNodeKind::ImplDecl:

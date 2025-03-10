@@ -2344,9 +2344,12 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
             }
             // declare sub variables
             for(auto& var : def->variables) {
-                auto sub_node = var.second->known_type()->get_direct_linked_node();
-                if(sub_node) {
-                    early_declare_node(visitor, sub_node);
+                const auto known_t = var.second->known_type();
+                if(known_t) {
+                    auto sub_node = known_t->get_direct_linked_node();
+                    if (sub_node) {
+                        early_declare_node(visitor, sub_node);
+                    }
                 }
             }
             visitor.declare_struct_iterations(def);

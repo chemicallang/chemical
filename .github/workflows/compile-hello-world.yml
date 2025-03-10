@@ -1,4 +1,4 @@
-name: Test Compile Hello Word
+name: Test Latest Release Assets
 
 on:
   workflow_dispatch:
@@ -41,11 +41,13 @@ jobs:
       - name: Create main.ch source file (Windows)
         if: runner.os == 'Windows'
         run: |
-          echo public func printf(format : *char, _ : any...) > main.ch
-          echo public func main() : int { >> main.ch
-          echo "    printf(\"hello world\")" >> main.ch
-          echo "    return 0;" >> main.ch
-          echo } >> main.ch
+          Set-Content -Path main.ch -Value @(
+            'public func printf(format : *char, _ : any...)'
+            'public func main() : int {'
+            '    printf("hello world")'
+            '    return 0;'
+            '}'
+          )
         shell: pwsh
 
       - name: Download latest release asset (Linux)
@@ -53,11 +55,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Fetching latest release information..."
-          latest_release=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest")
-          ASSET_URL=$(echo "$latest_release" | jq -r '.assets // [] | .[] | select(.name == "${{ matrix.asset }}") | .browser_download_url')
-          if [ -z "$ASSET_URL" ]; then
-            echo "Error: Asset ${{ matrix.asset }} not found in the latest release."
+          echo "Fetching release information (including pre-releases)..."
+          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("${{ matrix.asset }}"))] | .[0].assets[] | select(.name=="${{ matrix.asset }}") | .browser_download_url')
+          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
+            echo "Error: Asset ${{ matrix.asset }} not found in any release."
             exit 1
           fi
           echo "Downloading asset from $ASSET_URL"
@@ -69,16 +71,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          Write-Host "Fetching latest release information..."
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/releases/latest" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
-          if (-not $release.assets) {
-            Write-Error "No assets found in the latest release."
+          Write-Host "Fetching release information (including pre-releases)..."
+          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
+          $assetName = "${{ matrix.asset }}"
+          $release = $releases | Where-Object { $_.assets -and ($_.assets | Where-Object { $_.name -eq $assetName }) } | Select-Object -First 1
+          if (-not $release) {
+            Write-Error "Error: Asset $assetName not found in any release."
             exit 1
           }
-          $assetName = "${{ matrix.asset }}"
           $asset = $release.assets | Where-Object { $_.name -eq $assetName }
           if (-not $asset) {
-            Write-Error "Asset $assetName not found in the latest release."
+            Write-Error "Error: Asset $assetName not found in the selected release."
             exit 1
           }
           Write-Host "Downloading asset from $($asset.browser_download_url)"

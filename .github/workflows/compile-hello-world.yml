@@ -50,7 +50,7 @@ jobs:
           )
         shell: pwsh
 
-      - name: Download latest release asset (Linux)
+      - name: Download release asset (Linux)
         if: runner.os != 'Windows'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,7 +66,7 @@ jobs:
           curl -L -o asset.zip "$ASSET_URL"
         shell: bash
 
-      - name: Download latest release asset (Windows)
+      - name: Download release asset (Windows)
         if: runner.os == 'Windows'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -91,7 +91,11 @@ jobs:
       - name: Extract asset (Linux)
         if: runner.os != 'Windows'
         run: |
-          unzip asset.zip
+          unzip -o -q asset.zip || true
+          if [ ! -f "${{ matrix.chemical_executable }}" ]; then
+            echo "Error: ${{ matrix.chemical_executable }} not found after extraction."
+            exit 1
+          fi
           chmod +x ${{ matrix.chemical_executable }}
         shell: bash
 

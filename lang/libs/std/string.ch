@@ -41,9 +41,7 @@ public struct string : Hashable, Eq {
 
     @constructor
     func empty_str() {
-        unsafe {
-            storage.constant.data = null;
-        }
+        storage.constant.data = "";
         storage.constant.length = 0;
         state = '0'
     }
@@ -297,9 +295,7 @@ public struct string : Hashable, Eq {
                 return storage.heap.data;
             }
             default => {
-                unsafe {
-                    return null;
-                }
+                return "";
             }
         }
     }

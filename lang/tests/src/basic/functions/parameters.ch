@@ -25,6 +25,14 @@ func <T> gen_take_addr_of(value : T) : T {
     return value
 }
 
+func take_ref_to_r_val(value : &int) : bool {
+    return value == 812
+}
+
+func pass_r_val_to_ref(value : int) : bool {
+    return take_ref_to_r_val(value)
+}
+
 func test_parameters() {
 
     test("taking address of parameters works", () => {
@@ -42,6 +50,9 @@ func test_parameters() {
     test("taking address of generic parameters works - 3", () => {
         var result = gen_take_addr_of<bigint>(22)
         return result == 8
+    })
+    test("passing r value function params to references works", () => {
+        return pass_r_val_to_ref(812)
     })
 
 }

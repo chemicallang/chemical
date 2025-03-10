@@ -5,7 +5,6 @@ on:
 
 jobs:
   test-release:
-    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -26,7 +25,7 @@ jobs:
             asset: windows-x64.zip
             chemical_executable: chemical.exe
             binary_name: main.exe
-
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Create main.ch source file (Linux)
         if: runner.os != 'Windows'
@@ -43,14 +42,14 @@ jobs:
         run: |
           # Only create main.ch if it doesn't already exist
           if (!(Test-Path -Path main.ch)) {
-          Set-Content -Path main.ch -Value @(
-            'public func printf(format : *char, _ : any...)',
-            'public func main() : int {',
-            '    printf("hello world")',
-            '    return 0;',
-            '}'
-          )
-        }
+            Set-Content -Path main.ch -Value @(
+              'public func printf(format : *char, _ : any...)',
+              'public func main() : int {',
+              '    printf("hello world")',
+              '    return 0;',
+              '}'
+            )
+          }
         shell: pwsh
 
       - name: Download release asset (Linux)

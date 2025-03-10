@@ -1,4 +1,4 @@
-name: Test Compile Hello World
+name: Test Compile Hello Word
 
 on:
   workflow_dispatch:
@@ -54,9 +54,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Fetching latest release information..."
-          ASSET_URL=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | \
-            jq -r '.assets[] | select(.name == "${{ matrix.asset }}") | .browser_download_url')
+          latest_release=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest")
+          ASSET_URL=$(echo "$latest_release" | jq -r '.assets // [] | .[] | select(.name == "${{ matrix.asset }}") | .browser_download_url')
+          if [ -z "$ASSET_URL" ]; then
+            echo "Error: Asset ${{ matrix.asset }} not found in the latest release."
+            exit 1
+          fi
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
         shell: bash
@@ -68,7 +71,16 @@ jobs:
         run: |
           Write-Host "Fetching latest release information..."
           $release = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/releases/latest" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
-          $asset = $release.assets | Where-Object { $_.name -eq "${{ matrix.asset }}" }
+          if (-not $release.assets) {
+            Write-Error "No assets found in the latest release."
+            exit 1
+          }
+          $assetName = "${{ matrix.asset }}"
+          $asset = $release.assets | Where-Object { $_.name -eq $assetName }
+          if (-not $asset) {
+            Write-Error "Asset $assetName not found in the latest release."
+            exit 1
+          }
           Write-Host "Downloading asset from $($asset.browser_download_url)"
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile asset.zip
         shell: pwsh

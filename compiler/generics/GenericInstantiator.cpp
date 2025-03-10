@@ -87,6 +87,19 @@ void GenericInstantiator::VisitLinkedType(LinkedType* type) {
 
 }
 
+void GenericInstantiator::VisitStructValue(StructValue *val) {
+    RecursiveVisitor<GenericInstantiator>::VisitStructValue(val);
+    const auto linked = val->linked_extendable();
+    if(linked && linked->generic_parent != nullptr && linked->generic_instantiation == -1) {
+        // we can see that this container is generic and it's the master implementation
+        // we only give master implementation generic instantiation equal to -1
+        // so now we will specialize it, the above recursive visitor must have already replaced the refType
+        GenericInstantiator instantiator(allocator, diagnoser);
+        GenericInstantiatorAPI genApi(&instantiator);
+        val->resolve_container(genApi);
+    }
+}
+
 void GenericInstantiator::VisitGenericType(GenericType* type) {
 
     // we do this manually, first we replace any generic arguments given to this generic type

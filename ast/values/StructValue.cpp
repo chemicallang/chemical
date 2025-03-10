@@ -13,6 +13,7 @@
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LinkedType.h"
+#include "ast/utils/GenericUtils.h"
 #include "StructMemberInitializer.h"
 #include "ast/values/DereferenceValue.h"
 #include <sstream>
@@ -379,12 +380,24 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator) {
             switch(found->kind()) {
                 case ASTNodeKind::GenericStructDecl:{
                     auto gen_args = create_generic_list();
-                    definition = found->as_gen_struct_def_unsafe()->register_generic_args(instantiator, gen_args);
+                    const auto gen_decl = found->as_gen_struct_def_unsafe();
+                    if(are_all_specialized(gen_args)) {
+                        definition = gen_decl->register_generic_args(instantiator, gen_args);
+                    } else {
+                        definition = gen_decl->master_impl;
+                    }
+                    container = definition;
                     break;
                 }
                 case ASTNodeKind::GenericUnionDecl:{
                     auto gen_args = create_generic_list();
-                    definition = found->as_gen_union_decl_unsafe()->register_generic_args(instantiator, gen_args);
+                    const auto gen_decl = found->as_gen_union_decl_unsafe();
+                    if(are_all_specialized(gen_args)) {
+                        definition = gen_decl->register_generic_args(instantiator, gen_args);
+                    } else {
+                        definition = gen_decl->master_impl;
+                    }
+                    container = definition;
                     break;
                 }
                 case ASTNodeKind::UnnamedUnion:

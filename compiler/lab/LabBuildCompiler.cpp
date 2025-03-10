@@ -424,6 +424,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         // allow user the compiler (namespace) functions in @comptime
         // we create the new global container here once
         container = global.create_container(resolver);
+        if(verbose) {
+            std::cout << "[lab] " << "created the global container" << std::endl;
+        }
     }
 
     if(use_tcc) {

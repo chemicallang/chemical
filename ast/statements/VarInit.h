@@ -25,40 +25,41 @@ struct VarInitAttributes {
     /**
      * is var init comptime
      */
-    bool is_comptime;
+    bool is_comptime = false;
 
     /**
      * compiler declarations are present inside the compiler, no need to import
      */
-    bool is_compiler_decl;
+    bool is_compiler_decl = false;
 
     /**
      * has moved is used to indicate that an object at this location has moved
      * destructor is not called on moved objects, once moved, any attempt to access
      * this variable causes an error
      */
-    bool has_moved;
+    bool has_moved = false;
+
     /**
      * has moved is used to track that var init statement has a assignment to it
      * if it has, during symbol resolution the assignment statement notifies this
      * var init statement
      */
-    bool has_assignment;
+    bool has_assignment = false;
 
     /**
      * this tells whether wrote const or var when creating the variable
      */
-    bool is_const;
+    bool is_const = false;
 
     /**
      * true when user writes var& or const& to take a reference
      */
-    bool is_reference;
+    bool is_reference = false;
 
     /**
      * is var init deprecated
      */
-    bool deprecated;
+    bool deprecated = false;
 
 };
 

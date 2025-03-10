@@ -16,7 +16,7 @@ public struct unordered_map<Key, Value> {
 
     var table : *mut *mut unordered_map_node<Key, Value>; // Array of buckets (pointers to linked lists)
     var capacity : size_t;
-    var size : size_t;
+    var _size : size_t;
 
     func hash_now(&self, key : &Key) : size_t {
         return hash<Key>(key);
@@ -62,7 +62,7 @@ public struct unordered_map<Key, Value> {
     @make
     func make() {
         capacity = 16;
-        size = 0;
+        _size = 0;
         table = malloc(capacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
         memset(table, 0, capacity * sizeof(*mut unordered_map_node<Key, Value>));
     }
@@ -74,6 +74,9 @@ public struct unordered_map<Key, Value> {
             var currentNode = table[i];
             while (currentNode != null) {
                 var nextNode = currentNode.next;
+                // Call destructors on the key and value before freeing the node
+                destruct currentNode.key;
+                destruct currentNode.value;
                 free(currentNode);
                 currentNode = nextNode;
             }
@@ -84,7 +87,7 @@ public struct unordered_map<Key, Value> {
     // Insert or update a key-value pair
     func insert(&self, key : &Key, value : &Value) {
 
-        if ((size as float) / capacity > LOAD_FACTOR_THRESHOLD) {
+        if ((_size as float) / capacity > LOAD_FACTOR_THRESHOLD) {
             resize();
         }
 
@@ -94,6 +97,8 @@ public struct unordered_map<Key, Value> {
         // Check if the key already exists in the chain, and update if so
         while (currentNode != null) {
             if (compare_now(currentNode.key, key)) {
+                // Destroy the previous value before updating it.
+                destruct currentNode.value;
                 currentNode.value = value; // Update value
                 return;
             }
@@ -106,7 +111,7 @@ public struct unordered_map<Key, Value> {
         newNode.value = value;
         newNode.next = table[index];
         table[index] = newNode;
-        size++;
+        _size++;
     }
 
     func get_ptr(&self, key : &Key) : *Value {
@@ -149,8 +154,11 @@ public struct unordered_map<Key, Value> {
                 } else {
                     table[index] = currentNode.next; // Remove from the front of the chain
                 }
+                // Call destructors on the key and value before freeing the node
+                destruct currentNode.key;
+                destruct currentNode.value;
                 free(currentNode);
-                size--;
+                _size--;
                 return true;
             }
             previousNode = currentNode;
@@ -160,13 +168,13 @@ public struct unordered_map<Key, Value> {
     }
 
     // Get the size of the map
-    func getSize(&self) : size_t {
-        return size;
+    func size(&self) : size_t {
+        return _size;
     }
 
     // Check if the map is empty
     func isEmpty(&self) : bool {
-        return size == 0;
+        return _size == 0;
     }
 
 };

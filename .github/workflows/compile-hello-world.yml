@@ -105,27 +105,20 @@ jobs:
       - name: Compile source code (Linux)
         if: runner.os != 'Windows'
         run: |
-          # Determine release root: if there is exactly one directory at top level, use it.
+          # Determine release root: if exactly one directory exists at top level, use it.
           release_root="."
           count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
           if [ "$count" -eq 1 ]; then
             release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
           echo "Using release root: $release_root"
-          # Copy main.ch if not already present.
+          # Copy main.ch if not present.
           if [ ! -f "$release_root/main.ch" ]; then
             cp main.ch "$release_root/"
           fi
           pushd "$release_root"
-          # If libtcc.so isn’t in the current directory, try to find its folder and add it to LD_LIBRARY_PATH.
-          libdir=$(find . -type f -name "libtcc.so" -exec dirname {} \; | head -n 1)
-          if [ -n "$libdir" ]; then
-            echo "Found libtcc.so in: $libdir"
-            export LD_LIBRARY_PATH="$libdir:$LD_LIBRARY_PATH"
-          else
-            echo "Warning: libtcc.so not found by search."
-          fi
-          ./${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
+          # Run compiler command and capture its output.
+          ./${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v | tee compile_output.txt
           popd
         shell: bash
 
@@ -138,16 +131,17 @@ jobs:
             $releaseRoot = $dirs[0].FullName
           }
           Write-Host "Using release root: $releaseRoot"
-          # Copy main.ch only if it doesn't already exist there.
+          # Copy main.ch if not present.
           if (-not (Test-Path -Path "$releaseRoot\main.ch")) {
             Copy-Item -Path main.ch -Destination $releaseRoot
           }
           Push-Location $releaseRoot
-          .\${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
+          # Run compiler command and capture its output.
+          .\${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v | Tee-Object -FilePath compile_output.txt
           Pop-Location
         shell: pwsh
 
-      - name: Run compiled program and capture output (Linux)
+      - name: Run compiled program and capture combined output (Linux)
         if: runner.os != 'Windows'
         run: |
           release_root="."
@@ -157,17 +151,14 @@ jobs:
           fi
           echo "Using release root: $release_root"
           pushd "$release_root"
-          # Set LD_LIBRARY_PATH if needed (as above)
-          libdir=$(find . -type f -name "libtcc.so" -exec dirname {} \; | head -n 1)
-          if [ -n "$libdir" ]; then
-            export LD_LIBRARY_PATH="$libdir:$LD_LIBRARY_PATH"
-          fi
-          ./${{ matrix.binary_name }} | tee output.txt
+          # Append marker and executable output to compile_output.txt.
+          echo "EXECUTABLE OUTPUT" >> compile_output.txt
+          ./${{ matrix.binary_name }} >> compile_output.txt
           popd
-          cp "$release_root/output.txt" "${{ matrix.asset }}-output.txt"
+          cp "$release_root/compile_output.txt" "${{ matrix.asset }}-output.txt"
         shell: bash
 
-      - name: Run compiled program and capture output (Windows)
+      - name: Run compiled program and capture combined output (Windows)
         if: runner.os == 'Windows'
         run: |
           $releaseRoot = "."
@@ -177,12 +168,14 @@ jobs:
           }
           Write-Host "Using release root: $releaseRoot"
           Push-Location $releaseRoot
-          .\${{ matrix.binary_name }} | Tee-Object -FilePath output.txt
+          # Append marker and executable output to compile_output.txt.
+          Add-Content -Path compile_output.txt -Value "EXECUTABLE OUTPUT"
+          .\${{ matrix.binary_name }} | Out-File -Append compile_output.txt
           Pop-Location
           if ($releaseRoot -eq $env:GITHUB_WORKSPACE) {
-              Rename-Item -Path "$releaseRoot\output.txt" -NewName "${{ matrix.asset }}-output.txt"
+              Rename-Item -Path "$releaseRoot\compile_output.txt" -NewName "${{ matrix.asset }}-output.txt"
           } else {
-              Copy-Item -Path "$releaseRoot\output.txt" -Destination "$env:GITHUB_WORKSPACE\${{ matrix.asset }}-output.txt"
+              Copy-Item -Path "$releaseRoot\compile_output.txt" -Destination "$env:GITHUB_WORKSPACE\${{ matrix.asset }}-output.txt"
           }
         shell: pwsh
 

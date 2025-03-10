@@ -174,7 +174,7 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
             error("expected a ')' after the pointer value in new expression");
         }
         token++;
-        auto value = parseExpression(allocator);
+        auto value = parseExpression(allocator, true);
         if(!value) {
             error("expected a value for placement new expression");
         }

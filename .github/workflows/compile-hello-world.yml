@@ -164,7 +164,7 @@ jobs:
           fi
           ./${{ matrix.binary_name }} | tee output.txt
           popd
-          cp "$release_root/output.txt" .
+          cp "$release_root/output.txt" "${{ matrix.asset }}-output.txt"
         shell: bash
 
       - name: Run compiled program and capture output (Windows)
@@ -179,11 +179,15 @@ jobs:
           Push-Location $releaseRoot
           .\${{ matrix.binary_name }} | Tee-Object -FilePath output.txt
           Pop-Location
-          Copy-Item -Path "$releaseRoot\output.txt" -Destination "$env:GITHUB_WORKSPACE\output.txt"
+          if ($releaseRoot -eq $env:GITHUB_WORKSPACE) {
+              Rename-Item -Path "$releaseRoot\output.txt" -NewName "${{ matrix.asset }}-output.txt"
+          } else {
+              Copy-Item -Path "$releaseRoot\output.txt" -Destination "$env:GITHUB_WORKSPACE\${{ matrix.asset }}-output.txt"
+          }
         shell: pwsh
 
       - name: Upload output artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}-output
-          path: output.txt
+          path: ${{ matrix.asset }}-output.txt

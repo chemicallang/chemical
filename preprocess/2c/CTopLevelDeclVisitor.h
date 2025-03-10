@@ -5,6 +5,7 @@
 #include "SubVisitor.h"
 #include <string>
 #include "preprocess/visitors/NonRecursiveVisitor.h"
+#include <unordered_map>
 
 class CValueDeclarationVisitor;
 
@@ -20,12 +21,26 @@ public:
      * it means nodes are being declared for which code has already been generated
      * in another module, for example this allows to redefine generics that were already declared
      */
-    bool redefining = false;
+    bool external_module = false;
+
+    /**
+     * is the node declared in current module
+     * this allows to not declare nodes twice in a single module
+     */
+    std::unordered_map<ASTNode*, bool> declared;
 
     CTopLevelDeclarationVisitor(
             ToCAstVisitor& visitor,
             CValueDeclarationVisitor* value_visitor
     );
+
+    inline bool has_declared(ASTNode* node) {
+        return declared.find(node) != declared.end();
+    }
+
+    inline void set_declared(ASTNode* node) {
+        declared[node] = true;
+    }
 
     // this will not declare it's contained functions
     void declare_struct_def_only(StructDefinition* def);

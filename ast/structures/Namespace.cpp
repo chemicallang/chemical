@@ -56,6 +56,10 @@ void Namespace::link_signature(SymbolResolver &linker) {
         }
     }
     for(const auto node : nodes) {
+        // before linking signature
+        // we set the specifier of this node, to all the nodes inside it
+        // a public namespace means, all nodes inside it are public
+        node->set_specifier(specifier());
         node->link_signature(linker);
     }
     linker.scope_end();

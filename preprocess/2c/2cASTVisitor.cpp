@@ -158,13 +158,13 @@ void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
 
 void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
     auto& vis = tld;
-    auto prev = vis.redefining;
-    vis.redefining = true;
+    auto prev = vis.external_module;
+    vis.external_module = true;
     // declare the top level things with this visitor
     for(auto& node : nodes) {
         vis.visit(node);
     }
-    vis.redefining = prev;
+    vis.external_module = prev;
 }
 
 void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
@@ -1572,7 +1572,7 @@ CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
     ToCAstVisitor &visitor,
     CValueDeclarationVisitor *value_visitor
 ) : SubVisitor(visitor), value_visitor(value_visitor) {
-
+    declared.reserve(30);
 }
 
 enum class DestructionJobType {
@@ -2327,14 +2327,14 @@ void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(!init->is_top_level()) return;
     visitor.new_line_and_indent();
     const auto is_exported = init->is_exported();
-    var_init(visitor, init, !is_exported, !redefining, is_exported && redefining);
+    var_init(visitor, init, !is_exported, !external_module, is_exported && external_module);
 }
 
 void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
     const auto node_kind = node->kind();
     if (node_kind == ASTNodeKind::StructDecl) {
         const auto def = node->as_struct_def_unsafe();
-        if(visitor.redefining) {
+        if(visitor.external_module) {
             // declare inherited types
             for(auto& inherit : def->inherited) {
                 auto in_node = inherit.type->get_direct_linked_node();
@@ -2353,7 +2353,7 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
         }
     } else if (node_kind == ASTNodeKind::VariantDecl) {
         const auto def = node->as_variant_def_unsafe();
-        if(visitor.redefining) {
+        if(visitor.external_module) {
             visitor.declare_variant_iterations(def);
         }
     } else if (node_kind == ASTNodeKind::UnionDecl) {
@@ -2521,10 +2521,13 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def);
 
 void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* def) {
-    if(redefining || def->iterations_declared == 0) {
+    if(external_module && !has_declared(def)) {
         declare_struct(def);
+        set_declared(def);
+    } else if(def->iterations_declared == 0) {
+        declare_struct(def);
+        def->iterations_declared = 1;
     }
-    def->iterations_declared = 1;
 }
 
 void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
@@ -2629,12 +2632,13 @@ void gen_variant_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::declare_variant_iterations(VariantDefinition* def) {
-    if(redefining) {
+    if(external_module && !has_declared(def)) {
         declare_variant(def);
+        set_declared(def);
     } else if(def->iterations_declared == 0) {
         declare_variant(def);
+        def->iterations_declared = 1;
     }
-    def->iterations_declared = 1;
 }
 
 void CTopLevelDeclarationVisitor::VisitVariantDecl(VariantDefinition *def) {
@@ -2719,7 +2723,7 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
         }
     }
 #ifdef COMPILER_BUILD
-    if(!redefining && !def->vtable_pointers.empty()) {
+    if(!external_module && !def->vtable_pointers.empty()) {
         // this only occurs because when we generate interface with both backends without re-parsing, this module
         visitor.error("interface has already vtable pointers generated, suspected interface being used in both backends", def);
 #ifdef DEBUG
@@ -2763,7 +2767,7 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::declare_interface_iterations(InterfaceDefinition* def) {
-    if(redefining || def->iterations_declared == 0) {
+    if(external_module || def->iterations_declared == 0) {
         declare_interface(def);
     }
     def->iterations_declared = 1;
@@ -2786,7 +2790,7 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
 }
 
 void CTopLevelDeclarationVisitor::reset() {
-//    declared_nodes.clear();
+    declared.clear();
 }
 
 void CValueDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {

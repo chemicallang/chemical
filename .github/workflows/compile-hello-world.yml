@@ -92,11 +92,6 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           unzip -o -q asset.zip || true
-          if [ ! -f "${{ matrix.chemical_executable }}" ]; then
-            echo "Error: ${{ matrix.chemical_executable }} not found after extraction."
-            exit 1
-          fi
-          chmod +x ${{ matrix.chemical_executable }}
         shell: bash
 
       - name: Extract asset (Windows)
@@ -108,25 +103,65 @@ jobs:
       - name: Compile source code (Linux)
         if: runner.os != 'Windows'
         run: |
+          # Determine where the compiler executable is located.
+          folder="."
+          if [ ! -f "./${{ matrix.chemical_executable }}" ]; then
+            folder=$(dirname "$(find . -type f -name "${{ matrix.chemical_executable }}" | head -n 1)")
+          fi
+          echo "Using folder: $folder"
+          # Copy the source file into that folder so that the compiler finds it with its resources.
+          cp main.ch "$folder/"
+          pushd "$folder"
           ./${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
+          popd
         shell: bash
 
       - name: Compile source code (Windows)
         if: runner.os == 'Windows'
         run: |
+          $folder = "."
+          if (!(Test-Path -Path ".\${{ matrix.chemical_executable }}")) {
+            $found = Get-ChildItem -Path . -Recurse -Filter "${{ matrix.chemical_executable }}" -File | Select-Object -First 1
+            if ($found) {
+              $folder = Split-Path $found.FullName -Parent
+            }
+          }
+          Write-Host "Using folder: $folder"
+          Copy-Item -Path main.ch -Destination $folder
+          Push-Location $folder
           .\${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
+          Pop-Location
         shell: pwsh
 
       - name: Run compiled program and capture output (Linux)
         if: runner.os != 'Windows'
         run: |
+          folder="."
+          if [ ! -f "./${{ matrix.chemical_executable }}" ]; then
+            folder=$(dirname "$(find . -type f -name "${{ matrix.chemical_executable }}" | head -n 1)")
+          fi
+          echo "Using folder: $folder"
+          pushd "$folder"
           ./${{ matrix.binary_name }} | tee output.txt
+          popd
+          cp "$folder/output.txt" .
         shell: bash
 
       - name: Run compiled program and capture output (Windows)
         if: runner.os == 'Windows'
         run: |
+          $folder = "."
+          if (!(Test-Path -Path ".\${{ matrix.chemical_executable }}")) {
+            $found = Get-ChildItem -Path . -Recurse -Filter "${{ matrix.chemical_executable }}" -File | Select-Object -First 1
+            if ($found) {
+              $folder = Split-Path $found.FullName -Parent
+            }
+          }
+          Write-Host "Using folder: $folder"
+          Push-Location $folder
           .\${{ matrix.binary_name }} | Tee-Object -FilePath output.txt
+          Pop-Location
+          Copy-Item -Path "$folder\output.txt" -Destination "$env:GITHUB_WORKSPACE\output.txt"
         shell: pwsh
 
       - name: Upload output artifact

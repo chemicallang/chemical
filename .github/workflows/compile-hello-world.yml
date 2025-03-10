@@ -5,9 +5,9 @@ on:
 
 jobs:
   test-release:
-    name: Test ${{ matrix.asset }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -103,15 +103,16 @@ jobs:
       - name: Compile source code (Linux)
         if: runner.os != 'Windows'
         run: |
-          # Find the folder where the compiler executable resides.
-          folder="."
-          if [ ! -f "./${{ matrix.chemical_executable }}" ]; then
-            folder=$(dirname "$(find . -type f -name "${{ matrix.chemical_executable }}" | head -n 1)")
+          # Detect release root: if exactly one subdirectory exists, use it.
+          release_root="."
+          dir_count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
+          if [ "$dir_count" -eq 1 ]; then
+            release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
-          echo "Using folder: $folder"
-          # Copy the source file into that folder.
-          cp main.ch "$folder/"
-          pushd "$folder"
+          echo "Using release root: $release_root"
+          # Copy the source file into the release root.
+          cp main.ch "$release_root/"
+          pushd "$release_root"
           ./${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
           popd
         shell: bash
@@ -119,16 +120,14 @@ jobs:
       - name: Compile source code (Windows)
         if: runner.os == 'Windows'
         run: |
-          $folder = "."
-          if (!(Test-Path -Path ".\${{ matrix.chemical_executable }}")) {
-            $found = Get-ChildItem -Path . -Recurse -Filter "${{ matrix.chemical_executable }}" -File | Select-Object -First 1
-            if ($found) {
-              $folder = Split-Path $found.FullName -Parent
-            }
+          $releaseRoot = "."
+          $dirs = Get-ChildItem -Directory -Path .
+          if ($dirs.Count -eq 1) {
+            $releaseRoot = $dirs[0].FullName
           }
-          Write-Host "Using folder: $folder"
-          Copy-Item -Path main.ch -Destination $folder
-          Push-Location $folder
+          Write-Host "Using release root: $releaseRoot"
+          Copy-Item -Path main.ch -Destination $releaseRoot
+          Push-Location $releaseRoot
           .\${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
           Pop-Location
         shell: pwsh
@@ -136,32 +135,31 @@ jobs:
       - name: Run compiled program and capture output (Linux)
         if: runner.os != 'Windows'
         run: |
-          folder="."
-          if [ ! -f "./${{ matrix.chemical_executable }}" ]; then
-            folder=$(dirname "$(find . -type f -name "${{ matrix.chemical_executable }}" | head -n 1)")
+          release_root="."
+          dir_count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
+          if [ "$dir_count" -eq 1 ]; then
+            release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
-          echo "Using folder: $folder"
-          pushd "$folder"
+          echo "Using release root: $release_root"
+          pushd "$release_root"
           ./${{ matrix.binary_name }} | tee output.txt
           popd
-          cp "$folder/output.txt" .
+          cp "$release_root/output.txt" .
         shell: bash
 
       - name: Run compiled program and capture output (Windows)
         if: runner.os == 'Windows'
         run: |
-          $folder = "."
-          if (!(Test-Path -Path ".\${{ matrix.chemical_executable }}")) {
-            $found = Get-ChildItem -Path . -Recurse -Filter "${{ matrix.chemical_executable }}" -File | Select-Object -First 1
-            if ($found) {
-              $folder = Split-Path $found.FullName -Parent
-            }
+          $releaseRoot = "."
+          $dirs = Get-ChildItem -Directory -Path .
+          if ($dirs.Count -eq 1) {
+            $releaseRoot = $dirs[0].FullName
           }
-          Write-Host "Using folder: $folder"
-          Push-Location $folder
+          Write-Host "Using release root: $releaseRoot"
+          Push-Location $releaseRoot
           .\${{ matrix.binary_name }} | Tee-Object -FilePath output.txt
           Pop-Location
-          Copy-Item -Path "$folder\output.txt" -Destination "$env:GITHUB_WORKSPACE\output.txt"
+          Copy-Item -Path "$releaseRoot\output.txt" -Destination "$env:GITHUB_WORKSPACE\output.txt"
         shell: pwsh
 
       - name: Upload output artifact

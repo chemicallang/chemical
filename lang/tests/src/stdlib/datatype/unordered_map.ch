@@ -57,26 +57,10 @@ func test_unordered_map() {
         map.insert(std::string_view("fruit"), std::string_view("apple"))
         map.insert(std::string_view("veg"), std::string_view("kale"))
         map.insert(std::string_view("nut"), std::string_view("walnut"))
-        var fruit = std::string_view();
-        var veg = std::string_view();
-        var nut = std::string_view()
-        map.find(std::string_view("fruit"), fruit)
-        map.find(std::string_view("veg"), veg)
-        map.find(std::string_view("nut"), nut)
-        return map.size() == 3 && fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut")
-    })
-    test("unordered map works with string as keys and values", () => {
-        var map = std::unordered_map<std::string, std::string>()
-        map.insert(std::string("fruit"), std::string("apple"))
-        map.insert(std::string("veg"), std::string("kale"))
-        map.insert(std::string("nut"), std::string("walnut"))
-        var fruit = std::string();
-        var veg = std::string();
-        var nut = std::string()
-        map.find(std::string("fruit"), fruit)
-        map.find(std::string("veg"), veg)
-        map.find(std::string("nut"), nut)
-        return map.size() == 3 && fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut")
+        var fruit = map.get_ptr(std::string_view("fruit"))
+        var veg = map.get_ptr(std::string_view("veg"))
+        var nut = map.get_ptr(std::string_view("nut"))
+        return map.size() == 3 && fruit != null && veg != null && nut != null && fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut")
     })
     test("unordered map works with string views as keys and values when resized", () => {
         var map = std::unordered_map<std::string_view, std::string_view>()
@@ -100,21 +84,32 @@ func test_unordered_map() {
         map.insert(std::string_view("24"), std::string_view("44"))
         map.insert(std::string_view("25"), std::string_view("45"))
         map.insert(std::string_view("26"), std::string_view("46"))
-        var fruit = std::string_view();
-        var veg = std::string_view();
-        var nut = std::string_view()
-        map.find(std::string_view("fruit"), fruit)
-        map.find(std::string_view("veg"), veg)
-        map.find(std::string_view("nut"), nut)
-        var rand1 = std::string_view()
-        map.find(std::string_view("23"), rand1)
-        var rand2 = std::string_view()
-        map.find(std::string_view("19"), rand2)
-        var rand3 = std::string_view()
-        map.find(std::string_view("26"), rand3)
-        return map.size() == 3 && fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut") && rand1.equals("43") && rand2.equals("39") && rand3.equals("46")
+        var fruit = map.get_ptr(std::string_view("fruit"))
+        var veg = map.get_ptr(std::string_view("veg"))
+        var nut = map.get_ptr(std::string_view("nut"))
+        var rand1 = map.get_ptr(std::string_view("23"))
+        var rand2 = map.get_ptr(std::string_view("19"))
+        var rand3 = map.get_ptr(std::string_view("26"))
+        if(fruit == null || veg == null || nut == null || rand1 == null || rand2 == null || rand3 == null) {
+            printf("null returned !!\n");
+            return false;
+        }
+        return fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut") && rand1.equals("43") && rand2.equals("39") && rand3.equals("46")
     })
-    /**
+    test("unordered map works with string as keys and values", () => {
+        var map = std::unordered_map<std::string, std::string>()
+        map.insert(std::string("fruit"), std::string("apple"))
+        map.insert(std::string("veg"), std::string("kale"))
+        map.insert(std::string("nut"), std::string("walnut"))
+        var fruit = map.get_ptr(std::string("fruit"))
+        var veg = map.get_ptr(std::string("veg"))
+        var nut = map.get_ptr(std::string("nut"))
+        if(fruit == null || veg == null || nut == null) {
+            printf("null returned !!\n");
+            return false;
+        }
+        return map.size() == 3 && fruit.equals(std::string("apple")) && veg.equals(std::string("kale")) && nut.equals(std::string("walnut"))
+    })
     test("unordered map works with strings as keys and values when resized", () => {
         var map = std::unordered_map<std::string, std::string>()
         map.insert(std::string("fruit"), std::string("apple"))
@@ -137,19 +132,19 @@ func test_unordered_map() {
         map.insert(std::string("24"), std::string("44"))
         map.insert(std::string("25"), std::string("45"))
         map.insert(std::string("26"), std::string("46"))
-        var fruit = std::string();
-        var veg = std::string();
-        var nut = std::string()
-        map.find(std::string("fruit"), fruit)
-        map.find(std::string("veg"), veg)
-        map.find(std::string("nut"), nut)
-        var rand1 = std::string()
-        map.find(std::string("23"), rand1)
-        var rand2 = std::string()
-        map.find(std::string("19"), rand2)
-        var rand3 = std::string()
-        map.find(std::string("26"), rand3)
-        return map.size() == 3 && fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut") && rand1.equals("43") && rand2.equals("39") && rand3.equals("46")
+
+        var fruit = map.get_ptr(std::string("fruit"));
+        var veg = map.get_ptr(std::string("veg"))
+        var nut = map.get_ptr(std::string("nut"))
+        var rand1 = map.get_ptr(std::string("23"))
+        var rand2 = map.get_ptr(std::string("19"))
+        var rand3 = map.get_ptr(std::string("26"))
+
+        if(fruit == null || veg == null || nut == null || rand1 == null || rand2 == null || rand3 == null) {
+            printf("null returned !!\n");
+            return false;
+        }
+
+        return fruit.equals("apple") && veg.equals("kale") && nut.equals("walnut") && rand1.equals("43") && rand2.equals("39") && rand3.equals("46")
     })
-    **/
 }

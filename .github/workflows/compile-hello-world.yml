@@ -1,0 +1,117 @@
+name: Test Latest Release Assets
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-release:
+    name: Test ${{ matrix.asset }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: linux-x86-64-tcc.zip
+            chemical_executable: chemical
+            binary_name: main
+          - os: ubuntu-latest
+            asset: linux-x86-64.zip
+            chemical_executable: chemical
+            binary_name: main
+          - os: windows-latest
+            asset: windows-x64-tcc.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+          - os: windows-latest
+            asset: windows-x64.zip
+            chemical_executable: chemical.exe
+            binary_name: main.exe
+
+    steps:
+      - name: Create main.ch source file (Linux)
+        if: runner.os != 'Windows'
+        run: |
+          echo "public func printf(format : *char, _ : any...)" > main.ch
+          echo "public func main() : int {" >> main.ch
+          echo "    printf(\"hello world\")" >> main.ch
+          echo "    return 0;" >> main.ch
+          echo "}" >> main.ch
+        shell: bash
+
+      - name: Create main.ch source file (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo public func printf(format : *char, _ : any...) > main.ch
+          echo public func main() : int { >> main.ch
+          echo "    printf(\"hello world\")" >> main.ch
+          echo "    return 0;" >> main.ch
+          echo } >> main.ch
+        shell: pwsh
+
+      - name: Download latest release asset (Linux)
+        if: runner.os != 'Windows'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Fetching latest release information..."
+          ASSET_URL=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | \
+            jq -r '.assets[] | select(.name == "${{ matrix.asset }}") | .browser_download_url')
+          echo "Downloading asset from $ASSET_URL"
+          curl -L -o asset.zip "$ASSET_URL"
+        shell: bash
+
+      - name: Download latest release asset (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          Write-Host "Fetching latest release information..."
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/releases/latest" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
+          $asset = $release.assets | Where-Object { $_.name -eq "${{ matrix.asset }}" }
+          Write-Host "Downloading asset from $($asset.browser_download_url)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile asset.zip
+        shell: pwsh
+
+      - name: Extract asset (Linux)
+        if: runner.os != 'Windows'
+        run: |
+          unzip asset.zip
+          chmod +x ${{ matrix.chemical_executable }}
+        shell: bash
+
+      - name: Extract asset (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Expand-Archive -Path asset.zip -DestinationPath .
+        shell: pwsh
+
+      - name: Compile source code (Linux)
+        if: runner.os != 'Windows'
+        run: |
+          ./${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
+        shell: bash
+
+      - name: Compile source code (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\${{ matrix.chemical_executable }} main.ch -o ${{ matrix.binary_name }} -v
+        shell: pwsh
+
+      - name: Run compiled program and capture output (Linux)
+        if: runner.os != 'Windows'
+        run: |
+          ./${{ matrix.binary_name }} | tee output.txt
+        shell: bash
+
+      - name: Run compiled program and capture output (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\${{ matrix.binary_name }} | Tee-Object -FilePath output.txt
+        shell: pwsh
+
+      - name: Upload output artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.asset }}-output
+          path: output.txt

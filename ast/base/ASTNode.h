@@ -218,6 +218,16 @@ public:
     bool set_anonymous(bool value);
 
     /**
+     * a struct/union/variant can be makrked copy to force compiler to shallow copy everywhere
+     */
+    bool is_shallow_copyable();
+
+    /**
+     * a struct/union/variant can be makrked copy to force compiler to shallow copy everywhere
+     */
+    void set_shallow_copyable(bool value);
+
+    /**
      * type is only returned if the value is guaranteed to be stored in a storage location
      * function param is not a storage location, however var decl, struct member, variant member param qualify
      */

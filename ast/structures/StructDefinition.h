@@ -26,49 +26,55 @@ struct StructDeclAttributes {
     /**
      * is the struct and it's functions comptime
      */
-    bool is_comptime;
+    bool is_comptime = false;
 
     /**
      * is a compiler declaration (present inside the compiler, no need to import)
      */
-    bool is_compiler_decl;
+    bool is_compiler_decl = false;
 
     /**
      * is direct initialization
      * constructor or de constructor allow functions to be called automatically
      */
-    bool is_direct_init;
+    bool is_direct_init = false;
 
     /**
      * is struct a compiler interface
      */
-    bool is_compiler_interface;
+    bool is_compiler_interface = false;
 
     /**
      * is this struct deprecated
      */
-    bool deprecated;
+    bool deprecated = false;
 
     /**
      * if struct shouldn't be initialized (user asked)
      */
-    bool no_init;
+    bool no_init = false;
 
     /**
      * struct is marked to allow use after the move
      */
-    bool use_after_move;
+    bool use_after_move = false;
 
     /**
      * struct marked anonymous to keep it anonymous in generated code
      */
-    bool anonymous;
+    bool anonymous = false;
 
     /**
      * if abstract, cannot be instantiated, because it doesn't implement all methods of interface
      * for which a struct that inherits this, will provide the implementation
      */
-    bool is_abstract;
+    bool is_abstract = false;
+
+    /**
+     * when marked with copy annotation, this struct is easy to copy, because it will be shallow
+     * copies everywhere
+     */
+    bool is_copy = false;
 
 };
 
@@ -191,6 +197,14 @@ public:
 
     inline void set_abstract(bool value) {
         attrs.is_abstract = value;
+    }
+
+    inline bool is_shallow_copyable() {
+        return attrs.is_copy;
+    }
+
+    inline void set_shallow_copyable(bool value) {
+        attrs.is_copy = value;
     }
 
     inline std::string get_runtime_name() {

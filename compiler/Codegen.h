@@ -404,9 +404,14 @@ public:
     llvm::Value* memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer, llvm::Type* type);
 
     /**
+     * will only perform a copy of the given value, if the type has a implicit constructor
+     */
+    llvm::Value* memcpy_shallow_copy(BaseType* known_type, Value* value, llvm::Value* llvm_value);
+
+    /**
      * copy or move struct basically tries to copy a referenced struct, call appropriate functions like premove and postmove
      */
-    bool copy_or_move_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer, llvm::Type* type);
+    bool copy_or_move_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer);
 
     /**
      * creates a function block, along with setting the insert point to this entry block

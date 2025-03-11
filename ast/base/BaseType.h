@@ -331,6 +331,11 @@ public:
     ASTNode* get_direct_linked_node();
 
     /**
+     * typealias won't be considered
+     */
+    ASTNode* get_direct_linked_canonical_node();
+
+    /**
      * get direct or referenced linked node, type should be Struct or Struct&
      */
     ASTNode* get_ref_or_linked_node();

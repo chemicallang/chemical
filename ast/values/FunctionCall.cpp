@@ -103,8 +103,7 @@ void put_implicit_params(
         FunctionCall* call,
         FunctionType* func_type,
         std::vector<llvm::Value *>& args,
-        llvm::Value* self_arg_val,
-        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+        llvm::Value* self_arg_val
 ) {
     if(func_type->isExtensionFn()) {
         put_self_param(gen, call, func_type, args, self_arg_val);
@@ -138,13 +137,27 @@ inline bool isReferenceValue(ValueKind kind) {
     return kind == ValueKind::AccessChain || kind == ValueKind::Identifier;
 }
 
+inline bool should_destruct(Value* value) {
+    switch(value->kind()) {
+        case ValueKind::FunctionCall:
+            return true;
+        case ValueKind::AccessChain:
+            return value->as_access_chain_unsafe()->values.back()->kind() == ValueKind::FunctionCall;
+        case ValueKind::StructValue:
+            return true;
+        default:
+            return false;
+    }
+}
+
 llvm::Value* arg_value(
         Codegen& gen,
         FunctionCall* call,
         FunctionType* func_type,
         FunctionParam* func_param,
         Value* value_ptr,
-        int i
+        int i,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     const auto param_type = func_param->type;
     const auto pure_type = param_type->pure_type(gen.allocator);
@@ -194,7 +207,19 @@ llvm::Value* arg_value(
 
         // previously we were mem cpying every object when moved
         // now we will only copy and send to function calls, objects that have implicit copy
-        argValue = gen.memcpy_shallow_copy(func_param->type, value, argValue);
+        argValue = gen.memcpy_shallow_copy(pure_type, value, argValue);
+
+        // get the value type
+        const auto val_type = value->create_type(gen.allocator);
+
+        // struct like type being created and sent to references
+        if(pure_type->kind() == BaseTypeKind::Reference && should_destruct(value)) {
+            const auto container = val_type->get_direct_linked_container();
+            if(container && container->destructor_func() != nullptr) {
+                // we'll destruct the struct, if it's destructible, after this access chain ends
+                destructibles.emplace_back(value, argValue);
+            }
+        }
 
         // pack it into a fat pointer, if the function expects a dynamic type
         const auto dyn_impl = gen.get_dyn_obj_impl(value, func_param->type);
@@ -202,7 +227,6 @@ llvm::Value* arg_value(
             argValue = gen.pack_fat_pointer(argValue, dyn_impl, value->encoded_location());
         } else {
             // automatic dereference arguments that are references
-            const auto val_type = value->create_type(gen.allocator);
             const auto derefType = val_type->getAutoDerefType(func_param->type);
             if(derefType) {
                 const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), argValue);
@@ -223,7 +247,8 @@ void to_llvm_args(
         FunctionType* func_type,
         std::vector<Value*>& values,
         std::vector<llvm::Value *>& args,
-        unsigned int start
+        unsigned int start,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
 
     unsigned i = start;
@@ -232,7 +257,9 @@ void to_llvm_args(
 
         const auto func_param = func_type->func_param_for_arg_at(i);
 
-        args.emplace_back(arg_value(gen, call, func_type, func_param, values[i], (int) i));
+        const auto argVal = arg_value(gen, call, func_type, func_param, values[i], (int) i, destructibles);
+
+        args.emplace_back(argVal);
 
         // expanding passed lambda values, to multiple (passing function pointer & also passing their struct so 1 arg results in 2 args)
 //        if(values[i]->value_type() == ValueType::Lambda) {
@@ -265,7 +292,7 @@ void to_llvm_args(
         auto param = func_type->func_param_for_arg_at(i);
         if(param) {
             if(param->defValue) {
-                args.emplace_back(arg_value(gen, call, func_type, param, param->defValue, -1));
+                args.emplace_back(arg_value(gen, call, func_type, param, param->defValue, -1, destructibles));
             } else if(!func_type->isInVarArgs(i)) {
                 gen.error(call) << "function param '" << param->name << "' doesn't have a default value, however no argument exists for it";
             }
@@ -289,8 +316,8 @@ void to_llvm_args(
         llvm::Value* self_arg_val,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-    put_implicit_params(gen, call, func_type, args, self_arg_val, destructibles);
-    to_llvm_args(gen, call, func_type, values, args, start);
+    put_implicit_params(gen, call, func_type, args, self_arg_val);
+    to_llvm_args(gen, call, func_type, values, args, start, destructibles);
 }
 
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
@@ -423,7 +450,7 @@ llvm::Value *call_capturing_lambda(
     //   however functions that don't take a self reference, should load arguments first and then the func callee
     put_self_param(gen, call, func_type, args, grandpa);
     args.emplace_back(data);
-    to_llvm_args(gen, call, func_type, call->values, args, 0);
+    to_llvm_args(gen, call, func_type, call->values, args, 0, destructibles);
     auto structType = gen.fat_pointer_type();
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
     const auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);

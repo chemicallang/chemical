@@ -9,13 +9,15 @@ struct VariantDeclAttributes {
 
     AccessSpecifier specifier;
 
-    bool is_comptime;
+    bool is_comptime = false;
 
-    bool is_compiler_decl;
+    bool is_compiler_decl = false;
 
-    bool deprecated;
+    bool deprecated = false;
 
-    bool anonymous;
+    bool anonymous = false;
+
+    bool is_copy = false;
 
 };
 
@@ -91,6 +93,14 @@ public:
 
     inline void set_anonymous(bool value) {
         attrs.anonymous = value;
+    }
+
+    inline bool is_shallow_copyable() {
+        return attrs.is_copy;
+    }
+
+    inline void set_shallow_copyable(bool value) {
+        attrs.is_copy = value;
     }
 
     bool is_exported_fast() {

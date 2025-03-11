@@ -192,19 +192,10 @@ llvm::Value* arg_value(
         argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
     } else {
 
-        if(value->is_ref_value()) {
-            if (value->is_ref_moved()) {
-                // move moved value using memcpy
-                argValue = gen.move_by_allocate(func_param->type, value, argValue);
-            } else if(gen.requires_memcpy_ref_struct(func_param->type, value)) {
-                // non movable struct being passed directly, we should memcpy it
-                auto type = value->llvm_type(gen);
-                const auto copy = gen.builder->CreateAlloca(type);
-                gen.di.instr(copy, value);
-                gen.memcpy_struct(type, copy, argValue, value->encoded_location());
-                argValue = copy;
-            }
-        }
+        // previously we were mem cpying every object when moved
+        // now we will only copy and send to function calls, objects that have implicit copy
+        argValue = gen.memcpy_shallow_copy(func_param->type, value, argValue);
+
         // pack it into a fat pointer, if the function expects a dynamic type
         const auto dyn_impl = gen.get_dyn_obj_impl(value, func_param->type);
         if(dyn_impl) {

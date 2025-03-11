@@ -1106,7 +1106,26 @@ llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm
     return nullptr;
 }
 
-bool Codegen::copy_or_move_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer, llvm::Type* type) {
+llvm::Value* Codegen::memcpy_shallow_copy(BaseType* known_type, Value* value, llvm::Value* llvm_value) {
+    // is referencing another struct, that is non movable and must be mem copied into the pointer
+    const auto kind = value->val_kind();
+    const auto chain = value->as_access_chain_unsafe();
+    if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && chain->values.back()->as_func_call() == nullptr)) {
+        const auto node = known_type->get_direct_linked_node();
+        if(node && node->is_shallow_copyable()) {
+            const auto type = llvm_value->getType();
+            const auto alloc = builder->CreateAlloca(type);
+            di.instr(alloc, value->encoded_location());
+            memcpy_struct(type, alloc, llvm_value, value->encoded_location());
+            return alloc;
+        } else {
+            return llvm_value;
+        }
+    }
+    return llvm_value;
+}
+
+bool Codegen::copy_or_move_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer) {
     // is referencing another struct, that is non movable and must be mem copied into the pointer
     const auto kind = value->val_kind();
     const auto chain = value->as_access_chain_unsafe();

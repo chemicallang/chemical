@@ -14,6 +14,7 @@ When a value is to be mutated based on type, where does the implicit mutation oc
 1 - Var Init `var x : Type = Value`
 2 - Assignment  `x = Value`
 3 - Function Return `func sum() : Type { return Value }`
+  - only a memcpy, no functions invoked, just to facilitate return
 4 - Function Call Argument `sum(Value)`
 5 - Struct Member `var y = Container { member : Value }`
 6 - Array Value `var z : Type[] = { Value }`

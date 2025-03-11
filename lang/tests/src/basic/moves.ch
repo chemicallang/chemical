@@ -173,7 +173,13 @@ func <T> test_non_movable_reassignment(value : T, value2 : T, test_lamb : (a : &
     return test_lamb(a)
 }
 
-func change_non_movable_obj(n : NonMovableObj) {
+@copy
+struct CopyableObj {
+    var a : int
+    var b : int
+}
+
+func change_copyable_movable_obj(n : CopyableObj) {
     n.a = 89
     n.b = 83
 }
@@ -225,9 +231,9 @@ func test_moves() {
         }
     })
 
-    test("non movable objects aren't modified when passed to functions directly", () => {
-        var n = NonMovableObj { a : 323, b : 124 }
-        change_non_movable_obj(n);
+    test("copyable objects aren't modified when passed to functions directly", () => {
+        var n = CopyableObj { a : 323, b : 124 }
+        change_copyable_movable_obj(n);
         return n.a == 323 && n.b == 124;
     })
 

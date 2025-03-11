@@ -263,6 +263,35 @@ bool ASTNode::set_anonymous(bool value) {
     }
 }
 
+bool ASTNode::is_shallow_copyable() {
+    switch(kind()) {
+        case ASTNodeKind::StructDecl:
+            return as_struct_def_unsafe()->is_shallow_copyable();
+        case ASTNodeKind::UnionDecl:
+            return as_union_def_unsafe()->is_shallow_copyable();
+        case ASTNodeKind::VariantDecl:
+            return as_variant_def_unsafe()->is_shallow_copyable();
+        default:
+            return false;
+    }
+}
+
+void ASTNode::set_shallow_copyable(bool value) {
+    switch(kind()) {
+        case ASTNodeKind::StructDecl:
+            as_struct_def_unsafe()->set_shallow_copyable(value);
+            return;
+        case ASTNodeKind::UnionDecl:
+            as_union_def_unsafe()->set_shallow_copyable(value);
+            return;
+        case ASTNodeKind::VariantDecl:
+            as_variant_def_unsafe()->set_shallow_copyable(value);
+            return;
+        default:
+            return;
+    }
+}
+
 bool ASTNode::set_specifier(AccessSpecifier spec) {
     const auto k = kind();
     switch(k) {

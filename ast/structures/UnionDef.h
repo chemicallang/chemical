@@ -10,13 +10,15 @@ struct UnionDeclAttributes {
 
     AccessSpecifier specifier;
 
-    bool is_comptime;
+    bool is_comptime = false;
 
-    bool is_direct_init;
+    bool is_direct_init = false;
 
-    bool deprecated;
+    bool deprecated = false;
 
-    bool anonymous;
+    bool anonymous = false;
+
+    bool is_copy = false;
 
 };
 
@@ -86,6 +88,14 @@ public:
 
     inline void set_anonymous(bool value) {
         attrs.anonymous = value;
+    }
+
+    inline bool is_shallow_copyable() {
+        return attrs.is_copy;
+    }
+
+    inline void set_shallow_copyable(bool value) {
+        attrs.is_copy = value;
     }
 
     UnionDef* copy(ASTAllocator &allocator) override {

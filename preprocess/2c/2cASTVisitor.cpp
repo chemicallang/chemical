@@ -478,7 +478,7 @@ std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* ty
 // structs, or variants or references to them are passed in functions as pointers
 // if you took address of using '&' of the parameter that is already reference or pointer
 // we must not write '&' in the output C
-bool is_value_passed_pointer_like(Value* value) {
+bool is_value_param_pointer_like(Value* value) {
     const auto linked = value->linked_node();
     if(linked) {
         switch(linked->kind()) {
@@ -497,6 +497,36 @@ bool is_value_passed_pointer_like(Value* value) {
     }
 }
 
+// structs, or variants or references to them are passed in functions as pointers
+// if you took address of using '&' of the parameter that is already reference or pointer
+// we must not write '&' in the output C
+bool is_value_type_pointer_like(Value* value) {
+    const auto linked = value->linked_node();
+    if(linked) {
+        switch(linked->kind()) {
+            case ASTNodeKind::FunctionParam:{
+                const auto type = linked->as_func_param_unsafe()->type;
+                if(type->is_pointer_or_ref()) {
+                    return true;
+                }
+                return type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType();
+            }
+            case ASTNodeKind::VarInitStmt: {
+                const auto type = linked->as_var_init_unsafe();
+                const auto known_ty = type->known_type();
+                if(known_ty && known_ty->is_pointer_or_ref()) {
+                    return true;
+                }
+                return false;
+            }
+            default:
+                return false;
+        }
+    } else {
+        return false;
+    }
+}
+
 bool implicit_mutate_value_for_dyn_obj(ToCAstVisitor& visitor, BaseType* type, Value* value, void(*value_visit)(ToCAstVisitor& visitor, Value* value)) {
 //    (__chemical_fat_pointer__){ &sm, (void*) &PhoneSmartPhone }
     auto dyn_obj = get_dyn_obj_impl(type, value);
@@ -506,7 +536,7 @@ bool implicit_mutate_value_for_dyn_obj(ToCAstVisitor& visitor, BaseType* type, V
     visitor.write(')');
     visitor.write('{');
     visitor.space();
-    if(!is_value_passed_pointer_like(value)) {
+    if(!is_value_param_pointer_like(value)) {
         visitor.write('&');
     }
     value_visit(visitor, value);
@@ -546,7 +576,7 @@ bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, ReferenceType*
         visitor.write_str(temp_var);
         visitor.write("; })");
         return true;
-    } else if(!is_value_passed_pointer_like(val)){
+    } else if(!is_value_param_pointer_like(val)){
         visitor.write('&');
         return false;
     }
@@ -563,7 +593,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
     }
     // automatic dereference
     if(type) {
-        if (type->get_direct_linked_node() != nullptr && is_value_passed_pointer_like(value)) {
+        if (type->get_direct_linked_node() != nullptr && is_value_param_pointer_like(value)) {
             write('*');
         } else {
             const auto value_type = value->create_type(allocator);
@@ -700,7 +730,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             visitor.write(' ');
             visitor.write(temp_struct_name);
             visitor.write(" = ");
-            if(is_value_passed_pointer_like(val)) {
+            if(is_value_param_pointer_like(val)) {
                 visitor.write('*');
             }
         }
@@ -791,7 +821,7 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
     if(linked && linked->as_namespace()) {
         return;
     }
-    if(is_value_passed_pointer_like(current)) {
+    if(is_value_param_pointer_like(current)) {
         visitor.write("->");
         return;
     }
@@ -843,7 +873,7 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
 //}
 
 void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* call) {
-    if(!grandpa->is_pointer() && !is_value_passed_pointer_like(grandpa)) {
+    if(!grandpa->is_pointer() && !is_value_type_pointer_like(grandpa)) {
         visitor.write('&');
     }
     visitor.visit(grandpa);
@@ -3051,7 +3081,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
         write(struct_passed_param_name);
         write(" = ");
         if(!implicit_mutate_value_default(*this, type, val)) {
-            if(is_value_passed_pointer_like(val)) {
+            if(is_value_param_pointer_like(val)) {
                 write('*');
             }
             visit(val);
@@ -5004,7 +5034,7 @@ void ToCAstVisitor::VisitCastedValue(CastedValue *casted) {
 }
 
 void ToCAstVisitor::VisitAddrOfValue(AddrOfValue *value) {
-    if(!is_value_passed_pointer_like(value)) {
+    if(!is_value_param_pointer_like(value)) {
         write('&');
     }
     visit(value->value);

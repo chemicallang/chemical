@@ -44,6 +44,23 @@ variant OptRefInt {
     None()
 }
 
+struct ReferenceCastedMethod {
+    var a : int
+    var b : int
+    func sum(&self) : int {
+        return a + b;
+    }
+}
+
+func <T> call_on_casted_ref(ref : &T) : int {
+    if(T is ReferenceCastedMethod) {
+        const ref2 = ref as &ReferenceCastedMethod
+        return ref2.sum()
+    } else {
+        return 0;
+    }
+}
+
 func test_references() {
     test("integer references are passed as function arguments automatically", () => {
         var i = 3
@@ -121,5 +138,9 @@ func test_references() {
     })
     test("integer r value can be passed to constant reference function", () => {
         return take_int_ref(789) == 789
+    })
+    test("can call methods on casted references", () => {
+        var r = ReferenceCastedMethod { a : 32, b : 5 }
+        return call_on_casted_ref<ReferenceCastedMethod>(r) == 37
     })
 }

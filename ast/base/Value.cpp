@@ -708,8 +708,7 @@ bool Value::requires_memcpy_ref_struct(BaseType* known_type) {
             if(k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion) {
                 return true;
             } else if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl) {
-                const auto container = linked->as_members_container();
-                return container->pre_move_func() == nullptr && container->destructor_func() == nullptr && container->clear_func() == nullptr;
+                return true;
             }
         }
     }

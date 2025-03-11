@@ -331,6 +331,11 @@ StructDefinition* BaseType::get_direct_linked_struct() {
     return ref_node ? ref_node->as_struct_def() : nullptr;
 }
 
+MembersContainer* BaseType::get_direct_linked_container() {
+    const auto ref_node = get_direct_linked_node();
+    return ref_node ? ref_node->as_members_container() : nullptr;
+}
+
 InterfaceDefinition* BaseType::get_direct_linked_interface() {
     const auto ref_node = get_direct_linked_node();
     return ref_node ? ref_node->as_interface_def() : nullptr;

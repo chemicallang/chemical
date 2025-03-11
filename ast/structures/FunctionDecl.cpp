@@ -155,16 +155,10 @@ llvm::Function*& FunctionDeclaration::get_llvm_data() {
 
 void FunctionType::queue_destruct_params(Codegen& gen) {
     for(const auto param : params) {
-        if(param->get_has_moved()) continue;
         const auto k = param->type->kind();
-        if(k == BaseTypeKind::Linked || k == BaseTypeKind::Generic) {
-            const auto def = param->type->linked_node();
-            if(def) {
-                const auto members_container = def->as_members_container();
-                if(members_container && members_container->destructor_func()) {
-                    gen.destruct_nodes.emplace_back(param);
-                }
-            }
+        const auto directly_linked = param->type->get_direct_linked_container();
+        if(directly_linked && directly_linked->destructor_func()) {
+            gen.destruct_nodes.emplace_back(param);
         }
     }
 }

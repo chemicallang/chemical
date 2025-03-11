@@ -310,6 +310,15 @@ ASTNode* BaseType::get_direct_linked_node() {
     }
 }
 
+ASTNode* BaseType::get_direct_linked_canonical_node() {
+    const auto n = get_direct_linked_node();
+    if(n && n->kind() == ASTNodeKind::TypealiasStmt) {
+        return n->as_typealias_unsafe()->actual_type->get_direct_linked_canonical_node();
+    } else {
+        return n;
+    };
+}
+
 ASTNode* BaseType::get_ref_or_linked_node() {
     switch(kind()) {
         case BaseTypeKind::Linked:
@@ -332,7 +341,7 @@ StructDefinition* BaseType::get_direct_linked_struct() {
 }
 
 MembersContainer* BaseType::get_direct_linked_container() {
-    const auto ref_node = get_direct_linked_node();
+    const auto ref_node = get_direct_linked_canonical_node();
     return ref_node ? ref_node->as_members_container() : nullptr;
 }
 

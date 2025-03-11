@@ -583,8 +583,6 @@ void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value*
 }
 
 void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
-    auto& gen = *this;
-    auto& value = *value_ptr;
     const auto node_kind = node->kind();
     if(node_kind == ASTNodeKind::UnnamedStruct || node_kind == ASTNodeKind::UnnamedUnion) {
 #ifdef DEBUG
@@ -595,6 +593,12 @@ void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_
     if(!container) {
         return;
     }
+    move_by_memcpy(container, value_ptr, elem_ptr, movable_value);
+}
+
+void Codegen::move_by_memcpy(MembersContainer* container, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
+    auto& gen = *this;
+    auto& value = *value_ptr;
     auto pre_move_func = container->pre_move_func();
     if(pre_move_func) {
         auto linked = value.linked_node();
@@ -607,7 +611,7 @@ void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_
         gen.di.instr(callInst, value_ptr);
         return;
     }
-    gen.memcpy_struct(node->llvm_type(gen), elem_ptr, movable_value, value_ptr->encoded_location());
+    gen.memcpy_struct(container->llvm_type(gen), elem_ptr, movable_value, value_ptr->encoded_location());
     auto linked = value.linked_node();
     auto k = linked->kind();
     if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {

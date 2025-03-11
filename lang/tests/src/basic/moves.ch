@@ -118,6 +118,12 @@ func take_move_obj(m : MoveObj) {
 
 }
 
+func move_obj_conditionally(m : MoveObj, move : bool) {
+    if(move) {
+        take_move_obj(m)
+    }
+}
+
 func get_moved_clear_i(c : ClearObj) : int {
     return c.i;
 }
@@ -478,6 +484,22 @@ func test_moves() {
         // how this works, b is mem copied into a, after a has been destroyed and a is destroyed at the end of scope again
         // b doesn't need to be move called into a, since b will never be accessed again, a becomes the only owner
         return move_called == 0 && delete_called == 2 && result == 33;
+    })
+
+    move_called = 0;
+    delete_called = 0;
+    test("delete is called, if object is not moved", () => {
+        var a = MoveObj { i : 32 }
+        move_obj_conditionally(a, false)
+        return delete_called == 1;
+    })
+
+    move_called = 0;
+    delete_called = 0;
+    test("delete is called once, if object is moved", () => {
+        var a = MoveObj { i : 32 }
+        move_obj_conditionally(a, true)
+        return delete_called == 1;
     })
 
     move_called = 0;

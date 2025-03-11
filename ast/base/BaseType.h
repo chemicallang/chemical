@@ -341,6 +341,11 @@ public:
     StructDefinition* get_direct_linked_struct();
 
     /**
+     * get it's directly linked container
+     */
+    MembersContainer* get_direct_linked_container();
+
+    /**
      * get direct linked interface from the following type
      */
     InterfaceDefinition* get_direct_linked_interface();

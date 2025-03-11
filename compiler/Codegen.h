@@ -358,6 +358,20 @@ public:
      * @return true if move was done, otherwise false, if false is returned, caller should pursue of storing
      * the value inside the given pointer
      */
+    void move_by_memcpy(MembersContainer* container, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
+
+    /**
+     * move the value
+     * @param type is the type of value, expected
+     * @param value is the actual value (not llvm though)
+     * @param ptr is where value will be moved to
+     * @param movable_value is the movable value that is retrieved by calling movable_value method
+     * how this works is, the movable value is mem copied into the given pointer, but movable_value is the
+     * memory location of the previous struct, so we call clear function on it, to tell the struct that struct has been
+     * freed
+     * @return true if move was done, otherwise false, if false is returned, caller should pursue of storing
+     * the value inside the given pointer
+     */
     bool move_by_memcpy(BaseType* type, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
 
     /**
@@ -388,6 +402,11 @@ public:
      * otherwise nullptr, memory for struct is allocated as required, unless passed
      */
     llvm::Value* memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer, llvm::Type* type);
+
+    /**
+     * copy or move struct basically tries to copy a referenced struct, call appropriate functions like premove and postmove
+     */
+    bool copy_or_move_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer, llvm::Type* type);
 
     /**
      * creates a function block, along with setting the insert point to this entry block

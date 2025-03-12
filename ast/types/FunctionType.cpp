@@ -512,7 +512,7 @@ bool FunctionTypeBody::mark_moved_value(
         return false;
     }
     const auto expected_type_kind = expected_type ? expected_type->kind() : BaseTypeKind::Unknown;
-    if (expected_type_kind == BaseTypeKind::Reference || expected_type_kind == BaseTypeKind::Pointer) {
+    if (expected_type_kind == BaseTypeKind::Reference || expected_type_kind == BaseTypeKind::Pointer || expected_type_kind == BaseTypeKind::String || expected_type_kind == BaseTypeKind::Dynamic) {
         return false;
     }
     const auto type = value.create_type(allocator);

@@ -63,10 +63,11 @@ func gen_c(ctx : *BuildContext, exe_name : *string, module : *mut Module) {
     path.append_char_ptr("/mod_c.c")
     if(compiler::is_clang()) {
         ctx.translate_mod_to_c(module, path);
+        printf("module : %s, output c : %s\n", module.name.data(), path.data());
     } else {
         module.out_c_path = path;
+        printf("module : %s, output c : %s\n", module.name.data(), module.out_c_path.data());
     }
-    printf("module : %s, output c : %s\n", module.name.data(), path.data());
 }
 
 struct JobAndContext {

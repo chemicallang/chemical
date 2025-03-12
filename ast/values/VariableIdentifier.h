@@ -63,7 +63,7 @@ public:
         return link(linker, true, &value_ptr);
     }
 
-    bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) final {
+    inline bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) {
         return link(linker, false, &value_ptr);
     }
 

@@ -154,7 +154,7 @@ void VarInitStatement::put_destructible(Codegen& gen) {
 
                 should_destruct = instr;
             }
-            gen.destruct_nodes.emplace_back(destructor, should_destruct);
+            gen.destruct_nodes.emplace_back(this, should_destruct);
         }
     }
 }

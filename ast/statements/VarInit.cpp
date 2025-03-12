@@ -133,30 +133,49 @@ void VarInitStatement::code_gen(Codegen &gen) {
     }
 }
 
-void VarInitStatement::put_destructible(Codegen& gen) {
-    const auto type = create_value_type(gen.allocator);
-    const auto container = type->get_direct_linked_container();
+void queue_destruct(Codegen& gen, VarInitStatement* node, ASTNode* typeLinked) {
+    const auto container = typeLinked->get_members_container();
     if(container) {
         const auto destructor = container->destructor_func();
         if(destructor) {
             llvm::Value* should_destruct = nullptr;
             // if a single move was performed using this variable
             // we allocate a flag
-            if(get_has_moved()) {
+            if(node->get_has_moved()) {
 
                 // create a boolean flag
                 const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
-                gen.di.instr(instr, this);
+                gen.di.instr(instr, node);
 
                 // store true in it, that this value should be destructed
                 const auto storeIns = gen.builder->CreateStore(gen.builder->getInt1(true), instr);
-                gen.di.instr(storeIns, this);
+                gen.di.instr(storeIns, node);
 
                 should_destruct = instr;
             }
-            gen.destruct_nodes.emplace_back(this, should_destruct);
+            gen.destruct_nodes.emplace_back(node, should_destruct);
         }
     }
+}
+
+void queue_destruct(Codegen& gen, VarInitStatement* node, BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Linked:
+            queue_destruct(gen, node, type->as_linked_type_unsafe()->linked);
+            return;
+        case BaseTypeKind::Generic:
+            queue_destruct(gen, node, type->as_generic_type_unsafe()->referenced->linked);
+            return;
+        case BaseTypeKind::Array:
+            queue_destruct(gen, node, type->as_array_type_unsafe()->elem_type);
+            return;
+        default:
+            return;
+    }
+}
+
+void VarInitStatement::put_destructible(Codegen& gen) {
+    queue_destruct(gen, this, create_value_type(gen.allocator));
 }
 
 void VarInitStatement::code_gen_external_declare(Codegen &gen) {

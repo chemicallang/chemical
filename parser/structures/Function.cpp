@@ -37,11 +37,49 @@ InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
     if(tok.type == TokenType::InitKw) {
         token++;
         auto init = new (allocator.allocate<InitBlock>()) InitBlock(parent_node, loc_single(tok));
-        auto block = parseBraceBlock("init-block", init, allocator);
-        if(block.has_value()) {
-            init->scope = std::move(block.value());
+        if(token->type == TokenType::LBrace) {
+            token++;
         } else {
-            error("expected a block after init");
+            error("expected '{' for beginning of init block");
+        }
+        while(true) {
+            consumeNewLines();
+            const auto id = consumeIdentifierOrKeyword();
+            if(id) {
+                const auto has_lparen = token->type == TokenType::LParen;
+                if(has_lparen) {
+                    token++;
+                    consumeNewLines();
+                } else if(token->type == TokenType::EqualSym) {
+                    token++;
+                } else {
+                    error("expected '(' or '=' for initializing the init member");
+                }
+                const auto value = parseExpression(allocator, true);
+                if(value) {
+                    init->initializers[allocate_view(allocator, id->value)] = { value };
+                } else {
+                    error("expected an expression for initializing init member");
+                }
+                if(has_lparen) {
+                    consumeNewLines();
+                    if(token->type == TokenType::RParen) {
+                        token++;
+                    } else {
+                        error("expected ')' for init member");
+                    }
+                }
+                if(token->type == TokenType::SemiColonSym) {
+                    token++;
+                }
+            } else {
+                break;
+            }
+        }
+        if(token->type == TokenType::RBrace) {
+            token++;
+        } else {
+            error("expected '}' for ending the init block");
         }
         return init;
     } else {

@@ -7,14 +7,12 @@
 #include <unordered_map>
 
 struct InitBlockInitializerValue {
-    bool is_inherited_type;
     Value* value;
 };
 
 class InitBlock : public ASTNode {
 public:
 
-    Scope scope;
     std::unordered_map<chem::string_view, InitBlockInitializerValue> initializers;
 
     /**
@@ -23,7 +21,7 @@ public:
     InitBlock(
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::InitBlock, parent_node, location), scope(this, location) {
+    ) : ASTNode(ASTNodeKind::InitBlock, parent_node, location) {
 
     }
 
@@ -32,9 +30,8 @@ public:
             parent(),
             encoded_location()
         );
-        scope.copy_into(blk->scope, allocator, blk);
         for(auto& init : initializers) {
-            blk->initializers[init.first] = { init.second.is_inherited_type, init.second.value->copy(allocator) };
+            blk->initializers[init.first] = { init.second.value->copy(allocator) };
         }
         return blk;
     }

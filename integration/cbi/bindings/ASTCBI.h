@@ -112,6 +112,6 @@ extern "C" {
 
     void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param);
 
-    void InitBlockadd_initializer(InitBlock* block, chem::string_view* name, bool is_inherited_type, Value* value);
+    void InitBlockadd_initializer(InitBlock* block, chem::string_view* name, Value* value);
 
 }

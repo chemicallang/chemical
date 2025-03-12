@@ -673,6 +673,17 @@ bool Value::is_chain_func_call() {
     return false;
 }
 
+bool Value::is_func_call() {
+    switch(kind()) {
+        case ValueKind::FunctionCall:
+            return true;
+        case ValueKind::AccessChain:
+            return as_access_chain_unsafe()->values.back()->kind() == ValueKind::FunctionCall;
+        default:
+            return false;
+    }
+}
+
 bool Value::is_ref_moved() {
     switch(val_kind()) {
         case ValueKind::AccessChain:

@@ -4503,8 +4503,8 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
     auto is_union = container->kind() == ASTNodeKind::UnionDecl;
     for(auto& init : initializers) {
         auto value = init.second.value;
-        auto variable = container->variable_type_index(init.first, init.second.is_inherited_type);
-        if(init.second.is_inherited_type) {
+        auto variable = container->variable_type_index(init.first, true);
+        if(container->is_one_of_inherited_type(variable.second)) {
             auto chain = value->as_access_chain_unsafe();
             auto val = chain->values.back();
             auto call = val->as_func_call();

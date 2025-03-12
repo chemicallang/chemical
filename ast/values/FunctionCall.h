@@ -39,11 +39,6 @@ public:
     void link_values(SymbolResolver &linker, std::vector<bool>& properly_linked);
 
     /**
-     * this should be called only after generic types are known
-     */
-    void relink_values(SymbolResolver &linker);
-
-    /**
      * if an arg has implicit constructor, we call that implicit constructor instead of
      * just passing that value
      */
@@ -82,7 +77,7 @@ public:
 
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
-    int16_t link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi);
+    void link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi);
 
     bool instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type);
 

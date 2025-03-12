@@ -715,6 +715,6 @@ void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param) {
     member->values[param->name] = param;
 }
 
-void InitBlockadd_initializer(InitBlock* block, chem::string_view* name, bool is_inherited_type, Value* value) {
-    block->initializers[*name] = { is_inherited_type, value };
+void InitBlockadd_initializer(InitBlock* block, chem::string_view* name, Value* value) {
+    block->initializers[*name] = { value };
 }

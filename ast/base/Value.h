@@ -144,13 +144,6 @@ public:
     bool link_assign(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type = nullptr);
 
     /**
-     * relink value after generic types are known in the function call
-     */
-    virtual void relink_after_generic(SymbolResolver& linker, BaseType* expected_type) {
-        // does nothing
-    }
-
-    /**
      * it must return the node that will be used to find the next node in the access chain
      * this node is extracted from the node that was linked to in link method
      * @return return node that signifies the fragment in the access chain
@@ -316,6 +309,11 @@ public:
      * is this value a function call
      */
     bool is_chain_func_call();
+
+    /**
+     * check if this is a function call
+     */
+    bool is_func_call();
 
     /**
      * check if this value is a reference and moved

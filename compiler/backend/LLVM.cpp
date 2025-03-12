@@ -1126,9 +1126,9 @@ void InitBlock::code_gen(Codegen &gen) {
     auto is_union = container->kind() == ASTNodeKind::UnionDecl;
     for(auto& init : initializers) {
         auto value = init.second.value;
-        auto variable = container->variable_type_index(init.first, init.second.is_inherited_type);
+        auto variable = container->variable_type_index(init.first, true);
         std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
-        if(init.second.is_inherited_type) {
+        if(container->is_one_of_inherited_type(variable.second)) {
             auto chain = value->as_access_chain();
             auto val = chain->values.back();
             auto call = val->as_func_call();

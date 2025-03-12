@@ -28,7 +28,7 @@ void AccessChain::relink_parent() {
     }
 }
 
-bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, unsigned int end_offset, bool check_validity, bool assign) {
+bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, bool check_validity, bool assign) {
 
     if(!values[0]->link(linker, *value_ptr, values.size() == 1 ? expected_type : nullptr)) {
         return false;
@@ -58,11 +58,12 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
         return true;
     }
 
-    const auto values_size = values.size() - end_offset;
+    const auto values_size = values.size();
     if (values_size > 1) {
+        const auto last = values_size - 1;
         unsigned i = 1;
         while (i < values_size) {
-            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], linker, i == values.size() - 1 ? expected_type : nullptr)) {
+            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], linker, i == last ? expected_type : nullptr)) {
                 return false;
             }
             i++;

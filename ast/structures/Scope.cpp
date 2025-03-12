@@ -224,80 +224,83 @@ void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
         linker.error("unexpected init block", this);
         return;
     }
-    // now taking out initializers
-    for(const auto node : scope.nodes) {
-        const auto val_wrapper = node->as_value_wrapper();
-        if(!val_wrapper) {
-            linker.error("expected members of init block to be initializer call", (ASTNode*) node);
-            continue;
-        }
-        auto chain = val_wrapper->value->as_access_chain();
-        if(!chain) {
-            linker.error("expected members of init block to be initializer call", (ASTNode*) node);
-            continue;
-        }
-        auto& call_ptr = chain->values.back();
-        auto call = call_ptr->as_func_call();
-        if(!call) {
-            linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
-            continue;
-        }
-//        const auto chain_size = chain->values.size();
-//        if(chain_size < 2) {
+    for(auto& in : initializers) {
+        in.second.value->link(linker, in.second.value, nullptr);
+    }
+//    // now taking out initializers
+//    for(const auto node : scope.nodes) {
+//        const auto val_wrapper = node->as_value_wrapper();
+//        if(!val_wrapper) {
+//            linker.error("expected members of init block to be initializer call", (ASTNode*) node);
+//            continue;
+//        }
+//        auto chain = val_wrapper->value->as_access_chain();
+//        if(!chain) {
+//            linker.error("expected members of init block to be initializer call", (ASTNode*) node);
+//            continue;
+//        }
+//        auto& call_ptr = chain->values.back();
+//        auto call = call_ptr->as_func_call();
+//        if(!call) {
 //            linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
 //            continue;
 //        }
-        // linking chain till chain_size - 1, last function call is not included
-        // last function call is not linked because it may not be valid and calling struct member
-        if(!chain->link(linker, nullptr, nullptr, 1, false, false)) {
-            continue;
-        }
-        auto call_parent = call->parent_val; // second last value
-        auto linked = call_parent->linked_node();
-        if(!linked) {
-            linker.error("unknown initializer call", (ASTNode*) chain);
-            continue;
-        }
-        auto linked_kind = linked->kind();
-        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
-            if(call->values.size() != 1) {
-                linker.error("expected a single value to initialize a struct member", (ASTNode*) chain);
-                continue;
-            }
-            auto base_def = linked->as_base_def_member_unsafe();
-            auto& value = call->values.front();
-            value->link(linker, value); // TODO send expected type by getting from base_def
-            initializers[base_def->name] = { false, value };
-            continue;
-        } else if(linked_kind == ASTNodeKind::FunctionDecl) {
-            // linking the last function call, since function call is valid
-            // call_ptr being sent as Value*&, if replaced other than ChainValue, it maybe invalid inside access chain
-            if(!call_ptr->link(linker, (Value*&) call_ptr, nullptr)) {
-                continue;
-            }
-            auto linked_func = linked->as_function();
-            auto func_parent = linked_func->parent();
-            auto called_struc = func_parent ? func_parent->as_struct_def() : nullptr;
-            if(!called_struc) {
-                linker.error("couldn't get struct of constructor in init block", (ASTNode*) chain);
-                continue;
-            }
-            bool found = false;
-            for(auto& inherit : mems_container->inherited) {
-                auto struc = inherit.type->get_direct_linked_struct();
-                if(struc && called_struc == struc) {
-                    found = true;
-                }
-            }
-            if(!found) {
-                linker.error((ASTNode*) chain) << "current struct doesn't inherit struct with name '" << called_struc->name_view() << "'";
-                continue;
-            }
-            initializers[called_struc->name_view()] = { true, chain };
-            continue;
-        } else {
-            linker.error("call to unknown node in init block", (ASTNode*) chain);
-        }
-    }
+////        const auto chain_size = chain->values.size();
+////        if(chain_size < 2) {
+////            linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
+////            continue;
+////        }
+//        // linking chain till chain_size - 1, last function call is not included
+//        // last function call is not linked because it may not be valid and calling struct member
+//        if(!chain->link(linker, nullptr, nullptr, 1, false, false)) {
+//            continue;
+//        }
+//        auto call_parent = call->parent_val; // second last value
+//        auto linked = call_parent->linked_node();
+//        if(!linked) {
+//            linker.error("unknown initializer call", (ASTNode*) chain);
+//            continue;
+//        }
+//        auto linked_kind = linked->kind();
+//        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
+//            if(call->values.size() != 1) {
+//                linker.error("expected a single value to initialize a struct member", (ASTNode*) chain);
+//                continue;
+//            }
+//            auto base_def = linked->as_base_def_member_unsafe();
+//            auto& value = call->values.front();
+//            value->link(linker, value); // TODO send expected type by getting from base_def
+//            initializers[base_def->name] = { false, value };
+//            continue;
+//        } else if(linked_kind == ASTNodeKind::FunctionDecl) {
+//            // linking the last function call, since function call is valid
+//            // call_ptr being sent as Value*&, if replaced other than ChainValue, it maybe invalid inside access chain
+//            if(!call_ptr->link(linker, (Value*&) call_ptr, nullptr)) {
+//                continue;
+//            }
+//            auto linked_func = linked->as_function();
+//            auto func_parent = linked_func->parent();
+//            auto called_struc = func_parent ? func_parent->as_struct_def() : nullptr;
+//            if(!called_struc) {
+//                linker.error("couldn't get struct of constructor in init block", (ASTNode*) chain);
+//                continue;
+//            }
+//            bool found = false;
+//            for(auto& inherit : mems_container->inherited) {
+//                auto struc = inherit.type->get_direct_linked_struct();
+//                if(struc && called_struc == struc) {
+//                    found = true;
+//                }
+//            }
+//            if(!found) {
+//                linker.error((ASTNode*) chain) << "current struct doesn't inherit struct with name '" << called_struc->name_view() << "'";
+//                continue;
+//            }
+//            initializers[called_struc->name_view()] = { true, chain };
+//            continue;
+//        } else {
+//            linker.error("call to unknown node in init block", (ASTNode*) chain);
+//        }
+//    }
     diagnose_missing_members_for_init(linker);
 }

@@ -1030,6 +1030,61 @@ void BaseType::llvm_destruct(Codegen& gen, llvm::Value* pointer, SourceLocation 
     }
 }
 
+llvm::Value* find_destruct_ref(Codegen& gen, ASTNode* node) {
+    for(auto& pair : gen.destruct_nodes) {
+        if(pair.first == node) {
+            return pair.second;
+        }
+    }
+    return nullptr;
+}
+
+bool set_drop_flag_for_node(Codegen& gen, ASTNode* node, SourceLocation loc) {
+    switch (node->kind()) {
+        case ASTNodeKind::VarInitStmt:
+        case ASTNodeKind::FunctionParam:{
+            const auto ref = find_destruct_ref(gen, node);
+            if(ref) {
+                const auto instr = gen.builder->CreateStore(gen.builder->getInt1(false), ref);
+                gen.di.instr(instr, loc);
+                return true;
+            } else {
+                return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
+bool Value::set_drop_flag_for_moved_ref(Codegen& gen) {
+    const auto value = this;
+    switch(value->kind()) {
+        case ValueKind::AccessChain: {
+            if(value->as_access_chain_unsafe()->values.size() == 1) {
+                const auto chain = value->as_access_chain_unsafe();
+                const auto first = chain->values.front();
+                if(first->kind() == ValueKind::Identifier && (chain->is_moved() || first->as_identifier_unsafe()->is_moved)) {
+                    return set_drop_flag_for_node(gen, first->as_identifier_unsafe()->linked, first->encoded_location());
+                } else {
+                    return true;
+                }
+            } else {
+                return !value->as_access_chain_unsafe()->is_moved();
+            }
+        }
+        case ValueKind::Identifier: {
+            if(value->as_identifier_unsafe()->is_moved) {
+                return set_drop_flag_for_node(gen, value->as_identifier_unsafe()->linked, value->encoded_location());
+            } else {
+                return true;
+            }
+        }
+        default:
+            return true;
+    }
+}
+
 void Value::llvm_destruct(Codegen& gen, llvm::Value* allocaInst) {
     const auto type = create_type(gen.allocator);
     type->llvm_destruct(gen, allocaInst, encoded_location());

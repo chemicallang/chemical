@@ -329,6 +329,13 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
+     * when a value has been moved, and it has a associated runtime drop flag
+     * we need to make sure that flag is set to yes moved
+     * @return true on success / no need, false on failure
+     */
+    bool set_drop_flag_for_moved_ref(Codegen& gen);
+
+    /**
      * value is supposed to destruct itself, call the destructor, because scope has ended
      */
     void llvm_destruct(Codegen& gen, llvm::Value* allocaInst);

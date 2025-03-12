@@ -1,4 +1,4 @@
-var clear_called = 0;
+var post_move_called = 0;
 var move_called = 0;
 var copy_called = 0;
 var delete_called = 0;
@@ -9,7 +9,7 @@ struct ClearObj {
 
     @postmove
     func post_move(&self) {
-        clear_called++;
+        post_move_called++;
     }
 
     @delete
@@ -399,7 +399,7 @@ func test_moves() {
 
     // TESTING CLEAR FUNCTION CALLS ON MOVES
 
-    clear_called = 0;
+    post_move_called = 0;
     delete_called = 0;
     test("object moved from var init, clear function is not called", () => {
         if(true) {
@@ -408,62 +408,62 @@ func test_moves() {
             if(other.i != 432) return false;
         }
         // clear is not called, because obj won't be destructed, but delete is called, because other is destructed
-        return clear_called == 0 && delete_called == 1;
+        return post_move_called == 0 && delete_called == 1;
     })
-    clear_called = 0;
+    post_move_called = 0;
     delete_called = 0;
     test("function param object moved, clear function is not called - 1", () => {
         moved_param_not_cleared(ClearObj { i : 543 });
-        return clear_called == 0 && delete_called == 1;
+        return post_move_called == 0 && delete_called == 1;
     })
-    clear_called = 0;
+    post_move_called = 0;
     delete_called = 0;
     test("function param object moved, clear function is not called - 2", () => {
         var c = ClearObj { i : 543 }
         moved_param_not_cleared(c);
-        return clear_called == 0 && delete_called == 1;
+        return post_move_called == 0 && delete_called == 1;
     })
-    clear_called = 0;
+    post_move_called = 0;
     delete_called = 0;
     test("movable member of struct, delete function is called on previous value on assignment", () => {
         var con = ClearObjCon { c : ClearObj { i : 655 } }
         con.c = ClearObj { i : 543 }
-        return clear_called == 0 && delete_called == 1;
+        return post_move_called == 0 && delete_called == 1;
     })
-    clear_called = 0;
+    post_move_called = 0;
     delete_called = 0;
     test("movable member of struct, delete function is not called on previous moved value on assignment", () => {
         var con = ClearObjCon { c : ClearObj { i : 655 } }
         take_clear_obj(con.c);
         con.c = ClearObj { i : 543 }
-        return clear_called == 1 && delete_called == 1; // called once, inside the take_clear_obj, but not due to assignment
+        return post_move_called == 1 && delete_called == 1; // called once, inside the take_clear_obj, but not due to assignment
     })
-    clear_called = 0;
+    post_move_called = 0;
     delete_called = 0;
     test("clear function is called on previous value when moving into other struct", () => {
         if(true) {
             var con = ClearObjCon { c : ClearObj { i : 453 } }
             var con2 = ClearObjCon { c : con.c }
         }
-        return clear_called == 1 && delete_called == 2;
+        return post_move_called == 1 && delete_called == 2;
     })
-    clear_called = 0;
+    post_move_called = 0;
     delete_called = 0;
     test("clear function is called on previous value when moving into array", () => {
         if(true) {
             var con = ClearObjCon { c : ClearObj { i : 453 } }
             var con2 = { con.c }
         }
-        return clear_called == 1 && delete_called == 2;
+        return post_move_called == 1 && delete_called == 2;
     })
-    clear_called = 0;
+    post_move_called = 0;
     delete_called = 0;
     test("clear function is called on previous value when moving into var init", () => {
         if(true) {
             var con = ClearObjCon { c : ClearObj { i : 453 } }
             var con2 = con.c
         }
-        return clear_called == 1 && delete_called == 2;
+        return post_move_called == 1 && delete_called == 2;
     })
 
     // TESTING MOVE FUNCTIONS FROM HERE

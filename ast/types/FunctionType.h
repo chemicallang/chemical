@@ -306,6 +306,36 @@ public:
         FunctionType::copy_into(other, allocator, new_parent);
     }
 
+    // Extracts elements from `index` to the end and stores them in `backup`, removing them from `original`
+    template<typename T>
+    void extractEnd(std::vector<T>& original, std::vector<T>& backup, size_t index) {
+        if (index >= original.size()) return; // No elements to extract
+        backup.assign(original.begin() + index, original.end()); // Store in backup
+        original.erase(original.begin() + index, original.end()); // Remove from original
+    }
+
+    // Restores the backed-up elements into the original vector at the end
+    template<typename T>
+    inline void restoreEnd(std::vector<T>& original, const std::vector<T>& backup) {
+        original.insert(original.end(), backup.begin(), backup.end()); // Append backup to original
+    }
+
+    void save_moved_ids_after(std::vector<VariableIdentifier*>& backup, std::size_t index) {
+        extractEnd(moved_identifiers, backup, index);
+    }
+
+    void save_moved_chains_after(std::vector<AccessChain*>& backup, std::size_t index) {
+        extractEnd(moved_chains, backup, index);
+    }
+
+    void restore_moved_ids(const std::vector<VariableIdentifier*>& backup) {
+        restoreEnd(moved_identifiers, backup);
+    }
+
+    void restore_moved_chains(const std::vector<AccessChain*>& backup) {
+        restoreEnd(moved_chains, backup);
+    }
+
     /**
      * called by return statement to set the return value and stop
      * interpretation of function body

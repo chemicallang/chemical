@@ -425,25 +425,6 @@ bool FunctionTypeBody::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser)
         diagnoser.error(moved) << message;
         return false;
     }
-    const auto linked = id->linked_node();
-    const auto linked_kind = linked->kind();
-    if (linked_kind == ASTNodeKind::VarInitStmt) {
-        const auto init = linked->as_var_init_unsafe();
-#ifdef DEBUG
-        if(init->get_has_moved()) {
-            diagnoser.error(id) << "found var init that skipped move check, identifier '" << init->name_view() << "' has already been moved";
-            return false;
-        }
-#endif
-    } else if(linked_kind == ASTNodeKind::FunctionParam) {
-        const auto param = linked->as_func_param_unsafe();
-#ifdef DEBUG
-        if(param->get_has_moved()) {
-            diagnoser.error(id) << "found function param that skipped move check, identifier '" << param->name << "' has already been moved";
-            return false;
-        }
-#endif
-    }
     return true;
 }
 
@@ -460,21 +441,9 @@ bool FunctionTypeBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagn
     const auto linked_kind = linked->kind();
     if (linked_kind == ASTNodeKind::VarInitStmt) {
         const auto init = linked->as_var_init_unsafe();
-#ifdef DEBUG
-        if(init->get_has_moved()) {
-            diagnoser.error(id) << "found var init that skipped move check, identifier '" << init->name_view() << "' has already been moved";
-            return false;
-        }
-#endif
         init->moved();
     } else if(linked_kind == ASTNodeKind::FunctionParam) {
         const auto param = linked->as_func_param_unsafe();
-#ifdef DEBUG
-        if(param->get_has_moved()) {
-            diagnoser.error(id) << "found function param that skipped move check, identifier '" << param->name << "' has already been moved";
-            return false;
-        }
-#endif
         param->moved();
     }
     mark_moved_no_check(id);
@@ -563,12 +532,15 @@ bool FunctionTypeBody::mark_moved_value(
         return false;
     }
     const auto linked_def = linked_node->as_members_container_unsafe();
-    const bool has_destr = linked_def->destructor_func();
-    const bool has_clear_fn = linked_def->clear_func();
-    const bool has_move_fn = linked_def->pre_move_func();
-    if (!has_destr && !has_clear_fn && !has_move_fn) {
+    if(linked_def->is_shallow_copyable()) {
         return false;
     }
+//    const bool has_destr = linked_def->destructor_func();
+//    const bool has_clear_fn = linked_def->clear_func();
+//    const bool has_move_fn = linked_def->pre_move_func();
+//    if (!has_destr && !has_clear_fn && !has_move_fn) {
+//        return false;
+//    }
     bool final = false;
     if(expected_type) {
         const auto pure_expected = expected_type->pure_type(allocator);
@@ -598,17 +570,17 @@ bool FunctionTypeBody::mark_moved_value(
         final = mark_moved_value(&value, diagnoser);
     }
     if(final) {
-        if(has_destr) {
-            if(!has_clear_fn && !has_move_fn) {
-                diagnoser.error("struct has a delete function but has no clear / move / implicit copy function", &value);
-                return false;
-            }
-        } else {
-            if(has_clear_fn || has_move_fn) {
-                diagnoser.error("struct has a clear / delete function but has no delete function", &value);
-            }
-            return false;
-        }
+//        if(has_destr) {
+//            if(!has_clear_fn && !has_move_fn) {
+//                diagnoser.error("struct has a delete function but has no clear / move / implicit copy function", &value);
+//                return false;
+//            }
+//        } else {
+//            if(has_clear_fn || has_move_fn) {
+//                diagnoser.error("struct has a clear / delete function but has no delete function", &value);
+//            }
+//            return false;
+//        }
         return true;
     }
     return false;

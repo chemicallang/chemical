@@ -3,6 +3,7 @@
 #include "If.h"
 #include "ast/base/BaseType.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/types/FunctionType.h"
 #include "ast/base/InterpretScope.h"
 
 #ifdef COMPILER_BUILD
@@ -276,21 +277,32 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
             }
         }
     }
+
+    // temporary moved identifiers and chains
+    std::vector<VariableIdentifier*> moved_ids;
+    std::vector<AccessChain*> moved_chains;
+
+    // link the body
     linker.scope_start();
-//    condition->link(linker, condition);
-    ifBody.link_sequentially(linker);
+    linker.link_body_seq_backing_moves(ifBody, moved_ids, moved_chains);
     linker.scope_end();
+    // link the else ifs
     for(auto& elseIf : elseIfs) {
         linker.scope_start();
-//        elseIf.first->link(linker, elseIf.first);
-        elseIf.second.link_sequentially(linker);
+        linker.link_body_seq_backing_moves(elseIf.second, moved_ids, moved_chains);
         linker.scope_end();
     }
+    // link the else body
     if(elseBody.has_value()) {
         linker.scope_start();
-        elseBody->link_sequentially(linker);
+        linker.link_body_seq_backing_moves(elseBody.value(), moved_ids, moved_chains);
         linker.scope_end();
     }
+
+    const auto curr_func = linker.current_func_type;
+    curr_func->restore_moved_ids(moved_ids);
+    curr_func->restore_moved_chains(moved_chains);
+
 }
 
 Value* IfStatement::get_value_node() {

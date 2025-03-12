@@ -374,31 +374,15 @@ public:
      */
     void declare_runtime(const chem::string_view& name, ASTNode* node);
 
-//    /**
-//     * declare an exported runtime symbol
-//     */
-//    void declare_exported_runtime(const chem::string_view& name, const chem::string_view& runtime_name, ASTNode* node);
-//
-//    /**
-//     * symbol will be undeclared if present, otherwise error if error_out
-//     */
-//    bool undeclare(const chem::string_view& name);
-//
-//    /**
-//     * symbol will be undecalred if present, only in the current scope
-//     */
-//    bool undeclare_in_current_file(const chem::string_view& name);
-//
-//    /**
-//     * undeclare in current module
-//     */
-//    bool undeclare_in_current_module(const chem::string_view& name);
-
-//    /**
-//     * symbol will be undeclared in other files (not current file)
-//     * only a single symbol is undeclared
-//     */
-//    bool undeclare_in_scopes_above(const chem::string_view& name, int until);
+    /**
+     * this will link the given body sequentially, backing the moved identifiers and chains
+     * into the given vectors, which you can restore later
+     */
+    void link_body_seq_backing_moves(
+        Scope& scope,
+        std::vector<VariableIdentifier*>& moved_ids,
+        std::vector<AccessChain*>& moved_chains
+    );
 
     /**
      * helper method that should be used to declare functions that takes into account
@@ -424,14 +408,6 @@ public:
     void declare_exported_function(const chem::string_view& name, FunctionDeclaration* declaration) {
         declare_function_quietly(name, declaration);
     }
-
-//    /**
-//     * declare exported runtime function
-//     */
-//    void declare_exported_runtime_func(const chem::string_view& name, const chem::string_view& runtime_name, FunctionDeclaration* decl) {
-//        declare_function_quietly(name, decl);
-//        declare_runtime(runtime_name, (ASTNode*) decl);
-//    }
 
     /**
      * symbol resolves a file

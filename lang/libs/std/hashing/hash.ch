@@ -12,7 +12,7 @@ func hash_ushort(key : ushort) : uint {
     return (key * KnuthsMultiplicativeConstant)
 }
 
-public func <T> __wrap_murmur_hash(value : T) : uint {
+public func <T> __wrap_murmur_hash(value : &T) : uint {
     return murmurhash(&value, sizeof(T), 0)
 }
 
@@ -28,7 +28,7 @@ func <T> is_type_ref_number() : bool {
 
 public interface Eq {
 
-    func equals(&self, &other) : bool
+    func equals(&self, other : &self) : bool
 
 }
 

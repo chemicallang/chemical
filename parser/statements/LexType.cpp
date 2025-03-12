@@ -327,6 +327,15 @@ BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstTy
     }
 }
 
+MembersContainer* find_container_parent(ASTNode* parent) {
+    if(parent == nullptr) return nullptr;
+    if(ASTNode::isMembersContainer(parent->kind())) {
+        return parent->as_members_container_unsafe();
+    } else {
+        return find_container_parent(parent->parent());
+    }
+}
+
 /**
  * here's how mutable, dynamic and pointer types work
  * *mut Phone <-- direct linked type made mutable, ptr before type finds the linked type, makes itself mutable \n
@@ -341,6 +350,17 @@ BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstTy
 BaseType* Parser::parseType(ASTAllocator& allocator) {
 
     switch(token->type) {
+        case TokenType::SelfKw: {
+            const auto self_tok = token;
+            token++;
+            const auto parent = find_container_parent(parent_node);
+            if(parent) {
+               return new (allocator.allocate<LinkedType>()) LinkedType("Self", (ASTNode*) parent, loc_single(self_tok));
+            } else {
+                error("couldn't find the parent container");
+                return nullptr;
+            }
+        }
         case TokenType::StructKw:
             return parseStructType(allocator);
         case TokenType::UnionKw:

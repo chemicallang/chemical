@@ -141,9 +141,7 @@ public:
      * x = something_else <-- no error because x is being unmoved !
      * this is called by lhs value of assignment statement to link itself, no other place !
      */
-    virtual bool link_assign(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type = nullptr) {
-        return link(linker, value_ptr, expected_type);
-    }
+    bool link_assign(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type = nullptr);
 
     /**
      * relink value after generic types are known in the function call

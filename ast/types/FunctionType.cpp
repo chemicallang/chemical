@@ -512,7 +512,7 @@ bool FunctionTypeBody::mark_moved_value(
         return false;
     }
     const auto expected_type_kind = expected_type ? expected_type->kind() : BaseTypeKind::Unknown;
-    if (expected_type_kind == BaseTypeKind::Reference) {
+    if (expected_type_kind == BaseTypeKind::Reference || expected_type_kind == BaseTypeKind::Pointer) {
         return false;
     }
     const auto type = value.create_type(allocator);
@@ -524,8 +524,7 @@ bool FunctionTypeBody::mark_moved_value(
     const auto linked_node_kind = linked_node->kind();
     // TODO this doesn't account for typealiases
     if(linked_node_kind == ASTNodeKind::GenericTypeParam) {
-        // all generic types are moved (later we'll allow them to be moved twice (use after move)
-        // then we'll indicate in their type to check for multiple moves, to provide diagnostics to function arguments
+
         return mark_moved_value(&value, diagnoser);
     }
     if(!ASTNode::isMembersContainer(linked_node_kind)) {

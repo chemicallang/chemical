@@ -137,6 +137,7 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 // Other Keywords
                 { "mut", TokenType::MutKw },
                 { "self", TokenType::SelfKw },
+                { "Self", TokenType::SelfKw },
                 { "this", TokenType::ThisKw },
                 { "as", TokenType::AsKw },
                 { "is", TokenType::IsKw },

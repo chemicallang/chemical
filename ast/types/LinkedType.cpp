@@ -79,8 +79,10 @@ bool LinkedType::satisfies(BaseType *other) {
 }
 
 bool LinkedType::link(SymbolResolver &linker) {
-    linked = linker.find(type);
-    if(!linked) {
+    const auto found = linker.find(type);
+    if(found) {
+        linked = found;
+    } else if(linked == nullptr) {
         linker.error(this) << "unresolved symbol, couldn't find referenced type " << type;
         return false;
     }

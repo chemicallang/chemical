@@ -13,7 +13,6 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
     if(consumeWSOfType(TokenType::UnionKw)) {
 
-
         auto decl = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion("", parent_node, 0, specifier);
 
         annotate(decl);
@@ -41,6 +40,7 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
         }
         auto id = consumeIdentifierOrKeyword();
         if(id) {
+            decl->set_encoded_location(loc_single(id));
             decl->name = allocate_view(allocator, id->value);
         } else {
             error("expected an identifier after the '}' for anonymous union definition");
@@ -63,7 +63,7 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecif
             return nullptr;
         }
 
-        auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(allocator, identifier), parent_node, 0, specifier);
+        auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(allocator, identifier), parent_node, loc_single(identifier), specifier);
 
         annotate(decl);
 

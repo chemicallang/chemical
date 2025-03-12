@@ -156,7 +156,7 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpeci
             return nullptr;
         }
 
-        const auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(loc_id(allocator, identifier), parent_node, 0, specifier);
+        const auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(loc_id(allocator, identifier), parent_node, loc_single(identifier), specifier);
         annotate(decl);
 
         std::vector<GenericTypeParameter*> gen_params;

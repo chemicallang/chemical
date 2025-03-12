@@ -83,6 +83,25 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* c
     return false;
 }
 
+void SymbolResolver::link_body_seq_backing_moves(
+        Scope& scope,
+        std::vector<VariableIdentifier*>& moved_ids,
+        std::vector<AccessChain*>& moved_chains
+) {
+    const auto curr_func = current_func_type;
+
+    // where the moved ids / chains of if body begin
+    const auto if_moved_ids_begin = curr_func->moved_identifiers.size();
+    const auto if_moved_chains_begin = curr_func->moved_chains.size();
+
+    // link the body
+    scope.link_sequentially(*this);
+
+    // save all the moved identifiers / chains inside the if body to temporary location
+    curr_func->save_moved_ids_after(moved_ids, if_moved_ids_begin);
+    curr_func->save_moved_chains_after(moved_chains, if_moved_chains_begin);
+}
+
 void SymbolResolver::declare_overriding(const chem::string_view &name, ASTNode* node) {
 #ifdef DEBUG
     if(name.empty()) {

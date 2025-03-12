@@ -206,7 +206,7 @@ llvm::Value* arg_value(
     } else {
 
         // previously we were mem cpying every object when moved
-        // now we will only copy and send to function calls, objects that have implicit copy
+        // now we will only copy and send to function calls, objects that have copy annotation
         argValue = gen.memcpy_shallow_copy(pure_type, value, argValue);
 
         // get the value type

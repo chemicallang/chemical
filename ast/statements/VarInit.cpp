@@ -7,6 +7,7 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/types/GenericType.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/structures/VariantDefinition.h"
 
@@ -155,6 +156,8 @@ void queue_destruct(Codegen& gen, VarInitStatement* node, ASTNode* typeLinked) {
             }
             gen.destruct_nodes.emplace_back(node, should_destruct);
         }
+    } else if(typeLinked->kind() == ASTNodeKind::VariantMember) {
+        queue_destruct(gen, node, typeLinked->as_variant_member_unsafe()->parent());
     }
 }
 

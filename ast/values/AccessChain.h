@@ -128,8 +128,6 @@ public:
 
     llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
-
     bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
     unsigned int store_in_struct(

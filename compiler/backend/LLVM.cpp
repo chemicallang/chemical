@@ -69,6 +69,8 @@
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/statements/ThrowStatement.h"
+#include "ast/structures/VariantMember.h"
+#include "ast/structures/VariantDefinition.h"
 #include "ast/structures/LoopBlock.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/values/FunctionCall.h"
@@ -766,10 +768,6 @@ llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &id
     return value;
 }
 
-void AccessChain::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
-    values[values.size() - 1]->llvm_destruct(gen, allocaInst);
-}
-
 bool AccessChain::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     auto result = values[values.size() - 1]->add_child_index(gen, indexes, name);
     return result;
@@ -889,6 +887,34 @@ void UnreachableStmt::code_gen(Codegen &gen) {
     gen.CreateUnreachable(encoded_location());
 }
 
+void conditional_destruct(Codegen& gen, std::pair<ASTNode*, llvm::Value*>& pair, Value* returnValue, SourceLocation location) {
+    if(pair.second) {
+
+        // we must check the destruct flag before destruction
+        const auto loadIns = gen.builder->CreateLoad(gen.builder->getInt1Ty(), pair.second);
+        gen.di.instr(loadIns, location);
+
+        // create a conditional block, for destruction
+        const auto destructBlock = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+        const auto endBlock = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+
+        // if the condition is true, we destruct
+        gen.CreateCondBr(loadIns, destructBlock, endBlock, location);
+
+        // destruction code
+        gen.SetInsertPoint(destructBlock);
+        pair.first->code_gen_destruct(gen, returnValue, location);
+        gen.CreateBr(endBlock, location);
+
+        // generate next code in a other blocks
+        gen.SetInsertPoint(endBlock);
+
+    } else {
+        // there's no runtime flag, so we just destruct it
+        pair.first->code_gen_destruct(gen, returnValue, location);
+    }
+}
+
 void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
 
     const auto func_type = gen.current_func_type;
@@ -943,7 +969,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     if(!gen.has_current_block_ended) {
         int i = gen.destruct_nodes.size() - 1;
         while(i >= 0) {
-            gen.destruct_nodes[i]->code_gen_destruct(gen, value);
+            conditional_destruct(gen, gen.destruct_nodes[i], value, encoded_location());
             i--;
         }
         gen.destroy_current_scope = false;
@@ -984,6 +1010,55 @@ void BreakStatement::code_gen(Codegen &gen) {
     gen.CreateBr(gen.current_loop_exit, encoded_location());
 }
 
+void BaseType::llvm_destruct(Codegen& gen, llvm::Value* pointer, SourceLocation location) {
+    switch (kind()) {
+        case BaseTypeKind::Linked:
+            as_linked_type_unsafe()->linked->llvm_destruct(gen, pointer, location);
+            break;
+        case BaseTypeKind::Generic:
+            as_generic_type_unsafe()->referenced->linked->llvm_destruct(gen, pointer, location);
+            break;
+        case BaseTypeKind::Array: {
+            const auto arr_type = as_array_type_unsafe();
+            if (arr_type->elem_type->kind() == BaseTypeKind::Linked || arr_type->elem_type->kind() == BaseTypeKind::Generic) {
+                gen.destruct(pointer, arr_type->get_array_size(), arr_type->elem_type, location);
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void Value::llvm_destruct(Codegen& gen, llvm::Value* allocaInst) {
+    const auto type = create_type(gen.allocator);
+    type->llvm_destruct(gen, allocaInst, encoded_location());
+}
+
+void ASTNode::code_gen_destruct(Codegen &gen, Value* returnValue, SourceLocation location) {
+    switch(kind()) {
+        case ASTNodeKind::VarInitStmt:{
+            const auto init = as_var_init_unsafe();
+            if(returnValue && returnValue->linked_node() == this) {
+                return;
+            }
+            const auto type = init->create_value_type(gen.allocator);
+            type->llvm_destruct(gen, init->llvm_ptr, location);
+            break;
+        }
+        case ASTNodeKind::FunctionParam:{
+            const auto param = as_func_param_unsafe();
+            if(!(returnValue && returnValue->linked_node() == this)) {
+                param->type->llvm_destruct(gen, gen.current_function->getArg(param->calculate_c_or_llvm_index(gen.current_func_type)), location);
+            }
+            param->pointer = nullptr;
+            break;
+        }
+        default:
+            return;
+    }
+}
+
 void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
     for(const auto node : nodes) {
         node->code_gen_declare(gen);
@@ -998,7 +1073,8 @@ void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
     if(gen.destroy_current_scope) {
         i = ((int) gen.destruct_nodes.size()) - 1;
         while (i >= (int) destruct_begin) {
-            gen.destruct_nodes[i]->code_gen_destruct(gen, nullptr);
+            // TODO use the location that represents the scope end
+            conditional_destruct(gen, gen.destruct_nodes[i], nullptr, encoded_location());
             i--;
         }
     } else {
@@ -1384,10 +1460,6 @@ void Namespace::code_gen_external_declare(Codegen &gen) {
     for(const auto node : nodes) {
         node->code_gen_external_declare(gen);
     }
-}
-
-void Namespace::code_gen_destruct(Codegen &gen, Value *returnValue) {
-    throw std::runtime_error("code_gen_destruct on namespace called");
 }
 
 void LLVMBackendContext::mem_copy(Value* lhs, Value* rhs) {

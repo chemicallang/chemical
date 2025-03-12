@@ -292,12 +292,6 @@ public:
     }
 
     /**
-     * this generic type would subscribe to this node, so all usages of this generic node
-     * will be registered with this subscriber
-     */
-    virtual void subscribe(GenericType* subscriber);
-
-    /**
      * any value held by this node, for example var init statement can hold an initializer
      */
     virtual Value* holding_value() {
@@ -446,9 +440,7 @@ public:
      * to destructor
      * @param returnValue is the value being returned, which mustn't be destructed
      */
-    virtual void code_gen_destruct(Codegen &gen, Value* returnValue) {
-        // does nothing by default
-    }
+    void code_gen_destruct(Codegen &gen, Value* returnValue, SourceLocation location);
 
     /**
      * add child index in llvm indexes vector

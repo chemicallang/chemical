@@ -5,6 +5,7 @@
 #include "BaseType.h"
 #include "Value.h"
 #include "ast/structures/VariantDefinition.h"
+#include "compiler/Codegen.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/structures/VariantMember.h"
@@ -515,20 +516,23 @@ void ASTNode::llvm_destruct(Codegen& gen, llvm::Value* allocaInst, SourceLocatio
         case ASTNodeKind::VariantDecl:
             as_variant_def_unsafe()->llvm_destruct(gen, allocaInst, location);
             return;
+        case ASTNodeKind::VariantMember:
+            // TODO find out, if we allocated exactly the variant member and we need to de allocate that
+            as_variant_member_unsafe()->parent()->llvm_destruct(gen, allocaInst, location);
+            return;
+        case ASTNodeKind::TypealiasStmt:{
+            const auto linked = as_typealias_unsafe()->actual_type->get_direct_linked_node();
+            if(linked) {
+                linked->llvm_destruct(gen, allocaInst, location);
+            }
+            return;
+        }
         default:
             return;
     }
 }
 
 #endif
-
-void ASTNode::subscribe(GenericType* subscriber) {
-#ifdef DEBUG
-    throw std::runtime_error("ASTNode::subscribe called");
-#else
-    std::cerr << "ASTNode::subscibe called on node with representation " + representation() << std::endl;
-#endif
-}
 
 BaseType* ASTNode::create_value_type(ASTAllocator& allocator) {
     return nullptr;

@@ -219,9 +219,9 @@ llvm::Function *Codegen::create_nested_function(const std::string_view &name, ll
     const auto destruct_begin = destruct_nodes.size();
     // this begins the function scope by creating a di subprogram
     di.start_nested_function_scope(func_type, nested_function);
+    createFunctionBlock(nested_function);
     // this will queue the destruction of parameters that have been moved into the function
     func_type->queue_destruct_params(*this);
-    createFunctionBlock(nested_function);
     // this will emit without creating a scope, so direct instructions use the function di subprogram as parent scope
     scope.code_gen(*this, destruct_begin);
     end_function_block(scope.encoded_location());

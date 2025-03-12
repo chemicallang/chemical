@@ -146,8 +146,6 @@ public:
 
     llvm::Value *llvm_linked_func_callee(Codegen& gen);
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
-
     llvm::InvokeInst *llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind);
 
     llvm::Value *llvm_pointer(Codegen &gen) final;

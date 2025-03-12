@@ -129,8 +129,6 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
-
     unsigned int store_in_struct(
             Codegen &gen,
             Value *parent,

@@ -100,12 +100,6 @@ llvm::Value *ArrayValue::llvm_arg_value(Codegen &gen, BaseType* expected_type) {
     return llvm_allocate(gen, "", expected_type);
 }
 
-void ArrayValue::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
-    auto elem_type = element_type(gen.allocator);
-    // TODO use a different location for this destruction
-    gen.destruct(allocaInst, array_size(), elem_type, encoded_location());
-}
-
 unsigned int ArrayValue::store_in_array(
         Codegen &gen,
         Value *parent,

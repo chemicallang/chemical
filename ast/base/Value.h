@@ -335,9 +335,7 @@ public:
     /**
      * value is supposed to destruct itself, call the destructor, because scope has ended
      */
-    virtual void llvm_destruct(Codegen& gen, llvm::Value* allocaInst) {
-        // does nothing by default
-    }
+    void llvm_destruct(Codegen& gen, llvm::Value* allocaInst);
 
     /**
      * load the given value, taking in to account structs

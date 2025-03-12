@@ -123,21 +123,6 @@ llvm::Value *StructValue::llvm_pointer(Codegen &gen) {
     return allocaInst;
 }
 
-void StructValue::llvm_destruct(Codegen &gen, llvm::Value *givenAlloca) {
-    if(definition) {
-        definition->llvm_destruct(gen, givenAlloca, encoded_location());
-    } else {
-        switch(refType->kind()) {
-            case BaseTypeKind::Union:
-            case BaseTypeKind::Struct:
-                // TODO we must do this here
-                return;
-            default:
-                return;
-        }
-    }
-}
-
 unsigned int StructValue::store_in_struct(
         Codegen &gen,
         Value *parent,

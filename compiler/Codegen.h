@@ -80,8 +80,11 @@ public:
 
     /**
      * contains references to nodes that must be destructed at return
+     * the second llvm value is a optional boolean flag, that is checked to see if the
+     * destruction should be performed at runtime, because certain values become moved
+     * and therefore no destruction is performed on them
      */
-    std::vector<ASTNode*> destruct_nodes;
+    std::vector<std::pair<ASTNode*, llvm::Value*>> destruct_nodes;
 
     /**
      * when a function is evaluated, it's value is stored on this map, so it can be looked up for destruction

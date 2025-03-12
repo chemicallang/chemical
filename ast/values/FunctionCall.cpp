@@ -460,37 +460,6 @@ llvm::Value *call_capturing_lambda(
     return instr;
 }
 
-void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
-    const auto linked = parent_val->linked_node();
-    // enum member being used as a no value
-    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
-    if(ASTNode::isFunctionDecl(linked_kind)) {
-        const auto func = linked->as_function_unsafe();
-        if(func->is_comptime()) {
-            auto eval = gen.evaluated_func_calls.find(this);
-            if(eval != gen.evaluated_func_calls.end()) {
-                eval->second->llvm_destruct(gen, allocaInst);
-                return;
-            } else {
-                // should this be reported ?
-//            gen.info("couldn't find evaluated value of the function to destruct");
-            }
-        }
-    } else if(linked_kind == ASTNodeKind::VariantMember) {
-        const auto member = linked->as_variant_member_unsafe();
-        const auto variant = member->parent();
-        variant->llvm_destruct(gen, allocaInst, encoded_location());
-        return;
-    }
-    auto funcType = function_type(gen.allocator);
-    if(funcType) {
-        auto return_linked = funcType->returnType->get_direct_linked_node();
-        if(return_linked) {
-            return_linked->llvm_destruct(gen, allocaInst, encoded_location());
-        }
-    }
-}
-
 /**
  * check if chain is loadable, before loading it
  */

@@ -69,7 +69,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
             if(is_const() && !value->as_struct_value() && !value->as_array_value()) {
                 llvm_ptr = initializer_value(gen);
-                gen.destruct_nodes.emplace_back(this);
+                put_destructible(gen);
                 gen.di.declare(this, llvm_ptr);
                 return;
             }
@@ -128,42 +128,33 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 gen.di.instr(storeInst, encoded_location());
             }
         }
-        gen.destruct_nodes.emplace_back(this);
+        put_destructible(gen);
         gen.di.declare(this, llvm_ptr);
     }
 }
 
-void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
-    if(get_has_moved()) return;
-    if(returnValue) {
-        auto linkedNode = returnValue->linked_node();
-        if(linkedNode == this) {
-            return;
-        }
-    }
-    if(value) {
-        if(value->is_ref_moved()) {
-            known_type()->linked_node()->llvm_destruct(gen, llvm_ptr, encoded_location());
-            return;
-        }
-        value->llvm_destruct(gen, llvm_ptr);
-    } else {
-        auto kind = type->kind();
-        switch (kind) {
-            case BaseTypeKind::Linked:
-            case BaseTypeKind::Generic:
-                type->linked_node()->llvm_destruct(gen, llvm_ptr, encoded_location());
-                break;
-            case BaseTypeKind::Array: {
-                const auto arr_type = (ArrayType *) type;
-                if (arr_type->elem_type->kind() == BaseTypeKind::Linked ||
-                arr_type->elem_type->kind() == BaseTypeKind::Generic) {
-                    gen.destruct(llvm_ptr, arr_type->get_array_size(), arr_type->elem_type, encoded_location());
-                }
-                break;
+void VarInitStatement::put_destructible(Codegen& gen) {
+    const auto type = create_value_type(gen.allocator);
+    const auto container = type->get_direct_linked_container();
+    if(container) {
+        const auto destructor = container->destructor_func();
+        if(destructor) {
+            llvm::Value* should_destruct = nullptr;
+            // if a single move was performed using this variable
+            // we allocate a flag
+            if(get_has_moved()) {
+
+                // create a boolean flag
+                const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
+                gen.di.instr(instr, this);
+
+                // store true in it, that this value should be destructed
+                const auto storeIns = gen.builder->CreateStore(gen.builder->getInt1(true), instr);
+                gen.di.instr(storeIns, this);
+
+                should_destruct = instr;
             }
-            default:
-                break;
+            gen.destruct_nodes.emplace_back(destructor, should_destruct);
         }
     }
 }

@@ -127,8 +127,6 @@ public:
 
     void code_gen_external_declare(Codegen &gen) final;
 
-    void code_gen_destruct(Codegen &gen, Value *returnValue) final;
-
 #endif
 
 };

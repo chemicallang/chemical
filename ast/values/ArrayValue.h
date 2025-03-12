@@ -75,8 +75,6 @@ public:
 
     llvm::Value *llvm_arg_value(Codegen &gen, BaseType* expected_type) final;
 
-    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) final;
-
     unsigned int store_in_array(
             Codegen &gen,
             Value *parent,

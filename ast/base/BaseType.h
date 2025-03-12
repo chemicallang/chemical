@@ -421,6 +421,11 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
+     * the llvm destruct
+     */
+    void llvm_destruct(Codegen& gen, llvm::Value* pointer, SourceLocation location);
+
+    /**
      * return clang type for the current type
      */
     virtual clang::QualType clang_type(clang::ASTContext &context);

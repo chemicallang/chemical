@@ -51,14 +51,6 @@ void FunctionParam::code_gen(Codegen &gen) {
     pointer = nullptr;
 }
 
-void FunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
-    if(!(returnValue && returnValue->linked_node() == this)) {
-        // TODO wrong location sent, as we don't have the location
-        type->linked_node()->llvm_destruct(gen, gen.current_function->getArg(calculate_c_or_llvm_index(gen.current_func_type)), encoded_location());
-    }
-    pointer = nullptr;
-}
-
 llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
     if(pointer) {
         return pointer;
@@ -155,10 +147,22 @@ llvm::Function*& FunctionDeclaration::get_llvm_data() {
 
 void FunctionType::queue_destruct_params(Codegen& gen) {
     for(const auto param : params) {
-        const auto k = param->type->kind();
         const auto directly_linked = param->type->get_direct_linked_container();
         if(directly_linked && directly_linked->destructor_func()) {
-            gen.destruct_nodes.emplace_back(param);
+            llvm::Value* should_destruct = nullptr;
+            if(param->get_has_moved()) {
+
+                // create a boolean flag
+                const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
+                gen.di.instr(instr, this);
+
+                // store true in it, that this value should be destructed
+                const auto storeIns = gen.builder->CreateStore(gen.builder->getInt1(true), instr);
+                gen.di.instr(storeIns, this);
+
+                should_destruct = instr;
+            }
+            gen.destruct_nodes.emplace_back(param, should_destruct);
         }
     }
 }
@@ -170,8 +174,8 @@ void body_gen_no_scope(Codegen &gen, llvm::Function* funcCallee, Scope& body, Fu
     gen.current_function = funcCallee;
     auto prev_destruct_nodes = std::move(gen.destruct_nodes);
     const auto destruct_begin = 0;
-    func_type->queue_destruct_params(gen);
     gen.SetInsertPoint(&funcCallee->getEntryBlock());
+    func_type->queue_destruct_params(gen);
     for(auto& param : func_type->params) {
         param->code_gen(gen);
     }

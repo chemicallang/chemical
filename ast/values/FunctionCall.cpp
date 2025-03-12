@@ -209,6 +209,11 @@ llvm::Value* arg_value(
         // now we will only copy and send to function calls, objects that have copy annotation
         argValue = gen.memcpy_shallow_copy(pure_type, value, argValue);
 
+        // this will set the drop flag to false, if the value is moved
+        if(!value->set_drop_flag_for_moved_ref(gen)) {
+            gen.warn("couldn't set the drop flag to false for moved value", value);
+        }
+
         // get the value type
         const auto val_type = value->create_type(gen.allocator);
 

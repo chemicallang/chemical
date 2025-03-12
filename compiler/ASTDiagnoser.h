@@ -112,6 +112,11 @@ public:
         return error(node->encoded_location());
     }
 
+    /**
+     * prints the debug location right away
+     */
+    void print_debug_location(SourceLocation location);
+
     //-----------
     // OTHER METHODS START HERE THAT MAYBE USING APPEND
     //----------

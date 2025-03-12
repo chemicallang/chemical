@@ -78,21 +78,16 @@ public:
         SymbolResolver &linker,
         BaseType *type,
         Value** value_ptr,
-        unsigned int end_offset,
         bool check_validity,
         bool assign
     );
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) final {
-        return link(linker, type, &value_ptr, 0, true, false);
+        return link(linker, type, &value_ptr, true, false);
     }
 
     inline bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) {
-        return link(linker, expected_type, &value_ptr, 0, true, true);
-    }
-
-    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) final {
-        link(linker, expected_type, nullptr, 0, false, false);
+        return link(linker, expected_type, &value_ptr, true, true);
     }
 
     /**

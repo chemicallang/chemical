@@ -6,7 +6,7 @@
 #include "UsingStmt.h"
 
 void UsingStmt::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(!chain->link(linker, nullptr, nullptr, 0, true, false)) {
+    if(!chain->link(linker, nullptr, nullptr, true, false)) {
         return;
     }
     auto linked = chain->linked_node();

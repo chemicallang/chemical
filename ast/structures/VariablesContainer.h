@@ -47,6 +47,15 @@ public:
 
     BaseDefMember* largest_member();
 
+    bool is_one_of_inherited_type(BaseType* type) {
+        for(auto& inh : inherited) {
+            if(inh.type == type) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     virtual void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);
 
     /**

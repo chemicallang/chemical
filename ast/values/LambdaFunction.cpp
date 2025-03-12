@@ -81,7 +81,7 @@ llvm::Type *LambdaFunction::capture_struct_type(Codegen &gen) {
 #endif
 
 BaseType* LambdaFunction::create_type(ASTAllocator& allocator) {
-    auto func_type = (FunctionType*) FunctionType::copy(allocator);
+    auto func_type = FunctionType::copy(allocator);
     func_type->setIsCapturing(!captureList.empty());
     return func_type;
 }
@@ -114,23 +114,30 @@ BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes
     return new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
 }
 
-void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
-    for(auto& cap : fn->captureList) {
-        cap->declare_and_link(linker, (ASTNode*&) cap);
+bool link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
+    bool result = true;
+    for(const auto cap : fn->captureList) {
+        if(!cap->declare_and_link(linker)) {
+            result = false;
+        }
     }
     for (auto& param : fn->params) {
         if(link_param_types) {
-            param->link_param_type(linker);
+            if(!param->link_param_type(linker)) {
+                result = false;
+            }
         }
         param->declare_and_link(linker, (ASTNode*&) param);
     }
+    return result;
 }
 
-void link_full(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
+bool link_full(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
     linker.scope_start();
-    link_params_and_caps(fn, linker, link_param_types);
+    const auto result = link_params_and_caps(fn, linker, link_param_types);
     fn->scope.link_sequentially(linker);
     linker.scope_end();
+    return result;
 }
 
 bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
@@ -147,11 +154,18 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
 #endif
 
         // linking params and their types
-        link_full(this, linker, true);
+        auto result = link_full(this, linker, true);
 
         // finding return type
         auto found_return_type = find_return_type(*linker.ast_allocator, scope.nodes);
+        if(found_return_type == nullptr) {
+            result = false;
+        }
         returnType = found_return_type;
+
+        if(result) {
+            data.signature_resolved = true;
+        }
 
     } else {
 
@@ -163,7 +177,9 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
         }
 
         link(linker, func_type);
-        link_full(this, linker, false);
+        if(link_full(this, linker, false)) {
+            data.signature_resolved = true;
+        }
 
     }
 

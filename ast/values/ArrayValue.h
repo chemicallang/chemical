@@ -107,8 +107,6 @@ public:
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
-    void relink_after_generic(SymbolResolver &linker, BaseType *expected_type) override;
-
     [[nodiscard]]
     BaseType* element_type(ASTAllocator& allocator) const;
 

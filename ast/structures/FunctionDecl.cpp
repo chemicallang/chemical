@@ -1563,9 +1563,14 @@ BaseType* CapturedVariable::known_type() {
     }
 }
 
-void CapturedVariable::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linked = linker.find(name);
+bool CapturedVariable::declare_and_link(SymbolResolver& linker) {
+    const auto found = linker.find(name);
+    const auto has = found != nullptr;
+    if(has) {
+        linked = found;
+    }
     linker.declare(name, this);
+    return has;
 }
 
 BaseTypeKind CapturedVariable::type_kind() const {

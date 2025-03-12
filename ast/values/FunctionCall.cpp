@@ -794,7 +794,8 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
     auto func_type = function_type(linker.allocator);
     if(func_type && !func_type->data.signature_resolved) return;
     unsigned i = 0;
-    while(i < values.size()) {
+    const auto values_size = values.size();
+    while(i < values_size) {
         auto& value_ptr = values[i];
         auto& value = *value_ptr;
         const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
@@ -805,17 +806,6 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
         } else {
             properly_linked[i] = false;
         }
-        i++;
-    }
-}
-
-void FunctionCall::relink_values(SymbolResolver &linker) {
-    auto func_type = function_type(linker.allocator);
-    unsigned i = 0;
-    while(i < values.size()) {
-        const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
-        const auto expected_type = param ? param->type : nullptr;
-        values[i]->relink_after_generic(linker, expected_type);
         i++;
     }
 }
@@ -972,8 +962,8 @@ void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diag
     }
 }
 
-int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, GenericInstantiatorAPI& genApi, FunctionCall* call) {
-    if(!parent_id->linked) return -2;
+void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, GenericInstantiatorAPI& genApi, FunctionCall* call) {
+    if(!parent_id->linked) return;
     const auto linked_kind = parent_id->linked->kind();
     if(linked_kind == ASTNodeKind::StructDecl) {
         StructDefinition* parent_struct = parent_id->linked->as_struct_def_unsafe();
@@ -993,31 +983,32 @@ int16_t link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocat
             genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
         }
     }
-    return -2;
 }
 
 // the returned generic iteration is the previous iteration of the struct of which constructor we linked with
 // when this method is called, it automatically register the generic arguments with the struct constructor getting the new iteration and setting it active
-int16_t FunctionCall::link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi) {
+void FunctionCall::link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi) {
     // relinking parent with constructor of the struct
     // if it's linked with struct
     const auto parent_kind = parent_val->val_kind();
     switch(parent_kind) {
         case ValueKind::Identifier:{
             const auto parent_id = parent_val->as_identifier_unsafe();
-            return link_constructor_id(parent_id, allocator, genApi, this);
+            link_constructor_id(parent_id, allocator, genApi, this);
+            return;
         }
         case ValueKind::AccessChain:{
             const auto parent_chain = parent_val->as_access_chain_unsafe();
             const auto last = parent_chain->values.back()->as_identifier();
             if(last) {
-                return link_constructor_id(last, allocator, genApi, this);
+                link_constructor_id(last, allocator, genApi, this);
+                return;
             } else {
-                return -2;
+                return;
             }
         }
         default:
-            return -2;
+            return;
     }
 }
 
@@ -1132,7 +1123,7 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
 //            }
 //        }
 //    }
-    int16_t prev_itr = -2;
+
     relink_multi_func(resolver.allocator, &resolver);
     link_gen_args(resolver);
     // this contains which args linked successfully
@@ -1144,24 +1135,17 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
         const auto member = linked->as_variant_member_unsafe();
         const auto variant = member->parent();
     }
-    int16_t struct_itr = link_constructor(resolver.allocator, resolver.genericInstantiator);
-    if(struct_itr > -2) {
-        prev_itr = struct_itr;
-    }
+    link_constructor(resolver.allocator, resolver.genericInstantiator);
 
     if(gen_decl || gen_var_decl) {
         goto instantiate_block;
     }
 
     ending_block:
-        // relink values, because now we know the function type, so we know expected type
-        relink_values(resolver);
         if(link_implicit_constructor) {
             link_args_implicit_constructor(resolver, properly_linked_args);
         }
     return true;
-    register_block:
-        goto ending_block;
     instantiate_block:
         const auto func_type = resolver.current_func_type;
         const auto curr_func = func_type->as_function();

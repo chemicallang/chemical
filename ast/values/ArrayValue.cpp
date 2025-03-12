@@ -217,14 +217,14 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
     return true;
 }
 
-void ArrayValue::relink_after_generic(SymbolResolver &linker, BaseType *expected_type) {
-    if(!created_type->elem_type && expected_type && expected_type->kind() == BaseTypeKind::Array) {
-        const auto known_elem_type = ((ArrayType*) expected_type)->elem_type->pure_type(linker.allocator);
-        if(known_elem_type) {
-            created_type->elem_type = known_elem_type->copy(*linker.ast_allocator);
-        }
-    }
-}
+//void ArrayValue::relink_after_generic(SymbolResolver &linker, BaseType *expected_type) {
+//    if(!created_type->elem_type && expected_type && expected_type->kind() == BaseTypeKind::Array) {
+//        const auto known_elem_type = ((ArrayType*) expected_type)->elem_type->pure_type(linker.allocator);
+//        if(known_elem_type) {
+//            created_type->elem_type = known_elem_type->copy(*linker.ast_allocator);
+//        }
+//    }
+//}
 
 BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
     BaseType *elementType;

@@ -282,7 +282,7 @@ struct ImplDefinition : ASTNode {
 
 struct InitBlock : ASTNode {
 
-    func add_initializer(&self, name : &string_view, is_inherited_type : bool, value : *Value);
+    func add_initializer(&self, name : &string_view, value : *Value);
 
 }
 

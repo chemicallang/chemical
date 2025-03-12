@@ -320,19 +320,27 @@ public:
         original.insert(original.end(), backup.begin(), backup.end()); // Append backup to original
     }
 
-    void save_moved_ids_after(std::vector<VariableIdentifier*>& backup, std::size_t index) {
+    inline void save_moved_ids_after(std::vector<VariableIdentifier*>& backup, std::size_t index) {
         extractEnd(moved_identifiers, backup, index);
     }
 
-    void save_moved_chains_after(std::vector<AccessChain*>& backup, std::size_t index) {
+    inline void save_moved_chains_after(std::vector<AccessChain*>& backup, std::size_t index) {
         extractEnd(moved_chains, backup, index);
     }
 
-    void restore_moved_ids(const std::vector<VariableIdentifier*>& backup) {
+    void erase_moved_ids_after(std::size_t index) {
+        moved_identifiers.erase(moved_identifiers.begin() + index, moved_identifiers.end());
+    }
+
+    void erase_moved_chains_after(std::size_t index) {
+        moved_chains.erase(moved_chains.begin() + index, moved_chains.end());
+    }
+
+    inline void restore_moved_ids(const std::vector<VariableIdentifier*>& backup) {
         restoreEnd(moved_identifiers, backup);
     }
 
-    void restore_moved_chains(const std::vector<AccessChain*>& backup) {
+    inline void restore_moved_chains(const std::vector<AccessChain*>& backup) {
         restoreEnd(moved_chains, backup);
     }
 

@@ -136,6 +136,7 @@ func get_moved_copy_i(m : ImpCopyObj) : int {
     return m.i;
 }
 
+@copy
 struct NonMovableObj {
     var a : int
     var b : int

@@ -95,7 +95,7 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpec
             return nullptr;
         }
 
-        const auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(allocator, id), parent_node, 0, specifier);
+        const auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(allocator, id), parent_node, loc_single(id), specifier);
 
         auto prev_parent_type = parent_node;
         parent_node = decl;

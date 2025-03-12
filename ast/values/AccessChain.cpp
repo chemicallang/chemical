@@ -28,9 +28,17 @@ void AccessChain::relink_parent() {
     }
 }
 
+inline bool link_val(SymbolResolver &linker, Value* value, Value** value_ptr, BaseType* expected_type, bool assign) {
+    if(assign && value->kind() == ValueKind::Identifier) {
+        return value->as_identifier_unsafe()->link_assign(linker, *value_ptr, expected_type);
+    } else {
+        return value->link(linker, *value_ptr, expected_type);
+    }
+}
+
 bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, bool check_validity, bool assign) {
 
-    if(!values[0]->link(linker, *value_ptr, values.size() == 1 ? expected_type : nullptr)) {
+    if(!link_val(linker, values[0], value_ptr, values.size() == 1 ? expected_type : nullptr, assign)) {
         return false;
     }
 

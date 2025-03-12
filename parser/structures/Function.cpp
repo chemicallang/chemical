@@ -332,6 +332,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
 
     annotate(decl);
 
+    decl->set_encoded_location(loc_single(name));
     decl->set_identifier(loc_id(allocator, name));
 
     if(!consumeToken(TokenType::LParen)) {

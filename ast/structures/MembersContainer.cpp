@@ -599,47 +599,52 @@ void MembersContainer::insert_functions(const std::initializer_list<FunctionDecl
 }
 
 FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name) {
-    const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(parent_name, this, ZERO_LOC);
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), returnType, false, this, ZERO_LOC);
-    decl->body.emplace(Scope{nullptr, ZERO_LOC});
+    const auto loc = encoded_location();
+    const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(parent_name, this, loc);
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), returnType, false, this, loc);
+    decl->body.emplace(Scope{nullptr, loc});
     decl->set_constructor_fn(true);
     insert_func(decl);
     return decl;
 }
 
 FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
-    decl->body.emplace(Scope{nullptr, ZERO_LOC});
+    const auto loc = encoded_location();
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), new (allocator.allocate<VoidType>()) VoidType(loc), false, this, loc);
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 0, nullptr, true, decl, loc));
+    decl->body.emplace(Scope{nullptr, loc});
     decl->set_delete_fn(true);
     insert_func(decl);
     return decl;
 }
 
 FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("clear"), new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
-    decl->body.emplace(Scope{nullptr, ZERO_LOC});
+    const auto loc = encoded_location();
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("clear"), new (allocator.allocate<VoidType>()) VoidType(loc), false, this, loc);
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 0, nullptr, true, decl, loc));
+    decl->body.emplace(Scope{nullptr, loc});
     decl->set_clear_fn(true);
     insert_func(decl);
     return decl;
 }
 
 FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 1, nullptr, true, decl, ZERO_LOC));
-    decl->body.emplace(Scope{nullptr, ZERO_LOC});
+    const auto loc = encoded_location();
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), new (allocator.allocate<VoidType>()) VoidType(loc), false, this, loc);
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 0, nullptr, true, decl, loc));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 1, nullptr, true, decl, loc));
+    decl->body.emplace(Scope{nullptr, loc});
     decl->set_copy_fn(true);
     insert_func(decl);
     return decl;
 }
 
 FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("move"), new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC), false, this, ZERO_LOC);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 0, nullptr, true, decl, ZERO_LOC));
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, ZERO_LOC), ZERO_LOC, true), 1, nullptr, true, decl, ZERO_LOC));
-    decl->body.emplace(Scope{nullptr, ZERO_LOC});
+    const auto loc = encoded_location();
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("move"), new (allocator.allocate<VoidType>()) VoidType(loc), false, this, loc);
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 0, nullptr, true, decl, loc));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 1, nullptr, true, decl, loc));
+    decl->body.emplace(Scope{nullptr, loc});
     decl->set_move_fn(true);
     insert_func(decl);
     return decl;

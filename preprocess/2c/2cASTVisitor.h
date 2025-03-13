@@ -71,6 +71,12 @@ public:
     std::unordered_map<Value*, std::string> local_allocated;
 
     /**
+     * destructible_refs are references to structs / function calls that created structs inside function calls
+     * and we're basically going to destruct them after the function call
+     */
+    std::unordered_map<Value*, std::string> destructible_refs;
+
+    /**
      * comptime functions are evaluated once and put on this unordered map
      * once used, they are disposed as well
      */

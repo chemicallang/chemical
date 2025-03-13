@@ -1180,36 +1180,6 @@ std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Valu
     return struct_name;
 }
 
-void move_chain(ToCAstVisitor& visitor, AccessChain* chain) {
-    if(chain->values.size() == 1) {
-        auto identifier = chain->values.back()->as_identifier();
-        if(identifier) {
-            if (chain->is_moved() && !identifier->is_moved) {
-                identifier->is_moved = true;
-            }
-        }
-        return;
-    }
-}
-
-// will call clear function on given value
-void move_value(ToCAstVisitor& visitor, Value* value) {
-    switch(value->val_kind()) {
-        case ValueKind::AccessChain:
-            move_chain(visitor, value->as_access_chain_unsafe());
-            return;
-        default:
-            return;
-    }
-}
-
-// will cal clear functions on moved arguments in function call
-void move_func_call(ToCAstVisitor& visitor, FunctionCall* call) {
-    for(auto& value : call->values) {
-        move_value(visitor, value);
-    }
-}
-
 // will call clear functions as required on the access chain
 //void move_access_chain(ToCAstVisitor& visitor, AccessChain* chain) {
 //    for(auto& value : chain->values) {
@@ -1420,25 +1390,6 @@ void CBeforeStmtVisitor::VisitVariableIdentifier(VariableIdentifier *identifier)
 void CBeforeStmtVisitor::VisitAccessChain(AccessChain *chain) {
 
     RecursiveValueVisitor::VisitAccessChain(chain);
-
-    move_chain(visitor, chain);
-
-//    const auto start = 0;
-//    const auto end = chain->values.size();
-//    auto& values = chain->values;
-//    unsigned i = start;
-//    // function call would be processed recursively
-//    {
-//        int j = end - 1;
-//        while(j >= 0) {
-//            auto& current = values[j];
-//            auto call = current->as_func_call();
-//            if(call) {
-//                func_call_that_returns_struct(visitor, this, values, start, j + 1);
-//            }
-//            j--;
-//        }
-//    }
 
 }
 

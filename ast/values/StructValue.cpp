@@ -69,21 +69,8 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
                 }
             }
 
-            bool moved = false;
-            if(value_ptr->is_ref_moved()) {
-                // since it will be moved, we will std memcpy it into current pointer
-                auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, elem_index);
-                moved = gen.move_by_memcpy(variable.second, value_ptr, elementPtr, value_ptr->llvm_value(gen));
-            }
-            if(!moved) {
-                if (gen.requires_memcpy_ref_struct(variable.second, value_ptr)) {
-                    auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, elem_index);
-                    gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr), value_ptr->encoded_location());
-                } else {
-                    // couldn't move struct
-                    value_ptr->store_in_struct(gen, this, inst, parent_type, idx, elem_index, variable.second);
-                }
-            }
+            value_ptr->store_in_struct(gen, this, inst, parent_type, idx, elem_index, variable.second);
+
         }
     }
 

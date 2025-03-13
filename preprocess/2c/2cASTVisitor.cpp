@@ -692,6 +692,35 @@ void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool ass
     accept_mutating_value_explicit(type, value, assigning_value);
 }
 
+VariableIdentifier* get_single_id(Value* value) {
+    switch(value->kind()) {
+        case ValueKind::Identifier:
+            return value->as_identifier_unsafe();
+        case ValueKind::AccessChain: {
+            auto& values = value->as_access_chain_unsafe()->values;
+            if(values.size() == 1) {
+                return values.back()->as_identifier();
+            }
+            return nullptr;
+        }
+        default:
+            return nullptr;
+    }
+}
+
+std::string* get_drop_flag(CDestructionVisitor& visitor, ASTNode* initializer);
+
+void set_moved_ref_drop_flag(ToCAstVisitor& visitor, Value* value) {
+    const auto id = get_single_id(value);
+    if(id) {
+        const auto flag = get_drop_flag(*visitor.destructor, id->linked);
+        if(flag) {
+            visitor.write(*flag);
+            visitor.write(" = false;");
+        }
+    }
+}
+
 void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, unsigned i = 0) {
     auto prev_value = visitor.nested_value;
     visitor.nested_value = true;
@@ -720,18 +749,27 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         }
         const auto param_type_kind = param->type->kind();
         const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param->type->isStructLikeType();
-        bool is_memcpy_ref_str = val->requires_memcpy_ref_struct(param->type);
-        if(is_memcpy_ref_str) {
-            const auto linked = param->type->get_direct_linked_node();
-            visitor.write("({ ");
-            temp_struct_name = visitor.get_local_temp_var_name();
-            auto t = val->create_type(visitor.allocator);
-            visitor.visit(t);
-            visitor.write(' ');
-            visitor.write(temp_struct_name);
-            visitor.write(" = ");
-            if(is_value_param_pointer_like(val)) {
-                visitor.write('*');
+        bool is_movable_or_copyable_struct = val->requires_memcpy_ref_struct(param->type);
+        bool is_memcpy_ref_str = is_movable_or_copyable_struct && !val->is_ref_moved();
+        if(is_movable_or_copyable_struct) {
+            if (is_memcpy_ref_str) {
+                visitor.write("({ ");
+                temp_struct_name = visitor.get_local_temp_var_name();
+                auto t = val->create_type(visitor.allocator);
+                visitor.visit(t);
+                visitor.write(' ');
+                visitor.write(temp_struct_name);
+                visitor.write(" = ");
+                if (is_value_param_pointer_like(val)) {
+                    visitor.write('*');
+                }
+            } else {
+                visitor.write("({ ");
+                set_moved_ref_drop_flag(visitor, val);
+                visitor.space();
+                if (is_value_param_pointer_like(val)) {
+                    visitor.write('*');
+                }
             }
         }
         const auto is_param_type_ref = param_type_kind == BaseTypeKind::Reference;
@@ -752,19 +790,19 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         } else if(!val->reference() && base_type->pure_type(visitor.allocator)->kind() == BaseTypeKind::Array) {
             visitor.write('(');
             visitor.visit(base_type);
-            visitor.write("[]");
-            visitor.write(')');
+            visitor.write("[])");
             visitor.accept_mutating_value_explicit(param->type, val, false);
         } else {
             visitor.accept_mutating_value_explicit(param->type, val, false);
         }
-        if(is_memcpy_ref_str) {
-            visitor.write(';');
-            visitor.write(' ');
-            visitor.write('&');
-            visitor.write(temp_struct_name);
-            visitor.write(';');
-            visitor.write(" })");
+        if(is_movable_or_copyable_struct) {
+            if(is_memcpy_ref_str) {
+                visitor.write("; &");
+                visitor.write(temp_struct_name);
+                visitor.write("; })");
+            } else {
+                visitor.write("; })");
+            }
         }
         i++;
     }
@@ -961,53 +999,23 @@ bool write_self_arg_bool_no_pointer(ToCAstVisitor& visitor, FunctionType* func_t
 //}
 
 void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& identifier, BaseType* type, Value* value, bool write_id = true) {
-//    if(value->val_kind() == ValueKind::AccessChain) {
-//        auto chain = value->as_access_chain_unsafe();
-//        auto func_call = chain->values.back()->as_func_call();
-//        if(func_call) {
-//            auto linked_func = func_call->safe_linked_func();
-//            if(linked_func && linked_func->is_comptime()) {
-//                Value* eval;
-//                func_call->set_curr_itr_on_decl();
-//                auto found_eval = visitor.evaluated_func_calls.find(func_call);
-//                bool not_found = found_eval == visitor.evaluated_func_calls.end();
-//                if(not_found) {
-//                    eval = evaluate_comptime_func(visitor, linked_func, func_call);
-//                } else {
-//                    eval = found_eval->second;
-//                }
-//                bool declared = is_declared_with_initializer(visitor.allocator, eval);
-//                if(declared) {
-//                    if(type->kind() != BaseTypeKind::Function) {
-//                        visitor.write(identifier);
-//                        visitor.write(' ');
-//                    }
-//                    visitor.write("= ");
-//                }
-//                if(not_found) {
-//                    eval->accept((Visitor*) visitor.before_stmt.get());
-//                }
-//                visit_evaluated_func_val(visitor, &visitor, linked_func, func_call, eval, identifier);
-//                if(declared) {
-//                    visitor.write(';');
-//                }
-//                return;
-//            }
-//        }
-//        if(func_call) {
-//            const auto parent = func_call->parent_val->linked_node();
-//            if((!parent || !ASTNode::isVariantMember(parent->kind())) && func_call->create_type(visitor.allocator)->isStructLikeType()) {
-//                visitor.accept_mutating_value(type, value, true);
-//                return;
-//            }
-//        }
-//    }
     if(write_id) {
         visitor.write(identifier);
         write_type_post_id(visitor, type);
     }
     visitor.write(" = ");
-    visitor.accept_mutating_value(type, value, true);
+
+    if(value->is_ref_moved()) {
+        // since we're moving the value here
+        // what we must do is set the drop flag to false
+        visitor.write("({ ");
+        set_moved_ref_drop_flag(visitor, value);
+        visitor.space();
+        visitor.accept_mutating_value(type, value, true);
+        visitor.write("; })");
+    } else {
+        visitor.accept_mutating_value(type, value, true);
+    }
     visitor.write(';');
 }
 
@@ -1079,7 +1087,6 @@ void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bo
     if(init->is_comptime()) {
         return;
     }
-    visitor.debug_comment("var_init defining the value");
     if(is_static) {
         visitor.write("static ");
     } else if(is_extern) {
@@ -1530,8 +1537,18 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
         visitor.write('.');
         visitor.write(value.second->name);
         visitor.write(" = ");
-        const auto& val = call->values[i];
-        visitor.accept_mutating_value(value.second->type, val, false);
+        const auto val = call->values[i];
+        if(val->is_ref_moved()) {
+            // since we're moving the value here
+            // what we must do is set the drop flag to false
+            visitor.write("({ ");
+            set_moved_ref_drop_flag(visitor, val);
+            visitor.space();
+            visitor.accept_mutating_value(value.second->type, val, false);
+            visitor.write("; })");
+        } else {
+            visitor.accept_mutating_value(value.second->type, val, false);
+        }
         visitor.write(", ");
         i++;
     }
@@ -1614,6 +1631,7 @@ enum class DestructionJobType {
 struct DestructionJob {
     DestructionJobType type;
     chem::string_view self_name;
+    std::string drop_flag_name;
     ASTNode* initializer;
     union {
         struct {
@@ -1647,12 +1665,29 @@ public:
             bool is_pointer
     );
 
+    void conditional_destruct(
+            const chem::string_view& condition,
+            const chem::string_view& self_name,
+            ExtendableMembersContainerNode* linked,
+            FunctionDeclaration* destructor,
+            bool is_pointer
+    );
+
     void queue_destruct(
             const chem::string_view& self_name,
             ASTNode* initializer,
             ExtendableMembersContainerNode* linked,
             bool is_pointer = false
     );
+
+    std::string* get_drop_flag_name(ASTNode* initializer) {
+        for(auto& d : destruct_jobs) {
+            if(d.initializer == initializer) {
+                return &d.drop_flag_name;
+            }
+        }
+        return nullptr;
+    }
 
     void queue_destruct(const chem::string_view& self_name, ASTNode* initializer, FunctionCall* call);
 
@@ -1684,6 +1719,10 @@ public:
     }
 
 };
+
+std::string* get_drop_flag(CDestructionVisitor& visitor, ASTNode* initializer) {
+    return visitor.get_drop_flag_name(initializer);
+}
 
 void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     auto type = assign->lhs->create_type(visitor.allocator)->pure_type(visitor.allocator);
@@ -1827,13 +1866,50 @@ void CDestructionVisitor::destruct(const chem::string_view& self_name, Extendabl
     }
 }
 
+void CDestructionVisitor::conditional_destruct(
+        const chem::string_view& condition,
+        const chem::string_view& self_name,
+        ExtendableMembersContainerNode* linked,
+        FunctionDeclaration* destructor,
+        bool is_pointer
+) {
+    if(new_line_before) {
+        visitor.new_line_and_indent();
+    }
+    const auto prev = new_line_before;
+    visitor.write("if(");
+    visitor.write(condition);
+    visitor.write(") {");
+    visitor.indentation_level += 1;
+    new_line_before = true;
+    destruct(self_name, linked, destructor, is_pointer);
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+    new_line_before = prev;
+    if(!new_line_before) {
+        visitor.new_line_and_indent();
+    }
+}
+
+void init_drop_flag(ToCAstVisitor& visitor, const chem::string_view& drop_flag) {
+    visitor.new_line_and_indent();
+    visitor.write("_Bool ");
+    visitor.write(drop_flag);
+    visitor.write(" = ");
+    visitor.write("true;");
+}
+
 void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, ExtendableMembersContainerNode* linked, bool is_pointer) {
     if(!linked) return;
     auto destructorFunc = linked->destructor_func();
     if(destructorFunc) {
+        auto drop_flag = visitor.get_local_temp_var_name();
+        init_drop_flag(visitor, chem::string_view(drop_flag));
         destruct_jobs.emplace_back(DestructionJob{
                 .type = DestructionJobType::Default,
                 .self_name = self_name,
+                .drop_flag_name = std::move(drop_flag),
                 .initializer = initializer,
                 .default_job = {
                         linked,
@@ -1903,7 +1979,11 @@ void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_ret
     }
     switch(job.type) {
         case DestructionJobType::Default:
-            destruct(job.self_name, job.default_job.parent_node, job.default_job.destructor, job.default_job.is_pointer);
+            if(job.drop_flag_name.empty()) {
+                destruct(job.self_name, job.default_job.parent_node, job.default_job.destructor, job.default_job.is_pointer);
+            } else {
+                conditional_destruct(chem::string_view(job.drop_flag_name), job.self_name, job.default_job.parent_node, job.default_job.destructor, job.default_job.is_pointer);
+            }
             break;
         case DestructionJobType::Array:
             destruct_arr(job.self_name, job.array_job.array_size, job.array_job.linked, job.array_job.destructorFunc);
@@ -2059,8 +2139,8 @@ void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
 // this will also destruct given function type's params at the end of scope
 void scope_no_parens(ToCAstVisitor& visitor, Scope& scope, FunctionType* decl) {
     unsigned begin = visitor.destructor->destruct_jobs.size();
-    visitor.destructor->queue_destruct_decl_params(decl);
     visitor.indentation_level+=1;
+    visitor.destructor->queue_destruct_decl_params(decl);
     visitor.visit_scope(&scope, (int) begin);
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
@@ -4776,7 +4856,18 @@ void ToCAstVisitor::VisitArrayValue(ArrayValue *arr) {
     nested_value = true;
     const auto elem_type = arr->element_type(allocator);
     while(i < arr->values.size()) {
-        accept_mutating_value(elem_type, arr->values[i], false);
+        const auto value = arr->values[i];
+        if(value->is_ref_moved()) {
+            // since we're moving the value here
+            // what we must do is set the drop flag to false
+            write("({ ");
+            set_moved_ref_drop_flag(*this, value);
+            space();
+            accept_mutating_value(elem_type, value, false);
+            write("; })");
+        } else {
+            accept_mutating_value(elem_type, value, false);
+        }
         if(i != arr->values.size() - 1) {
             write(',');
         }
@@ -4810,19 +4901,22 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
         } else {
             has_value_before = true;
         }
-//        if(value.second->as_access_chain()) {
-//            auto chain = value.second->as_access_chain();
-//            auto call = chain->values.back()->as_func_call();
-//            if(call && call->create_type()->value_type() == ValueType::Struct) {
-//                continue;
-//            }
-//        }
         // we are only getting direct / inherited members, not inherited structs here
         const auto member = val->child_member(value.first);
         write('.');
         write(value.first);
         write(" = ");
-        accept_mutating_value(member ? member->known_type() : nullptr, value.second.value, false);
+        if(value.second.value->is_ref_moved()) {
+            // since we're moving the value here
+            // what we must do is set the drop flag to false
+            write("({ ");
+            set_moved_ref_drop_flag(*this, value.second.value);
+            space();
+            accept_mutating_value(member ? member->known_type() : nullptr, value.second.value, false);
+            write("; })");
+        } else {
+            accept_mutating_value(member ? member->known_type() : nullptr, value.second.value, false);
+        }
     }
     auto& variables = val->variables()->variables;
     for(auto& var : variables) {
@@ -5100,8 +5194,7 @@ void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
     if(val_type->isStructLikeType()) {
         const auto destr = val_type->get_destructor();
         if (destr != nullptr) {
-            allocated_temp_var_names.emplace_back(get_local_temp_var_name());
-            const auto temp_name = chem::string_view(allocated_temp_var_names.back());
+            const auto temp_name = get_local_temp_var_name_view();
             visit(val_type);
             write(' ');
             write(temp_name);

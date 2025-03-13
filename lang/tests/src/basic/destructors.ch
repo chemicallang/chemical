@@ -352,6 +352,30 @@ func test_destructors() {
         }
         return count == 1
     })
+    test("destructor is not called on values moved to other structs", () => {
+        var count = 0
+        if(count == 0) {
+            var d = create_destructible(&count, 874)
+            var h = Holder1 { thing : d }
+        }
+        return count == 1
+    })
+    test("destructor is not called on values moved to other arrays", () => {
+        var count = 0
+        if(count == 0) {
+            var d = create_destructible(&count, 874)
+            var h = { d }
+        }
+        return count == 1
+    })
+    test("destructor is not called on values moved to other variants", () => {
+        var count = 0
+        if(count == 0) {
+            var d = create_destructible(&count, 874)
+            var h = OptDestructible.Some(d)
+        }
+        return count == 1
+    })
     test("destructor is not called on pointer types - 1", () => {
         var count = 0;
         if(count == 0) {

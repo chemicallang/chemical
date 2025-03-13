@@ -484,12 +484,13 @@ func test_moves() {
     })
 
     delete_called = 0;
-    test("move function is called, when moving struct member that would leave other one empty", () => {
+    test("delete function is called, when moving struct member that would leave other one empty", () => {
         var result : int = 7373
         if(true) {
             var a = MoveObjCon { m : MoveObj { i : 32 } }
             var b = MoveObjCon { m : MoveObj { i : 33 } }
             a.m = b.m
+            b.m = MoveObj { i : 34 }
             result = a.m.i
         }
         // first a.m is destructed, b.m is moved into a.m (using move constructor, self = a.m, other = b.m)

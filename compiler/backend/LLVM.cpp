@@ -887,7 +887,12 @@ void UnreachableStmt::code_gen(Codegen &gen) {
     gen.CreateUnreachable(encoded_location());
 }
 
-void conditional_destruct(Codegen& gen, std::pair<ASTNode*, llvm::Value*>& pair, Value* returnValue, SourceLocation location) {
+void Codegen::conditional_destruct(
+        const std::pair<ASTNode*, llvm::Value*>& pair,
+        Value* returnValue,
+        SourceLocation location
+) {
+    auto& gen = *this;
     if(pair.second) {
 
         // we must check the destruct flag before destruction
@@ -977,7 +982,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             // if it's nested member has been moved somewhere, because we canot
             temp_id.linked = nodePair.first;
             if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
-                conditional_destruct(gen, nodePair, value, encoded_location());
+                gen.conditional_destruct(nodePair, value, encoded_location());
             } else {
                 gen.error("cannot destruct uninit value at return because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.first, this);
             }
@@ -1041,8 +1046,8 @@ void BaseType::llvm_destruct(Codegen& gen, llvm::Value* pointer, SourceLocation 
     }
 }
 
-llvm::Value* find_destruct_ref(Codegen& gen, ASTNode* node) {
-    for(auto& pair : gen.destruct_nodes) {
+llvm::Value* Codegen::find_drop_flag(ASTNode* node) {
+    for(auto& pair : destruct_nodes) {
         if(pair.first == node) {
             return pair.second;
         }
@@ -1050,13 +1055,13 @@ llvm::Value* find_destruct_ref(Codegen& gen, ASTNode* node) {
     return nullptr;
 }
 
-bool set_drop_flag_for_node(Codegen& gen, ASTNode* node, SourceLocation loc) {
+bool set_drop_flag_for_node(Codegen& gen, ASTNode* node, bool flag, SourceLocation loc) {
     switch (node->kind()) {
         case ASTNodeKind::VarInitStmt:
         case ASTNodeKind::FunctionParam:{
-            const auto ref = find_destruct_ref(gen, node);
+            const auto ref = gen.find_drop_flag(node);
             if(ref) {
-                const auto instr = gen.builder->CreateStore(gen.builder->getInt1(false), ref);
+                const auto instr = gen.builder->CreateStore(gen.builder->getInt1(flag), ref);
                 gen.di.instr(instr, loc);
                 return true;
             } else {
@@ -1068,7 +1073,7 @@ bool set_drop_flag_for_node(Codegen& gen, ASTNode* node, SourceLocation loc) {
     }
 }
 
-bool Value::set_drop_flag_for_moved_ref(Codegen& gen) {
+bool Value::set_drop_flag_for_ref(Codegen& gen, bool flag) {
     const auto value = this;
     switch(value->kind()) {
         case ValueKind::AccessChain: {
@@ -1076,7 +1081,7 @@ bool Value::set_drop_flag_for_moved_ref(Codegen& gen) {
                 const auto chain = value->as_access_chain_unsafe();
                 const auto first = chain->values.front();
                 if(first->kind() == ValueKind::Identifier && (chain->is_moved() || first->as_identifier_unsafe()->is_moved)) {
-                    return set_drop_flag_for_node(gen, first->as_identifier_unsafe()->linked, first->encoded_location());
+                    return set_drop_flag_for_node(gen, first->as_identifier_unsafe()->linked, flag, first->encoded_location());
                 } else {
                     return true;
                 }
@@ -1086,7 +1091,7 @@ bool Value::set_drop_flag_for_moved_ref(Codegen& gen) {
         }
         case ValueKind::Identifier: {
             if(value->as_identifier_unsafe()->is_moved) {
-                return set_drop_flag_for_node(gen, value->as_identifier_unsafe()->linked, value->encoded_location());
+                return set_drop_flag_for_node(gen, value->as_identifier_unsafe()->linked, flag, value->encoded_location());
             } else {
                 return true;
             }
@@ -1117,7 +1122,6 @@ void ASTNode::code_gen_destruct(Codegen &gen, Value* returnValue, SourceLocation
             if(!(returnValue && returnValue->linked_node() == this)) {
                 param->type->llvm_destruct(gen, gen.current_function->getArg(param->calculate_c_or_llvm_index(gen.current_func_type)), location);
             }
-            param->pointer = nullptr;
             break;
         }
         default:
@@ -1147,7 +1151,7 @@ void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
             // TODO use the location that represents the scope end
             temp_id.linked = nodePair.first;
             if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
-                conditional_destruct(gen, nodePair, nullptr, encoded_location());
+                gen.conditional_destruct(nodePair, nullptr, encoded_location());
             } else {
                 gen.error("cannot destruct uninit value at scope end because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.first, this);
             }
@@ -1308,24 +1312,40 @@ void AssignStatement::code_gen(Codegen &gen) {
 
     if(assOp == Operation::Assignment) {
         const auto lhs_type = lhs->create_type(gen.allocator);
-        if(value->requires_memcpy_ref_struct(lhs_type)) {
-            // we must memcpy the struct into the lhs pointer
-            // first if the lhs is not uninit, we must destruct it
-            if(!lhs->is_ref_moved()) {
-                // we must destruct the previous value before we memcpy this value into the pointer, because lhs ref is moved
-                // this is set by symbol resolver, to indicate that this value should be destructed before assigning new moved value
-                llvm::Function* llvm_func_data;
-                auto destr_fn = gen.determine_destructor_for(lhs_type, llvm_func_data);
-                if(destr_fn) {
-                    const auto callInst = gen.builder->CreateCall(llvm_func_data, { pointer });
+        const auto container = lhs_type->get_members_container();
+        if(container) {
+            const auto id = lhs->get_chain_id();
+            if(id != nullptr) {
+                // lhs if identifier (can be connected to var init and function params), which must be destructed by checking drop flags
+                // we must memcpy the struct into the lhs pointer
+                // first if the lhs is not uninit, we must destruct it
+                const auto node = id->linked;
+                const auto drop_flag = gen.find_drop_flag(node);
+                // we must destruct the previous value before we memcpy this value into the pointer
+                // we're doing this conditionally, meaning a drop flag is checked to see if value should be dropped (was initialized)
+                gen.conditional_destruct({node, drop_flag}, nullptr, lhs->encoded_location());
+                // now we're going to set the drop flag back to true for this
+                // because if previously the drop flag was false, since we've reinitialized, we must set it to true,
+                // so it can be dropped, when the scope ends
+                if (drop_flag) {
+                    const auto instr = gen.builder->CreateStore(gen.builder->getInt1(true), drop_flag);
+                    gen.di.instr(instr, lhs->encoded_location());
+                }
+            } else if(!lhs->is_ref_moved()) {
+                // previous is not an id, however we must still drop what we are assigning to
+                const auto destr = container->destructor_func();
+                if(destr) {
+                    const auto callInst = gen.builder->CreateCall(destr->llvm_func(), { pointer });
                     gen.di.instr(callInst, this);
                 }
             }
-            // now we just need to memcpy the rhs by copy or move
-            if(!gen.copy_or_move_struct(lhs_type, value, pointer)) {
-                gen.warn("couldn't copy or move the struct to location", encoded_location());
+            if(value->requires_memcpy_ref_struct(lhs_type)) {
+                // now we just need to memcpy the rhs by copy or move
+                if(!gen.copy_or_move_struct(lhs_type, value, pointer)) {
+                    gen.warn("couldn't copy or move the struct to location", encoded_location());
+                }
+                return;
             }
-            return;
         }
     }
     if (assOp == Operation::Assignment) {

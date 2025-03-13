@@ -714,6 +714,17 @@ bool Value::is_ref_moved() {
     }
 }
 
+VariableIdentifier* Value::get_chain_id() {
+    switch(kind()) {
+        case ValueKind::AccessChain:
+            return as_access_chain_unsafe()->values.size() == 1 ? as_access_chain_unsafe()->values.back()->as_identifier() : nullptr;
+        case ValueKind::Identifier:
+            return as_identifier_unsafe();
+        default:
+            return nullptr;
+    }
+}
+
 bool Value::reference() {
     const auto kind = val_kind();
     switch(kind) {

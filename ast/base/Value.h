@@ -321,6 +321,11 @@ public:
     bool is_ref_moved();
 
     /**
+     * will get this value as identifier, if it's wrapped in access chain or not
+     */
+    VariableIdentifier* get_chain_id();
+
+    /**
      * a value that references a struct that is mem copied into arguments
      * however the value is not moved, because it's not movable
      */
@@ -329,11 +334,30 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
-     * when a value has been moved, and it has a associated runtime drop flag
-     * we need to make sure that flag is set to yes moved
+     * set the drop flag, for this value
      * @return true on success / no need, false on failure
      */
-    bool set_drop_flag_for_moved_ref(Codegen& gen);
+    bool set_drop_flag_for_ref(Codegen& gen, bool flag);
+
+    /**
+     * when a value has been moved, and it has a associated runtime drop flag
+     * we need to make sure that flag is set to false (don't drop)
+     * @return true on success / no need, false on failure
+     */
+    inline bool set_drop_flag_for_moved_ref(Codegen& gen) {
+        // set drop flag to false, so that value is not dropped
+        return set_drop_flag_for_ref(gen, false);
+    }
+
+    /**
+     * when a value has been unmoved, by re assignment or another methods, and it has a associated runtime drop flag
+     * we need to make sure that flag is set to true (drop it)
+     * @return true on success / no need, false on failure
+     */
+    inline bool set_drop_flag_for_unmoved_ref(Codegen& gen) {
+        // set drop flag to true, so that now value is dropped
+        return set_drop_flag_for_ref(gen, true);
+    }
 
     /**
      * value is supposed to destruct itself, call the destructor, because scope has ended

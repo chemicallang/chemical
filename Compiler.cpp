@@ -680,7 +680,8 @@ int main(int argc, char *argv[]) {
             }
         }
         // building the lab file
-        return compiler.build_lab_file(context, std::string(args[0]));
+        const auto result = compiler.build_lab_file(context, std::string(args[0]));
+        return result;
     }
 
     // compilation

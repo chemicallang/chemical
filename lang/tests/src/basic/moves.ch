@@ -534,6 +534,7 @@ func test_moves() {
         if(true) {
             var con = MoveObjCon { m : MoveObj { i : 453 } }
             var con2 = { con.m }
+            // TODO this should result in an error, that con object has uninitialized fields before destruction
         }
         return delete_called == 2;
     })

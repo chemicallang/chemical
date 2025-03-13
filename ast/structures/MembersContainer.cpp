@@ -618,16 +618,6 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
     return decl;
 }
 
-FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) {
-    const auto loc = encoded_location();
-    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("clear"), new (allocator.allocate<VoidType>()) VoidType(loc), false, this, loc);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 0, nullptr, true, decl, loc));
-    decl->body.emplace(Scope{nullptr, loc});
-    decl->set_clear_fn(true);
-    insert_func(decl);
-    return decl;
-}
-
 FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
     const auto loc = encoded_location();
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), new (allocator.allocate<VoidType>()) VoidType(loc), false, this, loc);
@@ -635,17 +625,6 @@ FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 1, nullptr, true, decl, loc));
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_copy_fn(true);
-    insert_func(decl);
-    return decl;
-}
-
-FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
-    const auto loc = encoded_location();
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("move"), new (allocator.allocate<VoidType>()) VoidType(loc), false, this, loc);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 0, nullptr, true, decl, loc));
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 1, nullptr, true, decl, loc));
-    decl->body.emplace(Scope{nullptr, loc});
-    decl->set_move_fn(true);
     insert_func(decl);
     return decl;
 }
@@ -668,15 +647,6 @@ FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& alloc
     return create_destructor(allocator);
 }
 
-FunctionDeclaration* MembersContainer::create_def_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
-    auto moveFn = direct_child_function("clear");
-    if(moveFn) {
-        diagnoser.error("default post move function is created by name 'postmove', a function by name 'postmove' already exists, please create a manual postmove function to avoid this", (AnnotableNode*) moveFn);
-        return nullptr;
-    }
-    return create_clear_fn(allocator);
-}
-
 FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto copyFn = direct_child_function("copy");
     if(copyFn) {
@@ -684,15 +654,6 @@ FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocato
         return nullptr;
     }
     return create_copy_fn(allocator);
-}
-
-FunctionDeclaration* MembersContainer::create_def_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
-    auto copyFn = direct_child_function("move");
-    if(copyFn) {
-        diagnoser.error("default move function is created by name 'move', a function by name 'move' already exists, please create a manual move function to avoid this", (AnnotableNode*) copyFn);
-        return nullptr;
-    }
-    return create_move_fn(allocator);
 }
 
 bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDeclaration* decl) {

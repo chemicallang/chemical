@@ -336,13 +336,24 @@ func test_destructors() {
         var data = get_int(create_destructible(&count, 363).data);
         return count == 1 && data == 363;
     })
-    test("destructor is not called on values moved to other variables", () => {
+    test("destructor is not called on values moved to other var init", () => {
         var count = 0
         if(count == 0) {
             var d = create_destructible(&count, 874)
             var c = d;
         }
         return count == 1
+    })
+    test("destructor is not called on values moved to other assignment", () => {
+        var count = 0
+        if(count == 0) {
+            var a = create_destructible(&count, 874)
+            var d = create_destructible(&count, 874)
+            // here a is destructed, then d is moved into a
+            a = d;
+            // then here a is destructed
+        }
+        return count == 2
     })
     test("destructor is not called on values moved to other functions", () => {
         var count = 0
@@ -401,6 +412,19 @@ func test_destructors() {
             const ptr_to_d = test_ret_ptr_to_d(&d)
         }
         return count == 1;
+    })
+    test("destructor is called on values that are reinitialized using assignment", () => {
+        var count = 0
+        if(count == 0) {
+            var a = create_destructible(&count, 874)
+            var d = create_destructible(&count, 874)
+            // a is destructed, d is moved into it
+            a = d;
+            // since d is not initialized, it's not destructed, however now it's initialized
+            d = create_destructible(&count, 323)
+            // a is destructed and d is destructed
+        }
+        return count == 3
     })
     test("array values are destructed", () => {
         var count = 0;

@@ -244,12 +244,6 @@ void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser
             func->ensure_copy_fn(allocator, diagnoser, this);
         }
     }
-    if(!has_clear_fn && any_member_has_clear_func()) {
-        create_def_clear_fn(allocator, diagnoser);
-    }
-    if(!has_move_fn && any_member_has_pre_move_func()) {
-        create_def_move_fn(allocator, diagnoser);
-    }
     if(!has_destructor && any_member_has_destructor()) {
         create_def_destructor(allocator, diagnoser);
     }

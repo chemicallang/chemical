@@ -7,6 +7,7 @@
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
+#include "ast/values/VariableIdentifier.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/GenericStructDecl.h"
@@ -171,14 +172,6 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
             }
         }
     } else {
-        if(!lhs->is_ref_moved()) {
-            llvm::Function* func_data;
-            auto destr = gen.determine_destructor_for(definition->known_type(), func_data);
-            if(destr) {
-                const auto callInst = gen.builder->CreateCall(func_data, { lhsPtr });
-                gen.di.instr(callInst, this);
-            }
-        }
         initialize_alloca(lhsPtr, gen, nullptr);
         return;
     }

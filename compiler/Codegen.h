@@ -559,6 +559,21 @@ public:
     );
 
     /**
+     * find destruct ref for the given node
+     */
+    llvm::Value* find_drop_flag(ASTNode* node);
+
+    /**
+     * conditional destruction of the pair, if this is return statement
+     * give the return value, so it can be checked (if node returned, it won't be destructed)
+     */
+    void conditional_destruct(
+        const std::pair<ASTNode*, llvm::Value*>& pair,
+        Value* returnValue,
+        SourceLocation location
+    );
+
+    /**
      * this ensures that break and continue instructions work properly by pointing to the given blocks
      */
     void loop_body_gen(Scope& body, llvm::BasicBlock *currentBlock, llvm::BasicBlock *endBlock);

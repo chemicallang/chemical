@@ -205,8 +205,7 @@ llvm::Value* arg_value(
         argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
     } else {
 
-        // previously we were mem cpying every object when moved
-        // now we will only copy and send to function calls, objects that have copy annotation
+        // we copy objects and send to function calls, only objects that have copy annotation
         argValue = gen.memcpy_shallow_copy(pure_type, value, argValue);
 
         // this will set the drop flag to false, if the value is moved

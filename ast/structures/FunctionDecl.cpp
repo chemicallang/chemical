@@ -150,7 +150,7 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
         const auto directly_linked = param->type->get_direct_linked_container();
         if(directly_linked && directly_linked->destructor_func()) {
             llvm::Value* should_destruct = nullptr;
-            if(param->get_has_moved()) {
+            if(param->get_has_move()) {
 
                 // create a boolean flag
                 const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());

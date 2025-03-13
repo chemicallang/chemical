@@ -142,7 +142,7 @@ void queue_destruct(Codegen& gen, VarInitStatement* node, ASTNode* typeLinked) {
             llvm::Value* should_destruct = nullptr;
             // if a single move was performed using this variable
             // we allocate a flag
-            if(node->get_has_moved()) {
+            if(node->get_has_move()) {
 
                 // create a boolean flag
                 const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());

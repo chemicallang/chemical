@@ -582,88 +582,88 @@ void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value*
     di.instr(callInst, location);
 }
 
-void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
-    const auto node_kind = node->kind();
-    if(node_kind == ASTNodeKind::UnnamedStruct || node_kind == ASTNodeKind::UnnamedUnion) {
-#ifdef DEBUG
-        throw std::runtime_error("requires implementing the union or struct move when unnamed");
-#endif
-    }
-    const auto container = node->as_members_container();
-    if(!container) {
-        return;
-    }
-    move_by_memcpy(container, value_ptr, elem_ptr, movable_value);
-}
+//void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
+//    const auto node_kind = node->kind();
+//    if(node_kind == ASTNodeKind::UnnamedStruct || node_kind == ASTNodeKind::UnnamedUnion) {
+//#ifdef DEBUG
+//        throw std::runtime_error("requires implementing the union or struct move when unnamed");
+//#endif
+//    }
+//    const auto container = node->as_members_container();
+//    if(!container) {
+//        return;
+//    }
+//    move_by_memcpy(container, value_ptr, elem_ptr, movable_value);
+//}
 
-void Codegen::move_by_memcpy(MembersContainer* container, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
-    auto& gen = *this;
-    auto& value = *value_ptr;
-    auto pre_move_func = container->pre_move_func();
-    if(pre_move_func) {
-        auto linked = value.linked_node();
-        auto k = linked->kind();
-        if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
-            gen.memcpy_struct(container->llvm_type(gen), elem_ptr, movable_value, value_ptr->encoded_location());
-            return;
-        }
-        const auto callInst = gen.builder->CreateCall(pre_move_func->llvm_func(), { elem_ptr, movable_value });
-        gen.di.instr(callInst, value_ptr);
-        return;
-    }
-    gen.memcpy_struct(container->llvm_type(gen), elem_ptr, movable_value, value_ptr->encoded_location());
-    auto linked = value.linked_node();
-    auto k = linked->kind();
-    if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
-        return;
-    }
-    auto clear_func = container->clear_func();
-    if (clear_func) {
-        // now we can move the previous arg, since we copied it's contents
-        ::call_clear_fn(gen, clear_func, movable_value, value_ptr->encoded_location());
-    }
-}
+//void Codegen::move_by_memcpy(MembersContainer* container, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
+//    auto& gen = *this;
+//    auto& value = *value_ptr;
+//    auto pre_move_func = container->pre_move_func();
+//    if(pre_move_func) {
+//        auto linked = value.linked_node();
+//        auto k = linked->kind();
+//        if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
+//            gen.memcpy_struct(container->llvm_type(gen), elem_ptr, movable_value, value_ptr->encoded_location());
+//            return;
+//        }
+//        const auto callInst = gen.builder->CreateCall(pre_move_func->llvm_func(), { elem_ptr, movable_value });
+//        gen.di.instr(callInst, value_ptr);
+//        return;
+//    }
+//    gen.memcpy_struct(container->llvm_type(gen), elem_ptr, movable_value, value_ptr->encoded_location());
+//    auto linked = value.linked_node();
+//    auto k = linked->kind();
+//    if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
+//        return;
+//    }
+//    auto clear_func = container->clear_func();
+//    if (clear_func) {
+//        // now we can move the previous arg, since we copied it's contents
+//        ::call_clear_fn(gen, clear_func, movable_value, value_ptr->encoded_location());
+//    }
+//}
 
-bool Codegen::move_by_memcpy(BaseType* type, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
-    auto& value = *value_ptr;
-    auto known_t = value.pure_type_ptr();
-    auto movable = known_t->get_direct_linked_node();
-    if(!movable || !movable->isStoredStructType(movable->kind())) {
-        return false;
-    }
-    move_by_memcpy(movable, value_ptr, elem_ptr, movable_value);
-    return true;
-}
+//bool Codegen::move_by_memcpy(BaseType* type, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
+//    auto& value = *value_ptr;
+//    auto known_t = value.pure_type_ptr();
+//    auto movable = known_t->get_direct_linked_node();
+//    if(!movable || !movable->isStoredStructType(movable->kind())) {
+//        return false;
+//    }
+//    move_by_memcpy(movable, value_ptr, elem_ptr, movable_value);
+//    return true;
+//}
 
-llvm::Value* Codegen::move_by_allocate(BaseType* type, Value* value, llvm::Value* elem_pointer, llvm::Value* movable_value) {
-    const auto linked = value->linked_node();
-    const auto linked_kind = linked->kind();
-    if((linked_kind == ASTNodeKind::VarInitStmt && !linked->as_var_init_unsafe()->is_const()) || linked_kind == ASTNodeKind::FunctionParam) {
-        // we can pass directly, as the original nodes are in-accessible after this move
-        return movable_value;
-    }
-    const auto pure = value->pure_type_ptr();
-    const auto kind = pure->kind();
-    const auto linked_node = pure->get_direct_linked_node();
-    if(!linked_node) {
-        // we can pass directly, as there's no node, it's probably a native type like int or long, where generic is being moved, and int is used in generic type parameter
-        return movable_value;
-    }
-    const auto linked_node_kind = linked_node->kind();
-    if(!ASTNode::isStoredStructType(linked_node_kind)) {
-        // we can pass directly, as the node is not a stored struct type, what could it be except typealias
-        return movable_value;
-    }
-
-    auto new_struct = elem_pointer;
-    if(!new_struct) {
-        const auto allocaInst = builder->CreateAlloca(type->llvm_type(*this));
-        di.instr(allocaInst, type);
-        new_struct = allocaInst;
-    }
-    move_by_memcpy(linked_node, value, new_struct, movable_value);
-    return new_struct;
-}
+//llvm::Value* Codegen::move_by_allocate(BaseType* type, Value* value, llvm::Value* elem_pointer, llvm::Value* movable_value) {
+//    const auto linked = value->linked_node();
+//    const auto linked_kind = linked->kind();
+//    if((linked_kind == ASTNodeKind::VarInitStmt && !linked->as_var_init_unsafe()->is_const()) || linked_kind == ASTNodeKind::FunctionParam) {
+//        // we can pass directly, as the original nodes are in-accessible after this move
+//        return movable_value;
+//    }
+//    const auto pure = value->pure_type_ptr();
+//    const auto kind = pure->kind();
+//    const auto linked_node = pure->get_direct_linked_node();
+//    if(!linked_node) {
+//        // we can pass directly, as there's no node, it's probably a native type like int or long, where generic is being moved, and int is used in generic type parameter
+//        return movable_value;
+//    }
+//    const auto linked_node_kind = linked_node->kind();
+//    if(!ASTNode::isStoredStructType(linked_node_kind)) {
+//        // we can pass directly, as the node is not a stored struct type, what could it be except typealias
+//        return movable_value;
+//    }
+//
+//    auto new_struct = elem_pointer;
+//    if(!new_struct) {
+//        const auto allocaInst = builder->CreateAlloca(type->llvm_type(*this));
+//        di.instr(allocaInst, type);
+//        new_struct = allocaInst;
+//    }
+//    move_by_memcpy(linked_node, value, new_struct, movable_value);
+//    return new_struct;
+//}
 
 void Codegen::print_to_console() {
     module->print(llvm::outs(), nullptr, false, true);

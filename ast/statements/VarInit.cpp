@@ -75,21 +75,36 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 return;
             }
 
-            bool moved = false;
-            if(value->is_ref_moved()) {
-                auto known_t = value->pure_type_ptr();
-                auto node = known_t->get_direct_linked_node();
-                if(node && node->isStoredStructType(node->kind())) {
+//            bool moved = false;
+//            if(value->is_ref_moved()) {
+//                auto known_t = value->pure_type_ptr();
+//                auto node = known_t->get_direct_linked_node();
+//                if(node && node->isStoredStructType(node->kind())) {
+//                    const auto& name_v = name_view();
+//                    const auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));
+//                    gen.di.instr(allocaInst, encoded_location());
+//                    llvm_ptr = allocaInst;
+//                    gen.move_by_memcpy(node, value, llvm_ptr, value->llvm_value(gen));
+//                    moved = true;
+//                }
+//            }
+
+                // copy or move the struct, if required
+                const auto exp_type = get_or_create_type(gen.allocator);
+                if(value->requires_memcpy_ref_struct(exp_type)) {
                     const auto& name_v = name_view();
                     const auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));
                     gen.di.instr(allocaInst, encoded_location());
                     llvm_ptr = allocaInst;
-                    gen.move_by_memcpy(node, value, llvm_ptr, value->llvm_value(gen));
-                    moved = true;
+                    if(!gen.copy_or_move_struct(exp_type, value, allocaInst)) {
+                        gen.warn("couldn't copy or move the struct to location", this);
+                    }
+                    put_destructible(gen);
+                    gen.di.declare(this, llvm_ptr);
+                    return;
                 }
-            }
 
-            if(!moved) {
+//            if(!moved) {
 
                 llvm::Value* dyn_obj_impl = nullptr;
 
@@ -98,15 +113,15 @@ void VarInitStatement::code_gen(Codegen &gen) {
                     dyn_obj_impl = gen.get_dyn_obj_impl(value, type_ptr_fast());
                 }
 
-                if(!dyn_obj_impl) {
-                    auto llvmType = llvm_type(gen);
-                    // is referencing another struct, that is non movable and must be mem copied into the pointer
-                    llvm_ptr = gen.memcpy_ref_struct(create_value_type(gen.allocator), value, nullptr, llvmType);
-                    if (llvm_ptr) {
-                        gen.di.declare(this, llvm_ptr);
-                        return;
-                    }
-                }
+//                if(!dyn_obj_impl) {
+//                    auto llvmType = llvm_type(gen);
+//                    // is referencing another struct, that is non movable and must be mem copied into the pointer
+//                    llvm_ptr = gen.memcpy_ref_struct(create_value_type(gen.allocator), value, nullptr, llvmType);
+//                    if (llvm_ptr) {
+//                        gen.di.declare(this, llvm_ptr);
+//                        return;
+//                    }
+//                }
 
                 llvm_ptr = value->llvm_allocate(gen, name_str(),type_ptr_fast());
                 if(dyn_obj_impl) {
@@ -114,7 +129,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 }
                 gen.di.declare(this, llvm_ptr);
 
-            }
+//            }
 
         } else {
             const auto t = llvm_type(gen);

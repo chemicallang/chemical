@@ -1203,13 +1203,13 @@ void InitBlock::code_gen(Codegen &gen) {
             call->llvm_chain_value(gen, args, destructibles, elementPtr, nullptr, nullptr);
             Value::destruct(gen, destructibles);
         } else {
-            if(gen.requires_memcpy_ref_struct(variable.second, value)) {
-                auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
-                gen.memcpy_struct(value->llvm_type(gen), elementPtr, value->llvm_value(gen, nullptr), value->encoded_location());
-            } else {
+//            if(gen.requires_memcpy_ref_struct(variable.second, value)) {
+//                auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
+//                gen.memcpy_struct(value->llvm_type(gen), elementPtr, value->llvm_value(gen, nullptr), value->encoded_location());
+//            } else {
                 // couldn't move struct
                 value->store_in_struct(gen, nullptr, self_arg, parent_type, idx, is_union ? 0 : variable.first, variable.second);
-            }
+//            }
         }
     }
 }
@@ -1260,19 +1260,23 @@ bool Codegen::copy_or_move_struct(BaseType* known_type, Value* value, llvm::Valu
     // is referencing another struct, that is non movable and must be mem copied into the pointer
     const auto kind = value->val_kind();
     const auto chain = value->as_access_chain_unsafe();
-    if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && chain->values.back()->as_func_call() == nullptr)) {
-        auto linked = known_type->get_direct_linked_node();
-        if (linked) {
-            auto k = linked->kind();
-            if(k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion) {
-                memcpy_struct(value->llvm_type(*this), memory_pointer, value->llvm_value(*this), value->encoded_location());
-                return true;
-            } else if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl) {
-                const auto container = linked->as_members_container_unsafe();
-                // figure out if we need to
-                move_by_memcpy(container, value, memory_pointer, value->llvm_value(*this));
-                return true;
+    auto linked = known_type->get_direct_linked_canonical_node();
+    if (linked) {
+        auto k = linked->kind();
+        if(k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion) {
+            memcpy_struct(value->llvm_type(*this), memory_pointer, value->llvm_value(*this), value->encoded_location());
+            return true;
+        } else if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl) {
+            const auto container = linked->as_members_container_unsafe();
+            // we will always have to memcpy the struct into the location
+            memcpy_struct(value->llvm_type(*this), memory_pointer, value->llvm_value(*this), value->encoded_location());
+            if(!container->is_shallow_copyable()) {
+                // however if struct is not shallow copyable, we must also set the drop flag to false so it won't be dropped
+                if(!value->set_drop_flag_for_moved_ref(*this)) {
+                    warn("couldn't set the drop flag to false for moved value", value);
+                }
             }
+            return true;
         }
     }
     return false;
@@ -1283,11 +1287,11 @@ void AssignStatement::code_gen(Codegen &gen) {
     const auto pointer = lhs->llvm_pointer(gen);
 
     if(assOp == Operation::Assignment) {
-        auto& func_type = *gen.current_func_type;
-        if(value->is_ref_moved()) {
-            const auto is_ref_moved = lhs->is_ref_moved();
-            const auto lhs_type = lhs->known_type();
-            if(!is_ref_moved) {
+        const auto lhs_type = lhs->create_type(gen.allocator);
+        if(value->requires_memcpy_ref_struct(lhs_type)) {
+            // we must memcpy the struct into the lhs pointer
+            // first if the lhs is not uninit, we must destruct it
+            if(!lhs->is_ref_moved()) {
                 // we must destruct the previous value before we memcpy this value into the pointer, because lhs ref is moved
                 // this is set by symbol resolver, to indicate that this value should be destructed before assigning new moved value
                 llvm::Function* llvm_func_data;
@@ -1297,11 +1301,10 @@ void AssignStatement::code_gen(Codegen &gen) {
                     gen.di.instr(callInst, this);
                 }
             }
-            if(gen.move_by_memcpy(lhs_type, value, pointer, value->llvm_value(gen))) {
-                return;
+            // now we just need to memcpy the rhs by copy or move
+            if(!gen.copy_or_move_struct(lhs_type, value, pointer)) {
+                gen.warn("couldn't copy or move the struct to location", encoded_location());
             }
-        }
-        if(gen.memcpy_ref_struct(lhs->known_type(), value, pointer, lhs->llvm_type(gen)) != nullptr) {
             return;
         }
     }

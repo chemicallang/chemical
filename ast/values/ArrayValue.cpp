@@ -59,23 +59,23 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
         }
 
         auto& value = *values[i];
-        moved = false;
-        if(value.is_ref_moved()) {
-            // moving the struct
-            std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-            auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
-            moved = gen.move_by_memcpy(known_child_t, &value, elementPtr, value.llvm_value(gen, nullptr));
-        }
-        if(!moved) {
-            if(gen.requires_memcpy_ref_struct(known_child_t, &value)) {
-                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-                auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
-                gen.memcpy_struct(value.llvm_type(gen), elementPtr, value.llvm_value(gen, nullptr), value.encoded_location());
-            } else {
+//        moved = false;
+//        if(value.is_ref_moved()) {
+//            // moving the struct
+//            std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+//            auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
+//            moved = gen.move_by_memcpy(known_child_t, &value, elementPtr, value.llvm_value(gen, nullptr));
+//        }
+//        if(!moved) {
+//            if(gen.requires_memcpy_ref_struct(known_child_t, &value)) {
+//                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+//                auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
+//                gen.memcpy_struct(value.llvm_type(gen), elementPtr, value.llvm_value(gen, nullptr), value.encoded_location());
+//            } else {
                 // couldn't move the struct
                 value.store_in_array(gen, this, allocated, parent_type, idxList, i, known_child_t);
-            }
-        }
+//            }
+//        }
     }
 }
 

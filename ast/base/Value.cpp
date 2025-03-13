@@ -90,7 +90,17 @@ unsigned int Value::store_in_struct(
         unsigned int index,
         BaseType* expected_type
 ) {
-    auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+
+    const auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+
+    // if it's a struct type that can be mem copied directly into the element pointer
+    if(requires_memcpy_ref_struct(expected_type)) {
+        if(!gen.copy_or_move_struct(expected_type, this, elementPtr)) {
+            gen.warn("couldn't copy or move the struct to location", this);
+        }
+        return index + 1;
+    }
+
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
 
@@ -124,6 +134,15 @@ unsigned int Value::store_in_array(
         BaseType* expected_type
 ) {
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+
+    // if it's a struct type that can be mem copied directly into the element pointer
+    if(requires_memcpy_ref_struct(expected_type)) {
+        if(!gen.copy_or_move_struct(expected_type, this, elementPtr)) {
+            gen.warn("couldn't copy or move the struct to location", this);
+        }
+        return index + 1;
+    }
+
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
         const auto value_pure = create_type(gen.allocator)->pure_type(gen.allocator);
@@ -713,7 +732,7 @@ bool Value::requires_memcpy_ref_struct(BaseType* known_type) {
     const auto chain = as_access_chain_unsafe();
     const auto id = as_identifier_unsafe();
     if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && chain->values.back()->as_func_call() == nullptr)) {
-        auto linked = known_type->get_direct_linked_node();
+        auto linked = known_type->get_direct_linked_canonical_node();
         if (linked) {
             auto k = linked->kind();
             if(k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion) {

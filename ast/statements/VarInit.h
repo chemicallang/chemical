@@ -219,13 +219,15 @@ public:
         attrs.has_assignment = true;
     }
 
-
-
     Value* holding_value() final {
         return value;
     }
 
     BaseType* known_type() final;
+
+    BaseType* get_or_create_type(ASTAllocator& allocator) {
+        return type ? type : create_value_type(allocator);
+    }
 
     bool is_top_level() {
         return parent() == nullptr || parent()->as_namespace();

@@ -119,7 +119,7 @@ public:
     /**
      * the statements being generated are from this function type
      */
-    FunctionType* current_func_type = nullptr;
+    FunctionTypeBody* current_func_type = nullptr;
 
     /**
      * when user say's var x = if(condition) value else other_value
@@ -259,7 +259,7 @@ public:
     /**
      * create a nested function
      */
-    llvm::Function *create_nested_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, Scope &scope);
+    llvm::Function *create_nested_function(const std::string_view &name, llvm::FunctionType *type, FunctionTypeBody* func_type, Scope &scope);
 
     /**
      * gets or inserts a function, similar to declaration

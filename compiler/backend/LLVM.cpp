@@ -965,11 +965,22 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             }
         }
     }
+
+    VariableIdentifier temp_id("", encoded_location(), false);
+
     // destruction
     if(!gen.has_current_block_ended) {
         int i = gen.destruct_nodes.size() - 1;
         while(i >= 0) {
-            conditional_destruct(gen, gen.destruct_nodes[i], value, encoded_location());
+            auto& nodePair = gen.destruct_nodes[i];
+            // before we send this node for destruction, we must emit an error
+            // if it's nested member has been moved somewhere, because we canot
+            temp_id.linked = nodePair.first;
+            if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
+                conditional_destruct(gen, nodePair, value, encoded_location());
+            } else {
+                gen.error("cannot destruct uninit value at return because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.first, this);
+            }
             i--;
         }
         gen.destroy_current_scope = false;
@@ -1126,10 +1137,20 @@ void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
         i++;
     }
     if(gen.destroy_current_scope) {
+        const auto func_type = gen.current_func_type;
+
+        VariableIdentifier temp_id("", encoded_location());
+
         i = ((int) gen.destruct_nodes.size()) - 1;
         while (i >= (int) destruct_begin) {
+            auto& nodePair = gen.destruct_nodes[i];
             // TODO use the location that represents the scope end
-            conditional_destruct(gen, gen.destruct_nodes[i], nullptr, encoded_location());
+            temp_id.linked = nodePair.first;
+            if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
+                conditional_destruct(gen, nodePair, nullptr, encoded_location());
+            } else {
+                gen.error("cannot destruct uninit value at scope end because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.first, this);
+            }
             i--;
         }
     } else {

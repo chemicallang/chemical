@@ -327,13 +327,6 @@ public struct string : Hashable, Eq {
         return fnv1a_hash_32(data());
     }
 
-    @postmove
-    func postmove(&mut self) {
-        if(state == '2') {
-            state = '0'
-        }
-    }
-
     @delete
     func delete(&mut self) {
         if(state == '2') {

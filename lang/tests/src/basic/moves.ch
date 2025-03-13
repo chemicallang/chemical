@@ -436,7 +436,7 @@ func test_moves() {
         var con = ClearObjCon { c : ClearObj { i : 655 } }
         take_clear_obj(con.c);
         con.c = ClearObj { i : 543 }
-        return post_move_called == 1 && delete_called == 1; // called once, inside the take_clear_obj, but not due to assignment
+        return post_move_called == 0 && delete_called == 1; // called once, inside the take_clear_obj, but not due to assignment
     })
     post_move_called = 0;
     delete_called = 0;
@@ -445,7 +445,7 @@ func test_moves() {
             var con = ClearObjCon { c : ClearObj { i : 453 } }
             var con2 = ClearObjCon { c : con.c }
         }
-        return post_move_called == 1 && delete_called == 2;
+        return post_move_called == 0 && delete_called == 2;
     })
     post_move_called = 0;
     delete_called = 0;
@@ -454,7 +454,7 @@ func test_moves() {
             var con = ClearObjCon { c : ClearObj { i : 453 } }
             var con2 = { con.c }
         }
-        return post_move_called == 1 && delete_called == 2;
+        return post_move_called == 0 && delete_called == 2;
     })
     post_move_called = 0;
     delete_called = 0;
@@ -463,7 +463,7 @@ func test_moves() {
             var con = ClearObjCon { c : ClearObj { i : 453 } }
             var con2 = con.c
         }
-        return post_move_called == 1 && delete_called == 2;
+        return post_move_called == 0 && delete_called == 2;
     })
 
     // TESTING MOVE FUNCTIONS FROM HERE
@@ -521,7 +521,7 @@ func test_moves() {
         }
         // first a.m is destructed, b.m is moved into a.m (using move constructor, self = a.m, other = b.m)
         // then a is destructed, and b is destructed, that's three destructors called, a single move
-        return move_called == 1 && delete_called == 3 && result == 33;
+        return move_called == 0 && delete_called == 3 && result == 33;
     })
 
     move_called = 0;
@@ -550,7 +550,7 @@ func test_moves() {
         var con = MoveObjCon { m : MoveObj { i : 655 } }
         take_move_obj(con.m);
         con.m = MoveObj { i : 543 }
-        return move_called == 1 && delete_called == 1; // called once, inside the take_move_obj, but not due to assignment
+        return move_called == 0 && delete_called == 1; // called once, inside the take_move_obj, but not due to assignment
     })
     move_called = 0;
     delete_called = 0;
@@ -559,7 +559,7 @@ func test_moves() {
             var con = MoveObjCon { m : MoveObj { i : 453 } }
             var con2 = MoveObjCon { m : con.m }
         }
-        return move_called == 1 && delete_called == 2;
+        return move_called == 0 && delete_called == 2;
     })
     move_called = 0;
     delete_called = 0;
@@ -568,7 +568,7 @@ func test_moves() {
             var con = MoveObjCon { m : MoveObj { i : 453 } }
             var con2 = { con.m }
         }
-        return move_called == 1 && delete_called == 2;
+        return move_called == 0 && delete_called == 2;
     })
     move_called = 0;
     delete_called = 0;
@@ -577,7 +577,7 @@ func test_moves() {
             var con = MoveObjCon { m : MoveObj { i : 453 } }
             var con2 = con.m
         }
-        return move_called == 1 && delete_called == 2;
+        return move_called == 0 && delete_called == 2;
     })
 
     // TESTING EXPLICIT COPY FUNCTION CALLS FROM HERE

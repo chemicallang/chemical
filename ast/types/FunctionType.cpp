@@ -353,9 +353,7 @@ AccessChain* FunctionTypeBody::find_partially_matching_moved_chain(AccessChain& 
     return smallest;
 }
 
-ChainValue* FunctionTypeBody::find_moved_chain_value(VariableIdentifier* id) {
-    auto found = find_moved_id(id);
-    if(found) return found;
+AccessChain* FunctionTypeBody::find_smallest_moved_access_chain(VariableIdentifier* id) {
     AccessChain* smallest = nullptr;
     for(auto& chain : moved_chains) {
         auto& moved_chain = *chain;
@@ -368,6 +366,23 @@ ChainValue* FunctionTypeBody::find_moved_chain_value(VariableIdentifier* id) {
         }
     }
     return smallest;
+}
+
+AccessChain* FunctionTypeBody::find_moved_access_chain(VariableIdentifier* id) {
+    for(auto& chain : moved_chains) {
+        auto& moved_chain = *chain;
+        auto& other_first = *moved_chain.values[0];
+        if(id->is_equal(&other_first, ValueKind::Identifier, other_first.val_kind())) {
+            return chain;
+        }
+    }
+    return nullptr;
+}
+
+ChainValue* FunctionTypeBody::find_moved_chain_value(VariableIdentifier* id) {
+    auto found = find_moved_id(id);
+    if(found) return found;
+    return find_smallest_moved_access_chain(id);
 }
 
 ChainValue* FunctionTypeBody::find_moved_chain_value(AccessChain* chain_ptr) {

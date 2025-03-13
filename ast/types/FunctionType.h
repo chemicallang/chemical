@@ -400,6 +400,18 @@ public:
     AccessChain* find_partially_matching_moved_chain(AccessChain& chain, bool consider_nested_members, bool consider_last_member);
 
     /**
+     * for an identifier, finds the smallest moved access chain, for example
+     * for 'x', it could be 'x.a' or 'x.a.b.c' but for 'x' you'd never get 'x'
+     */
+    AccessChain* find_smallest_moved_access_chain(VariableIdentifier* id);
+
+    /**
+     * for an identifier, finds the smallest moved access chain, for example
+     * for 'x', it could be 'x.a' or 'x.a.b.c' but for 'x' you'd never get 'x'
+     */
+    AccessChain* find_moved_access_chain(VariableIdentifier* id);
+
+    /**
      * find's a chain value (identifier or access chain) that matches the identifier functionally
      * in the case of access chain, the first element is expected to be an identifier, that is linked
      * with same node as the given identifier

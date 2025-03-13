@@ -202,9 +202,9 @@ llvm::Function *Codegen::create_function(const std::string_view &name, llvm::Fun
     return current_function;
 }
 
-llvm::Function *Codegen::create_nested_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, Scope &scope) {
+llvm::Function *Codegen::create_nested_function(const std::string_view &name, llvm::FunctionType *type, FunctionTypeBody* func_type, Scope &scope) {
 
-    const auto prev_destruct_nodes = std::move(destruct_nodes);
+    auto prev_destruct_nodes = std::move(destruct_nodes);
     const auto prev_destroy_scope = destroy_current_scope;
     const auto prev_block_ended = has_current_block_ended;
     const auto prev_block = builder->GetInsertBlock();

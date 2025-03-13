@@ -6,15 +6,14 @@ struct Destructible {
 
     var lamb : (count : *mut int) => void;
 
-    @clear
-    func clear(&self) {
-
-    }
-
     @delete
     func delete(&self) {
         self.lamb(self.count);
     }
+
+}
+
+func take_destructible_i(d : Destructible) {
 
 }
 
@@ -336,6 +335,22 @@ func test_destructors() {
         var get_int = (thing : int) => thing;
         var data = get_int(create_destructible(&count, 363).data);
         return count == 1 && data == 363;
+    })
+    test("destructor is not called on values moved to other variables", () => {
+        var count = 0
+        if(count == 0) {
+            var d = create_destructible(&count, 874)
+            var c = d;
+        }
+        return count == 1
+    })
+    test("destructor is not called on values moved to other functions", () => {
+        var count = 0
+        if(count == 0) {
+            var d = create_destructible(&count, 874)
+            take_destructible_i(d)
+        }
+        return count == 1
     })
     test("destructor is not called on pointer types - 1", () => {
         var count = 0;

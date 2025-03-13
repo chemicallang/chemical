@@ -200,6 +200,7 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
             }
         }},
         { "clear", [](Parser* parser, ASTNode* node) -> void {
+            parser->warning("clear is deprecated");
             const auto func = node->as_function();
             if(func) {
                 func->set_clear_fn(true);
@@ -208,6 +209,7 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
             }
         }},
         { "postmove", [](Parser* parser, ASTNode* node) -> void {
+            parser->warning("postmove is deprecated");
             const auto func = node->as_function();
             if(func) {
                 func->set_post_move_fn(true);
@@ -256,6 +258,7 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
             }
         }},
         { "move", [](Parser* parser, ASTNode* node) -> void {
+            parser->warning("move is deprecated");
             const auto func = node->as_function();
             if(func) {
                 func->set_move_fn(true);

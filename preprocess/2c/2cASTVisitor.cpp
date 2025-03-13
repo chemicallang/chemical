@@ -1751,7 +1751,20 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     }
     visitor.write('=');
     visitor.write(' ');
-    visitor.accept_mutating_value(type, assign->value, true);
+
+    const auto value = assign->value;
+    if(value->is_ref_moved()) {
+        // since we're moving the value here
+        // what we must do is set the drop flag to false
+        visitor.write("({ ");
+        set_moved_ref_drop_flag(visitor, value);
+        visitor.space();
+        visitor.accept_mutating_value(type, value, true);
+        visitor.write("; })");
+    } else {
+        visitor.accept_mutating_value(type, value, true);
+    }
+
 }
 
 void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
@@ -3146,9 +3159,6 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
             struct_initialize_inside_braces(*this, (StructValue*) val);
         }
     } else if(val_type->isStructLikeType()) {
-//        auto refType = val->create_type();
-//        auto structType = refType->linked_node()->as_struct_def();
-//        auto size = structType->variables.size();
         write('*');
         write(struct_passed_param_name);
         write(" = ");

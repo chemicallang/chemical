@@ -276,19 +276,9 @@ public:
     FunctionDeclaration* create_destructor(ASTAllocator& allocator);
 
     /**
-     * create the move function and put it into functions
-     */
-    FunctionDeclaration* create_clear_fn(ASTAllocator& allocator);
-
-    /**
      * create the copy function and put it into functions
      */
     FunctionDeclaration* create_copy_fn(ASTAllocator& allocator);
-
-    /**
-     * create the copy function and put it into functions
-     */
-    FunctionDeclaration* create_move_fn(ASTAllocator& allocator);
 
     /**
      * creates a default constructor, report errors in given diagnoser, this is a helper function
@@ -302,19 +292,9 @@ public:
     FunctionDeclaration* create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
     /**
-     * create default move function, report errors in given diagnoser, this is a helper function
-     */
-    FunctionDeclaration* create_def_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
-
-    /**
      * create default copy function, report errors in given diagnoser, this is a helper function
      */
     FunctionDeclaration* create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
-
-    /**
-     * create default move function, report errors in given diagnoser, this is a helper function
-     */
-    FunctionDeclaration* create_def_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
     /**
      * insert a function that can have same name for multiple declarations

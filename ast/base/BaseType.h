@@ -286,21 +286,6 @@ public:
     FunctionDeclaration* get_destructor();
 
     /**
-     * does this type has a pre move function
-     */
-    FunctionDeclaration* get_pre_move_fn();
-
-    /**
-     * does this type has a move function
-     */
-    FunctionDeclaration* get_move_fn();
-
-    /**
-     * does this type has a clear function
-     */
-    FunctionDeclaration* get_clear_fn();
-
-    /**
      * does thi type has a copy function
      */
     FunctionDeclaration* get_copy_fn();
@@ -309,16 +294,6 @@ public:
      * is destructor required
      */
     bool requires_destructor();
-
-    /**
-     * is move required
-     */
-    bool requires_move_fn();
-
-    /**
-     * is a clear function required
-     */
-    bool requires_clear_fn();
 
     /**
      * is a copy function required

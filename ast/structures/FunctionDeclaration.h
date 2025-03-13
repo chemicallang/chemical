@@ -109,14 +109,6 @@ struct FuncDeclAttributes {
      */
     bool is_copy_fn;
     /**
-     * is this a clear function
-     */
-    bool is_post_move_fn;
-    /**
-     * is this a move function
-     */
-    bool is_move_fn;
-    /**
      * is this a delete function
      */
     bool is_delete_fn;
@@ -323,32 +315,6 @@ public:
         attrs.has_usage = usage;
     }
 
-    [[deprecated]]
-    inline bool is_clear_fn() {
-        return attrs.is_post_move_fn;
-    }
-
-    [[deprecated]]
-    inline void set_clear_fn(bool value) {
-        attrs.is_post_move_fn = value;
-    }
-
-    inline bool is_post_move_fn() {
-        return attrs.is_post_move_fn;
-    }
-
-    inline void set_post_move_fn(bool value) {
-        attrs.is_post_move_fn = value;
-    }
-
-    inline bool is_move_fn() {
-        return attrs.is_move_fn;
-    }
-
-    inline void set_move_fn(bool value) {
-        attrs.is_move_fn = value;
-    }
-
     inline bool is_delete_fn() {
         return attrs.is_delete_fn;
     }
@@ -374,7 +340,7 @@ public:
     }
 
     inline bool is_auto_called_func() {
-        return is_delete_fn() || is_copy_fn() || is_post_move_fn() || is_move_fn() || is_constructor_fn();
+        return is_delete_fn() || is_copy_fn() || is_constructor_fn();
     }
 
     /**
@@ -620,37 +586,11 @@ public:
     void code_gen_copy_fn(Codegen& gen, StructDefinition* def);
 
     /**
-     * body for the move function is generated using this function
-     * the copy function is a special function that will call pre move functions
-     * of the struct members that require it
-     */
-    void code_gen_move_fn(Codegen& gen, StructDefinition* def);
-
-    /**
-     * body for the move function is generated using this function
-     * the move function is a special function that will call move functions
-     * of the struct members that require it
-     */
-    void code_gen_clear_fn(Codegen& gen, StructDefinition* def);
-
-    /**
      * body for the copy function is generated using this function
      * the copy function is a special function that will call copy functions
      * of the struct members that require it
      */
     void code_gen_copy_fn(Codegen& gen, VariantDefinition* def);
-
-    /**
-     * body for the move function is generated using this function
-     * the move function is a special function that will call pre move functions
-     * of the struct members that require it
-     */
-    void code_gen_move_fn(Codegen& gen, VariantDefinition* def);
-
-    /**
-     * generates clear_fn body for the variant definition
-     */
-    void code_gen_clear_fn(Codegen& gen, VariantDefinition* def);
 
     /**
      * generates destructor body for the variant definition

@@ -437,24 +437,6 @@ FunctionDeclaration* MembersContainer::destructor_func() {
     return nullptr;
 }
 
-FunctionDeclaration* MembersContainer::clear_func() {
-    for (const auto function : std::ranges::reverse_view(functions())) {
-        if(function->is_post_move_fn()) {
-            return function;
-        }
-    }
-    return nullptr;
-}
-
-FunctionDeclaration* MembersContainer::move_func() {
-    for (const auto function : std::ranges::reverse_view(functions())) {
-        if(function->is_move_fn()) {
-            return function;
-        }
-    }
-    return nullptr;
-}
-
 FunctionDeclaration* MembersContainer::copy_func() {
     for (const auto function : std::ranges::reverse_view(functions())) {
         if(function->is_copy_fn()) {
@@ -550,40 +532,10 @@ bool MembersContainer::any_member_has_destructor() {
     });
 }
 
-bool MembersContainer::any_member_has_clear_func() {
-    return members_type_require(*this, [](BaseType* type)-> bool {
-        return type->get_clear_fn() != nullptr;
-    });
-}
-
-bool MembersContainer::any_member_has_pre_move_func() {
-    return members_type_require(*this, [](BaseType* type)-> bool {
-        return type->get_pre_move_fn() != nullptr;
-    });
-}
-
-bool MembersContainer::any_member_has_move_func() {
-    return members_type_require(*this, [](BaseType* type)-> bool {
-        return type->get_move_fn() != nullptr;
-    });
-}
-
 bool MembersContainer::any_member_has_copy_func() {
     return members_type_require(*this, [](BaseType* type)-> bool {
         return type->get_copy_fn() != nullptr;
     });
-}
-
-FunctionDeclaration* MembersContainer::pre_move_func() {
-    auto post_move = clear_func();
-    if(post_move) return nullptr;
-    auto move_fn = move_func();
-    if(move_fn) return move_fn;
-    auto copy_fn = copy_func();
-    if(copy_fn && copy_fn->is_implicit()) {
-        return copy_fn;
-    }
-    return nullptr;
 }
 
 void MembersContainer::insert_func(FunctionDeclaration* decl) {

@@ -144,13 +144,6 @@ public:
     FunctionDeclaration* implicit_constructor_func(ASTAllocator& allocator, Value* type);
 
     /**
-     * if there's a post move function (clear function), null is returned
-     * move function is returned, if there's no move function
-     * we return a implicit copy function unless there's none
-     */
-    FunctionDeclaration* pre_move_func();
-
-    /**
      * checks if any member has a default constructor
      */
     bool any_member_has_def_constructor();
@@ -162,22 +155,6 @@ public:
     bool any_member_has_destructor();
 
     /**
-     * check if move fn is required
-     */
-    bool any_member_has_pre_move_func();
-
-    /**
-     * check if move fn is required
-     */
-    bool any_member_has_move_func();
-
-    /**
-     * checks if this struct type requires a move function
-     * or has one
-     */
-    bool any_member_has_clear_func();
-
-    /**
      * checks if this struct type requires a copy function
      */
     bool any_member_has_copy_func();
@@ -187,7 +164,7 @@ public:
      * the default mem copy doesn't suffice
      */
     inline bool requires_moving() {
-        return destructor_func() != nullptr || clear_func() != nullptr || pre_move_func() != nullptr;
+        return destructor_func() != nullptr;
     }
 
     /**
@@ -239,16 +216,6 @@ public:
      * will provide a destructor function if there's one
      */
     FunctionDeclaration* destructor_func();
-
-    /**
-     * will provide the move function if there's one
-     */
-    FunctionDeclaration* clear_func();
-
-    /**
-     * will provide the move function if there's one
-     */
-    FunctionDeclaration* move_func();
 
     /**
      * will provide the move function if there's one

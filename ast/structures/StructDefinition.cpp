@@ -337,14 +337,6 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
             func->ensure_destructor(allocator, diagnoser, this);
             has_destructor = true;
         }
-        if(func->is_post_move_fn()) {
-            func->ensure_clear_fn(allocator, diagnoser, this);
-            has_clear_fn = true;
-        }
-        if(func->is_move_fn()) {
-            func->ensure_move_fn(allocator, diagnoser, this);
-            has_move_fn = true;
-        }
         if(func->is_copy_fn()) {
             func->ensure_copy_fn(allocator, diagnoser, this);
             has_copy_fn = true;

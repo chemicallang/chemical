@@ -70,24 +70,6 @@ public:
         return false;
     }
 
-    bool requires_move_fn() {
-        for(const auto& var : variables) {
-            if(var.second->known_type()->requires_move_fn()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool requires_clear_fn() {
-        for(const auto& var : variables) {
-            if(var.second->known_type()->requires_clear_fn()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     bool requires_destructor() {
         for(const auto& var : variables) {
             if(var.second->known_type()->requires_destructor()) {

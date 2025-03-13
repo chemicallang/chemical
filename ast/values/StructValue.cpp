@@ -162,7 +162,7 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
         gen.assign_store(lhs, lhsPtr, this, value, encoded_location());
         return;
     } else if(lhs->as_deref_value()) {
-        if(!definition->destructor_func() && !definition->clear_func() && allows_direct_init()) {
+        if(!definition->destructor_func() && allows_direct_init()) {
             const auto deref = lhs->as_deref_value();
             const auto deref_type = deref->value->create_type(gen.allocator);
             if (deref_type->pure_type(gen.allocator)->is_pointer()) {
@@ -170,15 +170,17 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
                 initialize_alloca(allocated, gen, nullptr);
                 return;
             }
+        } else {
+            gen.error("definition has either a destructor function or does not allow direct init", lhs);
         }
     } else {
         initialize_alloca(lhsPtr, gen, nullptr);
         return;
     }
+    gen.error("cannot assign struct value to pointer", lhs);
 #ifdef DEBUG
     throw std::runtime_error("cannot allocate a struct without an identifier");
 #endif
-    return;
 }
 
 llvm::Value *StructValue::llvm_arg_value(Codegen &gen, BaseType* expected_type) {

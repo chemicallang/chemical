@@ -232,14 +232,6 @@ void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser
             func->ensure_destructor(allocator, diagnoser, this);
             has_destructor = true;
         }
-        if(func->is_clear_fn()) {
-            func->ensure_clear_fn(allocator, diagnoser, this);
-            has_clear_fn = true;
-        }
-        if(func->is_move_fn()) {
-            func->ensure_move_fn(allocator, diagnoser, this);
-            has_move_fn = true;
-        }
         if(func->is_copy_fn()) {
             func->ensure_copy_fn(allocator, diagnoser, this);
         }
@@ -315,27 +307,9 @@ bool VariantMember::requires_destructor() {
     return false;
 }
 
-bool VariantMember::requires_clear_fn() {
-    for(auto& value : values) {
-        if(value.second->type->requires_clear_fn()) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool VariantMember::requires_copy_fn() {
     for(auto& value : values) {
         if(value.second->type->requires_copy_fn()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool VariantMember::requires_move_fn() {
-    for(auto& value : values) {
-        if(value.second->type->requires_move_fn()) {
             return true;
         }
     }

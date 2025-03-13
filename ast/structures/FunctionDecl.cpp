@@ -458,14 +458,6 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
         code_gen_copy_fn(gen, def);
         return;
     }
-    if(is_move_fn()) {
-        code_gen_move_fn(gen, def);
-        return;
-    }
-    if(is_clear_fn()) {
-        code_gen_clear_fn(gen, def);
-        return;
-    }
     if(is_delete_fn()) {
         code_gen_destructor(gen, def);
         return;
@@ -487,14 +479,6 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
     }
     if(is_copy_fn()) {
         code_gen_copy_fn(gen, def);
-        return;
-    }
-    if(is_clear_fn()) {
-        code_gen_clear_fn(gen, def);
-        return;
-    }
-    if(is_move_fn()) {
-        code_gen_move_fn(gen, def);
         return;
     }
     if(is_delete_fn()) {
@@ -602,64 +586,6 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) 
     });
 
     // generate user body
-    func_body_gen_no_scope(this, gen);
-
-    // end the function scope
-    gen.di.end_function_scope();
-
-}
-
-void FunctionDeclaration::code_gen_move_fn(Codegen& gen, StructDefinition* def) {
-    auto func = llvm_func();
-    gen.SetInsertPoint(&func->getEntryBlock());
-
-    // start the function scope
-    gen.di.start_function_scope(this, func);
-
-    // move calls to members
-    code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
-        const auto decl = mem_def->pre_move_func();
-        if(!decl) {
-            return;
-        }
-        auto selfArg = func->getArg(0);
-        auto otherArg = func->getArg(1);
-        std::vector<llvm::Value*> args;
-        std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
-        auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), selfArg, idxList, index);
-        args.emplace_back(element_ptr);
-        idxList.pop_back();
-        auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), otherArg, idxList, index);
-        args.emplace_back(other_element_ptr);
-        const auto callInstr = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
-        gen.di.instr(callInstr, location);
-    });
-
-    // generate the body
-    func_body_gen_no_scope(this, gen);
-
-    // end the function scope
-    gen.di.end_function_scope();
-
-}
-
-void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, StructDefinition* def) {
-    auto func = llvm_func();
-    gen.SetInsertPoint(&func->getEntryBlock());
-
-    // start the function scope
-    gen.di.start_function_scope(this, func);
-
-    // clear calls to members
-    code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
-        const auto decl = mem_def->clear_func();
-        if(!decl) {
-            return;
-        }
-        create_call_member_func(gen, decl, def, func, index, false, location);
-    });
-
-    // generate the body
     func_body_gen_no_scope(this, gen);
 
     // end the function scope
@@ -776,115 +702,6 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def)
 
     const auto retInstr = gen.builder->CreateRetVoid();
     gen.di.instr(retInstr, body_location());
-
-    // generate the body
-    if(body.has_value() && !body->nodes.empty()) {
-        func_body_gen_no_scope(this, gen);
-    }
-
-    // end the function scope
-    gen.di.end_function_scope();
-
-}
-
-void FunctionDeclaration::code_gen_move_fn(Codegen& gen, VariantDefinition* def) {
-    auto func = llvm_func();
-    gen.SetInsertPoint(&func->getEntryBlock());
-
-    // start the function scope
-    gen.di.start_function_scope(this, func);
-
-    // get args
-    auto allocaInst = func->getArg(0);
-    auto otherInst = func->getArg(1);
-    // storing the type integer
-    auto other_type = gen.builder->CreateGEP(def->llvm_type(gen), otherInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-    auto this_type = gen.builder->CreateGEP(def->llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-
-    const auto loaded = gen.builder->CreateLoad(gen.builder->getInt32Ty(), other_type);
-    gen.di.instr(loaded, body_location());
-
-    const auto storeInst = gen.builder->CreateStore(loaded, this_type);
-    gen.di.instr(storeInst, body_location());
-
-    // processing members to call copy functions on members
-    process_members_calling_fns(gen, def, allocaInst, func, body_location(), [](VariantMember* mem)-> bool {
-        return mem->requires_move_fn();
-    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func, SourceLocation location) {
-        auto otherArg = func->getArg(1);
-        auto other_struct_pointer = variant_struct_pointer(gen, otherArg, mem->parent());
-        auto index = -1;
-        for(auto& param : mem->values) {
-            index++;
-            auto linked = param.second->type->linked_node();
-            if(linked) {
-                auto container = linked->as_members_container();
-                if(container) {
-                    auto def = mem->parent();
-                    auto decl = container->pre_move_func();
-                    std::vector<llvm::Value*> args;
-                    std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
-                    auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), struct_ptr, idxList, index);
-                    args.emplace_back(element_ptr);
-                    idxList.pop_back();
-                    auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), other_struct_pointer, idxList, index);
-                    args.emplace_back(other_element_ptr);
-                    const auto callInst = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
-                    gen.di.instr(callInst, location);
-                }
-            }
-        }
-    });
-
-    const auto retInst = gen.builder->CreateRetVoid();
-    gen.di.instr(retInst, body_location());
-
-    // generate the body
-    if(body.has_value() && !body->nodes.empty()) {
-        func_body_gen_no_scope(this, gen);
-    }
-
-    // end the function scope
-    gen.di.end_function_scope();
-
-}
-
-void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def) {
-
-    auto func = llvm_func();
-    gen.SetInsertPoint(&func->getEntryBlock());
-
-    // start the function scope
-    gen.di.start_function_scope(this, func);
-
-    // get args
-    auto allocaInst = func->getArg(0);
-    // processing members to call copy functions on members
-    process_members_calling_fns(gen, def, allocaInst, func, body_location(), [](VariantMember* mem)-> bool {
-        return mem->requires_clear_fn();
-    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func, SourceLocation location) {
-        llvm::Function* dtr_func_data = nullptr;
-        int i = 0;
-        for(auto& value : mem->values) {
-            auto ref_node = value.second->type->get_direct_linked_node();
-            if(ref_node) { // <-- the node is directly referenced
-                auto clearFn = gen.determine_clear_fn_for(value.second->type, dtr_func_data);
-                if(clearFn) {
-                    std::vector<llvm::Value*> args;
-                    if(clearFn->has_self_param()) {
-                        auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
-                        args.emplace_back(gep3);
-                    }
-                    const auto callInst = gen.builder->CreateCall(dtr_func_data, args, "");
-                    gen.di.instr(callInst, location);
-                }
-            }
-            i++;
-        }
-    });
-
-    const auto retInst = gen.builder->CreateRetVoid();
-    gen.di.instr(retInst, body_location());
 
     // generate the body
     if(body.has_value() && !body->nodes.empty()) {

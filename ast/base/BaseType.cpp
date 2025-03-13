@@ -114,21 +114,6 @@ FunctionDeclaration* BaseType::get_destructor() {
     return container ? container->destructor_func() : nullptr;
 }
 
-FunctionDeclaration* BaseType::get_pre_move_fn() {
-    auto container = get_members_container();
-    return container ? container->pre_move_func() : nullptr;
-}
-
-FunctionDeclaration* BaseType::get_move_fn() {
-    auto container = get_members_container();
-    return container ? container->move_func() : nullptr;
-}
-
-FunctionDeclaration* BaseType::get_clear_fn() {
-    auto container = get_members_container();
-    return container ? container->clear_func() : nullptr;
-}
-
 FunctionDeclaration* BaseType::get_copy_fn() {
     auto container = get_members_container();
     return container ? container->copy_func() : nullptr;
@@ -146,42 +131,6 @@ bool BaseType::requires_destructor() {
                 return ((VariantMember*) node)->requires_destructor();
             case ASTNodeKind::UnnamedStruct:
                 return ((UnnamedStruct*) node)->requires_destructor();
-            default:
-                return false;
-        }
-    }
-}
-
-bool BaseType::requires_move_fn() {
-    auto node = get_direct_linked_node();
-    if(!node) return false;
-    auto node_kind = node->kind();
-    if(ASTNode::isMembersContainer(node_kind)) {
-        return ((MembersContainer*) node)->pre_move_func() != nullptr;
-    } else {
-        switch(node_kind) {
-            case ASTNodeKind::VariantMember:
-                return ((VariantMember*) node)->requires_move_fn();
-            case ASTNodeKind::UnnamedStruct:
-                return ((UnnamedStruct*) node)->requires_move_fn();
-            default:
-                return false;
-        }
-    }
-}
-
-bool BaseType::requires_clear_fn() {
-    auto node = get_direct_linked_node();
-    if(!node) return false;
-    auto node_kind = node->kind();
-    if(ASTNode::isMembersContainer(node_kind)) {
-        return ((MembersContainer*) node)->clear_func() != nullptr;
-    } else {
-        switch(node_kind) {
-            case ASTNodeKind::VariantMember:
-                return ((VariantMember*) node)->requires_clear_fn();
-            case ASTNodeKind::UnnamedStruct:
-                return ((UnnamedStruct*) node)->requires_clear_fn();
             default:
                 return false;
         }
@@ -362,7 +311,7 @@ VariantDefinition* BaseType::get_direct_linked_variant() {
 
 StructDefinition* BaseType::get_direct_linked_movable_struct() {
     const auto direct_ref_struct = get_direct_linked_struct();
-    if(direct_ref_struct && (direct_ref_struct->destructor_func() || direct_ref_struct->pre_move_func())) {
+    if(direct_ref_struct && (direct_ref_struct->is_shallow_copyable() || direct_ref_struct->destructor_func())) {
         return direct_ref_struct;
     } else {
         return nullptr;
@@ -371,7 +320,7 @@ StructDefinition* BaseType::get_direct_linked_movable_struct() {
 
 StructDefinition* BaseType::get_direct_non_movable_struct() {
     const auto direct_ref_struct = get_direct_linked_struct();
-    if(direct_ref_struct && direct_ref_struct->pre_move_func() == nullptr && direct_ref_struct->destructor_func() == nullptr) {
+    if(direct_ref_struct && !direct_ref_struct->is_shallow_copyable() && direct_ref_struct->destructor_func() == nullptr) {
         return direct_ref_struct;
     } else {
         return nullptr;

@@ -387,22 +387,21 @@ func test_moves() {
     // TESTING CLEAR FUNCTION CALLS ON MOVES
 
     delete_called = 0;
-    test("object moved from var init, clear function is not called", () => {
+    test("object moved from var init, delete is called once on new var init", () => {
         if(true) {
             var obj = ClearObj { i : 432 }
             var other = obj
             if(other.i != 432) return false;
         }
-        // clear is not called, because obj won't be destructed, but delete is called, because other is destructed
         return delete_called == 1;
     })
     delete_called = 0;
-    test("function param object moved, clear function is not called - 1", () => {
+    test("function param object moved, delete is called once - 1", () => {
         moved_param_not_cleared(ClearObj { i : 543 });
         return delete_called == 1;
     })
     delete_called = 0;
-    test("function param object moved, clear function is not called - 2", () => {
+    test("function param object moved, delete is called once - 2", () => {
         var c = ClearObj { i : 543 }
         moved_param_not_cleared(c);
         return delete_called == 1;
@@ -448,7 +447,7 @@ func test_moves() {
     // TESTING MOVE FUNCTIONS FROM HERE
 
     delete_called = 0;
-    test("move function is not called, when moving from var init", () => {
+    test("delete is called once, when moving from var init", () => {
         if(true) {
             var a = MoveObj { i : 32 }
             var b = a
@@ -457,7 +456,7 @@ func test_moves() {
     })
 
     delete_called = 0;
-    test("move function is not called, when moving using assignment", () => {
+    test("delete is called once, when moving using assignment", () => {
         var result : int = 0;
         if(true) {
             var a = MoveObj { i : 32 }

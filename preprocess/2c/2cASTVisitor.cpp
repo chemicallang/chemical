@@ -726,14 +726,35 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
     visitor.nested_value = true;
     bool has_value_before = false;
     std::string temp_struct_name;
-    while(i < call->values.size()) {
-        auto param = func_type->func_param_for_arg_at(i);
-        auto val = call->values[i];
+    std::string d_ref_name;
+    const auto total_args = call->values.size();
+    while(i < total_args) {
+
         if (has_value_before) {
             visitor.write(", ");
         } else {
             has_value_before = true;
         }
+
+        auto param = func_type->func_param_for_arg_at(i);
+        auto val = call->values[i];
+        bool is_destructible_ref = false;
+
+        // passing a function call or struct value to a reference, whereas the struct is destructible
+        if(param->type->kind() == BaseTypeKind::Reference && (val->kind() == ValueKind::StructValue || val->is_chain_func_call())) {
+            const auto container = param->type->as_reference_type_unsafe()->type->get_members_container();
+            if(container && container->destructor_func() != nullptr) {
+                auto found_ref = visitor.destructible_refs.find(val);
+                if(found_ref != visitor.destructible_refs.end()) {
+                    is_destructible_ref = true;
+                    visitor.write("({ ");
+                    visitor.write_str(found_ref->second);
+                    visitor.write(" = ");
+                    d_ref_name = found_ref->second;
+                }
+            }
+        }
+
         const auto imp_cons = param->type->implicit_constructor_for(visitor.allocator, val);
         if(imp_cons) {
             if(imp_cons->is_comptime()) {
@@ -804,6 +825,13 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
                 visitor.write("; })");
             }
         }
+
+        if(is_destructible_ref) {
+            visitor.write("; ");
+            visitor.write_str(d_ref_name);
+            visitor.write("; })");
+        }
+
         i++;
     }
     const auto func_param_size = func_type->expectedArgsSize();
@@ -1328,73 +1356,33 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
     // visit the values
     RecursiveValueVisitor::VisitFunctionCall(call);
 
-    // handling non variant function
-    if(linked_kind != ASTNodeKind::VariantMember) {
-
-//        auto func_type = call->function_type(visitor.allocator);
-//        if (decl) {
-//            if(call->generic_iteration == -1) {
-//                call->fix_generic_iteration(visitor, nullptr);
-//            }
-//            // TODO comptime functions should be shifted from CBeforeStmtVisitor
-//            if (decl->is_comptime()) {
-//                const auto prev_iteration = call->set_curr_itr_on_decl();
-//                auto eval = evaluated_func_val(visitor, decl, call);
-//                const auto eval_kind = eval->val_kind();
-//                if (eval_kind == ValueKind::AccessChain) {
-//                    const auto chain = eval->as_access_chain_unsafe();
-//                    chain->fix_generic_iteration(visitor, visitor.current_func_type->returnType);
-//                }
-//                auto identifier = visitor.get_local_temp_var_name();
-//                if (eval_kind == ValueKind::StructValue) {
-//                    allocate_struct_by_name(visitor, eval->as_struct_value_unsafe()->linked_extendable(), chem::string_view(identifier.data(), identifier.size()));
-//                    visitor.local_allocated[eval] = identifier;
-//                }
-//                process_init_value(eval, chem::string_view(identifier.data(), identifier.size()));
-//                eval->accept(this);
-//                if(decl && decl->is_generic()) {
-//                    decl->set_active_iteration(prev_iteration);
-//                }
-//                return;
-//            }
-//        }
-
-//        // if function returns struct, we allocate that struct here
-//        if(func_type->returnType->isStructLikeType()) {
-//            auto returnLinked = func_type->returnType->linked_node();
-//            const auto returnLinkedType = returnLinked->kind();
-//            if(returnLinkedType == ASTNodeKind::StructDecl) {
-//                const auto temp_name = visitor.get_local_temp_var_name();
-//                allocate_struct_for_func_call(visitor, returnLinked->as_struct_def_unsafe(), call, func_type, chem::string_view(temp_name.data(), temp_name.size()));
-//            } else if(returnLinkedType == ASTNodeKind::VariantDecl) {
-//                const auto temp_name = visitor.get_local_temp_var_name();
-//                allocate_struct_for_func_call(visitor, returnLinked->as_variant_def_unsafe(), call, func_type, chem::string_view(temp_name.data(), temp_name.size()));
-//            } else if(returnLinkedType == ASTNodeKind::InterfaceDecl && func_type->returnType->pure_type(visitor.allocator)->kind() == BaseTypeKind::Dynamic) {
-//                const auto temp_name = visitor.get_local_temp_var_name();
-//                allocate_fat_pointer_for_value(visitor, call, chem::string_view(temp_name.data(), temp_name.size()), nullptr);
-//            }
-//        }
-//
-//        // functions that are constructors / return struct
-//        // we call these functions beforehand and prepare
-//        if(!decl || !decl->is_comptime()) {
-//            const auto returnType = func_type->returnType->pure_type(visitor.allocator);
-//            const auto returnTypeKind = returnType->kind();;
-//            if (returnTypeKind == BaseTypeKind::Dynamic) {
-//                func_call_that_returns_struct(visitor, func_type, call);
-//                return;
-//            } else {
-//                const auto return_linked = returnType->get_direct_linked_node(returnTypeKind);
-//                if(return_linked) {
-//                    const auto returnKind = return_linked->kind();
-//                    if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
-//                        func_call_that_returns_struct(visitor, func_type, call);
-//                        return;
-//                    }
-//                }
-//            }
-//        }
-
+    // when transferring structs / function calls that return structs directly to reference params
+    // we must take the responsibility of destructing them, however we need to maintain a reference to be able to do this
+    auto i = 0;
+    auto func_type = call->function_type(visitor.allocator);
+    if(func_type) {
+        const auto total_args = call->values.size();
+        while (i < total_args) {
+            auto arg = call->values[i];
+            auto param = func_type->func_param_for_arg_at(i);
+            // passing a function call or struct value to a reference, whereas the struct is destructible
+            if (param->type->kind() == BaseTypeKind::Reference &&
+                (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
+                const auto container = param->type->as_reference_type_unsafe()->type->get_members_container();
+                if (container && container->destructor_func() != nullptr) {
+                    // struct has a destructor, we must allocate a reference, so it can set it to us
+                    visitor.visit(param->type->as_reference_type_unsafe()->type);
+                    visitor.write('*');
+                    visitor.space();
+                    auto temp_name = visitor.get_local_temp_var_name();
+                    visitor.write_str(temp_name);
+                    visitor.write(';');
+                    visitor.new_line_and_indent();
+                    visitor.destructible_refs[arg] = temp_name;
+                }
+            }
+            i++;
+        }
     }
 
 }
@@ -1827,35 +1815,39 @@ void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 //            std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor" << std::endl;
 //        }
 //    }
+    const auto func_type = call->function_type(visitor.allocator);;
+    unsigned int i = 0;
     for(auto& val : call->values) {
+
+        if(func_type) {
+            const auto arg = val;
+            const auto param = func_type->func_param_for_arg_at(i);
+            // passing a function call or struct value to a reference, whereas the struct is destructible
+            if (param->type->kind() == BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
+                const auto container = param->type->as_reference_type_unsafe()->type->get_members_container();
+                if (container) {
+                    const auto destr = container->destructor_func();
+                    if (destr) {
+                        visitor.new_line_and_indent();
+                        destr->runtime_name(*visitor.output);
+                        visitor.write('(');
+                        visitor.write_str(visitor.destructible_refs[arg]);
+                        visitor.write(");");
+                    }
+                }
+            }
+        }
+
+
         const auto chain = val->as_access_chain();
         if(chain) {
             // if we ever pass struct as a reference, where struct is created at call time
             // we can set destruct_last to true, to destruct the struct after this call
 //            destruct_chain(chain, false);
         } else {
-            // if we ever pass struct as a reference, where struct is created at call time
-            // we can set destruct_last to true, to destruct the struct after this call
-//            const auto struc = val->as_struct();
-//            if(struc) {
-//                auto found = visitor->local_allocated.find(struc);
-//                if(found != visitor->local_allocated.end()) {
-//                    visitor->destructor->queue_destruct(
-//                            found->second,
-//                            nullptr,
-//                            struc->generic_iteration,
-//                            struc->definition
-//                    );
-//                } else {
-//                    val->accept(this);
-//                }
-//            } else {
-                // don't need to destruct, value is accepting this visitor
-                // if it's access chain, it will always trigger function calls present in access chain, which will again trigger this
-                // if it's identifier, we have a method for identifier on this visitor
                 visit(val);
-//            }
         }
+        i++;
     }
 }
 
@@ -2972,6 +2964,7 @@ void ToCAstVisitor::prepare_translate() {
 void ToCAstVisitor::reset() {
     local_allocated.clear();
     evaluated_func_calls.clear();
+    destructible_refs.clear();
     current_func_type = nullptr;
     current_members_container = nullptr;
     indentation_level = 0;

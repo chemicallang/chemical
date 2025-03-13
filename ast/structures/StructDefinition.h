@@ -218,10 +218,6 @@ public:
         return destructor_func() != nullptr;
     }
 
-    inline bool has_clear_fn() {
-        return clear_func() != nullptr;
-    }
-
 //    int16_t get_generic_iteration() final {
 //        return active_iteration;
 //    }

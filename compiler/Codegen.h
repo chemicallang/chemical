@@ -326,11 +326,6 @@ public:
     bool assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj, SourceLocation location);
 
     /**
-     * a helper method to call clear function
-     */
-    void call_clear_fn(Value* value, llvm::Value* llvm_value, SourceLocation location);
-
-    /**
      * mem copy a struct into the given pointer
      */
     void memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location);
@@ -490,14 +485,6 @@ public:
      * determines destructor function for given element type
      */
     FunctionDeclaration* determine_destructor_for(
-            BaseType* elem_type,
-            llvm::Function*& func_data
-    );
-
-    /**
-     * determines clear function for given element type
-     */
-    FunctionDeclaration* determine_clear_fn_for(
             BaseType* elem_type,
             llvm::Function*& func_data
     );

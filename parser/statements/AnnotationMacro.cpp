@@ -199,24 +199,6 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make the function cpp");
             }
         }},
-        { "clear", [](Parser* parser, ASTNode* node) -> void {
-            parser->warning("clear is deprecated");
-            const auto func = node->as_function();
-            if(func) {
-                func->set_clear_fn(true);
-            } else {
-                parser->error("couldn't make the function a clear function");
-            }
-        }},
-        { "postmove", [](Parser* parser, ASTNode* node) -> void {
-            parser->warning("postmove is deprecated");
-            const auto func = node->as_function();
-            if(func) {
-                func->set_post_move_fn(true);
-            } else {
-                parser->error("couldn't make the function a postmove function");
-            }
-        }},
         { "copy", [](Parser* parser, ASTNode* node) -> void {
             switch(node->kind()) {
                 case ASTNodeKind::FunctionDecl:
@@ -255,15 +237,6 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
         { "deprecated", [](Parser* parser, ASTNode* node) -> void {
             if(!node->set_deprecated(true)) {
                 parser->error("couldn't make the declaration deprecated");
-            }
-        }},
-        { "move", [](Parser* parser, ASTNode* node) -> void {
-            parser->warning("move is deprecated");
-            const auto func = node->as_function();
-            if(func) {
-                func->set_move_fn(true);
-            } else {
-                parser->error("couldn't make the function a move function");
             }
         }},
 };

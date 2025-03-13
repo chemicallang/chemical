@@ -306,7 +306,7 @@ void write_struct_def_value_call(ToCAstVisitor& visitor, StructDefinition* def) 
 void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0, bool has_params_before = false) {
     auto is_struct_return = visitor.pass_structs_to_initialize && decl->returnType->isStructLikeType();
     auto func = decl->as_function();
-    if((is_struct_return || (func && func->is_constructor_fn())) && !(func && (func->is_copy_fn() || func->is_move_fn()))) {
+    if((is_struct_return || (func && func->is_constructor_fn())) && !(func && func->is_copy_fn())) {
         if(has_params_before) {
             visitor.write(", ");
         }
@@ -1180,72 +1180,15 @@ std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Valu
     return struct_name;
 }
 
-void moved_value_call(ToCAstVisitor& visitor, Value* value) {
-    auto known_t = value->pure_type_ptr();
-    auto linked_node = known_t->get_direct_linked_node();
-    if(!linked_node) {
-        // probably an int, in generic where generic type is moved, but being used with int, so can't be moved
-        return;
-    }
-    const auto linked_node_kind = linked_node->kind();
-    if(!linked_node->isStoredStructType(linked_node_kind)) {
-        // we can pass directly, as the node is not a stored struct type, what could it be except typealias
-        return;
-    }
-    if(!ASTNode::isStoredStructType(linked_node_kind)) {
-        // non struct types are just non movable
-        return;
-    }
-    auto movable = linked_node->as_members_container();
-    if(!movable) {
-        // if there's no call to move / clear func call, we don't need to allocate a temporary struct, C would perform memcpy automatically
-        return;
-    }
-    const auto move_func = movable->pre_move_func();
-    const auto clear_func = movable->clear_func();
-    if(!move_func && !clear_func) {
-        // since pre move and clear both do not exist, direct reference to struct value will create automatically a std memcpy in C
-        return;
-    }
-    // allocating temporary struct
-    auto struct_name = allocate_temp_struct(visitor, linked_node, clear_func ? value : nullptr);
-    visitor.new_line_and_indent();
-    func_container_name(visitor, clear_func ? clear_func : move_func);
-    visitor.write('(');
-    if (move_func) {
-        visitor.write('&');
-        visitor.write(struct_name);
-        visitor.write(", ");
-    }
-    visitor.write('&');
-    visitor.visit(value);
-    visitor.write(')');
-    visitor.write(';');
-    visitor.local_allocated[value] = struct_name;
-}
-
-void move_identifier(ToCAstVisitor& visitor, VariableIdentifier* id) {
-    if(!id->is_moved) return;
-    const auto linked = id->linked;
-    const auto kind = linked->kind();
-    if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
-        moved_value_call(visitor, id);
-    }
-}
-
 void move_chain(ToCAstVisitor& visitor, AccessChain* chain) {
     if(chain->values.size() == 1) {
         auto identifier = chain->values.back()->as_identifier();
         if(identifier) {
-            if (chain->is_moved()) {
+            if (chain->is_moved() && !identifier->is_moved) {
                 identifier->is_moved = true;
             }
-            move_identifier(visitor, identifier);
         }
         return;
-    }
-    if(chain->is_moved()) {
-        moved_value_call(visitor, chain);
     }
 }
 
@@ -1254,9 +1197,6 @@ void move_value(ToCAstVisitor& visitor, Value* value) {
     switch(value->val_kind()) {
         case ValueKind::AccessChain:
             move_chain(visitor, value->as_access_chain_unsafe());
-            return;
-        case ValueKind::Identifier:
-            move_identifier(visitor, value->as_identifier_unsafe());
             return;
         default:
             return;
@@ -1474,9 +1414,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
 };
 
 void CBeforeStmtVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
-    if(identifier->is_moved) {
-        move_identifier(visitor, identifier);
-    }
+
 }
 
 void CBeforeStmtVisitor::VisitAccessChain(AccessChain *chain) {
@@ -3318,12 +3256,6 @@ void call_variant_member_delete_fn(ToCAstVisitor& visitor, VariantMember* member
     });
 }
 
-void call_variant_member_clear_fn(ToCAstVisitor& visitor, VariantMember* member) {
-    call_variant_member_fn(visitor, member, [](MembersContainer* container)-> FunctionDeclaration* {
-        return container->clear_func();
-    });
-}
-
 void variant_member_pre_move_fn_gen(
     ToCAstVisitor& visitor,
     VariantMember* member,
@@ -3383,12 +3315,6 @@ void process_variant_member_using(
         }
         variant_member_process_fn(visitor, member, func, mem_def, mem_param);
     }
-}
-
-void call_variant_member_move_fn(ToCAstVisitor& visitor, VariantMember* member) {
-    process_variant_member_using(visitor, member, [](MembersContainer* container) -> FunctionDeclaration* {
-        return container->pre_move_func();
-    },variant_member_pre_move_fn_gen);
 }
 
 void call_variant_member_copy_fn(
@@ -3476,14 +3402,6 @@ void call_struct_member_delete_fn(ToCAstVisitor& visitor, BaseType* mem_type, co
     }
 }
 
-void call_struct_member_clear_fn(ToCAstVisitor& visitor, BaseType* mem_type, const chem::string_view& mem_name) {
-    if (mem_type->isStructLikeType()) {
-        call_struct_member_fn(visitor, mem_type, mem_name, [](MembersContainer* def) -> FunctionDeclaration* {
-            return def->clear_func();
-        });
-    }
-}
-
 void call_struct_members_pre_move_fn(
         ToCAstVisitor& visitor,
         MembersContainer* mem_def,
@@ -3505,22 +3423,6 @@ void call_struct_members_pre_move_fn(
     visitor.write(member_name);
     visitor.write(')');
     visitor.write(';');
-}
-
-void call_struct_member_move_fn(
-        ToCAstVisitor& visitor,
-        BaseType* mem_type,
-        const chem::string_view& member_name
-) {
-    if (mem_type->isStructLikeType()) {
-        const auto linked = mem_type->linked_node();
-        auto mem_def = linked->as_members_container();
-        auto func = mem_def->pre_move_func();
-        if (!func) {
-            return;
-        }
-        call_struct_members_pre_move_fn(visitor, mem_def, func, member_name);
-    }
 }
 
 void call_struct_members_copy_fn(
@@ -3690,9 +3592,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
         visitor.write(';');
     }
     const auto is_destructor = decl->is_delete_fn();
-    const auto is_clear_fn = decl->is_clear_fn();
     const auto is_copy_fn = decl->is_copy_fn();
-    const auto is_move_fn = decl->is_move_fn();
     const bool has_cleanup_block = is_destructor;
     std::string cleanup_block_name;
     if(has_cleanup_block) {
@@ -3709,19 +3609,6 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
         } else if(variant_def) {
             write_type_assignment_in_variant_copy(visitor, decl);
             process_variant_members_using(visitor, variant_def, call_variant_member_copy_fn);
-        }
-    } else if(is_clear_fn) {
-        if(struc_def) {
-            process_struct_members_using(visitor, def, call_struct_member_clear_fn);
-        } else if(variant_def) {
-            process_variant_members_using(visitor, variant_def, call_variant_member_clear_fn);
-        }
-    } else if(is_move_fn) {
-        if(struc_def) {
-            process_struct_members_using(visitor, def, call_struct_member_move_fn);
-        } else if(variant_def) {
-            write_type_assignment_in_variant_copy(visitor, decl);
-            process_variant_members_using(visitor, variant_def, call_variant_member_move_fn);
         }
     }
     initialize_def_struct_values_constructor(visitor, decl);

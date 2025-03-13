@@ -42,7 +42,7 @@ void llvm_func_param_types_into(
     // functions that return struct take a pointer to struct and actually return void
     // so allocation takes place outside function
     if(returnType->isStructLikeType()) {
-        if(!decl || (!decl->is_copy_fn() && !decl->is_move_fn())) {
+        if(!decl || (!decl->is_copy_fn())) {
             paramTypes.emplace_back(gen.builder->getPtrTy());
         }
     }
@@ -179,7 +179,7 @@ unsigned FunctionType::c_or_llvm_arg_start_index() {
     const auto offset = isExtensionFn() ? 1 : 0;
     if(returnType->isStructLikeType()) {
         auto func = as_function();
-        if(func && (func->is_copy_fn() || func->is_move_fn())) {
+        if(func && func->is_copy_fn()) {
             return 0 + offset;
         } else {
             return 1 + offset;

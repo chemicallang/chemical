@@ -422,15 +422,6 @@ FunctionDeclaration* determine_func_data(
 
 }
 
-FunctionDeclaration* Codegen::determine_clear_fn_for(
-        BaseType* elem_type,
-        llvm::Function*& func_data
-) {
-    return determine_func_data(elem_type, func_data, [](MembersContainer* def) -> FunctionDeclaration* {
-        return def->clear_func();
-    });
-}
-
 FunctionDeclaration* Codegen::determine_destructor_for(
         BaseType* elem_type,
         llvm::Function*& func_data
@@ -565,14 +556,6 @@ void call_clear_fn(Codegen &gen, FunctionDeclaration* decl, llvm::Value* llvm_va
     const auto func = decl->llvm_func();
     const auto callInst = gen.builder->CreateCall(func, { llvm_value });
     gen.di.instr(callInst, location);
-}
-
-void Codegen::call_clear_fn(Value* value, llvm::Value* llvm_value, SourceLocation location) {
-    auto& gen = *this;
-    auto known_t = value->known_type();
-    auto movable = known_t->get_direct_linked_movable_struct();
-    const auto move_func = movable->clear_func();
-    ::call_clear_fn(gen, move_func, llvm_value, location);
 }
 
 void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location) {

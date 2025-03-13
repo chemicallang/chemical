@@ -86,11 +86,7 @@ public:
 
     bool requires_destructor();
 
-    bool requires_clear_fn();
-
     bool requires_copy_fn();
-
-    bool requires_move_fn();
 
     BaseType* known_type() final;
 

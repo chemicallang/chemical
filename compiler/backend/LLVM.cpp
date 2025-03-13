@@ -1218,24 +1218,23 @@ void ThrowStatement::code_gen(Codegen &gen) {
     throw std::runtime_error("[UNIMPLEMENTED]");
 }
 
-// TODO inline this
-bool Codegen::requires_memcpy_ref_struct(BaseType* known_type, Value* value) {
-    return value->requires_memcpy_ref_struct(known_type);
-}
+//bool Codegen::requires_memcpy_ref_struct(BaseType* known_type, Value* value) {
+//    return value->requires_memcpy_ref_struct(known_type);
+//}
 
-llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* llvm_ptr, llvm::Type* type) {
-//    const auto pure = known_type->pure_type(allocator);
-    if(requires_memcpy_ref_struct(known_type->pure_type(allocator), value)) {
-        if(!llvm_ptr) {
-            const auto allocaInst = builder->CreateAlloca(type, nullptr);
-            di.instr(allocaInst, value);
-            llvm_ptr = allocaInst;
-        }
-        memcpy_struct(type, llvm_ptr, value->llvm_value(*this, nullptr), value->encoded_location());
-        return llvm_ptr;
-    }
-    return nullptr;
-}
+//llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* llvm_ptr, llvm::Type* type) {
+////    const auto pure = known_type->pure_type(allocator);
+//    if(requires_memcpy_ref_struct(known_type->pure_type(allocator), value)) {
+//        if(!llvm_ptr) {
+//            const auto allocaInst = builder->CreateAlloca(type, nullptr);
+//            di.instr(allocaInst, value);
+//            llvm_ptr = allocaInst;
+//        }
+//        memcpy_struct(type, llvm_ptr, value->llvm_value(*this, nullptr), value->encoded_location());
+//        return llvm_ptr;
+//    }
+//    return nullptr;
+//}
 
 llvm::Value* Codegen::memcpy_shallow_copy(BaseType* known_type, Value* value, llvm::Value* llvm_value) {
     // is referencing another struct, that is non movable and must be mem copied into the pointer

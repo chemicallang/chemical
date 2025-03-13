@@ -335,76 +335,76 @@ public:
      */
     void memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location);
 
-    /**
-     * move the value
-     * @param type is the type of value, expected
-     * @param value is the actual value (not llvm though)
-     * @param ptr is where value will be moved to
-     * @param movable_value is the movable value that is retrieved by calling movable_value method
-     * how this works is, the movable value is mem copied into the given pointer, but movable_value is the
-     * memory location of the previous struct, so we call clear function on it, to tell the struct that struct has been
-     * freed
-     * @return true if move was done, otherwise false, if false is returned, caller should pursue of storing
-     * the value inside the given pointer
-     */
-    void move_by_memcpy(ASTNode* container, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
+//    /**
+//     * move the value
+//     * @param type is the type of value, expected
+//     * @param value is the actual value (not llvm though)
+//     * @param ptr is where value will be moved to
+//     * @param movable_value is the movable value that is retrieved by calling movable_value method
+//     * how this works is, the movable value is mem copied into the given pointer, but movable_value is the
+//     * memory location of the previous struct, so we call clear function on it, to tell the struct that struct has been
+//     * freed
+//     * @return true if move was done, otherwise false, if false is returned, caller should pursue of storing
+//     * the value inside the given pointer
+//     */
+//    void move_by_memcpy(ASTNode* container, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
 
-    /**
-     * move the value
-     * @param type is the type of value, expected
-     * @param value is the actual value (not llvm though)
-     * @param ptr is where value will be moved to
-     * @param movable_value is the movable value that is retrieved by calling movable_value method
-     * how this works is, the movable value is mem copied into the given pointer, but movable_value is the
-     * memory location of the previous struct, so we call clear function on it, to tell the struct that struct has been
-     * freed
-     * @return true if move was done, otherwise false, if false is returned, caller should pursue of storing
-     * the value inside the given pointer
-     */
-    void move_by_memcpy(MembersContainer* container, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
+//    /**
+//     * move the value
+//     * @param type is the type of value, expected
+//     * @param value is the actual value (not llvm though)
+//     * @param ptr is where value will be moved to
+//     * @param movable_value is the movable value that is retrieved by calling movable_value method
+//     * how this works is, the movable value is mem copied into the given pointer, but movable_value is the
+//     * memory location of the previous struct, so we call clear function on it, to tell the struct that struct has been
+//     * freed
+//     * @return true if move was done, otherwise false, if false is returned, caller should pursue of storing
+//     * the value inside the given pointer
+//     */
+//    void move_by_memcpy(MembersContainer* container, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
 
-    /**
-     * move the value
-     * @param type is the type of value, expected
-     * @param value is the actual value (not llvm though)
-     * @param ptr is where value will be moved to
-     * @param movable_value is the movable value that is retrieved by calling movable_value method
-     * how this works is, the movable value is mem copied into the given pointer, but movable_value is the
-     * memory location of the previous struct, so we call clear function on it, to tell the struct that struct has been
-     * freed
-     * @return true if move was done, otherwise false, if false is returned, caller should pursue of storing
-     * the value inside the given pointer
-     */
-    bool move_by_memcpy(BaseType* type, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
+//    /**
+//     * move the value
+//     * @param type is the type of value, expected
+//     * @param value is the actual value (not llvm though)
+//     * @param ptr is where value will be moved to
+//     * @param movable_value is the movable value that is retrieved by calling movable_value method
+//     * how this works is, the movable value is mem copied into the given pointer, but movable_value is the
+//     * memory location of the previous struct, so we call clear function on it, to tell the struct that struct has been
+//     * freed
+//     * @return true if move was done, otherwise false, if false is returned, caller should pursue of storing
+//     * the value inside the given pointer
+//     */
+//    bool move_by_memcpy(BaseType* type, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
 
-    /**
-     * this function is used where allocation is necessary, for example
-     * in function arguments when value is moved, there's no place to store the moved value
-     * if we don't store a copy of the moved value, the function may make changes to the value
-     * and they'll reflect in the original pointer, which we don't want
-     * This function takes into account owner of the value, and returns the value that you
-     * should pass or use, which may or may not be newly allocated struct
-     */
-    llvm::Value* move_by_allocate(BaseType* type, Value* value, llvm::Value* elem_pointer, llvm::Value* movable_value);
+//    /**
+//     * this function is used where allocation is necessary, for example
+//     * in function arguments when value is moved, there's no place to store the moved value
+//     * if we don't store a copy of the moved value, the function may make changes to the value
+//     * and they'll reflect in the original pointer, which we don't want
+//     * This function takes into account owner of the value, and returns the value that you
+//     * should pass or use, which may or may not be newly allocated struct
+//     */
+//    llvm::Value* move_by_allocate(BaseType* type, Value* value, llvm::Value* elem_pointer, llvm::Value* movable_value);
 
-    /**
-     * a helper function
-     */
-    llvm::Value* move_by_allocate(BaseType* type, Value* value, llvm::Value* movable_value) {
-        return move_by_allocate(type, value, nullptr, movable_value);
-    }
+//    /**
+//     * a helper function
+//     */
+//    llvm::Value* move_by_allocate(BaseType* type, Value* value, llvm::Value* movable_value) {
+//        return move_by_allocate(type, value, nullptr, movable_value);
+//    }
 
-    /**
-     * tells whether, the given value should be mem copied into the pointer, because
-     * it's an access chain referencing a non move requiring struct
-     */
-    static bool requires_memcpy_ref_struct(BaseType* known_type, Value* value);
+//    /**
+//     * tells whether, the given value should be mem copied into the pointer, because
+//     * it's an access chain referencing a non move requiring struct
+//     */
+//    static bool requires_memcpy_ref_struct(BaseType* known_type, Value* value);
 
-    /**
-     * tries to mem copy referenced struct (if there's one) and returns memory pointer if succeeds
-     * otherwise nullptr, memory for struct is allocated as required, unless passed
-     */
-    llvm::Value* memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer, llvm::Type* type);
+//    /**
+//     * tries to mem copy referenced struct (if there's one) and returns memory pointer if succeeds
+//     * otherwise nullptr, memory for struct is allocated as required, unless passed
+//     */
+//    llvm::Value* memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer, llvm::Type* type);
 
     /**
      * will only perform a copy of the given value, if the type has a implicit constructor

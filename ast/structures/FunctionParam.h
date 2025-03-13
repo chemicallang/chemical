@@ -16,11 +16,9 @@ struct FunctionParamAttributes {
     bool has_address_taken_of = false;
 
     /**
-     * has moved is used to indicate that an object at this location has moved
-     * destructor is not called on moved objects, once moved, any attempt to access
-     * this variable causes an error
+     * this indicates that the parameter has atleast a single move
      */
-    bool has_moved = false;
+    bool has_move = false;
     /**
      * has moved is used to track that var init statement has a assignment to it
      * if it has, during symbol resolution the assignment statement notifies this
@@ -87,20 +85,12 @@ public:
         attrs.is_implicit = value;
     }
 
-    inline bool get_has_moved() const noexcept {
-        return attrs.has_moved;
+    inline bool get_has_move() const noexcept {
+        return attrs.has_move;
     }
 
-    inline void set_has_moved(bool value) {
-        attrs.has_moved = value;
-    }
-
-    inline void moved() {
-        attrs.has_moved = true;
-    }
-
-    inline void unmove() {
-        attrs.has_moved = false;
+    inline void set_has_move(bool value) {
+        attrs.has_move = value;
     }
 
     inline bool get_has_assignment() const noexcept {

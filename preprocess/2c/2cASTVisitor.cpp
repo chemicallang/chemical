@@ -2016,10 +2016,6 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
 }
 
 void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
-    // do not destruct pointers, references or moved objects
-    if(init->get_has_moved()) {
-        return;
-    }
     const auto pure_t = init->create_value_type(visitor.allocator)->pure_type(visitor.allocator);
     const auto pure_t_kind = pure_t->kind();
     if(pure_t_kind == BaseTypeKind::Pointer || pure_t_kind == BaseTypeKind::Reference) {

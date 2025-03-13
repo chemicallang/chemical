@@ -441,10 +441,10 @@ bool FunctionTypeBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagn
     const auto linked_kind = linked->kind();
     if (linked_kind == ASTNodeKind::VarInitStmt) {
         const auto init = linked->as_var_init_unsafe();
-        init->moved();
+        init->set_has_move(true);
     } else if(linked_kind == ASTNodeKind::FunctionParam) {
         const auto param = linked->as_func_param_unsafe();
-        param->moved();
+        param->set_has_move(true);
     }
     mark_moved_no_check(id);
     return true;
@@ -534,12 +534,6 @@ bool FunctionTypeBody::mark_moved_value(
     if(linked_def->is_shallow_copyable()) {
         return false;
     }
-//    const bool has_destr = linked_def->destructor_func();
-//    const bool has_clear_fn = linked_def->clear_func();
-//    const bool has_move_fn = linked_def->pre_move_func();
-//    if (!has_destr && !has_clear_fn && !has_move_fn) {
-//        return false;
-//    }
     bool final = false;
     if(expected_type) {
         const auto pure_expected = expected_type->pure_type(allocator);
@@ -569,17 +563,6 @@ bool FunctionTypeBody::mark_moved_value(
         final = mark_moved_value(&value, diagnoser);
     }
     if(final) {
-//        if(has_destr) {
-//            if(!has_clear_fn && !has_move_fn) {
-//                diagnoser.error("struct has a delete function but has no clear / move / implicit copy function", &value);
-//                return false;
-//            }
-//        } else {
-//            if(has_clear_fn || has_move_fn) {
-//                diagnoser.error("struct has a clear / delete function but has no delete function", &value);
-//            }
-//            return false;
-//        }
         return true;
     }
     return false;
@@ -613,18 +596,6 @@ bool FunctionTypeBody::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value
             } else {
                 // setting false, to indicate that value is not moved, and this should be destructed
                 id->is_moved = false;
-            }
-            // since we've moved a new value into the lhs value
-            // if it's connected to a var init statement, we marked it move to prevent final destructor from being called on it
-            // now we re mark it not moved, so destructor is called
-            const auto linked = id->linked;
-            const auto linked_kind = linked->kind();
-            if(linked_kind == ASTNodeKind::VarInitStmt) {
-                const auto init = linked->as_var_init_unsafe();
-                init->unmove();
-            } else if(linked_kind == ASTNodeKind::FunctionParam) {
-                const auto param = linked->as_func_param_unsafe();
-                param->unmove();
             }
             break;
         }

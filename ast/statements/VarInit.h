@@ -33,11 +33,9 @@ struct VarInitAttributes {
     bool is_compiler_decl = false;
 
     /**
-     * has moved is used to indicate that an object at this location has moved
-     * destructor is not called on moved objects, once moved, any attempt to access
-     * this variable causes an error
+     * this means that variable has atleast one move
      */
-    bool has_moved = false;
+    bool has_move = false;
 
     /**
      * has moved is used to track that var init statement has a assignment to it
@@ -196,22 +194,15 @@ public:
     /**
      * check this variable has been moved
      */
-    inline bool get_has_moved() const {
-        return attrs.has_moved;
+    inline bool get_has_move() const {
+        return attrs.has_move;
     }
 
     /**
      * call it when this variable has been moved
      */
-    inline void moved() {
-        attrs.has_moved = true;
-    }
-
-    /**
-     * call it when this variable should be unmoved
-     */
-    inline void unmove() {
-        attrs.has_moved = false;
+    inline void set_has_move(bool value) {
+        attrs.has_move = value;
     }
 
     /**

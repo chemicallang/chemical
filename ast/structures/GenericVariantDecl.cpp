@@ -9,7 +9,6 @@
 #include "ast/structures/GenericFuncDecl.h"
 
 void GenericVariantDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) {
-    master_impl->generic_parent = this;
     linker.declare(master_impl->name_view(), this);
 }
 

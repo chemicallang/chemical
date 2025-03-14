@@ -799,7 +799,7 @@ void VariablesContainer::declare_parsed_nodes(SymbolResolver& linker, std::vecto
     for(const auto node : nodes) {
         switch(node->kind()) {
             case ASTNodeKind::AliasStmt:{
-                linker.declare(node->as_alias_stmt_unsafe()->alias_name, node);
+                node->as_alias_stmt_unsafe()->declare_top_level(linker);
                 break;
             }
             case ASTNodeKind::IfStmt: {

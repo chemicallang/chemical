@@ -2,7 +2,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/values/AccessChain.h"
 
-void AliasStmt::declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) {
+void AliasStmt::declare_top_level(SymbolResolver &linker) {
     // currently only identifier values are supported
     if(value->kind() == ValueKind::AccessChain) {
         const auto chain = value->as_access_chain_unsafe();

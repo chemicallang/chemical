@@ -68,7 +68,7 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSp
 
         do {
             consumeNewLines();
-            if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
+            if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

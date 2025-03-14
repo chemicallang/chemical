@@ -52,6 +52,11 @@ public:
     ASTDiagnoser& getDiagnoser();
 
     /**
+     * finalize the signature of generic type decl
+     */
+    void FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations);
+
+    /**
      * finalize the signature of all these generic function instantiations (shallow copies)
      * this means inside the signature, all types that are generic are replaced with concrete implementations
      * the implementation is determined with instantiation index inside the function declaration

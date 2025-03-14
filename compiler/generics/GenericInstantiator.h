@@ -114,6 +114,10 @@ public:
 
     void VisitFunctionCall(FunctionCall *call);
 
+    void FinalizeSignature(TypealiasStatement* decl);
+
+    void FinalizeSignature(GenericTypeDecl* gen_decl, TypealiasStatement* decl, size_t itr);
+
     /**
      * this function allows to finalize the signature of a non generic function that is inside
      * a generic struct / variable / union
@@ -144,6 +148,8 @@ public:
      * clears the symbols from tables, from previous finalization
      */
     void Clear();
+
+    void FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations);
 
     void FinalizeSignature(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations);
 

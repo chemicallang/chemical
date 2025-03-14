@@ -1107,6 +1107,13 @@ public:
     }
 
     /**
+     * return if this is a generic variant decl
+     */
+    inline GenericTypeDecl* as_gen_type_decl_unsafe() {
+        return (GenericTypeDecl*) this;
+    }
+
+    /**
      * return if this is an import statement
      */
     inline ImportStatement *as_import_stmt_unsafe() {

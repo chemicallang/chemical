@@ -52,6 +52,8 @@ class GenericInterfaceDecl;
 
 class GenericVariantDecl;
 
+class GenericTypeDecl;
+
 class IfStatement;
 
 class ImplDefinition;

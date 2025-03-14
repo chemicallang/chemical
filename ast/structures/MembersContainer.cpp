@@ -281,13 +281,13 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
                 const auto stmt = node->as_if_stmt_unsafe();
                 const auto scope = stmt->get_evaluated_scope_by_linking(linker);
                 if(scope) {
-                    take_variables_from_parsed_nodes(linker, scope->nodes);
+                    take_members_from_parsed_nodes(linker, scope->nodes);
                 }
                 break;
             }
             case ASTNodeKind::UnsafeBlock:
                 // TODO make all nodes unsafe
-                take_variables_from_parsed_nodes(linker, node->as_unsafe_block_unsafe()->scope.nodes);
+                take_members_from_parsed_nodes(linker, node->as_unsafe_block_unsafe()->scope.nodes);
                 break;
             case ASTNodeKind::FunctionDecl:
                 insert_multi_func(*linker.ast_allocator, node->as_function_unsafe());
@@ -805,7 +805,9 @@ void VariablesContainer::declare_parsed_nodes(SymbolResolver& linker, std::vecto
             case ASTNodeKind::IfStmt: {
                 const auto stmt = node->as_if_stmt_unsafe();
                 const auto scope = stmt->get_evaluated_scope_by_linking(linker);
-                declare_parsed_nodes(linker, scope->nodes);
+                if(scope) {
+                    declare_parsed_nodes(linker, scope->nodes);
+                }
                 break;
             }
             default:

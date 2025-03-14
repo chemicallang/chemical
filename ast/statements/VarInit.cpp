@@ -140,7 +140,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
             const auto var = type->get_direct_linked_variant();
             if(var) {
                 auto gep = gen.builder->CreateGEP(t, llvm_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-                const auto storeInst = gen.builder->CreateStore(gen.builder->getInt32(var->variables.size()), gep);
+                const auto storeInst = gen.builder->CreateStore(gen.builder->getInt32(var->variables().size()), gep);
                 gen.di.instr(storeInst, encoded_location());
             }
         }

@@ -14,15 +14,7 @@ void GenericImplDecl::finalize_signature(ASTAllocator& allocator, ImplDefinition
     }
 
     // copying the variables
-    auto begin = inst->variables.begin();
-    auto end = inst->variables.end();
-    while(begin != end) {
-        auto& variable_member = begin.value();
-        const auto copied = variable_member->copy_member(allocator);
-        copied->set_parent(inst);
-        variable_member = copied;
-        begin++;
-    }
+    inst->copy_variables_in_place(allocator, inst);
 
     // finalizing the signature of functions
     for(const auto func : inst->functions()) {

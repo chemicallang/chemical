@@ -170,8 +170,8 @@ public:
     }
 
     void VisitStructDecl(StructDefinition *def) {
-        for(auto& mem : def->variables) {
-            visit(mem.second);
+        for(auto& mem : def->variables()) {
+            visit(mem);
         }
         for(auto& func : def->functions()) {
             visit(func);

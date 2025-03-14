@@ -348,9 +348,9 @@ void RepresentationVisitor::VisitIfStmt(IfStatement *decl) {
 
 void write_members(RepresentationVisitor& visitor, MembersContainer* container) {
     int i = 0;
-    for (const auto &field: container->variables) {
+    for (const auto field: container->variables()) {
         visitor.new_line_and_indent();
-        visitor.visit(field.second);
+        visitor.visit(field);
         i++;
     }
     i = 0;
@@ -946,9 +946,9 @@ void RepresentationVisitor::VisitVariantDecl(VariantDefinition *variant_def) {
     write(variant_def->name_view());
     write('{');
     indentation_level+=1;
-    for(auto& var : variant_def->variables) {
+    for(const auto var : variant_def->variables()) {
         new_line_and_indent();
-        visit(var.second);
+        visit(var);
     }
     indentation_level-=1;
     new_line_and_indent();

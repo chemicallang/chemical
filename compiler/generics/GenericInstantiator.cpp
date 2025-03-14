@@ -314,8 +314,8 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
     }
 
     // visiting variables
-    for(auto& var : impl->variables) {
-        visit(var.second);
+    for(auto& var : impl->variables()) {
+        visit(var);
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
@@ -365,8 +365,8 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
     table.scope_start();
 
     // declare variables
-    for(auto& var : impl->variables) {
-        table.declare(var.first, var.second);
+    for(const auto var : impl->variables()) {
+        table.declare(var->name, var);
     }
 
     // declare function names before visiting
@@ -426,8 +426,8 @@ void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* im
     }
 
     // visiting variables
-    for(auto& var : impl->variables) {
-        visit(var.second);
+    for(const auto var : impl->variables()) {
+        visit(var);
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
@@ -476,8 +476,8 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
     table.scope_start();
 
     // declare variables
-    for(auto& var : impl->variables) {
-        table.declare(var.first, var.second);
+    for(const auto var : impl->variables()) {
+        table.declare(var->name, var);
     }
 
     // declare function names before visiting
@@ -536,8 +536,8 @@ void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, Interfac
     }
 
     // visiting variables
-    for(auto& var : impl->variables) {
-        visit(var.second);
+    for(const auto var : impl->variables()) {
+        visit(var);
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
@@ -586,8 +586,8 @@ void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, InterfaceDefi
     table.scope_start();
 
     // declare variables
-    for(auto& var : impl->variables) {
-        table.declare(var.first, var.second);
+    for(const auto var : impl->variables()) {
+        table.declare(var->name, var);
     }
 
     // declare function names before visiting
@@ -646,8 +646,8 @@ void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, VariantDef
     }
 
     // visiting variables
-    for(auto& var : impl->variables) {
-        visit(var.second);
+    for(auto& var : impl->variables()) {
+        visit(var);
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
@@ -696,8 +696,8 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
     table.scope_start();
 
     // declare variables
-    for(auto& var : impl->variables) {
-        table.declare(var.first, var.second);
+    for(const auto var : impl->variables()) {
+        table.declare(var->name, var);
     }
 
     // declare function names before visiting
@@ -756,8 +756,8 @@ void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, ImplDefinitio
     }
 
     // visiting variables
-    for(auto& var : impl->variables) {
-        visit(var.second);
+    for(auto& var : impl->variables()) {
+        visit(var);
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
@@ -805,8 +805,8 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
     table.scope_start();
 
     // declare variables
-    for(auto& var : impl->variables) {
-        table.declare(var.first, var.second);
+    for(const auto var : impl->variables()) {
+        table.declare(var->name, var);
     }
 
     // declare function names before visiting

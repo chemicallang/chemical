@@ -184,11 +184,11 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
                 }
             }
         }
-        for(auto& mem : definition->variables) {
-            if(mem.second->default_value() == nullptr) {
-                auto val = values.find(mem.second->name);
+        for(const auto mem : definition->variables()) {
+            if(mem->default_value() == nullptr) {
+                auto val = values.find(mem->name);
                 if (val == values.end()) {
-                    missing.emplace_back(mem.second->name);
+                    missing.emplace_back(mem->name);
                 }
             }
         }

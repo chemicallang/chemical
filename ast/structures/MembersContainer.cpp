@@ -81,28 +81,28 @@ bool VariablesContainer::llvm_union_child_index(
 
 std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
     auto vec = std::vector<llvm::Type *>();
-    vec.reserve(variables.size() + inherited.size());
+    vec.reserve(variables().size() + inherited.size());
     for(const auto &inherits : inherited) {
         if(inherits.type->linked_struct_def()) {
             vec.emplace_back(inherits.type->llvm_type(gen));
         }
     }
-    for (const auto &var: variables) {
-        vec.emplace_back(var.second->llvm_type(gen));
+    for (auto &var: variables()) {
+        vec.emplace_back(var->llvm_type(gen));
     }
     return vec;
 }
 
 std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::vector<ChainValue*>& chain, unsigned index) {
     auto vec = std::vector<llvm::Type *>();
-    vec.reserve(variables.size() + inherited.size());
+    vec.reserve(variables().size() + inherited.size());
     for(const auto &inherits : inherited) {
         if(inherits.type->linked_struct_def()) {
             vec.emplace_back(inherits.type->llvm_chain_type(gen, chain, index + 1));
         }
     }
-    for (const auto &var: variables) {
-        vec.emplace_back(var.second->llvm_chain_type(gen, chain, index + 1));
+    for (auto &var: variables()) {
+        vec.emplace_back(var->llvm_chain_type(gen, chain, index + 1));
     }
     return vec;
 }
@@ -134,15 +134,6 @@ void MembersContainer::llvm_build_inherited_vtable(Codegen& gen, StructDefinitio
 }
 
 #endif
-
-BaseDefMember *VariablesContainer::child_def_member(const chem::string_view &name) {
-    auto found = variables.find(name);
-    if (found != variables.end()) {
-        return found->second;
-    } else {
-        return nullptr;
-    }
-}
 
 ASTNode *VariablesContainer::child_member_or_inherited_struct(const chem::string_view& name) {
     auto direct_var = direct_variable(name);
@@ -177,9 +168,9 @@ BaseDefMember *VariablesContainer::child_member(const chem::string_view& name) {
 
 BaseDefMember* VariablesContainer::largest_member() {
     BaseDefMember* member = nullptr;
-    for(auto& var : variables) {
-        if(member == nullptr || var.second->byte_size(true) > member->byte_size(true)) {
-            member = var.second;
+    for(const auto var : variables()) {
+        if(member == nullptr || var->byte_size(true) > member->byte_size(true)) {
+            member = var;
         }
     }
     return member;
@@ -188,16 +179,16 @@ BaseDefMember* VariablesContainer::largest_member() {
 uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
     size_t offset = 0;
     size_t maxAlignment = 1;
-    for (const auto& member : variables) {
+    for (const auto member : variables()) {
         // Update max alignment
-        const auto member_alignment = (size_t) member.second->known_type()->type_alignment(is64Bit);
+        const auto member_alignment = (size_t) member->known_type()->type_alignment(is64Bit);
         maxAlignment = std::max(maxAlignment, member_alignment);
         // Align the current offset
         size_t padding = (member_alignment - (offset % member_alignment)) % member_alignment;
         offset += padding;
 
         // Add the size of the member
-        offset += member.second->byte_size(is64Bit);
+        offset += member->byte_size(is64Bit);
     }
     // Align the total size to the largest alignment
     size_t totalPadding = (maxAlignment - (offset % maxAlignment)) % maxAlignment;
@@ -208,8 +199,8 @@ uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
 uint64_t VariablesContainer::largest_member_byte_size(bool is64Bit) {
     uint64_t size = 0;
     uint64_t previous;
-    for (auto &mem: variables) {
-        previous = mem.second->byte_size(is64Bit);
+    for (const auto mem: variables()) {
+        previous = mem->byte_size(is64Bit);
         if (previous > size) {
             size = previous;
         }
@@ -218,8 +209,8 @@ uint64_t VariablesContainer::largest_member_byte_size(bool is64Bit) {
 }
 
 void declare_inherited_members(MembersContainer* container, SymbolResolver& linker) {
-    for(auto& var : container->variables) {
-        var.second->redeclare_top_level(linker);
+    for(const auto var : container->variables()) {
+        var->redeclare_top_level(linker);
     }
     for(auto& func : container->functions()) {
         func->redeclare_top_level(linker);
@@ -242,8 +233,8 @@ void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
 }
 
 void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker) {
-    for (auto &var: variables) {
-        var.second->redeclare_top_level(linker);
+    for (const auto var: variables()) {
+        var->redeclare_top_level(linker);
     }
     for(auto& func : functions()) {
         func->redeclare_top_level(linker);
@@ -254,12 +245,12 @@ unsigned int MembersContainer::init_values_req_size() {
     unsigned int i = 0;
     for(auto& inherit : inherited) {
         auto direct = inherit.type->get_direct_linked_struct();
-        if(direct && !direct->variables.empty()) {
+        if(direct && !direct->variables().empty()) {
             i++;
         }
     }
-    for(auto& var : variables) {
-        if(var.second->default_value() == nullptr) {
+    for(auto& var : variables()) {
+        if(var->default_value() == nullptr) {
             i++;
         }
     }
@@ -272,11 +263,11 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
             case ASTNodeKind::StructMember:
             case ASTNodeKind::UnnamedStruct:
             case ASTNodeKind::UnnamedUnion:
-            case ASTNodeKind::VariantMember:{
-                const auto member = node->as_base_def_member_unsafe();
-                variables[member->name] = member;
+            case ASTNodeKind::VariantMember:
+                if(!insert_variable(node->as_base_def_member_unsafe())) {
+                    linker.error("couldn't insert the member into container because a member with same name exists", node);
+                }
                 break;
-            }
             case ASTNodeKind::IfStmt: {
                 const auto stmt = node->as_if_stmt_unsafe();
                 const auto scope = stmt->get_evaluated_scope_by_linking(linker);
@@ -292,6 +283,9 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
             case ASTNodeKind::FunctionDecl:
                 insert_multi_func(*linker.ast_allocator, node->as_function_unsafe());
                 break;
+            case ASTNodeKind::GenericFuncDecl:
+                insert_multi_func(*linker.ast_allocator, node->as_gen_func_decl_unsafe()->master_impl);
+                break;
             default:
                 break;
         }
@@ -302,8 +296,8 @@ void MembersContainer::link_signature_no_scope(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
         inherits.type->link(linker);
     }
-    for (auto &var: variables) {
-        var.second->link_signature(linker);
+    for (const auto var: variables()) {
+        var->link_signature(linker);
     }
     for(auto& func : functions()) {
         func->link_signature(linker);
@@ -318,8 +312,6 @@ void MembersContainer::link_signature(SymbolResolver &linker) {
 
 void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
-        // TODO remove this type linking, since we do this in link_signature
-        inherits.type->link(linker);
         const auto def = inherits.type->get_members_container();
         if(def) {
             declare_inherited_members(def, linker);
@@ -328,8 +320,8 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     // this will only declare aliases
     declare_parsed_nodes(linker);
     // declare all the variables manually
-    for (auto &var: variables) {
-        linker.declare(var.first, var.second);
+    for (const auto var : variables()) {
+        linker.declare(var->name, var);
     }
     // declare all the functions
     for(auto& func : functions()) {
@@ -356,28 +348,6 @@ void MembersContainer::register_use_to_inherited_interfaces(StructDefinition* de
     }
 }
 
-FunctionDeclaration *MembersContainer::member(const chem::string_view &name) {
-    auto func = indexes.find(name);
-    if(func != indexes.end()) {
-        return func->second;
-    }
-    return nullptr;
-}
-
-ASTNode *MembersContainer::child(const chem::string_view &varName) {
-    auto found = variables.find(varName);
-    if (found != variables.end()) {
-        return found->second;
-    } else {
-        auto found_func = indexes.find(varName);
-        if (found_func != indexes.end()) {
-            return found_func->second;
-        } else {
-            return nullptr;
-        }
-    }
-}
-
 FunctionDeclaration* MembersContainer::inherited_function(const chem::string_view& name) {
     for(auto& inherits : inherited) {
         const auto linked = inherits.type->get_direct_linked_node();
@@ -393,12 +363,8 @@ FunctionDeclaration* MembersContainer::inherited_function(const chem::string_vie
 }
 
 FunctionDeclaration *MembersContainer::direct_child_function(const chem::string_view& name) {
-    auto found_func = indexes.find(name);
-    if (found_func != indexes.end()) {
-        return found_func->second;
-    } else {
-        return nullptr;
-    }
+    auto func = indexes.find(name);
+    return func != indexes.end() ? func->second.first->as_function() : nullptr;
 }
 
 FunctionOverridingInfo MembersContainer::get_func_overriding_info(FunctionDeclaration* function) {
@@ -520,8 +486,8 @@ bool variables_type_require(VariablesContainer& container, bool(*requirement)(Ba
         }
     }
     if(variant_container) {
-        for(const auto& var : container.variables) {
-            const auto mem = var.second->as_variant_member_unsafe();
+        for(const auto var : container.variables()) {
+            const auto mem = var->as_variant_member_unsafe();
             for(auto& val : mem->values) {
                 if(requirement(val.second->type)) {
                     return true;
@@ -530,21 +496,20 @@ bool variables_type_require(VariablesContainer& container, bool(*requirement)(Ba
         }
         return false;
     } else {
-        for(const auto& var : container.variables) {
-            const auto k = var.second->kind();
-            switch(k) {
+        for(const auto var : container.variables()) {
+            switch(var->kind()) {
                 case ASTNodeKind::UnnamedStruct:
-                    if(variables_type_require(*var.second->as_unnamed_struct_unsafe(), requirement, false)){
+                    if(variables_type_require(*var->as_unnamed_struct_unsafe(), requirement, false)){
                         return true;
                     }
                     break;
                 case ASTNodeKind::UnnamedUnion:
-                    if(variables_type_require(*var.second->as_unnamed_union_unsafe(), requirement, false)){
+                    if(variables_type_require(*var->as_unnamed_union_unsafe(), requirement, false)){
                         return true;
                     }
                     break;
                 case ASTNodeKind::StructMember:
-                    if(requirement(var.second->as_struct_member_unsafe()->type)) {
+                    if(requirement(var->as_struct_member_unsafe()->type)) {
                         return true;
                     }
                     break;
@@ -579,14 +544,14 @@ bool MembersContainer::any_member_has_copy_func() {
 }
 
 void MembersContainer::insert_func(FunctionDeclaration* decl) {
-    indexes[decl->name_view()] = decl;
+    const auto index = static_cast<int>(functions_container.size());
     functions_container.emplace_back(decl);
+    indexes[decl->name_view()] = { decl , index };
 }
 
 void MembersContainer::insert_functions(const std::initializer_list<FunctionDeclaration*>& decls) {
     for(const auto d : decls) {
-        indexes[d->name_view()] = d;
-        functions_container.emplace_back(d);
+        insert_func(d);
     }
 }
 
@@ -653,13 +618,12 @@ bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDec
     if(found == indexes.end()) {
         insert_func(decl);
     } else {
-        auto result = handle_name_overload_function(astAllocator, found->second, decl);
+        auto result = handle_name_overload_function(astAllocator, found->second.first->as_function_unsafe(), decl);
         if(!result.duplicates.empty()) {
             return false;
         } else if(result.new_multi_func_node) {
-            // storing pointer to MultiFunctionNode as FunctionDeclaration
-            // this can create errors, if not handled properly
-            indexes[decl->name_view()] = (FunctionDeclaration*) result.new_multi_func_node;
+            // TODO -1 is being stored as index
+            indexes[decl->name_view()] = { result.new_multi_func_node, -1 };
         }
         functions_container.emplace_back(decl);
     }
@@ -719,21 +683,17 @@ std::pair<long, BaseType*> VariablesContainer::variable_type_index(const chem::s
             parents_size += 1;
         }
     }
-    auto found = variables.find(varName);
-    if(found == variables.end()) {
+    auto found = indexes.find(varName);
+    if(found == indexes.end()) {
         return { -1, nullptr };
     } else {
-        return { ((long)(found - variables.begin())) + parents_size, found->second->known_type() };
+        return { found->second.second + parents_size, found->second.first->known_type() };
     }
 }
 
 long VariablesContainer::direct_child_index(const chem::string_view& varName) {
-    auto found = variables.find(varName);
-    if(found == variables.end()) {
-        return -1;
-    } else {
-        return ((long)(found - variables.begin()));
-    }
+    auto found = indexes.find(varName);
+    return found == indexes.end() ? -1 : found->second.second;
 }
 
 bool VariablesContainer::does_override(InterfaceDefinition* interface) {
@@ -778,7 +738,9 @@ void VariablesContainer::take_variables_from_parsed_nodes(SymbolResolver& linker
             case ASTNodeKind::UnnamedUnion:
             case ASTNodeKind::VariantMember:{
                 const auto member = node->as_base_def_member_unsafe();
-                variables[member->name] = member;
+                if(!insert_variable(member)) {
+                    linker.error("couldn't insert the variable because a member with same name already exists", member);
+                }
                 break;
             }
             case ASTNodeKind::IfStmt: {
@@ -817,14 +779,14 @@ void VariablesContainer::declare_parsed_nodes(SymbolResolver& linker, std::vecto
 }
 
 void VariablesContainer::link_variables_signature(SymbolResolver& linker) {
-    for(auto& variable : variables) {
-        variable.second->link_signature(linker);
+    for(const auto variable : variables()) {
+        variable->link_signature(linker);
     }
 }
 
 void VariablesContainer::declare_and_link_variables(SymbolResolver &linker) {
-    for (auto& variable : variables) {
-        variable.second->declare_and_link(linker, (ASTNode*&) variable.second);
+    for (auto& variable : variables()) {
+        variable->declare_and_link(linker, (ASTNode*&) variable);
     }
 }
 

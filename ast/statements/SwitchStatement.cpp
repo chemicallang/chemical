@@ -121,7 +121,7 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
                 variant_def = linked->as_variant_member_unsafe()->parent();
             }
             if (variant_def) {
-                if (scopes.size() == variant_def->variables.size() && !has_default_case()) {
+                if (scopes.size() == variant_def->variables().size() && !has_default_case()) {
                     // TODO only do this when switch is a value
                     auto_default_case = true;
                 }
@@ -265,7 +265,7 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
                 } else if(kind == ASTNodeKind::VariantDecl) {
                     variant_def = linked->as_variant_def_unsafe();
                 }
-                if (value_ptr && variant_def && (scopes.size() < variant_def->variables.size() && !has_default_case())) {
+                if (value_ptr && variant_def && (scopes.size() < variant_def->variables().size() && !has_default_case())) {
                     linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
                     return false;
                 }

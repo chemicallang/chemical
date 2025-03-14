@@ -70,9 +70,9 @@ llvm::Type* llvm_union_chain_type(VariablesContainer* container, Codegen& gen, s
     if(index + 1 < values.size()) {
         auto linked = values[index + 1]->linked_node();
         if(linked) {
-            for (auto &member : container->variables) {
-                if (member.second == linked) {
-                    std::vector<llvm::Type *> struct_type{member.second->llvm_chain_type(gen, values, index + 1)};
+            for (const auto member : container->variables()) {
+                if (member == linked) {
+                    std::vector<llvm::Type *> struct_type{member->llvm_chain_type(gen, values, index + 1)};
                     return llvm::StructType::get(*gen.ctx, struct_type);
                 }
             }

@@ -127,6 +127,21 @@ public:
     void FinalizeBody(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations);
 
     /**
+     * finalize the signature of all these generic impl instantiations (shallow copies)
+     * this means inside the signature, all types that are generic are replaced with concrete implementations
+     * the implementation is determined with instantiation index inside the impl declaration
+     */
+    void FinalizeSignature(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations);
+
+    /**
+     * finalize the body of all these generic impl instantiations (shallow copies)
+     * this means inside the signature, all types that are generic are replaced with concrete implementations
+     * the implementation is determined with instantiation index inside the impl declaration
+     */
+    void FinalizeBody(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations);
+
+
+    /**
      * destructor
      */
     ~GenericInstantiatorAPI();

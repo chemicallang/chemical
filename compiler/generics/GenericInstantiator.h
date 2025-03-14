@@ -144,6 +144,10 @@ public:
 
     void FinalizeBody(GenericVariantDecl* gen_decl, VariantDefinition* decl, size_t itr);
 
+    void FinalizeSignature(GenericImplDecl* gen_decl, ImplDefinition* decl, size_t itr);
+
+    void FinalizeBody(GenericImplDecl* gen_decl, ImplDefinition* decl, size_t itr);
+
     /**
      * clears the symbols from tables, from previous finalization
      */
@@ -170,6 +174,10 @@ public:
     void FinalizeSignature(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations);
 
     void FinalizeBody(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations);
+
+    void FinalizeSignature(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations);
+
+    void FinalizeBody(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations);
 
 
 };

@@ -57,6 +57,8 @@ enum ASTNodeKind {
     GenericStructDecl,
     GenericVariantDecl,
     GenericUnionDecl,
-    GenericInterfaceDecl
+    GenericInterfaceDecl,
+    GenericImplDecl,
+    GenericTypeDecl,
 
 }

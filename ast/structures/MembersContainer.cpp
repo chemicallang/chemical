@@ -263,8 +263,7 @@ unsigned int MembersContainer::init_values_req_size() {
     return i;
 }
 
-void MembersContainer::link_signature(SymbolResolver &linker) {
-    linker.scope_start();
+void MembersContainer::link_signature_no_scope(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
         inherits.type->link(linker);
     }
@@ -274,6 +273,11 @@ void MembersContainer::link_signature(SymbolResolver &linker) {
     for(auto& func : functions()) {
         func->link_signature(linker);
     }
+}
+
+void MembersContainer::link_signature(SymbolResolver &linker) {
+    linker.scope_start();
+    link_signature_no_scope(linker);
     linker.scope_end();
 }
 

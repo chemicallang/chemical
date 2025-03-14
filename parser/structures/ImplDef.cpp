@@ -6,8 +6,9 @@
 
 #include "parser/Parser.h"
 #include "ast/structures/ImplDefinition.h"
+#include "ast/structures/GenericImplDecl.h"
 
-ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
 
     auto& tok = *token;
 
@@ -15,29 +16,54 @@ ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier
 
         token++;
 
-        auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, loc_single(tok));
+        const auto location = loc_single(tok);
 
+        auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, location);
         annotate(impl);
+
+        ASTNode* final_decl = impl;
+
+        if(token->type == TokenType::LessThanSym) {
+
+            std::vector<GenericTypeParameter*> gen_params;
+
+            parseGenericParametersList(allocator, gen_params);
+
+            if(!gen_params.empty()) {
+
+                const auto gen_decl = new(allocator.allocate<GenericImplDecl>()) GenericImplDecl(
+                        impl, parent_node, location
+                );
+
+                final_decl = gen_decl;
+
+                gen_decl->generic_params = std::move(gen_params);
+
+                impl->generic_parent = gen_decl;
+
+            }
+
+        }
 
         auto type = parseLinkedOrGenericType(allocator);
         if(type) {
             impl->interface_type = type;
         } else {
-            return impl;
+            return final_decl;
         }
         if(consumeWSOfType(TokenType::ForKw)) {
             auto type = parseLinkedOrGenericType(allocator);
             if(type) {
                 impl->struct_type = type;
             } else {
-                return impl;
+                return final_decl;
             }
         } else {
             impl->struct_type = nullptr;
         }
         if (!consumeToken(TokenType::LBrace)) {
             error("expected a '{' when starting an implementation");
-            return impl;
+            return final_decl;
         }
 
         auto prev_parent_node = parent_node;
@@ -54,9 +80,9 @@ ImplDefinition* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier
 
         if (!consumeToken(TokenType::RBrace)) {
             error("expected a '}' when ending an implementation");
-            return impl;
+            return final_decl;
         }
-        return impl;
+        return final_decl;
     }
     return nullptr;
 }

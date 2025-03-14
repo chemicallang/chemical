@@ -241,8 +241,6 @@ public:
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
-    void redeclare_top_level(SymbolResolver &linker) final;
-
     void link_signature_no_gen(SymbolResolver &linker) {
         MembersContainer::link_signature(linker);
     }

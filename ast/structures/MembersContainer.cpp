@@ -210,10 +210,10 @@ uint64_t VariablesContainer::largest_member_byte_size(bool is64Bit) {
 
 void declare_inherited_members(MembersContainer* container, SymbolResolver& linker) {
     for(const auto var : container->variables()) {
-        var->redeclare_top_level(linker);
+        linker.declare(var->name, var);
     }
-    for(auto& func : container->functions()) {
-        func->redeclare_top_level(linker);
+    for(const auto func : container->functions()) {
+        linker.declare(func->name_view(), func);
     }
     for(auto& inherits : container->inherited) {
         const auto def = inherits.type->linked_node()->as_members_container();
@@ -234,10 +234,10 @@ void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
 
 void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker) {
     for (const auto var: variables()) {
-        var->redeclare_top_level(linker);
+        linker.declare(var->name, var);
     }
-    for(auto& func : functions()) {
-        func->redeclare_top_level(linker);
+    for(const auto func : functions()) {
+        linker.declare(func->name_view(), func);
     }
 }
 

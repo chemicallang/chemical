@@ -157,14 +157,6 @@ public:
     }
 
     /**
-     * called in case some functions need to redeclare themselves
-     */
-    virtual void redeclare_top_level(SymbolResolver &linker) {
-        ASTNode* node;
-        declare_top_level(linker, node);
-    }
-
-    /**
      * declares something on the scope map
      * or find something on the map to link yourself with it
      */

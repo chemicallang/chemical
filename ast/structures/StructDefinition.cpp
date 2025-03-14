@@ -267,10 +267,6 @@ void StructMember::link_signature(SymbolResolver &linker) {
     }
 }
 
-void UnnamedStruct::redeclare_top_level(SymbolResolver &linker) {
-    linker.declare(name, this);
-}
-
 void UnnamedStruct::link_signature(SymbolResolver &linker) {
     take_variables_from_parsed_nodes(linker);
     VariablesContainer::link_variables_signature(linker);
@@ -301,10 +297,6 @@ void StructDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_
     // and put them into their containers (without linking here)
     take_members_from_parsed_nodes(linker);
     linker.declare_node(name_view(), this, specifier(), true);
-}
-
-void StructDefinition::redeclare_top_level(SymbolResolver &linker) {
-    linker.declare(name_view(), this);
 }
 
 void StructDefinition::link_signature(SymbolResolver &linker) {

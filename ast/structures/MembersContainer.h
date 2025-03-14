@@ -84,6 +84,8 @@ public:
         return this;
     }
 
+    void link_signature_no_scope(SymbolResolver &linker);
+
     void link_signature(SymbolResolver &linker);
 
     void declare_and_link_no_scope(SymbolResolver &linker);

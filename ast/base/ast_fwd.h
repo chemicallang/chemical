@@ -42,6 +42,8 @@ class FunctionParam;
 
 class FunctionDeclaration;
 
+class GenericTypeDecl;
+
 class GenericFuncDecl;
 
 class GenericStructDecl;
@@ -52,7 +54,7 @@ class GenericInterfaceDecl;
 
 class GenericVariantDecl;
 
-class GenericTypeDecl;
+class GenericImplDecl;
 
 class IfStatement;
 

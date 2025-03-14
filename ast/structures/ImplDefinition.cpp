@@ -81,7 +81,7 @@ void ImplDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_pt
     }
 }
 
-void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void ImplDefinition::link_signature_no_scope(SymbolResolver &linker) {
     const auto& interface_name = interface_type->linked_name();
     const auto linked_node = interface_type->linked_node();
     if(!linked_node) {
@@ -99,6 +99,31 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr
     }
     linker.scope_start();
     const auto struct_linked = struct_type ? struct_type->linked_struct_def() : nullptr;
+    MembersContainer::link_signature_no_scope(linker);
+    linker.scope_end();
+    if(struct_linked) {
+        // adding all methods of this implementation to struct
+        struct_linked->adopt(this);
+    }
+}
+
+void ImplDefinition::link_signature(SymbolResolver& linker) {
+    linker.scope_start();
+    link_signature_no_scope(linker);
+    linker.scope_end();
+}
+
+void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    const auto linked_node = interface_type->linked_node();
+    if(!linked_node) {
+        return;
+    }
+    const auto linked = linked_node->as_interface_def();
+    if(!linked) {
+        return;
+    }
+    linker.scope_start();
+    const auto struct_linked = struct_type ? struct_type->linked_struct_def() : nullptr;
     const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
         for (auto& func: linked->functions()) {
@@ -112,10 +137,6 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr
     }
     MembersContainer::declare_and_link_no_scope(linker);
     linker.scope_end();
-    if(struct_linked) {
-        // adding all methods of this implementation to struct
-        struct_linked->adopt(this);
-    }
 }
 
 void InterfaceDefinition::register_impl(ImplDefinition* definition) {

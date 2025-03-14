@@ -610,7 +610,7 @@ public:
     /**
      * parses impl token
      */
-    ImplDefinition* parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier);
+    ASTNode* parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * lexes a enum block

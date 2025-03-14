@@ -41,8 +41,18 @@ public:
 
     }
 
-
     uint64_t byte_size(bool is64Bit) final;
+
+    ImplDefinition* shallow_copy(ASTAllocator& allocator) {
+        const auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(
+            interface_type,
+            struct_type,
+            parent(),
+            encoded_location()
+        );
+        MembersContainer::shallow_copy_into(*impl, allocator);
+        return impl;
+    }
 
 #ifdef COMPILER_BUILD
 
@@ -62,6 +72,10 @@ public:
 #endif
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
+
+    void link_signature_no_scope(SymbolResolver &linker);
+
+    void link_signature(SymbolResolver& linker) final;
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

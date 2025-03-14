@@ -80,9 +80,4 @@ public:
         }
     }
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return BaseTypeKind::IntN;
-    }
-
 };

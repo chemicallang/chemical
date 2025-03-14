@@ -55,9 +55,4 @@ public:
     BaseType* create_type(ASTAllocator &allocator) final;
 //    std::unique_ptr<BaseType> create_type() final;
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return value->type_kind();
-    }
-
 };

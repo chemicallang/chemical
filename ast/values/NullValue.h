@@ -53,11 +53,6 @@ public:
 
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) final;
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return BaseTypeKind::Pointer;
-    }
-
     BaseType* create_type(ASTAllocator &allocator) final;
 
 //    hybrid_ptr<BaseType> get_base_type() final;

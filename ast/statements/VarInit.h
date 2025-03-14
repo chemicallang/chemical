@@ -299,7 +299,4 @@ public:
      */
     void declare(Value *new_value);
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final;
-
 };

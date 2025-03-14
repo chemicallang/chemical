@@ -67,9 +67,4 @@ public:
 
 #endif
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return BaseTypeKind::Bool;
-    }
-
 };

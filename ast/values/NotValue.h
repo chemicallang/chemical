@@ -37,16 +37,9 @@ public:
         return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), encoded_location());
     }
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return value->type_kind();
-    }
-
     BaseType* create_type(ASTAllocator &allocator) final;
 
     Value* evaluated_value(InterpretScope &scope) override;
-
-//    hybrid_ptr<BaseType> get_base_type() final;
 
     BaseType* known_type() final;
 

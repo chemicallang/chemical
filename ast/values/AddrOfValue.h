@@ -56,10 +56,6 @@ public:
 
 #endif
 
-    BaseTypeKind type_kind() const final {
-        return BaseTypeKind::Pointer;
-    }
-
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
 };

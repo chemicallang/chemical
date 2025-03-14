@@ -44,7 +44,3 @@ BaseType* TypealiasStatement::known_type() {
 uint64_t TypealiasStatement::byte_size(bool is64Bit) {
     return actual_type->byte_size(is64Bit);
 }
-
-BaseTypeKind TypealiasStatement::type_kind() const {
-    return actual_type->kind();
-}

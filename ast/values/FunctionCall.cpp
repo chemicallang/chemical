@@ -1296,10 +1296,6 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
 //    }
 //}
 
-BaseTypeKind FunctionCall::type_kind() const {
-    return const_cast<FunctionCall*>(this)->known_type()->kind();
-}
-
 void FunctionCall::interpret(InterpretScope &scope) {
     evaluated_value(scope);
 }

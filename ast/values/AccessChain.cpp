@@ -240,7 +240,3 @@ Value* AccessChain::evaluated_value(InterpretScope &scope) {
 ASTNode *AccessChain::linked_node() {
     return values[values.size() - 1]->linked_node();
 }
-
-BaseTypeKind AccessChain::type_kind() const {
-    return values[values.size() - 1]->type_kind();
-}

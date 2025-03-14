@@ -282,10 +282,6 @@ ASTNode *StructMember::child(const chem::string_view &childName) {
     return linked->child(childName);
 }
 
-BaseTypeKind StructMember::type_kind() const {
-    return type->kind();
-}
-
 //BaseType *StructDefinition::copy(ASTAllocator& allocator) const {
 //    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode *) this, location);
 //}

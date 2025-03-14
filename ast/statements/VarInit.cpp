@@ -348,11 +348,3 @@ void VarInitStatement::interpret(InterpretScope &scope) {
 void VarInitStatement::declare(Value *new_value) {
     decl_scope->declare(name_view(), new_value);
 }
-
-BaseTypeKind VarInitStatement::type_kind() const {
-    if(type) {
-        return type->kind();
-    } else {
-        return value->type_kind();
-    }
-}

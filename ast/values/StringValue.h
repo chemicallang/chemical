@@ -74,9 +74,4 @@ public:
 
     BaseType* create_type(ASTAllocator& allocator) final;
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return BaseTypeKind::String;
-    }
-
 };

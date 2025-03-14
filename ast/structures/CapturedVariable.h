@@ -68,7 +68,4 @@ public:
 
     BaseType* known_type() final;
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final;
-
 };

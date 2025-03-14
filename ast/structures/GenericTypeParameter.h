@@ -58,15 +58,6 @@ public:
         active_iteration = -1;
     }
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        if(active_iteration == -1) {
-            return BaseTypeKind::Unknown;
-        } else {
-            return usage[active_iteration]->kind();
-        }
-    }
-
     BaseType *known_type() final {
         if(active_iteration == -1) {
             return nullptr;

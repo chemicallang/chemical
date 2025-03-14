@@ -883,10 +883,6 @@ unsigned FunctionParam::calculate_c_or_llvm_index(FunctionType* func_type) {
     return start + index;
 }
 
-BaseTypeKind FunctionParam::type_kind() const {
-    return type->kind();
-}
-
 FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(
             name,
@@ -1388,12 +1384,4 @@ bool CapturedVariable::declare_and_link(SymbolResolver& linker) {
     }
     linker.declare(name, this);
     return has;
-}
-
-BaseTypeKind CapturedVariable::type_kind() const {
-    if(capture_by_ref) {
-        return BaseTypeKind::Pointer;
-    } else {
-        return linked->type_kind();
-    }
 }

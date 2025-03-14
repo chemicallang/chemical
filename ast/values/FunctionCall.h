@@ -104,15 +104,6 @@ public:
      */
     BaseType* create_type(ASTAllocator& allocator) final;
 
-//    /**
-//     * this returns the return type of the function, it must be called in access chain
-//     * to account for generic types that depend on struct
-//     */
-//    BaseType* create_type(std::vector<ChainValue*>& chain, unsigned int index) final;
-
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final;
-
     /**
      * if all generic arguments aren't given, for which default types also don't exist
      * this will be called to get inferred arguments, if parameter has default type, nullptr will be used,

@@ -57,11 +57,6 @@ public:
 
     BaseType* create_value_type(ASTAllocator &allocator) final;
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return BaseTypeKind::Union;
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;

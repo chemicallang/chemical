@@ -137,9 +137,6 @@ public:
 
     void link_signature(SymbolResolver &linker) override;
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final;
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;

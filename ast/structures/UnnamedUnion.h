@@ -43,11 +43,9 @@ public:
         return unnamed;
     }
 
-    VariablesContainer* copy_container(ASTAllocator &allocator) final;
-
     void redeclare_top_level(SymbolResolver &linker) final;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
+    void link_signature(SymbolResolver &linker) override;
 
     ASTNode *child(const chem::string_view &name) final {
         return VariablesContainer::child_def_member(name);
@@ -56,17 +54,6 @@ public:
     uint64_t byte_size(bool is64Bit) final {
         return largest_member()->byte_size(is64Bit);
     }
-
-//    ASTNode *linked_node() final {
-//        return this;
-//    }
-
-//    [[nodiscard]]
-//    BaseType *copy(ASTAllocator& allocator) const final;
-
-//    BaseType* known_type() final {
-//        return this;
-//    }
 
     BaseType* create_value_type(ASTAllocator &allocator) final;
 

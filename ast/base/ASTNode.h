@@ -890,6 +890,13 @@ public:
     }
 
     /**
+     * get as alias stmt
+     */
+    inline AliasStmt* as_alias_stmt_unsafe() {
+        return (AliasStmt*) this;
+    }
+
+    /**
      * as loop node unsafe
      */
     inline LoopASTNode* as_loop_node_unsafe() {
@@ -1069,6 +1076,13 @@ public:
      */
     inline InitBlock* as_init_block_unsafe() {
         return (InitBlock*) this;
+    }
+
+    /**
+     * get as unsafe block
+     */
+    inline UnsafeBlock* as_unsafe_block_unsafe() {
+        return (UnsafeBlock*) this;
     }
 
     /**

@@ -260,10 +260,9 @@ void StructMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr)
     linker.declare(name, this);
 }
 
-void StructMember::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.declare(name, this);
+void StructMember::link_signature(SymbolResolver &linker) {
     type->link(linker);
-    if (defValue) {
+    if(defValue) {
         defValue->link(linker, defValue);
     }
 }
@@ -272,15 +271,9 @@ void UnnamedStruct::redeclare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
 }
 
-void UnnamedStruct::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.scope_start();
-    VariablesContainer::declare_and_link(linker, node_ptr);
-    linker.scope_end();
-    linker.declare(name, this);
-}
-
-VariablesContainer *UnnamedStruct::copy_container(ASTAllocator& allocator) {
-    return (VariablesContainer*) copy_member(allocator);
+void UnnamedStruct::link_signature(SymbolResolver &linker) {
+    take_variables_from_parsed_nodes(linker);
+    VariablesContainer::link_variables_signature(linker);
 }
 
 ASTNode *StructMember::child(const chem::string_view &childName) {
@@ -307,6 +300,10 @@ BaseType* UnnamedStruct::create_value_type(ASTAllocator &allocator) {
 //}
 
 void StructDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+    // no variables or functions exist in containers because user maybe using
+    // compile time ifs, so we take out members after linking compile time ifs
+    // and put them into their containers (without linking here)
+    take_members_from_parsed_nodes(linker);
     linker.declare_node(name_view(), this, specifier(), true);
 }
 
@@ -358,25 +355,14 @@ ASTNode *StructDefinition::child(const chem::string_view &name) {
     if (node) {
         return node;
     } else if (!inherited.empty()) {
-        for(auto& inherits : inherited) {
-            if(inherits.specifier == AccessSpecifier::Public) {
+        for (auto& inherits: inherited) {
+            if (inherits.specifier == AccessSpecifier::Public) {
                 const auto thing = inherits.type->linked_node()->child(name);
                 if (thing) return thing;
             }
         }
     };
     return nullptr;
-}
-
-VariablesContainer *StructDefinition::copy_container(ASTAllocator& allocator) {
-    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(identifier, parent(), encoded_location());
-    for(auto& inherits : inherited) {
-        def->inherited.emplace_back(inherits.copy(allocator));
-    }
-    for(auto& variable : variables) {
-        def->variables[variable.first] = variable.second->copy_member(allocator);
-    }
-    return def;
 }
 
 BaseType* StructDefinition::create_value_type(ASTAllocator& allocator) {

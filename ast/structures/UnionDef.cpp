@@ -105,25 +105,9 @@ llvm::Type *UnnamedUnion::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
 
 #endif
 
-//BaseType *UnionDef::copy(ASTAllocator& allocator) const {
-//    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode*) this, location);
-//}
-
-VariablesContainer *UnionDef::copy_container(ASTAllocator& allocator) {
-    auto container = new (allocator.allocate<UnionDef>()) UnionDef(identifier, parent(), encoded_location());
-    for(auto& variable : variables) {
-        container->variables[variable.first] = variable.second->copy_member(allocator);
-    }
-    return container;
-}
-
 BaseType* UnnamedUnion::create_value_type(ASTAllocator &allocator) {
     return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, encoded_location());
 }
-
-//BaseType *UnnamedUnion::copy(ASTAllocator& allocator) const {
-//    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, location);
-//}
 
 BaseType* UnionDef::create_value_type(ASTAllocator& allocator) {
     return create_linked_type(name_view(), allocator);
@@ -134,6 +118,7 @@ BaseType* UnionDef::known_type() {
 }
 
 void UnionDef::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+    take_members_from_parsed_nodes(linker);
     linker.declare_node(name_view(), this, specifier(), true);
 }
 
@@ -145,13 +130,7 @@ void UnnamedUnion::redeclare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
 }
 
-void UnnamedUnion::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.scope_start();
-    VariablesContainer::declare_and_link(linker, node_ptr);
-    linker.scope_end();
-    linker.declare(name, this);
-}
-
-VariablesContainer *UnnamedUnion::copy_container(ASTAllocator& allocator) {
-    return (VariablesContainer*) copy_member(allocator);
+void UnnamedUnion::link_signature(SymbolResolver &linker) {
+    take_variables_from_parsed_nodes(linker);
+    VariablesContainer::link_variables_signature(linker);
 }

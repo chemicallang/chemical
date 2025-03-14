@@ -213,6 +213,7 @@ ASTNode* VariantDefinition::child(const chem::string_view &child_name) {
 }
 
 void VariantDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+    take_members_from_parsed_nodes(linker);
     linker.declare_node(name_view(), this, specifier(), true);
 }
 
@@ -266,17 +267,9 @@ BaseType* VariantDefinition::create_value_type(ASTAllocator& allocator) {
     return create_linked_type(name_view(), allocator);
 }
 
-//hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
-//    return hybrid_ptr<BaseType> { create_value_type(), true };
-//}
-
-void VariantMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-
-}
-
-void VariantMember::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariantMember::link_signature(SymbolResolver &linker) {
     for(auto& value : values) {
-        value.second->declare_and_link(linker, (ASTNode*&) value.second);
+        value.second->link_signature(linker);
     }
 }
 
@@ -332,7 +325,7 @@ BaseTypeKind VariantMember::type_kind() const {
     return BaseTypeKind::Struct;
 }
 
-void VariantMemberParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariantMemberParam::link_signature(SymbolResolver &linker) {
     type->link(linker);
     if(def_value) {
         def_value->link(linker, def_value);

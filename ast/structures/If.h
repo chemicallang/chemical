@@ -68,6 +68,24 @@ public:
         return !parent() || parent()->kind() == ASTNodeKind::NamespaceDecl;
     }
 
+protected:
+
+    Scope* link_evaluated_scope(SymbolResolver& linker);
+
+public:
+
+    /**
+     * this method can be called by parent containers, when the if statement is
+     * present inside the variables container, the evaluated scope is given after linking
+     * conditions, the nodes contained inside ARE NOT LINKED, so you can manually link
+     */
+    inline Scope* get_evaluated_scope_by_linking(SymbolResolver& linker) {
+        if(computed_scope.has_value()) {
+            return computed_scope.value();
+        }
+        return link_evaluated_scope(linker);
+    }
+
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void declare_and_link(SymbolResolver &linker, Value** value_ptr);

@@ -25,11 +25,8 @@ bool StructType::equals(StructType *type) {
 }
 
 bool StructType::link(SymbolResolver &linker) {
-    for(auto& var : variables) {
-        if(!var.second->known_type()->link(linker)) {
-            return false;
-        }
-    }
+    take_variables_from_parsed_nodes(linker);
+    VariablesContainer::link_variables_signature(linker);
     if(!name.empty()) {
         linker.declare(name, this);
     }

@@ -10,6 +10,17 @@
 #include <memory>
 
 class VariablesContainer {
+protected:
+
+    /**
+     * the nodes can be any type of node, when we parse, we put all nodes into this vector
+     * then specialized functions are called during symbol resolution, to take variables
+     * and functions into their specific maps
+     * this allows putting nodes like if statement, for conditional compilation or a node
+     * that may not be a member variable or function
+     */
+    std::vector<ASTNode*> nodes;
+
 public:
 
     std::vector<InheritedType> inherited;
@@ -47,6 +58,14 @@ public:
 
     BaseDefMember* largest_member();
 
+    /**
+     * this gives the reference to parsed nodes, which can be used to put
+     * parsed nodes inside this container
+     */
+    std::vector<ASTNode*>& get_parsed_nodes_container() {
+        return nodes;
+    }
+
     bool is_one_of_inherited_type(BaseType* type) {
         for(auto& inh : inherited) {
             if(inh.type == type) {
@@ -56,7 +75,32 @@ public:
         return false;
     }
 
-    virtual void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);
+    /**
+     * this method will automatically take variables from parsed nodes
+     */
+    void take_variables_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& nodes);
+
+    inline void take_variables_from_parsed_nodes(SymbolResolver& linker) {
+        if(!nodes.empty()) {
+            take_variables_from_parsed_nodes(linker, nodes);
+        }
+    }
+
+    /**
+     * this method will automatically declare nodes from parsed nodes
+     * THIS WILL NOT DECLARE variables, only aliases are declared
+     */
+    void declare_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& nodes);
+
+    inline void declare_parsed_nodes(SymbolResolver& linker) {
+        if(!nodes.empty()) {
+            declare_parsed_nodes(linker, nodes);
+        }
+    }
+
+    void link_variables_signature(SymbolResolver& linker);
+
+    void declare_and_link_variables(SymbolResolver &linker);
 
     /**
      * when child is located up somewhere in inheritance tree, we build the path to it
@@ -92,12 +136,9 @@ public:
      * shallow copies this container into the given container
      */
     void shallow_copy_into(VariablesContainer& other, ASTAllocator& allocator) {
+        other.nodes = nodes;
         other.inherited = inherited;
         other.variables = variables;
-    }
-
-    virtual VariablesContainer* copy_container(ASTAllocator& allocator) {
-        throw std::runtime_error("copy container called on variables container, should be overridden");
     }
 
 #ifdef COMPILER_BUILD

@@ -84,6 +84,17 @@ public:
         return this;
     }
 
+    /**
+     * this method will automatically take variables from parsed nodes
+     */
+    void take_members_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& nodes);
+
+    inline void take_members_from_parsed_nodes(SymbolResolver& linker) {
+        if(!nodes.empty()) {
+            take_members_from_parsed_nodes(linker, nodes);
+        }
+    }
+
     void link_signature_no_scope(SymbolResolver &linker);
 
     void link_signature(SymbolResolver &linker);

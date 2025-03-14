@@ -291,7 +291,7 @@ void to_llvm_args(
     }
 
     i += func_type->explicit_func_arg_offset();
-    const auto func_param_size = func_type->params.size();
+    const auto func_param_size = func_type->expectedArgsSize();
     while(i < func_param_size) {
         auto param = func_type->func_param_for_arg_at(i);
         if(param) {

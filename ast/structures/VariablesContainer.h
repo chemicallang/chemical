@@ -21,10 +21,30 @@ protected:
      */
     std::vector<ASTNode*> nodes;
 
+    /**
+     * indexes are maintained to nodes by their names, this allows us to get the function or variable in a single check
+     * the pair contains the pointer to the node, which could be a variable, function (maybe generic), the second
+     * the second in the pair is an int index, which if -1 means that we don't know what is it's index
+     * the index for a variable means index of the variable -> inside the variables vector, this allows us to quickly
+     * get the index to the variable, with the name, since llvm works with indexes and not names
+     */
+    std::unordered_map<chem::string_view, std::pair<ASTNode*, int>> indexes;
+
+    /**
+     * the variables, this vector is just calculated so we can traverse over it fast
+     */
+    std::vector<BaseDefMember*> variables_container;
+
 public:
 
     std::vector<InheritedType> inherited;
-    tsl::ordered_map<chem::string_view, BaseDefMember*> variables;
+
+    /**
+     * get the variables container
+     */
+    const std::vector<BaseDefMember*>& variables() {
+        return variables_container;
+    }
 
     /**
      * get the variable type along with index
@@ -41,7 +61,35 @@ public:
 
     uint64_t largest_member_byte_size(bool is64Bit);
 
-    BaseDefMember *child_def_member(const chem::string_view& name);
+    ASTNode* direct_child(const chem::string_view& name) {
+        auto found = indexes.find(name);
+        return found != indexes.end() ? found->second.first : nullptr;
+    }
+
+    BaseDefMember *child_def_member(const chem::string_view& name) {
+        auto found = indexes.find(name);
+        if(found == indexes.end()) return nullptr;
+        const auto node = found->second.first;
+        switch(node->kind()) {
+            case ASTNodeKind::UnnamedUnion:
+            case ASTNodeKind::UnnamedStruct:
+            case ASTNodeKind::StructMember:
+                return node->as_base_def_member_unsafe();
+            default:
+                return nullptr;
+        }
+    }
+
+    void copy_variables_in_place(ASTAllocator& allocator, ASTNode* new_parent) {
+        int i = 0;
+        for(auto& var : variables_container) {
+            const auto copied = var->copy_member(allocator);
+            copied->set_parent(new_parent);
+            var = copied;
+            indexes[copied->name] = { copied, i };
+            i++;
+        }
+    }
 
     inline BaseDefMember *direct_variable(const chem::string_view& name) {
         return child_def_member(name);
@@ -57,6 +105,38 @@ public:
     BaseDefMember *child_member(const chem::string_view& name);
 
     BaseDefMember* largest_member();
+
+    /**
+     * this will remove all the variables and their indexes
+     */
+    void clear_variables() {
+        for(const auto var : variables_container) {
+            indexes.erase(var->name);
+        }
+        variables_container.clear();
+    }
+
+    /**
+     * a variable is inserted into the container without check
+     */
+    void insert_variable_no_check(BaseDefMember* member) {
+        const auto index = static_cast<int>(variables_container.size());
+        variables_container.emplace_back(member);
+        indexes[member->name] = {member, index};
+    }
+
+    /**
+     * insert a variable into this container
+     */
+    bool insert_variable(BaseDefMember* member) {
+        auto found = indexes.find(member->name);
+        if(found == indexes.end()) {
+            insert_variable_no_check(member);
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     /**
      * this gives the reference to parsed nodes, which can be used to put
@@ -124,11 +204,11 @@ public:
         for(auto& inh : inherited) {
             other.inherited.emplace_back(inh.type->copy(allocator), inh.specifier);
         }
-        other.variables.reserve(variables.size());
-        for(auto& var : variables) {
-            const auto var_copy = var.second->copy_member(allocator);
+        other.variables_container.reserve(variables_container.size());
+        for(auto& var : variables_container) {
+            const auto var_copy = var->copy_member(allocator);
             var_copy->set_parent(new_parent);
-            other.variables[var.first] = var_copy;
+            other.insert_variable_no_check(var_copy);
         }
     }
 
@@ -138,7 +218,8 @@ public:
     void shallow_copy_into(VariablesContainer& other, ASTAllocator& allocator) {
         other.nodes = nodes;
         other.inherited = inherited;
-        other.variables = variables;
+        other.variables_container = variables_container;
+        other.indexes = indexes;
     }
 
 #ifdef COMPILER_BUILD

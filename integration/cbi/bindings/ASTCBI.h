@@ -92,7 +92,7 @@ extern "C" {
 
     void ImplDefinitionadd_function(ImplDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl);
 
-    void StructDefinitionadd_member(StructDefinition* definition, chem::string_view* name, BaseDefMember* member);
+    void StructDefinitionadd_member(StructDefinition* definition, BaseDefMember* member);
 
     void StructDefinitionadd_function(StructDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl);
 
@@ -104,11 +104,11 @@ extern "C" {
 
     std::vector<ASTNode*>* BlockValueget_body(BlockValue* bv);
 
-    void UnionDefinitionadd_member(UnionDef* definition, chem::string_view* name, BaseDefMember* member);
+    void UnionDefinitionadd_member(UnionDef* definition, BaseDefMember* member);
 
     void UnionDefinitionadd_function(UnionDef* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl);
 
-    void VariantDefinitionadd_member(VariantDefinition* definition, chem::string_view* name, BaseDefMember* member);
+    void VariantDefinitionadd_member(VariantDefinition* definition, BaseDefMember* member);
 
     void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param);
 

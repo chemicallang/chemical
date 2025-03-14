@@ -65,25 +65,30 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
     }
 }
 
-bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* decl, AccessSpecifier specifier) {
+bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* def, AccessSpecifier specifier) {
     auto annotation = parseAnnotation(allocator);
     if(annotation) {
         return true;
     }
-    auto funcDecl = parseFunctionStructureTokens(allocator, specifier, true);
-    if(funcDecl) {
-        annotate(funcDecl);
-        // TODO this maybe a generic function declaration
-        decl->insert_multi_func(allocator, (FunctionDeclaration*) funcDecl);
-        return true;
-    }
-    auto variantMember = parseVariantMember(allocator, decl);
-    if(variantMember) {
-        decl->variables[variantMember->name] = variantMember;
-        return true;
+    switch(token->type) {
+        case TokenType::FuncKw: {
+            const auto func = parseFunctionStructureTokens(allocator, specifier, true);
+            if(func) {
+                def->get_parsed_nodes_container().emplace_back(func);
+            }
+            break;
+        }
+        default:
+            auto variantMember = parseVariantMember(allocator, def);
+            if(variantMember) {
+//                def->get_parsed_nodes_container().emplace_back(variantMember);
+                if(!def->insert_variable(variantMember)) {
+                    error() << "couldn't insert variable with name '" << variantMember->name << "' because a member with same name already exists";
+                }
+                return true;
+            }
     }
     return false;
-
 }
 
 ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {

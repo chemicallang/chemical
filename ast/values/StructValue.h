@@ -78,9 +78,7 @@ public:
         if(definition) {
             return definition->child(name);
         } else {
-            auto& variables = container->variables;
-            auto found = variables.find(name);
-            return found == variables.end() ? nullptr : found->second;
+            return container->direct_child(name);
         }
     }
 

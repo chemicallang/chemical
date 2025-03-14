@@ -124,6 +124,10 @@ public:
         static_cast<Derived*>(this)->VisitFunctionDecl(decl);
     }
 
+    inline void visit_it(BaseDefMember* member) {
+        static_cast<Derived*>(this)->visit(member);
+    }
+
     template<typename T>
     inline void visit_it(T*& thing) {
         static_cast<Derived*>(this)->visit(thing);
@@ -223,24 +227,22 @@ public:
         }
     }
 
-    void VisitVariables(tsl::ordered_map<chem::string_view, BaseDefMember*>& variables) {
-        auto itr = variables.begin();
-        while(itr != variables.end()) {
-            visit_it(itr.value());
-            itr++;
+    void VisitVariables(const std::vector<BaseDefMember*>& variables) {
+        for(const auto var : variables) {
+            visit_it(var);
         }
     }
 
     inline void VisitUnnamedStruct(UnnamedStruct* def) {
-        VisitVariables(def->variables);
+        VisitVariables(def->variables());
     }
 
     inline void VisitUnnamedUnion(UnnamedUnion* def) {
-        VisitVariables(def->variables);
+        VisitVariables(def->variables());
     }
 
     inline void VisitStructDecl(StructDefinition *def) {
-        VisitVariables(def->variables);
+        VisitVariables(def->variables());
         for(auto& func : def->functions()) {
             visit_it(func);
         }
@@ -455,11 +457,11 @@ public:
     }
 
     void VisitStructType(StructType* type) {
-        VisitVariables(type->variables);
+        VisitVariables(type->variables());
     }
 
     void VisitUnionType(UnionType* type) {
-        VisitVariables(type->variables);
+        VisitVariables(type->variables());
     }
 
     void VisitDynamicType(DynamicType* type) {

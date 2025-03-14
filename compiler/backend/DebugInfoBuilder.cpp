@@ -260,18 +260,18 @@ llvm::DICompositeType* DebugInfoBuilder::create_struct_type(StructDefinition* de
     const auto alignmentInBits = dataLayout.getABITypeAlign(llvm_type).value() * 8;
     std::vector<llvm::Metadata*> structEles;
     uint64_t varOffset = 0;
-    for(auto& var : def->variables) {
-        const auto var_loc = loc_node(this, var.second->encoded_location());
-        const auto var_ll_type = var.second->llvm_type(gen);
+    for(const auto var : def->variables()) {
+        const auto var_loc = loc_node(this, var->encoded_location());
+        const auto var_ll_type = var->llvm_type(gen);
         const auto var_bit_size = var_ll_type->getScalarSizeInBits();
         // Get the ABI alignment in bytes and convert to bits.
         const auto var_bit_align = dataLayout.getABITypeAlign(var_ll_type).value() * 8;
-        const auto mem_di_type = to_di_type(*this, var.second->create_value_type(gen.allocator), true);
+        const auto mem_di_type = to_di_type(*this, var->create_value_type(gen.allocator), true);
         // Align the current offset to the required alignment.
         varOffset = alignTo(varOffset, var_bit_align);
         const auto mem_type = builder->createMemberType(
                 diCompileUnit,
-                to_ref(var.first),
+                to_ref(var->name),
                 diCompileUnit->getFile(),
                 var_loc.start.line,
                 var_bit_size,

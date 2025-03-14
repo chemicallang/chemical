@@ -60,8 +60,8 @@ public:
     void link_signature(SymbolResolver &linker) override;
 
     bool requires_copy_fn() {
-        for(const auto& var : variables) {
-            if(var.second->known_type()->requires_copy_fn()) {
+        for(const auto var : variables()) {
+            if(var->known_type()->requires_copy_fn()) {
                 return true;
             }
         }
@@ -69,8 +69,8 @@ public:
     }
 
     bool requires_destructor() {
-        for(const auto& var : variables) {
-            if(var.second->known_type()->requires_destructor()) {
+        for(const auto var : variables()) {
+            if(var->known_type()->requires_destructor()) {
                 return true;
             }
         }

@@ -675,8 +675,8 @@ void ImplDefinitionadd_function(ImplDefinition* definition, ASTAllocator* astAll
     definition->insert_multi_func(*astAllocator, decl);
 }
 
-void StructDefinitionadd_member(StructDefinition* definition, chem::string_view* name, BaseDefMember* member) {
-    definition->variables[*name] = member;
+void StructDefinitionadd_member(StructDefinition* definition, BaseDefMember* member) {
+    definition->insert_variable_no_check(member);
 }
 
 void StructDefinitionadd_function(StructDefinition* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
@@ -699,16 +699,16 @@ std::vector<ASTNode*>* BlockValueget_body(BlockValue* bv) {
     return &bv->scope.nodes;
 }
 
-void UnionDefinitionadd_member(UnionDef* definition, chem::string_view* name, BaseDefMember* member) {
-    definition->variables[*name] = member;
+void UnionDefinitionadd_member(UnionDef* definition, BaseDefMember* member) {
+    definition->insert_variable(member);
 }
 
 void UnionDefinitionadd_function(UnionDef* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl) {
     definition->insert_multi_func(*astAllocator, decl);
 }
 
-void VariantDefinitionadd_member(VariantDefinition* definition, chem::string_view* name, BaseDefMember* member) {
-    definition->variables[*name] = member;
+void VariantDefinitionadd_member(VariantDefinition* definition, BaseDefMember* member) {
+    definition->insert_variable(member);
 }
 
 void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param) {

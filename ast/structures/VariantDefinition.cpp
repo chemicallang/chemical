@@ -53,11 +53,11 @@ llvm::Type* VariantDefinition::llvm_param_type(Codegen &gen) {
 }
 
 llvm::Type* VariantDefinition::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
-    auto member = variables.begin() + index;
+    auto member = variables()[index];
     if(index + 1 < values.size()) {
         auto linked = values[index + 1]->linked_node();
-        if(linked && member->second == linked) {
-            std::vector<llvm::Type *> struct_type{member->second->llvm_chain_type(gen, values, index + 1)};
+        if(linked && member == linked) {
+            std::vector<llvm::Type *> struct_type{member->llvm_chain_type(gen, values, index + 1)};
             return llvm::StructType::get(*gen.ctx, struct_type);
         }
     }
@@ -247,8 +247,8 @@ BaseType* VariantDefinition::known_type() {
 }
 
 bool VariantDefinition::requires_destructor() {
-    for(auto& var : variables) {
-        auto member = var.second->as_variant_member();
+    for(const auto var : variables()) {
+        auto member = var->as_variant_member();
         if(member->requires_destructor()) {
             return true;
         }

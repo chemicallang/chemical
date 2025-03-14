@@ -1282,12 +1282,12 @@ struct DefThing {
 
     void declare_value(ASTAllocator& allocator, const chem::string_view& name, BaseType* type, Value* value) {
         const auto member = new (allocator.allocate<StructMember>()) StructMember(name, type, nullptr, &decl, ZERO_LOC, true);
-        decl.variables[name] = member;
+        decl.insert_variable_no_check(member);
         defValue.values.emplace(name, StructMemberInitializer{ name, value });
     }
 
     void clear_values() {
-        decl.variables.clear();
+        decl.clear_variables();
         defValue.values.clear();
     }
 

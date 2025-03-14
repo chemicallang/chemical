@@ -874,7 +874,7 @@ void value_alloca(ToCAstVisitor& visitor, const chem::string_view& identifier, B
         visitor.write("{ .");
         visitor.write(variant_type_variant_name);
         visitor.write(" = ");
-        visitor.write_str(std::to_string(var->variables.size()));
+        visitor.write_str(std::to_string(var->variables().size()));
         visitor.space();
         visitor.write('}');
     }
@@ -2339,8 +2339,8 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
                 }
             }
             // declare sub variables
-            for(auto& var : def->variables) {
-                const auto known_t = var.second->known_type();
+            for(const auto var : def->variables()) {
+                const auto known_t = var->known_type();
                 if(known_t) {
                     auto sub_node = known_t->get_direct_linked_node();
                     if (sub_node) {
@@ -2371,8 +2371,8 @@ void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::ve
 }
 
 void early_declare_composed_variables(CTopLevelDeclarationVisitor& visitor, VariablesContainer& container) {
-    for(auto& variable : container.variables) {
-        auto t = variable.second->create_value_type(visitor.visitor.allocator);
+    for(const auto variable : container.variables()) {
+        auto t = variable->create_value_type(visitor.visitor.allocator);
         const auto node = t->get_direct_linked_node();
         if(node) {
             early_declare_node(visitor, node);
@@ -2455,9 +2455,9 @@ void CTopLevelDeclarationVisitor::VisitUnionDecl(UnionDef *def) {
     write(def->name_view());
     write(" {");
     visitor.indentation_level+=1;
-    for(auto& var : def->variables) {
+    for(const auto var : def->variables()) {
         visitor.new_line_and_indent();
-        visitor.visit(var.second);
+        visitor.visit(var);
     }
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
@@ -2475,8 +2475,8 @@ void CTopLevelDeclarationVisitor::VisitNamespaceDecl(Namespace *ns) {
 }
 
 void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def) {
-    for(auto& mem : def->variables) {
-        value_visitor->visit(mem.second);
+    for(const auto mem : def->variables()) {
+        value_visitor->visit(mem);
     }
     // before we declare this struct, we must early declare any direct struct type variables
     // inside this struct, because some structs get used inside which are present in other modules
@@ -2499,9 +2499,9 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
             visitor.write(';');
         }
     }
-    for(auto& var : def->variables) {
+    for(const auto var : def->variables()) {
         visitor.new_line_and_indent();
-        visitor.visit(var.second);
+        visitor.visit(var);
     }
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
@@ -2562,8 +2562,8 @@ void CTopLevelDeclarationVisitor::VisitGenericVariantDecl(GenericVariantDecl* no
 }
 
 void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
-    for(auto& mem : def->variables) {
-        value_visitor->visit(mem.second);
+    for(const auto mem : def->variables()) {
+        value_visitor->visit(mem);
     }
     visitor.new_line_and_indent();
     write("struct ");
@@ -2589,9 +2589,9 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     new_line_and_indent();
     write("union {");
     visitor.indentation_level += 1;
-    for(auto& var : def->variables) {
+    for(const auto var : def->variables()) {
         visitor.new_line_and_indent();
-        const auto member = var.second->as_variant_member();
+        const auto member = var->as_variant_member();
 
         visitor.write("struct ");
         visitor.write('{');
@@ -3287,12 +3287,12 @@ void process_variant_members_using(
     visitor.write(") {");
     visitor.indentation_level += 1;
     unsigned index = 0;
-    for (auto& var: def->variables) {
+    for (const auto var : def->variables()) {
         visitor.new_line_and_indent();
         visitor.write("case ");
         *visitor.output << index;
         visitor.write(':');
-        const auto member = var.second->as_variant_member();
+        const auto member = var->as_variant_member();
         process_member(visitor, member);
         visitor.new_line_and_indent();
         visitor.write("break;");
@@ -3402,9 +3402,9 @@ void process_struct_members_using(
             process_member(visitor, inherits.type, linked->name_view());
         }
     }
-    for (auto& var: def->variables) {
-        auto value_type = var.second->create_value_type(visitor.allocator);
-        process_member(visitor, value_type, var.second->name);
+    for (const auto var : def->variables()) {
+        auto value_type = var->create_value_type(visitor.allocator);
+        process_member(visitor, value_type, var->name);
     }
 }
 
@@ -3442,9 +3442,9 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
             }
         }
     }
-    for(auto& var : struct_def->variables) {
-        const auto defValue = var.second->default_value();
-        auto has_initializer = initializers && initializers->find(var.first) != initializers->end();
+    for(const auto var : struct_def->variables()) {
+        const auto defValue = var->default_value();
+        auto has_initializer = initializers && initializers->find(var->name) != initializers->end();
         // TODO currently we check if the value has a initializer in the init block
         // TODO we should check whether the value has an assignment in the function as well (or use that to initialize it)
         if(has_initializer) {
@@ -3453,7 +3453,7 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
         if(!defValue) {
             // since default value doesn't exist, however the variable maybe of type struct and have a default constructor
             // we must call the default non argument constructor automatically
-            const auto mem_type = var.second->create_value_type(visitor.allocator);
+            const auto mem_type = var->create_value_type(visitor.allocator);
             const auto mem_pure = mem_type->pure_type(visitor.allocator);
             const auto def = mem_pure->get_direct_linked_struct();
             if(def) {
@@ -3462,7 +3462,7 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
                     visitor.new_line_and_indent();
                     defConstructor->runtime_name(*visitor.output);
                     visitor.write("(&this->");
-                    visitor.write(var.first);
+                    visitor.write(var->name);
                     visitor.write(");");
                 } else {
                     // struct has no default value
@@ -3476,7 +3476,7 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
         }
         visitor.new_line_and_indent();
         visitor.write("this->");
-        visitor.write(var.first);
+        visitor.write(var->name);
         visitor.write(" = ");
         visitor.visit(defValue);
         visitor.write(';');
@@ -3681,9 +3681,9 @@ void ToCAstVisitor::VisitUnnamedUnion(UnnamedUnion *def) {
     write("union ");
     write('{');
     indentation_level+=1;
-    for(auto& var : def->variables) {
+    for(const auto var : def->variables()) {
         new_line_and_indent();
-        visit(var.second);
+        visit(var);
     }
     indentation_level-=1;
     new_line_and_indent();
@@ -3697,9 +3697,9 @@ void ToCAstVisitor::VisitUnnamedStruct(UnnamedStruct *def) {
     write("struct ");
     write('{');
     indentation_level+=1;
-    for(auto& var : def->variables) {
+    for(const auto var : def->variables()) {
         new_line_and_indent();
-        visit(var.second);
+        visit(var);
     }
     indentation_level-=1;
     new_line_and_indent();
@@ -4766,12 +4766,12 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
             accept_mutating_value(member ? member->known_type() : nullptr, value.second.value, false);
         }
     }
-    auto& variables = val->variables()->variables;
-    for(auto& var : variables) {
-        auto found = val->values.find(var.first);
+    auto& variables = val->variables()->variables();
+    for(const auto var : variables) {
+        auto found = val->values.find(var->name);
         if(found == val->values.end()) {
-            auto defValue = var.second->default_value();
-            const auto member = val->child_member(var.first);
+            auto defValue = var->default_value();
+            const auto member = val->child_member(var->name);
             if(has_value_before) {
                 write(", ");
             } else {
@@ -4779,11 +4779,11 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
             }
             if(defValue) {
                 write('.');
-                write(var.first);
+                write(var->name);
                 write(" = ");
                 accept_mutating_value(member ? member->known_type() : nullptr, defValue, false);
             } else if(!val->is_union()) {
-                error(val) << "no default value present for '" << var.first << "' in struct value";
+                error(val) << "no default value present for '" << var->name << "' in struct value";
             }
         }
     }
@@ -5290,8 +5290,8 @@ void ToCAstVisitor::VisitStructType(StructType *val) {
         write(' ');
     }
     write("{ ");
-    for(auto& variable : val->variables) {
-        visit(variable.second);
+    for(const auto variable : val->variables()) {
+        visit(variable);
         write(' ');
     }
     write("}");
@@ -5304,8 +5304,8 @@ void ToCAstVisitor::VisitUnionType(UnionType *val) {
         write(' ');
     }
     write("{ ");
-    for(auto& variable : val->variables) {
-        visit(variable.second);
+    for(const auto variable : val->variables()) {
+        visit(variable);
         write(' ');
     }
     write("}");

@@ -5,20 +5,17 @@
 #include "compiler/SymbolResolver.h"
 
 bool StructType::equals(StructType *type) {
-    auto& elem_types = variables;
-    auto& other_elem_types = type->variables;
+    auto& elem_types = variables();
+    auto& other_elem_types = type->variables();
     if (elem_types.size() != other_elem_types.size()) return false;
     unsigned i = 0;
-    auto itr_first = elem_types.begin();
-    auto itr_second = other_elem_types.begin();
-    while(i < elem_types.size()) {
-        auto first = itr_first->second->known_type();
-        auto second = itr_second->second->known_type();
+    const auto total = elem_types.size();
+    while(i < total) {
+        const auto first = elem_types[i]->known_type();
+        const auto second = other_elem_types[i]->known_type();
         if(!first->is_same(second)) {
             return false;
         }
-        itr_first++;
-        itr_second++;
         i++;
     }
     return true;

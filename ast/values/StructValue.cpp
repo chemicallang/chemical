@@ -77,16 +77,16 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
 
     // storing default values
     const auto isUnion = is_union();
-    for(auto& value : container->variables) {
-        auto found = values.find(value.first);
+    for(const auto value : container->variables()) {
+        auto found = values.find(value->name);
         if(found == values.end()) {
-            auto defValue = value.second->default_value();
+            auto defValue = value->default_value();
             if (defValue) {
-                auto variable = container->variable_type_index(value.first);
+                auto variable = container->variable_type_index(value->name);
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 defValue->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
             } else if(!isUnion) {
-                gen.error(this) << "expected a default value for '" << value.first << "'";
+                gen.error(this) << "expected a default value for '" << value->name << "'";
             }
         }
     }
@@ -311,11 +311,11 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
             }
         }
     }
-    for(auto& mem : container->variables) {
-        if(mem.second->default_value() == nullptr) {
-            auto val = values.find(mem.second->name);
+    for(const auto mem : container->variables()) {
+        if(mem->default_value() == nullptr) {
+            auto val = values.find(mem->name);
             if (val == values.end()) {
-                missing.emplace_back(mem.second->name);
+                missing.emplace_back(mem->name);
             }
         }
     }
@@ -443,9 +443,9 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         }
         auto child_type = child_node->get_value_type(linker.allocator);
         const auto val_linked = val_ptr->link(linker, val_ptr, child_type);
-        auto member = container->variables.find(val.first);
-        if(val_linked && container->variables.end() != member) {
-            const auto mem_type = member->second->get_value_type(linker.allocator);
+        const auto member = container->direct_variable(val.first);
+        if(val_linked && member) {
+            const auto mem_type = member->get_value_type(linker.allocator);
             auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
             current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
             if(implicit) {
@@ -560,10 +560,10 @@ void StructValue::declare_default_values(
         std::unordered_map<chem::string_view, StructMemberInitializer> &into,
         InterpretScope &scope
 ) {
-    for (const auto &field: definition->variables) {
-        const auto defValue = field.second->default_value();
-        if (into.find(field.second->name) == into.end() && defValue) {
-            into.emplace(field.second->name, StructMemberInitializer { field.second->name, defValue->scope_value(scope) });
+    for (const auto field : definition->variables()) {
+        const auto defValue = field->default_value();
+        if (into.find(field->name) == into.end() && defValue) {
+            into.emplace(field->name, StructMemberInitializer { field->name, defValue->scope_value(scope) });
         }
     }
 }

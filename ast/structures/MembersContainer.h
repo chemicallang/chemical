@@ -39,7 +39,6 @@ class MembersContainer : public ASTNode, public VariablesContainer {
 private:
 
     std::vector<FunctionDeclaration*> functions_container;
-    std::unordered_map<chem::string_view, FunctionDeclaration*> indexes;
 
 public:
 
@@ -113,13 +112,17 @@ public:
      */
     void register_use_to_inherited_interfaces(StructDefinition* definition);
 
-    FunctionDeclaration *member(const chem::string_view &name);
-
-    ASTNode *child(const chem::string_view &name);
+    inline ASTNode* child(const chem::string_view &name) {
+        return VariablesContainer::direct_child(name);
+    }
 
     FunctionDeclaration* inherited_function(const chem::string_view& name);
 
     FunctionDeclaration *direct_child_function(const chem::string_view& name);
+
+    inline FunctionDeclaration *member(const chem::string_view &name) {
+        return direct_child_function(name);
+    }
 
     /**
      * get child variable index, including the inherited types
@@ -193,8 +196,7 @@ public:
         for(auto& func : functions_container) {
             const auto func_copy = func->shallow_copy(allocator);
             func_copy->set_parent(&other);
-            other.functions_container.emplace_back(func_copy);
-            other.indexes[func_copy->name_view()] = func_copy;
+            other.insert_func(func_copy);
         }
     }
 
@@ -215,8 +217,7 @@ public:
         for(auto& func : functions_container) {
             const auto func_copy = func->copy(allocator);
             func_copy->set_parent(&other);
-            other.functions_container.emplace_back(func_copy);
-            other.indexes[func_copy->name_view()] = func_copy;
+            other.insert_func(func_copy);
         }
     }
 

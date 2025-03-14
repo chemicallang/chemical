@@ -34,12 +34,7 @@ public:
     bool link(SymbolResolver &linker) override;
 
     ASTNode* child(const chem::string_view &name) override {
-        const auto found = variables.find(name);
-        if(found != variables.end()) {
-            return found->second;
-        } else {
-            return nullptr;
-        }
+        return VariablesContainer::direct_child(name);
     }
 
     int child_index(const chem::string_view &name) override {

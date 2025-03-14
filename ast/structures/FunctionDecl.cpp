@@ -545,8 +545,8 @@ void code_gen_process_members(
         }
         index++;
     }
-    for(auto& var : def->variables) {
-        auto mem_type = var.second->get_value_type(gen.allocator);
+    for(const auto var : def->variables()) {
+        auto mem_type = var->get_value_type(gen.allocator);
         if(mem_type->isStructLikeType()) {
             auto mem_def = mem_type->linked_node()->as_members_container();
             if(!mem_def) {
@@ -622,8 +622,8 @@ void process_members_calling_fns(
     // figure out which members to process
     std::vector<std::pair<int, VariantMember*>> to_process;
     int index = 0;
-    for(auto& mem : def->variables) {
-        const auto variant_mem = mem.second->as_variant_member();
+    for(const auto mem : def->variables()) {
+        const auto variant_mem = mem->as_variant_member();
         if(should_process(variant_mem)) {
             to_process.emplace_back(index, variant_mem);
         }
@@ -728,13 +728,13 @@ void initialize_def_struct_values(
     }
     auto self_arg = func->getArg(0);
     auto parent_type = struct_def->llvm_type(gen);
-    for(auto& var : struct_def->variables) {
-        const auto defValue = var.second->default_value();
+    for(const auto var : struct_def->variables()) {
+        const auto defValue = var->default_value();
         if(!defValue) continue;
-        auto has_not_been_initialized = !initializers || initializers->find(var.first) == initializers->end();
+        auto has_not_been_initialized = !initializers || initializers->find(var->name) == initializers->end();
         if(has_not_been_initialized) {
             // couldn't move struct
-            auto variable = struct_def->variable_type_index(var.first, false);
+            auto variable = struct_def->variable_type_index(var->name, false);
             std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
             defValue->store_in_struct(gen, nullptr, self_arg, parent_type, idx, variable.first, variable.second);
         }

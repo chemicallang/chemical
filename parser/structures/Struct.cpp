@@ -9,6 +9,8 @@
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
+#include "ast/structures/UnsafeBlock.h"
+#include "ast/structures/If.h"
 
 StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
 
@@ -26,6 +28,7 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
     }
 
     auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), nullptr, nullptr, parent_node, 0, constId != nullptr, AccessSpecifier::Public);
+    annotate(member);
 
     if(!consumeWSOfType(TokenType::ColonSym)) {
         error("expected a colon symbol after the identifier");
@@ -56,16 +59,8 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
 
         auto decl = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct("", parent_node, 0, specifier);
 
-//        if(consumeToken(TokenType::ColonSym)) {
-//            do {
-//                auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
-//                auto type = parseLinkedOrGenericType(allocator);
-//                if(!type) {
-//                    return decl;
-//                }
-//                decl->inherited.emplace_back(new InheritedType(type, in_spec));
-//            } while(consumeToken(TokenType::CommaSym));
-//        }
+        annotate(decl);
+
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return decl;
@@ -98,40 +93,199 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
 
 }
 
-bool Parser::parseVariableMemberInto(VariablesContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier) {
-    switch(token->type) {
-        case TokenType::VarKw:
-        case TokenType::ConstKw: {
-            auto member = parseStructMember(allocator);
-            if (member) {
-                annotate(member);
-                decl->variables[member->name] = member;
-                return true;
-            }
-            return false;
+IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier);
+
+std::optional<Scope> parseMemberBraceBlockOrValueNode(Parser& parser, ASTAllocator& allocator, const std::string_view& forThing, AccessSpecifier specifier);
+
+UnsafeBlock* parseMemberUnsafeBlock(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier) {
+    auto& tok = *parser.token;
+    if(tok.type == TokenType::UnsafeKw) {
+        parser.token++;
+        auto unsafe = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock(parser.parent_node, parser.loc_single(tok));
+        auto block = parseMemberBraceBlockOrValueNode(parser, allocator, "unsafe_block", specifier);
+        if(block.has_value()) {
+            unsafe->scope = std::move(block.value());
+        } else {
+            parser.error("expected a braced block after 'unsafe' keyword");
+            return nullptr;
         }
-        case TokenType::Annotation:
-            return parseAnnotation(allocator);
+        return unsafe;
+    } else {
+        return nullptr;
+    }
+}
+
+ASTNode* parseNestedLevelMemberStatementTokens(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier) {
+    switch(parser.token->type) {
+        case TokenType::VarKw:
+        case TokenType::ConstKw:
+            return (ASTNode*) parser.parseStructMember(allocator);
+        case TokenType::UnsafeKw:
+            return (ASTNode*) parseMemberUnsafeBlock(parser, allocator, specifier);
+        case TokenType::AliasKw:
+            return (ASTNode*) parser.parseAliasStatement(allocator);
+        case TokenType::HashMacro:
+            return parser.parseMacroNode(allocator);
+        case TokenType::ComptimeKw:
+            return (ASTNode*) parser.parseComptimeBlock(allocator);
+        case TokenType::IfKw:
+            return (ASTNode*) parseMemberIfStatement(parser, allocator, specifier);
+        case TokenType::TypeKw:
+            return (ASTNode*) parser.parseTypealiasStatement(allocator, specifier);
         case TokenType::StructKw:{
-            auto unnamedStruct = parseUnnamedStruct(allocator, specifier);
-            if(unnamedStruct) {
-                annotate(unnamedStruct);
-                decl->variables[unnamedStruct->name] = unnamedStruct;
-                return true;
-            }
-            return false;
+            return parser.parseUnnamedStruct(allocator, specifier);
         }
         case TokenType::UnionKw:{
-            auto unionStructure = parseUnnamedUnion(allocator, specifier);
-            if(unionStructure) {
-                annotate(unionStructure);
-                decl->variables[unionStructure->name] = unionStructure;
-                return true;
-            }
-            return false;
+            return parser.parseUnnamedUnion(allocator, specifier);
+        }
+        case TokenType::FuncKw: {
+            return parser.parseFunctionStructureTokens(allocator, specifier, true, false);
         }
         default:
-            return false;
+            return nullptr;
+    }
+}
+
+void parseNestedLevelMultipleMemberStatementsTokens(Parser& parser, ASTAllocator& allocator, std::vector<ASTNode*>& nodes, AccessSpecifier specifier) {
+    while(true) {
+        parser.consumeNewLines();
+        auto stmt = parseNestedLevelMemberStatementTokens(parser, allocator, specifier);
+        if(stmt) {
+            nodes.emplace_back(stmt);
+        } else {
+            if(!parser.parseAnnotation(allocator)) {
+                break;
+            }
+        }
+        parser.consumeToken(TokenType::SemiColonSym);
+    }
+}
+
+std::optional<Scope> parseMemberBraceBlockOrValueNode(Parser& parser, ASTAllocator& allocator, const std::string_view& forThing, AccessSpecifier specifier) {
+
+    // whitespace and new lines
+    parser.consumeNewLines();
+
+    // starting brace
+    auto lb = parser.consumeOfType(TokenType::LBrace);
+    if (!lb) {
+        auto nested_stmt = parseNestedLevelMemberStatementTokens(parser, allocator, specifier);
+        if (nested_stmt) {
+            parser.consumeNewLines();
+            if (parser.consumeToken(TokenType::SemiColonSym)) {
+                parser.consumeNewLines();
+            }
+            return Scope{{nested_stmt}, parser.parent_node, nested_stmt->encoded_location()};
+        }
+        return std::nullopt;
+    }
+
+    Scope scope(parser.parent_node, 0);
+
+    // multiple statements
+    parseNestedLevelMultipleMemberStatementsTokens(parser, allocator, scope.nodes, specifier);
+
+    // ending brace
+    auto rb = parser.consumeOfType(TokenType::RBrace);
+    if (!rb) {
+        parser.error() << "expected a closing brace '}' for [" << forThing << "]";
+        return scope;
+    }
+
+    scope.set_encoded_location(parser.loc(lb->position, rb->position));
+
+    return scope;
+
+}
+
+std::optional<std::pair<Value*, Scope>> parseMemberIfExprAndBlock(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier) {
+
+    auto lp = parser.consumeOfType(TokenType::LParen);
+    if (!lp) {
+        parser.error("expected a starting parenthesis ( when lexing a if block");
+        return std::nullopt;
+    }
+
+    auto expr = parser.parseExpression(allocator);
+    if(!expr) {
+        parser.error("expected a conditional expression when lexing a if block");
+        return std::nullopt;
+    }
+
+    parser.consumeNewLines();
+
+    if (!parser.consumeToken(TokenType::RParen)) {
+        parser.error("expected a ending parenthesis ) when lexing a if block");
+        return std::pair { expr, Scope { parser.parent_node, parser.loc_single(lp) } };
+    }
+
+    auto blk = parseMemberBraceBlockOrValueNode(parser, allocator, "if", specifier);
+    if(blk.has_value()) {
+        return std::pair { expr, std::move(blk.value()) };
+    } else {
+        parser.error("expected a brace block when lexing a brace block");
+        return std::pair { expr, Scope { parser.parent_node, parser.loc_single(lp) } };
+    }
+
+}
+
+IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier) {
+
+    auto& first = *parser.token;
+    if(first.type != TokenType::IfKw) {
+        return nullptr;
+    }
+
+    parser.token++;
+
+    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, parser.parent_node, false, parser.loc_single(first));
+
+    auto exprBlock = parseMemberIfExprAndBlock(parser, allocator, specifier);
+    if(exprBlock.has_value()) {
+        auto& exprBlockValue = exprBlock.value();
+        statement->condition = exprBlockValue.first;
+        statement->ifBody = std::move(exprBlockValue.second);
+    } else {
+        return statement;
+    }
+
+    // lex whitespace
+    parser.consumeNewLines();
+
+    // keep lexing else if blocks until last else appears
+    while (parser.consumeWSOfType(TokenType::ElseKw) != nullptr) {
+        parser.consumeNewLines();
+        if(parser.consumeWSOfType(TokenType::IfKw)) {
+            auto exprBlock2 = parseMemberIfExprAndBlock(parser, allocator, specifier);
+            if(exprBlock2.has_value()) {
+                statement->elseIfs.emplace_back(std::move(exprBlock2.value()));
+            } else {
+                return statement;
+            }
+        } else {
+            auto block = parseMemberBraceBlockOrValueNode(parser, allocator, "else", specifier);
+            if(block.has_value()) {
+                statement->elseBody = std::move(block.value());
+            } else {
+                parser.error("expected a brace block after the else while lexing an if statement");
+                return statement;
+            }
+            return statement;
+        }
+    }
+
+    return statement;
+
+}
+
+bool Parser::parseVariableMemberInto(VariablesContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier) {
+    auto& nodes = decl->get_parsed_nodes_container();
+    auto member = parseNestedLevelMemberStatementTokens(*this, allocator, specifier);
+    if(member) {
+        nodes.emplace_back(member);
+        return true;
+    } else {
+        return parseAnnotation(allocator);
     }
 }
 

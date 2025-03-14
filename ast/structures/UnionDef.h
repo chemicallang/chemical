@@ -124,27 +124,13 @@ public:
         return this;
     }
 
-//    VariablesContainer *variables_container() final {
-//        return this;
-//    }
-
-    VariablesContainer* copy_container(ASTAllocator &allocator) final;
-
-
     BaseType* create_value_type(ASTAllocator& allocator) final;
 
     BaseType* known_type() final;
 
-//    [[nodiscard]]
-//    BaseType * copy(ASTAllocator &allocator) const final;
-
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
-//    ASTNode *linked_node() final {
-//        return this;
-//    }
 
 #ifdef COMPILER_BUILD
 

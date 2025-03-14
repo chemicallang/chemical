@@ -17,6 +17,9 @@
 #include "ast/types/LinkedType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/VoidType.h"
+#include "ast/structures/UnsafeBlock.h"
+#include "ast/statements/AliasStmt.h"
+#include "ast/structures/If.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/InterfaceDefinition.h"
 
@@ -263,12 +266,44 @@ unsigned int MembersContainer::init_values_req_size() {
     return i;
 }
 
+void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& from_nodes) {
+    for(const auto node : from_nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::StructMember:
+            case ASTNodeKind::UnnamedStruct:
+            case ASTNodeKind::UnnamedUnion:
+            case ASTNodeKind::VariantMember:{
+                const auto member = node->as_base_def_member_unsafe();
+                variables[member->name] = member;
+                break;
+            }
+            case ASTNodeKind::IfStmt: {
+                const auto stmt = node->as_if_stmt_unsafe();
+                const auto scope = stmt->get_evaluated_scope_by_linking(linker);
+                if(scope) {
+                    take_variables_from_parsed_nodes(linker, scope->nodes);
+                }
+                break;
+            }
+            case ASTNodeKind::UnsafeBlock:
+                // TODO make all nodes unsafe
+                take_variables_from_parsed_nodes(linker, node->as_unsafe_block_unsafe()->scope.nodes);
+                break;
+            case ASTNodeKind::FunctionDecl:
+                insert_multi_func(*linker.ast_allocator, node->as_function_unsafe());
+                break;
+            default:
+                break;
+        }
+    }
+}
+
 void MembersContainer::link_signature_no_scope(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
         inherits.type->link(linker);
     }
     for (auto &var: variables) {
-        var.second->declare_and_link(linker, (ASTNode*&) var.second);
+        var.second->link_signature(linker);
     }
     for(auto& func : functions()) {
         func->link_signature(linker);
@@ -290,15 +325,16 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
             declare_inherited_members(def, linker);
         }
     }
+    // this will only declare aliases
+    declare_parsed_nodes(linker);
+    // declare all the variables manually
     for (auto &var: variables) {
-        var.second->declare_and_link(linker, (ASTNode*&) var.second);
+        linker.declare(var.first, var.second);
     }
+    // declare all the functions
     for(auto& func : functions()) {
         func->declare_top_level(linker, (ASTNode*&) func);
     }
-//    for(auto& func : functions()) {
-//        func->link_signature(linker);
-//    }
     for (auto& func: functions()) {
         func->declare_and_link(linker, (ASTNode*&) func);
     }
@@ -734,7 +770,57 @@ bool VariablesContainer::build_path_to_child(std::vector<int>& path, const chem:
     return false;
 }
 
-void VariablesContainer::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariablesContainer::take_variables_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& from_nodes) {
+    for(const auto node : from_nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::StructMember:
+            case ASTNodeKind::UnnamedStruct:
+            case ASTNodeKind::UnnamedUnion:
+            case ASTNodeKind::VariantMember:{
+                const auto member = node->as_base_def_member_unsafe();
+                variables[member->name] = member;
+                break;
+            }
+            case ASTNodeKind::IfStmt: {
+                const auto stmt = node->as_if_stmt_unsafe();
+                const auto scope = stmt->get_evaluated_scope_by_linking(linker);
+                if(scope) {
+                    take_variables_from_parsed_nodes(linker, scope->nodes);
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
+void VariablesContainer::declare_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
+    for(const auto node : nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::AliasStmt:{
+                linker.declare(node->as_alias_stmt_unsafe()->alias_name, node);
+                break;
+            }
+            case ASTNodeKind::IfStmt: {
+                const auto stmt = node->as_if_stmt_unsafe();
+                const auto scope = stmt->get_evaluated_scope_by_linking(linker);
+                declare_parsed_nodes(linker, scope->nodes);
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
+void VariablesContainer::link_variables_signature(SymbolResolver& linker) {
+    for(auto& variable : variables) {
+        variable.second->link_signature(linker);
+    }
+}
+
+void VariablesContainer::declare_and_link_variables(SymbolResolver &linker) {
     for (auto& variable : variables) {
         variable.second->declare_and_link(linker, (ASTNode*&) variable.second);
     }

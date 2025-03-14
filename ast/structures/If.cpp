@@ -229,21 +229,27 @@ bool IfStatement::link_conditions(SymbolResolver &linker) {
     return true;
 }
 
+Scope* IfStatement::link_evaluated_scope(SymbolResolver& linker) {
+    is_computable = true;
+    if(!link_conditions(linker)) {
+        resolved_condition = false;
+    }
+    auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
+    if(condition_val.has_value()) {
+        auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
+        computed_scope = eval;
+        return eval;
+    } else {
+        is_computable = false;
+    }
+    return nullptr;
+}
+
 void IfStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(is_top_level()) {
-        is_computable = true;
-        if(!link_conditions(linker)) {
-            resolved_condition = false;
-        }
-        auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
-        if(condition_val.has_value()) {
-            auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
-            computed_scope = eval;
-            if (eval) {
-                eval->declare_top_level(linker, (ASTNode*&) computed_scope.value());
-            }
-        } else {
-            is_computable = false;
+        auto scope = link_evaluated_scope(linker);
+        if(scope) {
+            scope->declare_top_level(linker, (ASTNode*&) computed_scope.value());
         }
     }
 }

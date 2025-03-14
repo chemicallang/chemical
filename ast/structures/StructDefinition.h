@@ -222,8 +222,6 @@ public:
 //        return active_iteration;
 //    }
 
-    VariablesContainer *copy_container(ASTAllocator& allocator) final;
-
     StructDefinition* shallow_copy(ASTAllocator& allocator) {
         const auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(
                 identifier, parent(), encoded_location(), specifier()
@@ -236,10 +234,6 @@ public:
     VariablesContainer *as_variables_container() final {
         return this;
     }
-//
-//    VariablesContainer *variables_container() final {
-//        return this;
-//    }
 
     bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;

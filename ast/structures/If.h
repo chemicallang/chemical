@@ -75,6 +75,11 @@ protected:
 public:
 
     /**
+     * std::nullopt means the if statement couldn't be evaluated at comptile time
+     */
+    std::optional<Scope*> resolve_evaluated_scope(InterpretScope& comptime_scope, ASTDiagnoser& diagnoser);
+
+    /**
      * this method can be called by parent containers, when the if statement is
      * present inside the variables container, the evaluated scope is given after linking
      * conditions, the nodes contained inside ARE NOT LINKED, so you can manually link

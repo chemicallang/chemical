@@ -25,7 +25,7 @@ void TypealiasStatement::declare_top_level(SymbolResolver &linker, ASTNode*& nod
     linker.declare_node(name_view(), this, specifier(), false);
 }
 
-void TypealiasStatement::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+void TypealiasStatement::link_signature(SymbolResolver &linker) {
     actual_type->link(linker);
 }
 

@@ -9,6 +9,7 @@
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
+#include "ast/structures/GenericTypeDecl.h"
 #include "ast/utils/GenericUtils.h"
 
 bool GenericType::link(SymbolResolver &linker) {
@@ -45,6 +46,12 @@ bool GenericType::link(SymbolResolver &linker) {
             if(are_all_specialized(types)) {
                 // relink generic struct decl with instantiated type, only if all types are specialized
                 referenced->linked = linked->as_gen_variant_decl_unsafe()->register_generic_args(linker.genericInstantiator, types);
+            }
+            break;
+        case ASTNodeKind::GenericTypeDecl:
+            if(are_all_specialized(types)) {
+                // relink generic type decl with instantiated type, only if all types are specialized
+                referenced->linked = linked->as_gen_type_decl_unsafe()->register_generic_args(linker.genericInstantiator, types);
             }
             break;
         default:

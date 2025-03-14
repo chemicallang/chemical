@@ -6,6 +6,7 @@
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
+#include "ast/structures/GenericTypeDecl.h"
 
 BaseType* GenericInstantiator::get_concrete_gen_type(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked){
@@ -151,6 +152,18 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 GenericInstantiatorAPI genApi(&instantiator);
                 linked_ptr = linked->as_gen_variant_decl_unsafe()->register_generic_args(genApi, type->types);
             }
+        case ASTNodeKind::GenericTypeDecl:
+            if(linked == current_gen) {
+                // TODO figure out if this works for when generic params of the parent have been used with the same type differently
+                // TODO we may need to check that generic types are using the same exact parameters before doing this
+                // self referential data structure
+                linked_ptr = current_impl_ptr;
+            } else {
+                // relink generic struct decl with instantiated type
+                GenericInstantiator instantiator(allocator, diagnoser);
+                GenericInstantiatorAPI genApi(&instantiator);
+                linked_ptr = linked->as_gen_type_decl_unsafe()->register_generic_args(genApi, type->types);
+            }
         default:
             // we only visit the linked type in this case
             visit(type->referenced);
@@ -160,6 +173,42 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
 
 void GenericInstantiator::Clear() {
     table.clear();
+}
+
+void GenericInstantiator::FinalizeSignature(TypealiasStatement* impl) {
+    // this allows us to check self-referential pointers to generic decls
+    const auto prev_impl = current_impl_ptr;
+    // set implementation pointer
+    current_impl_ptr = impl;
+    // replace the return type
+    visit(impl->actual_type);
+    // reset the pointers
+    current_impl_ptr = prev_impl;
+}
+
+void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, TypealiasStatement* impl, size_t itr) {
+
+    // this allows us to check self-referential pointers to generic decls
+    current_gen = decl;
+
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->set_active_iteration((int) itr);
+    }
+
+    // finalize the signature of typealias instantiation
+    FinalizeSignature(impl);
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->deactivate_iteration();
+    }
+
+    // reset the pointers
+    current_gen = nullptr;
+    current_impl_ptr = nullptr;
+
 }
 
 void GenericInstantiator::FinalizeSignature(FunctionDeclaration* impl) {
@@ -690,6 +739,12 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
     current_impl_ptr = nullptr;
 }
 
+void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations) {
+    for(const auto inst : instantiations) {
+        FinalizeSignature(decl, inst, inst->generic_instantiation);
+    }
+}
+
 void GenericInstantiator::FinalizeSignature(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeSignature(decl, inst, inst->generic_instantiation);
@@ -776,6 +831,10 @@ ASTAllocator& GenericInstantiatorAPI::getAllocator() {
 
 ASTDiagnoser& GenericInstantiatorAPI::getDiagnoser() {
     return giPtr->diagnoser;
+}
+
+void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations) {
+    giPtr->FinalizeSignature(decl, instantiations);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations) {

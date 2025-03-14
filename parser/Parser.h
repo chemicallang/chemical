@@ -492,7 +492,7 @@ public:
     /**
      * parses a single typealias statement
      */
-    TypealiasStatement* parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifier specifier);
+    ASTNode* parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * parses a single continue statement

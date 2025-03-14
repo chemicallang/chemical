@@ -35,6 +35,14 @@ public:
     LocatedIdentifier located_id;
     // after equal
     BaseType* actual_type;
+    /**
+     * the generic type decl that is the generic parent of the typealias statement
+     */
+    GenericTypeDecl* generic_parent;
+    /**
+     * if this is a generic instantiation, this variable is set to reflect that
+     */
+    int generic_instantiation = -1;
 
     /**
      * constructor
@@ -48,6 +56,18 @@ public:
     ) : ExtendableNode(ASTNodeKind::TypealiasStmt, parent_node, location), located_id(identifier),
         actual_type(actual_type), attrs(specifier, false, false) {
 
+    }
+
+    TypealiasStatement* shallow_copy(ASTAllocator& allocator) {
+        const auto stmt = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(
+                located_id,
+                actual_type,
+                parent(),
+                encoded_location(),
+                specifier()
+        );
+        stmt->attrs = attrs;
+        return stmt;
     }
 
     TypealiasStatement* copy(ASTAllocator &allocator) override {
@@ -101,17 +121,13 @@ public:
         return name_view().str();
     }
 
-
-        bool is_exported_fast() {
+    bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;
     }
-
 
     uint64_t byte_size(bool is64Bit) final;
 
     BaseType* create_value_type(ASTAllocator& allocator) final;
-
-//    hybrid_ptr<BaseType> get_value_type() final;
 
     BaseType* known_type() final;
 
@@ -119,7 +135,7 @@ public:
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
+    void link_signature(SymbolResolver &linker) override;
 
     [[nodiscard]]
     BaseTypeKind type_kind() const final;

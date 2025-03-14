@@ -520,6 +520,8 @@ set(COMMON_SOURCES
         ast/structures/GenericVariantDecl.cpp
         ast/structures/GenericInterfaceDecl.cpp
         ast/structures/GenericUnionDecl.cpp
+        ast/structures/GenericTypeDecl.h
+        ast/structures/GenericTypeDecl.cpp
 )
 
 # Chemical LSP Executable Target

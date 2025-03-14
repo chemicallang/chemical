@@ -57,9 +57,4 @@ public:
         return new (allocator.allocate<DoubleValue>()) DoubleValue(value, encoded_location());
     }
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return BaseTypeKind::Double;
-    }
-
 };

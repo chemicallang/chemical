@@ -116,11 +116,6 @@ public:
 
     BaseType* known_type() final;
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return BaseTypeKind::Array;
-    }
-
     ArrayValue *copy(ASTAllocator& allocator) final {
         std::vector<Value*> copied_values;
         copied_values.reserve(values.size());

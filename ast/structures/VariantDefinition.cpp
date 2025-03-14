@@ -317,14 +317,6 @@ BaseType* VariantMember::create_value_type(ASTAllocator& allocator) {
     return new (allocator.allocate<LinkedType>()) LinkedType(name, this, encoded_location());
 }
 
-//hybrid_ptr<BaseType> VariantMember::get_value_type() {
-//    return hybrid_ptr<BaseType> { &ref_type, false };
-//}
-
-BaseTypeKind VariantMember::type_kind() const {
-    return BaseTypeKind::Struct;
-}
-
 void VariantMemberParam::link_signature(SymbolResolver &linker) {
     type->link(linker);
     if(def_value) {

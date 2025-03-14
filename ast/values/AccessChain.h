@@ -164,9 +164,6 @@ public:
 
     ASTNode *linked_node() final;
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final;
-
 };
 
 void copy_from(ASTAllocator& allocator, std::vector<ChainValue*>& destination, std::vector<ChainValue*>& source, unsigned from);

@@ -57,9 +57,4 @@ public:
 
 #endif
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return type->kind();
-    }
-
 };

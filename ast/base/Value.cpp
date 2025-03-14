@@ -842,6 +842,16 @@ BaseType* Value::create_type(ASTAllocator& allocator) {
 #endif
 }
 
+bool Value::is_pointer() {
+    const auto k = known_type()->kind();
+    return k == BaseTypeKind::Pointer || k == BaseTypeKind::String;
+}
+
+bool Value::is_pointer_or_ref() {
+    const auto k = known_type()->kind();
+    return k == BaseTypeKind::Pointer || k == BaseTypeKind::String || k == BaseTypeKind::Reference;
+}
+
 Value* Value::copy(ASTAllocator& allocator) {
 #ifdef DEBUG
     std::cerr << "copy called on base Value, representation : " << representation();

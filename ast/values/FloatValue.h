@@ -56,9 +56,4 @@ public:
         return new (allocator.allocate<FloatValue>()) FloatValue(value, encoded_location());
     }
 
-    [[nodiscard]]
-    BaseTypeKind type_kind() const final {
-        return BaseTypeKind::Float;
-    }
-
 };

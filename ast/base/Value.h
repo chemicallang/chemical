@@ -248,19 +248,13 @@ public:
      * is this value has a pointer type (includes strings)
      */
     [[nodiscard]]
-    bool is_pointer() const {
-        const auto k = type_kind();
-        return k == BaseTypeKind::Pointer || k == BaseTypeKind::String;
-    }
+    bool is_pointer();
 
     /**
      * is this value has a pointer type (includes strings)
      */
     [[nodiscard]]
-    bool is_pointer_or_ref() const {
-        const auto k = type_kind();
-        return k == BaseTypeKind::Pointer || k == BaseTypeKind::String || k == BaseTypeKind::Reference;
-    }
+    bool is_pointer_or_ref();
 
     /**
      * type is only returned when the value is stored in a storage location
@@ -603,13 +597,6 @@ public:
      * a function to be overridden by values that can return double
      */
     double get_the_double();
-
-    /**
-     * get the type kind for this value
-     */
-    virtual BaseTypeKind type_kind() const {
-        return BaseTypeKind::Unknown;
-    }
 
     /**
      * virtual default destructor

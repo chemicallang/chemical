@@ -440,14 +440,6 @@ public:
 #endif
 
     /**
-     * get the type kind represented by this node
-     */
-    [[nodiscard]]
-    virtual BaseTypeKind type_kind() const {
-        return BaseTypeKind::Unknown;
-    }
-
-    /**
      * virtual destructor for the ASTNode
      */
     virtual ~ASTNode();

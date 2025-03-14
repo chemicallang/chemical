@@ -210,18 +210,3 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
     }
     return this;
 }
-
-//std::unique_ptr<Value> VariableIdentifier::create_evaluated_value(InterpretScope &scope) {
-//    auto found = scope.find_value_iterator(value);
-//    if(found.first != found.second.end()) {
-//        auto take = found.first->second;
-//        found.second.erase(found.first);
-//        return std::unique_ptr<Value>(take);
-//    } else {
-//        return nullptr;
-//    }
-//}
-
-BaseTypeKind VariableIdentifier::type_kind() const {
-    return linked->type_kind();
-}

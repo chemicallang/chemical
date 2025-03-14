@@ -125,13 +125,6 @@ public:
     }
 
     /**
-     * get child variable index, including the inherited types
-     */
-    int child_index(const chem::string_view &var_name) final {
-        return VariablesContainer::variable_index(var_name);
-    }
-
-    /**
      * get first function with annotation
      */
     FunctionDeclaration* get_first_constructor();

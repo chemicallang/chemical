@@ -46,10 +46,6 @@ public:
         return VariablesContainer::direct_child(name);
     }
 
-    int child_index(const chem::string_view &name) override {
-        return VariablesContainer::variable_index(name, false);
-    }
-
     ASTNode* linked_node() override {
         return this;
     }

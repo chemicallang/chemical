@@ -57,8 +57,6 @@ public:
 
     ASTNode* child(int index) final;
 
-    int child_index(const chem::string_view &name) final;
-
     ASTNode* child(const chem::string_view &name) final;
 
 #ifdef COMPILER_BUILD

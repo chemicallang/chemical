@@ -98,10 +98,6 @@ public:
         return master_impl->child(name);
     }
 
-    int child_index(const chem::string_view &name) override {
-        return master_impl->child_index(name);
-    }
-
 #ifdef COMPILER_BUILD
 
     void code_gen_declare(Codegen &gen) override;

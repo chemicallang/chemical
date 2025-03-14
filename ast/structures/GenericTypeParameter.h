@@ -103,11 +103,6 @@ public:
         return linked ? linked->child(name) : (at_least_type ? at_least_type->linked_node()->child(name) : nullptr);
     }
 
-    int child_index(const chem::string_view &name) final {
-        const auto linked = usage_linked();
-        return linked ? linked->child_index(name) : -1;
-    }
-
     ASTNode* child(int index) final {
         const auto linked = usage_linked();
         return linked ? linked->child(index) : nullptr;

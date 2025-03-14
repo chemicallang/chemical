@@ -1287,7 +1287,7 @@ struct DefThing {
     }
 
     void clear_values() {
-        decl.clear_variables();
+        decl.clear_variables_and_indexes();
         defValue.values.clear();
     }
 

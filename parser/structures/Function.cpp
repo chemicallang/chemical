@@ -267,13 +267,34 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
     // so that further implementations can be generated in other modules
     auto& allocator = is_comptime ? global_allocator : passed_allocator;
 
-    std::vector<GenericTypeParameter*> gen_params;
-
-    if(parseGenericParametersList(allocator, gen_params) && has_errors) {
-        return nullptr;
-    }
-
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id(allocator, "", {0, 0}), nullptr, false, parent_node, 0, specifier, false);
+    annotate(decl);
+
+    ASTNode* final_node = decl;
+
+    if(token->type == TokenType::LessThanSym) {
+
+        std::vector<GenericTypeParameter*> gen_params;
+
+        parseGenericParametersList(allocator, gen_params);
+
+        for(auto param : gen_params) {
+            param->set_parent(decl);
+        }
+
+        if(!gen_params.empty()) {
+
+            const auto gen_decl = new (allocator.allocate<GenericFuncDecl>()) GenericFuncDecl(decl, parent_node, 0);
+
+            gen_decl->generic_params = std::move(gen_params);
+
+            decl->generic_parent = gen_decl;
+
+            final_node = gen_decl;
+
+        }
+
+    }
 
     if(allow_extensions && consumeToken(TokenType::LParen)) {
 
@@ -307,10 +328,6 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         }
     }
 
-    for(auto param : gen_params) {
-        param->set_parent(decl);
-    }
-
     auto name = consumeIdentifierOrKeyword();
 
     if(!name) {
@@ -318,22 +335,12 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         return decl;
     }
 
-    ASTNode* final_node = decl;
-
-    if(!gen_params.empty()) {
-
-        const auto gen_decl = new (allocator.allocate<GenericFuncDecl>()) GenericFuncDecl(decl, parent_node, loc_single(name));
-
-        gen_decl->generic_params = std::move(gen_params);
-
-        final_node = gen_decl;
-
-    }
-
-    annotate(decl);
-
-    decl->set_encoded_location(loc_single(name));
+    const auto location = loc_single(name);
+    decl->set_encoded_location(location);
     decl->set_identifier(loc_id(allocator, name));
+    if(decl->generic_parent) {
+        decl->generic_parent->set_encoded_location(location);
+    }
 
     if(!consumeToken(TokenType::LParen)) {
         error("expected a starting parenthesis ( in a function signature");

@@ -14,7 +14,6 @@
 #include "ast/values/FunctionCall.h"
 
 void GenericFuncDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) {
-    master_impl->generic_parent = this;
     if(!master_impl->isExtensionFn()) {
         linker.declare(master_impl->name_view(), this);
     }

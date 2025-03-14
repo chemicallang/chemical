@@ -742,7 +742,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
 
         // passing a function call or struct value to a reference, whereas the struct is destructible
         if(param->type->kind() == BaseTypeKind::Reference && (val->kind() == ValueKind::StructValue || val->is_chain_func_call())) {
-            const auto container = param->type->as_reference_type_unsafe()->type->get_members_container();
+            const auto container = val->create_type(visitor.allocator)->get_members_container();
             if(container && container->destructor_func() != nullptr) {
                 auto found_ref = visitor.destructible_refs.find(val);
                 if(found_ref != visitor.destructible_refs.end()) {
@@ -1276,9 +1276,8 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
             auto arg = call->values[i];
             auto param = func_type->func_param_for_arg_at(i);
             // passing a function call or struct value to a reference, whereas the struct is destructible
-            if (param->type->kind() == BaseTypeKind::Reference &&
-                (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
-                const auto container = param->type->as_reference_type_unsafe()->type->get_members_container();
+            if (param->type->kind() == BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
+                const auto container = arg->create_type(visitor.allocator)->get_members_container();
                 if (container && container->destructor_func() != nullptr) {
                     // struct has a destructor, we must allocate a reference, so it can set it to us
                     visitor.visit(param->type->as_reference_type_unsafe()->type);

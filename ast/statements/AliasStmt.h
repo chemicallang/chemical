@@ -26,7 +26,11 @@ public:
         );
     }
 
-    void declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) final;
+    void declare_top_level(SymbolResolver &linker);
+
+    inline void declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) final {
+        declare_top_level(linker);
+    }
 
 #ifdef COMPILER_BUILD
 

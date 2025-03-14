@@ -45,8 +45,6 @@ public:
 
     ASTNode* child(const chem::string_view &name) final;
 
-    ASTNode* child(int index) final;
-
     bool is_generic_param();
 
 #ifdef COMPILER_BUILD

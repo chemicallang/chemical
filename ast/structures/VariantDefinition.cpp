@@ -332,11 +332,6 @@ void VariantMemberParam::link_signature(SymbolResolver &linker) {
     }
 }
 
-ASTNode* VariantMemberParam::child(int varIndex) {
-    const auto linked = type->linked_node();
-    return linked->child(varIndex);
-}
-
 ASTNode* VariantMemberParam::child(const chem::string_view &varName) {
     const auto pure_type = type->pure_type();
     const auto linked_node = pure_type->linked_node();
@@ -391,14 +386,5 @@ ASTNode* VariantCaseVariable::child(const chem::string_view &child_name) {
         return result;
     } else {
         return member_param->child(child_name);
-    }
-}
-
-ASTNode* VariantCaseVariable::child(int index) {
-    if(is_generic_param()) {
-        const auto result = member_param->child(index);
-        return result;
-    } else {
-        return member_param->child(index);
     }
 }

@@ -38,10 +38,6 @@ public:
         return linked->child(name);
     }
 
-    ASTNode *child(int index) final {
-        return linked->child(index);
-    }
-
     CapturedVariable* copy(ASTAllocator &allocator) override {
         const auto var = new (allocator.allocate<CapturedVariable>()) CapturedVariable(
             name,

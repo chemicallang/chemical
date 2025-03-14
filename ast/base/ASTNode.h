@@ -268,14 +268,6 @@ public:
     bool requires_moving(ASTNodeKind k);
 
     /**
-     * return a child ASTNode* at index, called by index operator
-     * WARNING : index can be -1, if not known at compile time !
-     */
-    virtual ASTNode *child(int index) {
-        return nullptr;
-    }
-
-    /**
      * return a child ASTNode* with name
      * called by access chain values like function call, on structs to get member function definitions
      */

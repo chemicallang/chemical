@@ -103,11 +103,6 @@ public:
         return linked ? linked->child(name) : (at_least_type ? at_least_type->linked_node()->child(name) : nullptr);
     }
 
-    ASTNode* child(int index) final {
-        const auto linked = usage_linked();
-        return linked ? linked->child(index) : nullptr;
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_param_type(Codegen &gen) final {

@@ -109,11 +109,9 @@ public:
     /**
      * this will remove all the variables and their indexes
      */
-    void clear_variables() {
-        for(const auto var : variables_container) {
-            indexes.erase(var->name);
-        }
+    void clear_variables_and_indexes() {
         variables_container.clear();
+        indexes.clear();
     }
 
     /**

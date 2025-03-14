@@ -42,10 +42,6 @@ public:
         return linked->child(index);
     }
 
-    int child_index(const chem::string_view &name) final {
-        return linked->child_index(name);
-    }
-
     CapturedVariable* copy(ASTAllocator &allocator) override {
         const auto var = new (allocator.allocate<CapturedVariable>()) CapturedVariable(
             name,

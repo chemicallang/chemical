@@ -284,14 +284,6 @@ public:
     }
 
     /**
-     * same as child, only it returns the index of the child
-     * so it can be used to create get element pointer instructions using llvm
-     */
-    virtual int child_index(const chem::string_view &name) {
-        return -1;
-    }
-
-    /**
      * any value held by this node, for example var init statement can hold an initializer
      */
     virtual Value* holding_value() {

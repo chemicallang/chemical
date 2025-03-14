@@ -128,7 +128,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr
     const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
         for (auto& func: linked->functions()) {
-            func->redeclare_top_level(linker);
+            linker.declare(func->name_view(), func);
         }
     }
     // redeclare everything inside struct

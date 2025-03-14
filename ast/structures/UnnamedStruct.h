@@ -55,8 +55,6 @@ public:
         return unnamed;
     }
 
-    void redeclare_top_level(SymbolResolver &linker) final;
-
     void link_signature(SymbolResolver &linker) override;
 
     bool requires_copy_fn() {

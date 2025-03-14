@@ -140,6 +140,4 @@ public:
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);
 
-    void redeclare_top_level(SymbolResolver &linker) final;
-
 };

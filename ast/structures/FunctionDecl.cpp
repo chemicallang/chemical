@@ -976,12 +976,6 @@ void FunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr)
     }
 }
 
-void FunctionParam::redeclare_top_level(SymbolResolver &linker) {
-    if(!name.empty()) {
-        linker.declare(name, this);
-    }
-}
-
 ASTNode *FunctionParam::child(const chem::string_view &name) {
     const auto linked_node = type->linked_node();
     return linked_node ? linked_node->child(name) : nullptr;
@@ -1143,14 +1137,6 @@ BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
         func_type->params.emplace_back(param->copy(allocator));
     }
     return func_type;
-}
-
-//hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {
-//    return hybrid_ptr<BaseType> { create_value_type(), true };
-//}
-
-void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
-    linker.declare_function(name_view(), this);
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {

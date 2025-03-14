@@ -64,24 +64,29 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecif
         }
 
         auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(allocator, identifier), parent_node, loc_single(identifier), specifier);
-
         annotate(decl);
-
-        std::vector<GenericTypeParameter*> gen_params;
-
-        parseGenericParametersList(allocator, gen_params);
 
         ASTNode* finalDecl = decl;
 
-        if(!gen_params.empty()) {
+        if(token->type == TokenType::LessThanSym) {
 
-            const auto gen_decl = new (allocator.allocate<GenericUnionDecl>()) GenericUnionDecl(
-                    decl, parent_node, loc_single(identifier)
-            );
+            std::vector<GenericTypeParameter*> gen_params;
 
-            gen_decl->generic_params = std::move(gen_params);
+            parseGenericParametersList(allocator, gen_params);
 
-            finalDecl = gen_decl;
+            if (!gen_params.empty()) {
+
+                const auto gen_decl = new(allocator.allocate<GenericUnionDecl>()) GenericUnionDecl(
+                        decl, parent_node, loc_single(identifier)
+                );
+
+                gen_decl->generic_params = std::move(gen_params);
+
+                decl->generic_parent = gen_decl;
+
+                finalDecl = gen_decl;
+
+            }
 
         }
 

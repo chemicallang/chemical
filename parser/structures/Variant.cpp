@@ -102,21 +102,26 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpec
 
         annotate(decl);
 
-        std::vector<GenericTypeParameter*> gen_params;
-
-        parseGenericParametersList(allocator, gen_params);
-
         ASTNode* finalDecl = decl;
 
-        if(!gen_params.empty()) {
+        if(token->type == TokenType::LessThanSym) {
 
-            const auto gen_decl = new (allocator.allocate<GenericVariantDecl>()) GenericVariantDecl(
-                decl, parent_node, loc_single(id)
-            );
+            std::vector<GenericTypeParameter*> gen_params;
+            parseGenericParametersList(allocator, gen_params);
 
-            gen_decl->generic_params = std::move(gen_params);
+            if(!gen_params.empty()) {
 
-            finalDecl = gen_decl;
+                const auto gen_decl = new (allocator.allocate<GenericVariantDecl>()) GenericVariantDecl(
+                        decl, parent_node, loc_single(id)
+                );
+
+                gen_decl->generic_params = std::move(gen_params);
+
+                decl->generic_parent = gen_decl;
+
+                finalDecl = gen_decl;
+
+            }
 
         }
 

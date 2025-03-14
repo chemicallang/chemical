@@ -26,21 +26,27 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSp
         auto prev_parent_node = parent_node;
         parent_node = decl;
 
-        std::vector<GenericTypeParameter*> gen_params;
-
-        parseGenericParametersList(allocator, gen_params);
-
         ASTNode* finalDecl = decl;
 
-        if(!gen_params.empty()) {
+        if(token->type == TokenType::LessThanSym) {
 
-            const auto gen_decl = new (allocator.allocate<GenericInterfaceDecl>()) GenericInterfaceDecl(
-                    decl, parent_node, loc_single(id)
-            );
+            std::vector<GenericTypeParameter*> gen_params;
 
-            gen_decl->generic_params = std::move(gen_params);
+            parseGenericParametersList(allocator, gen_params);
 
-            finalDecl = gen_decl;
+            if (!gen_params.empty()) {
+
+                const auto gen_decl = new(allocator.allocate<GenericInterfaceDecl>()) GenericInterfaceDecl(
+                        decl, parent_node, loc_single(id)
+                );
+
+                gen_decl->generic_params = std::move(gen_params);
+
+                decl->generic_parent = gen_decl;
+
+                finalDecl = gen_decl;
+
+            }
 
         }
 

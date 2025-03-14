@@ -100,7 +100,7 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecif
 
         do {
             consumeNewLines();
-            if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
+            if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

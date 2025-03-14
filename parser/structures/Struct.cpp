@@ -278,7 +278,7 @@ IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, Acc
 
 }
 
-bool Parser::parseVariableMemberInto(VariablesContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier) {
+bool Parser::parseContainerMembersInto(VariablesContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier) {
     auto& nodes = decl->get_parsed_nodes_container();
     auto member = parseNestedLevelMemberStatementTokens(*this, allocator, specifier);
     if(member) {
@@ -287,18 +287,6 @@ bool Parser::parseVariableMemberInto(VariablesContainer* decl, ASTAllocator& all
     } else {
         return parseAnnotation(allocator);
     }
-}
-
-bool Parser::parseVariableAndFunctionInto(MembersContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier) {
-    if(parseVariableMemberInto(decl, allocator, specifier)) return true;
-    auto funcDecl = parseFunctionStructureTokens(allocator, specifier, true);
-    if(funcDecl) {
-        annotate(funcDecl);
-        // TODO this maybe a generic declaration
-        decl->insert_multi_func(allocator, (FunctionDeclaration*) funcDecl);
-        return true;
-    }
-    return false;
 }
 
 ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
@@ -357,7 +345,7 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpeci
 
         do {
             consumeNewLines();
-            if(parseVariableAndFunctionInto(decl, allocator, AccessSpecifier::Public)) {
+            if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

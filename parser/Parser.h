@@ -573,9 +573,18 @@ public:
      */
     UnnamedStruct* parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifier specifier);
 
-    bool parseVariableMemberInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier);
+    /**
+     * parses members of a container, for example (struct / union members) or even compile time if statements
+     */
+    bool parseContainerMembersInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier);
 
-    bool parseVariableAndFunctionInto(MembersContainer* container, ASTAllocator& allocator, AccessSpecifier specifier);
+    /**
+     * just a helper function
+     * @deprecated
+     */
+    inline bool parseVariableMemberInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier) {
+        return parseContainerMembersInto(container, allocator, specifier);
+    }
 
     /**
      * lexes a struct block

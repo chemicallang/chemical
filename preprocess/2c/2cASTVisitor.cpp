@@ -3610,6 +3610,14 @@ void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
             visit(scope);
         }
         return;
+    } else if(decl->is_computable) {
+        auto scope = decl->resolve_evaluated_scope(comptime_scope, *this);
+        if(scope.has_value()) {
+           if(scope.value()) {
+               visit(scope.value());
+           }
+           return;
+        }
     }
     // generating code for normal if statements
     write("if(");

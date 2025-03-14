@@ -50,14 +50,14 @@ void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
             scope->code_gen(gen);
         }
         return;
-//        auto condition_val = get_condition_const((InterpretScope&) gen.comptime_scope);
-//        if(condition_val.has_value()) {
-//            auto scope = get_evaluated_scope((InterpretScope&) gen.comptime_scope, &gen, condition_val.value());
-//            if (scope) {
-//                scope->code_gen(gen);
-//            }
-//            return;
-//        }
+    } else if(is_computable) {
+        auto scope = resolve_evaluated_scope((InterpretScope&) gen.comptime_scope, gen);
+        if(scope.has_value()) {
+            if(scope.value()) {
+                scope.value()->code_gen(gen);
+            }
+            return;
+        }
     }
 
     // compare
@@ -227,6 +227,18 @@ bool IfStatement::link_conditions(SymbolResolver &linker) {
         }
     }
     return true;
+}
+
+std::optional<Scope*> IfStatement::resolve_evaluated_scope(InterpretScope& comptime_scope, ASTDiagnoser& diagnoser) {
+    auto condition_val = resolved_condition ? get_condition_const(comptime_scope) : std::optional(false);
+    if(condition_val.has_value()) {
+        auto eval = get_evaluated_scope(comptime_scope, &diagnoser, condition_val.value());
+        computed_scope = eval;
+        return eval;
+    } else {
+        is_computable = false;
+        return std::nullopt;
+    }
 }
 
 Scope* IfStatement::link_evaluated_scope(SymbolResolver& linker) {

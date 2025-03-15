@@ -108,7 +108,7 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
 }
 
 void MembersContainer::external_declare(Codegen& gen) {
-    for (auto& function: functions()) {
+    for (auto& function: instantiated_functions()) {
         function->code_gen_external_declare(gen);
     }
 }
@@ -212,8 +212,17 @@ void declare_inherited_members(MembersContainer* container, SymbolResolver& link
     for(const auto var : container->variables()) {
         linker.declare(var->name, var);
     }
-    for(const auto func : container->functions()) {
-        linker.declare(func->name_view(), func);
+    for (const auto func: container->functions()) {
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                linker.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
     }
     for(auto& inherits : container->inherited) {
         const auto def = inherits.type->linked_node()->as_members_container();
@@ -237,7 +246,16 @@ void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker)
         linker.declare(var->name, var);
     }
     for(const auto func : functions()) {
-        linker.declare(func->name_view(), func);
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                linker.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
     }
 }
 
@@ -426,7 +444,7 @@ InterfaceDefinition* MembersContainer::get_overriding_interface(FunctionDeclarat
 }
 
 FunctionDeclaration* MembersContainer::get_first_constructor() {
-    for(const auto function : functions()) {
+    for(const auto function : non_gen_range()) {
         if(function->is_constructor_fn()) {
             return function;
         }
@@ -435,7 +453,7 @@ FunctionDeclaration* MembersContainer::get_first_constructor() {
 }
 
 FunctionDeclaration* MembersContainer::destructor_func() {
-    for (const auto function : std::ranges::reverse_view(functions())) {
+    for (const auto function : non_gen_range()) {
         if(function->is_delete_fn()) {
             return function;
         }
@@ -444,7 +462,7 @@ FunctionDeclaration* MembersContainer::destructor_func() {
 }
 
 FunctionDeclaration* MembersContainer::copy_func() {
-    for (const auto function : std::ranges::reverse_view(functions())) {
+    for (const auto function : non_gen_range()) {
         if(function->is_copy_fn()) {
             return function;
         }
@@ -453,7 +471,7 @@ FunctionDeclaration* MembersContainer::copy_func() {
 }
 
 FunctionDeclaration* MembersContainer::default_constructor_func() {
-    for(const auto function : functions()) {
+    for(const auto function : non_gen_range()) {
         if(function->is_constructor_fn() && function->params.empty()) {
             return function;
         }
@@ -462,7 +480,7 @@ FunctionDeclaration* MembersContainer::default_constructor_func() {
 }
 
 FunctionDeclaration* MembersContainer::constructor_func(ASTAllocator& allocator, std::vector<Value*>& forArgs) {
-    for (const auto function : functions()) {
+    for (const auto function : non_gen_range()) {
         if(function->is_constructor_fn() && function->satisfy_args(allocator, forArgs)) {
             return function;
         }
@@ -471,7 +489,7 @@ FunctionDeclaration* MembersContainer::constructor_func(ASTAllocator& allocator,
 }
 
 FunctionDeclaration* MembersContainer::implicit_constructor_func(ASTAllocator& allocator, Value* value) {
-    for (const auto & function : functions()) {
+    for (const auto & function : non_gen_range()) {
         if(function->is_implicit() && function->params.size() == 1 && function->params[0]->type->satisfies(allocator, value, false)) {
             return function;
         }
@@ -546,7 +564,13 @@ bool MembersContainer::any_member_has_copy_func() {
 void MembersContainer::insert_func(FunctionDeclaration* decl) {
     const auto index = static_cast<int>(functions_container.size());
     functions_container.emplace_back(decl);
-    indexes[decl->name_view()] = { decl , index };
+    indexes[decl->name_view()] = { decl, index };
+}
+
+void MembersContainer::insert_func(GenericFuncDecl* decl) {
+    const auto index = static_cast<int>(functions_container.size());
+    functions_container.emplace_back(decl);
+    indexes[decl->master_impl->name_view()] = { decl, index };
 }
 
 void MembersContainer::insert_functions(const std::initializer_list<FunctionDeclaration*>& decls) {

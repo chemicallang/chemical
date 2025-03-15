@@ -45,7 +45,7 @@ void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* d
 void ImplDefinition::code_gen(Codegen &gen) {
     const auto linked = interface_type->linked_node()->as_interface_def();
     const auto struct_def = struct_type ? struct_type->linked_struct_def() : nullptr;
-    for (auto& function: functions()) {
+    for (auto& function: instantiated_functions()) {
         code_gen_function(gen, function, linked, struct_def);
     }
     if(linked && struct_def) {
@@ -93,7 +93,7 @@ void ImplDefinition::link_signature_no_scope(SymbolResolver &linker) {
         linker.error(interface_type) << "couldn't find interface by name " << interface_name << " for implementation";
         return;
     }
-    for(auto& func : functions()) {
+    for(auto& func : master_functions()) {
         if(!func->is_override()) {
             func->set_override(true);
         }
@@ -127,8 +127,17 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr
     const auto struct_linked = struct_type ? struct_type->linked_struct_def() : nullptr;
     const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
-        for (auto& func: linked->functions()) {
-            linker.declare(func->name_view(), func);
+        for (const auto func: linked->functions()) {
+            switch(func->kind()) {
+                case ASTNodeKind::FunctionDecl:
+                    linker.declare(func->as_function_unsafe()->name_view(), func);
+                    break;
+                case ASTNodeKind::GenericFuncDecl:
+                    linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                    break;
+                default:
+                    break;
+            }
         }
     }
     // redeclare everything inside struct

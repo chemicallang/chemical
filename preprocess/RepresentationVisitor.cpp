@@ -353,11 +353,9 @@ void write_members(RepresentationVisitor& visitor, MembersContainer* container) 
         visitor.visit(field);
         i++;
     }
-    i = 0;
-    for (auto &field: container->functions()) {
+    for (const auto field : container->functions()) {
         visitor.new_line_and_indent();
-        visitor.visit((ASTNode*) field);
-        i++;
+        visitor.visit(field);
     }
 }
 

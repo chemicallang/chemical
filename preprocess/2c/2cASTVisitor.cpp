@@ -2462,7 +2462,7 @@ void CTopLevelDeclarationVisitor::VisitUnionDecl(UnionDef *def) {
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
     write("};");
-    for(auto& func : def->functions()) {
+    for(auto& func : def->instantiated_functions()) {
         declare_contained_func(this, func, false);
     }
 }
@@ -2510,7 +2510,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
 
 void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     declare_struct_def_only(def);
-    for(auto& func : def->functions()) {
+    for(auto& func : def->instantiated_functions()) {
         if(def->get_overriding_interface(func) == nullptr) {
             declare_contained_func(this, func, false);
         }
@@ -2616,7 +2616,7 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     visitor.indentation_level-=1;
     new_line_and_indent();
     write("};");
-    for(auto& func : def->functions()) {
+    for(auto& func : def->instantiated_functions()) {
 //        if(def->get_overriding_interface(func.get()) == nullptr) {
             declare_contained_func(this, func, false);
 //        }
@@ -2660,7 +2660,7 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
     interface->active_user = definition;
 
     // type pointers
-    for(auto& func : interface->functions()) {
+    for(auto& func : interface->instantiated_functions()) {
         auto self_param = func->get_self_param();
         if(self_param) {
             visitor.new_line_and_indent();
@@ -2687,7 +2687,7 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
         visitor.indentation_level += 1;
 
         // func pointer values
-        for (auto& func: interface->functions()) {
+        for (auto& func: interface->instantiated_functions()) {
             if (func->has_self_param()) {
                 visitor.new_line_and_indent();
                 func->runtime_name(*visitor.output);
@@ -2708,7 +2708,7 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
 void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* def);
 
 static void contained_interface_functions(ToCAstVisitor& visitor, InterfaceDefinition* def) {
-    for(auto& func : def->functions()) {
+    for(auto& func : def->instantiated_functions()) {
         const auto interface = def->get_overriding_interface(func);
         contained_func_decl(visitor, func, interface != nullptr, def);
     }
@@ -2716,7 +2716,7 @@ static void contained_interface_functions(ToCAstVisitor& visitor, InterfaceDefin
 
 void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
     const auto is_static = def->is_static();
-    for (auto& func: def->functions()) {
+    for (auto& func: def->instantiated_functions()) {
         if(is_static || !func->has_self_param()) {
             declare_contained_func(this, func, false);
         }
@@ -2733,7 +2733,7 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
     if(!is_static) {
         for (auto& use: def->users) {
             def->active_user = use.first;
-            for (auto& func: def->functions()) {
+            for (auto& func: def->instantiated_functions()) {
                 if (func->has_self_param()) {
                     declare_contained_func(this, func, false, use.first);
                 }
@@ -3645,7 +3645,7 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     const auto overrides = def->struct_type != nullptr;
     const auto linked_interface = def->interface_type->linked_node()->as_interface_def();
     const auto linked_struct = def->struct_type ? def->struct_type->linked_struct_def() : nullptr;
-    for(auto& func : def->functions()) {
+    for(auto& func : def->instantiated_functions()) {
         contained_func_decl(*this, func, overrides,linked_struct);
     }
 }
@@ -3710,7 +3710,7 @@ void ToCAstVisitor::VisitUnnamedStruct(UnnamedStruct *def) {
 }
 
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def) {
-    for(auto& func : def->functions()) {
+    for(auto& func : def->instantiated_functions()) {
         const auto overriding = def->get_func_overriding_info(func);
         contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
     }
@@ -3722,7 +3722,7 @@ void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
     for (auto& inherits: def->inherited) {
         const auto overridden = inherits.type->linked_node()->as_interface_def();
         if (overridden) {
-            for (auto& func: overridden->functions()) {
+            for (auto& func: overridden->instantiated_functions()) {
                 if (!def->contains_func(func->name_view())) {
                     contained_func_decl(*this, func, false, def);
                 }
@@ -3773,7 +3773,7 @@ void ToCAstVisitor::VisitGenericVariantDecl(GenericVariantDecl* node) {
 }
 
 void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
-    for(auto& func : def->functions()) {
+    for(auto& func : def->instantiated_functions()) {
         contained_func_decl(visitor, func, false, def);
     }
 }
@@ -3786,7 +3786,7 @@ void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
 }
 
 void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
-    for(auto& func : def->functions()) {
+    for(auto& func : def->instantiated_functions()) {
         contained_func_decl(*this, func, false, def);
     }
 }

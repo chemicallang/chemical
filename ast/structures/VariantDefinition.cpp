@@ -75,11 +75,11 @@ void VariantDefinition::code_gen_function_body(Codegen &gen, FunctionDeclaration
 void VariantDefinition::code_gen_once(Codegen &gen, bool declare) {
     if(declare) {
         llvm_type(gen);
-        for (auto& func: functions()) {
+        for (auto& func: instantiated_functions()) {
             func->code_gen_declare(gen, this);
         }
     } else {
-        for (auto& func: functions()) {
+        for (auto& func: instantiated_functions()) {
             func->code_gen_body(gen, this);
         }
     }
@@ -104,7 +104,7 @@ bool VariantDefinition::add_child_index(Codegen& gen, std::vector<llvm::Value *>
 void VariantDefinition::code_gen_external_declare(Codegen &gen) {
     // clear the stored llvm types so they are generated again for this module
     llvm_struct_type = nullptr;
-    for(auto& function : functions()) {
+    for(auto& function : instantiated_functions()) {
         function->code_gen_external_declare(gen);
     }
 }
@@ -228,7 +228,7 @@ void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_move_fn = false;
-    for(auto& func : functions()) {
+    for(auto& func : non_gen_range()) {
         if(func->is_delete_fn()) {
             func->ensure_destructor(allocator, diagnoser, this);
             has_destructor = true;

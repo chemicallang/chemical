@@ -524,6 +524,7 @@ set(COMMON_SOURCES
         ast/structures/GenericTypeDecl.cpp
         ast/structures/GenericImplDecl.h
         ast/structures/GenericImplDecl.cpp
+        ast/structures/MembersIterators.h
 )
 
 # Chemical LSP Executable Target

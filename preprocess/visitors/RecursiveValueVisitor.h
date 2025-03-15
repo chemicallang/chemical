@@ -173,7 +173,7 @@ public:
         for(auto& mem : def->variables()) {
             visit(mem);
         }
-        for(auto& func : def->functions()) {
+        for(auto& func : def->instantiated_functions()) {
             visit(func);
         }
     }

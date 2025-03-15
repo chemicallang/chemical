@@ -85,11 +85,6 @@ public:
         return this;
     }
 
-    void copy_into(ExtendableMembersContainerNode& other, ASTAllocator& allocator) {
-        MembersContainer::copy_into(other, allocator);
-        other.extension_functions = extension_functions;
-    }
-
     inline void shallow_copy_into(ExtendableMembersContainerNode& other, ASTAllocator& allocator) {
         MembersContainer::shallow_copy_into(other, allocator);
         other.extension_functions = extension_functions;
@@ -107,11 +102,7 @@ public:
     void extendable_external_declare(Codegen& gen) {
         external_declare(gen);
         for(auto& pair : extension_functions) {
-            if(pair.second.is_generic) {
-                pair.second.decl.gen->code_gen_external_declare(gen);
-            } else {
-                pair.second.decl.normal->code_gen_external_declare(gen);
-            }
+            pair.second->code_gen_external_declare(gen);
         }
     }
 

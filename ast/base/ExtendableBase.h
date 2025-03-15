@@ -15,34 +15,26 @@ class MembersContainer;
 
 class GenericFuncDecl;
 
-struct ExtensionFuncPair {
-    bool is_generic;
-    union {
-        FunctionDeclaration* normal;
-        GenericFuncDecl* gen;
-    } decl;
-};
-
 class ExtendableBase {
 public:
 
     /**
      * map suppose to contain references to extension functions
      */
-    std::unordered_map<chem::string_view, ExtensionFuncPair> extension_functions;
+    std::unordered_map<chem::string_view, ASTNode*> extension_functions;
 
     /**
      * add an extension function
      */
     void add_extension_func(const chem::string_view& name, FunctionDeclaration* decl) {
-        extension_functions[name] = { false, { .normal = decl } };
+        extension_functions[name] = (ASTNode*) decl;
     }
 
     /**
      * add extension function
      */
     void add_extension_func(const chem::string_view& name, GenericFuncDecl* decl) {
-        extension_functions[name] = { false, { .gen = decl } };
+        extension_functions[name] = (ASTNode*) decl;
     }
 
     /**

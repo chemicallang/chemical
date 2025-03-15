@@ -22,7 +22,7 @@ void GenericInterfaceDecl::finalize_signature(ASTAllocator& allocator, Interface
     inst->copy_variables_in_place(allocator, inst);
 
     // finalizing the signature of functions
-    for(const auto func : inst->functions()) {
+    for(const auto func : inst->master_functions()) {
         GenericFuncDecl::finalize_signature(allocator, func);
     }
 
@@ -30,7 +30,7 @@ void GenericInterfaceDecl::finalize_signature(ASTAllocator& allocator, Interface
 
 void GenericInterfaceDecl::finalize_body(ASTAllocator& allocator, InterfaceDefinition* def) {
 
-    for(const auto func : def->functions()) {
+    for(const auto func : def->master_functions()) {
         GenericFuncDecl::finalize_body(allocator, func);
     }
 

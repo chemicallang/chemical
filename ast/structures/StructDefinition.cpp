@@ -23,7 +23,7 @@
 
 void StructDefinition::struct_func_gen(
     Codegen& gen,
-    const std::vector<FunctionDeclaration*>& funcs,
+    InstFuncRange funcs,
     bool declare
 ) {
     if(declare) {
@@ -124,7 +124,7 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
     }
     auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
     if(itr_ptr == 0) {
-        struct_func_gen(gen, functions(), declare);
+        struct_func_gen(gen, instantiated_functions(), declare);
         if (!declare) {
             for (auto& inherits: inherited) {
                 const auto interface = inherits.type->linked_interface_def();
@@ -311,7 +311,7 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
     bool has_clear_fn = false;
     bool has_copy_fn = false;
     bool has_move_fn = false;
-    for(auto& func : functions()) {
+    for(auto& func : non_gen_range()) {
         if(func->is_constructor_fn()) {
             if(!func->has_explicit_params()) {
                 has_def_constructor = true;

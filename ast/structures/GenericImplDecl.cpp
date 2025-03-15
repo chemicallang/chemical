@@ -17,7 +17,7 @@ void GenericImplDecl::finalize_signature(ASTAllocator& allocator, ImplDefinition
     inst->copy_variables_in_place(allocator, inst);
 
     // finalizing the signature of functions
-    for(const auto func : inst->functions()) {
+    for(const auto func : inst->master_functions()) {
         GenericFuncDecl::finalize_signature(allocator, func);
     }
 
@@ -25,7 +25,7 @@ void GenericImplDecl::finalize_signature(ASTAllocator& allocator, ImplDefinition
 
 void GenericImplDecl::finalize_body(ASTAllocator& allocator, ImplDefinition* def) {
 
-    for(const auto func : def->functions()) {
+    for(const auto func : def->master_functions()) {
         GenericFuncDecl::finalize_body(allocator, func);
     }
 

@@ -302,7 +302,8 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
                 insert_multi_func(*linker.ast_allocator, node->as_function_unsafe());
                 break;
             case ASTNodeKind::GenericFuncDecl:
-                insert_multi_func(*linker.ast_allocator, node->as_gen_func_decl_unsafe()->master_impl);
+                // TODO multi function node doesn't support generic functions
+                insert_func(node->as_gen_func_decl_unsafe());
                 break;
             default:
                 break;

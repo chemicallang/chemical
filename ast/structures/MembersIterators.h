@@ -74,34 +74,38 @@ public:
 
 class InstFuncIterator {
 private:
-
     using OuterIter = std::vector<ASTNode*>::iterator;
 
     OuterIter outer_current_;
     OuterIter outer_end_;
 
-    // These are used when the current outer node is a GenericFuncDecl.
+    // Inner iterators for GenericFuncDecl instantiations.
     std::vector<FunctionDeclaration*>::iterator inner_current_;
     std::vector<FunctionDeclaration*>::iterator inner_end_;
 
+    // Provide a static empty vector to initialize inner iterators.
+    static std::vector<FunctionDeclaration*>& empty_inners() {
+        static std::vector<FunctionDeclaration*> empty;
+        return empty;
+    }
+
     // Advance the iterator until we find a valid function or instantiation.
     void advanceToNextValid() {
-        // If we are in the middle of a generic function's instantiations, try to continue.
+        // If we're in the middle of a generic function's instantiations, try to continue.
         if (inner_current_ != inner_end_) {
-            return; // inner state is valid
+            return;
         }
-
         // Otherwise, move through the outer container.
         while (outer_current_ != outer_end_) {
             ASTNode* node = *outer_current_;
             auto kind = node->kind();
             if (kind == ASTNodeKind::FunctionDecl) {
-                // A normal function: clear inner iterators to indicate we're not in inner mode.
-                inner_current_ = std::vector<FunctionDeclaration*>::iterator();
-                inner_end_ = std::vector<FunctionDeclaration*>::iterator();
+                // A normal function: set inner to the empty range.
+                inner_current_ = empty_inners().begin();
+                inner_end_ = empty_inners().end();
                 return;
             } else if (kind == ASTNodeKind::GenericFuncDecl) {
-                // We have a generic function: switch to iterating its instantiations.
+                // A generic function: switch to iterating its instantiations.
                 GenericFuncDecl* genFunc = reinterpret_cast<GenericFuncDecl*>(node);
                 if (!genFunc->instantiations.empty()) {
                     inner_current_ = genFunc->instantiations.begin();
@@ -117,15 +121,16 @@ private:
 public:
     // Constructor: initializes outer iterator state.
     InstFuncIterator(OuterIter current, OuterIter outer_end)
-            : outer_current_(current), outer_end_(outer_end),
-              inner_current_(), inner_end_()
+            : outer_current_(current), outer_end_(outer_end)
     {
+        // Initialize inner iterators to a valid empty range.
+        inner_current_ = empty_inners().begin();
+        inner_end_ = empty_inners().end();
         advanceToNextValid();
     }
 
     // Pre-increment: advances inner if active, otherwise moves to the next outer element.
     InstFuncIterator& operator++() {
-        // If we're inside a generic function's instantiations, advance the inner iterator.
         if (inner_current_ != inner_end_) {
             ++inner_current_;
             if (inner_current_ != inner_end_) {
@@ -137,15 +142,18 @@ public:
             // For normal functions, simply advance the outer iterator.
             ++outer_current_;
         }
+        // Reset inner iterators to empty and try to find a valid next function.
+        inner_current_ = empty_inners().begin();
+        inner_end_ = empty_inners().end();
         advanceToNextValid();
         return *this;
     }
 
     // Post-increment.
     InstFuncIterator operator++(int) {
-        InstFuncIterator temp = *this;
+        InstFuncIterator tmp = *this;
         ++(*this);
-        return temp;
+        return tmp;
     }
 
     bool operator==(const InstFuncIterator& other) const {
@@ -157,8 +165,7 @@ public:
         return !(*this == other);
     }
 
-    // Dereference: if we are iterating a generic's instantiations, return that;
-    // otherwise, return the outer function.
+    // Dereference: if iterating a generic's instantiations, return that; otherwise, return the outer function.
     FunctionDeclaration*& operator*() const {
         if (inner_current_ != inner_end_) {
             return const_cast<FunctionDeclaration*&>(*inner_current_);
@@ -166,7 +173,6 @@ public:
             return reinterpret_cast<FunctionDeclaration*&>(*outer_current_);
         }
     }
-
 };
 
 class InstFuncRange {
@@ -177,8 +183,8 @@ public:
 
     InstFuncRange(std::vector<ASTNode*>& nodes) : nodes_(nodes) {}
 
-    iterator begin() { return {nodes_.begin(), nodes_.end()}; }
-    iterator end()   { return {nodes_.end(), nodes_.end()}; }
+    iterator begin() { return iterator(nodes_.begin(), nodes_.end()); }
+    iterator end()   { return iterator(nodes_.end(), nodes_.end()); }
 };
 
 class MasterFuncIterator {

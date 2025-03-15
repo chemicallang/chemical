@@ -321,7 +321,7 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting functions
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         // relink return type of constructors with implementations
         if(func->is_constructor_fn()) {
             const auto linkedType = func->returnType->as_linked_type_unsafe();
@@ -370,14 +370,23 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
     }
 
     // declare function names before visiting
-    for(const auto func : impl->functions()) {
-        table.declare(func->name_view(), func);
+    for (const auto func: impl->functions()) {
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                table.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                table.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         if(func->body.has_value()) {
             // start scope for function body
             table.scope_start();
@@ -433,7 +442,7 @@ void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* im
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting functions
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         // relink return type of constructors with implementations
         if(func->is_constructor_fn()) {
             const auto linkedType = func->returnType->as_linked_type_unsafe();
@@ -481,14 +490,23 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
     }
 
     // declare function names before visiting
-    for(const auto func : impl->functions()) {
-        table.declare(func->name_view(), func);
+    for (const auto func: impl->functions()) {
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                table.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                table.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         if(func->body.has_value()) {
             // start scope for function body
             table.scope_start();
@@ -543,7 +561,7 @@ void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, Interfac
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting functions
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         // relink return type of constructors with implementations
         if(func->is_constructor_fn()) {
             const auto linkedType = func->returnType->as_linked_type_unsafe();
@@ -591,14 +609,23 @@ void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, InterfaceDefi
     }
 
     // declare function names before visiting
-    for(const auto func : impl->functions()) {
-        table.declare(func->name_view(), func);
+    for (const auto func: impl->functions()) {
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                table.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                table.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         if(func->body.has_value()) {
             // start scope for function body
             table.scope_start();
@@ -653,7 +680,7 @@ void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, VariantDef
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting functions
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         // relink return type of constructors with implementations
         if(func->is_constructor_fn()) {
             const auto linkedType = func->returnType->as_linked_type_unsafe();
@@ -701,14 +728,23 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
     }
 
     // declare function names before visiting
-    for(const auto func : impl->functions()) {
-        table.declare(func->name_view(), func);
+    for (const auto func: impl->functions()) {
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                table.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                table.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         if(func->body.has_value()) {
             // start scope for function body
             table.scope_start();
@@ -763,7 +799,7 @@ void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, ImplDefinitio
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting functions
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         // relink return type of constructors with implementations
         if(func->is_constructor_fn()) {
             const auto linkedType = func->returnType->as_linked_type_unsafe();
@@ -810,14 +846,23 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
     }
 
     // declare function names before visiting
-    for(const auto func : impl->functions()) {
-        table.declare(func->name_view(), func);
+    for (const auto func: impl->functions()) {
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                table.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                table.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
     }
 
     // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
-    for(const auto func : impl->functions()) {
+    for(const auto func : impl->master_functions()) {
         if(func->body.has_value()) {
             // start scope for function body
             table.scope_start();

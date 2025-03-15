@@ -42,17 +42,17 @@ void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclarati
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
     if(is_static()) {
-        for (auto& func: functions()) {
+        for (auto& func: instantiated_functions()) {
             func->code_gen_declare(gen, this);
         }
     } else {
-        for (auto& func: functions()) {
+        for (auto& func: instantiated_functions()) {
             if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
                 func->code_gen_declare(gen, this);
                 func->code_gen_body(gen, this);
             }
         }
-        for (const auto& function: functions()) {
+        for (const auto& function: instantiated_functions()) {
             code_gen_for_users(gen, function);
         }
         // generating vtables for each user struct
@@ -68,7 +68,7 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
     } else {
         // for functions that don't take a self parameter, we just straight up declare them
         // because they have already been generated in other module
-        for (auto& func: functions()) {
+        for (auto& func: instantiated_functions()) {
             if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
                 func->code_gen_external_declare(gen);
             }
@@ -76,7 +76,7 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
         // for each function:
         // we find their users, which contain function pointers, if function pointer exists, we declare the function
         // if no function pointer exists, we have to assume no implementation exists, and generate as usual, so users can override it
-        for(auto& func : functions()) {
+        for(auto& func : instantiated_functions()) {
             for (auto& use: users) {
                 auto& user = users[use.first];
                 active_user = use.first;
@@ -136,7 +136,7 @@ llvm::StructType* InterfaceDefinition::llvm_vtable_type(Codegen& gen) {
 void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
     auto found = users.find(for_struct);
     if(found != users.end()) {
-        for(auto& func : functions()) {
+        for(auto& func : instantiated_functions()) {
             auto func_res = found->second.find(func);
             if(func_res != found->second.end()) {
                 llvm_pointers.emplace_back(func_res->second);
@@ -198,7 +198,7 @@ BaseType* InterfaceDefinition::create_value_type(ASTAllocator& allocator) {
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
     int i = 0;
-    for(auto& func : functions()) {
+    for(const auto func : functions()) {
         if(func == decl) {
             return i;
         }

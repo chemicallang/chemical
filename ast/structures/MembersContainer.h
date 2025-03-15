@@ -8,9 +8,12 @@
 #include "StructMember.h"
 #include "ast/base/AnnotableNode.h"
 #include "FunctionDeclaration.h"
+#include "GenericFuncDecl.h"
 #include "VariablesContainer.h"
 #include "MultiFunctionNode.h"
 #include <span>
+#include "./MembersIterators.h"
+
 
 class MembersContainer;
 
@@ -38,7 +41,11 @@ struct FunctionOverridingInfo {
 class MembersContainer : public ASTNode, public VariablesContainer {
 private:
 
-    std::vector<FunctionDeclaration*> functions_container;
+    /**
+     * the functions container can contain generic function declarations
+     * so we are going to use ASTNode*
+     */
+    std::vector<ASTNode*> functions_container;
 
 public:
 
@@ -74,8 +81,49 @@ public:
         // does nothing
     }
 
+    /**
+     * this will allow you to iterate over all the non generic functions and all the
+     * instantiated functions from generic functions
+     */
+    InstFuncRange instantiated_functions() {
+        return InstFuncRange(functions_container);
+    }
 
-    const std::vector<FunctionDeclaration*>& functions() {
+    /**
+     * this will allow you to iterate over all the non generic functions, for the generic
+     * functions only their master function (which is the blueprint is iterated over)
+     */
+    MasterFuncRange master_functions() {
+        return MasterFuncRange(functions_container);
+    }
+
+    /**
+     * this will allow you to iterate over only the nodes that are function decl or
+     * generic function decl
+     */
+    FuncNodeRange func_nodes_range() {
+        return FuncNodeRange(functions_container);
+    }
+
+    /**
+     * non generic functions ranage
+     */
+    NonGenFuncRange non_gen_range() {
+        return NonGenFuncRange(functions_container);
+    }
+
+    /**
+     * this gives you the vector of the functions, which could include generic or non generic
+     * functions therefore it's a ASTNode* from which you can get the kind and reinterpret_cast
+     */
+    const std::vector<ASTNode*>& functions() {
+        return (std::vector<ASTNode*>&) functions_container;
+    }
+
+    /**
+     * these are actual nodes that we found after evaluting compile time ifs and all that
+     */
+    std::vector<ASTNode*>& evaluated_nodes() {
         return functions_container;
     }
 
@@ -187,9 +235,22 @@ public:
     void shallow_copy_functions_into(MembersContainer& other, ASTAllocator& allocator) {
         other.functions_container.reserve(functions_container.size());
         for(auto& func : functions_container) {
-            const auto func_copy = func->shallow_copy(allocator);
-            func_copy->set_parent(&other);
-            other.insert_func(func_copy);
+            switch(func->kind()) {
+                case ASTNodeKind::FunctionDecl:{
+                    const auto func_copy = func->as_function_unsafe()->shallow_copy(allocator);
+                    func_copy->set_parent(&other);
+                    other.insert_func(func_copy);
+                    break;
+                }
+                case ASTNodeKind::GenericFuncDecl: {
+                    const auto func_copy = func->as_gen_func_decl_unsafe()->shallow_copy(allocator);
+                    func_copy->set_parent(&other);
+                    other.insert_func(func_copy);
+                    break;
+                }
+                default:
+                    break;
+            }
         }
     }
 
@@ -199,19 +260,6 @@ public:
     inline void shallow_copy_into(MembersContainer& other, ASTAllocator& allocator) {
         VariablesContainer::shallow_copy_into(other, allocator);
         shallow_copy_functions_into(other, allocator);
-    }
-
-    /**
-     * deep copies this container into the given container (including functions, variables)
-     */
-    void copy_into(MembersContainer& other, ASTAllocator& allocator) {
-        VariablesContainer::copy_into(other, allocator, &other);
-        other.functions_container.reserve(functions_container.size());
-        for(auto& func : functions_container) {
-            const auto func_copy = func->copy(allocator);
-            func_copy->set_parent(&other);
-            other.insert_func(func_copy);
-        }
     }
 
     /**
@@ -233,6 +281,11 @@ public:
      * insert the given function into this members container
      */
     void insert_func(FunctionDeclaration* decl);
+
+    /**
+     * insert the given generic function into this members container
+     */
+    void insert_func(GenericFuncDecl* decl);
 
     /**
      * will insert all the given functions

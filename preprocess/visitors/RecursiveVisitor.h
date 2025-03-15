@@ -243,8 +243,8 @@ public:
 
     inline void VisitStructDecl(StructDefinition *def) {
         VisitVariables(def->variables());
-        for(auto& func : def->functions()) {
-            visit_it(func);
+        for(const auto func : def->functions()) {
+            NonRecursiveVisitor<Derived>::visit(func);
         }
     }
 

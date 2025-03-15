@@ -98,15 +98,6 @@ public:
         attrs.is_copy = value;
     }
 
-    UnionDef* copy(ASTAllocator &allocator) override {
-        const auto def = new (allocator.allocate<UnionDef>()) UnionDef(
-                identifier, parent(), encoded_location(), specifier()
-        );
-        def->attrs = attrs;
-        ExtendableMembersContainerNode::copy_into(*def, allocator);
-        return def;
-    }
-
     UnionDef* shallow_copy(ASTAllocator& allocator) {
         const auto def = new (allocator.allocate<UnionDef>()) UnionDef(
                 identifier, parent(), encoded_location(), specifier()

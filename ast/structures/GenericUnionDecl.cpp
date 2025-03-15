@@ -22,7 +22,7 @@ void GenericUnionDecl::finalize_signature(ASTAllocator& allocator, UnionDef* ins
     inst->copy_variables_in_place(allocator, inst);
 
     // finalizing the signature of functions
-    for(const auto func : inst->functions()) {
+    for(const auto func : inst->master_functions()) {
         GenericFuncDecl::finalize_signature(allocator, func);
     }
 
@@ -30,7 +30,7 @@ void GenericUnionDecl::finalize_signature(ASTAllocator& allocator, UnionDef* ins
 
 void GenericUnionDecl::finalize_body(ASTAllocator& allocator, UnionDef* def) {
 
-    for(const auto func : def->functions()) {
+    for(const auto func : def->master_functions()) {
         GenericFuncDecl::finalize_body(allocator, func);
     }
 

@@ -22,7 +22,7 @@ void GenericStructDecl::finalize_signature(ASTAllocator& allocator, StructDefini
     inst->copy_variables_in_place(allocator, inst);
 
     // finalizing the signature of functions
-    for(const auto func : inst->functions()) {
+    for(const auto func : inst->master_functions()) {
         GenericFuncDecl::finalize_signature(allocator, func);
     }
 
@@ -30,7 +30,7 @@ void GenericStructDecl::finalize_signature(ASTAllocator& allocator, StructDefini
 
 void GenericStructDecl::finalize_body(ASTAllocator& allocator, StructDefinition* def) {
 
-    for(const auto func : def->functions()) {
+    for(const auto func : def->master_functions()) {
         GenericFuncDecl::finalize_body(allocator, func);
     }
 

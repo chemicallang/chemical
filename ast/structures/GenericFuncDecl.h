@@ -56,6 +56,10 @@ public:
 
     }
 
+    inline chem::string_view name_view() {
+        return master_impl->name_view();
+    }
+
     void declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) override;
 
     void link_signature(SymbolResolver &linker) override;
@@ -68,6 +72,17 @@ public:
 
     BaseType* known_type() override {
         return master_impl->known_type();
+    }
+
+    GenericFuncDecl* shallow_copy(ASTAllocator& allocator) {
+        const auto gen_func = new (allocator.allocate<GenericFuncDecl>()) GenericFuncDecl(
+            master_impl->shallow_copy(allocator),
+            parent(),
+            encoded_location()
+        );
+        gen_func->signature_linked = signature_linked;
+        gen_func->body_linked = body_linked;
+        return gen_func;
     }
 
     /**

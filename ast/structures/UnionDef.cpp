@@ -22,11 +22,11 @@ void UnionDef::code_gen_function_body(Codegen &gen, FunctionDeclaration* decl) {
 
 void UnionDef::func_gen(Codegen &gen, bool declare) {
     if(declare) {
-        for (auto &function: functions()) {
+        for (auto &function: instantiated_functions()) {
             function->code_gen_declare(gen, this);
         }
     } else {
-        for (auto &function: functions()) {
+        for (auto &function: instantiated_functions()) {
             function->code_gen_body(gen, this);
         }
     }

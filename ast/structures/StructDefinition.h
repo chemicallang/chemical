@@ -300,7 +300,7 @@ public:
      */
     void struct_func_gen(
         Codegen& gen,
-        const std::vector<FunctionDeclaration*>& funcs,
+        InstFuncRange range,
         bool declare
     );
 

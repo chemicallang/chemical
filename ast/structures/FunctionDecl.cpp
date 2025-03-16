@@ -546,7 +546,7 @@ void code_gen_process_members(
         index++;
     }
     for(const auto var : def->variables()) {
-        auto mem_type = var->get_value_type(gen.allocator);
+        auto mem_type = var->known_type();
         if(mem_type->isStructLikeType()) {
             auto mem_def = mem_type->linked_node()->as_members_container();
             if(!mem_def) {

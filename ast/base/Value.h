@@ -11,7 +11,6 @@
 #include "ast/utils/Operation.h"
 #include <vector>
 #include <memory>
-#include "std/hybrid_ptr.h"
 
 class SymbolResolver;
 
@@ -219,13 +218,6 @@ public:
      * get the pure type from known type directly
      */
     BaseType* pure_type_ptr();
-
-    /**
-     * this method should be preferred over get_base_type()->get_child_type()
-     * because parent type returned type will die when get_base_type goes out of scope making
-     * child_type pointer invalid
-     */
-    hybrid_ptr<BaseType> get_child_type();
 
     /**
      * should build chain type returns true if a single identifier is linked with a union

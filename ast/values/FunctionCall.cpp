@@ -708,7 +708,7 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
     auto decl = linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     if(fn != nullptr) {
-        auto type = decl->create_value_type(gen.allocator);
+        auto type = decl->known_type();
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
         to_llvm_args(gen, this, type->as_function_type(), values, args, 0, nullptr, destructibles);
@@ -1264,37 +1264,6 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     auto pure_type = func_type->returnType->pure_type(allocator);
     return pure_type;
 }
-
-//std::unique_ptr<BaseType> FunctionCall::create_type(std::vector<ChainValue*>& chain, unsigned int index) {
-//    auto data = get_grandpa_generic_struct(chain, index);
-//    if(data.first) {
-//        auto prev_itr = data.first->active_iteration;
-//        data.first->set_active_iteration(data.second);
-//        auto type = create_type();
-//        data.first->set_active_iteration(prev_itr);
-//        return type;
-//    } else {
-//        return create_type();
-//    }
-//}
-
-//hybrid_ptr<BaseType> FunctionCall::get_base_type() {
-//    const auto func_decl = safe_linked_func();
-//    if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
-//        const auto struct_def = func_decl->parent_node->as_struct_def();
-//        if(struct_def->is_generic()) {
-//            return hybrid_ptr<BaseType> {new GenericType(std::make_unique<LinkedType>(struct_def->name, struct_def, nullptr), generic_iteration), true };
-//        }
-//    }
-//    auto prev_itr = set_curr_itr_on_decl();
-//    auto func_type = get_function_type();
-//    if(prev_itr >= -1) safe_linked_func()->set_active_iteration(prev_itr);
-//    if(func_type.get_will_free()) {
-//        return hybrid_ptr<BaseType> { func_type->returnType.release(), true };
-//    } else {
-//        return hybrid_ptr<BaseType> { func_type->returnType.get(), false };
-//    }
-//}
 
 void FunctionCall::interpret(InterpretScope &scope) {
     evaluated_value(scope);

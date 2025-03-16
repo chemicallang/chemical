@@ -23,10 +23,6 @@ public:
         return type->copy(allocator);
     }
 
-//    hybrid_ptr<BaseType> get_child_type() final {
-//        return type->get_child_type();
-//    }
-
     BaseType* known_child_type() final {
         return type->known_child_type();
     }

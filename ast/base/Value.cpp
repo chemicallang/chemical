@@ -969,11 +969,6 @@ std::string Value::representation() {
     return ostring.str();
 }
 
-hybrid_ptr<BaseType> Value::get_child_type() {
-    auto base_type = known_type();
-    return hybrid_ptr<BaseType> { base_type->known_child_type(), false };
-}
-
 Value* Value::scope_value(InterpretScope& scope) {
     const auto eval = evaluated_value(scope);
     if(eval == this) {

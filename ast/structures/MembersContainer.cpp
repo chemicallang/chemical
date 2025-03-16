@@ -65,7 +65,7 @@ bool VariablesContainer::llvm_union_child_index(
 ) {
     auto largest = largest_member();
     if(largest) {
-        auto value_type = largest->create_value_type(gen.allocator);
+        auto value_type = largest->known_type();
         // this should only be added if we are not inlining struct types inside union
         if(value_type->isStructLikeType()) {
             if(indexes.empty()) {

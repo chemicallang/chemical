@@ -266,7 +266,7 @@ llvm::DICompositeType* DebugInfoBuilder::create_struct_type(StructDefinition* de
         const auto var_bit_size = var_ll_type->getScalarSizeInBits();
         // Get the ABI alignment in bytes and convert to bits.
         const auto var_bit_align = dataLayout.getABITypeAlign(var_ll_type).value() * 8;
-        const auto mem_di_type = to_di_type(*this, var->create_value_type(gen.allocator), true);
+        const auto mem_di_type = to_di_type(*this, var->known_type(), true);
         // Align the current offset to the required alignment.
         varOffset = alignTo(varOffset, var_bit_align);
         const auto mem_type = builder->createMemberType(
@@ -423,7 +423,7 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
             init->runtime_name_str(),
             diCompileUnit->getFile(),
             location.start.line + 1,
-            to_di_type(*this, init->create_value_type(gen.allocator), false),
+            to_di_type(*this, init->known_type(), false),
             !init->is_exported(),
             init->value != nullptr,
             builder->createExpression()
@@ -434,7 +434,7 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
                 to_ref(init->name_view()),
                 diCompileUnit->getFile(),
                 location.start.line + 1,
-                to_di_type(*this, init->create_value_type(gen.allocator), false)
+                to_di_type(*this, init->known_type(), false)
         );
         if (llvm::Instruction *inst = llvm::dyn_cast<llvm::Instruction>(val)) {
             builder->insertDeclare(

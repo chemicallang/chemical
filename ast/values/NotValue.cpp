@@ -28,10 +28,6 @@ Value* NotValue::evaluated_value(InterpretScope &scope) {
     };
 }
 
-//hybrid_ptr<BaseType> NotValue::get_base_type() {
-//    return value->get_base_type();
-//}
-
 BaseType* NotValue::known_type() {
     return value->known_type();
 }

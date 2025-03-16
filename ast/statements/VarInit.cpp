@@ -90,7 +90,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 //            }
 
                 // copy or move the struct, if required
-                const auto exp_type = get_or_create_type(gen.allocator);
+                const auto exp_type = known_type_or_err();
                 if(value->requires_memcpy_ref_struct(exp_type)) {
                     const auto& name_v = name_view();
                     const auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));
@@ -193,7 +193,7 @@ void queue_destruct(Codegen& gen, VarInitStatement* node, BaseType* type) {
 }
 
 void VarInitStatement::put_destructible(Codegen& gen) {
-    queue_destruct(gen, this, create_value_type(gen.allocator));
+    queue_destruct(gen, this, known_type_or_err());
 }
 
 void VarInitStatement::code_gen_external_declare(Codegen &gen) {
@@ -216,16 +216,10 @@ llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) 
             return llvm_pointer(gen);
         }
     } else {
-        const auto k_type = create_value_type(gen.allocator);
+        const auto k_type = known_type_or_err();
         if(k_type->isStructLikeType()) {
             return llvm_pointer(gen);
         }
-//        const auto pure = k_type->pure_type(gen.allocator);
-//        if(pure->kind() == BaseTypeKind::Struct) {
-//            return llvm_pointer(gen);
-//        } else if(pure->get_direct_linked_variant()) {
-//            return llvm_pointer(gen);
-//        }
     }
     auto v = llvm_pointer(gen);
     const auto& name = name_view();
@@ -273,14 +267,6 @@ BaseType* VarInitStatement::create_value_type(ASTAllocator& allocator) {
         return value->create_type(allocator);
     }
 }
-
-//hybrid_ptr<BaseType> VarInitStatement::get_value_type() {
-//    if(type) {
-//        return hybrid_ptr<BaseType> { type, false };
-//    } else {
-//        return value->get_base_type();
-//    }
-//}
 
 BaseType* VarInitStatement::known_type() {
     if(type) {
@@ -334,7 +320,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
         }
     }
     if(has_value_linked && !type && !linker.generic_context) {
-        type = create_value_type(*linker.ast_allocator);
+        type = value->create_type(*linker.ast_allocator);
     }
 }
 

@@ -5,11 +5,13 @@
 #include "VariablesContainer.h"
 #include "BaseDefMember.h"
 #include "ast/types/UnionType.h"
+#include "ast/types/LinkedType.h"
 
 class UnnamedUnion : public BaseDefMember, public VariablesContainer {
 public:
 
     AccessSpecifier specifier;
+    LinkedType linkedType;
 
     /**
      * constructor
@@ -19,7 +21,7 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : BaseDefMember(name, ASTNodeKind::UnnamedUnion, parent_node, location), specifier(specifier) {
+    ) : BaseDefMember(name, ASTNodeKind::UnnamedUnion, parent_node, location), specifier(specifier), linkedType("", this, location) {
 
     }
 
@@ -54,6 +56,10 @@ public:
     }
 
     BaseType* create_value_type(ASTAllocator &allocator) final;
+
+    BaseType* known_type() override {
+        return &linkedType;
+    }
 
 #ifdef COMPILER_BUILD
 

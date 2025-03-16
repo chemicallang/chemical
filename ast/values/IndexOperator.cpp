@@ -86,10 +86,6 @@ BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
     return current_type;
 }
 
-//hybrid_ptr<BaseType> IndexOperator::get_base_type() {
-//    return parent_val->get_child_type();
-//}
-
 bool IndexOperator::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     parent_val->link(linker, (Value*&) parent_val, nullptr);
     for(auto& value : values) {

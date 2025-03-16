@@ -33,10 +33,6 @@ BaseType* TypealiasStatement::create_value_type(ASTAllocator& allocator) {
     return actual_type->copy(allocator);
 }
 
-//hybrid_ptr<BaseType> TypealiasStatement::get_value_type() {
-//    return hybrid_ptr<BaseType> { actual_type, false };
-//}
-
 BaseType* TypealiasStatement::known_type() {
     return actual_type;
 }

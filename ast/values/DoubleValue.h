@@ -37,17 +37,9 @@ public:
 
 #endif
 
-//    std::unique_ptr<BaseType> create_type() final {
-//        return std::make_unique<DoubleType>(nullptr);
-//    }
-
     BaseType* create_type(ASTAllocator &allocator) final {
         return new (allocator.allocate<DoubleType>()) DoubleType(encoded_location());
     }
-
-//    hybrid_ptr<BaseType> get_base_type() final {
-//        return hybrid_ptr<BaseType> { (BaseType*) &DoubleType::instance, false };
-//    }
 
     BaseType* known_type() final {
         return (BaseType*) &DoubleType::instance;

@@ -7,7 +7,6 @@
 #include <memory>
 #include "ASTAny.h"
 #include "ASTAllocator.h"
-#include "std/hybrid_ptr.h"
 #include "std/chem_string_view.h"
 #include <iostream>
 
@@ -101,13 +100,6 @@ public:
      * get the type alignment
      */
     unsigned type_alignment(bool is64Bit);
-
-//    /**
-//     * get a pointer to it's child type
-//     */
-//    virtual hybrid_ptr<BaseType> get_child_type() {
-//        throw std::runtime_error("BaseType::get_child_type called on base type");
-//    }
 
     /**
      * get known child type

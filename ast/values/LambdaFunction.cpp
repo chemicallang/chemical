@@ -86,12 +86,6 @@ BaseType* LambdaFunction::create_type(ASTAllocator& allocator) {
     return func_type;
 }
 
-//hybrid_ptr<BaseType> LambdaFunction::get_base_type() {
-//    auto func_type = (FunctionType*) FunctionType::copy();
-//    func_type->isCapturing = !captureList.empty();
-//    return hybrid_ptr<BaseType> { func_type, true };
-//}
-
 BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
         if(node->as_return() != nullptr) {

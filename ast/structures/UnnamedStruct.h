@@ -10,6 +10,7 @@ class UnnamedStruct : public BaseDefMember, public VariablesContainer {
 public:
 
     AccessSpecifier specifier;
+    LinkedType linkedType;
 
     /**
      * constructor
@@ -19,30 +20,15 @@ public:
         ASTNode* parent_node,
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : BaseDefMember(name, ASTNodeKind::UnnamedStruct, parent_node, location), specifier(specifier) {
+    ) : BaseDefMember(name, ASTNodeKind::UnnamedStruct, parent_node, location), specifier(specifier),
+        linkedType("", this, location)
+    {
 
     }
-
-
-//    BaseType* known_type() final {
-//        return this;
-//    }
-
-//    std::string get_runtime_name() final {
-//        return "";
-//    }
-
-//    VariablesContainer *variables_container() final {
-//        return this;
-//    }
 
     VariablesContainer *as_variables_container() final {
         return this;
     }
-
-//    int16_t get_generic_iteration() final {
-//        return 0;
-//    }
 
     bool get_is_const() final {
         // TODO allow user to mark unnamed structs const
@@ -83,14 +69,11 @@ public:
         return total_byte_size(is64Bit);
     }
 
-//    ASTNode *linked_node() final {
-//        return this;
-//    }
-
     BaseType* create_value_type(ASTAllocator &allocator) final;
 
-//    [[nodiscard]]
-//    BaseType* copy(ASTAllocator& allocator) const final;
+    BaseType* known_type() override {
+        return &linkedType;
+    }
 
 #ifdef COMPILER_BUILD
 

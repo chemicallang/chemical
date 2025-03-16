@@ -225,6 +225,16 @@ public:
 
     BaseType* known_type() final;
 
+    BaseType* known_type_or_err() {
+        const auto k = known_type();
+#ifdef DEBUG
+        if(!k) {
+            throw std::runtime_error("known_type not found");
+        }
+#endif
+        return k;
+    }
+
     BaseType* get_or_create_type(ASTAllocator& allocator) {
         return type ? type : create_value_type(allocator);
     }
@@ -291,8 +301,6 @@ public:
     void interpret(InterpretScope &scope) final;
 
     BaseType* create_value_type(ASTAllocator& allocator) final;
-
-//    hybrid_ptr<BaseType> get_value_type() final;
 
     /**
      * called by assignment to assign a new value in the scope that this variable was declared

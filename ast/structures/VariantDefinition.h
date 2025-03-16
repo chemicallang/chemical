@@ -138,8 +138,6 @@ public:
 
     BaseType* create_value_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_value_type() final;
-
     /**
      * check if it includes any member who has a struct, that requires a destructor
      */

@@ -19,8 +19,6 @@ public:
     [[nodiscard]]
     BaseType* create_child_type(ASTAllocator& allocator) const final;
 
-//    hybrid_ptr<BaseType> get_child_type() final;
-
     BaseType* known_child_type() final;
 
     bool satisfies(BaseType *type) final;

@@ -32,8 +32,6 @@ public:
 
     DereferenceValue *copy(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_base_type() final;
-
     BaseType* known_type() final;
 
     BaseType* create_type(ASTAllocator &allocator) final;

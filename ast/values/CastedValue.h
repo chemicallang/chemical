@@ -31,10 +31,6 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) final;
 
-//    hybrid_ptr<BaseType> get_base_type() final {
-//        return hybrid_ptr<BaseType> { type.get(), false };
-//    }
-
     BaseType* known_type() final {
         return type;
     }

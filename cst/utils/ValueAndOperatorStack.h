@@ -152,13 +152,14 @@ public:
                     }
                     auto first = stack.container.back();
                     stack.container.pop_back();
-                    stack.putValue(new (allocator.allocate<Expression>()) Expression(first.item.value,
-                                                  second.item.value,
-                                                          item.item.operation,
-                                                          is64Bit,
-                                                          location
-                                                          )
-                                                      );
+                    stack.putValue(
+                            new (allocator.allocate<Expression>()) Expression(
+                                    first.item.value,
+                                    second.item.value,
+                                    item.item.operation,
+                                    location
+                            )
+                    );
                     break;
             }
             i++;

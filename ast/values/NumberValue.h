@@ -38,7 +38,7 @@ public:
         return true;
     }
 
-    unsigned int get_num_bits() final  {
+    unsigned int get_num_bits(bool is64Bit) final  {
         if(value > INT_MAX) {
             return 64;
         } else {
@@ -61,11 +61,7 @@ public:
 
     BaseType* known_type() final {
         if(value > INT_MAX) {
-            if(sizeof(void*) > 4) {
-                return (BaseType*) &LongType::instance64Bit;
-            } else {
-                return (BaseType*) &LongType::instance32Bit;
-            }
+            return (BaseType*) &LongType::instance;
         } else {
             return (BaseType*) &IntType::instance;
         }
@@ -74,7 +70,7 @@ public:
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
         if(value > INT_MAX) {
-            return new (allocator.allocate<LongType>()) LongType(sizeof(void*) > 4, encoded_location());
+            return new (allocator.allocate<LongType>()) LongType(encoded_location());
         } else {
             return new (allocator.allocate<IntType>()) IntType(encoded_location());
         }

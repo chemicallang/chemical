@@ -9,16 +9,14 @@ class ULongValue : public IntNumValue {
 public:
 
     unsigned long value;
-    bool is64Bit;
 
     /**
      * constructor
      */
     constexpr ULongValue(
         unsigned long value,
-        bool is64Bit,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UInt, location), value(value), is64Bit(is64Bit) {
+    ) : IntNumValue(ValueKind::UInt, location), value(value){
 
     }
 
@@ -28,7 +26,7 @@ public:
 //    }
 
     BaseType* known_type() final {
-        return (BaseType*) (is64Bit ? &ULongType::instance64Bit : &ULongType::instance32Bit);
+        return (BaseType*) (&ULongType::instance);
     }
 
     uint64_t byte_size(bool is64Bit_) final {
@@ -36,15 +34,15 @@ public:
     }
 
     ULongValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<ULongValue>()) ULongValue(value, is64Bit, encoded_location());
+        return new (allocator.allocate<ULongValue>()) ULongValue(value, encoded_location());
     }
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, encoded_location());
+        return new (allocator.allocate<ULongType>()) ULongType(encoded_location());
     }
 
-    unsigned int get_num_bits() final {
+    unsigned int get_num_bits(bool is64Bit) final {
         if(is64Bit) {
             return 64;
         } else {

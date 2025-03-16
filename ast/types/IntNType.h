@@ -29,27 +29,14 @@ public:
      * the number of bits, int means int32 which has 32 bits
      */
     [[nodiscard]]
-    virtual unsigned int num_bits() const = 0;
+    virtual unsigned int num_bits(bool is64Bit) const = 0;
 
     /**
-     * check if this is character type
+     * check if this is a character type
      */
-    bool is_char_type() {
-        return num_bits() == 8 && !is_unsigned();
-    }
-
-    /**
-     * check if this is character type
-     */
-    bool is_uchar_type() {
-        return num_bits() == 8 && is_unsigned();
-    }
-
-    /**
-     * helper
-     */
-    inline unsigned int number() const {
-        return num_bits();
+    bool is_char_or_uchar_type() {
+        const auto k = IntNKind();
+        return k == IntNTypeKind::Char || k == IntNTypeKind::UChar;
     }
 
     /**
@@ -57,7 +44,48 @@ public:
      */
     virtual Value* create(ASTAllocator& allocator, uint64_t value) = 0;
 
-    bool satisfies(BaseType *type);
+    /**
+     * types that are larger in bits or smaller can satisfy each other as long as they are same signed
+     * however maybe we should have a diagnostic for this
+     */
+    bool satisfies(IntNType* type) {
+        const auto this_unsigned = is_unsigned();
+        const auto other_unsigned = type->is_unsigned();
+        return (this_unsigned && other_unsigned) || (!this_unsigned && !other_unsigned);
+    }
+
+    /**
+     * check if satisfies
+     */
+    bool satisfies(BaseType *type) {
+        return type->kind() == BaseTypeKind::IntN && satisfies(type->as_intn_type_unsafe());
+    }
+
+    /**
+     * this checks whether this int n type is equal to this other int n type
+     */
+    bool equals(IntNType* type) {
+        return type->IntNKind() == IntNKind();
+    }
+
+    /**
+     * converts a kind to unsigned kind
+     */
+    static IntNTypeKind to_unsigned_kind(IntNTypeKind k) {
+        auto otherK = static_cast<int>(k);
+        if(otherK < static_cast<int>(IntNTypeKind::UnsignedStart)) {
+            return static_cast<IntNTypeKind>(otherK + static_cast<int>(IntNTypeKind::SignedEnd));
+        } else {
+            return k;
+        }
+    }
+
+    /**
+     * checks if this type is bigger in terms of bit width, than the given type
+     */
+    bool greater_than_in_bits(IntNType* type) {
+        return to_unsigned_kind(IntNKind()) > to_unsigned_kind(type->IntNKind());
+    }
 
     [[nodiscard]]
     BaseTypeKind kind() const {
@@ -65,7 +93,7 @@ public:
     }
 
     bool is_same(BaseType *type) {
-        return type->kind() == kind() && ((IntNType*) type)->num_bits() == num_bits() && ((IntNType*) type)->is_unsigned() == is_unsigned();
+        return type->kind() == kind() && equals(type->as_intn_type_unsafe());
     }
 
 #ifdef COMPILER_BUILD

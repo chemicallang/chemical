@@ -25,7 +25,7 @@ public:
     }
 
     [[nodiscard]]
-    unsigned int num_bits() const final {
+    unsigned int num_bits(bool is64Bit) const final {
         return 8;
     }
 

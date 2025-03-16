@@ -16,4 +16,9 @@ enum class IntNTypeKind {
     UBigInt,
     UInt128,
 
+    SignedStart = Char,
+    SignedEnd = Int128,
+    UnsignedStart = UChar,
+    UnsignedEnd = UInt128
+
 };

@@ -480,7 +480,7 @@ unsigned BaseType::type_alignment(bool is64Bit) {
         case BaseTypeKind::Float:
             return 4;
         case BaseTypeKind::IntN:
-            switch(as_intn_type_unsafe()->num_bits()) {
+            switch(as_intn_type_unsafe()->num_bits(is64Bit)) {
                 case 8:
                     return 1;
                 case 16:

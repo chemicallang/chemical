@@ -163,7 +163,7 @@ extern "C" {
 
     LiteralType* ASTBuildermake_literal_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location);
 
-    LongType* ASTBuildermake_long_type(ASTAllocator* allocator, bool is64Bit, uint64_t location);
+    LongType* ASTBuildermake_long_type(ASTAllocator* allocator, uint64_t location);
 
     PointerType* ASTBuildermake_ptr_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location);
 
@@ -181,7 +181,7 @@ extern "C" {
 
     UIntType* ASTBuildermake_uint_type(ASTAllocator* allocator, uint64_t location);
 
-    ULongType* ASTBuildermake_ulong_type(ASTAllocator* allocator, bool is64Bit, uint64_t location);
+    ULongType* ASTBuildermake_ulong_type(ASTAllocator* allocator, uint64_t location);
 
     UShortType* ASTBuildermake_ushort_type(ASTAllocator* allocator, uint64_t location);
 
@@ -207,7 +207,7 @@ extern "C" {
 
     DoubleValue* ASTBuildermake_double_value(ASTAllocator* allocator, double value, uint64_t location);
 
-    Expression* ASTBuildermake_expression_value(ASTAllocator* allocator, Value* first, Value* second, Operation op, bool is64Bit, uint64_t location);
+    Expression* ASTBuildermake_expression_value(ASTAllocator* allocator, Value* first, Value* second, Operation op, uint64_t location);
 
     FloatValue* ASTBuildermake_float_value(ASTAllocator* allocator, float value, uint64_t location);
 
@@ -225,7 +225,7 @@ extern "C" {
 
     CapturedVariable* ASTBuildermake_captured_variable(ASTAllocator* allocator, chem::string_view* name, unsigned int index, bool capture_by_ref, long value, uint64_t location);
 
-    LongValue* ASTBuildermake_long_value(ASTAllocator* allocator, long value, bool is64Bit, uint64_t location);
+    LongValue* ASTBuildermake_long_value(ASTAllocator* allocator, long value, uint64_t location);
 
     NegativeValue* ASTBuildermake_negative_value(ASTAllocator* allocator, Value* value, uint64_t location);
 
@@ -251,7 +251,7 @@ extern "C" {
 
     UIntValue* ASTBuildermake_uint_value(ASTAllocator* allocator, unsigned int value, uint64_t location);
 
-    ULongValue* ASTBuildermake_ulong_value(ASTAllocator* allocator, unsigned long value, bool is64Bit, uint64_t location);
+    ULongValue* ASTBuildermake_ulong_value(ASTAllocator* allocator, unsigned long value, uint64_t location);
 
     UShortValue* ASTBuildermake_ushort_value(ASTAllocator* allocator, unsigned short value, uint64_t location);
 

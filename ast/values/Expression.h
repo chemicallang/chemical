@@ -17,7 +17,6 @@ public:
     Value* firstValue; ///< The first value in the expression.
     Value* secondValue; ///< The second value in the expression.
     Operation operation; ///< The operation between the two values.
-    bool is64Bit; // is 64bit operating system
     BaseType* created_type = nullptr;
 
     /**
@@ -27,11 +26,10 @@ public:
             Value* firstValue,
             Value* secondValue,
             Operation operation,
-            bool is64Bit,
             SourceLocation location,
             BaseType* created_type = nullptr
     ) : Value(ValueKind::Expression, location), firstValue(firstValue), secondValue(secondValue),
-        operation(operation), is64Bit(is64Bit), created_type(created_type) {
+        operation(operation), created_type(created_type) {
 
     }
 

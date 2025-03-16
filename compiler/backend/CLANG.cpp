@@ -543,7 +543,7 @@ Value* CTranslator::make_expr(clang::Expr* expr) {
             const auto rhs = make_expr(binOp->getRHS());
             const auto opt = convert_to_op(binOp->getOpcode());
             if(opt.has_value()) {
-                return new (allocator.allocate<Expression>()) Expression(lhs, rhs, opt.value(), is64Bit, ZERO_LOC);
+                return new (allocator.allocate<Expression>()) Expression(lhs, rhs, opt.value(), ZERO_LOC);
             } else {
                 return nullptr;
             }
@@ -1176,7 +1176,7 @@ clang::QualType BaseType::clang_type(clang::ASTContext &gen) {
 }
 
 clang::QualType IntNType::clang_type(clang::ASTContext &context) {
-    return context.getIntTypeForBitwidth(num_bits(), !is_unsigned());
+    return context.getIntTypeForBitwidth(num_bits(sizeof(void*) == 8), !is_unsigned());
 }
 
 clang::QualType BoolType::clang_type(clang::ASTContext &context) {

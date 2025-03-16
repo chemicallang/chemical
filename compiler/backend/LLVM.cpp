@@ -116,10 +116,12 @@ llvm::Type *FloatType::llvm_type(Codegen &gen) {
 }
 
 llvm::Type *IntNType::llvm_type(Codegen &gen) {
-    auto ty = gen.builder->getIntNTy(num_bits());
+    const auto ty = gen.builder->getIntNTy(num_bits(gen.is64Bit));
+#ifdef DEBUG
     if(!ty) {
-        gen.error(this) << "Couldn't get intN type for int:" << std::to_string(num_bits());
+        throw std::runtime_error("couldn't get int n type for bits");
     }
+#endif
     return ty;
 }
 
@@ -294,11 +296,11 @@ llvm::Value * FloatValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 }
 
 llvm::Type *IntNumValue::llvm_type(Codegen &gen) {
-    return gen.builder->getIntNTy(get_num_bits());
+    return gen.builder->getIntNTy(get_num_bits(gen.is64Bit));
 }
 
 llvm::Value *IntNumValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return gen.builder->getIntN(get_num_bits(), get_num_value());
+    return gen.builder->getIntN(get_num_bits(gen.is64Bit), get_num_value());
 }
 
 llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
@@ -539,13 +541,13 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::IntN) {
         auto from_num_type = (IntNType*) value_type;
         auto to_num_type = (IntNType*) pure_type;
-        if(from_num_type->num_bits() < to_num_type->num_bits()) {
+        if(from_num_type->num_bits(gen.is64Bit) < to_num_type->num_bits(gen.is64Bit)) {
             if (from_num_type->is_unsigned()) {
                 return gen.builder->CreateZExt(llvm_val, to_num_type->llvm_type(gen));
             } else {
                 return gen.builder->CreateSExt(llvm_val, to_num_type->llvm_type(gen));
             }
-        } else if(from_num_type->num_bits() > to_num_type->num_bits()) {
+        } else if(from_num_type->num_bits(gen.is64Bit) > to_num_type->num_bits(gen.is64Bit)) {
             return gen.builder->CreateTrunc(llvm_val, to_num_type->llvm_type(gen));
         }
     } else if((value_type->kind() == BaseTypeKind::Float || value_type->kind() == BaseTypeKind::Double) && type->kind() == BaseTypeKind::IntN) {

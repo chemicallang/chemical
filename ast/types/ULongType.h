@@ -7,15 +7,12 @@
 class ULongType : public IntNType {
 public:
 
-    bool is64Bit;
-
-    static const ULongType instance64Bit;
-    static const ULongType instance32Bit;
+    static const ULongType instance;
 
     /**
      * constructor
      */
-    constexpr ULongType(bool is64Bit, SourceLocation location) : is64Bit(is64Bit), IntNType(location) {
+    constexpr ULongType(SourceLocation location) : IntNType(location) {
 
     }
 
@@ -24,7 +21,7 @@ public:
     }
 
     [[nodiscard]]
-    unsigned int num_bits() const final {
+    unsigned int num_bits(bool is64Bit) const final {
         return is64Bit ? 64 : 32;
     }
 
@@ -40,7 +37,7 @@ public:
 
     [[nodiscard]]
     ULongType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, encoded_location());
+        return new (allocator.allocate<ULongType>()) ULongType(encoded_location());
     }
 
 };

@@ -17,10 +17,6 @@ unsigned int EnumMember::get_default_index() {
     return starting_index + index;
 }
 
-BaseType* EnumMember::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(parent()->name_view(), parent_node(), encoded_location());
-}
-
 BaseType* EnumMember::known_type() {
     return parent()->known_type();
 };
@@ -66,10 +62,6 @@ void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
 EnumDeclaration* EnumDeclaration::get_inherited_enum_decl() {
     const auto inherited = underlying_type->get_direct_linked_node();
     return inherited && inherited->kind() == ASTNodeKind::EnumDecl ? inherited->as_enum_decl_unsafe() : nullptr;
-}
-
-BaseType* EnumDeclaration::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode*) this, encoded_location());
 }
 
 BaseType* EnumDeclaration::known_type() {

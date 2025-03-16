@@ -105,14 +105,6 @@ llvm::Type *UnnamedUnion::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
 
 #endif
 
-BaseType* UnnamedUnion::create_value_type(ASTAllocator &allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode*) this, encoded_location());
-}
-
-BaseType* UnionDef::create_value_type(ASTAllocator& allocator) {
-    return create_linked_type(name_view(), allocator);
-}
-
 BaseType* UnionDef::known_type() {
     return &linked_type;
 }

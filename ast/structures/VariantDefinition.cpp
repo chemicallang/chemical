@@ -263,10 +263,6 @@ uint64_t VariantDefinition::byte_size(bool is64Bit) {
     return large->byte_size(is64Bit) + type_size;
 }
 
-BaseType* VariantDefinition::create_value_type(ASTAllocator& allocator) {
-    return create_linked_type(name_view(), allocator);
-}
-
 void VariantMember::link_signature(SymbolResolver &linker) {
     for(auto& value : values) {
         value.second->link_signature(linker);
@@ -313,10 +309,6 @@ BaseType* VariantMember::known_type() {
     return &ref_type;
 }
 
-BaseType* VariantMember::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, this, encoded_location());
-}
-
 void VariantMemberParam::link_signature(SymbolResolver &linker) {
     type->link(linker);
     if(def_value) {
@@ -349,13 +341,6 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& nod
     }
     member_param = node->second;
     linker.declare(name, this);
-}
-
-BaseType* VariantCaseVariable::create_value_type(ASTAllocator& allocator) {
-    const auto expr = switch_statement->expression;
-    const auto expr_type = expr->create_type(allocator);
-    const auto copied_type = member_param->type->copy(allocator)->pure_type(allocator);
-    return copied_type;
 }
 
 BaseType* VariantCaseVariable::known_type() {

@@ -689,8 +689,6 @@ public:
         ASTAny* debug_value = nullptr
     );
 
-    BaseType* create_value_type(ASTAllocator& allocator);
-
     // called by the return statement
     void set_return(InterpretScope& func_scope, Value *value) final;
 

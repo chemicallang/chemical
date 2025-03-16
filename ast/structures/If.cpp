@@ -333,10 +333,6 @@ BaseType* IfStatement::create_type(ASTAllocator& allocator) {
     return last_val ? last_val->create_type(allocator) : nullptr;
 }
 
-BaseType* IfStatement::create_value_type(ASTAllocator& allocator) {
-    return create_type(allocator);
-}
-
 BaseType *IfStatement::known_type() {
     if(!is_value) return nullptr;
     auto last_val = get_value_node();

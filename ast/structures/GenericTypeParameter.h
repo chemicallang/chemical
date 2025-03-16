@@ -44,10 +44,6 @@ public:
 
     void register_usage(ASTAllocator& allocator, BaseType* type);
 
-    BaseType* create_value_type(ASTAllocator& allocator) final {
-        return active_type ? active_type->copy(allocator) : nullptr;
-    }
-
     void set_active_iteration(int iteration) {
 #ifdef DEBUG
         if(iteration < 0 || iteration >= usage.size()) {

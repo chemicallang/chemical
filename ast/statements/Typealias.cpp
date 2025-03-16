@@ -29,10 +29,6 @@ void TypealiasStatement::link_signature(SymbolResolver &linker) {
     actual_type->link(linker);
 }
 
-BaseType* TypealiasStatement::create_value_type(ASTAllocator& allocator) {
-    return actual_type->copy(allocator);
-}
-
 BaseType* TypealiasStatement::known_type() {
     return actual_type;
 }

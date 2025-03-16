@@ -127,7 +127,6 @@ void ast_builder_symbol_map(std::unordered_map<std::string_view, void*>& sym_map
             { "ASTBuilderallocate_with_cleanup", (void*) ASTBuilderallocate_with_cleanup },
 
             { "ASTBuildercreateType", (void*) ASTBuildercreateType },
-            { "ASTBuildercreateValueType", (void*) ASTBuildercreateValueType },
 
             { "ASTBuildermake_sym_res_node", (void*) ASTBuildermake_sym_res_node },
             { "ASTBuildermake_sym_res_value", (void*) ASTBuildermake_sym_res_value },

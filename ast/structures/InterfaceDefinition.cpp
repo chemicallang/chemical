@@ -192,10 +192,6 @@ std::string InterfaceDefinition::runtime_vtable_name(StructDefinition* def) {
     return str.str();
 }
 
-BaseType* InterfaceDefinition::create_value_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), this, encoded_location());
-}
-
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
     int i = 0;
     for(const auto func : functions()) {

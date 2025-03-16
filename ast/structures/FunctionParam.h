@@ -107,8 +107,6 @@ public:
 
     unsigned calculate_c_or_llvm_index(FunctionType* func_type);
 
-    BaseType* create_value_type(ASTAllocator &allocator) final;
-
     BaseType *known_type() final {
         return type;
     }

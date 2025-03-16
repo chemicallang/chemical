@@ -235,10 +235,6 @@ public:
         return k;
     }
 
-    BaseType* get_or_create_type(ASTAllocator& allocator) {
-        return type ? type : create_value_type(allocator);
-    }
-
     bool is_top_level() {
         return parent() == nullptr || parent()->as_namespace();
     }
@@ -300,7 +296,7 @@ public:
 
     void interpret(InterpretScope &scope) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) final;
+    BaseType* known_type_SymRes(ASTAllocator& allocator);
 
     /**
      * called by assignment to assign a new value in the scope that this variable was declared

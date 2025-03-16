@@ -127,8 +127,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) final;
-
     BaseType* known_type() final;
 
     void interpret(InterpretScope &scope);

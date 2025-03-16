@@ -123,7 +123,8 @@ Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
 
 BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
     if(linked) {
-        return linked->create_value_type(allocator);
+        const auto type = linked->known_type();
+        return type ? type->copy(allocator) : nullptr;
     } else {
         return nullptr;
     }

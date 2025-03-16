@@ -82,10 +82,6 @@ void GenericStructDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_
     linker.genericInstantiator.FinalizeBody(this, instantiations);
 }
 
-BaseType* GenericStructDecl::create_value_type(ASTAllocator &allocator) {
-    return master_impl->create_value_type(allocator);
-}
-
 StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<BaseType*>& types) {
 
     const auto types_size = types.size();

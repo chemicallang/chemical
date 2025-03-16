@@ -76,10 +76,6 @@ void GenericUnionDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_p
     linker.genericInstantiator.FinalizeBody(this, instantiations);
 }
 
-BaseType* GenericUnionDecl::create_value_type(ASTAllocator &allocator) {
-    return master_impl->create_value_type(allocator);
-}
-
 UnionDef* GenericUnionDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<BaseType*>& types) {
 
     const auto types_size = types.size();

@@ -25,9 +25,6 @@ public:
 
     }
 
-
-//    hybrid_ptr<BaseType> get_base_type() final;
-
     BaseType* known_type() final;
 
     uint64_t byte_size(bool is64Bit) final;

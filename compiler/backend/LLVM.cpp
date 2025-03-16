@@ -386,7 +386,7 @@ llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *VariableIdentifier::llvm_value(Codegen &gen, BaseType* expected_type) {
-    const auto linked_type = linked->create_value_type(gen.allocator)->pure_type(gen.allocator);
+    const auto linked_type = linked->known_type()->pure_type(gen.allocator);
     if(linked_type->kind() == BaseTypeKind::Array) {
         return gen.builder->CreateGEP(llvm_type(gen), llvm_pointer(gen), {gen.builder->getInt32(0), gen.builder->getInt32(0)}, "", gen.inbounds);;
     }
@@ -1115,7 +1115,7 @@ void ASTNode::code_gen_destruct(Codegen &gen, Value* returnValue, SourceLocation
             if(returnValue && returnValue->linked_node() == this) {
                 return;
             }
-            const auto type = init->create_value_type(gen.allocator);
+            const auto type = init->known_type();
             type->llvm_destruct(gen, init->llvm_ptr, location);
             break;
         }

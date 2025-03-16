@@ -357,7 +357,6 @@ set(COMMON_SOURCES
         ast/structures/UnionDef.h
         ast/structures/UnionDef.cpp
         parser/structures/Union.cpp
-        std/hybrid_ptr.h
         ast/types/UnionType.h
         ast/types/UnionType.cpp
         ast/structures/VariablesContainer.h

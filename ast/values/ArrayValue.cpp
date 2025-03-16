@@ -258,13 +258,6 @@ BaseType* ArrayValue::create_type(ASTAllocator& allocator) {
     return new (allocator.allocate<ArrayType>()) ArrayType(element_type(allocator), array_size(), encoded_location());
 }
 
-//hybrid_ptr<BaseType> ArrayValue::get_base_type() {
-//    if(!cached_type) {
-//        cached_type = std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
-//    }
-//    return hybrid_ptr<BaseType> { cached_type.get(), false };
-//}
-
 BaseType* ArrayValue::known_type() {
     return created_type;
 }

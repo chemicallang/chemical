@@ -34,10 +34,6 @@ public:
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
-//    hybrid_ptr<BaseType> get_base_type() final {
-//        return hybrid_ptr<BaseType> { (BaseType*) &StringType::instance, false };
-//    }
-
     BaseType* known_type() final {
         return (BaseType*) &StringType::instance;
     }

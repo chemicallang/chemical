@@ -64,10 +64,6 @@ public:
         return elem_type->copy(allocator);
     }
 
-//    hybrid_ptr<BaseType> get_child_type() final {
-//        return hybrid_ptr<BaseType> { elem_type.get(), false };
-//    }
-
     BaseType* known_child_type() final {
         return elem_type;
     }

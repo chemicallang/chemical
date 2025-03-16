@@ -169,6 +169,4 @@ public:
         return definition->byte_size(is64Bit);
     }
 
-//    hybrid_ptr<BaseType> get_base_type() final;
-
 };

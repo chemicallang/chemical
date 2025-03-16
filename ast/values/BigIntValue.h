@@ -29,10 +29,6 @@ public:
         return new (allocator.allocate<BigIntValue>()) BigIntValue(value, encoded_location());
     }
 
-//    hybrid_ptr<BaseType> get_base_type() final {
-//        return hybrid_ptr<BaseType> { (BaseType*) &BigIntType::instance, false };
-//    }
-
     BaseType* known_type() final {
         return (BaseType*) &BigIntType::instance;
     }

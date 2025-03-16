@@ -112,8 +112,6 @@ public:
 
     BaseType* create_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_base_type() final;
-
     BaseType* known_type() final;
 
     ArrayValue *copy(ASTAllocator& allocator) final {

@@ -89,8 +89,6 @@ public:
 
     BaseType* create_value_type(ASTAllocator& allocator) final;
 
-//    hybrid_ptr<BaseType> get_value_type() final;
-
     BaseType* known_type() final;
 
 };

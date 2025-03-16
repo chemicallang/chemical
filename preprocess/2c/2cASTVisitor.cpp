@@ -1946,7 +1946,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             return;
         } else {
             if(chain->is_moved()) {
-                auto init_type = init->create_value_type(visitor.allocator);
+                auto init_type = init->known_type();
                 auto linked = init_type->linked_node();
                 if(!linked) {
                     return;
@@ -1961,7 +1961,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
     }
     auto id = init_value->as_identifier_unsafe();
     if(init_val_kind == ValueKind::Identifier && id->is_moved) {
-        auto init_type = init->create_value_type(visitor.allocator);
+        auto init_type = init->known_type();
         auto linked = init_type->linked_node();
         if(!linked) {
             visitor.error("couldn't destruct var init", init);
@@ -1989,7 +1989,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
 }
 
 void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
-    const auto pure_t = init->create_value_type(visitor.allocator)->pure_type(visitor.allocator);
+    const auto pure_t = init->known_type()->pure_type(visitor.allocator);
     const auto pure_t_kind = pure_t->kind();
     if(pure_t_kind == BaseTypeKind::Pointer || pure_t_kind == BaseTypeKind::Reference) {
         return;
@@ -2089,10 +2089,10 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
             aliases[var] = capture_struct_name;
             visitor.new_line_and_indent();
             if(var->capture_by_ref) {
-                PointerType pointer(var->linked->create_value_type(visitor.allocator), ZERO_LOC);
+                PointerType pointer(var->linked->known_type(), ZERO_LOC);
                 visitor.visit(&pointer);
             } else {
-                visitor.visit(var->linked->create_value_type(visitor.allocator));
+                visitor.visit(var->linked->known_type());
             }
             visitor.space();
             visitor.write(var->name);
@@ -2372,7 +2372,7 @@ void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::ve
 
 void early_declare_composed_variables(CTopLevelDeclarationVisitor& visitor, VariablesContainer& container) {
     for(const auto variable : container.variables()) {
-        auto t = variable->create_value_type(visitor.visitor.allocator);
+        auto t = variable->known_type();
         const auto node = t->get_direct_linked_node();
         if(node) {
             early_declare_node(visitor, node);
@@ -3403,7 +3403,7 @@ void process_struct_members_using(
         }
     }
     for (const auto var : def->variables()) {
-        auto value_type = var->create_value_type(visitor.allocator);
+        auto value_type = var->known_type();
         process_member(visitor, value_type, var->name);
     }
 }
@@ -3453,7 +3453,7 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
         if(!defValue) {
             // since default value doesn't exist, however the variable maybe of type struct and have a default constructor
             // we must call the default non argument constructor automatically
-            const auto mem_type = var->create_value_type(visitor.allocator);
+            const auto mem_type = var->known_type();
             const auto mem_pure = mem_type->pure_type(visitor.allocator);
             const auto def = mem_pure->get_direct_linked_struct();
             if(def) {
@@ -4098,7 +4098,7 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
 //                    }
 //                    const auto parent = member->parent();
 //                    if(parent) {
-//                        const auto def = parent->create_value_type(visitor.allocator)->get_direct_linked_struct();
+//                        const auto def = parent->create_val_type()->get_direct_linked_struct();
 //                        if(def) {
 //                            write_path_to_member(visitor, def, member);
 //                        }
@@ -5250,7 +5250,7 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
             linked.runtime_name(*output);
             return;
         case ASTNodeKind::GenericTypeParam:
-            visit(linked.get_value_type(allocator));
+            visit(linked.known_type());
             return;
         case ASTNodeKind::TypealiasStmt: {
             auto alias = declarer->aliases.find(&linked);

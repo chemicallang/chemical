@@ -20,11 +20,6 @@ public:
 
     }
 
-
-//    hybrid_ptr<BaseType> get_base_type() final {
-//        return hybrid_ptr<BaseType> { (BaseType*) &UCharType::instance, false };
-//    }
-
     BaseType* known_type() final {
         return (BaseType*) &UCharType::instance;
     }

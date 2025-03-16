@@ -99,7 +99,7 @@ public:
     void VisitVarInitStmt(VarInitStatement* node) {
         RecursiveVisitor<GenericInstantiator>::VisitVarInitStmt(node);
         if(!node->type) {
-            node->type = node->create_value_type(allocator);
+            node->type = node->value->create_type(allocator);
         }
         table.declare(node->name_view(), node);
     }

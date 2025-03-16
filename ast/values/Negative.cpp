@@ -29,10 +29,6 @@ Value* NegativeValue::evaluated_value(InterpretScope &scope) {
     }
 }
 
-//hybrid_ptr<BaseType> NegativeValue::get_base_type() {
-//    return value->get_base_type();
-//}
-
 BaseType* NegativeValue::known_type() {
     return value->known_type();
 }

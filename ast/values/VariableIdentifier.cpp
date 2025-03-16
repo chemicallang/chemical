@@ -129,14 +129,6 @@ BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
     }
 }
 
-//hybrid_ptr<BaseType> VariableIdentifier::get_base_type() {
-//    if(linked) {
-//        return linked->get_value_type();
-//    } else {
-//        return hybrid_ptr<BaseType> { nullptr, false };
-//    }
-//}
-
 void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op, SourceLocation location) {
 #ifdef DEBUG
     if (parent == nullptr) {

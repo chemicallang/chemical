@@ -351,10 +351,6 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& nod
     linker.declare(name, this);
 }
 
-//hybrid_ptr<BaseType> VariantCaseVariable::get_value_type() {
-//    return hybrid_ptr<BaseType> { member_param->type.get(), false };
-//}
-
 BaseType* VariantCaseVariable::create_value_type(ASTAllocator& allocator) {
     const auto expr = switch_statement->expression;
     const auto expr_type = expr->create_type(allocator);

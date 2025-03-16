@@ -41,21 +41,6 @@ Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
     }
 }
 
-//hybrid_ptr<BaseType> DereferenceValue::get_base_type() {
-//    auto addr = value->get_pure_type(allocator);
-//    if(addr->kind() == BaseTypeKind::Pointer) {
-//        if(addr.get_will_free()) {
-//            return hybrid_ptr<BaseType> { ((PointerType*) (addr.get()))->type->copy() };
-//        } else {
-//            return hybrid_ptr<BaseType> { ((PointerType*) (addr.get()))->type.get(), false};
-//        }
-//    } else {
-//        // TODO cannot report error here, the type cannot be created because the linked type is not a pointer
-//        std::cout << "DereferenceValue returning nullptr, because de-referenced type is not a pointer" << std::endl;
-//        return hybrid_ptr<BaseType> { nullptr, false };
-//    }
-//}
-
 BaseType* DereferenceValue::known_type() {
     auto addr = value->known_type();
     if(addr->kind() == BaseTypeKind::Pointer) {

@@ -11,7 +11,6 @@
 #include "std/common.h"
 #include "ASTAny.h"
 #include "BaseTypeKind.h"
-#include "std/hybrid_ptr.h"
 #include "ASTNodeKind.h"
 #include "AccessSpecifier.h"
 #include "ASTAllocator.h"
@@ -345,14 +344,6 @@ public:
      * this type can represent the type of value, type of parameter etc.
      */
     virtual BaseType* create_value_type(ASTAllocator& allocator);
-
-    /**
-     * this returns a hybrid pointer, which decreases the number of allocations, because
-     * type of value may be known by the value
-     */
-    inline BaseType* get_value_type(ASTAllocator& allocator) {
-        return create_value_type(allocator);
-    }
 
 #ifdef COMPILER_BUILD
 

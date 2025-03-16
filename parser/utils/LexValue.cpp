@@ -421,12 +421,12 @@ ValueNode* Parser::parseValueNode(ASTAllocator& allocator) {
 
 const auto unk_bit_width_err = "unknown bit width given for a number";
 
-Value* allocate_number_value(ASTAllocator& alloc, unsigned long long value, bool is64Bit, SourceLocation location) {
+Value* allocate_number_value(ASTAllocator& alloc, unsigned long long value, SourceLocation location) {
     if(value > INT_MAX) {
         if(value > LONG_MAX) {
             return new(alloc.allocate<BigIntValue>()) BigIntValue((long long) value, location);
         } else {
-            return new(alloc.allocate<LongValue>()) LongValue((long) value, is64Bit, location);
+            return new(alloc.allocate<LongValue>()) LongValue((long) value, false, location);
         }
     } else {
         return new (alloc.allocate<IntValue>()) IntValue((int) value, location);
@@ -631,7 +631,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                 return { new(alloc.allocate<DoubleValue>()) DoubleValue(num_value.result, location), err.empty() ? num_value.error : err };
             } else {
                 const auto num_value = parse_num(value, value_size, strtoull);
-                return { allocate_number_value(alloc, num_value.result, is64Bit, location), err.empty() ? num_value.error : err };
+                return { allocate_number_value(alloc, num_value.result, location), err.empty() ? num_value.error : err };
             }
         }
     }

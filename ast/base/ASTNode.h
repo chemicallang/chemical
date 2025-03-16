@@ -340,10 +340,12 @@ public:
     virtual uint64_t byte_size(bool is64Bit);
 
     /**
-     * get the type from the ASTNode
-     * this type can represent the type of value, type of parameter etc.
+     * this should only be called, where the type is required during symbol resolution
+     * since types are determined during or after symbol resolution completes
+     * this allows to get the partially determined type, which could include types
+     * that are linked with generic type parameters
      */
-    virtual BaseType* create_value_type(ASTAllocator& allocator);
+    BaseType* known_type_SymRes(ASTAllocator& allocator);
 
 #ifdef COMPILER_BUILD
 

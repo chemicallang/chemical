@@ -103,10 +103,6 @@ void* ASTBuilderallocate_with_cleanup(ASTAllocator* allocator, std::size_t obj_s
     return (void*) allocator->allocate_with_cleanup(obj_size, alignment, cleanup_fn);
 }
 
-BaseType* ASTBuildercreateValueType(ASTAllocator* allocator, ASTNode* node) {
-    return node->create_value_type(*allocator);
-}
-
 BaseType* ASTBuildercreateType(ASTAllocator* allocator, Value* value) {
     return value->create_type(*allocator);
 }

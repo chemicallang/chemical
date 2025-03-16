@@ -125,8 +125,6 @@ extern "C" {
 
     void* ASTBuilderallocate_with_cleanup(ASTAllocator* allocator, std::size_t obj_size, std::size_t alignment, void* cleanup_fn);
 
-    BaseType* ASTBuildercreateValueType(ASTAllocator* allocator, ASTNode* node);
-
     BaseType* ASTBuildercreateType(ASTAllocator* allocator, Value* value);
 
     SymResNode* ASTBuildermake_sym_res_node(ASTAllocator* allocator, void* decl_fn, void* repl_fn, void* data_ptr, ASTNode* parent_node, uint64_t location);

@@ -136,8 +136,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) final;
-
     /**
      * check if it includes any member who has a struct, that requires a destructor
      */

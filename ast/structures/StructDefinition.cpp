@@ -252,10 +252,6 @@ llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 
 #endif
 
-BaseType* StructMember::create_value_type(ASTAllocator& allocator) {
-    return type->copy(allocator);
-}
-
 void StructMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
 }
@@ -277,19 +273,6 @@ ASTNode *StructMember::child(const chem::string_view &childName) {
     if (!linked) return nullptr;
     return linked->child(childName);
 }
-
-//BaseType *StructDefinition::copy(ASTAllocator& allocator) const {
-//    return new (allocator.allocate<LinkedType>()) LinkedType(name_view(), (ASTNode *) this, location);
-//}
-
-BaseType* UnnamedStruct::create_value_type(ASTAllocator &allocator) {
-    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, encoded_location());
-}
-
-//BaseType *UnnamedStruct::copy(ASTAllocator& allocator) const {
-//    // this is UnionType's copy method
-//    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, location);
-//}
 
 void StructDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     // no variables or functions exist in containers because user maybe using
@@ -351,10 +334,6 @@ ASTNode *StructDefinition::child(const chem::string_view &name) {
         }
     };
     return nullptr;
-}
-
-BaseType* StructDefinition::create_value_type(ASTAllocator& allocator) {
-    return create_linked_type(name_view(), allocator);
 }
 
 BaseType* StructDefinition::known_type() {

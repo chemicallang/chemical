@@ -209,10 +209,6 @@ BaseType* SwitchStatement::create_type(ASTAllocator& allocator) {
     return last_val ? last_val->create_type(allocator) : nullptr;
 }
 
-BaseType* SwitchStatement::create_value_type(ASTAllocator& allocator) {
-    return create_type(allocator);
-}
-
 BaseType *SwitchStatement::known_type() {
     if(!is_value || scopes.empty()) return nullptr;
     auto last_val = get_value_node();

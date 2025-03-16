@@ -115,8 +115,6 @@ public:
         return this;
     }
 
-    BaseType* create_value_type(ASTAllocator& allocator) final;
-
     BaseType* known_type() final;
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;

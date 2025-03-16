@@ -37,8 +37,6 @@ public:
         return (SwitchStatement*) ASTNode::parent();
     }
 
-    BaseType* create_value_type(ASTAllocator& allocator) final;
-
     BaseType* known_type() final;
 
     ASTNode* child(const chem::string_view &name) final;

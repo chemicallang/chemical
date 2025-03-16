@@ -260,8 +260,6 @@ public:
 
     ASTNode *child(const chem::string_view &name) final;
 
-    BaseType* create_value_type(ASTAllocator& allocator) final;
-
     BaseType* known_type() final;
 
     uint64_t byte_size(bool is64Bit) final {

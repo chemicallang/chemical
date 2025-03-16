@@ -74,7 +74,9 @@ public:
 
     }
 
-    BaseType* create_value_type(ASTAllocator &allocator) override;
+    BaseType* known_type() override {
+        return master_impl->known_type();
+    }
 
     void declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) override {
         master_impl->declare_top_level(linker, (ASTNode*&) master_impl);

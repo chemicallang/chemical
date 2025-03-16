@@ -74,10 +74,6 @@ public:
 
     }
 
-    BaseType* create_value_type(ASTAllocator &allocator) override {
-        return master_impl->create_value_type(allocator);
-    }
-
     BaseType* known_type() override {
         return master_impl->known_type();
     }

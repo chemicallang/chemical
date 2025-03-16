@@ -591,7 +591,7 @@ bool is_node_mutable(ASTNode* node, FunctionType* func_type, SymbolResolver& res
     const auto linked_kind = node->kind();
     switch(linked_kind) {
         case ASTNodeKind::VarInitStmt:{
-            const auto type = node->as_var_init_unsafe()->create_value_type(resolver.allocator);
+            const auto type = node->as_var_init_unsafe()->known_type();
             return type->is_mutable();
         }
         case ASTNodeKind::FunctionParam: {
@@ -640,7 +640,7 @@ bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
             if(assigning) {
                 return is_node_assignable(id->linked);
             } else {
-                const auto type = id->linked->create_value_type(allocator);
+                const auto type = id->linked->known_type_SymRes(allocator);
                 return type->is_mutable();
             }
         }

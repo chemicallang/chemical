@@ -357,8 +357,6 @@ public struct ASTBuilder : BatchAllocator {
 
     func allocate_with_cleanup(&self, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void;
 
-    func createValueType(&self, node : *mut ASTNode) : *mut BaseType
-
     func createType(&self, value : *mut Value) : *mut BaseType
 
     // the decl_fn is only called if the node is a top level node and not inside a function

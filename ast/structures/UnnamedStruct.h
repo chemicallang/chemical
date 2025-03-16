@@ -69,8 +69,6 @@ public:
         return total_byte_size(is64Bit);
     }
 
-    BaseType* create_value_type(ASTAllocator &allocator) final;
-
     BaseType* known_type() override {
         return &linkedType;
     }

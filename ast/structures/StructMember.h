@@ -105,6 +105,4 @@ public:
 
 #endif
 
-    BaseType* create_value_type(ASTAllocator& allocator) final;
-
 };

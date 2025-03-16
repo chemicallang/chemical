@@ -34,8 +34,6 @@ public:
 
     Value* get_first_broken();
 
-    BaseType* create_value_type(ASTAllocator& allocator) final;
-
     BaseType* create_type(ASTAllocator& allocator) final;
 
     BaseType* known_type() final;

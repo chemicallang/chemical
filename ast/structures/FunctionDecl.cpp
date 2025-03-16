@@ -965,10 +965,6 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
     }
 }
 
-BaseType* FunctionParam::create_value_type(ASTAllocator& allocator) {
-    return type->copy(allocator);
-}
-
 void FunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
     if(defValue) {
@@ -1129,14 +1125,6 @@ void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& 
 void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
     returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
     check_self_other_params(diagnoser, this, def);
-}
-
-BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
-    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isExtensionFn(), isVariadic(), false, ZERO_LOC, FunctionType::data.signature_resolved);
-    for(const auto param : params) {
-        func_type->params.emplace_back(param->copy(allocator));
-    }
-    return func_type;
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
@@ -1342,14 +1330,6 @@ Value *FunctionDeclaration::call(
     }
     body.value().interpret(*fn_scope);
     return interpretReturn;
-}
-
-BaseType* CapturedVariable::create_value_type(ASTAllocator& allocator) {
-    if(capture_by_ref) {
-        return new (allocator.allocate<PointerType>()) PointerType(linked->create_value_type(allocator), ZERO_LOC);
-    } else {
-        return linked->create_value_type(allocator);
-    }
 }
 
 BaseType* CapturedVariable::known_type() {

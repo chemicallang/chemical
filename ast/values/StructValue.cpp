@@ -441,7 +441,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             linker.error(this) << "unresolved child '" << val.first << "' in struct declaration";
             continue;
         }
-        auto child_type = child_node->create_value_type(linker.allocator);
+        auto child_type = child_node->known_type();
         const auto val_linked = val_ptr->link(linker, val_ptr, child_type);
         const auto member = container->direct_variable(val.first);
         if(val_linked && member) {

@@ -501,10 +501,6 @@ llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
             } else {
                 error(value) << "couldn't find the implementation of struct '" << def->name_view() << "' using value '" << value->representation() << "' for interface '" << interface->name_view() << "'";
             }
-        } else {
-#ifdef DEBUG
-            throw std::runtime_error("linked node not StructDefinition");
-#endif
         }
     }
     return nullptr;

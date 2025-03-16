@@ -208,6 +208,14 @@ public:
     bool comptime_context = false;
 
     /**
+     * this is only enabled during symbol resolution of a generic container (function or struct)
+     * this allows us to postpone creation of types for variables that could be generic, because
+     * generic containers are instantiated by GenericInstantiator, which also takes the responsibility
+     * of doing this
+     */
+    bool generic_context = false;
+
+    /**
      * current function type, for which code is being linked
      */
     FunctionTypeBody* current_func_type = nullptr;

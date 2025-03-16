@@ -426,7 +426,7 @@ Value* allocate_number_value(ASTAllocator& alloc, unsigned long long value, Sour
         if(value > LONG_MAX) {
             return new(alloc.allocate<BigIntValue>()) BigIntValue((long long) value, location);
         } else {
-            return new(alloc.allocate<LongValue>()) LongValue((long) value, false, location);
+            return new(alloc.allocate<LongValue>()) LongValue((long) value, location);
         }
     } else {
         return new (alloc.allocate<IntValue>()) IntValue((int) value, location);
@@ -615,13 +615,13 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                     mut_value[sec_last_index] = '\0';
                     const auto num_value = parse_num(value, last_char_index, strtoul);
                     mut_value[sec_last_index] = sec_last;
-                    return { new (alloc.allocate<ULongValue>()) ULongValue(num_value.result, is64Bit, location), err.empty() ? num_value.error : err };
+                    return { new (alloc.allocate<ULongValue>()) ULongValue(num_value.result, location), err.empty() ? num_value.error : err };
                 }
             }
             mut_value[last_char_index] = '\0';
             const auto num_value = parse_num(value, last_char_index, strtol);
             mut_value[last_char_index] = last_char;
-            return { new (alloc.allocate<LongValue>()) LongValue(num_value.result, is64Bit, location), err.empty() ? num_value.error : err };
+            return { new (alloc.allocate<LongValue>()) LongValue(num_value.result, location), err.empty() ? num_value.error : err };
         }
         default:
         final_block: {

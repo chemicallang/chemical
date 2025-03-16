@@ -42,7 +42,7 @@ public:
         return new (allocator.allocate<BigIntType>()) BigIntType(encoded_location());
     }
 
-    unsigned int get_num_bits() final {
+    unsigned int get_num_bits(bool is64Bit) final {
         return 64;
     }
 

@@ -25,7 +25,7 @@ bool PointerType::satisfies(BaseType *given) {
     const auto type_kind = current->kind();
     const auto other_pure = given->pure_type();
     const auto other_kind = other_pure->kind();
-    if(type_kind == BaseTypeKind::Any || (type_kind == BaseTypeKind::IntN && current->as_intn_type_unsafe()->num_bits() == 8)) {
+    if(type_kind == BaseTypeKind::Any || (type_kind == BaseTypeKind::IntN && current->as_intn_type_unsafe()->is_char_or_uchar_type())) {
         // this is a char* or uchar* which is a string
         if(other_kind == BaseTypeKind::String) {
             return true;
@@ -48,7 +48,7 @@ bool PointerType::satisfies(BaseType *given) {
         const auto other_pointee = pointer->type->pure_type();
         if(type_kind == BaseTypeKind::IntN) {
             const auto other_pointee_kind = other_pointee->kind();
-            if(other_pointee_kind == BaseTypeKind::IntN && current->as_intn_type_unsafe()->num_bits() != other_pointee->as_intn_type_unsafe()->num_bits()) {
+            if(other_pointee_kind == BaseTypeKind::IntN && !current->as_intn_type_unsafe()->equals(other_pointee->as_intn_type_unsafe())) {
                 return false;
             }
         }

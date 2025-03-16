@@ -180,8 +180,8 @@ LiteralType* ASTBuildermake_literal_type(ASTAllocator* allocator, BaseType* chil
     return new (allocator->allocate<LiteralType>()) LiteralType(child_type, location);
 }
 
-LongType* ASTBuildermake_long_type(ASTAllocator* allocator, bool is64Bit, uint64_t location) {
-    return new (allocator->allocate<LongType>()) LongType(is64Bit, location);
+LongType* ASTBuildermake_long_type(ASTAllocator* allocator, uint64_t location) {
+    return new (allocator->allocate<LongType>()) LongType(location);
 }
 
 PointerType* ASTBuildermake_ptr_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location) {
@@ -216,8 +216,8 @@ UIntType* ASTBuildermake_uint_type(ASTAllocator* allocator, uint64_t location) {
     return new (allocator->allocate<UIntType>()) UIntType(location);
 }
 
-ULongType* ASTBuildermake_ulong_type(ASTAllocator* allocator, bool is64Bit, uint64_t location) {
-    return new (allocator->allocate<ULongType>()) ULongType(is64Bit, location);
+ULongType* ASTBuildermake_ulong_type(ASTAllocator* allocator, uint64_t location) {
+    return new (allocator->allocate<ULongType>()) ULongType(location);
 }
 
 UShortType* ASTBuildermake_ushort_type(ASTAllocator* allocator, uint64_t location) {
@@ -268,8 +268,8 @@ DoubleValue* ASTBuildermake_double_value(ASTAllocator* allocator, double value, 
     return new (allocator->allocate<DoubleValue>()) DoubleValue(value, location);
 }
 
-Expression* ASTBuildermake_expression_value(ASTAllocator* allocator, Value* first, Value* second, Operation op, bool is64Bit, uint64_t location) {
-    return new (allocator->allocate<Expression>()) Expression(first, second, op, is64Bit, location);
+Expression* ASTBuildermake_expression_value(ASTAllocator* allocator, Value* first, Value* second, Operation op, uint64_t location) {
+    return new (allocator->allocate<Expression>()) Expression(first, second, op, location);
 }
 
 FloatValue* ASTBuildermake_float_value(ASTAllocator* allocator, float value, uint64_t location) {
@@ -305,8 +305,8 @@ CapturedVariable* ASTBuildermake_captured_variable(ASTAllocator* allocator, chem
     return new (allocator->allocate<CapturedVariable>()) CapturedVariable(*name, index, capture_by_ref, nullptr, location);
 }
 
-LongValue* ASTBuildermake_long_value(ASTAllocator* allocator, long value, bool is64Bit, uint64_t location) {
-    return new (allocator->allocate<LongValue>()) LongValue(value, is64Bit, location);
+LongValue* ASTBuildermake_long_value(ASTAllocator* allocator, long value, uint64_t location) {
+    return new (allocator->allocate<LongValue>()) LongValue(value, location);
 }
 
 NegativeValue* ASTBuildermake_negative_value(ASTAllocator* allocator, Value* value, uint64_t location) {
@@ -358,8 +358,8 @@ UIntValue* ASTBuildermake_uint_value(ASTAllocator* allocator, unsigned int value
     return new (allocator->allocate<UIntValue>()) UIntValue(value, location);
 }
 
-ULongValue* ASTBuildermake_ulong_value(ASTAllocator* allocator, unsigned long value, bool is64Bit, uint64_t location) {
-    return new (allocator->allocate<ULongValue>()) ULongValue(value, is64Bit, location);
+ULongValue* ASTBuildermake_ulong_value(ASTAllocator* allocator, unsigned long value, uint64_t location) {
+    return new (allocator->allocate<ULongValue>()) ULongValue(value, location);
 }
 
 UShortValue* ASTBuildermake_ushort_value(ASTAllocator* allocator, unsigned short value, uint64_t location) {

@@ -488,10 +488,10 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             type = new (allocator.allocate<UShortType>()) UShortType(location);
             break;
         case TokenType::LongKw:
-            type = new (allocator.allocate<LongType>()) LongType(is64Bit, location);
+            type = new (allocator.allocate<LongType>()) LongType(location);
             break;
         case TokenType::ULongKw:
-            type = new (allocator.allocate<ULongType>()) ULongType(is64Bit, location);
+            type = new (allocator.allocate<ULongType>()) ULongType(location);
             break;
         case TokenType::BigintKw:
             type = new (allocator.allocate<BigIntType>()) BigIntType(location);

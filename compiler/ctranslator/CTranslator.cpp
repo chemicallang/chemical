@@ -439,7 +439,7 @@ void CTranslator::init_type_makers() {
         return new (allocator.allocate<UIntType>()) UIntType(location);
     };
     type_makers[ZigClangBuiltinTypeULong] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
-        return new (allocator.allocate<ULongType>()) ULongType(sizeof(void*) == 8, location);
+        return new (allocator.allocate<ULongType>()) ULongType(location);
     };
     type_makers[ZigClangBuiltinTypeULongLong] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
         return new (allocator.allocate<UBigIntType>()) UBigIntType(location);
@@ -461,7 +461,7 @@ void CTranslator::init_type_makers() {
         return new (allocator.allocate<IntType>()) IntType(location);
     };
     type_makers[ZigClangBuiltinTypeLong] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
-        return new (allocator.allocate<LongType>()) LongType(sizeof(long) == 8, location);
+        return new (allocator.allocate<LongType>()) LongType(location);
     };
     type_makers[ZigClangBuiltinTypeLongLong] = [](ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
         return new (allocator.allocate<BigIntType>()) BigIntType(location);

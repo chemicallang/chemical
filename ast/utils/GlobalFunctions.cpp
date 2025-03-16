@@ -914,7 +914,7 @@ public:
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (allocator.allocate<WrapValue>()) WrapValue(new (allocator.allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, ZERO_LOC));
+        return new (allocator.allocate<WrapValue>()) WrapValue(new (allocator.allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, ZERO_LOC));
     }
 };
 
@@ -943,7 +943,7 @@ public:
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (allocator.allocate<WrapValue>()) WrapValue(new (allocator.allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, false, ZERO_LOC));
+        return new (allocator.allocate<WrapValue>()) WrapValue(new (allocator.allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, ZERO_LOC));
     }
 };
 

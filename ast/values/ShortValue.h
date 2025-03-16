@@ -39,7 +39,7 @@ public:
         return new (allocator.allocate<ShortType>()) ShortType(encoded_location());
     }
 
-    unsigned int get_num_bits() final {
+    unsigned int get_num_bits(bool is64Bit) final {
         return 16;
     }
 

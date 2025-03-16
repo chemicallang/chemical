@@ -399,7 +399,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_literal_type(&self, child_type : *BaseType, location : ubigint) : *mut LiteralType
 
-    func make_long_type(&self, is64Bit : bool, location : ubigint) : *mut LongType
+    func make_long_type(&self, location : ubigint) : *mut LongType
 
     func make_ptr_type(&self, child_type : *BaseType, location : ubigint) : *mut PointerType
 
@@ -417,7 +417,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_uint_type(&self, location : ubigint) : *mut UIntType
 
-    func make_ulong_type(&self, is64Bit : bool, location : ubigint) : *mut ULongType
+    func make_ulong_type(&self, location : ubigint) : *mut ULongType
 
     func make_ushort_type(&self, location : ubigint) : *mut UShortType
 
@@ -443,7 +443,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_double_value(&self, value : double, location : ubigint) : *mut DoubleValue
 
-    func make_expression_value(&self, first : *Value, second : *Value, op : Operation, is64Bit : bool, location : ubigint) : *mut Expression
+    func make_expression_value(&self, first : *Value, second : *Value, op : Operation, location : ubigint) : *mut Expression
 
     func make_float_value(&self, value : float, location : ubigint) : *mut FloatValue
 
@@ -461,7 +461,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_captured_variable(&self, name : &string_view, index : uint, capture_by_ref : bool, value : long, location : ubigint) : *mut CapturedVariable
 
-    func make_long_value(&self, value : long, is64Bit : bool, location : ubigint) : *mut LongValue
+    func make_long_value(&self, value : long, location : ubigint) : *mut LongValue
 
     func make_negative_value(&self, value : *Value, location : ubigint) : *mut NegativeValue
 
@@ -487,7 +487,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_uint_value(&self, value : uint, location : ubigint) : *mut UIntValue
 
-    func make_ulong_value(&self, value : ulong, is64Bit : bool, location : ubigint) : *mut ULongValue
+    func make_ulong_value(&self, value : ulong, location : ubigint) : *mut ULongValue
 
     func make_ushort_value(&self, value : ushort, location : ubigint) : *mut UShortValue
 

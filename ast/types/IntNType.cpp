@@ -28,10 +28,8 @@ const UBigIntType UBigIntType::instance(ZERO_LOC);
 const UInt128Type UInt128Type::instance(ZERO_LOC);
 const UIntType UIntType::instance(ZERO_LOC);
 const UShortType UShortType::instance(ZERO_LOC);
-const LongType LongType::instance64Bit(true, ZERO_LOC);
-const LongType LongType::instance32Bit(false, ZERO_LOC);
-const ULongType ULongType::instance64Bit(true, ZERO_LOC);
-const ULongType ULongType::instance32Bit(false, ZERO_LOC);
+const LongType LongType::instance(ZERO_LOC);
+const ULongType ULongType::instance(ZERO_LOC);
 
 Value *IntType::create(ASTAllocator& allocator, uint64_t value) {
     return new (allocator.allocate<IntValue>()) IntValue(value, ZERO_LOC);
@@ -58,11 +56,11 @@ Value *UShortType::create(ASTAllocator& allocator, uint64_t value) {
 }
 
 Value *LongType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<LongValue>()) LongValue(value, num_bits() == 64, encoded_location());
+    return new (allocator.allocate<LongValue>()) LongValue(value, encoded_location());
 }
 
 Value *ULongType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<ULongValue>()) ULongValue(value, num_bits() == 64, encoded_location());
+    return new (allocator.allocate<ULongValue>()) ULongValue(value, encoded_location());
 }
 
 Value *BigIntType::create(ASTAllocator& allocator, uint64_t value) {
@@ -118,7 +116,7 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, uint64_t value, Sourc
         case ValueKind::Int:
             return new (scope.allocate<IntValue>()) IntValue((int) value, location);
         case ValueKind::Long:
-            return new (scope.allocate<LongValue>()) LongValue((long) value, scope.isInterpret64Bit(), location);
+            return new (scope.allocate<LongValue>()) LongValue((long) value, location);
         case ValueKind::BigInt:
             return new (scope.allocate<BigIntValue>()) BigIntValue((long long) value, location);
         case ValueKind::Int128:
@@ -131,7 +129,7 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, uint64_t value, Sourc
         case ValueKind::UInt:
             return new (scope.allocate<UIntValue>()) UIntValue((unsigned int) value, location);
         case ValueKind::ULong:
-            return new (scope.allocate<ULongValue>()) ULongValue((unsigned long) value, scope.isInterpret64Bit(), location);
+            return new (scope.allocate<ULongValue>()) ULongValue((unsigned long) value, location);
         case ValueKind::UBigInt:
             return new (scope.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, location);
         case ValueKind::UInt128:

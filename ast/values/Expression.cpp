@@ -75,7 +75,7 @@ BaseType* Expression::create_type(ASTAllocator& allocator) {
     if(first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::IntN) {
         const auto first_intN = first->as_intn_type_unsafe();
         const auto second_intN = second->as_intn_type_unsafe();
-        return first_intN->num_bits() > second_intN->num_bits() ? first : second;
+        return first_intN->greater_than_in_bits(second_intN) ? first : second;
     }
     // addition or subtraction of integer value into a pointer
     if((operation == Operation::Addition || operation == Operation::Subtraction) && (first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::IntN) || (first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::Pointer)) {
@@ -83,7 +83,7 @@ BaseType* Expression::create_type(ASTAllocator& allocator) {
     }
     // subtracting a pointer results in a long type
     if(operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
-        return new (allocator.allocate<LongType>()) LongType(is64Bit, encoded_location());
+        return new (allocator.allocate<LongType>()) LongType(encoded_location());
     }
     return first;
 }
@@ -101,7 +101,6 @@ ASTNode* Expression::linked_node() {
 }
 
 bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    is64Bit = linker.is64Bit;
     auto f = firstValue->link(linker, firstValue);
     auto s = secondValue->link(linker, secondValue);
     auto result = f && s;
@@ -132,7 +131,6 @@ Expression *Expression::copy(ASTAllocator& allocator) {
         firstValue->copy(allocator),
         secondValue->copy(allocator),
         operation,
-        is64Bit,
         encoded_location(),
         created_type
     );

@@ -39,7 +39,7 @@ public:
     /**
      * provide the number of bits used by this value
      */
-    virtual unsigned int get_num_bits() = 0;
+    virtual unsigned int get_num_bits(bool is64Bit) = 0;
 
     /**
      * get number value

@@ -6,7 +6,12 @@
 
 class GenericTypeParameter : public ASTNode {
 private:
-    int16_t active_iteration = -1;
+
+    /**
+     * we set this to an active type, before instantiating the generic decl
+     */
+    BaseType* active_type = nullptr;
+
 public:
 
     chem::string_view identifier;
@@ -40,79 +45,58 @@ public:
     void register_usage(ASTAllocator& allocator, BaseType* type);
 
     BaseType* create_value_type(ASTAllocator& allocator) final {
-        if(active_iteration == -1) {
-            return nullptr;
-        }
-        return usage[active_iteration]->copy(allocator);
-    }
-
-    inline int16_t current_iteration() {
-        return active_iteration;
+        return active_type ? active_type->copy(allocator) : nullptr;
     }
 
     void set_active_iteration(int iteration) {
-        active_iteration = (int16_t) iteration;
+#ifdef DEBUG
+        if(iteration < 0 || iteration >= usage.size()) {
+            throw std::runtime_error("wrong iteration");
+        }
+#endif
+        active_type = usage[iteration];
     }
 
     void deactivate_iteration() {
-        active_iteration = -1;
+        active_type = nullptr;
     }
 
     BaseType *known_type() final {
-        if(active_iteration == -1) {
-            return nullptr;
-        } else if(usage.empty() && !at_least_type) {
-            return nullptr;
-        } else {
-            return usage[active_iteration];
-        }
+        return active_type;
     }
 
     /**
      * this method is called by the generic instantiator
-     * @return
      */
     inline BaseType* concrete_type() {
-#ifdef DEBUG
-        if(active_iteration == -1 || usage.empty()) {
-            throw std::runtime_error("no active iteration");
-        }
-#endif
-        return usage[active_iteration];
+        return active_type;
     }
 
-    BaseType* type_for_itr(int16_t iteration) {
-        return usage[iteration];
-    }
-
-    ASTNode* usage_linked() {
-        return active_iteration > -1 ? usage[active_iteration]->linked_node() : nullptr;
+    inline ASTNode* active_linked() {
+        return active_type ? active_type->linked_node() : nullptr;
     }
 
     ASTNode *child(const chem::string_view &name) final {
-        const auto linked = usage_linked();
+        const auto linked = active_linked();
         return linked ? linked->child(name) : (at_least_type ? at_least_type->linked_node()->child(name) : nullptr);
     }
 
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_param_type(Codegen &gen) final {
-        return usage[active_iteration]->llvm_param_type(gen);
+        return active_type->llvm_param_type(gen);
     }
 
     llvm::Type *llvm_type(Codegen &gen) final {
-        if(active_iteration == -1) {
-            return nullptr;
-        }
-        return usage[active_iteration]->llvm_type(gen);
+        return active_type->llvm_type(gen);
     }
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final {
-        return usage[active_iteration]->llvm_chain_type(gen, values, index);
+        return active_type->llvm_chain_type(gen, values, index);
     }
 
     bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final {
-        return usage[active_iteration]->linked_node()->add_child_index(gen, indexes, name);
+        return active_type->linked_node()->add_child_index(gen, indexes, name);
     }
 
 #endif

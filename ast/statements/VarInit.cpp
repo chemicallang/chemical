@@ -314,7 +314,8 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
     if (type) {
         type->link(linker);
     }
-    if (value && value->link(linker, value, type_ptr_fast())) {
+    const auto has_value_linked = value && value->link(linker, value, type_ptr_fast());
+    if (has_value_linked) {
         linker.current_func_type->mark_moved_value(linker.allocator, value, known_type(), linker, type != nullptr);
     }
     if(!is_top_level()) {

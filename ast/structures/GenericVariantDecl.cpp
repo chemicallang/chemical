@@ -68,7 +68,10 @@ void GenericVariantDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node
         param->declare_and_link(linker, (ASTNode*&) param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
+    const auto prev_gen_context = linker.generic_context;
+    linker.generic_context = true;
     master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
+    linker.generic_context = prev_gen_context;
     linker.scope_end();
     body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link

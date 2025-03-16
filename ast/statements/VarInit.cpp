@@ -116,7 +116,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 //                if(!dyn_obj_impl) {
 //                    auto llvmType = llvm_type(gen);
 //                    // is referencing another struct, that is non movable and must be mem copied into the pointer
-//                    llvm_ptr = gen.memcpy_ref_struct(create_value_type(gen.allocator), value, nullptr, llvmType);
+//                    llvm_ptr = gen.memcpy_ref_struct(created_val_type, value, nullptr, llvmType);
 //                    if (llvm_ptr) {
 //                        gen.di.declare(this, llvm_ptr);
 //                        return;
@@ -332,6 +332,9 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
                 arr_type->set_array_size(as_array->array_size());
             }
         }
+    }
+    if(has_value_linked && !type && !linker.generic_context) {
+        type = create_value_type(*linker.ast_allocator);
     }
 }
 

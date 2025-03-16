@@ -60,7 +60,10 @@ void GenericInterfaceDecl::declare_and_link(SymbolResolver &linker, ASTNode *&no
         param->declare_and_link(linker, (ASTNode*&) param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
+    const auto prev_gen_context = linker.generic_context;
+    linker.generic_context = true;
     master_impl->declare_and_link_no_scope(linker);
+    linker.generic_context = prev_gen_context;
     linker.scope_end();
     body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link

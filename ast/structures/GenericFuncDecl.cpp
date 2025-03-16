@@ -84,7 +84,10 @@ void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
     for(auto& param : generic_params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
+    const auto prev_gen_context = linker.generic_context;
+    linker.generic_context = true;
     master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
+    linker.generic_context = prev_gen_context;
     linker.scope_end();
     body_linked = true;
     // finalizing the body of every function that was instantiated before declare_and_link

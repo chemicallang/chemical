@@ -84,10 +84,6 @@ void GenericVariantDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node
     linker.genericInstantiator.FinalizeBody(this, instantiations);
 }
 
-BaseType* GenericVariantDecl::create_value_type(ASTAllocator &allocator) {
-    return master_impl->create_value_type(allocator);
-}
-
 VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<BaseType*>& types) {
 
     const auto types_size = types.size();

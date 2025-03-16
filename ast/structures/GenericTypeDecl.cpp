@@ -31,10 +31,6 @@ void GenericTypeDecl::link_signature(SymbolResolver &linker) {
     linker.genericInstantiator.FinalizeSignature(this, instantiations);
 }
 
-BaseType* GenericTypeDecl::create_value_type(ASTAllocator &allocator) {
-    return master_impl->create_value_type(allocator);
-}
-
 TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<BaseType*>& types) {
 
     const auto types_size = types.size();

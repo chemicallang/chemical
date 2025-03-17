@@ -77,13 +77,14 @@ jobs:
         # Assuming Git Bash is available on windows-latest (if not, you might need to install/setup MSYS2)
         run: bash release.sh
 
-      # New: Package debug symbols (Windows)
+      # New: Package debug symbols (Windows) – using Bash shell and forward slashes
       - name: Package debug symbols (Windows)
+        shell: bash
         continue-on-error: true
         working-directory: chemical-bootstrap/chemical
         run: |
-          if ls out\release\*.pdb 1> NUL 2>&1; then
-            zip windows-x64-debug.zip out\release\*.pdb
+          if ls out/release/*.pdb 1> /dev/null 2>&1; then
+            zip windows-x64-debug.zip out/release/*.pdb
           fi
 
       # ––– Get information about the latest release –––
@@ -263,13 +264,6 @@ jobs:
         env:
           BOOST_ROOT: ${{ env.BOOST_ROOT }}
 
-      # Run the release packaging script to create ZIP files
-      - name: Run release packaging script (Linux)
-        working-directory: chemical-bootstrap/chemical
-        run: |
-          chmod +x release.sh
-          ./release.sh
-
       # New: Extract and package debug symbols (Linux)
       - name: Extract and package debug symbols (Linux)
         continue-on-error: true
@@ -290,6 +284,13 @@ jobs:
               zip linux-x86-64-tcc-debug.zip out/release/TCCCompiler.debug || true
             fi
           fi
+
+      # Run the release packaging script to create ZIP files (Linux)
+      - name: Run release packaging script (Linux)
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          chmod +x release.sh
+          ./release.sh
 
       # ––– Get information about the latest release –––
       - name: Get latest release info

@@ -23,6 +23,9 @@
 #include "utils/Version.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "rang.hpp"
+#ifdef _WIN32
+#include <crtdbg.h>
+#endif
 
 #ifdef COMPILER_BUILD
 
@@ -409,6 +412,16 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
 
 int main(int argc, char *argv[]) {
 
+// enable this code if debugging heap allocations is required
+//#ifdef _WIN32
+//    // Enable debug heap allocations and automatic leak checking
+//    int tmpFlag = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
+//    tmpFlag |= _CRTDBG_ALLOC_MEM_DF;      // Use debug heap allocations.
+//    tmpFlag |= _CRTDBG_CHECK_ALWAYS_DF;   // Perform a heap consistency check after every allocation/deallocation.
+//    tmpFlag |= _CRTDBG_LEAK_CHECK_DF;     // Dump memory leaks when the program exits.
+//    _CrtSetDbgFlag(tmpFlag);
+//#endif
+
 #ifdef COMPILER_BUILD
     // invoke clang cc1, this is used by clang, because it invokes (current executable)
     if(argc >= 2 && strcmp(argv[1], "-cc1") == 0) {
@@ -579,19 +592,22 @@ int main(int argc, char *argv[]) {
 #ifdef COMPILER_BUILD
 
     // get and print target
-    auto& target = options.option_new("target", "t");
-    if (!target.has_value()) {
-        target.emplace(llvm::sys::getDefaultTargetTriple());
+    std::string target;
+    auto& user_target = options.option_new("target", "t");
+    if(user_target.has_value()) {
+        target = user_target.value();
+    } else {
+        target = llvm::sys::getDefaultTargetTriple();
     }
     if(verbose) {
-        std::cout << "target: " << target.value() << std::endl;
+        std::cout << "target: " << target << std::endl;
     }
 
     // determine if is 64bit
-    bool is64Bit = Codegen::is_arch_64bit(target.value());
+    bool is64Bit = Codegen::is_arch_64bit(target);
 
 #else
-    std::optional<std::string_view> target = "native";
+    std::string target = "native";
 #if defined(_WIN64) || defined(__x86_64__) || defined(__ppc64__)
     bool is64Bit = true;
 #else
@@ -642,7 +658,7 @@ int main(int argc, char *argv[]) {
     if(args[0].ends_with(".lab")) {
 
 
-        LabBuildCompilerOptions compiler_opts(argv[0], std::string(target.value()), is64Bit);
+        LabBuildCompilerOptions compiler_opts(argv[0], target, is64Bit);
         CompilerBinder binder(argv[0]);
         LabBuildCompiler compiler(binder, &compiler_opts);
         compiler.set_cmd_options(&options);
@@ -685,7 +701,7 @@ int main(int argc, char *argv[]) {
     }
 
     // compilation
-    LabBuildCompilerOptions compiler_opts(argv[0], std::string(target.value()), is64Bit);
+    LabBuildCompilerOptions compiler_opts(argv[0], target, is64Bit);
     CompilerBinder binder(argv[0]);
     LabBuildCompiler compiler(binder, &compiler_opts);
     compiler.set_cmd_options(&options);

@@ -30,7 +30,7 @@ public:
             VariantDefinition* parent_node,
             SourceLocation location
     ) : BaseDefMember(name, ASTNodeKind::VariantMember, (ASTNode*) parent_node, location),
-        ref_type(name, this, location), attrs(false)
+        ref_type(this, location), attrs(false)
     {
 
     }

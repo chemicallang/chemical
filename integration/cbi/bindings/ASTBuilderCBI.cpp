@@ -165,7 +165,7 @@ IntType* ASTBuildermake_int_type(ASTAllocator* allocator, uint64_t location) {
 }
 
 LinkedType* ASTBuildermake_linked_type(ASTAllocator* allocator, chem::string_view* type, ASTNode* linked, uint64_t location) {
-    return new (allocator->allocate<LinkedType>()) LinkedType(*type, linked, location);
+    return new (allocator->allocate<LinkedType>()) LinkedType(linked, location);
 }
 
 LinkedValueType* ASTBuildermake_linked_value_type(ASTAllocator* allocator, Value* value, uint64_t location) {

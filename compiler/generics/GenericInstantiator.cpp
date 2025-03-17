@@ -12,17 +12,21 @@
 BaseType* GenericInstantiator::get_concrete_gen_type(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked){
         const auto linked = type->as_linked_type_unsafe()->linked;
-        if(linked->kind() == ASTNodeKind::GenericTypeParam) {
-            const auto ty = linked->as_generic_type_param_unsafe()->concrete_type();
+        switch(linked->kind()) {
+            case ASTNodeKind::GenericTypeParam: {
+                const auto ty = linked->as_generic_type_param_unsafe()->concrete_type();
 #ifdef DEBUG
-            if(ty == nullptr) {
-                throw std::runtime_error("generic active type doesn't exist");
-            }
-            if(ty->kind() == BaseTypeKind::Linked && ty->linked_node()->kind() == ASTNodeKind::GenericTypeParam) {
-                throw std::runtime_error("unexpected generic type parameter usage");
-            }
+                if(ty == nullptr) {
+                    throw std::runtime_error("generic active type doesn't exist");
+                }
+                if(ty->kind() == BaseTypeKind::Linked && ty->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+                    throw std::runtime_error("unexpected generic type parameter usage");
+                }
 #endif
-            return ty;
+                return ty;
+            }
+            default:
+                return nullptr;
         }
     }
     return nullptr;
@@ -82,7 +86,7 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
 void GenericInstantiator::VisitLinkedType(LinkedType* type) {
 
     // relink the type if found
-    const auto node = table.resolve(type->type);
+    const auto node = table.resolve(type->linked_name());
     if(node) {
         type->linked = node;
     }
@@ -322,11 +326,6 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
 
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // relink return type of constructors with implementations
-        if(func->is_constructor_fn()) {
-            const auto linkedType = func->returnType->as_linked_type_unsafe();
-            linkedType->linked = impl;
-        }
         // replacing implicit parameters to self in functions
         for(const auto param : func->params) {
             if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
@@ -443,11 +442,6 @@ void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* im
 
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // relink return type of constructors with implementations
-        if(func->is_constructor_fn()) {
-            const auto linkedType = func->returnType->as_linked_type_unsafe();
-            linkedType->linked = impl;
-        }
         // replacing implicit parameters to self in functions
         for(const auto param : func->params) {
             if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
@@ -562,11 +556,6 @@ void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, Interfac
 
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // relink return type of constructors with implementations
-        if(func->is_constructor_fn()) {
-            const auto linkedType = func->returnType->as_linked_type_unsafe();
-            linkedType->linked = impl;
-        }
         // replacing implicit parameters to self in functions
         for(const auto param : func->params) {
             if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
@@ -681,11 +670,6 @@ void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, VariantDef
 
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // relink return type of constructors with implementations
-        if(func->is_constructor_fn()) {
-            const auto linkedType = func->returnType->as_linked_type_unsafe();
-            linkedType->linked = impl;
-        }
         // replacing implicit parameters to self in functions
         for(const auto param : func->params) {
             if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
@@ -800,11 +784,6 @@ void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, ImplDefinitio
 
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // relink return type of constructors with implementations
-        if(func->is_constructor_fn()) {
-            const auto linkedType = func->returnType->as_linked_type_unsafe();
-            linkedType->linked = impl;
-        }
         // replacing implicit parameters to self in functions
         for(const auto param : func->params) {
             if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {

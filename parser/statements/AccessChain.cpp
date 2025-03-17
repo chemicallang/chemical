@@ -97,7 +97,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
         case TokenType::CommaSym:
             return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));;
         case TokenType::LBrace: {
-            auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), loc_single(id));
+            auto ref_type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), loc_single(id));
             return parseStructValue(allocator, ref_type, id->position);
         }
         default:
@@ -261,7 +261,7 @@ void Parser::parseGenericArgsList(std::vector<BaseType*>& outArgs, ASTAllocator&
 BaseType* Parser::ref_type_from(ASTAllocator& allocator, AccessChain* chain) {
     if(chain->values.size() == 1) {
         auto val = (VariableIdentifier*) chain->values.back();
-        return new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, val->value), val->encoded_location());
+        return new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, val->value), val->encoded_location());
     } else {
         return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->encoded_location());
     }
@@ -286,7 +286,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
         } else if(parseStruct && token->type == TokenType::LBrace) {
             if(chain->values.size() == 1) {
                 auto id = (VariableIdentifier*) chain->values.back();
-                auto ref_type = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), id->encoded_location());
+                auto ref_type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), id->encoded_location());
                 auto gen_type = new (allocator.allocate<GenericType>()) GenericType(ref_type, std::move(genArgs));
                 return parseStructValue(allocator, gen_type, start);
             } else {

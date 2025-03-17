@@ -151,7 +151,7 @@ bool Parser::parseParameterList(
                 auto is_mutable = consumeWSOfType(TokenType::MutKw) != nullptr; // optional mut keyword
                 auto id = consumeIdentifierOrKeyword();
                 if (id) {
-                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), nullptr, loc_single(id)), loc_single(id), is_mutable);
+                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), nullptr, loc_single(id)), loc_single(id), is_mutable);
                     auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), ref_to_linked, index, nullptr, true, parent_node, loc(ampersand, id));
                     parameters.emplace_back(param);
                     index++;

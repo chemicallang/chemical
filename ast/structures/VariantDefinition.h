@@ -43,7 +43,7 @@ public:
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::VariantDecl, parent_node, location),
-        ref_type(name_view(), this, location), attrs(specifier, false, false, false, false) {
+        ref_type(this, location), attrs(specifier, false, false, false, false) {
     }
 
     /**

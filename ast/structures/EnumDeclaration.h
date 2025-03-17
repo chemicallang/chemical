@@ -59,7 +59,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableNode(ASTNodeKind::EnumDecl, parent_node, location), located_id(name_id),
-        linked_type(name_id.identifier, this, location), underlying_type(underlying_type), attrs(specifier, false) {
+        linked_type(this, location), underlying_type(underlying_type), attrs(specifier, false) {
 
     }
 

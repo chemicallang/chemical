@@ -48,7 +48,7 @@
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() == BaseTypeKind::Pointer) {
         auto child_type = found->returnType->known_child_type();
-        if(child_type->kind() == BaseTypeKind::Linked && ((LinkedType*) child_type)->type == "Module") {
+        if(child_type->linked_name() == "Module") {
             return true;
         }
     }

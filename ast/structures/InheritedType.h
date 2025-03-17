@@ -23,7 +23,7 @@ public:
     /**
      * the name of the referenced type
      */
-    const chem::string_view& ref_type_name();
+    chem::string_view ref_type_name();
 
     /**
      * make a copy of this type

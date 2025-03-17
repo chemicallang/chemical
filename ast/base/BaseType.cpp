@@ -82,12 +82,12 @@ bool BaseType::isStructLikeType() {
     }
 }
 
-chem::string_view& BaseType::linked_name() {
+chem::string_view BaseType::linked_name() {
     const auto k = kind();
     if(k == BaseTypeKind::Linked) {
-        return ((LinkedType*) (this))->type;
+        return ((LinkedType*) (this))->linked_name();
     } else if(k == BaseTypeKind::Generic) {
-        return ((GenericType*) (this))->referenced->type;
+        return ((GenericType*) (this))->referenced->linked_name();
     } else {
 #ifdef DEBUG
         throw std::runtime_error("BaseType::linked_name called on unexpected type '" + representation() + "'");

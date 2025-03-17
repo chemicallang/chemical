@@ -5263,12 +5263,7 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
         default:
             break;
     }
-    node_parent_name(*this, &linked);
-    if(type->type.empty()) {
-        type->linked->runtime_name_no_parent(*output);
-    } else {
-        write(type->type);
-    }
+    linked.runtime_name(*output);
 }
 
 //void ToCAstVisitor::VisitLinkedValueType(LinkedValueType *ref_type) {

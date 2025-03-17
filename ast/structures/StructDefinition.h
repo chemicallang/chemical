@@ -107,7 +107,7 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::StructDecl, parent_node, location),
         attrs(specifier, false, false, false, false, false, false, false, false, false),
-        linked_type(identifier.identifier, this, location) {
+        linked_type(this, location) {
 
     }
 

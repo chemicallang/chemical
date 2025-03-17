@@ -301,6 +301,8 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
             auto ac = parseAccessChainOrAddrOf(allocator, parseStruct);
             if(ac) {
                 return parseAfterValue(allocator, ac, start_token);
+            } else {
+                return nullptr;
             }
     }
 }

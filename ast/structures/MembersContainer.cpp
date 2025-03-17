@@ -582,7 +582,7 @@ void MembersContainer::insert_functions(const std::initializer_list<FunctionDecl
 
 FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name) {
     const auto loc = encoded_location();
-    const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(parent_name, this, loc);
+    const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(this, loc);
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), returnType, false, this, loc);
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_constructor_fn(true);
@@ -593,7 +593,7 @@ FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allo
 FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
     const auto loc = encoded_location();
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), new (allocator.allocate<VoidType>()) VoidType(loc), false, this, loc);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 0, nullptr, true, decl, loc));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this, loc), loc, true), 0, nullptr, true, decl, loc));
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_delete_fn(true);
     insert_func(decl);
@@ -603,8 +603,8 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
 FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
     const auto loc = encoded_location();
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), new (allocator.allocate<VoidType>()) VoidType(loc), false, this, loc);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 0, nullptr, true, decl, loc));
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(get_located_id()->identifier, this, loc), loc, true), 1, nullptr, true, decl, loc));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this, loc), loc, true), 0, nullptr, true, decl, loc));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this, loc), loc, true), 1, nullptr, true, decl, loc));
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_copy_fn(true);
     insert_func(decl);
@@ -660,7 +660,7 @@ bool MembersContainer::contains_func(const chem::string_view& name) {
 }
 
 BaseType* MembersContainer::create_linked_type(const chem::string_view& name, ASTAllocator& allocator) {
-    const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(name, this, ZERO_LOC);
+    const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(this, ZERO_LOC);
     return linked_type;
 }
 
@@ -815,11 +815,11 @@ void VariablesContainer::declare_and_link_variables(SymbolResolver &linker) {
     }
 }
 
-const chem::string_view& InheritedType::ref_type_name() {
+chem::string_view InheritedType::ref_type_name() {
     if(type->kind() == BaseTypeKind::Generic) {
-        return ((GenericType*) type)->referenced->type;
+        return ((GenericType*) type)->referenced->linked_name();
     } else if(type->kind() == BaseTypeKind::Linked) {
-        return ((LinkedType*) type)->type;
+        return ((LinkedType*) type)->linked_name();
     }
 #ifdef DEBUG
     throw std::runtime_error("unable to retrieve referenced type name from type " + type->representation());

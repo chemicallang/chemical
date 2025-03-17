@@ -214,7 +214,7 @@ public:
     /**
      * reference name
      */
-    chem::string_view& linked_name();
+    chem::string_view linked_name();
 
     /**
      * check if this kind is a pointer

@@ -19,7 +19,7 @@ namespace chem {
         using iterator = pointer;
         using const_iterator = const char*;
 
-        constexpr string_view() noexcept: data_(nullptr), size_(0) {}
+        constexpr string_view() noexcept: data_(""), size_(0) {}
 
         constexpr string_view(const char* str)
                 : data_(str), size_(str ?

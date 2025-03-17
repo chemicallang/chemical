@@ -132,8 +132,6 @@ public:
 
 #endif
 
-    FunctionParam *copy() const;
-
     ASTNode *child(const chem::string_view &name);
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);

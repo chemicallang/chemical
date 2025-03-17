@@ -287,6 +287,7 @@ void SymbolResolver::dispose_module_symbols_now(const std::string& module_name) 
             std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare module symbol " << sym.symbol << " in module " << module_name << rang::fg::reset << std::endl;
         }
     }
+    dispose_module_symbols.clear();
 }
 
 void SymbolResolver::unsatisfied_type_err(Value* value, BaseType* type) {

@@ -89,7 +89,7 @@ chem::string_view to_view(const llvm::StringRef& id) {
 BaseType* decl_type(CTranslator& translator, clang::Decl* decl, const llvm::StringRef& name) {
     auto found = translator.declarations.find(decl);
     if(found != translator.declarations.end()) {
-        return new (translator.allocator.allocate<LinkedType>()) LinkedType(allocate_view(translator.allocator, name), found->second, ZERO_LOC);
+        return new (translator.allocator.allocate<LinkedType>()) LinkedType(found->second, ZERO_LOC);
     } else {
         return nullptr;
 //        const auto maker = translator.node_makers[decl->getKind()];
@@ -411,14 +411,12 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
 
 
         // typealias for a struct where struct is unnamed
-        if(linked_type->type.empty()) {
-            const auto linked_kind = linked->kind();
-            if(linked_kind == ASTNodeKind::StructDecl) {
-                const auto node = linked->as_struct_def_unsafe();
-                if(node->name_view().empty()) {
-                    node->identifier = ZERO_LOC_ID(allocator, decl->getName());
-                    return nullptr;
-                }
+        const auto linked_kind = linked->kind();
+        if(linked_kind == ASTNodeKind::StructDecl) {
+            const auto node = linked->as_struct_def_unsafe();
+            if(node->name_view().empty()) {
+                node->identifier = ZERO_LOC_ID(allocator, decl->getName());
+                return nullptr;
             }
         }
 

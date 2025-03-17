@@ -1068,7 +1068,7 @@ void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
     }
     returnType = new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
 }
@@ -1104,7 +1104,7 @@ void check_self_other_params(ASTDiagnoser& diagnoser, FunctionDeclaration* decl,
 }
 
 void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, StructDefinition* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def, ZERO_LOC);
 }
 
 void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
@@ -1118,12 +1118,12 @@ void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser&
 }
 
 void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def, ZERO_LOC);
     check_self_other_params(diagnoser, this, def);
 }
 
 void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name_view(), def, ZERO_LOC);
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def, ZERO_LOC);
     check_self_other_params(diagnoser, this, def);
 }
 

@@ -44,6 +44,9 @@ if (VERBOSE)
     add_definitions(-DVERBOSE) # Define VERBOSE macro
 endif ()
 
+# enable the address sanitizer to catch bugs
+option(ENABLE_ASAN "Enable AddressSanitizer for Debug builds" OFF)
+
 # For printing the version in the compiler
 configure_file(
         "${PROJECT_SOURCE_DIR}/utils/Version.h.in"
@@ -624,6 +627,23 @@ set(COMMON_INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/ctpl
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/rang
 )
+
+# Only add sanitizer flags in Debug builds
+if(ENABLE_ASAN AND CMAKE_BUILD_TYPE MATCHES Debug)
+    if(MSVC)
+        # MSVC supports address sanitizer with /fsanitize=address.
+        set(ASAN_COMPILE_FLAG "/fsanitize=address")
+        set(ASAN_LINK_FLAG "/fsanitize=address")
+    else()
+        # GCC/Clang
+        set(ASAN_COMPILE_FLAG "-fsanitize=address -fno-omit-frame-pointer")
+        set(ASAN_LINK_FLAG "-fsanitize=address -fno-omit-frame-pointer")
+    endif()
+    # Apply these flags only for targets that do not link against LLVM/Clang libraries.
+    # For example, applying to TCCCompiler:
+    target_compile_options(TCCCompiler PRIVATE ${ASAN_COMPILE_FLAG})
+    target_link_options(TCCCompiler PRIVATE ${ASAN_LINK_FLAG})
+endif()
 
 # Add include directories for LspCpp
 if(Boost_FOUND)

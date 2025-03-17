@@ -21,7 +21,7 @@ public:
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     ) : BaseDefMember(name, ASTNodeKind::UnnamedStruct, parent_node, location), specifier(specifier),
-        linkedType("", this, location)
+        linkedType(this, location)
     {
 
     }

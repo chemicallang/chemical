@@ -852,7 +852,7 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {
         const auto struct_def = func_decl->parent()->as_struct_def();
         if(struct_def->generic_parent != nullptr) {
-            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()));
+            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def, encoded_location()));
         }
     }
     return func_type;
@@ -1254,7 +1254,7 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
             if(func_decl->is_constructor_fn() && func_decl->parent()) {
                 const auto struct_def = func_decl->parent()->as_struct_def();
                 if(struct_def->generic_parent != nullptr) {
-                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def->name_view(), struct_def, encoded_location()));
+                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def, encoded_location()));
                 }
             }
         }

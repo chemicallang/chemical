@@ -5,32 +5,27 @@
 #include <utility>
 
 #include "ast/base/BaseType.h"
+#include "ast/base/ASTNode.h"
+#include "ast/base/LocatedIdentifier.h"
 #include "std/chem_string_view.h"
 
 class LinkedType : public BaseType {
 public:
 
-    chem::string_view type;
+    // TODO deleting this variable causes a huge bug
+    // function parameters start becoming inaccessible
+    // chem::string_view cannot_delete_variable;
     ASTNode *linked;
 
-    constexpr LinkedType(chem::string_view type, SourceLocation location) : type(type), BaseType(BaseTypeKind::Linked, location), linked(nullptr) {
-
-    }
-
-    [[deprecated]]
-    constexpr LinkedType(chem::string_view type, SourceLocation location, ASTNode* linked) : type(type), BaseType(BaseTypeKind::Linked, location), linked(linked) {
-
-    }
-
-    constexpr LinkedType(chem::string_view type, ASTNode* linked, SourceLocation location) : type(type), BaseType(BaseTypeKind::Linked, location), linked(linked) {
+    constexpr LinkedType(ASTNode* linked, SourceLocation location) : BaseType(BaseTypeKind::Linked, location), linked(linked) {
 
     }
 
     uint64_t byte_size(bool is64Bit) final;
 
-    bool link(SymbolResolver &linker);
-
-    ASTNode *linked_node() final;
+    ASTNode* linked_node() final {
+        return linked;
+    }
 
     bool is_same(BaseType *other) final {
         return other->kind() == kind() && static_cast<LinkedType *>(other)->linked == linked;
@@ -40,7 +35,16 @@ public:
 
     [[nodiscard]]
     LinkedType *copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<LinkedType>()) LinkedType(type, linked, encoded_location());
+        return new (allocator.allocate<LinkedType>()) LinkedType(linked, encoded_location());
+    }
+
+    inline chem::string_view linked_name() {
+        const auto id = linked->get_located_id();
+        if(id) {
+            return id->identifier;
+        } else {
+            return "";
+        }
     }
 
 #ifdef COMPILER_BUILD
@@ -52,5 +56,50 @@ public:
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
 #endif
+
+};
+
+class NamedLinkedType : public LinkedType {
+private:
+
+    chem::string_view link_name;
+
+public:
+
+    constexpr NamedLinkedType(
+        chem::string_view type,
+        SourceLocation location
+    ) : LinkedType((ASTNode*) nullptr, location), link_name(type) {
+
+    }
+
+    [[deprecated]]
+    constexpr NamedLinkedType(
+        chem::string_view type,
+        SourceLocation location,
+        ASTNode* linked
+    ) : LinkedType(linked, location), link_name(type) {
+
+    }
+
+    constexpr NamedLinkedType(
+        chem::string_view type,
+        ASTNode* linked,
+        SourceLocation location
+    ) : LinkedType(linked, location), link_name(type) {
+
+    }
+
+    /**
+     * the link method
+     */
+    bool link(SymbolResolver &linker) final;
+
+    /**
+     * avoid using it, however this could provide debugging capabilities if you know linked type is a named linked type
+     */
+    inline chem::string_view debug_link_name() {
+        return link_name;
+    }
 
 };

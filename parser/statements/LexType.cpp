@@ -84,9 +84,9 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         }
 
         // TODO this is not ideal
-        if(types.size() == 1 && idType->linked_name() == "literal") {
+        if(types.size() == 1 && ((NamedLinkedType*) idType)->debug_link_name() == "literal") {
             auto underlying = types.back();
-            if(underlying->kind() == BaseTypeKind::Linked && ((LinkedType*) underlying)->linked_name() == "string") {
+            if(underlying->kind() == BaseTypeKind::Linked && ((NamedLinkedType*) underlying)->debug_link_name() == "string") {
                 underlying = new (allocator.allocate<StringType>()) StringType(underlying->encoded_location());
             }
             return new (allocator.allocate<LiteralType>()) LiteralType(underlying, idType->encoded_location());
@@ -104,7 +104,7 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
         error("missing struct / interface name in inheritance list of the struct");
         return nullptr;
     }
-    auto idType = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, id->value), loc_single(id));
+    auto idType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), loc_single(id));
     return parseGenericTypeAfterId(allocator, idType);
 }
 
@@ -355,7 +355,7 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             token++;
             const auto parent = find_container_parent(parent_node);
             if(parent) {
-               return new (allocator.allocate<LinkedType>()) LinkedType("Self", (ASTNode*) parent, loc_single(self_tok));
+               return new (allocator.allocate<LinkedType>()) LinkedType((ASTNode*) parent, loc_single(self_tok));
             } else {
                 error("couldn't find the parent container");
                 return nullptr;
@@ -515,7 +515,7 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             if(token->type == TokenType::DoubleColonSym) {
                 type = parseLinkedValueType(allocator, typeToken, location);
             } else {
-                type = new (allocator.allocate<LinkedType>()) LinkedType(allocate_view(allocator, typeToken->value), location);
+                type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value), location);
             }
             type = parseGenericTypeAfterId(allocator, type);
             break;

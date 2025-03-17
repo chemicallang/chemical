@@ -2,6 +2,7 @@
 
 #include "ASTAllocator.h"
 #include <mutex>
+#include <cassert>
 #include "cstring"
 
 BatchAllocator::BatchAllocator(std::size_t heapBatchSize) : heap_offset(heapBatchSize), heap_batch_size(heapBatchSize) {
@@ -107,33 +108,32 @@ char* BatchAllocator::reserve_heap_storage() {
     // return
     return heap_pointer;
 }
-
+// Ensure alignment is a power of two.
+static inline bool is_power_of_two(std::size_t x) {
+    return (x & (x - 1)) == 0;
+}
 char* BatchAllocator::object_heap_pointer(std::size_t obj_size, std::size_t alignment) {
-     std::size_t aligned_heap_offset = (heap_offset + alignment - 1) & ~(alignment - 1);
-    if((aligned_heap_offset + obj_size) < heap_batch_size) {
+    assert(is_power_of_two(alignment) && "Alignment must be a power of two");
+    // Calculate the next aligned offset in the current block.
+    std::size_t aligned_heap_offset = (heap_offset + alignment - 1) & ~(alignment - 1);
+    // Check if the object fits exactly or within the remaining space.
+    if ((aligned_heap_offset + obj_size) <= heap_batch_size) {  // <= allows an exact fit.
+        char* ret = heap_memory.back() + aligned_heap_offset;
         heap_offset = aligned_heap_offset + obj_size;
-        return heap_memory.back() + aligned_heap_offset;
+        assert(((uintptr_t)ret % alignment) == 0 && "Returned pointer is not properly aligned");
+        return ret;
     } else {
-        if(obj_size < heap_batch_size) {
-            const auto ptr = reserve_heap_storage();
-            const auto new_aligned_heap_offset = (0 + alignment - 1) & ~(alignment - 1);
-            heap_offset = new_aligned_heap_offset + obj_size;
-            return ptr + new_aligned_heap_offset;
-        } else {
-            // just allocate the entire object on heap
-            // and do not move heap pointer
-            const auto ptr = static_cast<char*>(::operator new(obj_size, std::align_val_t(alignment)));
-            if(heap_memory.empty()) {
-                heap_memory.emplace_back(ptr);
-            } else {
-                const auto current = heap_memory.back();
-                heap_memory.pop_back();
-                // we keep this above current, because heap_offset points to the last pointer which is current
-                heap_memory.emplace_back(ptr);
-                heap_memory.emplace_back(current);
-            }
-            return ptr;
+        // If the object fits in a new block, reserve new heap storage.
+        if (obj_size > heap_batch_size) {
+            // update the heap batch size to new size
+            heap_batch_size = obj_size;
         }
+        char* newBlock = reserve_heap_storage();
+        aligned_heap_offset = (0 + alignment - 1) & ~(alignment - 1);
+        char* ret = newBlock + aligned_heap_offset;
+        heap_offset = aligned_heap_offset + obj_size;
+        assert(((uintptr_t)ret % alignment) == 0 && "Returned pointer is not properly aligned");
+        return ret;
     }
 }
 

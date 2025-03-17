@@ -197,7 +197,7 @@ namespace InterpretVector {
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), returnLinkedType("T", &node->typeParam, ZERO_LOC),
+    ), returnLinkedType(&node->typeParam, ZERO_LOC),
         selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
@@ -225,7 +225,7 @@ namespace InterpretVector {
             AccessSpecifier::Public,
             true
     ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
-        valueType("T", &node->typeParam, ZERO_LOC), valueParam("value", &valueType, 1, nullptr, false, this, ZERO_LOC)
+        valueType(&node->typeParam, ZERO_LOC), valueParam("value", &valueType, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&valueParam);
@@ -266,7 +266,7 @@ namespace InterpretVector {
     ): StructDefinition(ZERO_LOC_ID("vector"), parent_node, ZERO_LOC, AccessSpecifier::Public),
         constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
         typeParam("T", nullptr, nullptr, this, 0, ZERO_LOC),
-        selfType("vector", this, ZERO_LOC), selfReference(&selfType, ZERO_LOC)
+        selfType(this, ZERO_LOC), selfReference(&selfType, ZERO_LOC)
     {
         set_compiler_decl(true);
         insert_functions({ &constructorFn, &sizeFn, &getFn, &pushFn, &removeFn });
@@ -1266,7 +1266,7 @@ public:
             defDecl,
             defDecl,
             ZERO_LOC
-    ), id("Def", defDecl, ZERO_LOC) {}
+    ), id(defDecl, ZERO_LOC) {}
 
 };
 

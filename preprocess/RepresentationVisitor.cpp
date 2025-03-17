@@ -879,8 +879,10 @@ void RepresentationVisitor::VisitLinkedType(LinkedType *type) {
     const auto id = type->linked->get_located_id();
     if(id) {
         write(id->identifier);
+    } else if(type->linked->kind() == ASTNodeKind::GenericTypeParam) {
+        write(type->linked->as_generic_type_param_unsafe()->identifier);
     } else {
-        write(type->type);
+        write("TODO");
     }
 }
 

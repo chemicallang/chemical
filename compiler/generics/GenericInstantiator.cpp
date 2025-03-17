@@ -9,7 +9,7 @@
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericImplDecl.h"
 
-BaseType* GenericInstantiator::get_concrete_gen_type(BaseType* type) {
+void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
     if(type->kind() == BaseTypeKind::Linked){
         const auto linked = type->as_linked_type_unsafe()->linked;
         switch(linked->kind()) {
@@ -23,13 +23,23 @@ BaseType* GenericInstantiator::get_concrete_gen_type(BaseType* type) {
                     throw std::runtime_error("unexpected generic type parameter usage");
                 }
 #endif
-                return ty;
+                type = ty;
+                return;
+            }
+            case ASTNodeKind::GenericStructDecl:
+            case ASTNodeKind::GenericUnionDecl:
+            case ASTNodeKind::GenericInterfaceDecl:
+            case ASTNodeKind::GenericVariantDecl:
+            case ASTNodeKind::GenericTypeDecl:{
+                if(linked == current_gen) {
+                    type->as_linked_type_unsafe()->linked = current_impl_ptr;
+                }
+                return;
             }
             default:
-                return nullptr;
+                return;
         }
     }
-    return nullptr;
 }
 
 void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
@@ -106,6 +116,26 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
     }
 }
 
+/**
+ * what it checks is whether the argument types are linked with given generic types parameters in order
+ */
+bool are_types_generic(std::vector<BaseType*>& arg_types, std::vector<GenericTypeParameter*>& type_params) {
+    if(arg_types.size() != type_params.size()) {
+        return false;
+    }
+    unsigned i = 0;
+    const auto total = arg_types.size();
+    while(i < total) {
+        const auto arg_type = arg_types[i];
+        const auto param = type_params[i];
+        if(arg_type->kind() != BaseTypeKind::Linked || arg_type->as_linked_type_unsafe()->linked != param) {
+            return false;
+        }
+        i++;
+    }
+    return true;
+}
+
 void GenericInstantiator::VisitGenericType(GenericType* type) {
 
     // we do this manually, first we replace any generic arguments given to this generic type
@@ -113,62 +143,87 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
         visit(t);
     }
 
+    // NOTE: visiting the referenced type in this case would lead to a problem
+    // the problem is that LinkedType visiting method, currently checks for linkage with a generic decl
+    // and replaced with current implementation pointer, however user could be doing struct Point<T> { var next : Point<int> }
+    // in this case another instantiation of Point is being made with different generic arguments, so we must not use current implementation
+    // so we must not visit the linked type, if it's linked with any generic decl
+
     const auto referenced = type->referenced;
     auto& linked_ptr = referenced->linked;
     const auto linked = linked_ptr;
     switch(linked->kind()) {
-        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericStructDecl: {
+            if (linked == current_gen) {
+                if (are_types_generic(type->types, current_gen->generic_params)) {
+                    // self referential data structure
+                    linked_ptr = current_impl_ptr;
+                    return;
+                }
+            }
+            // relink generic struct decl with instantiated type
+            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiatorAPI genApi(&instantiator);
+            linked_ptr = linked->as_gen_struct_def_unsafe()->register_generic_args(genApi, type->types);
+            return;
+        }
+        case ASTNodeKind::GenericUnionDecl: {
+            if (linked == current_gen) {
+                if (are_types_generic(type->types, current_gen->generic_params)) {
+                    // self referential data structure
+                    linked_ptr = current_impl_ptr;
+                    return;
+                }
+            }
+            // relink generic struct decl with instantiated type
+            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiatorAPI genApi(&instantiator);
+            linked_ptr = linked->as_gen_union_decl_unsafe()->register_generic_args(genApi, type->types);
+            return;
+        }
+        case ASTNodeKind::GenericInterfaceDecl:{
+            if(linked == current_gen) {
+                if (are_types_generic(type->types, current_gen->generic_params)) {
+                    // self referential data structure
+                    linked_ptr = current_impl_ptr;
+                    return;
+                }
+            }
+            // relink generic struct decl with instantiated type
+            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiatorAPI genApi(&instantiator);
+            linked_ptr = linked->as_gen_interface_decl_unsafe()->register_generic_args(genApi, type->types);
+            return;
+        }
+        case ASTNodeKind::GenericVariantDecl:{
             if(linked == current_gen) {
                 // self referential data structure
-                linked_ptr = current_impl_ptr;
-            } else {
-                // relink generic struct decl with instantiated type
-                GenericInstantiator instantiator(allocator, diagnoser);
-                GenericInstantiatorAPI genApi(&instantiator);
-                linked_ptr = linked->as_gen_struct_def_unsafe()->register_generic_args(genApi, type->types);
+                if (are_types_generic(type->types, current_gen->generic_params)) {
+                    // self referential data structure
+                    linked_ptr = current_impl_ptr;
+                    return;
+                }
             }
-        case ASTNodeKind::GenericUnionDecl:
+            // relink generic struct decl with instantiated type
+            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiatorAPI genApi(&instantiator);
+            linked_ptr = linked->as_gen_variant_decl_unsafe()->register_generic_args(genApi, type->types);
+            return;
+        }
+        case ASTNodeKind::GenericTypeDecl: {
             if(linked == current_gen) {
-                // self referential data structure
-                linked_ptr = current_impl_ptr;
-            } else {
-                // relink generic struct decl with instantiated type
-                GenericInstantiator instantiator(allocator, diagnoser);
-                GenericInstantiatorAPI genApi(&instantiator);
-                linked_ptr = linked->as_gen_union_decl_unsafe()->register_generic_args(genApi, type->types);
+                if (are_types_generic(type->types, current_gen->generic_params)) {
+                    // self referential data structure
+                    linked_ptr = current_impl_ptr;
+                    return;
+                }
             }
-        case ASTNodeKind::GenericInterfaceDecl:
-            if(linked == current_gen) {
-                // self referential data structure
-                linked_ptr = current_impl_ptr;
-            } else {
-                // relink generic struct decl with instantiated type
-                GenericInstantiator instantiator(allocator, diagnoser);
-                GenericInstantiatorAPI genApi(&instantiator);
-                linked_ptr = linked->as_gen_interface_decl_unsafe()->register_generic_args(genApi, type->types);
-            }
-        case ASTNodeKind::GenericVariantDecl:
-            if(linked == current_gen) {
-                // self referential data structure
-                linked_ptr = current_impl_ptr;
-            } else {
-                // relink generic struct decl with instantiated type
-                GenericInstantiator instantiator(allocator, diagnoser);
-                GenericInstantiatorAPI genApi(&instantiator);
-                linked_ptr = linked->as_gen_variant_decl_unsafe()->register_generic_args(genApi, type->types);
-            }
-        case ASTNodeKind::GenericTypeDecl:
-            if(linked == current_gen) {
-                // TODO figure out if this works for when generic params of the parent have been used with the same type differently
-                // TODO we may need to check that generic types are using the same exact parameters before doing this
-                // self referential data structure
-                linked_ptr = current_impl_ptr;
-            } else {
-                // relink generic struct decl with instantiated type
-                GenericInstantiator instantiator(allocator, diagnoser);
-                GenericInstantiatorAPI genApi(&instantiator);
-                linked_ptr = linked->as_gen_type_decl_unsafe()->register_generic_args(genApi, type->types);
-            }
+            // relink generic struct decl with instantiated type
+            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiatorAPI genApi(&instantiator);
+            linked_ptr = linked->as_gen_type_decl_unsafe()->register_generic_args(genApi, type->types);
+            return;
+        }
         default:
             // we only visit the linked type in this case
             visit(type->referenced);
@@ -217,9 +272,6 @@ void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, TypealiasStat
 }
 
 void GenericInstantiator::FinalizeSignature(FunctionDeclaration* impl) {
-    const auto prev_impl = current_impl_ptr;
-    // set implementation pointer
-    current_impl_ptr = impl;
 
     // replacing parameter types in the function
     for(auto& param : impl->params) {
@@ -229,8 +281,6 @@ void GenericInstantiator::FinalizeSignature(FunctionDeclaration* impl) {
     // replace the return type
     visit(impl->returnType);
 
-    // reset the pointers
-    current_impl_ptr = prev_impl;
 }
 
 void GenericInstantiator::FinalizeSignature(GenericFuncDecl* decl, FunctionDeclaration* impl, size_t itr) {
@@ -322,17 +372,8 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
         visit(var);
     }
 
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
-
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // replacing implicit parameters to self in functions
-        for(const auto param : func->params) {
-            if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
-                // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
-                param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
-            }
-        }
         // finalize the signature of functions
         FinalizeSignature(func);
     }
@@ -381,8 +422,6 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
                 break;
         }
     }
-
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
     for(const auto func : impl->master_functions()) {
@@ -438,17 +477,8 @@ void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* im
         visit(var);
     }
 
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
-
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // replacing implicit parameters to self in functions
-        for(const auto param : func->params) {
-            if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
-                // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
-                param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
-            }
-        }
         // finalize the signature of functions
         FinalizeSignature(func);
     }
@@ -496,8 +526,6 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
                 break;
         }
     }
-
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
     for(const auto func : impl->master_functions()) {
@@ -552,17 +580,8 @@ void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, Interfac
         visit(var);
     }
 
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
-
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // replacing implicit parameters to self in functions
-        for(const auto param : func->params) {
-            if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
-                // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
-                param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
-            }
-        }
         // finalize the signature of functions
         FinalizeSignature(func);
     }
@@ -610,8 +629,6 @@ void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, InterfaceDefi
                 break;
         }
     }
-
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
     for(const auto func : impl->master_functions()) {
@@ -666,17 +683,8 @@ void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, VariantDef
         visit(var);
     }
 
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
-
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // replacing implicit parameters to self in functions
-        for(const auto param : func->params) {
-            if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
-                // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
-                param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
-            }
-        }
         // finalize the signature of functions
         FinalizeSignature(func);
     }
@@ -724,8 +732,6 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
                 break;
         }
     }
-
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
     for(const auto func : impl->master_functions()) {
@@ -780,17 +786,8 @@ void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, ImplDefinitio
         visit(var);
     }
 
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
-
     // visiting functions
     for(const auto func : impl->master_functions()) {
-        // replacing implicit parameters to self in functions
-        for(const auto param : func->params) {
-            if(param->is_implicit() && param->name_view() == "self" || param->name_view() == "other") {
-                // replacing very unsafely to save performance, as we always know it's going to be a ref to linked type
-                param->type->as_reference_type_unsafe()->type->as_linked_type_unsafe()->linked = impl;
-            }
-        }
         // finalize the signature of functions
         FinalizeSignature(func);
     }
@@ -837,8 +834,6 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
                 break;
         }
     }
-
-    // TODO generic functions inside a generic struct shouldn't be visited and instantiated
 
     // visiting function bodies (only bodies, because we finalized signature above)
     for(const auto func : impl->master_functions()) {

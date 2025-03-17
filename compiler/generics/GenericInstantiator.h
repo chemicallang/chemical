@@ -45,7 +45,7 @@ public:
 
     }
 
-    static BaseType* get_concrete_gen_type(BaseType* type);
+    void make_gen_type_concrete(BaseType*& type);
 
     bool relink_identifier(VariableIdentifier* identifier) const;
 
@@ -69,12 +69,7 @@ public:
         VisitValueNoNullCheck(value);
     }
     inline void visit(BaseType*& type_ref) {
-        // find out concrete type if it's a generic type parameter referencing type
-        const auto concrete = GenericInstantiator::get_concrete_gen_type(type_ref);
-        if(concrete) {
-            // then replace the type pointer ref with the concrete type
-            type_ref = concrete;
-        }
+        GenericInstantiator::make_gen_type_concrete(type_ref);
         VisitTypeNoNullCheck(type_ref);
     }
     inline void visit(LinkedType*& type_ref) {

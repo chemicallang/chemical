@@ -86,7 +86,7 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
         visit(val);
     }
 
-    // we do not need to visit values except the first one in access chain
+    // NOTE: we do not need to visit values except the first one in access chain
     // this is because, after the first value, only identifiers are present
     // however we do not need to relink identifiers, if we did visit identifiers
     // it would relink identifiers with any symbols found which would break everything

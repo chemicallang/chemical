@@ -1,4 +1,4 @@
-name: Test Latest Release Assets
+name: Test Hello World On Latest Release
 
 on:
   workflow_dispatch:

@@ -400,6 +400,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     if(cmd) {
         code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
         code_gen_options.fno_asynchronous_unwind_tables = cmd->has_value("", "fno-asynchronous-unwind-tables");
+        code_gen_options.no_pie = cmd->has_value("no-pie", "no-pie");
     }
     Codegen gen(code_gen_options, global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
     LLVMBackendContext g_context(&gen);

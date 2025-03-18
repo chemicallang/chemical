@@ -716,7 +716,10 @@ target_link_libraries(TCCCompiler ${LIBTCC_LIB})
 # This instructs the linux build to always search for the libtcc.so in the
 # executable directory
 if(UNIX)
-    set_target_properties(TCCCompiler PROPERTIES BUILD_RPATH "$ORIGIN")
+    set_target_properties(TCCCompiler PROPERTIES
+            INSTALL_RPATH "$ORIGIN"
+            BUILD_WITH_INSTALL_RPATH TRUE
+    )
 endif()
 
 # Link Lsp with Boost Library

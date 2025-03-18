@@ -1040,6 +1040,39 @@ clang::ASTUnit *ClangLoadFromCommandLine(
 //--------------------------------------------------------------------------
 //--------------------------------------------------------------------------
 
+//------------------------------ Clang Support -----------------------------
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+
+clang::QualType to_clang_type(BaseType* type, clang::ASTContext &context) {
+    switch(type->kind()) {
+        case BaseTypeKind::IntN: {
+            const auto intNType = type->as_intn_type_unsafe();
+            return context.getIntTypeForBitwidth(intNType->num_bits(sizeof(void*) == 8), !intNType->is_unsigned());
+        }
+        case BaseTypeKind::Bool:
+            return context.BoolTy;
+        case BaseTypeKind::Double:
+            return context.DoubleTy;
+        case BaseTypeKind::Float:
+            return context.FloatTy;
+        case BaseTypeKind::Float128:
+            return context.Float128Ty;
+        case BaseTypeKind::LongDouble:
+            return context.LongDoubleTy;
+        case BaseTypeKind::Complex:
+            return context.getComplexType(to_clang_type(type->as_complex_type_unsafe()->elem_type, context));
+        case BaseTypeKind::Void:
+            return context.VoidTy;
+        case BaseTypeKind::Pointer:
+            return context.getPointerType(to_clang_type(type->as_pointer_type_unsafe(), context));
+        case BaseTypeKind::Reference:
+            return context.getPointerType(to_clang_type(type->as_pointer_type_unsafe(), context));
+        default:
+            throw std::runtime_error("BaseType::clang_type called");
+    }
+}
+
 class ClangCodegenImpl {
 public:
 
@@ -1128,12 +1161,12 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
     clang::ASTContext &context = impl->compiler.getASTContext();
     auto unit = context.getTranslationUnitDecl();
 
-    clang::QualType returnType = decl->returnType->clang_type(context);
+    clang::QualType returnType = to_clang_type(decl->returnType, context);
     clang::FunctionProtoType::ExtProtoInfo protoInfo;
 
     std::vector<clang::QualType> args;
     for(auto& arg : decl->params) {
-        args.emplace_back(arg->type->clang_type(context));
+        args.emplace_back(to_clang_type(arg->type, context));
     }
 
     auto funcType = context.getFunctionType(returnType, args, protoInfo);
@@ -1154,7 +1187,7 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
         clang::IdentifierInfo &paramId = context.Idents.get(llvm::StringRef(paramNameV.data(), paramNameV.size()));
         clang::ParmVarDecl *clangParam = clang::ParmVarDecl::Create(
                 context, unit, clang::SourceLocation(), clang::SourceLocation(),
-                &paramId, param->type->clang_type(context), nullptr, clang::SC_None, nullptr);
+                &paramId, to_clang_type(param->type, context), nullptr, clang::SC_None, nullptr);
         params.emplace_back(clangParam);
     }
     funcDecl->setParams(params);
@@ -1164,54 +1197,6 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
 }
 
 ClangCodegen::~ClangCodegen() = default;
-
-//------------------------------ Clang Support -----------------------------
-//--------------------------------------------------------------------------
-//--------------------------------------------------------------------------
-
-clang::QualType BaseType::clang_type(clang::ASTContext &gen) {
-    throw std::runtime_error("BaseType::clang_type called");
-}
-
-clang::QualType IntNType::clang_type(clang::ASTContext &context) {
-    return context.getIntTypeForBitwidth(num_bits(sizeof(void*) == 8), !is_unsigned());
-}
-
-clang::QualType BoolType::clang_type(clang::ASTContext &context) {
-    return context.BoolTy;
-}
-
-clang::QualType DoubleType::clang_type(clang::ASTContext &context) {
-    return context.DoubleTy;
-}
-
-clang::QualType FloatType::clang_type(clang::ASTContext &context) {
-    return context.FloatTy;
-}
-
-clang::QualType Float128Type::clang_type(clang::ASTContext &context) {
-    return context.Float128Ty;
-}
-
-clang::QualType LongDoubleType::clang_type(clang::ASTContext &context) {
-    return context.LongDoubleTy;
-}
-
-clang::QualType ComplexType::clang_type(clang::ASTContext &context) {
-    return context.getComplexType(elem_type->clang_type(context));
-}
-
-clang::QualType VoidType::clang_type(clang::ASTContext &context) {
-    return context.VoidTy;
-}
-
-clang::QualType PointerType::clang_type(clang::ASTContext &context) {
-    return context.getPointerType(type->clang_type(context));
-}
-
-clang::QualType ReferenceType::clang_type(clang::ASTContext &context) {
-    return context.getPointerType(type->clang_type(context));
-}
 
 // ------------------------------ C Translation -----------------------------
 //--------------------------------------------------------------------------

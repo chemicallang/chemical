@@ -71,8 +71,6 @@ public:
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
 
-    clang::QualType clang_type(clang::ASTContext &context) final;
-
 #endif
 
 };

@@ -161,7 +161,7 @@ jobs:
           Write-Host "Running compile command for Windows Regular Variant:"
           Write-Host $env:COMPILER_CMD_REGULAR | Tee-Object -FilePath compile_output.txt
           Invoke-Expression $env:COMPILER_CMD_REGULAR | Tee-Object -FilePath compile_output.txt -Append
-          Copy-Item -Path compile_output.txt -Destination ..\output\windows-regular-output.txt
+          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-regular-output.txt
         shell: pwsh
 
       - name: Process Windows TCC Variant
@@ -192,7 +192,7 @@ jobs:
           Write-Host "Running compile command for Windows TCC Variant:"
           Write-Host $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt
           Invoke-Expression $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt -Append
-          Copy-Item -Path compile_output.txt -Destination ..\output\windows-tcc-output.txt
+          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-tcc-output.txt
         shell: pwsh
 
       - name: Upload Windows Outputs

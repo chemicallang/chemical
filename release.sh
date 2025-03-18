@@ -101,7 +101,7 @@ if [ "$linux_x86_64_tcc" = true ]; then
     mkdir -p "$Lin64TccDir/packages/tcc"
 fi
 
-# --------------------------- windows x64
+# -------------------------- windows x64
 
 if [ "$windows_x64" = true ]; then
   # copy compiler

@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Use the compiler executable as provided in the asset; its relative files remain intact.
+      # Use the compiler executable as provided in the asset; its relative files (like libtcc.so) must remain in place.
       COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       ASSET_REGULAR: "linux-x86-64.zip"
@@ -51,15 +51,16 @@ jobs:
           echo "Downloading asset from $asset_url"
           curl -L -o asset.zip "$asset_url"
           unzip -o -q asset.zip || true
-          # Determine the release root: if a single directory was extracted, use it.
+          # Determine the release root: if exactly one directory exists at top level, use it.
           release_root="."
           count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
           if [ "$count" -eq 1 ]; then
             release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
           echo "Using release root: $release_root"
-          # Copy the repository's lang folder (with tests) into the release asset directory.
-          cp -r "$GITHUB_WORKSPACE/lang" "$release_root/"
+          # Copy only the repository's lang/tests folder into the release asset directory.
+          mkdir -p "$release_root/lang"
+          cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang/"
           cd "$release_root"
           echo "Running compile command for Linux Regular Variant:"
           echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
@@ -90,7 +91,8 @@ jobs:
             release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
           echo "Using release root: $release_root"
-          cp -r "$GITHUB_WORKSPACE/lang" "$release_root/"
+          mkdir -p "$release_root/lang"
+          cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang/"
           cd "$release_root"
           echo "Running compile command for Linux TCC Variant:"
           echo "${COMPILER_CMD_TCC}" | tee compile_output.txt

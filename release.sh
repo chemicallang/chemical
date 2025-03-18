@@ -27,7 +27,7 @@ zip_folder() {
     local folder_name=$1
     local output_name=$2
     if [ "$IS_WINDOWS" = true ]; then
-        powershell.exe -Command "Compress-Archive -Path '${folder_name}/*' -DestinationPath '${output_name}'"
+        powershell.exe -Command "Compress-Archive -Path '${folder_name}' -DestinationPath '${output_name}'"
     else
         zip -r "$output_name" "$folder_name"/*
     fi

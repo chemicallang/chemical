@@ -100,8 +100,6 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen);
 
-    clang::QualType clang_type(clang::ASTContext &context) final;
-
 #endif
 
 };

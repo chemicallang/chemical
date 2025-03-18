@@ -393,11 +393,6 @@ public:
     void llvm_destruct(Codegen& gen, llvm::Value* pointer, SourceLocation location);
 
     /**
-     * return clang type for the current type
-     */
-    virtual clang::QualType clang_type(clang::ASTContext &context);
-
-    /**
      * returns this type, but for a llvm parameter
      */
     virtual llvm::Type *llvm_param_type(Codegen &gen) {

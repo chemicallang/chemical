@@ -638,6 +638,16 @@ FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocato
     return create_copy_fn(allocator);
 }
 
+template<typename T>
+void do_it(int a, int b) {
+
+}
+
+template<typename T>
+void do_it(int a, int b, int c) {
+
+}
+
 bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDeclaration* decl) {
     auto found = indexes.find(decl->name_view());
     if(found == indexes.end()) {

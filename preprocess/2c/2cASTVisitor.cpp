@@ -2445,20 +2445,23 @@ void CValueDeclarationVisitor::VisitEnumDecl(EnumDeclaration *enumDecl) {
     }
 }
 
-void CTopLevelDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
+void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
     visitor.new_line_and_indent();
-    write("typedef ");
+    visitor.write("typedef ");
     const auto kind = stmt->actual_type->kind();
     if(kind == BaseTypeKind::Function) {
         const auto func_type = stmt->actual_type->as_function_type_unsafe();
         func_type_with_id(visitor, func_type, stmt->name_view());
     } else {
         visitor.visit(stmt->actual_type);
-        write(' ');
-        node_parent_name(visitor, stmt);
-        write(stmt->name_view());
+        visitor.write(' ');
+        stmt->runtime_name(*visitor.output);
     }
-    write(';');
+    visitor.write(';');
+}
+
+void CTopLevelDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
+    type_def_stmt(visitor, stmt);
 }
 
 void CTopLevelDeclarationVisitor::VisitUnionDecl(UnionDef *def) {
@@ -2803,20 +2806,6 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
 
 void CTopLevelDeclarationVisitor::reset() {
     declared.clear();
-}
-
-void CValueDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
-    if(is_top_level_node) return;
-    visitor.new_line_and_indent();
-    write("typedef ");
-    visitor.visit(stmt->actual_type);
-    write(' ');
-    std::string alias = "__chalias_";
-    alias += std::to_string(random(100,999)) + "_";
-    alias += std::to_string(alias_num++);
-    visitor.write_str(alias);
-    aliases[stmt] = alias;
-    write(';');
 }
 
 void CValueDeclarationVisitor::VisitFunctionType(FunctionType *type) {
@@ -4499,7 +4488,8 @@ void ToCAstVisitor::VisitComptimeBlock(ComptimeBlock *block) {
 }
 
 void ToCAstVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
-    // declared above
+    if(stmt->is_top_level()) return;
+    type_def_stmt(*this, stmt);
 }
 
 void write_variant_call_id_index(ToCAstVisitor& visitor, VariantDefinition* variant, VariableIdentifier* value) {

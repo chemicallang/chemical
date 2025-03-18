@@ -72,9 +72,12 @@ MembersContainer* ASTNode::get_members_container() {
 }
 
 void ASTNode::runtime_name(std::ostream& stream) {
-    const auto p = parent();
-    if(p && p->kind() != ASTNodeKind::FunctionDecl) p->runtime_name(stream);
-    stream << get_located_id()->identifier;
+    const auto id = get_located_id();
+    if(id) {
+        const auto p = parent();
+        if (p && p->kind() != ASTNodeKind::FunctionDecl) p->runtime_name(stream);
+        stream << id->identifier;
+    }
 }
 
 void ASTNode::runtime_name_no_parent(std::ostream& stream) {

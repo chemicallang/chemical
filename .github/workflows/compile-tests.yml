@@ -11,7 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Command configuration for Linux variants (adjust if needed)
+      # The compile commands now reference the copied compiler executables,
+      # which will reside in the repository root.
       COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       ASSET_REGULAR: "linux-x86-64.zip"
@@ -22,14 +23,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Create output directory
-        run: mkdir -p output
-
       # Process Linux Regular variant
       - name: Process Linux Regular Variant
         run: |
           echo "== Processing Linux Regular Variant =="
-          mkdir variant-regular && cd variant-regular
+          # Create a temporary directory to download and extract the asset.
+          mkdir -p temp/variant-regular && cd temp/variant-regular
           echo "Fetching asset URL for ${ASSET_REGULAR}..."
           asset_url=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" | \
             jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
@@ -40,29 +39,30 @@ jobs:
           echo "Downloading asset from $asset_url"
           curl -L -o asset.zip "$asset_url"
           unzip -o -q asset.zip || true
-          # If a single directory was extracted, use it as the release root.
+          # Determine the release root: if the asset extracted into a single directory, use it.
           release_root="."
           count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
           if [ "$count" -eq 1 ]; then
             release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
           echo "Using release root: $release_root"
-          # Ensure tests are available
-          if [ ! -f "$release_root/lang/tests/build.lab" ]; then
-            cp -r ../lang/tests "$release_root/lang/tests"
-          fi
-          cd "$release_root"
+          # Copy the compiler executable from the release asset into the repository root
+          cp "$release_root/chemical" "$GITHUB_WORKSPACE/chemical-regular"
+          chmod +x "$GITHUB_WORKSPACE/chemical-regular"
+          # Return to the repository root
+          cd "$GITHUB_WORKSPACE"
           echo "Running compile command for Linux Regular Variant:"
-          echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
-          eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
-          cp compile_output.txt ../output/linux-regular-output.txt
+          echo "$COMPILER_CMD_REGULAR" | tee compile_output.txt
+          eval $COMPILER_CMD_REGULAR | tee -a compile_output.txt
+          mkdir -p output
+          cp compile_output.txt output/linux-regular-output.txt
         shell: bash
 
       # Process Linux TCC variant
       - name: Process Linux TCC Variant
         run: |
           echo "== Processing Linux TCC Variant =="
-          mkdir variant-tcc && cd variant-tcc
+          mkdir -p temp/variant-tcc && cd temp/variant-tcc
           echo "Fetching asset URL for ${ASSET_TCC}..."
           asset_url=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" | \
             jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_TCC}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
@@ -79,14 +79,14 @@ jobs:
             release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
           echo "Using release root: $release_root"
-          if [ ! -f "$release_root/lang/tests/build.lab" ]; then
-            cp -r ../lang/tests "$release_root/lang/tests"
-          fi
-          cd "$release_root"
+          cp "$release_root/chemical" "$GITHUB_WORKSPACE/chemical-tcc"
+          chmod +x "$GITHUB_WORKSPACE/chemical-tcc"
+          cd "$GITHUB_WORKSPACE"
           echo "Running compile command for Linux TCC Variant:"
-          echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
-          eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
-          cp compile_output.txt ../output/linux-tcc-output.txt
+          echo "$COMPILER_CMD_TCC" | tee compile_output.txt
+          eval $COMPILER_CMD_TCC | tee -a compile_output.txt
+          mkdir -p output
+          cp compile_output.txt output/linux-tcc-output.txt
         shell: bash
 
       - name: Upload Linux Outputs
@@ -99,7 +99,7 @@ jobs:
     runs-on: windows-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Command configuration for Windows variants (adjust if needed)
+      # Command configuration for Windows variants
       COMPILER_CMD_REGULAR: ".\\chemical.exe lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       COMPILER_CMD_TCC: ".\\chemical.exe lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       ASSET_REGULAR: "windows-x64.zip"

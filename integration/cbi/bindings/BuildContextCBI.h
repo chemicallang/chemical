@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CBIUtils.h"
+#include "std/chem_string.h"
 #include <cstddef>
 
 struct LabBuildContext;
@@ -23,6 +24,11 @@ struct StringArrayRef {
 
 extern "C" {
 
+    struct PathResolutionResult {
+        chem::string path;
+        chem::string error;
+    };
+
     LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies);
 
     LabModule* BuildContextchemical_files_module(LabBuildContext* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies);
@@ -34,6 +40,8 @@ extern "C" {
     LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies);
 
     LabModule* BuildContextobject_module(LabBuildContext* self, chem::string* name, chem::string* path);
+
+    void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string* base_path, chem::string* path);
 
     void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string* header);
 

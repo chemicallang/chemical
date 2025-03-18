@@ -19,6 +19,7 @@
 #include "lexer/Lexer.h"
 #include "stream/FileInputSource.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "preprocess/ImportPathHandler.h"
 #include "ast/statements/Import.h"
 
 #ifdef COMPILER_BUILD
@@ -36,6 +37,7 @@ std::string ASTProcessorOptions::get_resources_path() {
 }
 
 ASTProcessor::ASTProcessor(
+        ImportPathHandler& pathHandler,
         ASTProcessorOptions* options,
         LocationManager& loc_man,
         SymbolResolver* resolver,
@@ -46,7 +48,7 @@ ASTProcessor::ASTProcessor(
         ASTAllocator& job_allocator,
         ASTAllocator& mod_allocator,
         ASTAllocator& file_allocator
-) : loc_man(loc_man), options(options), resolver(resolver), path_handler(options->exe_path), binder(binder),
+) : loc_man(loc_man), options(options), resolver(resolver), path_handler(pathHandler), binder(binder),
     job_allocator(job_allocator), mod_allocator(mod_allocator),
 #ifdef COMPILER_BUILD
         translator(translator),

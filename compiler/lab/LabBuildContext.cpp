@@ -6,7 +6,12 @@
 #include <iostream>
 #include <unordered_map>
 
-LabBuildContext::LabBuildContext(LabBuildCompilerOptions* options, std::string lab_file, std::string user_build_dir) : options(options) {
+LabBuildContext::LabBuildContext(
+    LabBuildCompilerOptions* options,
+    ImportPathHandler& path_handler,
+    std::string lab_file,
+    std::string user_build_dir
+) : handler(path_handler), options(options) {
     if(user_build_dir.empty()) {
         build_dir = resolve_non_canon_parent_path(lab_file, "build");
     } else {
@@ -51,7 +56,7 @@ bool LabBuildContext::declare_user_alias(LabJob* job, std::string alias, std::st
         return false;
     }
     while(path[0] == '@') {
-        auto result = handler->replace_at_in_path(path, job->path_aliases);
+        auto result = handler.replace_at_in_path(path, job->path_aliases);
         if(result.error.empty()) {
             path = std::move(result.replaced);
         } else {

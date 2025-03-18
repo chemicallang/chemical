@@ -119,7 +119,14 @@ func build(ctx : *mut BuildContext) {
     printf("ext_c_file path is %s\n", ext_c_path.data())
     const ext_module = ctx.c_file_module(string("ext_c"), ext_c_path, { })
     const ext_cpp_module = ctx.cpp_file_module(string("ext_cpp"), relative_path(string("ext/file2.cpp")), { })
-    const std_module = ctx.chemical_dir_module(string("std"), relative_path(string("../libs/std")), { })
+    var std_path = ctx.resolve_import_path(string(""), string("@std/"))
+    if(std_path.error.empty()) {
+        printf("resolved std path to be: %s\n", std_path.path.data());
+    } else {
+        printf("detected an error when resolving the std path: %s\n", std_path.error.data());
+        std_path.path = relative_path(string("../libs/std"));
+    }
+    const std_module = ctx.chemical_dir_module(string("std"), std_path.path, { })
     ctx.include_headers(std_module, {
         string("stdio.h"),
         string("stdlib.h")
@@ -131,7 +138,14 @@ func build(ctx : *mut BuildContext) {
 
     // cbi integration
     // const cbi_name = string("html");
-    // const entry_mod = ctx.chemical_dir_module(string("html"), relative_path(string("../libs/html")), {});
+    // var html_path = ctx.resolve_import_path(string(""), string("@html/"))
+    // if(html_path.error.empty()) {
+    //     printf("resolved html path to be: %s\n", html_path.path.data());
+    // } else {
+    //     printf("detected an error when resolving the html path: %s\n", html_path.error.data());
+    //     html_path.path = relative_path(string("../libs/html"));
+    // }
+    // const entry_mod = ctx.chemical_dir_module(string("html"), html_path.path, {});
     // ctx.build_cbi(&cbi_name, entry_mod, { entry_mod });
 
     const do_llvm_ir = true;

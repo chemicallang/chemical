@@ -56,6 +56,11 @@ public enum CBIImportKind {
     Lexer
 }
 
+struct PathResolutionResult {
+    var path : string
+    var error : string
+}
+
 @compiler.interface
 public struct BuildContext {
 
@@ -76,6 +81,10 @@ public struct BuildContext {
 
     // a single .o file
     func object_module (&self, name : &string, path : &string) : *mut Module
+
+    // resolves a path, this allows to get exact path to the library or file
+    // you can resolve for example where the std library is using base_path empty and path "@std/"
+    func resolve_import_path(&self, base_path : &string, path : &string) : PathResolutionResult
 
     // allows to include c header in the module
     func include_header(&self, module : *mut Module, header : &string);

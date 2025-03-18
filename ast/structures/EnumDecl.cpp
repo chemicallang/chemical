@@ -53,8 +53,17 @@ void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
         }
     }
     linker.scope_start();
+    // since members is an unordered map, first we declare all enums
+    // then we link their init values
     for(auto& mem : members) {
-        mem.second->declare_and_link(linker, (ASTNode*&) mem.second);
+        linker.declare(mem.first, mem.second);
+    }
+    // since now all identifiers will be available regardless of order of the map
+    for(auto& mem : members) {
+        auto& value = mem.second->init_value;
+        if(value) {
+            value->link(linker, value, nullptr);
+        }
     }
     linker.scope_end();
 }

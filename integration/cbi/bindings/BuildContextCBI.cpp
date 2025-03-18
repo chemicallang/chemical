@@ -6,6 +6,8 @@
 #include "utils/PathUtils.h"
 #include "compiler/lab/Utils.h"
 #include "compiler/InvokeUtils.h"
+#include "preprocess/ImportPathHandler.h"
+#include "CBIUtils.h"
 
 #ifdef COMPILER_BUILD
 int llvm_ar_main2(const std::vector<std::string> &command_args);
@@ -33,6 +35,18 @@ LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string* name
 
 LabModule* BuildContextobject_module(LabBuildContext* self, chem::string* name, chem::string* path) {
     return self->obj_file_module(name, path);
+}
+
+void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string* base_path, chem::string* path) {
+    init_chem_string(&result->error);
+    init_chem_string(&result->path);
+    auto repResult = self->handler.resolve_import_path(base_path->to_std_string(), path->to_std_string());
+    if(!repResult.error.empty()) {
+        result->error.append(repResult.error);
+    }
+    if(!repResult.replaced.empty()) {
+        result->path.append(repResult.replaced);
+    }
 }
 
 void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string* header) {

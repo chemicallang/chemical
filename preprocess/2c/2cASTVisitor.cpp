@@ -2326,6 +2326,19 @@ void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     var_init(visitor, init, !is_exported, !external_module, is_exported && external_module);
 }
 
+void CTopLevelDeclarationVisitor::VisitIfStmt(IfStatement* stmt) {
+    if(!stmt->is_top_level()) return;
+    if(stmt->computed_scope.has_value()) {
+        auto scope = stmt->computed_scope.value();
+        if(scope) {
+            for(const auto node : scope->nodes) {
+                visit(node);
+            }
+        }
+        return;
+    }
+}
+
 void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
     const auto node_kind = node->kind();
     if (node_kind == ASTNodeKind::StructDecl) {

@@ -1020,11 +1020,25 @@ public func fgetpos(stream : *mut FILE, pos : *mut fpos_t) : int
 public func fseek(stream : *mut FILE, offset : long, origin : int) : int
 
 /**
- * TODO implementation defined macros
- * #define SEEK_SET
- * #define SEEK_CUR
- * #define SEEK_END
+ * argument to fseek indicating seeking from beginning of the file
+ * @see https://en.cppreference.com/w/c/io
  */
+@comptime
+public const SEEK_SET = 0
+
+/**
+ * argument to fseek indicating seeking from the current file position
+ * @see https://en.cppreference.com/w/c/io
+ */
+@comptime
+public const SEEK_CUR = 1
+
+/**
+ * argument to fseek indicating seeking from end of the file
+ * @see https://en.cppreference.com/w/c/io
+ */
+@comptime
+public const SEEK_END = 2
 
 /**
  * Sets the file position indicator and the multibyte parsing state (if any) for the file stream stream according to the value pointed to by pos.

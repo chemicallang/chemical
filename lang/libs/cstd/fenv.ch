@@ -3,7 +3,7 @@
  * TODO fexcept_t is implementation defined
  * @see https://en.cppreference.com/w/c/numeric/fenv
  */
-struct fexcept_t {
+public struct fexcept_t {
 
 }
 
@@ -11,7 +11,7 @@ struct fexcept_t {
  * TODO fenv_t is implementation defined
  * @see https://en.cppreference.com/w/c/numeric/fenv
  */
-struct fenv_t {
+public struct fenv_t {
 
 }
 

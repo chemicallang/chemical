@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "ast/base/ASTNode.h"
+#include "ast/structures/FunctionDeclaration.h"
 
 struct OverridableFuncHandlingResult {
+    // if this is true, it means function couldn't be overloaded
+    // because it's access specifier is different from previous one
+    bool specifier_mismatch = false;
     // duplicate nodes already present on the map, with same name
     std::vector<ASTNode*> duplicates;
     // any new multi function node, that should be handled
-    MultiFunctionNode* new_multi_func_node;
+    MultiFunctionNode* new_multi_func_node = nullptr;
 };
 
 /**
@@ -31,6 +34,11 @@ public:
         SourceLocation location
     ) : ASTNode(ASTNodeKind::MultiFunctionNode, parent, location), name(name) {
 
+    }
+
+    std::optional<AccessSpecifier> specifier() {
+        if(functions.empty()) return std::nullopt;
+        return functions.front()->specifier();
     }
 
     FunctionDeclaration* func_for_call(ASTAllocator& allocator, std::vector<Value*>& args);

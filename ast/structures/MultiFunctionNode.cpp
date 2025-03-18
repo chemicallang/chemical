@@ -27,10 +27,15 @@ OverridableFuncHandlingResult handle_name_overload_function(
         ASTNode* previous_node,
         FunctionDeclaration* declaration
 ) {
-    OverridableFuncHandlingResult result { {}, nullptr };
+    OverridableFuncHandlingResult result;
     auto previous = previous_node->as_function();
     auto multi = previous_node->as_multi_func_node();
     if(multi) {
+        const auto prev_spec = multi->specifier();
+        if(prev_spec.has_value() && prev_spec.value() != declaration->specifier()) {
+            result.specifier_mismatch = true;
+            return result;
+        }
         bool failed = false;
         for(auto func : multi->functions) {
             if(func->do_param_types_match(declaration->params)) {

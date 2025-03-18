@@ -644,7 +644,8 @@ bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDec
         insert_func(decl);
     } else {
         auto result = handle_name_overload_function(astAllocator, found->second.first->as_function_unsafe(), decl);
-        if(!result.duplicates.empty()) {
+        if(result.specifier_mismatch || !result.duplicates.empty()) {
+            // TODO handle errors for duplicates and specifier mismatch
             return false;
         } else if(result.new_multi_func_node) {
             // TODO -1 is being stored as index

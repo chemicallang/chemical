@@ -99,19 +99,6 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string &filePat
     return {filePath, "unknown '@' directive " + atDirective + " in import statement"};
 }
 
-//AtReplaceResult relative_to_base(const std::string& base_path, const std::string& abs_path) {
-//    if(abs_path[0] == '@') {
-//        return { absolute_path(abs_path) };
-//    } else {
-//        auto resolved = resolve_rel_parent_path_str(base_path, abs_path);
-//        if (resolved.empty()) {
-//            return { "", "couldn't find the file to import " + abs_path + " relative to base path " + resolve_parent_path(base_path) };
-//        } else {
-//            return { resolved };
-//        }
-//    }
-//}
-
 AtReplaceResult ImportPathHandler::resolve_import_path(const std::string& base_path, const std::string& import_path) {
     const auto first_char = import_path[0];
     if(first_char == '@') {

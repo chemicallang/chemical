@@ -71,7 +71,10 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* c
         }
     }
     auto result = handle_name_overload_function(*ast_allocator, previous, declaration);
-    if(!result.duplicates.empty()) {
+    if(result.specifier_mismatch) {
+        error("couldn't overload function because it's access specifier is different from previous function", (ASTNode*) declaration);
+        return false;
+    } else if(!result.duplicates.empty()) {
         for(auto dup : result.duplicates) {
             dup_sym_error(name, dup, declaration);
         }

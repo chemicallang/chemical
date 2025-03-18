@@ -308,7 +308,11 @@ llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 }
 
 llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return gen.builder->CreateNot(value->llvm_value(gen));
+    const auto val = value->llvm_value(gen);
+    if(val->getType()->isPointerTy()) {
+        return gen.builder->CreateICmpEQ(val, NullValue::null_llvm_value(gen));
+    }
+    return gen.builder->CreateNot(val);
 }
 
 llvm::Value* NullValue::null_llvm_value(Codegen &gen) {

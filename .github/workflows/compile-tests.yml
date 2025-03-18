@@ -10,6 +10,7 @@ jobs:
   test-linux:
     runs-on: ubuntu-latest
     env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Command configuration for Linux variants (adjust if needed)
       COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
@@ -97,6 +98,7 @@ jobs:
   test-windows:
     runs-on: windows-latest
     env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Command configuration for Windows variants (adjust if needed)
       COMPILER_CMD_REGULAR: ".\\chemical.exe lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       COMPILER_CMD_TCC: ".\\chemical.exe lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"

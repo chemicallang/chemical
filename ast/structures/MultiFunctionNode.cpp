@@ -6,7 +6,7 @@
 
 FunctionDeclaration* MultiFunctionNode::func_for_call(ASTAllocator& allocator, std::vector<Value*>& args) {
     for(auto func : functions) {
-        if(func->satisfy_args(allocator, args)) {
+        if(func->expectedArgsSize() == args.size() && func->satisfy_args(allocator, args)) {
             return func;
         }
     }

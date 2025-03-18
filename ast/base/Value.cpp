@@ -14,6 +14,7 @@
 #include "ast/values/Int128Value.h"
 #include "ast/values/UInt128Value.h"
 #include "ast/values/ShortValue.h"
+#include "ast/values/NullValue.h"
 #include "ast/values/UShortValue.h"
 #include "ast/values/UCharValue.h"
 #include "ast/values/NumberValue.h"
@@ -370,7 +371,11 @@ llvm::Value* ChainValue::access_chain_pointer(
 }
 
 void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
-    gen.CreateCondBr(llvm_value(gen), then_block, otherwise_block, encoded_location());
+    auto value = llvm_value(gen);
+    if(value->getType()->isPointerTy()) {
+        value = gen.builder->CreateICmpNE(value, NullValue::null_llvm_value(gen));
+    }
+    gen.CreateCondBr(value, then_block, otherwise_block, encoded_location());
 }
 
 llvm::Value* Value::llvm_pointer(Codegen& gen) {

@@ -720,6 +720,10 @@ if(UNIX)
             INSTALL_RPATH "$ORIGIN"
             BUILD_WITH_INSTALL_RPATH TRUE
     )
+    set_target_properties(Compiler PROPERTIES
+            INSTALL_RPATH "$ORIGIN"
+            BUILD_WITH_INSTALL_RPATH TRUE
+    )
 endif()
 
 # Link Lsp with Boost Library

@@ -12,4 +12,6 @@ struct CodegenOptions {
 
     bool fno_asynchronous_unwind_tables = false;
 
+    bool no_pie = false;
+
 };

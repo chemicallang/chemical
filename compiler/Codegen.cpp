@@ -800,6 +800,12 @@ TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple, bool 
     }
 
     auto RM = std::optional<Reloc::Model>();
+
+    // we generate by default no-pie code for linux, since that's what the linker expects
+    if (!options.no_pie && TargetTriple.find("linux") != std::string::npos) {
+        RM = llvm::Reloc::PIC_;
+    }
+
     auto TheTargetMachine = Target->createTargetMachine(
             TargetTriple, CPU, Features, opt, RM);
 

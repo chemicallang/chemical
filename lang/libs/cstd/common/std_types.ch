@@ -1,26 +1,38 @@
 /**
- * TODO ptrdiff_t's implementation is unknown
+ * ptrdiff_t is the signed integer type of the result of subtracting two pointers.
  * @see https://en.cppreference.com/w/c/types/ptrdiff_t
  */
-public type ptrdiff_t = ubigint
+if(def.win64) {
+    public type ptrdiff_t = bigint
+} else if(def.win32) {
+    public type ptrdiff_t = long
+} else {
+    public type ptrdiff_t = long
+}
 
 /**
- * TODO size_t's implementation is unknown
+ * size_t is the unsigned integer type of the result of sizeof, offsetof and _Alignof(until C23)alignof(since C23), depending on the data model.
  * @see https://en.cppreference.com/w/c/types/size_t
  */
-public type size_t = ubigint
+if(def.win64) {
+    public type size_t = ubigint
+} else if(def.win32) {
+    public type size_t = ulong
+} else {
+    public type size_t = ulong
+}
 
 /**
- * TODO max_align_t's implementation is unknown
+ * max_align_t is a type whose alignment requirement is at least as strict (as large) as that of every scalar type.
  * @see https://en.cppreference.com/w/c/types/max_align_t
  */
-public type max_align_t = ubigint
+public type max_align_t = double
 
 /**
- * TODO nullptr_t's implementation is unknown
+ * nullptr_t is the type of the predefined null pointer constant, nullptr. It is a distinct type that is not itself a pointer type. It can be implicitly converted to any pointer type or bool, and the result is the null pointer value of that type or false respectively. No type other than nullptr_t itself can be converted or explicitly cast to nullptr_t.
  * @see https://en.cppreference.com/w/c/types/nullptr_t
  */
-public type nullptr_t = ubigint
+public type nullptr_t = *mut void
 
 /**
  * a typedef for the same type as size_t, used to self-document functions that range-check their parameters at runtime

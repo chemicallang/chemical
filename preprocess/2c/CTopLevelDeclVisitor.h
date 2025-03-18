@@ -63,6 +63,8 @@ public:
 
     void VisitVarInitStmt(VarInitStatement *init);
 
+    void VisitIfStmt(IfStatement* node);
+
     void VisitTypealiasStmt(TypealiasStatement *statement);
 
     void VisitFunctionDecl(FunctionDeclaration *functionDeclaration);

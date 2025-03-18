@@ -398,11 +398,18 @@ public func atexit(func : () => void ) : int
 public func at_quick_exit(func : () => void) : int
 
 /**
- * TODO these macros haven't been defined
- * #define EXIT_SUCCESS // implementation defined
- * #define EXIT_FAILURE // implementation defined
+ * The EXIT_SUCCESS and EXIT_FAILURE macros expand into integral constant expressions that can be used as arguments to the exit function (and, therefore, as the values to return from the main function), and indicate program execution status.
  * @see https://en.cppreference.com/w/c/program/EXIT_status
  */
+@comptime
+public const EXIT_SUCCESS = 0
+
+/**
+ * The EXIT_SUCCESS and EXIT_FAILURE macros expand into integral constant expressions that can be used as arguments to the exit function (and, therefore, as the values to return from the main function), and indicate program execution status.
+ * @see https://en.cppreference.com/w/c/program/EXIT_status
+ */
+@comptime
+public const EXIT_FAILURE = 0
 
 /**
  * Calls the host environment's command processor with the parameter command. Returns an implementation-defined value (usually the value that the invoked program returns).

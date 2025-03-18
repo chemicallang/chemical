@@ -2,7 +2,7 @@
  * TODO time_t is implementation defined
  * @see https://en.cppreference.com/w/c/chrono/time_t
  */
-struct time_t {
+public struct time_t {
 
 }
 
@@ -10,14 +10,14 @@ struct time_t {
  * TODO clock_t is implementation defined
  * @see https://en.cppreference.com/w/c/chrono/clock_t
  */
-struct clock_t {
+public struct clock_t {
 
 }
 
 /**
  * Structure holding an interval broken down into seconds and nanoseconds.
  */
-struct timespec {
+public struct timespec {
 
     /**
      * whole seconds (valid values are >= 0)

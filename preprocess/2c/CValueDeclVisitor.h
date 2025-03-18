@@ -30,8 +30,6 @@ public:
 
     void VisitEnumDecl(EnumDeclaration *enumDeclaration);
 
-    void VisitTypealiasStmt(TypealiasStatement *statement);
-
     void VisitFunctionType(FunctionType *func);
 
     void VisitStructMember(StructMember *member);

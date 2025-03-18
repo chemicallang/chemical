@@ -47,11 +47,11 @@ jobs:
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          # Determine release root: if exactly one directory exists at top level, use it.
-          release_root="."
-          count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
-          if [ "$count" -eq 1 ]; then
-            release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
+          # Determine the release root
+          release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
+          if [ -z "$release_root" ]; then
+            echo "Error: No release directory found."
+          exit 1
           fi
           echo "Using release root: $release_root"
           # If the asset does not already include the tests module, copy it from the repository.
@@ -80,10 +80,11 @@ jobs:
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          release_root="."
-          count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
-          if [ "$count" -eq 1 ]; then
-            release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
+          # Determine the release root
+          release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
+          if [ -z "$release_root" ]; then
+            echo "Error: No release directory found."
+          exit 1
           fi
           echo "Using release root: $release_root"
           if [ ! -d "$release_root/lang/tests" ]; then
@@ -147,11 +148,10 @@ jobs:
           Write-Host "Downloading asset from $assetUrl"
           Invoke-WebRequest -Uri $assetUrl -OutFile asset.zip
           Expand-Archive -Path asset.zip -DestinationPath . -Force
-          $dirs = Get-ChildItem -Directory | Where-Object { $_.Name -ne "lang" }
-          if ($dirs.Count -eq 1) {
-              $releaseRoot = $dirs[0].FullName
-          } else {
-              $releaseRoot = Get-Location
+          $releaseRoot = (Get-ChildItem -Directory | Where-Object { $_.Name -ne "lang" } | Select-Object -First 1).FullName
+          if (-not $releaseRoot) {
+              Write-Error "Error: No release directory found."
+              exit 1
           }
           Write-Host "Using release root: $releaseRoot"
           if (-not (Test-Path -Path "$releaseRoot\lang\tests\build.lab")) {
@@ -179,11 +179,10 @@ jobs:
           Write-Host "Downloading asset from $assetUrl"
           Invoke-WebRequest -Uri $assetUrl -OutFile asset.zip
           Expand-Archive -Path asset.zip -DestinationPath . -Force
-          $dirs = Get-ChildItem -Directory | Where-Object { $_.Name -ne "lang" }
-          if ($dirs.Count -eq 1) {
-              $releaseRoot = $dirs[0].FullName
-          } else {
-              $releaseRoot = Get-Location
+          $releaseRoot = (Get-ChildItem -Directory | Where-Object { $_.Name -ne "lang" } | Select-Object -First 1).FullName
+          if (-not $releaseRoot) {
+              Write-Error "Error: No release directory found."
+              exit 1
           }
           Write-Host "Using release root: $releaseRoot"
           if (-not (Test-Path -Path "$releaseRoot\lang\tests\build.lab")) {

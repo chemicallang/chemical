@@ -105,11 +105,11 @@ jobs:
       - name: Compile source code (Linux)
         if: runner.os != 'Windows'
         run: |
-          # Determine release root: if exactly one directory exists at top level, use it.
-          release_root="."
-          count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
-          if [ "$count" -eq 1 ]; then
-            release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
+          # Determine the release root
+          release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
+          if [ -z "$release_root" ]; then
+            echo "Error: No release directory found."
+          exit 1
           fi
           echo "Using release root: $release_root"
           # Copy main.ch if not present.
@@ -144,10 +144,11 @@ jobs:
       - name: Run compiled program and capture combined output (Linux)
         if: runner.os != 'Windows'
         run: |
-          release_root="."
-          count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
-          if [ "$count" -eq 1 ]; then
-            release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
+          # Determine the release root
+          release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
+          if [ -z "$release_root" ]; then
+            echo "Error: No release directory found."
+          exit 1
           fi
           echo "Using release root: $release_root"
           pushd "$release_root"

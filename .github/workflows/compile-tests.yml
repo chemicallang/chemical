@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Use the compiler executable as provided in the asset.
+      # These commands use the compiler executable as provided in the asset.
       COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm --ignore-errors -v --assertions --mode debug_complete"
       ASSET_REGULAR: "linux-x86-64.zip"
@@ -39,9 +39,6 @@ jobs:
       - name: Process Linux Regular Variant
         run: |
           echo "== Processing Linux Regular Variant =="
-          # Create a temporary directory for the asset extraction
-          mkdir -p temp/variant-regular
-          cd temp/variant-regular
           echo "Fetching release information..."
           releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
           ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
@@ -52,16 +49,18 @@ jobs:
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          # Determine release root: if exactly one directory exists at top level, use it; else, use the current directory.
+          # Determine release root: if exactly one directory exists at top level, use it.
           release_root="."
           count=$(find . -maxdepth 1 -type d ! -path "." | wc -l)
           if [ "$count" -eq 1 ]; then
             release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
           echo "Using release root: $release_root"
-          # Copy the build.lab file from the repository into the asset structure.
-          mkdir -p "$release_root/lang/tests"
-          cp "$GITHUB_WORKSPACE/lang/tests/build.lab" "$release_root/lang/tests/"
+          # Place the test source file in the expected location:
+          if [ ! -f "$release_root/lang/tests/build.lab" ]; then
+            mkdir -p "$release_root/lang/tests"
+            cp "$GITHUB_WORKSPACE/lang/tests/build.lab" "$release_root/lang/tests/"
+          fi
           pushd "$release_root"
           echo "Running compile command for Linux Regular Variant:"
           echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
@@ -74,8 +73,6 @@ jobs:
       - name: Process Linux TCC Variant
         run: |
           echo "== Processing Linux TCC Variant =="
-          mkdir -p temp/variant-tcc
-          cd temp/variant-tcc
           echo "Fetching release information..."
           releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
           ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_TCC}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
@@ -92,8 +89,10 @@ jobs:
             release_root=$(find . -maxdepth 1 -type d ! -path "." | head -n 1)
           fi
           echo "Using release root: $release_root"
-          mkdir -p "$release_root/lang/tests"
-          cp "$GITHUB_WORKSPACE/lang/tests/build.lab" "$release_root/lang/tests/"
+          if [ ! -f "$release_root/lang/tests/build.lab" ]; then
+            mkdir -p "$release_root/lang/tests"
+            cp "$GITHUB_WORKSPACE/lang/tests/build.lab" "$release_root/lang/tests/"
+          fi
           pushd "$release_root"
           echo "Running compile command for Linux TCC Variant:"
           echo "${COMPILER_CMD_TCC}" | tee compile_output.txt

@@ -1324,12 +1324,14 @@ void CTranslator::translate(
             }
         }
     }
-    // actual translation
-    translate(unit);
-    // dedupe the nodes
-    top_level_dedupe(nodes);
-    // delete the unit (not needed, we already translated)
-    delete unit;
+    if(unit) {
+        // actual translation
+        translate(unit);
+        // dedupe the nodes
+        top_level_dedupe(nodes);
+        // delete the unit (not needed, we already translated)
+        delete unit;
+    }
 }
 
 void CTranslator::translate(

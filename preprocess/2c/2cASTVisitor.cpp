@@ -2753,7 +2753,7 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
                 create_v_table(visitor, def, linked_struct, has_vtable_impl);
 #ifdef COMPILER_BUILD
                 if(!has_vtable_impl) {
-                    vtable_done->second = nullptr;
+                    def->vtable_pointers[linked_struct] = nullptr;
                 }
 #else
                 if(!has_vtable_impl) {

@@ -1,4 +1,4 @@
-import "../libs/lab/lab.ch"
+import "@lab/lab.ch"
 
 using namespace std;
 

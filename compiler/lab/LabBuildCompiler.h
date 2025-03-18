@@ -8,6 +8,7 @@
 #include "ctpl.h"
 #include "parser/model/CompilerBinder.h"
 #include "cst/LocationManager.h"
+#include "preprocess/ImportPathHandler.h"
 
 class ASTAllocator;
 
@@ -26,6 +27,11 @@ class CmdOptions;
  */
 class LabBuildCompiler {
 public:
+
+    /**
+     * the path handler is used to resolve paths, store aliases during compilation
+     */
+    ImportPathHandler path_handler;
 
     /**
      * compiler binder is used to bind compiler functions with user source code

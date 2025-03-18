@@ -12,7 +12,6 @@
 #include "compiler/lab/LabModule.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/Benchmark.h"
-#include "preprocess/ImportPathHandler.h"
 #include "ast/base/ASTUnit.h"
 #include "ast/base/ASTAllocator.h"
 #include "integration/cbi/bindings/CBI.h"
@@ -29,6 +28,8 @@ class SymbolResolver;
 class ShrinkingVisitor;
 
 class ToCAstVisitor;
+
+class ImportPathHandler;
 
 #ifdef COMPILER_BUILD
 
@@ -150,7 +151,7 @@ public:
     /**
      * import path handler, handles paths, '@' symbols in paths, determining their absolute paths
      */
-    ImportPathHandler path_handler;
+    ImportPathHandler& path_handler;
 
     /**
      * import mutex is used to synchronize launching of multiple files
@@ -233,6 +234,7 @@ public:
      * constructor
      */
     ASTProcessor(
+            ImportPathHandler& pathHandler,
             ASTProcessorOptions* options,
             LocationManager& loc_man,
             SymbolResolver* resolver,

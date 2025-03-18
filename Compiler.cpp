@@ -680,7 +680,7 @@ int main(int argc, char *argv[]) {
             return compiler.do_job_allocating(&job);
         }
 
-        LabBuildContext context(&compiler_opts, std::string(args[0]));
+        LabBuildContext context(&compiler_opts, compiler.path_handler, std::string(args[0]));
         compiler_opts.outMode = mode;
 
         // giving build args to lab build context

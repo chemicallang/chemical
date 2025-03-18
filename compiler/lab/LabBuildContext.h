@@ -38,9 +38,9 @@ public:
     // the data pointer that'll be passed to on_finished at end
     void* on_finished_data = nullptr;
     // if import paths are to be used with aliases in them, we need a path handler
-    ImportPathHandler* handler;
+    ImportPathHandler& handler;
     // the compiler options sent by the user
-    LabBuildCompilerOptions* options;
+    LabBuildCompilerOptions* options = nullptr;
 
 private:
 
@@ -54,8 +54,9 @@ public:
     /**
      * constructor
      */
-    explicit LabBuildContext(
+    LabBuildContext(
         LabBuildCompilerOptions* options,
+        ImportPathHandler& path_handler,
         std::string lab_file,
         std::string build_dir = ""
     );

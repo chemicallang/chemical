@@ -159,7 +159,10 @@ bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std
     return true;
 }
 
-LabBuildCompiler::LabBuildCompiler(CompilerBinder& binder, LabBuildCompilerOptions *options) : binder(binder), options(options), pool((int) std::thread::hardware_concurrency()) {
+LabBuildCompiler::LabBuildCompiler(
+    CompilerBinder& binder,
+    LabBuildCompilerOptions *options
+) : path_handler(options->exe_path), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()) {
 
 }
 
@@ -392,7 +395,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, options->is64Bit);
-    ASTProcessor processor(options, loc_man, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, loc_man, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
     CodegenOptions code_gen_options;
     if(cmd) {
         code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
@@ -403,7 +406,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     // set the context so compile time calls are sent to it
     global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
 #else
-    ASTProcessor processor(options, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
     global.backend_context = (BackendContext*) &c_context;
 #endif
 
@@ -1035,6 +1038,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
     // the processor that does everything for build.lab files only
     ASTProcessor lab_processor(
+            path_handler,
             options,
             loc_man,
             &lab_resolver,

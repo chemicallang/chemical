@@ -17,7 +17,7 @@ dispose_string::~dispose_string(){
 }
 
 chem::string* init_chem_string(chem::string* str) {
-    str->storage.constant.data = nullptr;
+    str->storage.constant.data = "";
     str->storage.constant.length = 0;
     str->state = '0';
     return str;
@@ -31,6 +31,8 @@ void build_context_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
         { "BuildContextc_file_module", (void*) BuildContextc_file_module },
         { "BuildContextcpp_file_module", (void*) BuildContextcpp_file_module },
         { "BuildContextobject_module", (void*) BuildContextobject_module },
+
+        { "BuildContextresolve_import_path", (void*) BuildContextresolve_import_path },
 
         { "BuildContextinclude_header", (void*) BuildContextinclude_header },
         { "BuildContextinclude_file", (void*) BuildContextinclude_file },

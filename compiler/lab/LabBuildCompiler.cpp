@@ -1093,18 +1093,13 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     c_visitor.prepare_translate();
 
     // function can find the build method in lab file
-    auto finder = [](SymbolResolver& resolver, const std::string& abs_path, bool error = true) -> FunctionDeclaration* {
-        auto found = resolver.find("build");
-        if(found) {
-            auto func = found->as_function();
-            if(func) {
-                return func;
-            } else if(error){
-                std::cerr << "[lab] expected build to be a function in the root lab build file " << abs_path << std::endl;
+    auto finder = [](SymbolResolver& resolver, const std::string& abs_path, std::vector<ASTNode*>& nodes, bool error = true) -> FunctionDeclaration* {
+        for(const auto node : nodes) {
+            if(node->kind() == ASTNodeKind::FunctionDecl && node->as_function_unsafe()->name_view() == "build") {
+                return node->as_function_unsafe();
             }
-        } else if(error) {
-            std::cerr << "[lab] No build method found in the root lab build file " << abs_path << std::endl;
         }
+        std::cerr << "[lab] No build method found in the root lab build file " << abs_path << std::endl;
         return nullptr;
     };
 
@@ -1148,7 +1143,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             // the last build.lab file is whose build method is to be called
             bool is_last = i == module_files.size() - 1;
             if (is_last) {
-                auto found = finder(lab_resolver, file.abs_path);
+                auto found = finder(lab_resolver, file.abs_path, file.unit.scope.nodes);
                 if (!found) {
                     compile_result = 1;
                     break;
@@ -1161,13 +1156,11 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
                 found->set_specifier_fast(AccessSpecifier::Public);
             } else if (file.abs_path.ends_with(".lab")) {
                 if (file.as_identifier.empty()) {
-                    std::cerr
-                            << "[lab] lab file cannot be imported without an 'as' identifier in import statement, error importing "
-                            << file.abs_path << std::endl;
+                    std::cerr << "[lab] lab file cannot be imported without an 'as' identifier in import statement, error importing " << file.abs_path << std::endl;
                     compile_result = 1;
                     break;
                 } else {
-                    auto found = finder(lab_resolver, file.abs_path);
+                    auto found = finder(lab_resolver, file.abs_path, file.unit.scope.nodes);
                     if (!found) {
                         compile_result = 1;
                         break;

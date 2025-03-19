@@ -1,8 +1,6 @@
 import "@std/string.ch"
-import "@std/array_ref.ch"
+import "@std/span.ch"
 import "@std/fs.ch"
-
-using namespace std;
 
 public enum ModuleType {
     File,
@@ -15,17 +13,17 @@ public enum ModuleType {
 @no_init
 public struct Module {
     var type : ModuleType
-    var name : string
+    var name : std::string
     // a path can be given, to output the translated C file (if any)
-    var out_c_path : string
+    var out_c_path : std::string
     // the bitcode file path for this module
-    var bitcode_path : string;
+    var bitcode_path : std::string;
     // the object file path for this module
-    var object_path : string;
+    var object_path : std::string;
     // if not empty, module's llvm ir is written to at this path
-    var llvm_ir_path : string;
+    var llvm_ir_path : std::string;
     // if not empty, module's assembly is written to at this path
-    var asm_path : string;
+    var asm_path : std::string;
 }
 
 public enum LabJobType {
@@ -47,9 +45,9 @@ public enum LabJobStatus {
 @no_init
 public struct LabJob {
     var type : LabJobType
-    var name : string
-    var abs_path : string
-    var build_dir : string
+    var name : std::string
+    var abs_path : std::string
+    var build_dir : std::string
     var status : LabJobStatus
 }
 
@@ -58,132 +56,132 @@ public enum CBIImportKind {
 }
 
 struct PathResolutionResult {
-    var path : string
-    var error : string
+    var path : std::string
+    var error : std::string
 }
 
 @compiler.interface
 public struct BuildContext {
 
     // support's paths with .o, .c and .ch extensions
-    func files_module (&self, name : &string, paths : **string, paths_len : uint, dependencies : ArrayRef<*Module>) : *mut Module;
+    func files_module (&self, name : &std::string, paths : **std::string, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
 
     // when paths only contain chemical files
-    func chemical_files_module (&self, name : &string, paths : **string, paths_len : uint, dependencies : ArrayRef<*Module>) : *mut Module;
+    func chemical_files_module (&self, name : &std::string, paths : **std::string, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
 
     // directory module
-    func chemical_dir_module (&self, name : &string, path : &string, dependencies : ArrayRef<*Module>) : *mut Module
+    func chemical_dir_module (&self, name : &std::string, path : &std::string, dependencies : std::span<*Module>) : *mut Module
 
     // a single .c file
-    func c_file_module (&self, name : &string, path : &string, dependencies : ArrayRef<*Module>) : *mut Module
+    func c_file_module (&self, name : &std::string, path : &std::string, dependencies : std::span<*Module>) : *mut Module
 
     // a single .cpp file
-    func cpp_file_module (&self, name : &string, path : &string, dependencies : ArrayRef<*Module>) : *mut Module
+    func cpp_file_module (&self, name : &std::string, path : &std::string, dependencies : std::span<*Module>) : *mut Module
 
     // a single .o file
-    func object_module (&self, name : &string, path : &string) : *mut Module
+    func object_module (&self, name : &std::string, path : &std::string) : *mut Module
 
     // resolves a path, this allows to get exact path to the library or file
     // you can resolve for example where the std library is using base_path empty and path "@std/"
-    func resolve_import_path(&self, base_path : &string, path : &string) : PathResolutionResult
+    func resolve_import_path(&self, base_path : &std::string, path : &std::string) : PathResolutionResult
 
     // allows to include c header in the module
-    func include_header(&self, module : *mut Module, header : &string);
+    func include_header(&self, module : *mut Module, header : &std::string);
 
     // allows to include a chemical file in the module
-    func include_file(&self, module : *mut Module, abs_path : &string);
+    func include_file(&self, module : *mut Module, abs_path : &std::string);
 
     // translate a module to chemical
-    func translate_to_chemical (&self, module : *mut Module, output_path : &string) : *mut LabJob;
+    func translate_to_chemical (&self, module : *mut Module, output_path : &std::string) : *mut LabJob;
 
     // translate a chemical module to c file
-    func translate_to_c (&self, name : &string, dependencies : ArrayRef<*Module>, output_dir : &string) : *mut LabJob
+    func translate_to_c (&self, name : &std::string, dependencies : std::span<*Module>, output_dir : &std::string) : *mut LabJob
 
     // build executable using module dependencies
-    func build_exe (&self, name : *string, dependencies : ArrayRef<*Module>) : *mut LabJob;
+    func build_exe (&self, name : *std::string, dependencies : std::span<*Module>) : *mut LabJob;
 
     // build a dynamic library using executable dependencies
-    func build_dynamic_lib (&self, name : *string, dependencies : ArrayRef<*Module>) : *mut LabJob;
+    func build_dynamic_lib (&self, name : *std::string, dependencies : std::span<*Module>) : *mut LabJob;
 
     // build a cbi by given name, that can be used to integrate with compiler
-    func build_cbi (&self, name : *string, entry : *Module, dependencies : ArrayRef<*Module>) : *mut LabJob
+    func build_cbi (&self, name : *std::string, entry : *Module, dependencies : std::span<*Module>) : *mut LabJob
 
     // add a linkable object (.o file)
-    func add_object (&self, job : *LabJob, path : &string) : void;
+    func add_object (&self, job : *LabJob, path : &std::string) : void;
 
     // declare an alias for a path that can be used in imports like import '@alias/sub_path.ch'
     // returns true if declared
-    func declare_alias (&self, job : *LabJob, alias : &string, path : &string) : bool;
+    func declare_alias (&self, job : *LabJob, alias : &std::string, path : &std::string) : bool;
 
     // get build
-    func build_path (&self) : string;
+    func build_path (&self) : std::string;
 
     // check if argument given to chemical compiler
     // you can give argument using -arg-myarg, pass myarg to this function to check
-    func has_arg (&self, name : &string) : bool
+    func has_arg (&self, name : &std::string) : bool
 
     // get the argument given to chemical compiler
-    func get_arg (&self, name : &string) : string
+    func get_arg (&self, name : &std::string) : std::string
 
     // remove the argument given to chemical compiler
-    func remove_arg (&self, name : &string) : void
+    func remove_arg (&self, name : &std::string) : void
 
     // define a definition, that you can access using defined compiler function
     // returns true, if defined
-    func define (&self, job : *LabJob, name : &string) : bool
+    func define (&self, job : *LabJob, name : &std::string) : bool
 
     // un-define a definition
-    func undefine (&self, job : *LabJob, name : &string) : bool;
+    func undefine (&self, job : *LabJob, name : &std::string) : bool;
 
     // launch an executable at the path
-    func launch_executable (&self, path : &string, same_window : bool) : int;
+    func launch_executable (&self, path : &std::string, same_window : bool) : int;
 
     // something you'd want to be invoked when lab build has finished
     func on_finished (&self, lambda : (data : *void) => void, data : *void) : void;
 
     // link object files (.o files) into a single binary
-    func link_objects (&self, string_arr : ArrayRef<string>, output_path : &string) : int;
+    func link_objects (&self, string_arr : std::span<std::string>, output_path : &std::string) : int;
 
     // invoke llvm dll tool with given cli args
-    func invoke_dlltool (&self, string_arr : ArrayRef<string>) : int;
+    func invoke_dlltool (&self, string_arr : std::span<std::string>) : int;
 
     // invoke ranlib tool with given cli args
-    func invoke_ranlib (&self, string_arr : ArrayRef<string>) : int;
+    func invoke_ranlib (&self, string_arr : std::span<std::string>) : int;
 
     // invoke lib tool with given cli args
-    func invoke_lib (&self, string_arr : ArrayRef<string>) : int;
+    func invoke_lib (&self, string_arr : std::span<std::string>) : int;
 
     // invoke ar with given cli args
-    func invoke_ar (&self, string_arr : ArrayRef<string>) : int;
+    func invoke_ar (&self, string_arr : std::span<std::string>) : int;
 
 }
 
-func (ctx : &BuildContext) chemical_file_module(name : &string, path : &string, dependencies : ArrayRef<*Module>) : *mut Module {
+func (ctx : &BuildContext) chemical_file_module(name : &std::string, path : &std::string, dependencies : std::span<*Module>) : *mut Module {
     const path_ptr = &path;
     return ctx.chemical_files_module(name, &path_ptr, 1, dependencies);
 }
 
-func (ctx : &BuildContext) file_module(name : &string, path : &string, dependencies : ArrayRef<*Module>) : *mut Module {
+func (ctx : &BuildContext) file_module(name : &std::string, path : &std::string, dependencies : std::span<*Module>) : *mut Module {
     const path_ptr = &path;
     return ctx.files_module(name, &path_ptr, 1, dependencies);
 }
 
-func (ctx : &BuildContext) translate_file_to_chemical (c_path : &string, output_path : &string) : *mut LabJob {
-    const mod = ctx.file_module(string("CFile"), c_path, {  });
+func (ctx : &BuildContext) translate_file_to_chemical (c_path : &std::string, output_path : &std::string) : *mut LabJob {
+    const mod = ctx.file_module(std::string("CFile"), c_path, {  });
     return ctx.translate_to_chemical(mod, output_path);
 }
 
-func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &string) : *mut LabJob {
-    return ctx.translate_to_c(string("ToCJob"), { module }, output_dir);
+func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &std::string) : *mut LabJob {
+    return ctx.translate_to_c(std::string("ToCJob"), { module }, output_dir);
 }
 
-func (ctx : &BuildContext) translate_file_to_c(chem_path : &string, output_path : &string) : *mut LabJob {
-    var mod = ctx.file_module(string("TempChem"), chem_path, {});
+func (ctx : &BuildContext) translate_file_to_c(chem_path : &std::string, output_path : &std::string) : *mut LabJob {
+    var mod = ctx.file_module(std::string("TempChem"), chem_path, {});
     return ctx.translate_mod_to_c(mod, output_path);
 }
 
 // allows to include headers in the module
-func (ctx : &BuildContext) include_headers(module : *mut Module, headers : ArrayRef<string>) {
+func (ctx : &BuildContext) include_headers(module : *mut Module, headers : std::span<std::string>) {
     var i = 0;
     const total = headers.size();
     while(i < total) {
@@ -194,7 +192,7 @@ func (ctx : &BuildContext) include_headers(module : *mut Module, headers : Array
 }
 
 // allows to include headers in the module
-func (ctx : &BuildContext) include_files(module : *mut Module, files : ArrayRef<string>) {
+func (ctx : &BuildContext) include_files(module : *mut Module, files : std::span<std::string>) {
     var i = 0;
     const total = files.size();
     while(i < total) {
@@ -206,25 +204,25 @@ func (ctx : &BuildContext) include_files(module : *mut Module, files : ArrayRef<
 
 namespace lab {
 
-    private func curr_dir_of(path : *char, len : size_t) : string {
+    private func curr_dir_of(path : *char, len : size_t) : std::string {
         return fs::parent_path(std::string_view(path, len))
     }
 
     @comptime
-    func curr_dir() : string {
+    func curr_dir() : std::string {
         const call_loc = compiler::get_call_loc(9999) // this gets the first runtime call location to this function
         const loc_path = compiler::get_loc_file_path(call_loc)
         const loc_path_size = compiler::size(loc_path)
         return compiler::wrap(curr_dir_of(loc_path, loc_path_size))
     }
 
-    private func appended_str(str : string, path : *char) : string {
+    private func appended_str(str : std::string, path : *char) : std::string {
         str.append_char_ptr(path)
         return str;
     }
 
     @comptime
-    func rel_path_to(path : *char) : string {
+    func rel_path_to(path : *char) : std::string {
         return compiler::wrap(appended_str(curr_dir(), path))
     }
 

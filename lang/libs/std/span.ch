@@ -3,7 +3,7 @@ import "./std.ch"
 
 public namespace std {
 
-public struct ArrayRef<T> {
+public struct span<T> {
 
     var data : *T
     var _size : size_t

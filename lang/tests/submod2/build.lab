@@ -1,5 +1,8 @@
 import "@lab/lab.ch"
+import "@std/string.ch"
 
 func build(ctx : *mut BuildContext) : *Module {
+
+    return ctx.chemical_dir_module(std::string("submod2"), lab::rel_path_to("src"), { })
 
 }

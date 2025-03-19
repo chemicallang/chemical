@@ -383,7 +383,8 @@ void ASTProcessor::import_chemical_files(
             out_file = &cache[abs_path];
         }
 
-        out_file->import_path = fileData.import_path;
+        // copy the metadata into it
+        *static_cast<ASTFileMetaData*>(out_file) = fileData;
 
 #if defined(DEBUG_FUTURE) && DEBUG_FUTURE
         futures.emplace_back(concurrent_file_importer(0, this, pool, out_file, fileData));
@@ -426,7 +427,7 @@ void ASTProcessor::import_chemical_file(
             auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, stmt->filePath.str());
             if(replaceResult.error.empty()) {
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
-                imports.emplace_back(fileId, SymbolRange { 0, 0 }, stmt->filePath.str(), std::move(replaceResult.replaced));
+                imports.emplace_back(fileId, SymbolRange { 0, 0 }, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
             } else {
                 std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
             }

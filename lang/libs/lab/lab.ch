@@ -1,5 +1,6 @@
 import "@std/string.ch"
 import "@std/array_ref.ch"
+import "@std/fs.ch"
 
 using namespace std;
 
@@ -201,4 +202,30 @@ func (ctx : &BuildContext) include_files(module : *mut Module, files : ArrayRef<
         ctx.include_file(module, *ele);
         i++;
     }
+}
+
+namespace lab {
+
+    private func curr_dir_of(path : *char, len : size_t) : string {
+        return fs::parent_path(std::string_view(path, len))
+    }
+
+    @comptime
+    func curr_dir() : string {
+        const call_loc = compiler::get_call_loc(9999) // this gets the first runtime call location to this function
+        const loc_path = compiler::get_loc_file_path(call_loc)
+        const loc_path_size = compiler::size(loc_path)
+        return compiler::wrap(curr_dir_of(loc_path, loc_path_size))
+    }
+
+    private func appended_str(str : string, path : *char) : string {
+        str.append_char_ptr(path)
+        return str;
+    }
+
+    @comptime
+    func rel_path_to(path : *char) : string {
+        return compiler::wrap(appended_str(curr_dir(), path))
+    }
+
 }

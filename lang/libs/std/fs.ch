@@ -69,7 +69,7 @@ public namespace fs {
             pos = find_last_pos_of_or(str.data(), str.size(), '/', '/')
         }
         if(pos > 0) {
-            final.append_with_len(str.data(), pos)
+            final.append_with_len(str.data(), pos + 1)
         }
         return final;
     }

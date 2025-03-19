@@ -97,12 +97,12 @@ namespace fs = std::filesystem;
  * save mod timestamp data (modified date and file size) in a file that can be read later and compared
  * to check if files have changed
  */
-void save_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& output_file) {
+void save_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& output_file) {
     std::ofstream ofs(output_file.data(), std::ios::binary);
     size_t num_files = files.size();
     ofs.write(reinterpret_cast<const char*>(&num_files), sizeof(num_files));
-    for (const auto file : files) {
-        auto& file_abs_path = file->abs_path;
+    for (const auto& file : files) {
+        auto& file_abs_path = file.abs_path;
         fs::path file_path(file_abs_path);
         if (fs::exists(file_path)) {
             uintmax_t file_size = fs::file_size(file_path);
@@ -116,7 +116,7 @@ void save_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::str
     }
 }
 
-bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& prev_timestamp_file) {
+bool compare_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& prev_timestamp_file) {
     std::ifstream ifs(prev_timestamp_file.data(), std::ios::binary);
 
     if (!ifs.is_open()) {
@@ -131,7 +131,7 @@ bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std
     }
 
     for (const auto& file : files) {
-        fs::path file_path(file);
+        fs::path file_path(file.abs_path);
         if (fs::exists(file_path)) {
             uintmax_t current_file_size = fs::file_size(file_path);
             auto current_mod_time = fs::last_write_time(file_path);
@@ -493,12 +493,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             }
         }
 
-#ifdef COMPILER_BUILD
-        // let c translator know that a new module has begin
-        // so it can re-declare imported c headers
-        cTranslator.module_begin();
-#endif
-
         if(job_type == LabJobType::Executable || job_type == LabJobType::ProcessingOnly || job_type == LabJobType::Library) {
             if (is_use_obj_format || mod->type == LabModuleType::CFile) {
                 if (mod->object_path.empty()) {
@@ -566,6 +560,53 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             continue;
         }
 
+        // these files are only the direct files present in the module
+        // for example every file (nested included) in a directory
+        // however it won't include files imported from another module
+        std::vector<ASTFileMetaData> direct_files;
+
+        // this would determine the direct files for the module
+        processor.determine_mod_files(direct_files, mod);
+
+        // let's check object file if it already exists
+        if(fs::exists(mod->object_path.to_view())) {
+
+            if (verbose) {
+                std::cout << "[lab] " << "found object file '" << mod->object_path << "', checking timestamp." << std::endl;
+            }
+
+            // let's check if module timestamp file exists and is valid (files haven't changed)
+            if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
+
+                if (verbose) {
+                    std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "'" << std::endl;
+                    std::cout << "[lab] " << "reusing found object file" << std::endl;
+                }
+
+                exe->linkables.emplace_back(mod->object_path.copy());
+                continue;
+
+            } else if (verbose) {
+                std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
+            }
+
+        } else if(verbose) {
+            std::cout << "[lab] " << "couldn't find object file at '" << mod->object_path << "'" << std::endl;
+        }
+
+        // ---------- HEAVY WORK BEGINS HERE ----------------
+        // -------- (Tyla "omg, this is so heavy") ----------
+        // ------- we must use any cache, before this --------
+
+        // this will include the direct files (nested included) for the module
+        // these will be lexed and parsed
+        // these direct files will have "imports" field, which can be accessed to check each file's imports
+        std::vector<ASTFileResultNew*> module_files;
+
+        // this would import these direct files (lex and parse), into the module files
+        // the module files will have imports, any file imported (from this module or external module will be included)
+        processor.import_mod_files(pool, module_files, direct_files, mod);
+
         const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
         if(mod_data_path && do_compile) {
             std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
@@ -575,8 +616,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             std::cout << "at path '" << mod_data_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
         }
 
-        std::vector<ASTFileResultNew*> module_files;
-        processor.determine_mod_imports(pool, module_files, mod);
+#ifdef COMPILER_BUILD
+        // let c translator know that a new module has begin
+        // so it can re-declare imported c headers
+        cTranslator.module_begin();
+#endif
 
         if(use_tcc) {
             // preparing translation
@@ -766,7 +810,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 exe->linkables.emplace_back(obj_path);
                 generated[mod] = obj_path;
                 if(caching) {
-                    save_mod_timestamp(flattened_files, mod_timestamp_file);
+                    save_mod_timestamp(direct_files, mod_timestamp_file);
                 }
             }
 
@@ -879,7 +923,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     exe->linkables.emplace_back(gen_path);
                     generated[mod] = gen_path;
                     if(caching) {
-                        save_mod_timestamp(flattened_files, mod_timestamp_file);
+                        save_mod_timestamp(direct_files, mod_timestamp_file);
                     }
                 }
             } else {

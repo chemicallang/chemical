@@ -7,7 +7,6 @@
 #include <string>
 #include "ast/base/BaseType.h"
 #include "ast/base/ValueKind.h"
-#include "std/common.h"
 #include "ast/structures/FunctionParam.h"
 
 #ifdef COMPILER_BUILD
@@ -37,19 +36,19 @@ struct FunctionTypeData {
     /**
      * extension functions are same as functions, however are children of containers
      */
-    bool isExtension;
+    bool isExtension = false;
     /**
      * is the function variadic
      */
-    bool isVariadic;
-    /**
-     * is the function capturing
-     */
-    bool isCapturing;
+    bool isVariadic = false;
     /**
      * this is marked true, when symbol resolution of the signature completes successfully
      */
-    bool signature_resolved;
+    bool signature_resolved = false;
+    /**
+     * is the function capturing
+     */
+    bool isCapturing = false;
 };
 
 static_assert(sizeof(FunctionTypeData) <= 8);
@@ -76,7 +75,7 @@ public:
             bool isCapturing,
             SourceLocation location,
             bool signature_resolved = false
-    ) : data(false, isVariadic, isCapturing, signature_resolved), returnType(returnType),
+    ) : data(false, isVariadic, signature_resolved, isCapturing), returnType(returnType),
         BaseType(BaseTypeKind::Function, location) {
 
     }
@@ -91,7 +90,7 @@ public:
             bool isCapturing,
             SourceLocation location,
             bool signature_resolved = false
-    ) : data(isExtension, isVariadic, isCapturing, signature_resolved), returnType(returnType),
+    ) : data(isExtension, isVariadic, signature_resolved, isCapturing), returnType(returnType),
         BaseType(BaseTypeKind::Function, location) {
 
     }

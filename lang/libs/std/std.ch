@@ -1,10 +1,11 @@
 public func printf(format : *char, _ : any...) : int
 
-if(compiler::is_clang()) {
+if(def.win64) {
     public type size_t = ubigint
+} else if(def.win32) {
+    public type size_t = ulong
 } else {
-    @comptime
-    public type size_t = ubigint
+    public type size_t = ulong
 }
 
 public func snprintf(buffer : *mut char, bufsz : size_t, format : *char, _ : any...) : int

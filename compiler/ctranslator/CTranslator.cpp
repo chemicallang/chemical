@@ -2,6 +2,7 @@
 
 #include "ast/base/ASTNode.h"
 #include "CTranslator.h"
+#include <iostream>
 #include "ast/types/IntType.h"
 #include "ast/types/CharType.h"
 #include "ast/types/FloatType.h"

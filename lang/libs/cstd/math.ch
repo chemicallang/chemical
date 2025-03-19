@@ -699,6 +699,15 @@ func hypotf(x : float, y : float) : float
 func hypot(x : double, y : double) : double
 
 /**
+ * this is just to support declarations using __float128 in Tiny CC
+ */
+if(compiler::is_tcc_based()) {
+
+    public type __float128 = longdouble;
+
+}
+
+/**
  * Computes the square root of the sum of the squares of x and y, without undue overflow or underflow at intermediate stages of the computation.
  * @param x, y	-	floating-point value
  * @return If no errors occur, the hypotenuse of a right-angled triangle,√x2+y2, is returned.

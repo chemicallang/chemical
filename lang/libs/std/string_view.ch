@@ -28,6 +28,12 @@ public namespace std {
             _size = length;
         }
 
+        @constructor
+        func make_no_len(value : *char) {
+            _data = value;
+            _size = strlen(value)
+        }
+
         func data(&self) : *char {
             return _data;
         }

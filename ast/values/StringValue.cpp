@@ -5,6 +5,7 @@
 #include "ast/types/CharType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/statements/VarInit.h"
+#include <iostream>
 
 BaseType* StringValue::create_type(ASTAllocator& allocator) {
     return new (allocator.allocate<StringType>()) StringType(encoded_location());
@@ -25,4 +26,14 @@ bool StringValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type
         }
     }
     return true;
+}
+
+Value *StringValue::index(InterpretScope &scope, int i) {
+#ifdef DEBUG
+    if (i < 0 || i >= value.size()) {
+        std::cerr << "[InterpretError] access index " << std::to_string(i) << " out of bounds for string " << value <<
+        " of length " << std::to_string(value.size());
+    }
+#endif
+    return new CharValue(value[i], encoded_location());
 }

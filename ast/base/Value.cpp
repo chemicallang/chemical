@@ -44,6 +44,7 @@
 #include <ranges>
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
+#include <iostream>
 
 #ifdef COMPILER_BUILD
 
@@ -745,16 +746,18 @@ bool Value::reference() {
 bool Value::requires_memcpy_ref_struct(BaseType* known_type) {
     // is referencing another struct, that is non movable and must be mem copied into the pointer
     const auto kind = val_kind();
-    const auto chain = as_access_chain_unsafe();
-    const auto id = as_identifier_unsafe();
-    if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && chain->values.back()->as_func_call() == nullptr)) {
+    if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && as_access_chain_unsafe()->values.back()->as_func_call() == nullptr)) {
         auto linked = known_type->get_direct_linked_canonical_node();
         if (linked) {
-            auto k = linked->kind();
-            if(k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion) {
-                return true;
-            } else if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl) {
-                return true;
+            switch(linked->kind()) {
+                case ASTNodeKind::UnnamedStruct:
+                case ASTNodeKind::UnnamedUnion:
+                case ASTNodeKind::StructDecl:
+                case ASTNodeKind::VariantDecl:
+                case ASTNodeKind::UnionDecl:
+                    return true;
+                default:
+                    return false;
             }
         }
     }

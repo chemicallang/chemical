@@ -3,12 +3,10 @@
 #pragma once
 
 #include "BaseTypeKind.h"
-#include <string>
-#include <memory>
 #include "ASTAny.h"
-#include "ASTAllocator.h"
 #include "std/chem_string_view.h"
-#include <iostream>
+#include "DebugCast.h"
+#include "ASTAllocator.h"
 
 class Codegen;
 
@@ -85,9 +83,7 @@ public:
     /**
      * get the byte size, of this type
      */
-    virtual uint64_t byte_size(bool is64Bit) {
-        throw std::runtime_error("byte_size called on base type");
-    }
+    virtual uint64_t byte_size(bool is64Bit);
 
     /**
      * this creates the child type
@@ -596,94 +592,107 @@ public:
     //---------------------------------------------
 
     inline AnyType* as_any_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Any);
         return (AnyType*) this;
     }
 
     inline ArrayType* as_array_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Array);
         return (ArrayType*) this;
     }
 
     inline StructType* as_struct_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Struct);
         return (StructType*) this;
     }
 
     inline UnionType* as_union_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Union);
         return (UnionType*) this;
     }
 
     inline BoolType* as_bool_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Bool);
         return (BoolType*) this;
     }
 
-    inline CharType* as_char_type_unsafe() {
-        return (CharType*) this;
-    }
-
-    inline UCharType* as_uchar_type_unsafe() {
-        return (UCharType*) this;
-    }
-
     inline DoubleType* as_double_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Double);
         return (DoubleType*) this;
     }
 
     inline FloatType* as_float_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Float);
         return (FloatType*) this;
     }
 
     inline LongDoubleType* as_longdouble_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::LongDouble);
         return (LongDoubleType*) this;
     }
 
     inline ComplexType* as_complex_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Complex);
         return (ComplexType*) this;
     }
 
     inline Float128Type* as_float128_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Float128);
         return (Float128Type*) this;
     }
 
     inline FunctionType* as_function_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Function);
         return (FunctionType*) this;
     }
 
     inline GenericType* as_generic_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Generic);
         return (GenericType*) this;
     }
 
     inline IntNType* as_intn_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::IntN);
         return (IntNType*) this;
     }
 
     inline PointerType* as_pointer_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Pointer);
         return (PointerType*) this;
     }
 
     inline ReferenceType* as_reference_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Reference);
         return (ReferenceType*) this;
     }
 
     inline LinkedType* as_linked_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Linked);
         return (LinkedType*) this;
     }
 
     inline ExpressionType* as_expr_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::ExpressionType);
         return (ExpressionType*) this;
     }
 
     inline StringType* as_string_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::String);
         return (StringType*) this;
     }
 
     inline LiteralType* as_literal_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Literal);
         return (LiteralType*) this;
     }
 
     inline DynamicType* as_dynamic_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Dynamic);
         return (DynamicType*) this;
     }
 
     inline VoidType* as_void_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Void);
         return (VoidType*) this;
     }
 

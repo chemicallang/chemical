@@ -723,7 +723,6 @@ llvm::Value *Codegen::implicit_cast(llvm::Value* value, BaseType* to_type, llvm:
     if(value_type->isIntegerTy() && exp_type->isIntegerTy()) {
         const auto fromIntTy = (llvm::IntegerType*) value_type;
         const auto toIntTy = (llvm::IntegerType*) exp_type;
-        const auto to_intN = to_type->as_intn_type_unsafe();
         if(fromIntTy->getBitWidth() < toIntTy->getBitWidth()) {
             if (to_type->kind() == BaseTypeKind::IntN && to_type->as_intn_type_unsafe()->is_unsigned()) {
                 return builder->CreateZExt(value, toIntTy);

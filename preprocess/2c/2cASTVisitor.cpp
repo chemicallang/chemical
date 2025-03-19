@@ -5,6 +5,7 @@
 #include <ostream>
 #include <random>
 #include <ranges>
+#include <iostream>
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Continue.h"
@@ -1938,8 +1939,8 @@ bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name,
 
 void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init_value) {
     const auto init_val_kind = init_value->val_kind();
-    auto chain = init_value->as_access_chain_unsafe();
     if(init_val_kind == ValueKind::AccessChain) {
+        auto chain = init_value->as_access_chain_unsafe();
         const auto last_func_call = chain->values.back()->as_func_call();
         if(last_func_call) {
             queue_destruct(init->name_view(), init, last_func_call);
@@ -1959,8 +1960,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
         queue_destruct(init->name_view(), init, init_value->as_func_call_unsafe());
         return;
     }
-    auto id = init_value->as_identifier_unsafe();
-    if(init_val_kind == ValueKind::Identifier && id->is_moved) {
+    if(init_val_kind == ValueKind::Identifier && init_value->as_identifier_unsafe()->is_moved) {
         auto init_type = init->known_type();
         auto linked = init_type->linked_node();
         if(!linked) {
@@ -1970,8 +1970,8 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
         queue_destruct(init->name_view(), init, linked->as_extendable_members_container_node());
         return;
     }
-    auto array_val = init_value->as_array_value_unsafe();
     if(init_val_kind == ValueKind::ArrayValue) {
+        auto array_val = init_value->as_array_value_unsafe();
         auto elem_type = array_val->element_type(visitor.allocator);
         queue_destruct_arr(init->name_view(), init, elem_type, array_val->array_size());
         return;
@@ -1982,8 +1982,8 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
 //        queue_destruct(init->identifier(), init, variant_call->generic_iteration, def);
 //        return;
 //    }
-    auto struct_val = init_value->as_struct_value_unsafe();
     if(init_val_kind == ValueKind::StructValue) {
+        auto struct_val = init_value->as_struct_value_unsafe();
         queue_destruct(init->name_view(), init, struct_val->linked_struct());
     }
 }

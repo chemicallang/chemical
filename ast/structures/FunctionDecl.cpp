@@ -31,6 +31,7 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/utils/ASTUtils.h"
 #include <sstream>
+#include <iostream>
 
 #ifdef COMPILER_BUILD
 
@@ -967,9 +968,6 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
 
 void FunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
-    if(defValue) {
-        defValue->link(linker, defValue, type);
-    }
 }
 
 ASTNode *FunctionParam::child(const chem::string_view &name) {
@@ -1199,6 +1197,8 @@ void FunctionDeclaration::link_signature_no_ext_scope(SymbolResolver &linker) {
     for(auto param : params) {
         if(!param->link_param_type(linker)) {
             resolved = false;
+        } else if(param->defValue && !param->defValue->link(linker, param->defValue, param->type)) {
+            resolved = false;
         }
     }
     if(!returnType->link(linker)) {
@@ -1206,6 +1206,8 @@ void FunctionDeclaration::link_signature_no_ext_scope(SymbolResolver &linker) {
     }
     if(resolved) {
         FunctionType::data.signature_resolved = true;
+    } else {
+        linker.error("couldn't resolve signature of the function", (ASTNode*) this);
     }
 }
 
@@ -1238,26 +1240,25 @@ void FunctionDeclaration::ensure_has_init_block(ASTDiagnoser& diagnoser) {
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    // if has body declare params
-    linker.scope_start();
-    auto prev_func_type = linker.current_func_type;
-    linker.current_func_type = this;
-    for (auto& param : params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
-    }
     if(body.has_value()) {
+        // if has body declare params
+        linker.scope_start();
+        auto prev_func_type = linker.current_func_type;
+        linker.current_func_type = this;
+        for (auto& param : params) {
+            param->declare_and_link(linker, (ASTNode*&) param);
+        }
         if(FunctionType::data.signature_resolved) {
             if(is_comptime()) {
                 linker.comptime_context = true;
             }
             body->link_sequentially(linker);
             linker.comptime_context = false;
-        } else {
-            linker.warn("couldn't resolve signature of function", (ASTNode*) this);
         }
+        linker.scope_end();
+        linker.current_func_type = prev_func_type;
     }
-    linker.scope_end();
-    linker.current_func_type = prev_func_type;
+
 }
 
 Value *FunctionDeclaration::call(

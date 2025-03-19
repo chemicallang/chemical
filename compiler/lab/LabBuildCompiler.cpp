@@ -323,6 +323,10 @@ bool copyFile(const fs::path& sourcePath, const fs::path& destinationPath) {
     }
 }
 
+inline bool is_node_exported(ASTNode* node) {
+    return node->specifier() == AccessSpecifier::Public;
+}
+
 int LabBuildCompiler::process_modules(LabJob* exe) {
 
     const auto job_type = exe->type;
@@ -707,10 +711,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 auto itr = nodes.begin();
                 while(itr != nodes.end()) {
                     auto& node = *itr;
-                    if(node->specifier() != AccessSpecifier::Public) {
-                        itr = nodes.erase(itr);
-                    } else {
+                    if(is_node_exported(node)) {
                         itr++;
+                    } else {
+                        itr = nodes.erase(itr);
                     }
                 }
             }

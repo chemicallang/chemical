@@ -18,6 +18,7 @@
 #include "StructMemberInitializer.h"
 #include "ast/values/DereferenceValue.h"
 #include <sstream>
+#include <iostream>
 
 #ifdef COMPILER_BUILD
 

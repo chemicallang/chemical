@@ -629,7 +629,8 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
             func_decl->isVariadic(),
             parent_node,
             ZERO_LOC,
-            specifier
+            specifier,
+            true
     );
     decl->params = std::move(params);
     return decl;

@@ -269,11 +269,21 @@ public:
     );
 
     /**
-     * determine module imports
+     * determines the files in a module, if it's a directory module, we traverse the directory
+     * if it's a files module, we include all the files
      */
-    void determine_mod_imports(
+    void determine_mod_files(
+            std::vector<ASTFileMetaData>& outFiles,
+            LabModule* module
+    );
+
+    /**
+     * imports module files
+     */
+    void import_mod_files(
             ctpl::thread_pool& pool,
             std::vector<ASTFileResultNew*>& out_files,
+            std::vector<ASTFileMetaData>& files,
             LabModule* module
     );
 

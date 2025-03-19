@@ -92,15 +92,13 @@ void ASTProcessor::print_results(ASTFileResultNew& result, const chem::string_vi
     std::cout << std::flush;
 }
 
-void ASTProcessor::determine_mod_imports(
-        ctpl::thread_pool& pool,
-        std::vector<ASTFileResultNew*>& out_files,
+void ASTProcessor::determine_mod_files(
+        std::vector<ASTFileMetaData>& files,
         LabModule* module
 ) {
     path_handler.module_src_dir_path = "";
     switch(module->type) {
         case LabModuleType::Files: {
-            std::vector<ASTFileMetaData> files;
             for (auto& str: module->paths) {
                 auto abs_path = canonical_path(str.data());
                 if (abs_path.empty()) {
@@ -110,7 +108,6 @@ void ASTProcessor::determine_mod_imports(
                 auto fileId = loc_man.encodeFile(abs_path);
                 files.emplace_back(fileId, SymbolRange { 0, 0 }, abs_path, abs_path);
             }
-            import_chemical_files(pool, out_files, files);
             return;
         }
         case LabModuleType::ObjFile:
@@ -126,14 +123,26 @@ void ASTProcessor::determine_mod_imports(
             }
             std::vector<std::string> filePaths;
             getFilesInDirectory(filePaths, dir_path.data());
-            std::vector<ASTFileMetaData> files;
             for (auto& abs_path: filePaths) {
                 auto fileId = loc_man.encodeFile(abs_path);
                 files.emplace_back(fileId, SymbolRange { 0, 0 }, abs_path, abs_path);
             }
-            import_chemical_files(pool, out_files, files);
             return;
     }
+}
+
+void ASTProcessor::import_mod_files(
+        ctpl::thread_pool& pool,
+        std::vector<ASTFileResultNew*>& out_files,
+        std::vector<ASTFileMetaData>& files,
+        LabModule* module
+) {
+    if(module->type == LabModuleType::Directory) {
+        path_handler.module_src_dir_path = module->paths[0].to_view();
+    } else {
+        path_handler.module_src_dir_path = "";
+    }
+    import_chemical_files(pool, out_files, files);
 }
 
 void ASTProcessor::sym_res_c_file(Scope& scope, const std::string& abs_path) {

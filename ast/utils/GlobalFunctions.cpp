@@ -466,7 +466,14 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
             const auto call = value->as_func_call_unsafe();
             const auto decl = call->safe_linked_func();
             if(decl && decl->is_comptime()) {
-                return call->evaluated_value(scope);
+                const auto val = call->evaluated_value(scope);
+                if(val->kind() == ValueKind::WrapValue) {
+                    // TODO handle nested wrap values
+                    // unsure how to handle nested wrap values at the moment (must think about it more)
+                    return val->as_wrap_value_unsafe()->underlying;
+                } else {
+                    return val;
+                }
             } else {
                 const auto copied = call->copy(scope.allocator);
                 copied->parent_val = (ChainValue*) evaluated_comptime(call->parent_val, scope);
@@ -677,6 +684,34 @@ public:
 
 };
 
+class InterpretGetRawLocOf : public FunctionDeclaration {
+public:
+
+    UBigIntType uIntType;
+
+    explicit InterpretGetRawLocOf() : FunctionDeclaration(
+            ZERO_LOC_ID("get_raw_loc_of"),
+            &uIntType,
+            false,
+            nullptr,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), uIntType(ZERO_LOC) {
+        set_compiler_decl(true);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.empty()) {
+            call_scope->error("get_raw_loc_of expects a single argument", call);
+            return nullptr;
+        }
+        const auto first_arg = call->values[0];
+        const auto first_arg_eval = first_arg ? first_arg->evaluated_value(*call_scope) : first_arg;
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(first_arg_eval->encoded_location().encoded, call->encoded_location());
+    }
+
+};
+
 class InterpretGetLineNo : public FunctionDeclaration {
 public:
 
@@ -786,6 +821,46 @@ public:
         } else {
             return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, ZERO_LOC);
         }
+    }
+
+};
+
+class InterpretGetCallLoc : public FunctionDeclaration {
+public:
+
+    UBigIntType uIntType;
+
+    explicit InterpretGetCallLoc() : FunctionDeclaration(
+            ZERO_LOC_ID("get_call_loc"),
+            &uIntType,
+            false,
+            nullptr,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), uIntType(ZERO_LOC) {
+        set_compiler_decl(true);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.empty()) {
+            call_scope->error("get_call_loc expects a single argument", call);
+            return nullptr;
+        }
+        const auto argVal = call->values.back();
+        const auto arg = argVal->evaluated_value(*call_scope);
+        if(!arg || arg->kind() < ValueKind::IntNStart || arg->kind() > ValueKind::IntNEnd) {
+            call_scope->error("get_call_loc expects a integer argument", arg);
+            return nullptr;
+        }
+        const auto num = arg->get_number();
+        const auto global = call_scope->global;
+        const auto call_number = num.value();
+        const auto stack_size = global->call_stack.size();
+        if(stack_size == 0) {
+            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(call->encoded_location().encoded, ZERO_LOC);
+        }
+        const auto final_call = call_number > stack_size ? global->call_stack.front() : global->call_stack[stack_size - 1 - call_number];
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(final_call->encoded_location().encoded, ZERO_LOC);
     }
 
 };
@@ -1003,6 +1078,39 @@ public:
     }
 };
 
+class InterpretGetLocFilePath : public FunctionDeclaration {
+public:
+
+    StringType stringType;
+
+    explicit InterpretGetLocFilePath(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("get_loc_file_path"),
+            &stringType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), stringType(ZERO_LOC) {
+        set_compiler_decl(true);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.size() != 1) {
+            call_scope->error("get_loc_file_path expects a single argument", call);
+            return nullptr;
+        }
+        const auto eval_value = call->values.back()->evaluated_value(*call_scope);
+        if(eval_value == nullptr || eval_value->kind() != ValueKind::UBigInt) {
+            call_scope->error("couldn't evaluate value in get_loc_file_path", call);
+            return nullptr;
+        }
+        auto& loc_man = call_scope->global->loc_man;
+        auto location = loc_man.getLocation(eval_value->as_ubigint_unsafe()->value);
+        auto fileId = loc_man.getPathForFileId(location.fileId);
+        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(fileId.data(), fileId.size()), call->encoded_location());
+    }
+};
+
 class InterpretGetCurrentFilePath : public FunctionDeclaration {
 public:
 
@@ -1171,12 +1279,15 @@ public:
     InterpretSatisfies satisfiesFn;
 
     InterpretGetRawLocation get_raw_location;
+    InterpretGetRawLocOf get_raw_loc_of;
+    InterpretGetCallLoc get_call_loc;
     InterpretGetLineNo get_line_no;
     InterpretGetCharacterNo get_char_no;
     InterpretGetCallerLineNo get_caller_line_no;
     InterpretGetCallerCharacterNo get_caller_char_no;
     InterpretGetTarget get_target_fn;
     InterpretGetCurrentFilePath get_current_file_path;
+    InterpretGetLocFilePath get_loc_file_path;
     InterpretGetChildFunction get_child_fn;
     InterpretError error_fn;
 
@@ -1185,13 +1296,13 @@ public:
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
         printFn(this), printlnFn(this), to_stringFn(this), type_to_stringFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this), satisfiesFn(this),
-        get_target_fn(this), get_current_file_path(this), get_child_fn(this), error_fn(this)
+        get_target_fn(this), get_current_file_path(this), get_loc_file_path(this), get_child_fn(this), error_fn(this)
     {
         set_compiler_decl(true);
         nodes = {
             &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
-            &satisfiesFn, &get_raw_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
-            &get_target_fn, &get_current_file_path, &get_child_fn, &error_fn
+            &satisfiesFn, &get_raw_location, &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
+            &get_target_fn, &get_current_file_path, &get_loc_file_path, &get_child_fn, &error_fn
         };
     }
 

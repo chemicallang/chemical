@@ -27,4 +27,7 @@ public:
     Value* evaluated_value(InterpretScope &scope) final {
         return underlying;
     }
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return underlying->create_type(allocator);
+    }
 };

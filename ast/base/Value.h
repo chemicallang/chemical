@@ -7,10 +7,10 @@
 #pragma once
 
 #include "ASTAny.h"
-#include "ASTAllocator.h"
 #include "ast/utils/Operation.h"
 #include <vector>
-#include <memory>
+#include "DebugCast.h"
+#include "ASTAllocator.h"
 
 class SymbolResolver;
 
@@ -121,7 +121,7 @@ public:
     /**
      * this function is called to allow variable identifiers to link with a node on the map
      * that will help it provide information, to allow it to generate code, or interpret
-     * The reason it takes a reference to unique_ptr<Value> is because the current value
+     * The reason it takes a reference to Value* is because the current value
      * can basically replace itself in the pointer, some compile time values like sizeof
      * replace themselves at resolution phase
      */
@@ -924,150 +924,187 @@ public:
     // --------------------------------------------
 
     inline IntValue* as_int_unsafe() {
+        CHECK_CAST(ValueKind::Int);
         return ((IntValue*) this);
     }
 
     inline UIntValue* as_uint_unsafe() {
+        CHECK_CAST(ValueKind::UInt);
         return ((UIntValue*) this);
     }
 
     inline CharValue* as_char_unsafe() {
+        CHECK_CAST(ValueKind::Char);
         return ((CharValue*) this);
     }
 
     inline UCharValue* as_uchar_unsafe() {
+        CHECK_CAST(ValueKind::UChar);
         return ((UCharValue*) this);
     }
 
     inline ShortValue* as_short_unsafe() {
+        CHECK_CAST(ValueKind::Short);
         return ((ShortValue*) this);
     }
 
     inline UShortValue* as_ushort_unsafe() {
+        CHECK_CAST(ValueKind::UShort);
         return ((UShortValue*) this);
     }
 
     inline LongValue* as_long_unsafe() {
+        CHECK_CAST(ValueKind::Long);
         return ((LongValue*) this);
     }
 
     inline ULongValue* as_ulong_unsafe() {
+        CHECK_CAST(ValueKind::ULong);
         return ((ULongValue*) this);
     }
 
     inline BigIntValue* as_bigint_unsafe() {
+        CHECK_CAST(ValueKind::BigInt);
         return ((BigIntValue*) this);
     }
 
     inline UBigIntValue* as_ubigint_unsafe() {
+        CHECK_CAST(ValueKind::UBigInt);
         return ((UBigIntValue*) this);
     }
 
     inline IntNumValue* as_int_num_value_unsafe() {
+        CHECK_COND(kind() >= ValueKind::IntNStart && kind() <= ValueKind::IntNEnd);
         return ((IntNumValue*) this);
     }
 
     inline Int128Value* as_int128_unsafe() {
+        CHECK_CAST(ValueKind::Int128);
         return ((Int128Value*) this);
     }
 
     inline UInt128Value* as_uint128_unsafe() {
+        CHECK_CAST(ValueKind::UInt128);
         return ((UInt128Value*) this);
     }
 
     inline FloatValue* as_float_unsafe() {
+        CHECK_CAST(ValueKind::Float);
         return ((FloatValue*) this);
     }
 
     inline DoubleValue* as_double_unsafe() {
+        CHECK_CAST(ValueKind::Double);
         return ((DoubleValue*) this);
     }
 
     inline BoolValue* as_bool_unsafe() {
+        CHECK_CAST(ValueKind::Bool);
         return ((BoolValue*) this);
     }
 
     inline StringValue* as_string_unsafe() {
+        CHECK_CAST(ValueKind::String);
         return ((StringValue*) this);
     }
 
     inline Expression* as_expression_unsafe() {
+        CHECK_CAST(ValueKind::Expression);
         return ((Expression*) this);
     }
 
     inline ArrayValue* as_array_value_unsafe() {
+        CHECK_CAST(ValueKind::ArrayValue);
         return ((ArrayValue*) this);
     }
 
     inline StructValue* as_struct_value_unsafe() {
+        CHECK_CAST(ValueKind::StructValue);
         return ((StructValue*) this);
     }
 
     inline LambdaFunction* as_lambda_func_unsafe() {
+        CHECK_CAST(ValueKind::LambdaFunc);
         return ((LambdaFunction*) this);
     }
 
     inline NumberValue* as_number_value_unsafe() {
+        CHECK_CAST(ValueKind::NumberValue);
         return ((NumberValue*) this);
     }
 
     inline IsValue* as_is_value_unsafe() {
+        CHECK_CAST(ValueKind::IsValue);
         return ((IsValue*) this);
     }
 
     inline DereferenceValue* as_dereference_value_unsafe() {
+        CHECK_CAST(ValueKind::DereferenceValue);
         return ((DereferenceValue*) this);
     }
 
     inline RetStructParamValue* as_ret_struct_param_value_unsafe() {
+        CHECK_CAST(ValueKind::RetStructParamValue);
         return ((RetStructParamValue*) this);
     }
 
     inline CastedValue* as_casted_value_unsafe() {
+        CHECK_CAST(ValueKind::CastedValue);
         return ((CastedValue*) this);
     }
 
     inline VariableIdentifier* as_identifier_unsafe() {
+        CHECK_CAST(ValueKind::Identifier);
         return ((VariableIdentifier*) this);
     }
 
     inline AccessChain* as_access_chain_unsafe() {
+        CHECK_CAST(ValueKind::AccessChain);
         return ((AccessChain*) this);
     }
 
     inline IndexOperator* as_index_op_unsafe() {
+        CHECK_CAST(ValueKind::IndexOperator);
         return ((IndexOperator*) this);
     }
 
     inline FunctionCall* as_func_call_unsafe() {
+        CHECK_CAST(ValueKind::FunctionCall);
         return ((FunctionCall*) this);
     }
 
     inline NegativeValue* as_negative_value_unsafe() {
+        CHECK_CAST(ValueKind::NegativeValue);
         return ((NegativeValue*) this);
     }
 
     inline NotValue* as_not_value_unsafe() {
+        CHECK_CAST(ValueKind::NotValue);
         return ((NotValue*) this);
     }
 
     inline NullValue* as_null_value_unsafe() {
+        CHECK_CAST(ValueKind::NullValue);
         return ((NullValue*) this);
     }
 
     inline SizeOfValue* as_sizeof_value_unsafe() {
+        CHECK_CAST(ValueKind::SizeOfValue);
         return ((SizeOfValue*) this);
     }
 
     inline VariantCase* as_variant_case_unsafe() {
+        CHECK_CAST(ValueKind::VariantCase);
         return ((VariantCase*) this);
     }
 
     inline AddrOfValue* as_addr_of_value_unsafe() {
+        CHECK_CAST(ValueKind::AddrOfValue);
         return ((AddrOfValue*) this);
     }
 
     inline WrapValue* as_wrap_value_unsafe() {
+        CHECK_CAST(ValueKind::WrapValue);
         return ((WrapValue*) this);
     }
 

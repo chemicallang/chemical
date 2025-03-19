@@ -5,6 +5,7 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/PointerValue.h"
 #include "ast/base/InterpretScope.h"
+#include <iostream>
 
 bool DereferenceValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     return value->link(linker, value);

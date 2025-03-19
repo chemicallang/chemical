@@ -42,15 +42,7 @@ public:
         return is64Bit ? 8 : 4;
     }
 
-    Value *index(InterpretScope &scope, int i) final {
-#ifdef DEBUG
-        if (i < 0 || i >= value.size()) {
-            std::cerr << "[InterpretError] access index " << std::to_string(i) << " out of bounds for string " << value <<
-                         " of length " << std::to_string(value.size());
-        }
-#endif
-        return new CharValue(value[i], encoded_location());
-    }
+    Value *index(InterpretScope &scope, int i) final;
 
 #ifdef COMPILER_BUILD
 

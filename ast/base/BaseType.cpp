@@ -504,4 +504,8 @@ unsigned BaseType::type_alignment(bool is64Bit) {
     }
 }
 
+uint64_t BaseType::byte_size(bool is64Bit) {
+    throw std::runtime_error("byte_size called on base type");
+}
+
 BaseType::~BaseType() = default;

@@ -5,6 +5,7 @@
 #include "compiler/lab/LabBuildContext.h"
 #include "ast/structures/FunctionParam.h"
 #include "sstream"
+#include <iostream>
 #include <utility>
 #include "ast/types/VoidType.h"
 #include "ast/types/StringType.h"

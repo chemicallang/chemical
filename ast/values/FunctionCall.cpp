@@ -796,7 +796,10 @@ uint64_t FunctionCall::byte_size(bool is64Bit) {
 void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& properly_linked) {
     auto& current_func = *linker.current_func_type;
     auto func_type = function_type(linker.allocator);
-    if(func_type && !func_type->data.signature_resolved) return;
+    if(func_type && !func_type->data.signature_resolved) {
+        linker.error("calling a function whose signature couldn't be resolved", this);
+        return;
+    }
     unsigned i = 0;
     const auto values_size = values.size();
     while(i < values_size) {
@@ -893,7 +896,6 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
             if(!arg_type) {
 #ifdef DEBUG
                 diagnoser.error(this) << "couldn't get arg type " << values[arg_offset]->representation() << " in function call " << representation();
-                std::cout << "couldn't get arg type " << values[arg_offset]->representation() + " in function call " + representation();
 #endif
                 arg_offset++;
                 continue;

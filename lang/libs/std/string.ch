@@ -208,6 +208,10 @@ public struct string : Hashable, Eq {
         append_with_len(value, strlen(value));
     }
 
+    func append_string(&mut self, value : &string) {
+        append_with_len(value.data(), value.size())
+    }
+
     func append_str(&mut self, value : *string) {
         append_with_len(value.data(), value.size())
     }

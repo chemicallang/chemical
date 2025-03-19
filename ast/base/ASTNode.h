@@ -7,14 +7,12 @@
 #pragma once
 
 #include <vector>
-#include <memory>
-#include "std/common.h"
 #include "ASTAny.h"
-#include "BaseTypeKind.h"
 #include "ASTNodeKind.h"
 #include "AccessSpecifier.h"
 #include "ASTAllocator.h"
-#include <optional>
+#include "DebugCast.h"
+#include "std/chem_string.h"
 
 class SymbolResolver;
 
@@ -840,6 +838,7 @@ public:
      * as value wrapper node unsafe
      */
     inline ValueWrapperNode* as_value_wrapper_unsafe() {
+        CHECK_CAST(ASTNodeKind::ValueWrapper);
         return (ValueWrapperNode*) this;
     }
 
@@ -847,6 +846,7 @@ public:
      * as value node unsafe
      */
     inline ValueNode* as_value_node_unsafe() {
+        CHECK_CAST(ASTNodeKind::ValueNode);
         return (ValueNode*) this;
     }
 
@@ -854,6 +854,7 @@ public:
      * get as alias stmt
      */
     inline AliasStmt* as_alias_stmt_unsafe() {
+        CHECK_CAST(ASTNodeKind::AliasStmt);
         return (AliasStmt*) this;
     }
 
@@ -861,6 +862,7 @@ public:
      * as loop node unsafe
      */
     inline LoopASTNode* as_loop_node_unsafe() {
+        CHECK_COND(kind() == ASTNodeKind::WhileLoopStmt || kind() == ASTNodeKind::DoWhileLoopStmt || kind() == ASTNodeKind::ForLoopStmt || kind() == ASTNodeKind::LoopBlock);
         return (LoopASTNode*) this;
     }
 
@@ -868,6 +870,7 @@ public:
      * as break stmt unsafe
      */
     inline BreakStatement* as_break_stmt_unsafe() {
+        CHECK_CAST(ASTNodeKind::BreakStmt);
         return (BreakStatement*) this;
     }
 
@@ -875,6 +878,7 @@ public:
      * get as if statement unsafely
      */
     inline IfStatement* as_if_stmt_unsafe() {
+        CHECK_CAST(ASTNodeKind::IfStmt);
         return (IfStatement*) this;
     }
 
@@ -882,20 +886,15 @@ public:
      * get as switch stmt unsafely
      */
     inline SwitchStatement* as_switch_stmt_unsafe() {
+        CHECK_CAST(ASTNodeKind::SwitchStmt);
         return (SwitchStatement*) this;
-    }
-
-    /**
-      * return this as an annotable node
-      */
-    inline AnnotableNode* as_annotable_node_unsafe() {
-        return (AnnotableNode*) this;
     }
 
     /**
      * return if this is definition member
      */
     inline BaseDefMember* as_base_def_member_unsafe() {
+        CHECK_COND(kind() == ASTNodeKind::StructMember || kind() == ASTNodeKind::UnnamedStruct || kind() == ASTNodeKind::UnnamedUnion || kind() == ASTNodeKind::VariantMember);
         return (BaseDefMember*) this;
     }
 
@@ -903,20 +902,15 @@ public:
      * get a members container
      */
     inline MembersContainer* as_members_container_unsafe() {
+        CHECK_COND(kind() == ASTNodeKind::StructDecl || kind() == ASTNodeKind::UnionDecl || kind() == ASTNodeKind::VariantDecl || kind() == ASTNodeKind::InterfaceDecl || kind() == ASTNodeKind::ImplDecl);
         return (MembersContainer*) this;
-    }
-
-    /**
-     * return if this is a loop ast node
-     */
-    inline LoopASTNode *as_loop_ast_unsafe() {
-        return (LoopASTNode*) this;
     }
 
     /**
      * return if this is a scope
      */
     inline Scope *as_scope_unsafe() {
+        CHECK_CAST(ASTNodeKind::Scope);
         return (Scope*) this;
     }
 
@@ -924,6 +918,7 @@ public:
      * return this as a generic type parameter if its one
      */
     inline GenericTypeParameter* as_generic_type_param_unsafe() {
+        CHECK_CAST(ASTNodeKind::GenericTypeParam);
         return (GenericTypeParameter*) this;
     }
 
@@ -931,6 +926,7 @@ public:
      * return this as a multi function node
      */
     inline MultiFunctionNode* as_multi_func_node_unsafe() {
+        CHECK_CAST(ASTNodeKind::MultiFunctionNode);
         return (MultiFunctionNode*) this;
     }
 
@@ -938,6 +934,7 @@ public:
      * as enum member
      */
     inline EnumDeclaration* as_enum_decl_unsafe() {
+        CHECK_CAST(ASTNodeKind::EnumDecl);
         return (EnumDeclaration*) this;
     }
 
@@ -945,6 +942,7 @@ public:
      * as enum member
      */
     inline EnumMember* as_enum_member_unsafe() {
+        CHECK_CAST(ASTNodeKind::EnumMember);
         return (EnumMember*) this;
     }
 
@@ -952,6 +950,7 @@ public:
      * return if this is a parameter
      */
     inline FunctionParam *as_func_param_unsafe() {
+        CHECK_CAST(ASTNodeKind::FunctionParam);
         return (FunctionParam*) this;
     }
 
@@ -959,6 +958,7 @@ public:
      * return if this is a function decl
      */
     inline FunctionDeclaration *as_function_unsafe() {
+        CHECK_CAST(ASTNodeKind::FunctionDecl);
         return (FunctionDeclaration*) this;
     }
 
@@ -966,6 +966,7 @@ public:
      * return if this is a generic func decl
      */
     inline GenericFuncDecl* as_gen_func_unsafe() {
+        CHECK_CAST(ASTNodeKind::GenericFuncDecl);
         return (GenericFuncDecl*) this;
     }
 
@@ -973,6 +974,7 @@ public:
      * return if this is a struct member
      */
     inline StructMember *as_struct_member_unsafe() {
+        CHECK_CAST(ASTNodeKind::StructMember);
         return (StructMember*) this;
     }
 
@@ -980,6 +982,7 @@ public:
      * return if this is an unnamed union
      */
     inline UnnamedUnion *as_unnamed_union_unsafe() {
+        CHECK_CAST(ASTNodeKind::UnnamedUnion);
         return (UnnamedUnion*) this;
     }
 
@@ -987,6 +990,7 @@ public:
      * return if this is an unnamed struct
      */
     inline UnnamedStruct *as_unnamed_struct_unsafe() {
+        CHECK_CAST(ASTNodeKind::UnnamedStruct);
         return (UnnamedStruct*) this;
     }
 
@@ -994,6 +998,7 @@ public:
      * return if this is a typealias statement
      */
     inline TypealiasStatement *as_typealias_unsafe() {
+        CHECK_CAST(ASTNodeKind::TypealiasStmt);
         return (TypealiasStatement*) this;
     }
 
@@ -1001,6 +1006,7 @@ public:
      * return if this is a captured variable
      */
     inline CapturedVariable *as_captured_var_unsafe() {
+        CHECK_CAST(ASTNodeKind::CapturedVariable);
         return (CapturedVariable*) this;
     }
 
@@ -1008,6 +1014,7 @@ public:
      * return if this is a return statement
      */
     inline ReturnStatement *as_return_unsafe() {
+        CHECK_CAST(ASTNodeKind::ReturnStmt);
         return (ReturnStatement*) this;
     }
 
@@ -1015,6 +1022,7 @@ public:
      * as interface definition
      */
     inline InterfaceDefinition *as_interface_def_unsafe() {
+        CHECK_CAST(ASTNodeKind::InterfaceDecl);
         return (InterfaceDefinition*) this;
     }
 
@@ -1022,6 +1030,7 @@ public:
      * as generic func decl
      */
     inline GenericFuncDecl* as_gen_func_decl_unsafe() {
+        CHECK_CAST(ASTNodeKind::GenericFuncDecl);
         return (GenericFuncDecl*) this;
     }
 
@@ -1029,6 +1038,7 @@ public:
      * as namespace
      */
     inline Namespace* as_namespace_unsafe() {
+        CHECK_CAST(ASTNodeKind::NamespaceDecl);
         return (Namespace*) this;
     }
 
@@ -1036,6 +1046,7 @@ public:
      * as init block
      */
     inline InitBlock* as_init_block_unsafe() {
+        CHECK_CAST(ASTNodeKind::InitBlock);
         return (InitBlock*) this;
     }
 
@@ -1043,6 +1054,7 @@ public:
      * get as unsafe block
      */
     inline UnsafeBlock* as_unsafe_block_unsafe() {
+        CHECK_CAST(ASTNodeKind::UnsafeBlock);
         return (UnsafeBlock*) this;
     }
 
@@ -1050,6 +1062,7 @@ public:
      * return if this is a struct definition
      */
     inline StructDefinition *as_struct_def_unsafe() {
+        CHECK_CAST(ASTNodeKind::StructDecl);
         return (StructDefinition*) this;
     }
 
@@ -1057,6 +1070,7 @@ public:
      * return if this is a generic struct decl
      */
     inline GenericStructDecl* as_gen_struct_def_unsafe() {
+        CHECK_CAST(ASTNodeKind::GenericStructDecl);
         return (GenericStructDecl*) this;
     }
 
@@ -1064,6 +1078,7 @@ public:
      * return if this is a generic union decl
      */
     inline GenericUnionDecl* as_gen_union_decl_unsafe() {
+        CHECK_CAST(ASTNodeKind::GenericUnionDecl);
         return (GenericUnionDecl*) this;
     }
 
@@ -1071,6 +1086,7 @@ public:
      * return if this is a generic interface decl
      */
     inline GenericInterfaceDecl* as_gen_interface_decl_unsafe() {
+        CHECK_CAST(ASTNodeKind::GenericInterfaceDecl);
         return (GenericInterfaceDecl*) this;
     }
 
@@ -1078,6 +1094,7 @@ public:
      * return if this is a generic variant decl
      */
     inline GenericVariantDecl* as_gen_variant_decl_unsafe() {
+        CHECK_CAST(ASTNodeKind::GenericVariantDecl);
         return (GenericVariantDecl*) this;
     }
 
@@ -1085,6 +1102,7 @@ public:
      * return if this is a generic variant decl
      */
     inline GenericTypeDecl* as_gen_type_decl_unsafe() {
+        CHECK_CAST(ASTNodeKind::GenericTypeDecl);
         return (GenericTypeDecl*) this;
     }
 
@@ -1092,6 +1110,7 @@ public:
      * return if this is an import statement
      */
     inline ImportStatement *as_import_stmt_unsafe() {
+        CHECK_CAST(ASTNodeKind::ImportStmt);
         return (ImportStatement*) this;
     }
 
@@ -1099,6 +1118,7 @@ public:
      * return if this is a implementation def
      */
     inline ImplDefinition* as_impl_def_unsafe() {
+        CHECK_CAST(ASTNodeKind::ImplDecl);
         return (ImplDefinition*) this;
     }
 
@@ -1106,6 +1126,7 @@ public:
      * return if this is a struct definition
      */
     inline UnionDef *as_union_def_unsafe() {
+        CHECK_CAST(ASTNodeKind::UnionDecl);
         return (UnionDef*) this;
     }
 
@@ -1113,6 +1134,7 @@ public:
      * return if this is a var init statement
      */
     inline VarInitStatement *as_var_init_unsafe() {
+        CHECK_CAST(ASTNodeKind::VarInitStmt);
         return (VarInitStatement*) this;
     }
 
@@ -1120,6 +1142,7 @@ public:
      * return if this is a variant member
      */
     inline VariantMember* as_variant_member_unsafe() {
+        CHECK_CAST(ASTNodeKind::VariantMember);
         return (VariantMember*) this;
     }
 
@@ -1127,6 +1150,7 @@ public:
      * get unsafe pointer to variant member param
      */
     inline VariantMemberParam* as_variant_member_param_unsafe() {
+        CHECK_CAST(ASTNodeKind::VariantMemberParam);
         return (VariantMemberParam*) this;
     }
 
@@ -1134,6 +1158,7 @@ public:
      * return if this is a variant definition
      */
     inline VariantDefinition* as_variant_def_unsafe() {
+        CHECK_CAST(ASTNodeKind::VariantDecl);
         return (VariantDefinition*) this;
     }
 
@@ -1141,6 +1166,7 @@ public:
      * return if this is a variant case variable
      */
     inline VariantCaseVariable* as_variant_case_var_unsafe() {
+        CHECK_CAST(ASTNodeKind::VariantCaseVariable);
         return (VariantCaseVariable*) this;
     }
 
@@ -1148,6 +1174,7 @@ public:
      * return assignment statement if it is one
      */
     inline AssignStatement* as_assignment_unsafe() {
+        CHECK_CAST(ASTNodeKind::AssignmentStmt);
         return (AssignStatement*) this;
     }
 

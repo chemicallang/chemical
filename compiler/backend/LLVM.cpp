@@ -1270,8 +1270,7 @@ void ThrowStatement::code_gen(Codegen &gen) {
 llvm::Value* Codegen::memcpy_shallow_copy(BaseType* known_type, Value* value, llvm::Value* llvm_value) {
     // is referencing another struct, that is non movable and must be mem copied into the pointer
     const auto kind = value->val_kind();
-    const auto chain = value->as_access_chain_unsafe();
-    if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && chain->values.back()->as_func_call() == nullptr)) {
+    if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && value->as_access_chain_unsafe()->values.back()->as_func_call() == nullptr)) {
         const auto node = known_type->get_direct_linked_node();
         if(node && node->is_shallow_copyable()) {
             const auto type = llvm_value->getType();
@@ -1288,8 +1287,6 @@ llvm::Value* Codegen::memcpy_shallow_copy(BaseType* known_type, Value* value, ll
 
 bool Codegen::copy_or_move_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer) {
     // is referencing another struct, that is non movable and must be mem copied into the pointer
-    const auto kind = value->val_kind();
-    const auto chain = value->as_access_chain_unsafe();
     auto linked = known_type->get_direct_linked_canonical_node();
     if (linked) {
         auto k = linked->kind();

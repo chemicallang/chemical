@@ -10,6 +10,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/values/VariantCase.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/types/IntNType.h"
 #include "ast/structures/VariantDefinition.h"
 
 #ifdef COMPILER_BUILD
@@ -79,6 +80,43 @@ llvm::ConstantInt* write_variant_call_index(Codegen& gen, VariantDefinition* var
         default:
             return gen.builder->getInt32(-1);
     }
+}
+
+/// Implicitly casts an integer constant to the target integer type,
+/// performing sign or zero extension (or truncation) as needed.
+/// Returns a llvm::ConstantInt* if the conversion is valid, or nullptr if not.
+llvm::ConstantInt* implicit_cast_constant(llvm::ConstantInt* value, BaseType* to_type, llvm::Type* to_type_llvm) {
+
+    // The target type must be an integer type.
+    if (!to_type_llvm->isIntegerTy())
+        return value;
+
+    const auto fromIntTy = value->getType();
+    const auto toIntTy = llvm::cast<llvm::IntegerType>(to_type_llvm);
+
+    unsigned srcWidth = value->getType()->getIntegerBitWidth();
+    unsigned dstWidth = toIntTy->getBitWidth();
+
+    // If the widths are already equal, no conversion is needed.
+    if (srcWidth == dstWidth)
+        return value;
+
+    // Widen the integer.
+    if (srcWidth < dstWidth) {
+        const auto is_unsigned = to_type->kind() == BaseTypeKind::IntN && to_type->as_intn_type_unsafe()->is_unsigned();
+        if(is_unsigned && !value->isNegative()) {
+            const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().zext(dstWidth));
+            return llvm::dyn_cast<llvm::ConstantInt>(val);
+        } else {
+            const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().sext(dstWidth));
+            return llvm::dyn_cast<llvm::ConstantInt>(val);
+        }
+    }
+
+    // Narrow the integer.
+    const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().trunc(dstWidth));
+    return llvm::dyn_cast<llvm::ConstantInt>(val);
+
 }
 
 void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
@@ -161,8 +199,13 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
                 if(variant_def) {
                     switchInst->addCase(write_variant_call_index(gen, variant_def, switch_case.first), caseBlock);
                 } else {
-                    // TODO check value is constant (check in resolution phase)
-                    switchInst->addCase((llvm::ConstantInt*) switch_case.first->llvm_value(gen), caseBlock);
+                    const auto caseValue =  switch_case.first->llvm_value(gen);
+                    if(llvm::isa<llvm::ConstantInt>(caseValue)) {
+                        const auto castedCase = implicit_cast_constant((llvm::ConstantInt*) caseValue, expr_type, expr_value->getType());
+                        switchInst->addCase(castedCase, caseBlock);
+                    } else {
+                        gen.error("switch case value is not a constant", switch_case.first);
+                    }
                 }
             }
         }

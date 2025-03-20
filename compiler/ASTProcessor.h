@@ -63,6 +63,11 @@ struct ASTFileMetaData {
     SymbolRange private_symbol_range;
 
     /**
+     * the module scope
+     */
+    ModuleScope* moduleScope;
+
+    /**
      * the path used when user imported the file
      */
     std::string import_path;
@@ -77,6 +82,31 @@ struct ASTFileMetaData {
      */
     std::string as_identifier;
 
+    /**
+     * the file meta data
+     */
+    ASTFileMetaData(
+            unsigned int file_id,
+            ModuleScope* moduleScope
+    ) : file_id(file_id), private_symbol_range(0, 0), moduleScope(moduleScope) {
+
+    }
+
+    /**
+     * constructor
+     */
+    ASTFileMetaData(
+        unsigned int file_id,
+        ModuleScope* moduleScope,
+        std::string import_path,
+        std::string abs_path,
+        std::string as_identifier
+    ) : file_id(file_id), private_symbol_range(0, 0), moduleScope(moduleScope),
+        import_path(std::move(import_path)), abs_path(std::move(abs_path)), as_identifier(std::move(as_identifier))
+    {
+
+    }
+
 };
 
 
@@ -90,7 +120,7 @@ struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
     /**
      * the compile unit
      */
-    llvm::DICompileUnit* diCompileUnit;
+    llvm::DICompileUnit* diCompileUnit = nullptr;
 
     /**
      * the imported files by this file, these files don't contain duplicates
@@ -124,6 +154,13 @@ struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
      * This will be c translation benchmarks, if it's c file
      */
     std::unique_ptr<BenchmarkResults> parse_benchmark;
+
+    /**
+     * constructor
+     */
+    ASTFileResult(unsigned int file_id, ModuleScope* mod) : unit(mod), ASTFileMetaData(file_id, mod) {
+
+    }
 
 };
 
@@ -190,6 +227,13 @@ public:
      */
     SymbolResolver* resolver;
 
+    /**
+     * the lab build context allows us to get any modules user imports files from
+     * if not given, it might mean that the build hasn't been invoked on a build.lab
+     * TODO: we must figure out a way to allow access modules without the LabBuildContext
+     */
+    LabBuildContext* context = nullptr;
+
 #ifdef COMPILER_BUILD
 
     /**
@@ -236,6 +280,7 @@ public:
     ASTProcessor(
             ImportPathHandler& pathHandler,
             ASTProcessorOptions* options,
+            LabBuildContext* context,
             LocationManager& loc_man,
             SymbolResolver* resolver,
             CompilerBinder& binder,

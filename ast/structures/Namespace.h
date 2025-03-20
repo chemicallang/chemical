@@ -17,17 +17,22 @@ struct NamespaceDeclAttributes {
     /**
      * is the whole namespace comptime
      */
-    bool is_comptime;
+    bool is_comptime = false;
 
     /**
      * compiler declarations are present inside the compiler, no need to import
      */
-    bool is_compiler_decl;
+    bool is_compiler_decl = false;
 
     /**
      * is namespace deprecated
      */
-    bool deprecated;
+    bool deprecated = false;
+
+    /**
+     * if it's anonymous, it's name wouldn't make it to the final runtime name
+     */
+    bool dg_empty_runtime_name = false;
 
 };
 
@@ -55,7 +60,7 @@ public:
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ASTNode(ASTNodeKind::NamespaceDecl, parent_node, location), identifier(identifier),
-        attrs(specifier, false, false)
+        attrs(specifier, false, false, false, false)
     {
 
     }
@@ -107,7 +112,13 @@ public:
         attrs.deprecated = value;
     }
 
+    inline bool empty_runtime_name() {
+        return attrs.dg_empty_runtime_name;
+    }
 
+    inline void set_empty_runtime_name(bool empty) {
+        attrs.dg_empty_runtime_name = empty;
+    }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

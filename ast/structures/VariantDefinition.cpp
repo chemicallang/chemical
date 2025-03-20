@@ -4,6 +4,7 @@
 #include "VariantMember.h"
 #include "ast/types/LinkedType.h"
 #include "compiler/SymbolResolver.h"
+#include "compiler/mangler/NameMangler.h"
 #include "ast/base/ChainValue.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/AccessChain.h"
@@ -29,7 +30,7 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, Variant
     if(anonymous) {
         return llvm::StructType::get(*gen.ctx, elements);
     } else {
-        return llvm::StructType::create(*gen.ctx, elements, member->parent()->runtime_name_str());
+        return llvm::StructType::create(*gen.ctx, elements, gen.mangler.mangle(member->parent()));
     }
 }
 

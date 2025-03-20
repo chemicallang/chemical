@@ -207,13 +207,6 @@ public:
         attrs.is_copy = value;
     }
 
-    inline std::string get_runtime_name() {
-        if(is_anonymous()) {
-            return "";
-        }
-        return runtime_name_str();
-    }
-
     inline bool has_destructor() {
         return destructor_func() != nullptr;
     }

@@ -286,7 +286,8 @@ LabModule* create_or_find_module(std::vector<std::unique_ptr<LabModule>>& module
             }
         }
     }
-    const auto mod = new LabModule(mod_type, chem::string(name), chem::string(""), chem::string(""), chem::string(""), chem::string(""), chem::string(""), {}, {}, { chem::string(path) }, {});
+    const auto mod = new LabModule(mod_type, chem::string(""), chem::string(name));
+    mod->paths.emplace_back(path);
     modules.emplace_back(mod);
     return mod;
 }
@@ -369,7 +370,8 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
 
             // creating the job and module and setting options for it
             LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_folder), LabJobStatus::Pending, {}, {}, {}, {});
-            LabModule mod(LabModuleType::Directory, chem::string(name), chem::string(""), chem::string(""), chem::string(""), chem::string(""), chem::string(""), {}, {}, { chem::string(path) }, {});
+            LabModule mod(LabModuleType::Directory, chem::string(""), chem::string(name));
+            mod.paths.emplace_back(path);
             job.dependencies.emplace_back(&mod);
             std::vector<std::unique_ptr<LabModule>> dependencies;
             set_options_for_main_job(options, job, mod, dependencies);
@@ -672,7 +674,7 @@ int main(int argc, char *argv[]) {
         // translate the build.lab to a c file (for debugging)
         if(output.has_value() && output.value().ends_with(".c")) {
             LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_folder), { }, { });
-            LabModule module(LabModuleType::Files, chem::string("[BuildLabFile]"), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), { }, { });
+            LabModule module(LabModuleType::Files, chem::string(""), chem::string("[BuildLabFile]"));
             module.paths.emplace_back(std::string(args[0]));
             job.dependencies.emplace_back(&module);
             std::vector<std::unique_ptr<LabModule>> dependencies;
@@ -718,7 +720,7 @@ int main(int argc, char *argv[]) {
     // if not empty, this file will be removed at the end
     std::string_view temporary_obj;
 
-    LabModule module(LabModuleType::Files, chem::string::make_view(chem::string_view("main")));
+    LabModule module(LabModuleType::Files, chem::string(""), chem::string("main"));
 
     // setting extra files to emit, like ll, bc, obj, asm (absolute paths)
     auto& ll_out = options.option_new("out-ll");
@@ -776,12 +778,12 @@ int main(int argc, char *argv[]) {
     std::vector<std::unique_ptr<LabModule>> dependencies;
     for(auto& arg : args) {
         if(arg.ends_with(".c")) {
-            auto dep = new LabModule(LabModuleType::CFile);
+            auto dep = new LabModule(LabModuleType::CFile, chem::string(""), chem::string(""));
             dependencies.emplace_back(dep);
             dep->paths.emplace_back(std::string(arg));
             module.dependencies.emplace_back(dep);
         } else if(arg.ends_with(".o")) {
-            auto dep = new LabModule(LabModuleType::ObjFile);
+            auto dep = new LabModule(LabModuleType::ObjFile, chem::string(""), chem::string(""));
             dependencies.emplace_back(dep);
             dep->paths.emplace_back(std::string(arg));
             module.dependencies.emplace_back(dep);

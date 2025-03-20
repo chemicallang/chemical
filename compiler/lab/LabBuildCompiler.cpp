@@ -6,6 +6,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "utils/Benchmark.h"
+#include "ast/structures/ModuleScope.h"
 #include "Utils.h"
 #include "cst/LocationManager.h"
 #include <fstream>
@@ -392,26 +393,26 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, &output_ptr, *file_allocator, loc_man, job_type == LabJobType::CBI ? &compiler_interfaces : nullptr);
+    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man, job_type == LabJobType::CBI ? &compiler_interfaces : nullptr);
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, options->is64Bit);
-    ASTProcessor processor(path_handler, options, loc_man, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
     CodegenOptions code_gen_options;
     if(cmd) {
         code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
         code_gen_options.fno_asynchronous_unwind_tables = cmd->has_value("", "fno-asynchronous-unwind-tables");
         code_gen_options.no_pie = cmd->has_value("no-pie", "no-pie");
     }
-    Codegen gen(code_gen_options, global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
+    Codegen gen(code_gen_options, global, mangler, options->target_triple, options->exe_path, options->is64Bit, *file_allocator);
     LLVMBackendContext g_context(&gen);
     // set the context so compile time calls are sent to it
     global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
 #else
-    ASTProcessor processor(path_handler, options, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
     global.backend_context = (BackendContext*) &c_context;
 #endif
 
@@ -480,6 +481,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             continue;
         }
 
+        // creating the module directory
         auto module_dir_path = resolve_rel_child_path_str(exe_build_dir, mod->name.to_std_string());
         auto mod_obj_path = resolve_rel_child_path_str(module_dir_path,  (is_use_obj_format ? "object.o" : "object.bc"));
         auto mod_timestamp_file = resolve_rel_child_path_str(module_dir_path, "timestamp.dat");
@@ -629,7 +631,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #ifdef COMPILER_BUILD
         else {
             // prepare for code generation of this module
-            gen.module_init(mod->name.to_std_string());
+            gen.module_init(mod->scope_name.to_chem_view(), mod->name.to_chem_view());
         }
 #endif
 
@@ -644,9 +646,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 }
                 const auto abs_path = include.to_std_string();
                 unsigned fileId = loc_man.encodeFile(abs_path);
-                ASTFileResultNew imported_file;
+                ASTFileResultNew imported_file(fileId, &mod->module_scope);
                 processor.import_chemical_file(imported_file, fileId, abs_path);
-                auto& scope = imported_file.unit.scope;
+                auto& scope = imported_file.unit.scope.body;
                 auto& nodes = scope.nodes;
                 resolver.resolve_file(scope, abs_path);
 #ifdef COMPILER_BUILD
@@ -724,6 +726,16 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             break;
         }
 
+        // we need to search for main function in each module and make it no_mangle
+        // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
+        const auto main_func = resolver.find("main");
+        if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
+            if(verbose) {
+                std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
+            }
+            main_func->as_function_unsafe()->set_no_mangle(true);
+        }
+
         if(verbose) {
             std::cout << "[lab] " << "compiling module files" << std::endl;
         }
@@ -751,7 +763,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         for(const auto file : module_files) {
             auto file_unit = processor.shrinked_unit.find(file->abs_path);
             if(file_unit != processor.shrinked_unit.end()) {
-                auto& nodes = file_unit->second.scope.nodes;
+                auto& nodes = file_unit->second.scope.body.nodes;
                 auto itr = nodes.begin();
                 while(itr != nodes.end()) {
                     auto& node = *itr;
@@ -1089,6 +1101,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     ASTProcessor lab_processor(
             path_handler,
             options,
+            &context,
             loc_man,
             &lab_resolver,
             binder,
@@ -1101,9 +1114,10 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     );
 
     // get flat imports
-    ASTFileResultNew blResult;
+    ModuleScope labModuleScope("chemical", "lab");
     auto buildLabFileId = loc_man.encodeFile(path);
-    ASTFileMetaData buildLabMetaData(buildLabFileId, SymbolRange { 0, 0 }, path, path);
+    ASTFileMetaData buildLabMetaData(buildLabFileId, &labModuleScope, path, path, "");
+    ASTFileResultNew blResult(buildLabFileId, &labModuleScope);
 
     lab_processor.import_chemical_file(blResult, pool, buildLabMetaData);
 
@@ -1118,7 +1132,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, &output_ptr, lab_allocator, loc_man, &compiler_interfaces);
+    ToCAstVisitor c_visitor(global, mangler, &output_ptr, lab_allocator, loc_man, &compiler_interfaces);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context
@@ -1187,7 +1201,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             // the last build.lab file is whose build method is to be called
             bool is_last = i == module_files.size() - 1;
             if (is_last) {
-                auto found = finder(lab_resolver, file.abs_path, file.unit.scope.nodes);
+                auto found = finder(lab_resolver, file.abs_path, file.unit.scope.body.nodes);
                 if (!found) {
                     compile_result = 1;
                     break;
@@ -1204,7 +1218,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
                     compile_result = 1;
                     break;
                 } else {
-                    auto found = finder(lab_resolver, file.abs_path, file.unit.scope.nodes);
+                    auto found = finder(lab_resolver, file.abs_path, file.unit.scope.body.nodes);
                     if (!found) {
                         compile_result = 1;
                         break;
@@ -1215,11 +1229,11 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
                     }
                     // put every imported file in it's own namespace so build methods don't clash
                     auto ns = new (lab_allocator.allocate<Namespace>()) Namespace(ZERO_LOC_ID(lab_allocator, file.as_identifier), nullptr, ZERO_LOC);
-                    for (auto &node: result.unit.scope.nodes) {
+                    for (auto &node: result.unit.scope.body.nodes) {
                         node->set_parent(ns);
                     }
-                    ns->nodes = std::move(result.unit.scope.nodes);
-                    result.unit.scope.nodes.emplace_back(ns);
+                    ns->nodes = std::move(result.unit.scope.body.nodes);
+                    result.unit.scope.body.nodes.emplace_back(ns);
                 }
             }
 
@@ -1227,10 +1241,10 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             c_visitor.reset();
 
             // translate build.lab file to c
-            lab_processor.translate_to_c(c_visitor, result.unit.scope.nodes, file.abs_path);
+            lab_processor.translate_to_c(c_visitor, result.unit.scope.body.nodes, file.abs_path);
 
             // save the file result, for future retrievals
-            lab_processor.shrinked_unit[file.abs_path] = std::move(result.unit);
+            lab_processor.shrinked_unit.emplace(file.abs_path, std::move(result.unit));
 
             i++;
         }

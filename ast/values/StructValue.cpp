@@ -2,6 +2,7 @@
 
 #include "StructValue.h"
 
+#include "compiler/mangler/NameMangler.h"
 #include <memory>
 #include "ast/structures/StructMember.h"
 #include "ast/structures/UnionDef.h"
@@ -467,17 +468,17 @@ ASTNode *StructValue::linked_node() {
     }
 }
 
-void StructValue::runtime_name(std::ostream& output) {
+void StructValue::runtime_name(std::ostream& output, NameMangler& mangler) {
     if(definition) {
         switch (definition->kind()) {
             case ASTNodeKind::UnionDecl: {
                 const auto uni = definition->as_union_def_unsafe();
-                uni->runtime_name(output);
+                mangler.mangle(output, uni);
                 return;
             }
             case ASTNodeKind::StructDecl: {
                 const auto decl = definition->as_struct_def_unsafe();
-                decl->runtime_name(output);
+                mangler.mangle(output, decl);
                 return;
             }
             default:
@@ -497,9 +498,9 @@ void StructValue::runtime_name(std::ostream& output) {
     }
 }
 
-std::string StructValue::runtime_name_str() {
+std::string StructValue::runtime_name_str(NameMangler& mangler) {
     std::stringstream stream;
-    runtime_name(stream);
+    runtime_name(stream, mangler);
     return stream.str();
 }
 

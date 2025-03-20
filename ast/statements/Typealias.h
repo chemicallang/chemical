@@ -125,10 +125,6 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    bool is_top_level() {
-        return parent() == nullptr;
-    }
-
     uint64_t byte_size(bool is64Bit) final;
 
     BaseType* known_type() final;

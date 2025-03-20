@@ -167,7 +167,7 @@ int ASTProcessor::compile_module(
                 gen.di.start_di_compile_unit(fileDiCompileUnit);
 
                 // declare external nodes
-                external_declare_nodes(gen, unit.scope, file.abs_path);
+                external_declare_nodes(gen, unit.scope.body, file.abs_path);
 
                 // end the di compile unit scope
                 gen.di.end_di_compile_unit();
@@ -175,7 +175,7 @@ int ASTProcessor::compile_module(
             } else {
 
                 // declare external nodes
-                external_declare_nodes(gen, unit.scope, file.abs_path);
+                external_declare_nodes(gen, unit.scope.body, file.abs_path);
 
             }
 
@@ -239,7 +239,7 @@ int ASTProcessor::compile_module(
             gen.di.start_di_compile_unit(fileDiCompileUnit);
 
             // compiling the nodes
-            code_gen_declare(gen, unit.scope.nodes, abs_path);
+            code_gen_declare(gen, unit.scope.body.nodes, abs_path);
 
             // end the current unit
             gen.di.end_di_compile_unit();
@@ -247,7 +247,7 @@ int ASTProcessor::compile_module(
         } else {
 
             // compiling the nodes
-            code_gen_declare(gen, unit.scope.nodes, abs_path);
+            code_gen_declare(gen, unit.scope.body.nodes, abs_path);
 
         }
 
@@ -289,7 +289,7 @@ int ASTProcessor::compile_module(
                 gen.di.start_di_compile_unit(file.diCompileUnit);
 
                 // declare external nodes
-                code_gen_external_implement(gen, unit.scope.nodes, file.abs_path);
+                code_gen_external_implement(gen, unit.scope.body.nodes, file.abs_path);
 
                 // end the di compile unit scope
                 gen.di.end_di_compile_unit();
@@ -297,7 +297,7 @@ int ASTProcessor::compile_module(
             } else {
 
                 // declare external nodes
-                code_gen_external_implement(gen, unit.scope.nodes, file.abs_path);
+                code_gen_external_implement(gen, unit.scope.body.nodes, file.abs_path);
 
             }
 
@@ -330,7 +330,7 @@ int ASTProcessor::compile_module(
             gen.di.start_di_compile_unit(file.diCompileUnit);
 
             // compiling the nodes
-            code_gen_compile(gen, unit.scope.nodes, file.abs_path);
+            code_gen_compile(gen, unit.scope.body.nodes, file.abs_path);
 
             // end the current unit
             gen.di.end_di_compile_unit();
@@ -338,12 +338,12 @@ int ASTProcessor::compile_module(
         } else {
 
             // compiling the nodes
-            code_gen_compile(gen, unit.scope.nodes, file.abs_path);
+            code_gen_compile(gen, unit.scope.body.nodes, file.abs_path);
 
         }
 
         // save the file result, for future retrievals
-        shrinked_unit[file.abs_path] = std::move(result.unit);
+        shrinked_unit.emplace(file.abs_path, std::move(result.unit));
 
         // clear everything we allocated using file allocator to make it re-usable
         safe_clear_file_allocator();

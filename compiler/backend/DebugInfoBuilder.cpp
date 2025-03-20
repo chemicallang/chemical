@@ -6,6 +6,7 @@
 #include "compiler/llvmimpl.h"
 #include <filesystem>
 #include "ast/base/ASTNode.h"
+#include "compiler/mangler/NameMangler.h"
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 #include "cst/LocationManager.h"
@@ -420,7 +421,7 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
         builder->createGlobalVariableExpression(
             diScopes.back(),
             to_ref(init->name_view()),
-            init->runtime_name_str(),
+            gen.mangler.mangle(init),
             diCompileUnit->getFile(),
             location.start.line + 1,
             to_di_type(*this, init->known_type(), false),

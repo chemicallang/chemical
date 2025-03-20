@@ -74,26 +74,26 @@
 #include <llvm/Transforms/Utils/NameAnonGlobals.h>
 #include <llvm-c/Core.h>
 #include "rang.hpp"
+#include "compiler/mangler/NameMangler.h"
 #include "compiler/lab/LabBuildCompiler.h"
 
 Codegen::Codegen(
         CodegenOptions& options,
         GlobalInterpretScope& comptime_scope,
+        NameMangler& mangler,
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit,
-        ASTAllocator& allocator,
-        const std::string& module_name
+        ASTAllocator& allocator
 ) : ASTDiagnoser(comptime_scope.loc_man), options(options), comptime_scope(comptime_scope), allocator(allocator),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple),
-    di(comptime_scope.loc_man, nullptr, *this), mode(comptime_scope.build_compiler->options->outMode) {
+    di(comptime_scope.loc_man, nullptr, *this), mode(comptime_scope.build_compiler->options->outMode),
+    mangler(mangler)
+{
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();
     // creating a new ir builder
     builder = new llvm::IRBuilder<>(*ctx);
-    if(!module_name.empty()) {
-        module_init(module_name);
-    }
 }
 
 void Codegen::declare_nodes(std::vector<ASTNode*>& nodes) {
@@ -144,10 +144,21 @@ bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
     return triple.isArch64Bit();
 }
 
-void Codegen::module_init(const std::string& module_name) {
-    module = std::make_unique<llvm::Module>(module_name, *ctx);
+void Codegen::module_init(const chem::string_view& scope_name, const chem::string_view& module_name) {
+
+    // final module name = 'scope_name' + '-' + 'module_name'
+    std::string final_module_name;
+    if(!scope_name.empty()) {
+        final_module_name.append(1, '-');
+        final_module_name.append(scope_name.view());
+    }
+    final_module_name.append(module_name.view());
+
+    // creating the modules
+    module = std::make_unique<llvm::Module>(final_module_name, *ctx);
     diBuilder = std::make_unique<llvm::DIBuilder>(*module, true);
     di.update_builder(diBuilder.get());
+
 }
 
 void Codegen::createFunctionBlock(llvm::Function *fn) {

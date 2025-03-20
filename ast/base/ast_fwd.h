@@ -66,6 +66,10 @@ class InterfaceDefinition;
 
 class Scope;
 
+class FileScope;
+
+class ModuleScope;
+
 class LoopBlock;
 
 class StructDefinition;

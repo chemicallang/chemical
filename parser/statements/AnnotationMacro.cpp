@@ -90,6 +90,14 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make struct a compiler interface");
             }
         } },
+        { "no_mangle", [](Parser* parser, ASTNode* node) -> void {
+            const auto func = node->as_function();
+            if(func) {
+                func->set_no_mangle(false);
+            } else {
+                parser->error("couldn't make the function no_mangle");
+            }
+        } },
         { "constructor", [](Parser* parser, ASTNode* node) -> void {
             const auto func = node->as_function();
             if(func) {
@@ -195,6 +203,9 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
             const auto func = node->as_function();
             if(func) {
                 func->set_cpp_mangle(true);
+                // TODO since cpp mangle is not supported yet
+                // we will set it to no mangle so C decl can be linked
+                func->set_no_mangle(true);
             } else {
                 parser->error("couldn't make the function cpp");
             }

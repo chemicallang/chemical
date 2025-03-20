@@ -2,7 +2,6 @@
 
 #include "ExtendableMembersContainerNode.h"
 #include "ast/structures/MembersContainer.h"
-#include <sstream>
 
 ASTNode* ExtendableBase::extended_child(const chem::string_view &name) {
     auto func = extension_functions.find(name);
@@ -25,32 +24,4 @@ void ExtendableBase::adopt(MembersContainer* definition) {
                 break;
         }
     }
-}
-
-void ExtendableMembersContainerNode::runtime_name_no_parent(std::ostream &stream) {
-    if(generic_instantiation != -1) {
-        stream << name_view();
-        stream << "__cgs__";
-        stream << generic_instantiation;
-    } else {
-        stream << name_view();
-    }
-}
-
-std::string ExtendableMembersContainerNode::runtime_name() {
-    std::stringstream s;
-    runtime_name(s);
-    return s.str();
-}
-
-std::string ExtendableMembersContainerNode::runtime_name_no_parent_str() {
-    std::stringstream s;
-    runtime_name_no_parent(s);
-    return s.str();
-}
-
-void ExtendableMembersContainerNode::runtime_name(std::ostream &stream) {
-    const auto p = parent();
-    if(p) p->runtime_name(stream);
-    ExtendableMembersContainerNode::runtime_name_no_parent(stream);
 }

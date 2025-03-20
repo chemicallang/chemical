@@ -39,6 +39,7 @@ std::string ASTProcessorOptions::get_resources_path() {
 ASTProcessor::ASTProcessor(
         ImportPathHandler& pathHandler,
         ASTProcessorOptions* options,
+        LabBuildContext* context,
         LocationManager& loc_man,
         SymbolResolver* resolver,
         CompilerBinder& binder,
@@ -49,7 +50,7 @@ ASTProcessor::ASTProcessor(
         ASTAllocator& mod_allocator,
         ASTAllocator& file_allocator
 ) : loc_man(loc_man), options(options), resolver(resolver), path_handler(pathHandler), binder(binder),
-    job_allocator(job_allocator), mod_allocator(mod_allocator),
+    job_allocator(job_allocator), mod_allocator(mod_allocator), context(context),
 #ifdef COMPILER_BUILD
         translator(translator),
 #endif
@@ -106,7 +107,8 @@ void ASTProcessor::determine_mod_files(
                               << module->name << '\'' << std::endl;
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, SymbolRange { 0, 0 }, abs_path, abs_path);
+                // all these files belong to the given module, so it's scope will be used
+                files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
             }
             return;
         }
@@ -125,7 +127,7 @@ void ASTProcessor::determine_mod_files(
             getFilesInDirectory(filePaths, dir_path.data());
             for (auto& abs_path: filePaths) {
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, SymbolRange { 0, 0 }, abs_path, abs_path);
+                files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
             }
             return;
     }
@@ -223,7 +225,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
 
         if(!already_imported) {
-            file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope, file.abs_path);
+            file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope.body, file.abs_path);
             // report and clear diagnostics
             if (resolver->has_errors && !options->ignore_errors) {
                 std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
@@ -238,7 +240,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         auto& file = *file_ptr;
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
         if(!already_imported) {
-            resolver->link_signature_file(file.unit.scope, file.abs_path, file.private_symbol_range);
+            resolver->link_signature_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
             // report and clear diagnostics
             if (resolver->has_errors && !options->ignore_errors) {
                 std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
@@ -258,7 +260,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
 
         // symbol resolution
         if(!already_imported) {
-            sym_res_link_file(file.unit.scope, file.abs_path, file.private_symbol_range);
+            sym_res_link_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
             if (resolver->has_errors && !options->ignore_errors) {
                 std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
                 return 1;
@@ -389,7 +391,8 @@ void ASTProcessor::import_chemical_files(
             }
 
 //            std::cout << "launching file : " << fileData.abs_path << std::endl;
-            out_file = &cache[abs_path];
+            cache.emplace(abs_path, ASTFileResultNew(file_id, fileData.moduleScope));
+            out_file = &cache.find(abs_path)->second;
         }
 
         // copy the metadata into it
@@ -428,7 +431,7 @@ void ASTProcessor::import_chemical_file(
 
     // figure out files imported by this file
     std::vector<ASTFileMetaData> imports;
-    auto& file_nodes = result.unit.scope.nodes;
+    auto& file_nodes = result.unit.scope.body.nodes;
     for(auto node : file_nodes) {
         auto kind = node->kind();
         if(kind == ASTNodeKind::ImportStmt) {
@@ -436,7 +439,30 @@ void ASTProcessor::import_chemical_file(
             auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, stmt->filePath.str());
             if(replaceResult.error.empty()) {
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
-                imports.emplace_back(fileId, SymbolRange { 0, 0 }, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
+                if(context) {
+
+                    ModuleScope* moduleScope = fileData.moduleScope;
+
+                    if(stmt->filePath[0] == '@') {
+
+                        const auto atDirective = path_handler.get_atDirective(stmt->filePath.str());
+
+                        // TODO this should be present in replace result, and that should be renamed to PathResolutionResult
+                        const auto found = context->storage.find_module(atDirective.replaced);
+                        if(found) {
+                            moduleScope = &found->module_scope;
+                        }
+                    }
+
+                    imports.emplace_back(fileId, moduleScope, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
+
+                } else {
+#ifdef DEBUG
+                    throw std::runtime_error("there's no context here");
+#endif
+                    imports.emplace_back(fileId, fileData.moduleScope, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
+                }
+
             } else {
                 std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
             }
@@ -453,7 +479,7 @@ void ASTProcessor::import_chemical_file(
 
 }
 
-void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& abs_path) {
+void ASTProcessor::import_chemical_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path) {
 
     auto& unit = result.unit;
 
@@ -502,17 +528,17 @@ void ASTProcessor::import_chemical_file(ASTFileResultNew& result, unsigned int f
                     CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", chem::string_view(abs_path), last_token.position, last_token.position, DiagSeverity::Warning));
         }
     }
-//        if(options->isCBIEnabled) {
-//            bind_lexer_cbi(lexer_cbi.get(), &lexer);
-//        }
+
+    // setting file scope as parent of all nodes parsed
+    parser.parent_node = &result.unit.scope;
 
     if(options->benchmark) {
         result.parse_benchmark = std::make_unique<BenchmarkResults>();
         result.parse_benchmark->benchmark_begin();
-        parser.parse(unit.scope.nodes);
+        parser.parse(unit.scope.body.nodes);
         result.parse_benchmark->benchmark_end();
     } else {
-        parser.parse(unit.scope.nodes);
+        parser.parse(unit.scope.body.nodes);
     }
 
     result.parse_diagnostics = std::move(parser.diagnostics);
@@ -666,7 +692,7 @@ int ASTProcessor::translate_module(
         auto declared_in = unit.declared_in.find(module);
         if(declared_in == unit.declared_in.end()) {
             // this is probably a different module, so we'll declare the file (if not declared)
-            external_declare_in_c(c_visitor, unit.scope, file.abs_path);
+            external_declare_in_c(c_visitor, unit.scope.body, file.abs_path);
         }
 
     }
@@ -709,7 +735,7 @@ int ASTProcessor::translate_module(
         }
 
         // translating to c
-        declare_before_translation(c_visitor, unit.scope.nodes, file.abs_path);
+        declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path);
 
     }
 
@@ -735,7 +761,7 @@ int ASTProcessor::translate_module(
         auto declared_in = unit.declared_in.find(module);
         if(declared_in == unit.declared_in.end()) {
             // this is probably a different module, so we'll declare the file (if not declared)
-            external_implement_in_c(c_visitor, unit.scope, file.abs_path);
+            external_implement_in_c(c_visitor, unit.scope.body, file.abs_path);
             unit.declared_in[module] = true;
 
             // clear everything we allocated using file allocator to make it re-usable
@@ -758,9 +784,9 @@ int ASTProcessor::translate_module(
 
         ASTUnit& unit = file.unit;
         // translating to c
-        translate_after_declaration(c_visitor, unit.scope.nodes, file.abs_path);
+        translate_after_declaration(c_visitor, unit.scope.body.nodes, file.abs_path);
         // save the file result, for future retrievals
-        shrinked_unit[file.abs_path] = std::move(result.unit);
+        shrinked_unit.emplace(file.abs_path, std::move(result.unit));
 
         // clear everything we allocated using file allocator to make it re-usable
         safe_clear_file_allocator();

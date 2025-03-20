@@ -23,6 +23,9 @@ void Namespace::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(previous) {
         root = previous->as_namespace();
         if(root) {
+            // namespace attributes are propagated to all namespaces with same name
+            // TODO propagate namespace attributes
+            // attrs = root->attrs;
             if(specifier() < root->specifier()) {
                 linker.error(this) << "access specifier of this namespace must be at least '" << to_string(root->specifier()) << "' to match previous";
                 return;

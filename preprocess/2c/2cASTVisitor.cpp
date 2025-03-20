@@ -6,6 +6,7 @@
 #include <random>
 #include <ranges>
 #include <iostream>
+#include "compiler/mangler/NameMangler.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Continue.h"
@@ -127,11 +128,12 @@
 
 ToCAstVisitor::ToCAstVisitor(
     GlobalInterpretScope& scope,
+    NameMangler& mangler,
     std::ostream *output,
     ASTAllocator& allocator,
     LocationManager& manager,
     std::vector<std::string>* compiler_interfaces
-) : comptime_scope(scope), output(output), allocator(allocator), declarer(new CValueDeclarationVisitor(*this)),
+) : comptime_scope(scope), mangler(mangler), output(output), allocator(allocator), declarer(new CValueDeclarationVisitor(*this)),
     tld(*this, declarer.get()), ASTDiagnoser(manager), compiler_interfaces(compiler_interfaces)
 {
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
@@ -240,19 +242,19 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
 
 // without the parent node name
 static void struct_name(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def) {
-    def->runtime_name_no_parent(*visitor.output);
+    visitor.mangler.mangle_no_parent(*visitor.output, def, def->name_view());
 }
 
 void node_name(ToCAstVisitor& visitor, ASTNode* node) {
     if(!node) return;
-    node->runtime_name(*visitor.output);
+    visitor.mangler.mangle(*visitor.output, node);
 }
 
 // nodes inside namespaces for example namespace name is written before their name
 void node_parent_name(ToCAstVisitor& visitor, ASTNode* node, bool take_parent = true) {
     auto current = take_parent ? (node ? node->parent() : nullptr) : node;
     if(current) {
-        current->runtime_name(*visitor.output);
+        visitor.mangler.mangle(*visitor.output, current);
     }
 }
 
@@ -285,7 +287,7 @@ void write_struct_return_param(ToCAstVisitor& visitor, FunctionType* decl) {
     const auto func = decl->as_function();
     if(func && func->is_constructor_fn()) {
         visitor.write("struct ");
-        func->parent()->runtime_name(*visitor.output);
+        visitor.mangle(func->parent());
         visitor.write("* ");
         visitor.write("this");
     } else {
@@ -299,8 +301,7 @@ void write_struct_return_param(ToCAstVisitor& visitor, FunctionType* decl) {
 void write_struct_def_value_call(ToCAstVisitor& visitor, StructDefinition* def) {
     visitor.write('(');
     visitor.write("struct ");
-    node_parent_name(visitor, def);
-    struct_name(visitor, def);
+    visitor.mangle(def);
     visitor.write(')');
 }
 
@@ -363,7 +364,7 @@ void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* f
     }
     accept_func_return(visitor, func_decl->returnType);
     visitor.space();
-    func_decl->runtime_name(*visitor.output);
+    visitor.mangle(func_decl);
 }
 
 void func_type_with_id_no_params(ToCAstVisitor& visitor, FunctionType* type, const chem::string_view& id) {
@@ -419,7 +420,7 @@ void allocate_struct_by_name_no_init(ToCAstVisitor& visitor, ASTNode* def, const
     } else {
         visitor.write("struct ");
     }
-    def->runtime_name(*visitor.output);
+    visitor.mangle(def);
     visitor.write(' ');
     visitor.write(name);
 }
@@ -456,7 +457,7 @@ StructDefinition* get_func_param_ref_struct(ASTNode* node) {
 }
 
 inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
-    interface->runtime_vtable_name(*visitor.output, definition);
+    visitor.mangler.mangle_vtable_name(*visitor.output, interface, definition);
 }
 
 std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* type, Value* value) {
@@ -612,7 +613,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
 
 void call_implicit_constructor_no_alloc(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, const chem::string_view& var_name, bool is_var_ptr) {
     const auto new_expected_type = imp_constructor->params[0]->type;
-    imp_constructor->runtime_name(*visitor.output);
+    visitor.mangle(imp_constructor);
     visitor.write("(");
     if(!is_var_ptr) {
         visitor.write('&');
@@ -1300,11 +1301,11 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, const unsigned end, const unsigned total_size);
 
 void func_name(ToCAstVisitor& visitor, Value* ref, FunctionDeclaration* func_decl) {
-    func_decl->runtime_name_no_parent_fast(*visitor.output);
+    visitor.mangler.mangle_no_parent(*visitor.output, func_decl, func_decl->name_view());
 }
 
 void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
-    func_decl->runtime_name_no_parent_fast(*visitor.output);
+    visitor.mangler.mangle_no_parent(*visitor.output, func_decl, func_decl->name_view());
 }
 
 void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool has_comma_before = true) {
@@ -1400,7 +1401,7 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
     const auto index = linked->direct_child_index(member->name);
 
     visitor.write("(struct ");
-    linked->runtime_name(*visitor.output);
+    visitor.mangle(linked);
     visitor.write(") ");
     visitor.write("{ ");
     visitor.write_str(std::to_string(index));
@@ -1718,7 +1719,7 @@ void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
                     const auto destr = container->destructor_func();
                     if (destr) {
                         visitor.new_line_and_indent();
-                        destr->runtime_name(*visitor.output);
+                        visitor.mangle(destr);
                         visitor.write('(');
                         visitor.write_str(visitor.destructible_refs[arg]);
                         visitor.write(");");
@@ -2222,7 +2223,7 @@ void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<Functio
 
 void func_ret_func_proto_after_l_paren(ToCAstVisitor& visitor, FunctionDeclaration* decl, FunctionType* retFunc, unsigned declFuncParamStart = 0, unsigned retFuncParamStart = 0) {
     visitor.write('*');
-    decl->runtime_name(*visitor.output);
+    visitor.mangle(decl);
     visitor.write('(');
     func_type_params(visitor, decl, declFuncParamStart);
     visitor.write("))(");
@@ -2455,7 +2456,7 @@ void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
     } else {
         visitor.visit(stmt->actual_type);
         visitor.write(' ');
-        stmt->runtime_name(*visitor.output);
+        visitor.mangle(stmt);
     }
     visitor.write(';');
 }
@@ -2500,8 +2501,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
     early_declare_composed_variables(*this, *def);
     visitor.new_line_and_indent();
     write("struct ");
-    node_parent_name(visitor, def);
-    struct_name(visitor, def);
+    visitor.mangle(def);
     write(" {");
     visitor.indentation_level+=1;
     for(auto& inherits : def->inherited) {
@@ -2509,7 +2509,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
         if(struct_def) {
             visitor.new_line_and_indent();
             visitor.write("struct ");
-            struct_name(visitor, struct_def);
+            visitor.mangle(struct_def);
             visitor.space();
             visitor.write(struct_def->name_view());
             visitor.write(';');
@@ -2583,8 +2583,7 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     }
     visitor.new_line_and_indent();
     write("struct ");
-    node_parent_name(visitor, def);
-    struct_name(visitor, def);
+    visitor.mangle(def);
     write(" {");
     visitor.indentation_level+=1;
     for(auto& inherits : def->inherited) {
@@ -2592,7 +2591,7 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
         if(struct_def) {
             visitor.new_line_and_indent();
             visitor.write("struct ");
-            struct_name(visitor, struct_def);
+            visitor.mangle(struct_def);
             visitor.space();
             visitor.write(struct_def->name_view());
             visitor.write(';');
@@ -2706,7 +2705,7 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
         for (auto& func: interface->instantiated_functions()) {
             if (func->has_self_param()) {
                 visitor.new_line_and_indent();
-                func->runtime_name(*visitor.output);
+                visitor.mangle(func);
                 visitor.write(',');
             }
         }
@@ -3437,7 +3436,7 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
             const auto defConstructor = def->default_constructor_func();
             if(defConstructor) {
                 visitor.new_line_and_indent();
-                defConstructor->runtime_name(*visitor.output);
+                visitor.mangle(defConstructor);
                 visitor.write("(&this->");
                 visitor.write(def->name_view());
                 visitor.write(");");
@@ -3462,7 +3461,7 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
                 const auto defConstructor = def->default_constructor_func();
                 if(defConstructor) {
                     visitor.new_line_and_indent();
-                    defConstructor->runtime_name(*visitor.output);
+                    visitor.mangle(defConstructor);
                     visitor.write("(&this->");
                     visitor.write(var->name);
                     visitor.write(");");
@@ -3536,7 +3535,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     if(interface && interface->is_static()) {
         visitor.new_line_and_indent();
         visitor.write("struct ");
-        struct_name(visitor, def);
+        visitor.mangle(def);
         visitor.write('*');
         visitor.space();
         visitor.write("self = ");
@@ -3983,8 +3982,7 @@ void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node)
         }
         if(struct_parent) {
             if(func_node->has_self_param()) {
-                node_parent_name(visitor, struct_parent);
-                struct_name(visitor, struct_parent);
+                visitor.mangle(struct_parent);
                 func_name(visitor, func_node);
                 return;
             }
@@ -3995,8 +3993,7 @@ void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node)
                 func_name(visitor, func_node);
                 return;
             } else {
-                node_parent_name(visitor, struct_parent);
-                struct_name(visitor, struct_parent);
+                visitor.mangle(struct_parent);
                 func_name(visitor, func_node);
                 return;
             }
@@ -4182,7 +4179,7 @@ bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Ch
                 visitor.write("; ");
 
                 // destructing the struct which was accessed
-                destructorFn->runtime_name(*visitor.output);
+                visitor.mangle(destructorFn);
                 visitor.write('(');
                 if(destructorFn->has_self_param()) {
                     visitor.write_str(temp_struct_ptr);
@@ -4250,7 +4247,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
                 // TODO calling functions above without destructing the structs
                 call_any_function_above(visitor, values, (int) start, (int) end - 1);
             }
-            linked->runtime_name(*visitor.output);
+            visitor.mangle(linked);
             return;
         } else if(lastKind == ASTNodeKind::EnumMember) {
             write_enum(visitor, linked->as_enum_member_unsafe());
@@ -4731,7 +4728,7 @@ void ToCAstVisitor::VisitArrayValue(ArrayValue *arr) {
 void ToCAstVisitor::VisitStructValue(StructValue *val) {
     auto linked = val->linked_node();
     auto linked_kind = linked->kind();
-    const auto runName = val->runtime_name_str();
+    const auto runName = val->runtime_name_str(mangler);
     if(!runName.empty()) {
         write('(');
         if (linked_kind == ASTNodeKind::UnionDecl) {
@@ -4845,7 +4842,7 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
     } else {
         switch(linked_kind) {
             case ASTNodeKind::FunctionDecl:
-                linked->as_function_unsafe()->runtime_name(*output);
+                mangle(linked->as_function_unsafe());
                 return;
             case ASTNodeKind::VarInitStmt: {
                 const auto init = linked->as_var_init_unsafe();
@@ -5231,7 +5228,7 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
         case ASTNodeKind::InterfaceDecl:
             if(linked.as_interface_def_unsafe()->active_user) {
                 write("struct ");
-                linked.as_interface_def_unsafe()->active_user->runtime_name(*output);
+                mangle(linked.as_interface_def_unsafe()->active_user);
             } else {
                 write("void*");
             }
@@ -5241,16 +5238,16 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
             return;
         case ASTNodeKind::VariantMember:
             write("struct ");
-            linked.as_variant_member_unsafe()->parent()->runtime_name(*output);
+            mangle(linked.as_variant_member_unsafe()->parent());
             return;
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:
             write("struct ");
-            linked.runtime_name(*output);
+            mangle(&linked);
             return;
         case ASTNodeKind::UnionDecl:
             write("union ");
-            linked.runtime_name(*output);
+            mangle(&linked);
             return;
         case ASTNodeKind::GenericTypeParam:
             visit(linked.known_type());
@@ -5266,7 +5263,7 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
         default:
             break;
     }
-    linked.runtime_name(*output);
+    mangle(&linked);
 }
 
 //void ToCAstVisitor::VisitLinkedValueType(LinkedValueType *ref_type) {

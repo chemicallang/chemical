@@ -47,6 +47,11 @@ private:
     /**
      * get a module with file path, of type
      */
+    LabModule* create_of_type(LabModuleType type, chem::string_view* path, unsigned number);
+
+    /**
+     * get a module with file path, of type
+     */
     LabModule* create_of_type(LabModuleType type, chem::string* path, unsigned number);
 
 public:
@@ -70,6 +75,11 @@ public:
      * add given dependencies to the given module
      */
     static void add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len);
+
+    /**
+     * add given dependencies to the given module
+     */
+    static void add_paths(std::vector<chem::string>& into, chem::string_view** paths, unsigned int path_len);
 
     /**
      * declare alias for a path
@@ -101,6 +111,18 @@ public:
      */
     LabModule* add_with_type(
             LabModuleType type,
+            chem::string_view* name,
+            chem::string_view** paths,
+            unsigned int path_len,
+            LabModule** dependencies,
+            unsigned int dep_len
+    );
+
+    /**
+     * adds the given module with type
+     */
+    LabModule* add_with_type(
+            LabModuleType type,
             chem::string name,
             chem::string** paths,
             unsigned int path_len,
@@ -112,8 +134,8 @@ public:
      * adds the given module with type multiple files
      */
     LabModule* files_module(
-            chem::string* name,
-            chem::string** paths,
+            chem::string_view* name,
+            chem::string_view** paths,
             unsigned int path_len,
             LabModule** dependencies,
             unsigned int dep_len
@@ -123,13 +145,25 @@ public:
      * when path's list contains only chemical files
      */
     LabModule* chemical_files_module(
-            chem::string* name,
-            chem::string** paths,
+            chem::string_view* name,
+            chem::string_view** paths,
             unsigned int path_len,
             LabModule** dependencies,
             unsigned int dep_len
     ) {
-        return add_with_type(LabModuleType::Files, name->copy(), paths, path_len, dependencies, dep_len);
+        return add_with_type(LabModuleType::Files, name, paths, path_len, dependencies, dep_len);
+    }
+
+    /**
+     * add the given module as a directory module
+     */
+    LabModule* chemical_dir_module(
+            chem::string_view* name,
+            chem::string_view* path,
+            LabModule** dependencies,
+            unsigned int dep_len
+    ) {
+        return add_with_type(LabModuleType::Directory, name, &path, 1, dependencies, dep_len);
     }
 
     /**
@@ -148,34 +182,34 @@ public:
      * add the given module as a c translation unit
      */
     LabModule* c_file_module(
-            chem::string* name,
-            chem::string* path,
+            chem::string_view* name,
+            chem::string_view* path,
             LabModule** dependencies,
             unsigned int dep_len
     ) {
-        return add_with_type(LabModuleType::CFile, name->copy(), &path, 1, dependencies, dep_len);
+        return add_with_type(LabModuleType::CFile, name, &path, 1, dependencies, dep_len);
     }
 
     /**
      * add the given module as a c translation unit
      */
     LabModule* cpp_file_module(
-            chem::string* name,
-            chem::string* path,
+            chem::string_view* name,
+            chem::string_view* path,
             LabModule** dependencies,
             unsigned int dep_len
     ) {
-        return add_with_type(LabModuleType::CPPFile, name->copy(), &path, 1, dependencies, dep_len);
+        return add_with_type(LabModuleType::CPPFile, name, &path, 1, dependencies, dep_len);
     }
 
     /**
      * add the given module as an obj file, that'll be linked with final executable
      */
     LabModule* obj_file_module(
-            chem::string* name,
-            chem::string* path
+            chem::string_view* name,
+            chem::string_view* path
     ) {
-        return add_with_type(LabModuleType::ObjFile, name->copy(), &path, 1, nullptr, 0);
+        return add_with_type(LabModuleType::ObjFile, name, &path, 1, nullptr, 0);
     }
 
     /**
@@ -183,7 +217,7 @@ public:
      */
     LabJob* translate_to_chemical(
         LabModule* module,
-        chem::string* out_path
+        chem::string_view* out_path
     );
 
     /**
@@ -197,17 +231,17 @@ public:
      * translate a chemical file to c
      */
     LabJob* translate_to_c(
-            chem::string* name,
+            chem::string_view* name,
             LabModule** dependencies,
             unsigned int dep_len,
-            chem::string* out_path
+            chem::string_view* out_path
     );
 
     /**
      * adds an executable entry that'll be built
      */
     LabJob* build_exe(
-            chem::string* name,
+            chem::string_view* name,
             LabModule** dependencies,
             unsigned int dep_len
     );
@@ -216,7 +250,7 @@ public:
      * adds a library entry that'll be built
      */
     LabJob* build_dynamic_lib(
-            chem::string* name,
+            chem::string_view* name,
             LabModule** dependencies,
             unsigned int dep_len
     );
@@ -225,7 +259,7 @@ public:
      * adds a cbi entry that'll be built
      */
     LabJob* build_cbi(
-            chem::string* name,
+            chem::string_view* name,
             LabModule** dependencies,
             unsigned int dep_len,
             LabModule* entry
@@ -234,16 +268,16 @@ public:
     /**
      * has this build argument
      */
-    bool has_arg(chem::string* name);
+    bool has_arg(const std::string& name);
 
     /**
      * consume this build argument
      */
-    void get_arg(chem::string* str, chem::string* name);
+    void get_arg(chem::string& str, const std::string& name);
 
     /**
      * remove this build argument
      */
-    void remove_arg(chem::string* name);
+    void remove_arg(const std::string& name);
 
 };

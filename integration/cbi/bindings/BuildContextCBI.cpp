@@ -1,5 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
+#include <span>
 #include "BuildContextCBI.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/ProcessUtils.h"
@@ -10,37 +11,37 @@
 #include "CBIUtils.h"
 
 #ifdef COMPILER_BUILD
-int llvm_ar_main2(const std::vector<std::string> &command_args);
+int llvm_ar_main2(const std::span<chem::string_view> &command_args);
 #endif
 
-LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleSpan* dependencies) {
+LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies) {
     return self->files_module(name, path, path_len, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextchemical_files_module(LabBuildContext* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleSpan* dependencies) {
+LabModule* BuildContextchemical_files_module(LabBuildContext* self, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies) {
     return self->chemical_files_module(name, path, path_len, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextchemical_dir_module(LabBuildContext* self, chem::string* name, chem::string* path, ModuleSpan* dependencies) {
+LabModule* BuildContextchemical_dir_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
     return self->chemical_dir_module(name, path, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string* name, chem::string* path, ModuleSpan* dependencies) {
+LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
     return self->c_file_module(name, path, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string* name, chem::string* path, ModuleSpan* dependencies) {
+LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
     return self->cpp_file_module(name, path, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextobject_module(LabBuildContext* self, chem::string* name, chem::string* path) {
+LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path) {
     return self->obj_file_module(name, path);
 }
 
-void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string* base_path, chem::string* path) {
+void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path) {
     init_chem_string(&result->error);
     init_chem_string(&result->path);
-    auto repResult = self->handler.resolve_import_path(base_path->to_std_string(), path->to_std_string());
+    auto repResult = self->handler.resolve_import_path(base_path->str(), path->str());
     if(!repResult.error.empty()) {
         result->error.append(repResult.error);
     }
@@ -49,74 +50,73 @@ void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildConte
     }
 }
 
-void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string* header) {
-    module->headers.emplace_back(header->to_view());
+void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string_view* header) {
+    module->headers.emplace_back(*header);
 }
 
-void BuildContextinclude_file(LabBuildContext* self, LabModule* module, chem::string* abs_path) {
-    module->includes.emplace_back(abs_path->to_view());
+void BuildContextinclude_file(LabBuildContext* self, LabModule* module, chem::string_view* abs_path) {
+    module->includes.emplace_back(*abs_path);
 }
 
-LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string* output_path) {
+LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string_view* output_path) {
     return self->translate_to_chemical(module, output_path);
 }
 
-LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string* name, ModuleSpan* dependencies, chem::string* output_dir) {
+LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies, chem::string_view* output_dir) {
     return self->translate_to_c(name, dependencies->ptr, dependencies->size, output_dir);
 }
 
-LabJob* BuildContextbuild_exe(LabBuildContext* self, chem::string* name, ModuleSpan* dependencies) {
+LabJob* BuildContextbuild_exe(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
     return self->build_exe(name, dependencies->ptr, dependencies->size);
 }
 
-LabJob* BuildContextbuild_dynamic_lib(LabBuildContext* self, chem::string* name, ModuleSpan* dependencies) {
+LabJob* BuildContextbuild_dynamic_lib(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
     return self->build_dynamic_lib(name, dependencies->ptr, dependencies->size);
 }
 
-LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string* name, LabModule* entry, ModuleSpan* dependencies) {
+LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, LabModule* entry, ModuleSpan* dependencies) {
     return self->build_cbi(name, dependencies->ptr, dependencies->size, entry);
 }
 
-void BuildContextadd_object(LabBuildContext* self, LabJob* job, chem::string* path) {
-    job->linkables.emplace_back(path->copy());
+void BuildContextadd_object(LabBuildContext* self, LabJob* job, chem::string_view* path) {
+    job->linkables.emplace_back(*path);
 }
 
-bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string* alias, chem::string* path) {
-    return self->declare_user_alias(job, alias->to_std_string(), path->to_std_string());
+bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string_view* alias, chem::string_view* path) {
+    return self->declare_user_alias(job, alias->str(), path->str());
 }
 
 void BuildContextbuild_path(chem::string* str, LabBuildContext* self) {
     init_chem_string(str)->append(self->build_dir);
 }
 
-bool BuildContexthas_arg(LabBuildContext* self, chem::string* name) {
-    return self->has_arg(name);
+bool BuildContexthas_arg(LabBuildContext* self, chem::string_view* name) {
+    return self->has_arg(name->str());
 }
 
-void BuildContextget_arg(chem::string* str, LabBuildContext* self, chem::string* name) {
-    return self->get_arg(init_chem_string(str), name);
+void BuildContextget_arg(chem::string* str, LabBuildContext* self, chem::string_view* name) {
+    return self->get_arg(*init_chem_string(str), name->str());
 }
 
-void BuildContextremove_arg(LabBuildContext* self, chem::string* name) {
-    return self->remove_arg(name);
+void BuildContextremove_arg(LabBuildContext* self, chem::string_view* name) {
+    return self->remove_arg(name->str());
 }
 
-bool BuildContextdefine(LabBuildContext* self, LabJob* job, chem::string* name) {
-    auto def_name = name->to_std_string();
+bool BuildContextdefine(LabBuildContext* self, LabJob* job, chem::string_view* name) {
+    auto def_name = name->str();
     auto& definitions = job->definitions;
     auto got = definitions.find(def_name);
     if(got == definitions.end()) {
-        definitions[def_name] = true;
+        definitions[std::move(def_name)] = true;
         return true;
     } else {
         return false;
     }
 }
 
-bool BuildContextundefine(LabBuildContext* self, LabJob* job, chem::string* name) {
-    auto def_name = name->to_std_string();
+bool BuildContextundefine(LabBuildContext* self, LabJob* job, chem::string_view* name) {
     auto& definitions = job->definitions;
-    auto got = definitions.find(def_name);
+    auto got = definitions.find(name->str());
     if(got != definitions.end()) {
         definitions.erase(got);
         return true;
@@ -125,9 +125,8 @@ bool BuildContextundefine(LabBuildContext* self, LabJob* job, chem::string* name
     }
 }
 
-int BuildContextlaunch_executable(LabBuildContext* self, chem::string* path, bool same_window) {
-    auto copied = path->to_std_string();
-    copied = absolute_path(copied);
+int BuildContextlaunch_executable(LabBuildContext* self, chem::string_view* path, bool same_window) {
+    auto copied = absolute_path(path->view());
     if(same_window) {
         copied = '\"' + copied + '\"';
     }
@@ -139,20 +138,20 @@ void BuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), void* 
     self->on_finished_data = data;
 }
 
-int BuildContextlink_objects(LabBuildContext* self, StringSpan* string_arr, chem::string* output_path) {
+int BuildContextlink_objects(LabBuildContext* self, StringViewSpan* string_arr, chem::string_view* output_path) {
     std::vector<chem::string> linkables;
     for(auto i = 0; i < string_arr->size; i++) {
-        linkables.emplace_back(string_arr->ptr[i].copy());
+        linkables.emplace_back(chem::string::make_view(string_arr->ptr[i]));
     }
-    return link_objects(self->options->exe_path, linkables, output_path->to_std_string(), self->options->target_triple);
+    return link_objects(self->options->exe_path, linkables, output_path->str(), self->options->target_triple);
 }
 
-int BuildContextinvoke_dlltool(LabBuildContext* self, StringSpan* string_arr) {
+int BuildContextinvoke_dlltool(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
-    std::vector<std::string> arr;
+    std::vector<chem::string_view> arr;
     arr.emplace_back("dlltool");
     for(auto i = 0; i < string_arr->size; i++) {
-        arr.emplace_back(string_arr->ptr[i].to_std_string());
+        arr.emplace_back(string_arr->ptr[i]);
     }
     return llvm_ar_main2(arr);
 #else
@@ -160,12 +159,12 @@ int BuildContextinvoke_dlltool(LabBuildContext* self, StringSpan* string_arr) {
 #endif
 }
 
-int BuildContextinvoke_ranlib(LabBuildContext* self, StringSpan* string_arr) {
+int BuildContextinvoke_ranlib(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
-    std::vector<std::string> arr;
+    std::vector<chem::string_view> arr;
     arr.emplace_back("ranlib");
     for(auto i = 0; i < string_arr->size; i++) {
-        arr.emplace_back(string_arr->ptr[i].to_std_string());
+        arr.emplace_back(string_arr->ptr[i]);
     }
     return llvm_ar_main2(arr);
 #else
@@ -173,12 +172,12 @@ int BuildContextinvoke_ranlib(LabBuildContext* self, StringSpan* string_arr) {
 #endif
 }
 
-int BuildContextinvoke_lib(LabBuildContext* self, StringSpan* string_arr) {
+int BuildContextinvoke_lib(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
-    std::vector<std::string> arr;
+    std::vector<chem::string_view> arr;
     arr.emplace_back("lib");
     for(auto i = 0; i < string_arr->size; i++) {
-        arr.emplace_back(string_arr->ptr[i].to_std_string());
+        arr.emplace_back(string_arr->ptr[i]);
     }
     return llvm_ar_main2(arr);
 #else
@@ -186,12 +185,12 @@ int BuildContextinvoke_lib(LabBuildContext* self, StringSpan* string_arr) {
 #endif
 }
 
-int BuildContextinvoke_ar(LabBuildContext* self, StringSpan* string_arr) {
+int BuildContextinvoke_ar(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
-    std::vector<std::string> arr;
+    std::vector<chem::string_view> arr;
     arr.emplace_back("ar");
     for(auto i = 0; i < string_arr->size; i++) {
-        arr.emplace_back(string_arr->ptr[i].to_std_string());
+        arr.emplace_back(string_arr->ptr[i]);
     }
     return llvm_ar_main2(arr);
 #else

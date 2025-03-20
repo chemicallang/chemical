@@ -33,12 +33,20 @@ namespace chem {
         } storage;
         char state;
 
-        static inline chem::string make_view(const std::string_view& view) {
+        static inline chem::string make_view(const char* data, size_t len) {
             chem::string str;
-            str.storage.constant.data = view.data();
-            str.storage.constant.length = view.size();
+            str.storage.constant.data = data;
+            str.storage.constant.length = len;
             str.state = '0';
             return str;
+        }
+
+        static inline chem::string make_view(const std::string_view& view) {
+            return make_view(view.data(), view.size());
+        }
+
+        static inline chem::string make_view(const chem::string_view& view) {
+            return make_view(view.data(), view.size());
         }
 
         constexpr explicit string(const char *Str) {
@@ -423,14 +431,33 @@ namespace chem {
             return { data(), size() };
         }
 
-        [[nodiscard]]
-        bool ends_with(const std::string& data) const {
-            return to_std_string().ends_with(data);
+        bool ends_with(const char* other, size_t other_len) const {
+            // If other_data is longer than data, data cannot end with other_data.
+            if (other_len > size())
+                return false;
+            // Compare the last other_len characters of data with other_data.
+            return std::memcmp(data() + size() - other_len, other, other_len) == 0;
+        }
+
+        inline bool ends_with(const char* Str) const {
+            return ends_with(Str, Str ?
+                      // GCC 7 doesn't have constexpr char_traits. Fall back to __builtin_strlen.
+                      #if defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE < 8
+                      __builtin_strlen(Str)
+                      #else
+                      std::char_traits<char>::length(Str)
+                      #endif
+                          : 0);
         }
 
         [[nodiscard]]
-        bool ends_with(const chem::string& str) const {
-            return to_std_string().ends_with(str.data());
+        inline bool ends_with(const std::string& other) const {
+            return ends_with(other.data(), other.size());
+        }
+
+        [[nodiscard]]
+        inline bool ends_with(const chem::string& other) const {
+            return ends_with(other.data(), other.size());
         }
 
         ~string(){

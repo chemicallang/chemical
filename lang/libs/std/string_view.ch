@@ -1,6 +1,7 @@
 import "./std.ch"
 import "./hashing/fnv1.ch"
 import "./hashing/hash.ch"
+import "./string.ch"
 
 public namespace std {
 
@@ -26,6 +27,12 @@ public namespace std {
         func constructor(value : *char, length : size_t) {
             _data = value;
             _size = length;
+        }
+
+        @constructor
+        func make_view(str : &std::string) {
+            _data = str.data()
+            _size = str.size()
         }
 
         @constructor

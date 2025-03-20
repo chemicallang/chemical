@@ -33,7 +33,7 @@ int chemical_clang_main(int argc, char **argv);
 
 int chemical_clang_main2(const std::vector<std::string> &command_args);
 
-int llvm_ar_main2(const std::vector<std::string> &command_args);
+int llvm_ar_main2(const std::span<chem::string_view> &command_args);
 
 #endif
 
@@ -494,7 +494,7 @@ int main(int argc, char *argv[]) {
     auto llvm_tool = [](int argc, char** argv, CmdOptions& options, const std::string_view& option) -> int {
         auto& cmd_opt = options.cmd_opt(option);
         if(cmd_opt.has_multi_value() && !cmd_opt.multi_value.values.empty()) {
-            std::vector<std::string> subc;
+            std::vector<chem::string_view> subc;
             subc.emplace_back(option);
             cmd_opt.put_multi_value_vec(subc);
             return llvm_ar_main2(subc);
@@ -718,7 +718,7 @@ int main(int argc, char *argv[]) {
     // if not empty, this file will be removed at the end
     std::string_view temporary_obj;
 
-    LabModule module(LabModuleType::Files, chem::string::make_view("main"));
+    LabModule module(LabModuleType::Files, chem::string::make_view(chem::string_view("main")));
 
     // setting extra files to emit, like ll, bc, obj, asm (absolute paths)
     auto& ll_out = options.option_new("out-ll");

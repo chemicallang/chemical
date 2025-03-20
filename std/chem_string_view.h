@@ -86,6 +86,35 @@ namespace chem {
             return { data_, size_ };
         }
 
+        bool ends_with(const char* other, size_t other_len) const {
+            // If other_data is longer than data, data cannot end with other_data.
+            if (other_len > size())
+                return false;
+            // Compare the last other_len characters of data with other_data.
+            return std::memcmp(data() + size() - other_len, other, other_len) == 0;
+        }
+
+        inline bool ends_with(const char* Str) const {
+            return ends_with(Str, Str ?
+                                  // GCC 7 doesn't have constexpr char_traits. Fall back to __builtin_strlen.
+                                  #if defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE < 8
+                                  __builtin_strlen(Str)
+                                  #else
+                                  std::char_traits<char>::length(Str)
+                                  #endif
+                                      : 0);
+        }
+
+        [[nodiscard]]
+        inline bool ends_with(const std::string_view& other) const {
+            return ends_with(other.data(), other.size());
+        }
+
+        [[nodiscard]]
+        inline bool ends_with(const chem::string_view& other) const {
+            return ends_with(other.data(), other.size());
+        }
+
         friend bool operator==(const string_view& lhs, const string_view& rhs) {
             return lhs.size() == rhs.size() &&
                    std::equal(lhs.begin(), lhs.end(), rhs.begin());

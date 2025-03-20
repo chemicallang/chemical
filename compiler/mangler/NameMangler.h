@@ -31,7 +31,7 @@ public:
      * for example when mangling a function, we're not concerned with it's container parent
      * we're concerned with the function only, since parent is handled by the container appropriately
      */
-    void mangle_no_parent(std::ostream& stream, ASTNode* node, const chem::string_view& node_id);
+    void mangle_no_parent(std::ostream& stream, ASTNode* node);
 
     /**
      * this node would be mangled, if this node doesn't have a runtime footprint, we return false
@@ -39,6 +39,11 @@ public:
      * everything would be written to the given ostream
      */
     bool mangle(std::ostream& stream, ASTNode* node);
+
+    /**
+     * this will write the parent chain for the given function
+     */
+    void mangle_func_parent(std::ostream& stream, FunctionDeclaration* decl);
 
     /**
      * functions are handled specially, this is because they can be in interfaces, where we must

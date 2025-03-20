@@ -391,7 +391,8 @@ void ASTProcessor::import_chemical_files(
             }
 
 //            std::cout << "launching file : " << fileData.abs_path << std::endl;
-            cache.emplace(abs_path, ASTFileResultNew(file_id, fileData.moduleScope));
+            // we must try to store chem::string_view into the fileData, from the beginning
+            cache.emplace(abs_path, ASTFileResultNew(file_id, "", fileData.moduleScope));
             out_file = &cache.find(abs_path)->second;
         }
 
@@ -556,6 +557,7 @@ void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, co
     result.private_symbol_range = { 0, 0 };
     result.continue_processing = true;
     result.diCompileUnit = nullptr;
+    result.unit.scope.file_path = chem::string_view(result.abs_path);
 
     import_chemical_file(result, fileId, abs_path);
 

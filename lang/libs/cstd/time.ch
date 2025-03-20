@@ -7,6 +7,7 @@ import "./common/time_types.ch"
  * @return Difference between two times in seconds.
  * @see Difference between two times in seconds.
  */
+@export
 public func difftime(time_end : time_t, time_beg : time_t) : double
 
 /**
@@ -15,6 +16,7 @@ public func difftime(time_end : time_t, time_beg : time_t) : double
  * @return Current calendar time encoded as time_t object on success, (time_t)(-1) on error. If arg is not a null pointer, the return value is also stored in the object pointed to by arg.
  * @see https://en.cppreference.com/w/c/chrono/time
  */
+@export
 public func time(arg : *mut time_t) : time_t
 
 /**
@@ -23,6 +25,7 @@ public func time(arg : *mut time_t) : time_t
  * @return Processor time used by the program so far or (clock_t)(-1) if that information is unavailable or its value cannot be represented.
  * @see https://en.cppreference.com/w/c/chrono/clock
  */
+@export
 public func clock() : clock_t
 
 /**
@@ -36,6 +39,7 @@ public func clock() : clock_t
  * @return The value of base if successful, zero otherwise.
  * @see https://en.cppreference.com/w/c/chrono/timespec_get
  */
+@export
 public func timespec_get(ts : *mut timespec, base : int) : int
 
 /**
@@ -53,6 +57,7 @@ public func timespec_get(ts : *mut timespec, base : int) : int
  * @return The value of base if base is supported, zero otherwise.
  * @see https://en.cppreference.com/w/c/chrono/timespec_getres
  */
+@export
 public func timespec_getres(ts : *mut timespec, base : int) : int
 
 /**
@@ -64,6 +69,7 @@ public func timespec_getres(ts : *mut timespec, base : int) : int
  * @return The number of bytes written into the character array pointed to by str not including the terminating '\0' on success. If count was reached before the entire string could be stored, ​0​ is returned and the contents are indeterminate.
  * @see https://en.cppreference.com/w/c/chrono/strftime
  */
+@export
 public func strftime(str : *mut char, count : size_t, format : *char, tp : *tm) : size_t
 
 /**
@@ -72,6 +78,7 @@ public func strftime(str : *mut char, count : size_t, format : *char, tp : *tm) 
  * @return pointer to a static internal tm object on success, or null pointer otherwise. The structure may be shared between gmtime, localtime, and ctime and may be overwritten on each invocation.
  * @see https://en.cppreference.com/w/c/chrono/gmtime
  */
+@export
 public func gmtime(timer : *time_t) : *mut tm
 
 /**
@@ -81,6 +88,7 @@ public func gmtime(timer : *time_t) : *mut tm
  * @return copy of the buf pointer, or null pointer on error (which may be a runtime constraint violation or a failure to convert the specified time to UTC).
  * @see https://en.cppreference.com/w/c/chrono/gmtime
  */
+@export
 public func gmtime_r(timer : *time_t, buf : *mut tm) : *mut tm
 
 /**
@@ -92,6 +100,7 @@ public func gmtime_r(timer : *time_t, buf : *mut tm) : *mut tm
  * @return copy of the buf pointer, or null pointer on error (which may be a runtime constraint violation or a failure to convert the specified time to UTC).
  * @see https://en.cppreference.com/w/c/chrono/gmtime
  */
+@export
 public func gmtime_s(timer : *time_t, buf : *mut tm) : *mut tm
 
 /**
@@ -101,6 +110,7 @@ public func gmtime_s(timer : *time_t, buf : *mut tm) : *mut tm
  * @return pointer to a static internal tm object on success, or null pointer otherwise. The structure may be shared between gmtime, localtime, and ctime and may be overwritten on each invocation.
  * @see https://en.cppreference.com/w/c/chrono/localtime
  */
+@export
 public func localtime(timer : *time_t) : *mut tm
 
 /**
@@ -110,6 +120,7 @@ public func localtime(timer : *time_t) : *mut tm
  * @return copy of the buf pointer, or null pointer on error (which may be a runtime constraint violation or a failure to convert the specified time to local calendar time).
  * @see https://en.cppreference.com/w/c/chrono/localtime
  */
+@export
 public func localtime_r(timer : *time_t, buf : *mut tm) : *mut tm
 
 /**
@@ -121,6 +132,7 @@ public func localtime_r(timer : *time_t, buf : *mut tm) : *mut tm
  * @return copy of the buf pointer, or null pointer on error (which may be a runtime constraint violation or a failure to convert the specified time to local calendar time).
  * @see https://en.cppreference.com/w/c/chrono/localtime
  */
+@export
 public func localtime_s(timer : *time_t, buf : *mut tm) : *mut tm
 
 /**
@@ -131,6 +143,7 @@ public func localtime_s(timer : *time_t, buf : *mut tm) : *mut tm
  * @return time since epoch as a time_t object on success, or -1 if arg cannot be represented as a time_t object (POSIX also requires EOVERFLOW to be stored in errno in this case).
  * @see time since epoch as a time_t object on success, or -1 if arg cannot be represented as a time_t object (POSIX also requires EOVERFLOW to be stored in errno in this case).
  */
+@export
 public func mktime(arg : *mut tm) : time_t
 
 /**

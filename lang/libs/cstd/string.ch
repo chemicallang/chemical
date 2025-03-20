@@ -8,6 +8,7 @@ import "./common/std_types.ch"
  * @return returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/byte/strcpy
  */
+@export
 public func strcpy(dest : *mut char, src : *char) : *mut char
 
 /**
@@ -24,6 +25,7 @@ public func strcpy(dest : *mut char, src : *char) : *mut char
  * @return returns zero on success, returns non-zero on error. Also, on error, writes zero to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX).
  * @see https://en.cppreference.com/w/c/string/byte/strcpy
  */
+@export
 public func strcpy_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
 
 /**
@@ -37,6 +39,7 @@ public func strcpy_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
  * @return returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/byte/strncpy
  */
+@export
 public func strncpy(dest : *mut char, src : *char, count : size_t) : *mut char
 
 /**
@@ -55,6 +58,7 @@ public func strncpy(dest : *mut char, src : *char, count : size_t) : *mut char
  * @return returns zero on success, returns non-zero on error. Also, on error, writes zero to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX) and may clobber the rest of the destination array with unspecified values.
  * @see https://en.cppreference.com/w/c/string/byte/strncpy
  */
+@export
 public func strncpy_s(dest : *mut char, destsz : rsize_t, src : *char, count : rsize_t ) : errno_t
 
 /**
@@ -66,6 +70,7 @@ public func strncpy_s(dest : *mut char, destsz : rsize_t, src : *char, count : r
  * @return returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/byte/strcat
  */
+@export
 public func strcat(dest : *mut char, src : *char) : *mut char
 
 /**
@@ -83,6 +88,7 @@ public func strcat(dest : *mut char, src : *char) : *mut char
  * @return returns zero on success, returns non-zero on error. Also, on error, writes zero to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX).
  * @see https://en.cppreference.com/w/c/string/byte/strcat
  */
+@export
 public func strcat_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
 
 /**
@@ -94,6 +100,7 @@ public func strcat_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
  * @return returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/byte/strncat
  */
+@export
 public func strncat(dest : *mut char, src : *char, count : size_t) : *mut char
 
 /**
@@ -112,6 +119,7 @@ public func strncat(dest : *mut char, src : *char, count : size_t) : *mut char
  * @return returns zero on success, returns non-zero on error. Also, on error, writes zero to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX).
  * @see https://en.cppreference.com/w/c/string/byte/strncat
  */
+@export
 public func strncat_s(dest : *char, destsz : rsize_t, src : *char, count : rsize_t) : errno_t
 
 /**
@@ -125,6 +133,7 @@ public func strncat_s(dest : *char, destsz : rsize_t, src : *char, count : rsize
  * @return The length of the transformed string, not including the terminating null-character.
  * @see https://en.cppreference.com/w/c/string/byte/strxfrm
  */
+@export
 public func strxfrm(dest : *mut char, src : *char, count : size_t) : size_t
 
 /**
@@ -134,6 +143,7 @@ public func strxfrm(dest : *mut char, src : *char, count : size_t) : size_t
  * @return A pointer to the newly allocated string, or a null pointer if an error occurred.
  * @see https://en.cppreference.com/w/c/string/byte/strdup
  */
+@export
 public func strdup(src : *char) : *mut char
 
 /**
@@ -144,6 +154,7 @@ public func strdup(src : *char) : *mut char
  * @param size	-	max number of bytes to copy from src
  * @return A pointer to the newly allocated string, or a null pointer if an error occurred.
  */
+@export
 public func strndup(src : *char, size : size_t) : *mut char
 
 /**
@@ -153,6 +164,7 @@ public func strndup(src : *char, size : size_t) : *mut char
  * @return The length of the null-terminated byte string str.
  * @see https://en.cppreference.com/w/c/string/byte/strlen
  */
+@export
 public func strlen(str : *char) : size_t
 
 /**
@@ -164,6 +176,7 @@ public func strlen(str : *char) : size_t
  * @return The length of the null-terminated byte string str on success, zero if str is a null pointer, strsz if the null character was not found.
  * @see https://en.cppreference.com/w/c/string/byte/strlen
  */
+@export
 public func strnlen_s(str : *char, strsz : size_t) : size_t
 
 /**
@@ -176,6 +189,7 @@ public func strnlen_s(str : *char, strsz : size_t) : size_t
  * Positive value if lhs appears after rhs in lexicographical order.
  * @see https://en.cppreference.com/w/c/string/byte/strcmp
  */
+@export
 public func strcmp(lhs : *char, rhs : *char) : int
 
 /**
@@ -189,6 +203,7 @@ public func strcmp(lhs : *char, rhs : *char) : int
  * Positive value if lhs appears after rhs in lexicographical order.
  * @see https://en.cppreference.com/w/c/string/byte/strncmp
  */
+@export
 public func strncmp(lhs : *char, rhs : *char, count : size_t) : int
 
 /**
@@ -199,6 +214,7 @@ public func strncmp(lhs : *char, rhs : *char, count : size_t) : int
  * Positive value if lhs is greater than (follows) rhs.
  * @see https://en.cppreference.com/w/c/string/byte/strcoll
  */
+@export
 public func strcoll(lhs : *char, rhs : *char) : int
 
 /**
@@ -208,6 +224,7 @@ public func strcoll(lhs : *char, rhs : *char) : int
  * @return Pointer to the found character in str, or null pointer if no such character is found.
  * @see https://en.cppreference.com/w/c/string/byte/strchr
  */
+@export
 public func strchr(str : *char, ch : int) : *mut char
 
 /**
@@ -217,6 +234,7 @@ public func strchr(str : *char, ch : int) : *mut char
  * @return Pointer to the found character in str, or null pointer if no such character is found.
  * @see https://en.cppreference.com/w/c/string/byte/strrchr
  */
+@export
 public func strrchr(str : *char, ch : int) : *mut char
 
 /**
@@ -227,6 +245,7 @@ public func strrchr(str : *char, ch : int) : *mut char
  * @return The length of the maximum initial segment that contains only characters from the null-terminated byte string pointed to by src.
  * @see https://en.cppreference.com/w/c/string/byte/strspn
  */
+@export
 public func strspn(dest : *char, src : *char) : size_t
 
 /**
@@ -237,6 +256,7 @@ public func strspn(dest : *char, src : *char) : size_t
  * @return The length of the maximum initial segment that contains only characters not found in the null-terminated byte string pointed to by src
  * @see https://en.cppreference.com/w/c/string/byte/strcspn
  */
+@export
 public func strcspn(dest : *char, src : *char) : size_t
 
 /**
@@ -246,6 +266,7 @@ public func strcspn(dest : *char, src : *char) : size_t
  * @return Pointer to the first character in dest, that is also in breakset, or null pointer if no such character exists.
  * @see https://en.cppreference.com/w/c/string/byte/strpbrk
  */
+@export
 public func strpbrk(dest : *char, breakset : *char) : *mut char
 
 /**
@@ -255,6 +276,7 @@ public func strpbrk(dest : *char, breakset : *char) : *mut char
  * @return Pointer to the first character of the found substring in str, or a null pointer if such substring is not found. If substr points to an empty string, str is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strstr
  */
+@export
 public func strstr(str : *char, substr : *char) : *mut char
 
 /**
@@ -273,6 +295,7 @@ public func strstr(str : *char, substr : *char) : *mut char
  * @return Returns pointer to the beginning of the next token or a null pointer if there are no more tokens.
  * @see https://en.cppreference.com/w/c/string/byte/strtok
  */
+@export
 public func strtok(str : *mut char, delim : *char) : *mut char
 
 /**
@@ -291,6 +314,7 @@ public func strtok(str : *mut char, delim : *char) : *mut char
  * @return Returns pointer to the beginning of the next token or a null pointer if there are no more tokens.
  * @see https://en.cppreference.com/w/c/string/byte/strtok
  */
+@export
 public func strtok_s(str : *mut char, strmax : *mut rsize_t, delim : *char, ptr : **mut char) : *mut char
 
 /**
@@ -301,6 +325,7 @@ public func strtok_s(str : *mut char, strmax : *mut rsize_t, delim : *char, ptr 
  * @return Pointer to the location of the byte, or a null pointer if no such byte is found.
  * @see https://en.cppreference.com/w/c/string/byte/memchr
  */
+@export
 public func memchr(ptr : *void, ch : int, count : size_t) : *mut void
 
 /**
@@ -314,6 +339,7 @@ public func memchr(ptr : *void, ch : int, count : size_t) : *mut void
  * Positive value if lhs appears after rhs in lexicographical order.
  * @see https://en.cppreference.com/w/c/string/byte/memcmp
  */
+@export
 public func memcmp(lhs : *void, rhs : *void, count : size_t) : int
 
 /**
@@ -325,6 +351,7 @@ public func memcmp(lhs : *void, rhs : *void, count : size_t) : int
  * @return A copy of dest
  * @see https://en.cppreference.com/w/c/string/byte/memset
  */
+@export
 public func memset(dest : *mut void, ch : int, count : size_t) : *mut void
 
 /**
@@ -335,6 +362,7 @@ public func memset(dest : *mut void, ch : int, count : size_t) : *mut void
  * @return A copy of dest
  * @see https://en.cppreference.com/w/c/string/byte/memset
  */
+@export
 public func memset_explicit(dest : *mut void, ch : int, count : size_t) : *mut void
 
 /**
@@ -351,6 +379,7 @@ public func memset_explicit(dest : *mut void, ch : int, count : size_t) : *mut v
  * @return zero on success, non-zero on error. Also on error, if dest is not a null pointer and destsz is valid, writes destsz fill bytes ch to the destination array.
  * @see https://en.cppreference.com/w/c/string/byte/memset
  */
+@export
 public func memset_s(dest : *mut void, destsz : rsize_t, ch : int, count : rsize_t) : errno_t
 
 /**
@@ -362,6 +391,7 @@ public func memset_s(dest : *mut void, destsz : rsize_t, ch : int, count : rsize
  * @return Returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/byte/memcpy
  */
+@export
 public func memcpy(dest : *mut void, src : *void, count : size_t) : *mut void
 
 /**
@@ -379,6 +409,7 @@ public func memcpy(dest : *mut void, src : *void, count : size_t) : *mut void
  * @return Returns zero on success and non-zero value on error. Also on error, if dest is not a null pointer and destsz is valid, writes destsz zero bytes in to the destination array.
  * @see https://en.cppreference.com/w/c/string/byte/memcpy
  */
+@export
 public func memcpy_s(dest : *mut void, destsz : rsize_t, src : *void, count : rsize_t) : errno_t
 
 /**
@@ -391,6 +422,7 @@ public func memcpy_s(dest : *mut void, destsz : rsize_t, src : *void, count : rs
  * @return Returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/byte/memmove
  */
+@export
 public func memmove(dest : *mut void, src : *void, count : size_t) : *mut void
 
 /**
@@ -407,6 +439,7 @@ public func memmove(dest : *mut void, src : *void, count : size_t) : *mut void
  * @return Returns zero on success and non-zero value on error. Also on error, if dest is not a null pointer and destsz is valid, writes destsz zero bytes in to the destination array.
  * @see https://en.cppreference.com/w/c/string/byte/memmove
  */
+@export
 public func memmove_s(dest : *mut void, destsz : rsize_t, src : *void, count : rsize_t) : errno_t
 
 /**
@@ -424,6 +457,7 @@ public func memmove_s(dest : *mut void, destsz : rsize_t, src : *void, count : r
  * @param count	-	number of bytes to copy
  * @return If the byte (unsigned char)c was found, memccpy returns a pointer to the next byte in dest after (unsigned char)c. Otherwise it returns a null pointer.
  */
+@export
 public func memccpy(dest : *mut void, src : *void, c : int, count : size_t) : *mut void
 
 /**
@@ -436,6 +470,7 @@ public func memccpy(dest : *mut void, src : *void, c : int, count : size_t) : *m
  * @return Pointer to a null-terminated byte string corresponding to the errno error code errnum.
  * @see https://en.cppreference.com/w/c/string/byte/strerror
  */
+@export
 public func strerror(errnum : int) : *mut char
 
 /**
@@ -449,6 +484,7 @@ public func strerror(errnum : int) : *mut char
  * @return Zero if the entire message was successfully stored in buf, non-zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/strerror
  */
+@export
 public func strerror_s(buf : *mut char, bufsz : rsize_t, errnum : errno_t) : errno_t
 
 /**
@@ -460,4 +496,5 @@ public func strerror_s(buf : *mut char, bufsz : rsize_t, errnum : errno_t) : err
  * @return Length (not including the null terminator) of the message that strerror_s would return
  * @see https://en.cppreference.com/w/c/string/byte/strerror
  */
+@export
 public func strerrorlen_s(errnum : errno_t) : size_t

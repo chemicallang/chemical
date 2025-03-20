@@ -242,7 +242,7 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
 
 // without the parent node name
 static void struct_name(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def) {
-    visitor.mangler.mangle_no_parent(*visitor.output, def, def->name_view());
+    visitor.mangler.mangle_no_parent(*visitor.output, def);
 }
 
 void node_name(ToCAstVisitor& visitor, ASTNode* node) {
@@ -1301,11 +1301,11 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, const unsigned end, const unsigned total_size);
 
 void func_name(ToCAstVisitor& visitor, Value* ref, FunctionDeclaration* func_decl) {
-    visitor.mangler.mangle_no_parent(*visitor.output, func_decl, func_decl->name_view());
+    visitor.mangler.mangle_no_parent(*visitor.output, func_decl);
 }
 
 void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
-    visitor.mangler.mangle_no_parent(*visitor.output, func_decl, func_decl->name_view());
+    visitor.mangler.mangle_no_parent(*visitor.output, func_decl);
 }
 
 void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool has_comma_before = true) {
@@ -1745,8 +1745,7 @@ void CDestructionVisitor::destruct(const chem::string_view& self_name, Extendabl
     if(new_line_before) {
         visitor.new_line_and_indent();
     }
-    func_container_name(visitor, parent_node, destructor);
-    visitor.write(destructor->name_view());
+    visitor.mangle(destructor);
     visitor.write('(');
     if(destructor->has_self_param()) {
         if(!is_pointer) {
@@ -2231,7 +2230,7 @@ void func_ret_func_proto_after_l_paren(ToCAstVisitor& visitor, FunctionDeclarati
     visitor.write(')');
 }
 
-void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* decl, const chem::string_view& name, FunctionType* retFunc) {
+void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* decl, FunctionType* retFunc) {
     if(decl->body.has_value()) {
         visitor.write("static ");
     }
@@ -2240,13 +2239,13 @@ void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* d
     func_ret_func_proto_after_l_paren(visitor, decl, retFunc);
 }
 
-void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl, const chem::string_view& name) {
+void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     if(decl->is_comptime()) {
         return;
     }
     const auto ret_func = decl->returnType->as_function_type();
     if(ret_func && !ret_func->isCapturing()) {
-        func_that_returns_func_proto(visitor, decl, name, ret_func);
+        func_that_returns_func_proto(visitor, decl, ret_func);
     } else {
         const auto ret_kind = decl->returnType->kind();
         accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_exported_fast());
@@ -2256,7 +2255,7 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl,
     }
 }
 
-void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const chem::string_view& name) {
+void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl) {
     if(decl->is_comptime()) {
         return;
     }
@@ -2265,7 +2264,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
         tld->value_visitor->visit(decl->returnType);
     }
     tld->visitor.new_line_and_indent();
-    declare_func_with_return(tld->visitor, decl, name);
+    declare_func_with_return(tld->visitor, decl);
     tld->visitor.write(';');
 }
 
@@ -2394,19 +2393,12 @@ void early_declare_composed_variables(CTopLevelDeclarationVisitor& visitor, Vari
     }
 }
 
-void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, const chem::string_view& name);
-
-// just generates the remaining functions
-void gen_generic_functions(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
-    func_decl_with_name(visitor, decl, decl->name_view());
-}
-
 void CTopLevelDeclarationVisitor::declare_func(FunctionDeclaration* decl) {
     // TODO we will fix capturing lambda types when introducing generics and unions
 //    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {
 //        visitor->error("Function name " + decl->name + " returns a capturing lambda, which is not supported");
 //    }
-    declare_by_name(this, decl, decl->name_view());
+    declare_by_name(this, decl);
 }
 
 void CTopLevelDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
@@ -2452,7 +2444,9 @@ void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
     const auto kind = stmt->actual_type->kind();
     if(kind == BaseTypeKind::Function) {
         const auto func_type = stmt->actual_type->as_function_type_unsafe();
-        func_type_with_id(visitor, func_type, stmt->name_view());
+        // TODO: do not store htis
+        const auto mangled_name = visitor.mangler.mangle(stmt);
+        func_type_with_id(visitor, func_type, chem::string_view(mangled_name));
     } else {
         visitor.visit(stmt->actual_type);
         visitor.write(' ');
@@ -2468,8 +2462,7 @@ void CTopLevelDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
 void CTopLevelDeclarationVisitor::VisitUnionDecl(UnionDef *def) {
     visitor.new_line_and_indent();
     write("union ");
-    node_parent_name(visitor, def);
-    write(def->name_view());
+    visitor.mangle(def);
     write(" {");
     visitor.indentation_level+=1;
     for(const auto var : def->variables()) {
@@ -3144,7 +3137,7 @@ void ToCAstVisitor::VisitFunctionParam(FunctionParam *param) {
     param_type_with_id(*this, param->type, param->name);
 }
 
-void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, const chem::string_view& name) {
+void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     if(!decl->body.has_value() || decl->is_comptime()) {
         return;
     }
@@ -3153,19 +3146,15 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
     visitor.new_line_and_indent();
     const auto decl_ret_func = decl->returnType->as_function_type();
     if(decl_ret_func && !decl_ret_func->isCapturing()) {
-        func_that_returns_func_proto(visitor, decl, name, decl_ret_func);
+        func_that_returns_func_proto(visitor, decl, decl_ret_func);
     } else {
-        declare_func_with_return(visitor, decl, name);
+        declare_func_with_return(visitor, decl);
     }
     // before generating function's body, it's very important we clear the cached comptime calls
     // because multiple generic functions must re-evaluate the comptime function call
     visitor.evaluated_func_calls.clear();
     scope(visitor, decl->body.value(), decl);
     visitor.current_func_type = prev_func_decl;
-}
-
-void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
-    func_decl_with_name(visitor, decl, decl->name_view());
 }
 
 void call_variant_param_func(
@@ -3182,8 +3171,7 @@ void call_variant_param_func(
         return;
     }
     visitor.new_line_and_indent();
-    func_container_name(visitor, mem_def, func);
-    visitor.write(func->name_view());
+    visitor.mangle(func);
     visitor.write('(');
     if (func->has_self_param()) {
         visitor.write("&self->");
@@ -3216,8 +3204,7 @@ void variant_member_pre_move_fn_gen(
 ) {
     // copy func call
     visitor.new_line_and_indent();
-    func_container_name(visitor, mem_def, func);
-    visitor.write(func->name_view());
+    visitor.mangle(func);
     visitor.write('(');
 
     // writing the self arg
@@ -3334,8 +3321,7 @@ void call_struct_member_fn(
         return;
     }
     visitor.new_line_and_indent();
-    func_container_name(visitor, mem_def, func);
-    visitor.write(func->name_view());
+    visitor.mangle(func);
     visitor.write('(');
     if (func->has_self_param()) {
         visitor.write("&self->");
@@ -3360,8 +3346,7 @@ void call_struct_members_pre_move_fn(
         const chem::string_view& member_name
 ) {
     visitor.new_line_and_indent();
-    func_container_name(visitor, mem_def, func);
-    visitor.write(func->name_view());
+    visitor.mangle(func);
     visitor.write('(');
     // writing the self arg
     visitor.write("&self->");
@@ -4881,22 +4866,6 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 break;
         }
     }
-//    else if(linked_kind == ASTNodeKind::FunctionParam || linked_kind == ASTNodeKind::ExtensionFuncReceiver) {
-//        auto& type = *linked->as_func_param_unsafe()->type;
-//        const auto type_kind = type.kind();
-//        if(type_kind == BaseTypeKind::Reference) {
-//            // const auto d_linked = ((ReferenceType&) type).type->get_direct_linked_node();
-////            if(should_deref_node(d_linked)) {
-//                deref_id(*this, identifier);
-//                return;
-////            }
-//        } else {
-//            const auto d_linked = type.get_direct_linked_node(type_kind);
-//            if(write_id_accessor(*this, identifier, d_linked)) {
-//                return;
-//            }
-//        }
-//    }
     write(identifier->value);
 }
 

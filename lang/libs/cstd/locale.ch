@@ -2,6 +2,7 @@
 /**
  * The struct lconv contains numeric and monetary formatting rules as defined by a C locale. Objects of this struct may be obtained with localeconv. The members of lconv are values of type char and of type char*. Each char* member except decimal_point may be pointing at a null character (that is, at an empty C-string). The members of type char are all non-negative numbers, any of which may be CHAR_MAX if the corresponding value is not available in the current C locale.
  */
+@export
 public struct lconv {
 
     // the character used as the decimal point
@@ -85,12 +86,14 @@ public struct lconv {
  * @return pointer to a narrow null-terminated string identifying the C locale after applying the changes, if any, or null pointer on failure.
  * A copy of the returned string along with the category used in this call to setlocale may be used later in the program to restore the locale back to the state at the end of this call.
  */
+@export
 public func setlocale(category : int, locale : *char) : *mut char
 
 /**
  * The localeconv function obtains a pointer to a static object of type lconv, which represents numeric and monetary formatting rules of the current C locale.
  * @return pointer to the current lconv object.
  */
+@export
 public func localeconv() : *lconv
 
 /**

@@ -18,12 +18,17 @@ struct TypealiasDeclAttributes {
     /**
      * is comptime typealias
      */
-    bool is_comptime;
+    bool is_comptime = false;
 
     /**
      * is typealias deprecated
      */
-    bool deprecated;
+    bool deprecated = false;
+
+    /**
+     * no mangle means don't prefix with module name
+     */
+    bool is_no_mangle = false;
 
 };
 
@@ -111,6 +116,14 @@ public:
 
     inline void set_deprecated(bool value) {
         attrs.deprecated = value;
+    }
+
+    inline bool is_no_mangle() {
+        return attrs.is_no_mangle;
+    }
+
+    inline void set_no_mangle(bool mangle) {
+        attrs.is_no_mangle = mangle;
     }
 
     inline const chem::string_view& name_view() const {

@@ -24,6 +24,7 @@ import "./common/integer_types.ch"
  *         If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtoimax
  */
+@export
 public func strtoimax(nptr : *char, endptr : **mut char, base : int) : intmax_t
 
 /**
@@ -47,6 +48,7 @@ public func strtoimax(nptr : *char, endptr : **mut char, base : int) : intmax_t
  *         If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtoimax
  */
+@export
 public func strtoumax(nptr : *char, endptr : **mut char, base : int) : uintmax_t
 
 /**
@@ -55,11 +57,13 @@ public func strtoumax(nptr : *char, endptr : **mut char, base : int) : uintmax_t
  * @return The absolute value of n (i.e. |n|), if it is representable.
  * @see https://en.cppreference.com/w/c/numeric/math/abs
  */
+@export
 public func imaxabs(n : intmax_t) : intmax_t
 
 /**
  * the result of imaxdiv function below
  */
+@export
 public struct imaxdiv_t {
     const quot : intmax_t;
     const rem : intmax_t;
@@ -71,4 +75,5 @@ public struct imaxdiv_t {
  * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
  * @see https://en.cppreference.com/w/c/numeric/math/div
  */
+@export
 public func imaxdiv(x : intmax_t, y : intmax_t) : imaxdiv_t

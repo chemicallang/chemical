@@ -76,6 +76,11 @@ struct StructDeclAttributes {
      */
     bool is_copy = false;
 
+    /**
+     * is no mangle means, module name won't be added to this struct
+     */
+    bool is_no_mangle = false;
+
 };
 
 class StructDefinition : public ExtendableMembersContainerNode {
@@ -205,6 +210,14 @@ public:
 
     inline void set_shallow_copyable(bool value) {
         attrs.is_copy = value;
+    }
+
+    inline bool is_no_mangle() {
+        return attrs.is_no_mangle;
+    }
+
+    inline void set_no_mangle(bool no_mangle) {
+        attrs.is_no_mangle = no_mangle;
     }
 
     inline bool has_destructor() {

@@ -1328,7 +1328,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     TCCDeletor auto_del(state);
 
     // get the build method
-    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
+    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
     if(!build) {
         std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
         return 1;

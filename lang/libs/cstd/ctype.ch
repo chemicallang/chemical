@@ -8,7 +8,7 @@
  * @return Non-zero value if the character is an alphanumeric character, ​0​ otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/isalnum
  */
-@export
+@extern
 public func isalnum(ch : int) : int
 
 /**
@@ -18,7 +18,7 @@ public func isalnum(ch : int) : int
  * @return Non-zero value if the character is an alphabetic character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/isalpha
  */
-@export
+@extern
 public func isalpha(ch : int) : int
 
 /**
@@ -28,7 +28,7 @@ public func isalpha(ch : int) : int
  * @return Non-zero value if the character is a lowercase letter, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/islower
  */
-@export
+@extern
 public func islower(ch : int) : int
 
 /**
@@ -38,7 +38,7 @@ public func islower(ch : int) : int
  * @return Non-zero value if the character is an uppercase letter, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/isupper
  */
-@export
+@extern
 public func isupper(ch : int) : int
 
 /**
@@ -47,7 +47,7 @@ public func isupper(ch : int) : int
  * @return Non-zero value if the character is a numeric character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/isdigit
  */
-@export
+@extern
 public func isdigit(ch : int) : int
 
 /**
@@ -56,7 +56,7 @@ public func isdigit(ch : int) : int
  * @return Non-zero value if the character is an hexadecimal numeric character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/isxdigit
  */
-@export
+@extern
 public func isxdigit(ch : int) : int
 
 /**
@@ -65,7 +65,7 @@ public func isxdigit(ch : int) : int
  * @return Non-zero value if the character is a control character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/iscntrl
  */
-@export
+@extern
 public func iscntrl(ch : int) : int
 
 /**
@@ -74,7 +74,7 @@ public func iscntrl(ch : int) : int
  * @return Non-zero value if the character has a graphical representation character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/isgraph
  */
-@export
+@extern
 public func isgraph(ch : int) : int
 
 /**
@@ -92,7 +92,7 @@ public func isgraph(ch : int) : int
  * @return Non-zero value if the character is a whitespace character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/isspace
  */
-@export
+@extern
 public func isspace(ch : int) : int
 
 /**
@@ -101,7 +101,7 @@ public func isspace(ch : int) : int
  * @return Non-zero value if the character is a blank character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/isblank
  */
-@export
+@extern
 public func isblank(ch : int) : int
 
 /**
@@ -110,7 +110,7 @@ public func isblank(ch : int) : int
  * @return Non-zero value if the character can be printed, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/isprint
  */
-@export
+@extern
 public func isprint(ch : int) : int
 
 /**
@@ -119,7 +119,7 @@ public func isprint(ch : int) : int
  * @return Non-zero value if the character is a punctuation character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/byte/ispunct
  */
-@export
+@extern
 public func ispunct(ch : int) : int
 
 /**
@@ -128,7 +128,7 @@ public func ispunct(ch : int) : int
  * @return Lowercase version of ch or unmodified ch if no lowercase version is listed in the current C locale.
  * @see https://en.cppreference.com/w/c/string/byte/tolower
  */
-@export
+@extern
 public func tolower(ch : int) : int
 
 /**
@@ -137,5 +137,5 @@ public func tolower(ch : int) : int
  * @return Uppercase version of ch or unmodified ch if no uppercase version is listed in the current C locale.
  * @see https://en.cppreference.com/w/c/string/byte/toupper
  */
-@export
+@extern
 public func toupper(ch : int) : int

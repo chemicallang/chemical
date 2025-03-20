@@ -6,7 +6,7 @@
  * @see https://en.cppreference.com/w/c/io/FILE
  */
 @no_init
-@export
+@extern
 public struct FILE {
 
 }

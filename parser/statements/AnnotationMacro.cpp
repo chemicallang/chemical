@@ -181,11 +181,12 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
             }
         }},
         { "extern", [](Parser* parser, ASTNode* node) -> void {
+            if(!make_node_no_mangle(node)) {
+                parser->error("couldn't make the node no_mangle");
+            }
             const auto func = node->as_function();
             if(func) {
                 func->set_extern(true);
-            } else {
-                parser->error("couldn't make the function extern");
             }
         }},
         { "implicit", [](Parser* parser, ASTNode* node) -> void {

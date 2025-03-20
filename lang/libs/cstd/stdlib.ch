@@ -23,7 +23,7 @@ import "./common/wchar_types.ch"
  * @return double value corresponding to the contents of str on success. If the converted value falls out of range of the return type, the return value is undefined. If no conversion can be performed, 0.0 is returned.
  * @see https://en.cppreference.com/w/c/string/byte/atof
  */
-@export
+@extern
 public func atof(str : *char) : double
 
 /**
@@ -36,7 +36,7 @@ public func atof(str : *char) : double
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/atoi
  */
-@export
+@extern
 public func atoi(str : *char) : int
 
 /**
@@ -49,7 +49,7 @@ public func atoi(str : *char) : int
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/atoi
  */
-@export
+@extern
 public func atol(str : *char) : long
 
 /**
@@ -62,7 +62,7 @@ public func atol(str : *char) : long
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/atoi
  */
-@export
+@extern
 public func atoll(str  :*char) : bigint
 
 /**
@@ -86,7 +86,7 @@ public func atoll(str  :*char) : bigint
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtol
  */
-@export
+@extern
 public func strtol(str : *char, str_end : **mut char, base : int) : long
 
 /**
@@ -110,7 +110,7 @@ public func strtol(str : *char, str_end : **mut char, base : int) : long
  * If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtol
  */
-@export
+@extern
 public func strtoll(str : *char, str_end : **mut char, base : int) : bigint
 
 /**
@@ -131,7 +131,7 @@ public func strtoll(str : *char, str_end : **mut char, base : int) : bigint
  * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and ULONG_MAX or ULLONG_MAX is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtoul
  */
-@export
+@extern
 public func strtoul(str : *mut char, str_end : **mut char, base : int) : ulong
 
 /**
@@ -152,7 +152,7 @@ public func strtoul(str : *mut char, str_end : **mut char, base : int) : ulong
  * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and ULONG_MAX or ULLONG_MAX is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtoul
  */
-@export
+@extern
 public func strtoull(str : *mut char, str_end : **mut char, base : int) : ubigint
 
 /**
@@ -180,7 +180,7 @@ public func strtoull(str : *mut char, str_end : **mut char, base : int) : ubigin
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
-@export
+@extern
 public func strtof(str : *mut char, str_end : **mut char) : float
 
 /**
@@ -208,7 +208,7 @@ public func strtof(str : *mut char, str_end : **mut char) : float
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
-@export
+@extern
 public func strtod(str : *mut char, str_end : **mut char) : double
 
 /**
@@ -236,7 +236,7 @@ public func strtod(str : *mut char, str_end : **mut char) : double
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs (errno is set to ERANGE) and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
-@export
+@extern
 public func strtold(str : *mut char, str_end : **mut char) : longdouble
 
 /**
@@ -249,7 +249,7 @@ public func strtold(str : *mut char, str_end : **mut char) : longdouble
  * @return The number of characters that would have been written had n been sufficiently large, not counting the terminating null character. Thus, the null-terminated output has been completely written if and only if the returned value is both nonnegative and less than n.
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
-@export
+@extern
 public func strfromf(s : *char, n : size_t, format : *char, fp : float) : int
 
 /**
@@ -262,7 +262,7 @@ public func strfromf(s : *char, n : size_t, format : *char, fp : float) : int
  * @return The number of characters that would have been written had n been sufficiently large, not counting the terminating null character. Thus, the null-terminated output has been completely written if and only if the returned value is both nonnegative and less than n.
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
-@export
+@extern
 public func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
 
 /**
@@ -275,7 +275,7 @@ public func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
  * @return The number of characters that would have been written had n been sufficiently large, not counting the terminating null character. Thus, the null-terminated output has been completely written if and only if the returned value is both nonnegative and less than n.
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
-@export
+@extern
 public func strfroml(s : *char, n : size_t, format : *char, fp : longdouble) : int
 
 /**
@@ -284,7 +284,7 @@ public func strfroml(s : *char, n : size_t, format : *char, fp : longdouble) : i
  * @return The absolute value of n (i.e. |n|), if it is representable.
  * @see https://en.cppreference.com/w/c/numeric/math/abs
  */
-@export
+@extern
 public func abs(n : int) : int
 
 /**
@@ -293,7 +293,7 @@ public func abs(n : int) : int
  * @return The absolute value of n (i.e. |n|), if it is representable.
  * @see https://en.cppreference.com/w/c/numeric/math/abs
  */
-@export
+@extern
 public func labs(n : long) : long
 
 /**
@@ -302,13 +302,13 @@ public func labs(n : long) : long
  * @return The absolute value of n (i.e. |n|), if it is representable.
  * @see https://en.cppreference.com/w/c/numeric/math/abs
  */
-@export
+@extern
 public func llabs(n : bigint) : bigint
 
 /**
  * the result of div function below
  */
-@export
+@extern
 public struct div_t {
     const quot : int
     const rem : int
@@ -320,13 +320,13 @@ public struct div_t {
  * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
  * @see https://en.cppreference.com/w/c/numeric/math/div
  */
-@export
+@extern
 public func div(x : int, y : int) : div_t
 
 /**
  * the result of ldiv function below
  */
-@export
+@extern
 public struct ldiv_t {
     const quot : long;
     const rem : long;
@@ -338,14 +338,14 @@ public struct ldiv_t {
  * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
  * @see https://en.cppreference.com/w/c/numeric/math/div
  */
-@export
+@extern
 public func ldiv(x : long, y : long) : ldiv_t
 
 
 /**
  * the result of lldiv function below
  */
-@export
+@extern
 public struct lldiv_t {
     const quot : bigint;
     const rem : bigint;
@@ -357,7 +357,7 @@ public struct lldiv_t {
  * @return If both the remainder and the quotient can be represented as objects of the corresponding type (int, long, long long, intmax_t, respectively), returns both as an object of type div_t, ldiv_t, lldiv_t, imaxdiv_t
  * @see https://en.cppreference.com/w/c/numeric/math/div
  */
-@export
+@extern
 public func lldiv(x : bigint, y : bigint) : lldiv_t
 
 /**
@@ -366,7 +366,7 @@ public func lldiv(x : bigint, y : bigint) : lldiv_t
  * @see https://en.cppreference.com/w/c/program/abort
  */
 @no_return
-@export
+@extern
 public func abort();
 
 /**
@@ -379,7 +379,7 @@ public func abort();
  * @see https://en.cppreference.com/w/c/program/exit
  */
 @no_return
-@export
+@extern
 public func exit(exit_code : int);
 
 /**
@@ -390,7 +390,7 @@ public func exit(exit_code : int);
  * @see https://en.cppreference.com/w/c/program/quick_exit
  */
 @no_return
-@export
+@extern
 public func quick_exit(exit_code : int)
 
 /**
@@ -401,7 +401,7 @@ public func quick_exit(exit_code : int)
  * @see https://en.cppreference.com/w/c/program/_Exit
  */
 @no_return
-@export
+@extern
 public func _Exit(exit_code : int)
 
 /**
@@ -412,7 +412,7 @@ public func _Exit(exit_code : int)
  * @return 0 if the registration succeeds, nonzero value otherwise.
  * @see https://en.cppreference.com/w/c/program/atexit
  */
-@export
+@extern
 public func atexit(func : () => void ) : int
 
 /**
@@ -423,7 +423,7 @@ public func atexit(func : () => void ) : int
  * @return 0 if the registration succeeds, nonzero value otherwise.
  * @see https://en.cppreference.com/w/c/program/at_quick_exit
  */
-@export
+@extern
 public func at_quick_exit(func : () => void) : int
 
 /**
@@ -447,7 +447,7 @@ public const EXIT_FAILURE = 0
  * @return Implementation-defined value. If command is a null pointer, returns a nonzero value if and only if the command processor exists.
  * @see https://en.cppreference.com/w/c/program/system
  */
-@export
+@extern
 public func system(command : *char) : int
 
 /**
@@ -458,7 +458,7 @@ public func system(command : *char) : int
  * @return character string identifying the value of the environmental variable or null pointer if such variable is not found.
  * @see https://en.cppreference.com/w/c/program/getenv
  */
-@export
+@extern
 public func getenv(name : *char) : *mut char
 
 /**
@@ -474,7 +474,7 @@ public func getenv(name : *char) : *mut char
  * @return zero if the environment variable was found, non-zero if it was not found or if a runtime constraint violation occurred. On any error, writes zero to *len (unless len is a null pointer).
  * @see https://en.cppreference.com/w/c/program/getenv
  */
-@export
+@extern
 public func getenv_s(
     len : *mut size_t,
     value : *mut char,
@@ -490,7 +490,7 @@ public func getenv_s(
  * @return The alignment value of p, or 0 if p is a null pointer value.
  * @see https://en.cppreference.com/w/c/program/memalignment
  */
-@export
+@extern
 public func memalignment(p : *void) : size_t
 
 /**
@@ -503,7 +503,7 @@ public func memalignment(p : *void) : size_t
  * If s is a null pointer, resets its internal conversion state to represent the initial shift state and(until C23) returns ​0​ if the current multibyte encoding is not state-dependent (does not use shift sequences) or a non-zero value if the current multibyte encoding is state-dependent (uses shift sequences).
  * @see https://en.cppreference.com/w/c/string/multibyte/mblen
  */
-@export
+@extern
 public func mblen(s : *char, n : size_t) : int
 
 /**
@@ -516,7 +516,7 @@ public func mblen(s : *char, n : size_t) : int
  *         If s is a null pointer, resets its internal conversion state to represent the initial shift state and returns ​0​ if the current multibyte encoding is not state-dependent (does not use shift sequences) or a non-zero value if the current multibyte encoding is state-dependent (uses shift sequences).
  * @see https://en.cppreference.com/w/c/string/multibyte/mbtowc
  */
-@export
+@extern
 public func mbtowc(pwc : *mut wchar_t, s : *char, n : size_t) : int
 
 /**
@@ -531,7 +531,7 @@ public func mbtowc(pwc : *mut wchar_t, s : *char, n : size_t) : int
  *         If s is a null pointer, resets its internal conversion state to represent the initial shift state and returns ​0​ if the current multibyte encoding is not state-dependent (does not use shift sequences) or a non-zero value if the current multibyte encoding is state-dependent (uses shift sequences).
  * @see https://en.cppreference.com/w/c/string/multibyte/wctomb
  */
-@export
+@extern
 public func wctomb(s : *char, wc : wchar_t) : int
 
 /**
@@ -547,7 +547,7 @@ public func wctomb(s : *char, wc : wchar_t) : int
  * @return zero on success, in which case the multibyte representation of wc is stored in s and its length is stored in *status, or, if s is null, the shift sequence status is stored in status). Non-zero on encoding error or runtime constraint violation, in which case (size_t)-1 is stored in *status. The value stored in *status never exceeds MB_CUR_MAX
  * @see https://en.cppreference.com/w/c/string/multibyte/wctomb
  */
-@export
+@extern
 public func wctomb_s(status : *mut int, s : *mut char, ssz : rsize_t, wc : wchar_t) : errno_t
 
 /**
@@ -565,7 +565,7 @@ public func wctomb_s(status : *mut int, s : *mut char, ssz : rsize_t, wc : wchar
  * @return On success, returns the number of wide characters, excluding the terminating L'\0', written to the destination array. On conversion error (if invalid multibyte character was encountered), returns (size_t)-1.
  * @see https://en.cppreference.com/w/c/string/multibyte/mbstowcs
  */
-@export
+@extern
 public func mbstowcs(dst : *mut wchar_t, src : *char, len : size_t) : size_t
 
 /**
@@ -590,7 +590,7 @@ public func mbstowcs(dst : *mut wchar_t, src : *char, len : size_t) : size_t
  * @return zero on success (in which case the number of wide characters excluding terminating zero that were, or would be written to dst, is stored in *retval), non-zero on error. In case of a runtime constraint violation, stores (size_t)-1 in *retval (unless retval is null) and sets dst[0] to L'\0' (unless dst is null or dstmax is zero or greater than RSIZE_MAX)
  * @see https://en.cppreference.com/w/c/string/multibyte/mbstowcs
  */
-@export
+@extern
 public func mbstowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_t, src : *char, len : rsize_t) : errno_t
 
 /**
@@ -608,7 +608,7 @@ public func mbstowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_t
  * @return On success, returns the number of bytes (including any shift sequences, but excluding the terminating '\0') written to the character array whose first element is pointed to by dst. On conversion error (if invalid wide character was encountered), returns (size_t)-1.
  * @see https://en.cppreference.com/w/c/string/multibyte/wcstombs
  */
-@export
+@extern
 public func wcstombs(dst : *mut char, src : *wchar_t, len : size_t) : size_t
 
 /**
@@ -633,7 +633,7 @@ public func wcstombs(dst : *mut char, src : *wchar_t, len : size_t) : size_t
  * @return Returns zero on success (in which case the number of bytes excluding terminating zero that were, or would be written to dst, is stored in *retval), non-zero on error. In case of a runtime constraint violation, stores (size_t)-1 in *retval (unless retval is null) and sets dst[0] to '\0' (unless dst is null or dstmax is zero or greater than RSIZE_MAX)
  * @see https://en.cppreference.com/w/c/string/multibyte/wcstombs
  */
-@export
+@extern
 public func wcstombs_s(retval : *size_t, dst : *char, dstsz : rsize_t, src : *wchar_t, len : rsize_t);
 
 /**
@@ -650,7 +650,7 @@ public func wcstombs_s(retval : *size_t, dst : *char, dstsz : rsize_t, src : *wc
  * @note There are no guarantees as to the quality of the random sequence produced. In the past, some implementations of rand() have had serious shortcomings in the randomness, distribution and period of the sequence produced (in one well-known example, the low-order bit simply alternated between 1 and 0 between calls). rand() is not recommended for serious random-number generation needs, like cryptography.
  * @see https://en.cppreference.com/w/c/numeric/random/rand
  */
-@export
+@extern
 public func rand() : int
 
 /**
@@ -663,7 +663,7 @@ public func rand() : int
  *       Standard practice is to use the result of a call to time(0) as the seed. However, time() returns a time_t value, and time_t is not guaranteed to be an integral type. In practice, though, every major implementation defines time_t to be an integral type, and this is also what POSIX requires.
  * @see https://en.cppreference.com/w/c/numeric/random/srand
  */
-@export
+@extern
 public func srand(seed : uint)
 
 /**

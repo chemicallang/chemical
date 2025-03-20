@@ -5,7 +5,7 @@
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int8_t = char
 
 /**
@@ -15,7 +15,7 @@ public type int8_t = char
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int16_t = short
 
 /**
@@ -25,7 +25,7 @@ public type int16_t = short
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int32_t = int
 
 /**
@@ -35,7 +35,7 @@ public type int32_t = int
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int64_t = bigint
 
 /**
@@ -43,7 +43,7 @@ public type int64_t = bigint
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int_fast8_t = char
 
 /**
@@ -51,7 +51,7 @@ public type int_fast8_t = char
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int_fast16_t = short
 
 /**
@@ -59,7 +59,7 @@ public type int_fast16_t = short
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int_fast32_t = int
 
 /**
@@ -67,7 +67,7 @@ public type int_fast32_t = int
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int_fast64_t = bigint
 
 /**
@@ -75,7 +75,7 @@ public type int_fast64_t = bigint
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int_least8_t = char
 
 /**
@@ -83,7 +83,7 @@ public type int_least8_t = char
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int_least16_t = short
 
 /**
@@ -91,7 +91,7 @@ public type int_least16_t = short
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int_least32_t = int
 
 /**
@@ -99,21 +99,21 @@ public type int_least32_t = int
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type int_least64_t = bigint
 
 /**
  * maximum width integer type
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type intmax_t = bigint
 
 /**
  * integer type capable of holding a pointer
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type intptr_t = bigint
 
 /**
@@ -122,7 +122,7 @@ public type intptr_t = bigint
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint8_t = uchar
 
 /**
@@ -131,7 +131,7 @@ public type uint8_t = uchar
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint16_t = ushort
 
 /**
@@ -140,7 +140,7 @@ public type uint16_t = ushort
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint32_t = uint
 
 /**
@@ -149,7 +149,7 @@ public type uint32_t = uint
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint64_t = ubigint
 
 /**
@@ -157,7 +157,7 @@ public type uint64_t = ubigint
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint_fast8_t = uchar
 
 /**
@@ -165,7 +165,7 @@ public type uint_fast8_t = uchar
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint_fast16_t = ushort
 
 /**
@@ -173,7 +173,7 @@ public type uint_fast16_t = ushort
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint_fast32_t = uint
 
 /**
@@ -181,7 +181,7 @@ public type uint_fast32_t = uint
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint_fast64_t = ubigint
 
 /**
@@ -189,7 +189,7 @@ public type uint_fast64_t = ubigint
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint_least8_t = uchar
 
 /**
@@ -197,7 +197,7 @@ public type uint_least8_t = uchar
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint_least16_t = ushort
 
 /**
@@ -205,7 +205,7 @@ public type uint_least16_t = ushort
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint_least32_t = uint
 
 /**
@@ -213,19 +213,19 @@ public type uint_least32_t = uint
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uint_least64_t = ubigint
 
 /**
  * maximum width unsigned integer type
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uintmax_t = ubigint
 
 /**
  * unsigned integer type capable of holding a pointer
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@export
+@extern
 public type uintptr_t = ubigint

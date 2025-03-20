@@ -3,7 +3,7 @@
  * TODO fexcept_t is implementation defined
  * @see https://en.cppreference.com/w/c/numeric/fenv
  */
-@export
+@extern
 public struct fexcept_t {
 
 }
@@ -12,7 +12,7 @@ public struct fexcept_t {
  * TODO fenv_t is implementation defined
  * @see https://en.cppreference.com/w/c/numeric/fenv
  */
-@export
+@extern
 public struct fenv_t {
 
 }
@@ -23,7 +23,7 @@ public struct fenv_t {
  * @return 0 if all indicated exceptions were successfully cleared or if excepts is zero. Returns a non-zero value on error.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feclearexcept
  */
-@export
+@extern
 public func feclearexcept(excepts : int) : int
 
 /**
@@ -32,7 +32,7 @@ public func feclearexcept(excepts : int) : int
  * @return Bitwise OR of the floating-point exception macros that are both included in excepts and correspond to floating-point exceptions currently set.
  * @see https://en.cppreference.com/w/c/numeric/fenv/fetestexcept
  */
-@export
+@extern
 public func fetestexcept(excepts : int) : int
 
 /**
@@ -41,7 +41,7 @@ public func fetestexcept(excepts : int) : int
  * @return 0 if all listed exceptions were raised, non-zero value otherwise.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feraiseexcept
  */
-@export
+@extern
 public func feraiseexcept(excepts : int) : int
 
 /**
@@ -52,7 +52,7 @@ public func feraiseexcept(excepts : int) : int
  * @return 0 on success, non-zero otherwise.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feexceptflag
  */
-@export
+@extern
 public func fegetexceptflag(flagp : *mut fexcept_t, excepts : int) : int
 
 /**
@@ -63,7 +63,7 @@ public func fegetexceptflag(flagp : *mut fexcept_t, excepts : int) : int
  * @return 0 on success, non-zero otherwise.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feexceptflag
  */
-@export
+@extern
 public func fesetexceptflag(flagp : *fexcept_t, excepts : int) : int
 
 /**
@@ -72,7 +72,7 @@ public func fesetexceptflag(flagp : *fexcept_t, excepts : int) : int
  * @return 0 on success, non-zero otherwise.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feround
  */
-@export
+@extern
 public func fesetround(round : int) : int
 
 /**
@@ -80,7 +80,7 @@ public func fesetround(round : int) : int
  * @return the floating-point rounding macro describing the current rounding direction or a negative value if the direction cannot be determined.s
  * @see https://en.cppreference.com/w/c/numeric/fenv/feround
  */
-@export
+@extern
 public func fegetround() : int
 
 /**
@@ -89,7 +89,7 @@ public func fegetround() : int
  * @return 0 on success, non-zero otherwise.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feenv
  */
-@export
+@extern
 public func fegetenv(envp : *mut fenv_t) : int
 
 /**
@@ -98,7 +98,7 @@ public func fegetenv(envp : *mut fenv_t) : int
  * @return 0 on success, non-zero otherwise.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feenv
  */
-@export
+@extern
 public func fesetenv(envp : *fenv_t) : int
 
 /**
@@ -108,7 +108,7 @@ public func fesetenv(envp : *fenv_t) : int
  * @return 0 on success, non-zero otherwise.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feholdexcept
  */
-@export
+@extern
 public func feholdexcept(envp : *mut fenv_t) : int
 
 /**
@@ -118,7 +118,7 @@ public func feholdexcept(envp : *mut fenv_t) : int
  * @return 0 on success, non-zero otherwise.
  * @see https://en.cppreference.com/w/c/numeric/fenv/feupdateenv
  */
-@export
+@extern
 public func feupdateenv(envp : *fenv_t) : int
 
 /**

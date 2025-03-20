@@ -21,7 +21,7 @@ import "./common/multibyte_char_types.ch"
  *         (size_t)-1 if encoding error occurs. Nothing is written to *pc8, the value EILSEQ is stored in errno and the value of *ps is unspecified.
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrtoc8
  */
-@export
+@extern
 public func mbrtoc8(pc8 : *mut char8_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
@@ -38,7 +38,7 @@ public func mbrtoc8(pc8 : *mut char8_t, s : *char, n : size_t, ps : *mut mbstate
  *         If c8 is invalid (does not contribute to a sequence of char8_t corresponding to a valid multibyte character), the value of the macro EILSEQ is stored in errno, (size_t)-1 is returned, and the conversion state is unspecified.
  * @see https://en.cppreference.com/w/c/string/multibyte/c8rtomb
  */
-@export
+@extern
 public func c8rtomb(s : *mut char, c8 : char8_t, ps : *mut mbstate_t) : size_t
 
 /**
@@ -60,7 +60,7 @@ public func c8rtomb(s : *mut char, c8 : char8_t, ps : *mut mbstate_t) : size_t
  *         (size_t)-1 if encoding error occurs. Nothing is written to *pc16, the value EILSEQ is stored in errno and the value of *ps is unspecified.
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrtoc16
  */
-@export
+@extern
 public func mbrtoc16(pc16 : *mut char16_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
@@ -77,7 +77,7 @@ public func mbrtoc16(pc16 : *mut char16_t, s : *char, n : size_t, ps : *mut mbst
  *         On failure (if c16 is not a valid 16-bit code unit), returns -1, stores EILSEQ in errno, and leaves *ps in unspecified state.
  * @see https://en.cppreference.com/w/c/string/multibyte/c16rtomb
  */
-@export
+@extern
 public func c16rtomb(s : *mut char, c16 : char16_t, ps : *mut mbstate_t) : size_t
 
 /**
@@ -99,7 +99,7 @@ public func c16rtomb(s : *mut char, c16 : char16_t, ps : *mut mbstate_t) : size_
  *         (size_t)-1 if encoding error occurs. Nothing is written to *pc32, the value EILSEQ is stored in errno and the value of *ps is unspecified.
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrtoc32
  */
-@export
+@extern
 public func mbrtoc32(pc32 : *mut char32_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
@@ -115,5 +115,5 @@ public func mbrtoc32(pc32 : *mut char32_t, s : *char, n : size_t, ps : *mut mbst
  *         On failure (if c32 is not a valid 32-bit wide character), returns -1, stores EILSEQ in errno, and leaves *ps in unspecified state.
  * @see https://en.cppreference.com/w/c/string/multibyte/c32rtomb
  */
-@export
+@extern
 public func c32rtomb(s : *mut char, c32 : char32_t, ps : *mut mbstate_t) : size_t

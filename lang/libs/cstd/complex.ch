@@ -6,17 +6,17 @@
 // TODO these functions should be tested
 
 // float complex is being passed as i64 in @crealf(i64)
-@export
+@extern
 public type float_complex = bigint;
 
 // double complex is being passed as pointer to struct
-@export
+@extern
 public struct double_complex {
     var real : double
     var imag : double
 }
 
-@export
+@extern
 public struct longdouble_complex {
     var real : longdouble
     var imag : longdouble
@@ -34,7 +34,7 @@ The expressions are suitable for use as initializers for objects with static or 
  * @see https://en.cppreference.com/w/c/numeric/complex/CMPLX
  */
 @comptime
-@export
+@extern
 public func CMPLXF(real : float, imag : float) : float_complex {
     // TODO this
     return 0;
@@ -47,7 +47,7 @@ public func CMPLXF(real : float, imag : float) : float_complex {
  * @see https://en.cppreference.com/w/c/numeric/complex/CMPLX
  */
 @comptime
-@export
+@extern
 public func CMPLX(real : double, imag : double) : double_complex {
     return double_complex { real : real, imag : imag }
 }
@@ -59,7 +59,7 @@ public func CMPLX(real : double, imag : double) : double_complex {
  * @see https://en.cppreference.com/w/c/numeric/complex/CMPLX
  */
 @comptime
-@export
+@extern
 public func CMPLXL(real : longdouble, imag : longdouble) : longdouble_complex {
     return longdouble_complex { real : real, imag : imag }
 }
@@ -68,21 +68,21 @@ public func CMPLXL(real : longdouble, imag : longdouble) : longdouble_complex {
  * Returns the real part of z.
  * @see https://en.cppreference.com/w/c/numeric/complex/creal
  */
-@export
+@extern
 public func crealf(z : float_complex) : float
 
 /**
  * Returns the real part of z.
  * @see https://en.cppreference.com/w/c/numeric/complex/creal
  */
-@export
+@extern
 public func creal(z : double_complex) : double
 
 /**
  * Returns the real part of z.
  * @see https://en.cppreference.com/w/c/numeric/complex/creal
  */
-@export
+@extern
 public func creall(z : longdouble_complex ) : longdouble;
 
 /**
@@ -94,21 +94,21 @@ public func creall(z : longdouble_complex ) : longdouble;
  * Returns the imaginary part of z.
  * @see https://en.cppreference.com/w/c/numeric/complex/cimag
  */
-@export
+@extern
 public func cimagf(z : float_complex) : float
 
 /**
  * Returns the imaginary part of z.
  * @see https://en.cppreference.com/w/c/numeric/complex/cimag
  */
-@export
+@extern
 public func cimag(z : double_complex) : double;
 
 /**
  * Returns the imaginary part of z.
  * @see https://en.cppreference.com/w/c/numeric/complex/cimag
  */
-@export
+@extern
 public func cimagl(z : longdouble_complex ) : longdouble
 
 /**
@@ -122,7 +122,7 @@ public func cimagl(z : longdouble_complex ) : longdouble
  * Errors and special cases are handled as if the function is implemented as hypot(creal(z), cimag(z))
  * @see https://en.cppreference.com/w/c/numeric/complex/cabs
  */
-@export
+@extern
 public func cabsf(z : float_complex) : float
 
 /**
@@ -131,7 +131,7 @@ public func cabsf(z : float_complex) : float
  * Errors and special cases are handled as if the function is implemented as hypot(creal(z), cimag(z))
  * @see https://en.cppreference.com/w/c/numeric/complex/cabs
  */
-@export
+@extern
 public func cabs(z : double_complex) : double
 
 /**
@@ -140,7 +140,7 @@ public func cabs(z : double_complex) : double
  * Errors and special cases are handled as if the function is implemented as hypot(creal(z), cimag(z))
  * @see https://en.cppreference.com/w/c/numeric/complex/cabs
  */
-@export
+@extern
 public func cabsl(z : longdouble_complex) : longdouble
 
 /**
@@ -154,7 +154,7 @@ public func cabsl(z : longdouble_complex) : longdouble
  * Errors and special cases are handled as if the function is implemented as atan2(cimag(z), creal(z))
  * @see https://en.cppreference.com/w/c/numeric/complex/carg
  */
-@export
+@extern
 public func cargf(z : float_complex) : float
 
 /**
@@ -163,7 +163,7 @@ public func cargf(z : float_complex) : float
  * Errors and special cases are handled as if the function is implemented as atan2(cimag(z), creal(z))
  * @see https://en.cppreference.com/w/c/numeric/complex/carg
  */
-@export
+@extern
 public func carg(z : double_complex) : double
 
 /**
@@ -172,7 +172,7 @@ public func carg(z : double_complex) : double
  * Errors and special cases are handled as if the function is implemented as atan2(cimag(z), creal(z))
  * @see https://en.cppreference.com/w/c/numeric/complex/carg
  */
-@export
+@extern
 public func cargl(z : longdouble_complex) : longdouble
 
 /**
@@ -186,7 +186,7 @@ public func cargl(z : longdouble_complex) : longdouble
  * @see https://en.wikipedia.org/wiki/Complex_conjugate
  * @see https://en.cppreference.com/w/c/numeric/complex/conj
  */
-@export
+@extern
 public func conjf(z : float_complex) : float_complex
 
 /**
@@ -195,7 +195,7 @@ public func conjf(z : float_complex) : float_complex
  * @see https://en.wikipedia.org/wiki/Complex_conjugate
  * @see https://en.cppreference.com/w/c/numeric/complex/conj
  */
-@export
+@extern
 public func conj(z : double_complex) : double_complex
 
 /**
@@ -204,7 +204,7 @@ public func conj(z : double_complex) : double_complex
  * @see https://en.wikipedia.org/wiki/Complex_conjugate
  * @see https://en.cppreference.com/w/c/numeric/complex/conj
  */
-@export
+@extern
 public func conjl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -218,7 +218,7 @@ public func conjl(z : longdouble_complex) : longdouble_complex
  * This function is fully specified for all possible inputs and is not subject to any errors described in math_errhandling
  * @see https://en.cppreference.com/w/c/numeric/complex/cproj
  */
-@export
+@extern
 public func cprojf(z : float_complex) : float_complex
 
 /**
@@ -227,7 +227,7 @@ public func cprojf(z : float_complex) : float_complex
  * This function is fully specified for all possible inputs and is not subject to any errors described in math_errhandling
  * @see https://en.cppreference.com/w/c/numeric/complex/cproj
  */
-@export
+@extern
 public func cproj(z : double_complex) : double_complex
 
 /**
@@ -236,7 +236,7 @@ public func cproj(z : double_complex) : double_complex
  * This function is fully specified for all possible inputs and is not subject to any errors described in math_errhandling
  * @see https://en.cppreference.com/w/c/numeric/complex/cproj
  */
-@export
+@extern
 public func cprojl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -249,7 +249,7 @@ public func cprojl(z : longdouble_complex) : longdouble_complex
  * @return If no errors occur, e raised to the power of z,
  * @see https://en.cppreference.com/w/c/numeric/complex/cexp
  */
-@export
+@extern
 public func cexpf(z : float_complex) : float_complex
 
 /**
@@ -257,7 +257,7 @@ public func cexpf(z : float_complex) : float_complex
  * @return If no errors occur, e raised to the power of z,
  * @see https://en.cppreference.com/w/c/numeric/complex/cexp
  */
-@export
+@extern
 public func cexp(z : double_complex) : double_complex
 
 /**
@@ -265,7 +265,7 @@ public func cexp(z : double_complex) : double_complex
  * @return If no errors occur, e raised to the power of z,
  * @see https://en.cppreference.com/w/c/numeric/complex/cexp
  */
-@export
+@extern
 public func cexpl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -278,7 +278,7 @@ public func cexpl(z : longdouble_complex) : longdouble_complex
  * @return If no errors occur, the complex natural logarithm of z is returned, in the range of a strip in the interval [−iπ, +iπ] along the imaginary axis and mathematically unbounded along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/clogs
  */
-@export
+@extern
 public func clogf(z : float_complex) : float_complex
 
 /**
@@ -286,7 +286,7 @@ public func clogf(z : float_complex) : float_complex
  * @return If no errors occur, the complex natural logarithm of z is returned, in the range of a strip in the interval [−iπ, +iπ] along the imaginary axis and mathematically unbounded along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/clogs
  */
-@export
+@extern
 public func clog(z : double_complex) : double_complex
 
 /**
@@ -294,7 +294,7 @@ public func clog(z : double_complex) : double_complex
  * @return If no errors occur, the complex natural logarithm of z is returned, in the range of a strip in the interval [−iπ, +iπ] along the imaginary axis and mathematically unbounded along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/clogs
  */
-@export
+@extern
 public func clogl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -308,7 +308,7 @@ public func clogl(z : longdouble_complex) : longdouble_complex
  * Errors and special cases are handled as if the operation is implemented by cexp(y*clog(x)), except that the implementation is allowed to treat special cases more carefully.
  * @see https://en.cppreference.com/w/c/numeric/complex/cpow
  */
-@export
+@extern
 public func cpowf(x : float_complex, y : float_complex) : float_complex
 
 /**
@@ -317,7 +317,7 @@ public func cpowf(x : float_complex, y : float_complex) : float_complex
  * Errors and special cases are handled as if the operation is implemented by cexp(y*clog(x)), except that the implementation is allowed to treat special cases more carefully.
  * @see https://en.cppreference.com/w/c/numeric/complex/cpow
  */
-@export
+@extern
 public func cpow(x : double_complex, y : double_complex) : double_complex
 
 /**
@@ -326,7 +326,7 @@ public func cpow(x : double_complex, y : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by cexp(y*clog(x)), except that the implementation is allowed to treat special cases more carefully.
  * @see https://en.cppreference.com/w/c/numeric/complex/cpow
  */
-@export
+@extern
 public func cpowl(x : longdouble_complex, y : longdouble_complex) : longdouble_complex
 
 /**
@@ -339,7 +339,7 @@ public func cpowl(x : longdouble_complex, y : longdouble_complex) : longdouble_c
  * @return If no errors occur, returns the square root of z, in the range of the right half-plane, including the imaginary axis ([0; +∞) along the real axis and (−∞; +∞) along the imaginary axis.)
  * @see https://en.cppreference.com/w/c/numeric/complex/csqrt
  */
-@export
+@extern
 public func csqrtf(z : float_complex) : float_complex
 
 /*
@@ -347,7 +347,7 @@ public func csqrtf(z : float_complex) : float_complex
  * @return If no errors occur, returns the square root of z, in the range of the right half-plane, including the imaginary axis ([0; +∞) along the real axis and (−∞; +∞) along the imaginary axis.)
  * @see https://en.cppreference.com/w/c/numeric/complex/csqrt
  */
-@export
+@extern
 public func csqrt(z : double_complex) : double_complex
 
 /*
@@ -355,7 +355,7 @@ public func csqrt(z : double_complex) : double_complex
  * @return If no errors occur, returns the square root of z, in the range of the right half-plane, including the imaginary axis ([0; +∞) along the real axis and (−∞; +∞) along the imaginary axis.)
  * @see https://en.cppreference.com/w/c/numeric/complex/csqrt
  */
-@export
+@extern
 public func csqrtl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -369,7 +369,7 @@ public func csqrtl(z : longdouble_complex) : longdouble_complex
  * Errors and special cases are handled as if the operation is implemented by -I * csinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/csin
  */
-@export
+@extern
 public func csinf(z : float_complex) : float_complex
 
 /**
@@ -378,7 +378,7 @@ public func csinf(z : float_complex) : float_complex
  * Errors and special cases are handled as if the operation is implemented by -I * csinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/csin
  */
-@export
+@extern
 public func csin(z : double_complex) : double_complex
 
 /**
@@ -387,7 +387,7 @@ public func csin(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -I * csinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/csin
  */
-@export
+@extern
 public func csinl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -402,7 +402,7 @@ public func csinl(z : longdouble_complex) : longdouble_complex
  * Errors and special cases are handled as if the operation is implemented by ccosh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/ccos
  */
-@export
+@extern
 public func ccosf(z : float_complex) : float_complex
 
 /**
@@ -411,7 +411,7 @@ public func ccosf(z : float_complex) : float_complex
  * Errors and special cases are handled as if the operation is implemented by ccosh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/ccos
  */
-@export
+@extern
 public func ccos(z : double_complex) : double_complex
 
 /**
@@ -420,7 +420,7 @@ public func ccos(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by ccosh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/ccos
  */
-@export
+@extern
 public func ccosl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -434,7 +434,7 @@ public func ccosl(z : longdouble_complex) : longdouble_complex
  * Errors and special cases are handled as if the operation is implemented by -i * ctanh(i*z), where i is the imaginary unit.
  * @see https://en.cppreference.com/w/c/numeric/complex/ctan
  */
-@export
+@extern
 public func ctanf(z : float_complex) : float_complex
 
 /**
@@ -443,7 +443,7 @@ public func ctanf(z : float_complex) : float_complex
  * Errors and special cases are handled as if the operation is implemented by -i * ctanh(i*z), where i is the imaginary unit.
  * @see https://en.cppreference.com/w/c/numeric/complex/ctan
  */
-@export
+@extern
 public func ctan(z : double_complex) : double_complex
 
 /**
@@ -452,7 +452,7 @@ public func ctan(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -i * ctanh(i*z), where i is the imaginary unit.
  * @see https://en.cppreference.com/w/c/numeric/complex/ctan
  */
-@export
+@extern
 public func ctanl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -466,7 +466,7 @@ public func ctanl(z : longdouble_complex) : longdouble_complex
  * Errors and special cases are handled as if the operation is implemented by -I * casinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/casin
  */
-@export
+@extern
 public func casinf(z : float_complex) : float_complex
 
 /**
@@ -475,7 +475,7 @@ public func casinf(z : float_complex) : float_complex
  * Errors and special cases are handled as if the operation is implemented by -I * casinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/casin
  */
-@export
+@extern
 public func casin(z : double_complex) : double_complex
 
 /**
@@ -484,7 +484,7 @@ public func casin(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -I * casinh(I*z)
  * @see https://en.cppreference.com/w/c/numeric/complex/casin
  */
-@export
+@extern
 public func casinl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -497,7 +497,7 @@ public func casinl(z : longdouble_complex) : longdouble_complex
  * @return If no errors occur, complex arc cosine of z is returned, in the range a strip unbounded along the imaginary axis and in the interval [0; π] along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacos
  */
-@export
+@extern
 public func cacosf(z : float_complex) : float_complex
 
 /**
@@ -505,7 +505,7 @@ public func cacosf(z : float_complex) : float_complex
  * @return If no errors occur, complex arc cosine of z is returned, in the range a strip unbounded along the imaginary axis and in the interval [0; π] along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacos
  */
-@export
+@extern
 public func cacos(z : double_complex) : double_complex
 
 /**
@@ -513,7 +513,7 @@ public func cacos(z : double_complex) : double_complex
  * @return If no errors occur, complex arc cosine of z is returned, in the range a strip unbounded along the imaginary axis and in the interval [0; π] along the real axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacos
  */
-@export
+@extern
 public func cacosl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -527,7 +527,7 @@ public func cacosl(z : longdouble_complex) : longdouble_complex
  * Errors and special cases are handled as if the operation is implemented by -I * catanh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/catan
  */
-@export
+@extern
 public func catanf(z : float_complex) : float_complex
 
 /**
@@ -536,7 +536,7 @@ public func catanf(z : float_complex) : float_complex
  * Errors and special cases are handled as if the operation is implemented by -I * catanh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/catan
  */
-@export
+@extern
 public func catan(z : double_complex) : double_complex
 
 /**
@@ -545,7 +545,7 @@ public func catan(z : double_complex) : double_complex
  * Errors and special cases are handled as if the operation is implemented by -I * catanh(I*z).
  * @see https://en.cppreference.com/w/c/numeric/complex/catan
  */
-@export
+@extern
 public func catanl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -558,7 +558,7 @@ public func catanl(z : longdouble_complex) : longdouble_complex
  * @return If no errors occur, complex hyperbolic sine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/csinh
  */
-@export
+@extern
 public func csinhf(z : float_complex) : float_complex
 
 /**
@@ -566,7 +566,7 @@ public func csinhf(z : float_complex) : float_complex
  * @return If no errors occur, complex hyperbolic sine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/csinh
  */
-@export
+@extern
 public func csinh(z : double_complex) : double_complex
 
 /**
@@ -574,7 +574,7 @@ public func csinh(z : double_complex) : double_complex
  * @return If no errors occur, complex hyperbolic sine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/csinh
  */
-@export
+@extern
 public func csinhl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -587,7 +587,7 @@ public func csinhl(z : longdouble_complex) : longdouble_complex
  * @return If no errors occur, complex hyperbolic cosine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ccosh
  */
-@export
+@extern
 public func ccoshf(z : float_complex) : float_complex
 
 /**
@@ -595,7 +595,7 @@ public func ccoshf(z : float_complex) : float_complex
  * @return If no errors occur, complex hyperbolic cosine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ccosh
  */
-@export
+@extern
 public func ccosh(z : double_complex) : double_complex
 
 /**
@@ -603,7 +603,7 @@ public func ccosh(z : double_complex) : double_complex
  * @return If no errors occur, complex hyperbolic cosine of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ccosh
  */
-@export
+@extern
 public func ccoshl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -616,7 +616,7 @@ public func ccoshl(z : longdouble_complex) : longdouble_complex
  * @return If no errors occur, complex hyperbolic tangent of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ctanh
  */
-@export
+@extern
 public func ctanhf(z : float_complex) : float_complex
 
 /**
@@ -624,7 +624,7 @@ public func ctanhf(z : float_complex) : float_complex
  * @return If no errors occur, complex hyperbolic tangent of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ctanh
  */
-@export
+@extern
 public func ctanh(z : double_complex) : double_complex
 
 /**
@@ -632,7 +632,7 @@ public func ctanh(z : double_complex) : double_complex
  * @return If no errors occur, complex hyperbolic tangent of z is returned
  * @see https://en.cppreference.com/w/c/numeric/complex/ctanh
  */
-@export
+@extern
 public func ctanhl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -645,7 +645,7 @@ public func ctanhl(z : longdouble_complex) : longdouble_complex
  * @return If no errors occur, the complex arc hyperbolic sine of z is returned, in the range of a strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/casinh
  */
-@export
+@extern
 public func casinhf(z : float_complex) : float_complex
 
 /**
@@ -653,7 +653,7 @@ public func casinhf(z : float_complex) : float_complex
  * @return If no errors occur, the complex arc hyperbolic sine of z is returned, in the range of a strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/casinh
  */
-@export
+@extern
 public func casinh(z : double_complex) : double_complex
 
 /**
@@ -661,7 +661,7 @@ public func casinh(z : double_complex) : double_complex
  * @return If no errors occur, the complex arc hyperbolic sine of z is returned, in the range of a strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/casinh
  */
-@export
+@extern
 public func casinhl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -674,7 +674,7 @@ public func casinhl(z : longdouble_complex) : longdouble_complex
  * @return The complex arc hyperbolic cosine of z in the interval [0; ∞) along the real axis and in the interval [−iπ; +iπ] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacosh
  */
-@export
+@extern
 public func cacoshf(z : float_complex) : float_complex
 
 /**
@@ -682,7 +682,7 @@ public func cacoshf(z : float_complex) : float_complex
  * @return The complex arc hyperbolic cosine of z in the interval [0; ∞) along the real axis and in the interval [−iπ; +iπ] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacosh
  */
-@export
+@extern
 public func cacosh(z : double_complex) : double_complex
 
 /**
@@ -690,7 +690,7 @@ public func cacosh(z : double_complex) : double_complex
  * @return The complex arc hyperbolic cosine of z in the interval [0; ∞) along the real axis and in the interval [−iπ; +iπ] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/cacosh
  */
-@export
+@extern
 public func cacoshl(z : longdouble_complex) : longdouble_complex
 
 /**
@@ -703,7 +703,7 @@ public func cacoshl(z : longdouble_complex) : longdouble_complex
  * @return If no errors occur, the complex arc hyperbolic tangent of z is returned, in the range of a half-strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/catanh
  */
-@export
+@extern
 public func catanhf(z : float_complex) : float_complex
 
 /**
@@ -711,7 +711,7 @@ public func catanhf(z : float_complex) : float_complex
  * @return If no errors occur, the complex arc hyperbolic tangent of z is returned, in the range of a half-strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/catanh
  */
-@export
+@extern
 public func catanh(z : double_complex) : double_complex
 
 /**
@@ -719,7 +719,7 @@ public func catanh(z : double_complex) : double_complex
  * @return If no errors occur, the complex arc hyperbolic tangent of z is returned, in the range of a half-strip mathematically unbounded along the real axis and in the interval [−iπ/2; +iπ/2] along the imaginary axis.
  * @see https://en.cppreference.com/w/c/numeric/complex/catanh
  */
-@export
+@extern
 public func catanhl(z : longdouble_complex) : longdouble_complex
 
 /**

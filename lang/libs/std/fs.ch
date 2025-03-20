@@ -8,6 +8,7 @@ import "@cstd/stdio.ch"
 
 if(def.windows) {
 
+    @extern
     public func _mkdir(path : *char) : int
 
 } else {
@@ -30,6 +31,7 @@ if(def.windows) {
         S_IXOTH = 0001   /* Execute/search permission, others */
     }
 
+    @extern
     public func mkdir(pathname : *char,  mode : mode_t) : int;
 
     alias posix_mkdir = mkdir;

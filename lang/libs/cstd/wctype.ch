@@ -4,7 +4,7 @@ import "./common/wchar_types.ch"
  * TODO wctype_t is implementation defined
  * @see https://en.cppreference.com/w/c/string/wide
  */
-@export
+@extern
 public struct wctype_t {
 
 }
@@ -13,7 +13,7 @@ public struct wctype_t {
  * TODO wctrans_t is implementation defined
  * @see https://en.cppreference.com/w/c/string/wide
  */
-@export
+@extern
 public struct wctrans_t {
 
 }
@@ -24,7 +24,7 @@ public struct wctrans_t {
  * @return Non-zero value if the wide character is an alphanumeric character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswalnum
  */
-@export
+@extern
 public func iswalnum(ch : wint_t) : int
 
 /**
@@ -33,7 +33,7 @@ public func iswalnum(ch : wint_t) : int
  * @return Non-zero value if the wide character is an alphabetic character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswalpha
  */
-@export
+@extern
 public func iswalpha(ch : wint_t) : int
 
 /**
@@ -42,7 +42,7 @@ public func iswalpha(ch : wint_t) : int
  * @return Non-zero value if the wide character is an lowercase letter, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswlower
  */
-@export
+@extern
 public func iswlower(ch : wint_t) : int
 
 /**
@@ -51,7 +51,7 @@ public func iswlower(ch : wint_t) : int
  * @return Non-zero value if the wide character is an uppercase letter, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswupper
  */
-@export
+@extern
 public func iswupper(ch : wint_t) : int
 
 /**
@@ -60,7 +60,7 @@ public func iswupper(ch : wint_t) : int
  * @return Non-zero value if the wide character is a numeric character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswdigit
  */
-@export
+@extern
 public func iswdigit(ch : wint_t) : int
 
 /**
@@ -69,7 +69,7 @@ public func iswdigit(ch : wint_t) : int
  * @return Non-zero value if the wide character is a hexadecimal numeric character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswxdigit
  */
-@export
+@extern
 public func iswxdigit(ch : wint_t) : int
 
 /**
@@ -78,7 +78,7 @@ public func iswxdigit(ch : wint_t) : int
  * @return Non-zero value if the wide character is a control character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswcntrl
  */
-@export
+@extern
 public func iswcntrl(ch : wint_t) : int
 
 /**
@@ -87,7 +87,7 @@ public func iswcntrl(ch : wint_t) : int
  * @return Non-zero value if the wide character has a graphical representation character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswgraph
  */
-@export
+@extern
 public func iswgraph(ch : wint_t) : int
 
 /**
@@ -96,7 +96,7 @@ public func iswgraph(ch : wint_t) : int
  * @return Non-zero value if the wide character is a whitespace character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswspace
  */
-@export
+@extern
 public func iswspace(ch : wint_t) : int
 
 /**
@@ -105,7 +105,7 @@ public func iswspace(ch : wint_t) : int
  * @return Non-zero value if the wide character is a blank character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswblank
  */
-@export
+@extern
 public func iswblank(ch : wint_t) : int
 
 /**
@@ -114,7 +114,7 @@ public func iswblank(ch : wint_t) : int
  * @return Non-zero value if the wide character can be printed, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswprint
  */
-@export
+@extern
 public func iswprint(ch : wint_t) : int
 
 /**
@@ -123,7 +123,7 @@ public func iswprint(ch : wint_t) : int
  * @return Non-zero value if the wide character is a punctuation character, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswpunct
  */
-@export
+@extern
 public func iswpunct(ch : wint_t) : int
 
 /**
@@ -133,7 +133,7 @@ public func iswpunct(ch : wint_t) : int
  * @return Non-zero if the character wc has the property identified by desc in LC_CTYPE facet of the current C locale, zero otherwise.
  * @see https://en.cppreference.com/w/c/string/wide/iswctype
  */
-@export
+@extern
 public func iswctype(wc : wint_t, desc : wctype_t) : int
 
 /**
@@ -142,7 +142,7 @@ public func iswctype(wc : wint_t, desc : wctype_t) : int
  * @return wctype_t object suitable for use with iswctype to classify wide characters according to the named category of the current C locale or zero if str does not name a category supported by the current C locale.
  * @see https://en.cppreference.com/w/c/string/wide/wctype
  */
-@export
+@extern
 public func wctype(str : *char) : wctype_t
 
 /**
@@ -151,7 +151,7 @@ public func wctype(str : *char) : wctype_t
  * @return Lowercase version of wc or unmodified wc if no lowercase version is listed in the current C locale.
  * @see https://en.cppreference.com/w/c/string/wide/towlower
  */
-@export
+@extern
 public func towlower(wc : wint_t) : wint_t
 
 /**
@@ -160,7 +160,7 @@ public func towlower(wc : wint_t) : wint_t
  * @return Uppercase version of wc or unmodified wc if no uppercase version is listed in the current C locale.
  * @see https://en.cppreference.com/w/c/string/wide/towupper
  */
-@export
+@extern
 public func towupper(wc : wint_t) : wint_t
 
 /**
@@ -170,7 +170,7 @@ public func towupper(wc : wint_t) : wint_t
  * @return The mapped value of wc using the mapping identified by desc in LC_CTYPE facet of the current C locale.
  * @see https://en.cppreference.com/w/c/string/wide/towctrans
  */
-@export
+@extern
 public func towctrans(wc : wint_t, desc : wctrans_t) : wint_t
 
 /**
@@ -183,5 +183,5 @@ public func towctrans(wc : wint_t, desc : wctrans_t) : wint_t
  * @return wctrans_t object suitable for use with towctrans to map wide characters according to the named mapping of the current C locale or zero if str does not name a mapping supported by the current C locale.
  * @see https://en.cppreference.com/w/c/string/wide/wctrans
  */
-@export
+@extern
 public func wctrans(str : *char) : wctrans_t

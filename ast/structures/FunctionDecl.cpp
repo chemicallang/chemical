@@ -10,6 +10,7 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/UnionDef.h"
+#include "compiler/mangler/NameMangler.h"
 #include "compiler/SymbolResolver.h"
 #include "CapturedVariable.h"
 #include "ast/types/PointerType.h"
@@ -298,14 +299,6 @@ void FunctionDeclaration::set_llvm_data(llvm::Function* func) {
     }
 }
 
-std::string FunctionDeclaration::runtime_name_fast(Codegen& gen) {
-    if(is_cpp_mangle()) {
-        // TODO what about generic functions ?
-        return gen.clang.mangled_name(this);
-    }
-    return runtime_name_fast();
-}
-
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
 #ifdef DEBUG
     auto existing_func = gen.module->getFunction(name);
@@ -320,7 +313,7 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
 }
 
 void create_fn(Codegen& gen, FunctionDeclaration *decl) {     // non generic functions always have generic iteration equal to zero
-    create_non_generic_fn(gen, decl, decl->runtime_name_fast(gen));
+    create_non_generic_fn(gen, decl, gen.mangler.mangle(decl));
 }
 
 void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
@@ -334,11 +327,11 @@ void declare_non_gen_weak_fn(Codegen& gen, FunctionDeclaration *decl, const std:
 }
 
 void declare_fn_weak(Codegen& gen, FunctionDeclaration *decl, bool is_exported) {
-    declare_non_gen_weak_fn(gen, decl, decl->runtime_name_fast(gen), is_exported);
+    declare_non_gen_weak_fn(gen, decl, gen.mangler.mangle(decl), is_exported);
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
-    declare_non_gen_fn(gen, decl, decl->runtime_name_fast(gen));
+    declare_non_gen_fn(gen, decl, gen.mangler.mangle(decl));
 }
 
 void create_or_declare_fn(Codegen& gen, FunctionDeclaration* decl) {
@@ -411,7 +404,7 @@ void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
         // function wasn't exported
         return;
     }
-    declare_non_gen_fn(gen, this, runtime_name_fast());
+    declare_non_gen_fn(gen, this, gen.mangler.mangle(this));
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {
@@ -998,68 +991,6 @@ void GenericTypeParameter::register_usage(ASTAllocator& allocator, BaseType* typ
         } else {
             std::cerr << "expected a generic type argument for parameter " << identifier << " in node " << parent()->get_located_id()->identifier << std::endl;
         }
-    }
-}
-
-std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {
-    std::stringstream stream;
-    runtime_name_no_parent_fast(stream);
-    return stream.str();
-}
-
-void FunctionDeclaration::runtime_name(std::ostream &stream) {
-    if(parent()) {
-        const auto k = parent()->kind();
-        switch(k) {
-            case ASTNodeKind::InterfaceDecl: {
-                const auto interface = parent()->as_interface_def_unsafe();
-                if(interface->is_static()) {
-                    interface->runtime_name(stream);
-                } else {
-                    ExtendableMembersContainerNode* container = (interface->active_user && has_self_param()) ? (ExtendableMembersContainerNode*) interface->active_user : interface;
-                    container->runtime_name(stream);
-                };
-                break;
-            }
-            case ASTNodeKind::StructDecl:{
-                const auto def = parent()->as_struct_def_unsafe();
-                const auto interface = def->get_overriding_interface(this);
-                if(interface && interface->is_static()) {
-                    interface->runtime_name(stream);
-                } else {
-                    ExtendableMembersContainerNode* container = has_self_param() ? def : (interface ? (ExtendableMembersContainerNode*) interface : def);
-                    container->runtime_name(stream);
-                }
-                break;
-            }
-            case ASTNodeKind::ImplDecl: {
-                const auto def = parent()->as_impl_def_unsafe();
-                if(has_self_param() && def->struct_type) {
-                    const auto struct_def = def->struct_type->linked_struct_def();
-                    struct_def->runtime_name(stream);
-                } else {
-                    const auto& interface = def->interface_type->linked_interface_def();
-                    interface->runtime_name(stream);
-                }
-                break;
-            }
-            default:
-                parent()->runtime_name(stream);
-                break;
-        }
-    }
-    runtime_name_no_parent_fast(stream);
-}
-
-void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
-    stream << name_view();
-    if(multi_func_index() != 0) {
-        stream << "__cmf_";
-        stream << std::to_string(multi_func_index());
-    }
-    if(generic_instantiation != -1) {
-        stream << "__cfg_";
-        stream << generic_instantiation;
     }
 }
 

@@ -94,6 +94,18 @@ void LabBuildContext::init_path_aliases(LabJob* job) {
     }
 }
 
+void ModuleStorage::insert_module(std::unique_ptr<LabModule> modulePtr) {
+    const auto module = modulePtr.get();
+    modules.emplace_back(std::move(modulePtr));
+    std::string str;
+    if(!module->scope_name.empty()) {
+        str.append(module->scope_name.to_view());
+        str.append(1, ':');
+    }
+    str.append(module->name.to_view());
+    indexes[std::move(str)] = module;
+}
+
 LabModule* LabBuildContext::add_with_type(
         LabModuleType type,
         chem::string_view* name,
@@ -102,8 +114,9 @@ LabModule* LabBuildContext::add_with_type(
         LabModule** dependencies,
         unsigned int dep_len
 ) {
-    auto mod = new LabModule(type, chem::string(*name));
-    modules.emplace_back(mod);
+    // TODO allow scope_name
+    auto mod = new LabModule(type, chem::string(""), chem::string(*name));
+    storage.insert_module_ptr_dangerous(mod);
     LabBuildContext::add_paths(mod->paths, paths, path_len);
     LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
     return mod;
@@ -117,8 +130,9 @@ LabModule *LabBuildContext::add_with_type(
     LabModule **dependencies,
     unsigned int dep_len
 ) {
-    auto mod = new LabModule(type, std::move(name));
-    modules.emplace_back(mod);
+    // TODO allow scope_name
+    auto mod = new LabModule(type, chem::string(""), std::move(name));
+    storage.insert_module_ptr_dangerous(mod);
     LabBuildContext::add_paths(mod->paths, paths, path_len);
     LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
     return mod;
@@ -137,26 +151,8 @@ LabModule* LabBuildContext::create_of_type(LabModuleType type, chem::string_view
             prefix = "UnkFile-";
             break;
     }
-    auto mod = add_with_type(type, chem::string(prefix + std::to_string(modules.size()) + '-' + std::to_string(number)), nullptr, 0, nullptr, 0);
+    auto mod = add_with_type(type, chem::string(prefix + std::to_string(storage.modules_size()) + '-' + std::to_string(number)), nullptr, 0, nullptr, 0);
     mod->paths.emplace_back(*path);
-    return mod;
-}
-
-LabModule* LabBuildContext::create_of_type(LabModuleType type, chem::string* path, unsigned number) {
-    const char* prefix;
-    switch(type) {
-        case LabModuleType::CFile:
-            prefix = "CFile-";
-            break;
-        case LabModuleType::ObjFile:
-            prefix = "ObjFile-";
-            break;
-        default:
-            prefix = "UnkFile-";
-            break;
-    }
-    auto mod = add_with_type(type, chem::string(prefix + std::to_string(modules.size()) + '-' + std::to_string(number)), nullptr, 0, nullptr, 0);
-    mod->paths.emplace_back(path->copy());
     return mod;
 }
 

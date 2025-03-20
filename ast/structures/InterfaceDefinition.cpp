@@ -4,6 +4,7 @@
 #include "StructDefinition.h"
 #include "StructMember.h"
 #include "compiler/SymbolResolver.h"
+#include "compiler/mangler/NameMangler.h"
 #include "ast/types/LinkedType.h"
 #include <sstream>
 
@@ -167,7 +168,7 @@ llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, StructDefin
             true,
             linkage,
             constant,
-            runtime_vtable_name(for_struct)
+            gen.mangler.mangle_vtable_name(this, for_struct)
     );
     // an alias to the first pointer in the llvm_vtable
     // since we are using structs, we don't need to create an alias to the first pointer
@@ -179,18 +180,6 @@ llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, StructDefin
 }
 
 #endif
-
-void InterfaceDefinition::runtime_vtable_name(std::ostream& stream, StructDefinition* def) {
-    runtime_name(stream);
-    def->runtime_name(stream);
-}
-
-std::string InterfaceDefinition::runtime_vtable_name(StructDefinition* def) {
-    std::ostringstream str;
-    runtime_name(str);
-    def->runtime_name(str);
-    return str.str();
-}
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
     int i = 0;

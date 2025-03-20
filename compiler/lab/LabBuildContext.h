@@ -8,6 +8,7 @@
 #include "integration/cbi/model/FlatIGFile.h"
 #include "LabBuildCompilerOptions.h"
 #include "parser/model/CBIData.h"
+#include "ModuleStorage.h"
 #include <vector>
 #include <unordered_map>
 
@@ -25,10 +26,12 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
 class LabBuildContext {
 public:
 
+    /**
+     * the place where modules exist
+     */
+    ModuleStorage storage;
     // the build directory that will be used for file generation
     std::string build_dir;
-    // all the modules created during the build process
-    std::vector<std::unique_ptr<LabModule>> modules;
     // all the executables created during the build process
     std::vector<std::unique_ptr<LabJob>> executables;
     // build arguments given to the build lab
@@ -48,11 +51,6 @@ private:
      * get a module with file path, of type
      */
     LabModule* create_of_type(LabModuleType type, chem::string_view* path, unsigned number);
-
-    /**
-     * get a module with file path, of type
-     */
-    LabModule* create_of_type(LabModuleType type, chem::string* path, unsigned number);
 
 public:
 

@@ -20,6 +20,7 @@
 #include "compiler/llvmimpl.h"
 #include "ast/values/IntValue.h"
 #include "ast/types/LinkedType.h"
+#include "compiler/mangler/NameMangler.h"
 
 void StructDefinition::struct_func_gen(
     Codegen& gen,
@@ -230,8 +231,16 @@ llvm::Type* StructDefinition::with_elements_type(
     return stored;
 }
 
+std::string get_runtime_name(StructDefinition* definition, NameMangler& mangler) {
+    if(definition->is_anonymous()) {
+        return "";
+    } else {
+        return mangler.mangle(definition);
+    }
+}
+
 llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
-    return with_elements_type(gen, elements_type(gen), get_runtime_name());
+    return with_elements_type(gen, elements_type(gen), get_runtime_name(this, gen.mangler));
 }
 
 llvm::Type *StructDefinition::llvm_param_type(Codegen &gen) {

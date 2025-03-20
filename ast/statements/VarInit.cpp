@@ -5,6 +5,7 @@
 #include "ast/types/ArrayType.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/VariableIdentifier.h"
+#include "compiler/mangler/NameMangler.h"
 #include "ast/types/GenericType.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariantMember.h"
@@ -40,7 +41,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     if(value && initialize) {
         const auto string_val = value->as_string_value();
         if(string_val) {
-            const auto global = gen.builder->CreateGlobalString(llvm::StringRef(string_val->value.data(), string_val->value.size()), runtime_name_fast(), 0, gen.module.get());
+            const auto global = gen.builder->CreateGlobalString(llvm::StringRef(string_val->value.data(), string_val->value.size()), gen.mangler.mangle(this), 0, gen.module.get());
             global->setLinkage(linkage);
             global->setConstant(is_const());
             llvm_ptr = global;
@@ -50,7 +51,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     } else {
         initializer = nullptr;
     }
-    const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const(), linkage, initializer, runtime_name_fast());
+    const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const(), linkage, initializer, gen.mangler.mangle(this));
     global->setDSOLocal(true);
     llvm_ptr = global;
 }

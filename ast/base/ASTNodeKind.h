@@ -74,4 +74,7 @@ enum class ASTNodeKind : uint8_t {
     GenericImplDecl,
     GenericTypeDecl,
 
+    FileScope,
+    ModuleScope,
+
 };

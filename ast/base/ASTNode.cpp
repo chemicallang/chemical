@@ -12,6 +12,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/Namespace.h"
 #include "ast/values/AccessChain.h"
+#include "compiler/mangler/NameMangler.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/GenericStructDecl.h"
@@ -54,6 +55,17 @@ LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier
 //#endif
 //}
 
+bool ASTNode::is_top_level() {
+    if(!parent()) return true;
+    switch(parent()->kind()) {
+        case ASTNodeKind::FileScope:
+        case ASTNodeKind::NamespaceDecl:
+            return true;
+        default:
+            return false;
+    }
+}
+
 std::string ASTNode::representation() {
     std::ostringstream ostring;
     RepresentationVisitor visitor(ostring);
@@ -69,25 +81,6 @@ MembersContainer* ASTNode::get_members_container() {
         return ((TypealiasStatement*) this)->actual_type->get_members_container();
     }
     return nullptr;
-}
-
-void ASTNode::runtime_name(std::ostream& stream) {
-    const auto id = get_located_id();
-    if(id) {
-        const auto p = parent();
-        if (p && p->kind() != ASTNodeKind::FunctionDecl) p->runtime_name(stream);
-        stream << id->identifier;
-    }
-}
-
-void ASTNode::runtime_name_no_parent(std::ostream& stream) {
-    stream << get_located_id()->identifier;
-}
-
-std::string ASTNode::runtime_name_str() {
-    std::stringstream stream;
-    runtime_name(stream);
-    return stream.str();
 }
 
 LocatedIdentifier* ASTNode::get_located_id() {
@@ -546,11 +539,3 @@ void ASTNode::llvm_destruct(Codegen& gen, llvm::Value* allocaInst, SourceLocatio
 #endif
 
 ASTNode::~ASTNode() = default;
-
-ASTUnit::ASTUnit() : scope(nullptr, ZERO_LOC) {}
-
-ASTUnit::ASTUnit(ASTUnit&& other) noexcept = default;
-
-ASTUnit& ASTUnit::operator =(ASTUnit&& other) noexcept = default;
-
-ASTUnit::~ASTUnit() = default;

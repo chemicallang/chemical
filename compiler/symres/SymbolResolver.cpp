@@ -173,10 +173,11 @@ void SymbolResolver::declare_node(const chem::string_view& name, ASTNode* node, 
             return;
         case AccessSpecifier::Public:
             declare_exported(name, node);
-            if(has_runtime) {
-                auto str = node->runtime_name_str();
-                declare_runtime(chem::string_view(str.data(), str.size()), node);
-            }
+            // TODO do we need to check for conflicts in top level runtime symbols
+//            if(has_runtime) {
+//                auto str = node->runtime_name_str();
+//                declare_runtime(chem::string_view(str.data(), str.size()), node);
+//            }
             return;
         case AccessSpecifier::Internal:
             declare(name, node);
@@ -193,8 +194,9 @@ void SymbolResolver::declare_function(const chem::string_view& name, FunctionDec
         case AccessSpecifier::Public:
             {
                 declare_exported_function(name, decl);
-                auto str = decl->runtime_name_str();
-                declare_runtime(chem::string_view(str.data(), str.size()), decl);
+                // TODO do we need to check for conflicts in top level runtime
+//                auto str = decl->runtime_name_str();
+//                declare_runtime(chem::string_view(str.data(), str.size()), decl);
             }
             return;
         case AccessSpecifier::Internal:

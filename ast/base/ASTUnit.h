@@ -5,9 +5,8 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
-#include "ast/structures/Scope.h"
+#include "ast/structures/FileScope.h"
 
-class ASTNode;
 class BaseType;
 class Value;
 class LabModule;
@@ -20,9 +19,9 @@ class ASTUnit {
 public:
 
     /**
-     * the top level nodes in the ast unit
+     * file scope contains the file scope
      */
-    Scope scope;
+    FileScope scope;
 
     /**
      * modules in which this ast unit has been declared in,
@@ -33,7 +32,9 @@ public:
     /**
      * empty constructor
      */
-    ASTUnit();
+    ASTUnit(ModuleScope* modScope) : scope(modScope) {
+
+    }
 
     /**
      * deleted copy constructor
@@ -43,16 +44,16 @@ public:
     /**
      * default move constructor
      */
-    ASTUnit(ASTUnit&& other) noexcept;
+    ASTUnit(ASTUnit&& other) noexcept = default;
 
     /**
      * move assignment operator
      */
-    ASTUnit& operator =(ASTUnit&& other) noexcept ;
+    ASTUnit& operator =(ASTUnit&& other) noexcept = default;
 
     /**
      * the destructor
      */
-    ~ASTUnit();
+    ~ASTUnit() = default;
 
 };

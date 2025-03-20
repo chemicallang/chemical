@@ -43,26 +43,6 @@ public:
     }
 
     /**
-     * runtime name for thi members container node
-     */
-    void runtime_name(std::ostream &stream) final;
-
-    /**
-     * get runtime name without parent
-     */
-    void runtime_name_no_parent(std::ostream &stream) final;
-
-    /**
-     * get runtime name without parent as string
-     */
-    std::string runtime_name();
-
-    /**
-     * get runtime name without parent as string
-     */
-    std::string runtime_name_no_parent_str();
-
-    /**
      * get the member container child or otherwise extendable member container child
      */
     ASTNode *child(const chem::string_view &child_name) {

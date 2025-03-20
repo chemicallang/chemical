@@ -12,6 +12,7 @@
 #include "CTopLevelDeclVisitor.h"
 #include "std/chem_string_view.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
+#include "compiler/mangler/NameMangler.h"
 
 class GlobalInterpretScope;
 class ASTAllocator;
@@ -32,6 +33,11 @@ public:
      * compile time interpret scope
      */
     GlobalInterpretScope& comptime_scope;
+
+    /**
+     * name mangler that would mangle the names
+     */
+    NameMangler& mangler;
 
     /**
      * this option is here to support struct initialization in tinyCC compiler
@@ -190,6 +196,7 @@ public:
      */
     ToCAstVisitor(
         GlobalInterpretScope& global,
+        NameMangler& mangler,
         std::ostream* output,
         ASTAllocator& allocator,
         LocationManager& manager,
@@ -205,6 +212,20 @@ public:
      * indentation of \t or spaces will be added for current indentation level
      */
     void indent();
+
+    /**
+     * mangle and write to output the runtime name of given node
+     */
+    inline void mangle(ASTNode* node) {
+        mangler.mangle(*output, node);
+    }
+
+    /**
+     * mangle and write to output the runtime name of given node
+     */
+    inline void mangle(FunctionDeclaration* decl) {
+        mangler.mangle(*output, decl);
+    }
 
     /**
      * get a local variable name, that is unique

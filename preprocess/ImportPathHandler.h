@@ -66,6 +66,11 @@ public:
     std::string headers_dir(const std::string &header);
 
     /**
+     * a path can be given to get the at directive, the path has '@' in front
+     */
+    AtReplaceResult get_atDirective(const std::string& path);
+
+    /**
      * replace '@' in path
      */
     AtReplaceResult replace_at_in_path(

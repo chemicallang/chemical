@@ -9,6 +9,7 @@
 #include "parser/model/CompilerBinder.h"
 #include "cst/LocationManager.h"
 #include "preprocess/ImportPathHandler.h"
+#include "compiler/mangler/NameMangler.h"
 
 class ASTAllocator;
 
@@ -27,6 +28,11 @@ class CmdOptions;
  */
 class LabBuildCompiler {
 public:
+
+    /**
+     * a single mangler to rule them all
+     */
+    NameMangler mangler;
 
     /**
      * the path handler is used to resolve paths, store aliases during compilation
@@ -65,7 +71,7 @@ public:
     /**
      * the build context that is being used to build
      */
-    LabBuildContext* build_context;
+    LabBuildContext* build_context = nullptr;
 
     /**
      * when given, we check for any command line options that configure the code generator

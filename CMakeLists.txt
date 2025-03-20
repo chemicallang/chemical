@@ -528,6 +528,12 @@ set(COMMON_SOURCES
         ast/structures/MembersIterators.h
         ast/base/DebugCast.h
         compiler/symres/SymbolResolver.h
+        compiler/mangler/NameMangler.h
+        compiler/mangler/NameMangler.cpp
+        compiler/mangler/NameMangler.cpp
+        ast/structures/FileScope.h
+        ast/structures/ModuleScope.h
+        compiler/lab/ModuleStorage.h
 )
 
 # Chemical LSP Executable Target

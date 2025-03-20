@@ -134,6 +134,20 @@ public:
     }
 
     /**
+     * check if this node is in file scope
+     */
+    inline bool is_directly_in_file_scope() {
+        return parent() && parent()->kind() == ASTNodeKind::FileScope;
+    }
+
+    /**
+     * is top level node
+     * 1 - a node is inside the file
+     * 2 - a node is inside a namespace
+     */
+    bool is_top_level();
+
+    /**
      * declare something on the scope map
      * that must be retained in nested level scopes
      * for example top level functions can be called within functions
@@ -287,23 +301,6 @@ public:
      * This would return the representation of the node
      */
     std::string representation();
-
-    /**
-     * runtime name will be written to the given stream
-     * runtime name is constructed by prepending parent's names
-     * into the final name
-     */
-    virtual void runtime_name(std::ostream& stream);
-
-    /**
-     * runtime name of this node without any parent names appended to it
-     */
-    virtual void runtime_name_no_parent(std::ostream& stream);
-
-    /**
-     * get runtime_name as a string
-     */
-    std::string runtime_name_str();
 
     /**
      * get located id
@@ -907,11 +904,35 @@ public:
     }
 
     /**
+     * get a extendable members container
+     */
+    inline ExtendableMembersContainerNode* as_extendable_members_container_unsafe() {
+        CHECK_COND(kind() == ASTNodeKind::StructDecl || kind() == ASTNodeKind::UnionDecl || kind() == ASTNodeKind::VariantDecl || kind() == ASTNodeKind::InterfaceDecl);
+        return (ExtendableMembersContainerNode*) this;
+    }
+
+    /**
      * return if this is a scope
      */
     inline Scope *as_scope_unsafe() {
         CHECK_CAST(ASTNodeKind::Scope);
         return (Scope*) this;
+    }
+
+    /**
+     * return if this is a file scope
+     */
+    inline FileScope* as_file_scope_unsafe() {
+        CHECK_CAST(ASTNodeKind::FileScope);
+        return (FileScope*) this;
+    }
+
+    /**
+     * return if this is a module scope
+     */
+    inline ModuleScope* as_module_scope_unsafe() {
+        CHECK_CAST(ASTNodeKind::ModuleScope);
+        return (ModuleScope*) this;
     }
 
     /**

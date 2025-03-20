@@ -35,12 +35,12 @@ struct FuncDeclAttributes {
     /**
      * is this function comptime
      */
-    bool is_comptime;
+    bool is_comptime = false;
     /**
      * compiler functions are present inside the compiler
      * like compiler::println
      */
-    bool is_compiler_decl;
+    bool is_compiler_decl = false;
     /**
      * when involved in multi function node (due to same name, different parameters)
      */
@@ -48,83 +48,88 @@ struct FuncDeclAttributes {
     /**
      * is the function marked inline
      */
-    bool is_inline;
+    bool is_inline = false;
     /**
      * is the function marked always_inline
      */
-    bool always_inline;
+    bool always_inline = false;
     /**
      * is the function marked no_inline
      */
-    bool no_inline;
+    bool no_inline = false;
     /**
      * is the function marked inline_hint
      */
-    bool inline_hint;
+    bool inline_hint = false;
     /**
      * is the function marked opt_size
      */
-    bool opt_size;
+    bool opt_size = false;
     /**
      * is the function marked min_size
      */
-    bool min_size;
+    bool min_size = false;
     /**
      * the strongest inline, compiler inline is done by our compiler
      * upon failure an error is generated
      */
-    bool compiler_inline;
+    bool compiler_inline = false;
     /**
      * is function external (in another module), user marks a function
      * external and we basically declare it like that
      */
-    bool is_extern;
+    bool is_extern = false;
 
     /**
      * should mangle as a C++ function
      */
-    bool is_cpp_mangle;
+    bool is_cpp_mangle = false;
 
     /**
      * is this function deprecated
      */
-    bool deprecated;
+    bool deprecated = false;
 
     /**
      * implicit constructor annotation, allows for automatic type conversion
      */
-    bool is_implicit;
+    bool is_implicit = false;
 
     /**
      * is function no return (doesn't return, abort and other functions)
      */
-    bool is_noReturn;
+    bool is_noReturn = false;
     /**
      * is constructor function
      */
-    bool is_constructor_fn;
+    bool is_constructor_fn = false;
     /**
      * a move function is triggered on the object that has been moved (it's not like C++ move constructor which is called on the newly object being constructed)
      * it means to say, function that defines what happens when the object is moved and NOT how to construct an object from another object without copying everything
      */
-    bool is_copy_fn;
+    bool is_copy_fn = false;
     /**
      * is this a delete function
      */
-    bool is_delete_fn;
+    bool is_delete_fn = false;
     /**
      * the function overrides another present above in a struct or interface
      */
-    bool is_unsafe;
+    bool is_unsafe = false;
     /**
      * is this function overriding a function
      */
-    bool is_override;
+    bool is_override = false;
 
     /**
      * has usage is set to true if function's pointer is taken or function is called
      */
-    bool has_usage;
+    bool has_usage = false;
+
+    /**
+     * don't mangle this function name
+     */
+    bool no_mangle = false;
 
 };
 
@@ -192,7 +197,7 @@ public:
             ASTNodeKind k = ASTNodeKind::FunctionDecl
     )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, location, signature_resolved),
          identifier(identifier),
-         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false, false) {
+         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false, false, false) {
     }
 
     /**
@@ -339,6 +344,14 @@ public:
         attrs.is_override = value;
     }
 
+    inline bool is_no_mangle() {
+        return attrs.no_mangle;
+    }
+
+    inline void set_no_mangle(bool no_mangle) {
+        attrs.no_mangle = no_mangle;
+    }
+
     inline bool is_auto_called_func() {
         return is_delete_fn() || is_copy_fn() || is_constructor_fn();
     }
@@ -403,21 +416,6 @@ public:
     bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;
     }
-
-    std::string runtime_name_fast() {
-        return ASTNode::parent() ? runtime_name_str() : runtime_name_no_parent_fast_str();
-    }
-
-    void runtime_name_no_parent_fast(std::ostream &stream);
-
-    std::string runtime_name_no_parent_fast_str();
-
-    void runtime_name_no_parent(std::ostream &stream) final {
-        return runtime_name_no_parent_fast(stream);
-    }
-
-    void runtime_name(std::ostream &stream) final;
-
 
     LocatedIdentifier* get_func_name_id() final {
         return &identifier;
@@ -490,11 +488,6 @@ public:
     std::vector<llvm::Type *> param_types(Codegen &gen);
 
     llvm::FunctionType *create_llvm_func_type(Codegen &gen);
-
-    /**
-     * this function will take into account @cpp annotation
-     */
-    std::string runtime_name_fast(Codegen& gen);
 
     /**
      * get the known func or nullptr

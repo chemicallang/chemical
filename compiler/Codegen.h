@@ -30,6 +30,8 @@ class Codegen;
 
 class Scope;
 
+class NameMangler;
+
 class Value;
 
 class BaseType;
@@ -55,6 +57,11 @@ public:
      * the codegen options determine what kind of code is generated
      */
     CodegenOptions& options;
+
+    /**
+     * the name mangler is used to mangle names
+     */
+    NameMangler& mangler;
 
     /**
      * the clang codegen class, that allows to control clang code generation without importing
@@ -186,17 +193,17 @@ public:
     Codegen(
             CodegenOptions& options,
             GlobalInterpretScope& comptime_scope,
+            NameMangler& mangler,
             std::string target_triple,
             std::string curr_exe_path,
             bool is_64_bit, // can be determined using static method is_arch_64bit on Codegen,
-            ASTAllocator& allocator,
-            const std::string& module_name = "ChemMod"
+            ASTAllocator& allocator
     );
 
     /**
      * initializes the llvm module and context
      */
-    void module_init(const std::string& module_name);
+    void module_init(const chem::string_view& scope_name, const chem::string_view& module_name);
 
     /**
      * determine whether the system we are compiling for is 64bit or 32bit

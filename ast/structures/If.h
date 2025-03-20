@@ -64,10 +64,6 @@ public:
 
     bool link_conditions(SymbolResolver &linker);
 
-    bool is_top_level() {
-        return !parent() || parent()->kind() == ASTNodeKind::NamespaceDecl;
-    }
-
 protected:
 
     Scope* link_evaluated_scope(SymbolResolver& linker);

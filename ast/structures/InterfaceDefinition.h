@@ -131,10 +131,6 @@ public:
         return def;
     }
 
-    void runtime_vtable_name(std::ostream& stream, StructDefinition* def);
-
-    std::string runtime_vtable_name(StructDefinition* def);
-
     /**
      * direct usage of this struct is registered with this interface
      * the interfaces inherited by this interface aren't registered

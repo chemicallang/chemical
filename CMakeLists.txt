@@ -184,7 +184,7 @@ set(COMMON_SOURCES
         ast/base/BaseType.h
         compiler/Operation.cpp
         compiler/SymbolResolver.h
-        compiler/SymbolResolver.cpp
+        compiler/symres/SymbolResolver.cpp
         compiler/ASTPointer.h
         ast/types/IntNType.h
         ast/types/FloatType.h
@@ -422,7 +422,6 @@ set(COMMON_SOURCES
         preprocess/2c/CAfterStmtVisitor.h
         preprocess/2c/CTopLevelDeclVisitor.h
         preprocess/2c/CValueDeclVisitor.h
-        std/common.h
         ast/values/StructMemberInitializer.h
         ast/types/ReferenceType.h
         ast/structures/InitBlock.h
@@ -528,6 +527,7 @@ set(COMMON_SOURCES
         ast/structures/GenericImplDecl.cpp
         ast/structures/MembersIterators.h
         ast/base/DebugCast.h
+        compiler/symres/SymbolResolver.h
 )
 
 # Chemical LSP Executable Target

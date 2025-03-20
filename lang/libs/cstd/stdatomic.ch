@@ -20,7 +20,7 @@ import "./common/atomic_types.ch"
  * TODO atomic_flag is implementation defined
  * atomic_flag is an atomic boolean type. Unlike other atomic types, it is guaranteed to be lock-free. Unlike atomic_bool, atomic_flag does not provide load or store operations.
  */
-@export
+@extern
 public struct atomic_flag {
 
 }
@@ -61,7 +61,7 @@ public enum memory_order {
 /**
  * TODO atomic type is C++ implementation defined
  */
-@export
+@extern
 public struct atomic<T> {
 
 }
@@ -74,7 +74,7 @@ public struct atomic<T> {
  * @return true if the operations on all objects of the type A are lock-free, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_is_lock_free
  */
-@export
+@extern
 public func <A> atomic_is_lock_free(obj : *atomic<A>) : bool
 
 /**
@@ -85,7 +85,7 @@ public func <A> atomic_is_lock_free(obj : *atomic<A>) : bool
  * @param obj	-	pointer to the atomic object to modify
  * @see https://en.cppreference.com/w/c/atomic/atomic_store
  */
-@export
+@extern
 public func <A, C> atomic_store(obj : *mut atomic<A>, desired : atomic<C>);
 
 /**
@@ -97,7 +97,7 @@ public func <A, C> atomic_store(obj : *mut atomic<A>, desired : atomic<C>);
  * @param order	-	the memory synchronization ordering for this operation
  * @see https://en.cppreference.com/w/c/atomic/atomic_store
  */
-@export
+@extern
 public func <A, C> atomic_store_explicit(obj : *mut atomic<A>, desired : atomic<C>, order : memory_order);
 
 /**
@@ -109,7 +109,7 @@ public func <A, C> atomic_store_explicit(obj : *mut atomic<A>, desired : atomic<
  * @return The current value of the atomic variable pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_load
  */
-@export
+@extern
 public func <A, C> atomic_load(obj : *atomic<A>) : C
 
 /**
@@ -122,7 +122,7 @@ public func <A, C> atomic_load(obj : *atomic<A>) : C
  * @return The current value of the atomic variable pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_load
  */
-@export
+@extern
 public func <A, C> atomic_load_explicit(obj : *atomic<A>, order : memory_order) : atomic<C>
 
 /**
@@ -135,7 +135,7 @@ public func <A, C> atomic_load_explicit(obj : *atomic<A>, order : memory_order) 
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_exchange
  */
-@export
+@extern
 public func <A, C> atomic_exchange(obj : *atomic<A>, desired : atomic<C>) : atomic<C>
 
 /**
@@ -148,7 +148,7 @@ public func <A, C> atomic_exchange(obj : *atomic<A>, desired : atomic<C>) : atom
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_exchange
  */
-@export
+@extern
 public func <A, C> atomic_exchange_explicit(obj : *atomic<A>, desired : atomic<C>, order : memory_order) : atomic<C>
 
 /**
@@ -165,7 +165,7 @@ public func <A, C> atomic_exchange_explicit(obj : *atomic<A>, desired : atomic<C
  * @return The result of the comparison: true if *obj was equal to *exp, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
-@export
+@extern
 public func <A, C> atomic_compare_exchange_strong(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>) : bool
 
 /**
@@ -182,7 +182,7 @@ public func <A, C> atomic_compare_exchange_strong(obj : *atomic<A>, expected : *
  * @return The result of the comparison: true if *obj was equal to *exp, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
-@export
+@extern
 public func <A, C> atomic_compare_exchange_weak(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>) : bool
 
 /**
@@ -199,7 +199,7 @@ public func <A, C> atomic_compare_exchange_weak(obj : *atomic<A>, expected : *at
  * @return The result of the comparison: true if *obj was equal to *exp, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
-@export
+@extern
 public func <A, C> atomic_compare_exchange_strong_explicit(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>, succ : memory_order, fail : memory_order);
 
 /**
@@ -216,7 +216,7 @@ public func <A, C> atomic_compare_exchange_strong_explicit(obj : *atomic<A>, exp
  * @return The result of the comparison: true if *obj was equal to *exp, false otherwise.
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
-@export
+@extern
 public func <A, C> atomic_compare_exchange_weak_explicit(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>, succ : memory_order, fail : memory_order) : bool
 
 /**
@@ -229,7 +229,7 @@ public func <A, C> atomic_compare_exchange_weak_explicit(obj : *atomic<A>, expec
  * @return The value held previously by the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_add
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_add(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
@@ -243,7 +243,7 @@ public func <A, M, C> atomic_fetch_add(obj : *atomic<A>, arg : atomic<M>) : atom
  * @return The value held previously by the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_add
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_add_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
@@ -256,7 +256,7 @@ public func <A, M, C> atomic_fetch_add_explicit(obj : *atomic<A>, arg : atomic<M
  * @return The value held previously by the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_sub
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_sub(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
@@ -270,7 +270,7 @@ public func <A, M, C> atomic_fetch_sub(obj : *atomic<A>, arg : atomic<M>) : atom
  * @return The value held previously by the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_sub
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_sub_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
@@ -282,7 +282,7 @@ public func <A, M, C> atomic_fetch_sub_explicit(obj : *atomic<A>, arg : atomic<M
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_or
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_or(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
@@ -295,7 +295,7 @@ public func <A, M, C> atomic_fetch_or(obj : *atomic<A>, arg : atomic<M>) : atomi
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_or
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_or_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
@@ -308,7 +308,7 @@ public func <A, M, C> atomic_fetch_or_explicit(obj : *atomic<A>, arg : atomic<M>
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_xor
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_xor(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
@@ -321,7 +321,7 @@ public func <A, M, C> atomic_fetch_xor(obj : *atomic<A>, arg : atomic<M>) : atom
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_xor
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_xor_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
@@ -334,7 +334,7 @@ public func <A, M, C> atomic_fetch_xor_explicit(obj : *atomic<A>, arg : atomic<M
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_and
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_and(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
@@ -347,7 +347,7 @@ public func <A, M, C> atomic_fetch_and(obj : *atomic<A>, arg : atomic<M>) : atom
  * @return The value held previously be the atomic object pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_and
  */
-@export
+@extern
 public func <A, M, C> atomic_fetch_and_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
@@ -358,7 +358,7 @@ public func <A, M, C> atomic_fetch_and_explicit(obj : *atomic<A>, arg : atomic<M
  * @return The previous value held by the atomic flag pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_flag_test_and_set
  */
-@export
+@extern
 public func atomic_flag_test_and_set(obj : *atomic_flag) : bool
 
 /**
@@ -369,7 +369,7 @@ public func atomic_flag_test_and_set(obj : *atomic_flag) : bool
  * @return The previous value held by the atomic flag pointed to by obj.
  * @see https://en.cppreference.com/w/c/atomic/atomic_flag_test_and_set
  */
-@export
+@extern
 public func atomic_flag_test_and_set_explicit(obj : *atomic_flag, order : memory_order) : bool
 
 /**
@@ -379,7 +379,7 @@ public func atomic_flag_test_and_set_explicit(obj : *atomic_flag, order : memory
  * @param order	-	the memory synchronization ordering for this operation: all values are permitted
  * @see https://en.cppreference.com/w/c/atomic/atomic_flag_clear
  */
-@export
+@extern
 public func atomic_flag_clear(obj : *atomic_flag)
 
 /**
@@ -389,7 +389,7 @@ public func atomic_flag_clear(obj : *atomic_flag)
  * @param order	-	the memory synchronization ordering for this operation: all values are permitted
  * @see https://en.cppreference.com/w/c/atomic/atomic_flag_clear
  */
-@export
+@extern
 public func atomic_flag_clear_explicit(obj : *atomic_flag, order : memory_order)
 
 /**
@@ -400,7 +400,7 @@ public func atomic_flag_clear_explicit(obj : *atomic_flag, order : memory_order)
  * @param desired	-	the value to initialize atomic object with
  * @see https://en.cppreference.com/w/c/atomic/atomic_init
  */
-@export
+@extern
 public func <A, C> atomic_init(obj : *atomic<A>, desired : atomic<C>);
 
 /**
@@ -418,7 +418,7 @@ public func <A, C> atomic_init(obj : *atomic<A>, desired : atomic<C>);
  * @see https://en.cppreference.com/w/c/atomic/kill_dependency
  */
 @comptime
-@export
+@extern
 public func <A> kill_dependency(y : atomic<A>) : atomic<A> {
     // TODO do something
     return y;
@@ -429,7 +429,7 @@ public func <A> kill_dependency(y : atomic<A>) : atomic<A> {
  * @param order	-	the memory ordering executed by this fence
  * @see https://en.cppreference.com/w/c/atomic/atomic_thread_fence
  */
-@export
+@extern
 public func atomic_thread_fence(order : memory_order)
 
 /**
@@ -437,5 +437,5 @@ public func atomic_thread_fence(order : memory_order)
  * @param order	-	the memory ordering executed by this fence
  * @see https://en.cppreference.com/w/c/atomic/atomic_signal_fence
  */
-@export
+@extern
 public func atomic_signal_fence(order : memory_order)

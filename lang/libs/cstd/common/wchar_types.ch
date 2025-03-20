@@ -3,10 +3,10 @@
  * @see https://en.cppreference.com/w/cpp/header/cwchar
  */
 if(def.windows) {
-    @export
+    @extern
 public type wint_t = ushort;
 } else {
-    @export
+    @extern
 public type wint_t = int;
 }
 
@@ -15,9 +15,9 @@ public type wint_t = int;
  * @see https://en.cppreference.com/w/cpp/language/types
  */
 if(def.windows) {
-    @export
+    @extern
 public type wchar_t = ushort;
 } else {
-    @export
+    @extern
 public type wchar_t = int;
 }

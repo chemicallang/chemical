@@ -7,7 +7,7 @@ import "./common/io_types.ch"
  * fpos_t is a non-array complete object type, can be used to store (by fgetpos) and restore (by fsetpos) the position and multibyte parser state (if any) for a C stream.
  * @see https://en.cppreference.com/w/c/io/fpos_t
  */
-@export
+@extern
 public struct fpos_t {
 
 }
@@ -27,7 +27,7 @@ public struct fpos_t {
  * @return If successful, returns a pointer to the new file stream. The stream is fully buffered unless filename refers to an interactive device. On error, returns a null pointer. POSIX requires that errno be set in this case.
  * @see https://en.cppreference.com/w/c/io/fopen
  */
-@export
+@extern
 public func fopen(filename : *char, mode : *char) : *mut FILE
 
 /**
@@ -42,7 +42,7 @@ public func fopen(filename : *char, mode : *char) : *mut FILE
  * @return If successful, returns zero and a pointer to the new file stream is written to *streamptr. On error, returns a non-zero error code and writes the null pointer to *streamptr (unless streamptr is a null pointer itself).
  * @see https://en.cppreference.com/w/c/io/fopen
  */
-@export
+@extern
 public func fopen_s(streamptr : **mut FILE, filename : *char, mode : *char) : errno_t
 
 /**
@@ -53,7 +53,7 @@ public func fopen_s(streamptr : **mut FILE, filename : *char, mode : *char) : er
  * @return A copy of the value of stream on success, null pointer on failure.
  * @see https://en.cppreference.com/w/c/io/freopen
  */
-@export
+@extern
 public func freopen(filename : *char, mode : *char, stream : *mut FILE) : *FILE
 
 /**
@@ -69,7 +69,7 @@ public func freopen(filename : *char, mode : *char, stream : *mut FILE) : *FILE
  * @return zero on success (and a copy of the value of stream is written to *newstreamptr, non-zero on error (and null pointer is written to *newstreamptr unless newstreamptr is itself a null pointer).
  * @see https://en.cppreference.com/w/c/io/freopen
  */
-@export
+@extern
 public func freopen_s(newstreamptr : **mut FILE, filename : *char, mode : *char, stream : *mut FILE) : errno_t
 
 /**
@@ -80,7 +80,7 @@ public func freopen_s(newstreamptr : **mut FILE, filename : *char, mode : *char,
  * @return 0 on success, EOF otherwise
  * @see https://en.cppreference.com/w/c/io/fclose
  */
-@export
+@extern
 public func fclose(stream : *mut FILE) : int
 
 /**
@@ -91,7 +91,7 @@ public func fclose(stream : *mut FILE) : int
  * @return Returns zero on success. Otherwise EOF is returned and the error indicator of the file stream is set.
  * @see https://en.cppreference.com/w/c/io/fflush
  */
-@export
+@extern
 public func fflush(stream : *mut FILE) : int
 
 /**
@@ -102,7 +102,7 @@ public func fflush(stream : *mut FILE) : int
  * @param buffer	-	pointer to a buffer for the stream to use. If a null pointer is supplied, the buffering is turned off
  * @see https://en.cppreference.com/w/c/io/setbuf
  */
-@export
+@extern
 public func setbuf(stream : *FILE, buffer : *char);
 
 /**
@@ -125,7 +125,7 @@ public func setbuf(stream : *FILE, buffer : *char);
  * @return 0 on success or nonzero on failure.
  * @see https://en.cppreference.com/w/c/io/setvbuf
  */
-@export
+@extern
 public func setvbuf(stream : *mut FILE, buffer : *mut char, mode : int, size : size_t) : int
 
 /**
@@ -139,7 +139,7 @@ public func setvbuf(stream : *mut FILE, buffer : *mut char, mode : int, size : s
  *         If size or count is zero, fread returns zero and performs no other action.
  *         fread does not distinguish between end-of-file and error, and callers must use feof and ferror to determine which occurred.
  */
-@export
+@extern
 public func fread(buffer : *mut void, size : size_t, count : size_t, stream : *mut FILE) : size_t
 
 /**
@@ -153,7 +153,7 @@ public func fread(buffer : *mut void, size : size_t, count : size_t, stream : *m
  *         If size or count is zero, fwrite returns zero and performs no other action.
  * @see https://en.cppreference.com/w/c/io/fwrite
  */
-@export
+@extern
 public func fwrite(buffer : *void, size : size_t, count : size_t, stream : *mut FILE) : size_t
 
 /**
@@ -163,7 +163,7 @@ public func fwrite(buffer : *void, size : size_t, count : size_t, stream : *mut 
  *         If the failure has been caused by end-of-file condition, additionally sets the eof indicator (see feof()) on stream. If the failure has been caused by some other error, sets the error indicator (see ferror()) on stream.
  * @see https://en.cppreference.com/w/c/io/fgetc
  */
-@export
+@extern
 public func fgetc(stream : *mut FILE) : int
 
 /**
@@ -176,7 +176,7 @@ public func fgetc(stream : *mut FILE) : int
  *         If the failure has been caused by some other error, sets the error indicator (see ferror()) on stream. The contents of the array pointed to by str are indeterminate (it may not even be null-terminated).
  * @see https://en.cppreference.com/w/c/io/fgets
  */
-@export
+@extern
 public func fgets(str : *mut char, count : int, stream : *mut FILE) : *mut char
 
 /**
@@ -188,7 +188,7 @@ public func fgets(str : *mut char, count : int, stream : *mut FILE) : *mut char
  *         On failure, returns EOF and sets the error indicator (see ferror()) on stream.
  * @see https://en.cppreference.com/w/c/io/fputc
  */
-@export
+@extern
 public func fputc(ch : int, stream : *mut FILE) : int
 
 /**
@@ -200,7 +200,7 @@ public func fputc(ch : int, stream : *mut FILE) : int
  *         On failure, returns EOF and sets the error indicator (see ferror()) on stream.
  * @see https://en.cppreference.com/w/c/io/fputc
  */
-@export
+@extern
 public func putc(ch : int, stream : *mut FILE) : int
 
 /**
@@ -212,7 +212,7 @@ public func putc(ch : int, stream : *mut FILE) : int
  *         On failure, returns EOF and sets the error indicator (see ferror()) on stream.
  * @see https://en.cppreference.com/w/c/io/fputs
  */
-@export
+@extern
 public func fputs(str : *char, stream : *mut FILE) : int
 
 /**
@@ -222,7 +222,7 @@ public func fputs(str : *char, stream : *mut FILE) : int
  *         If the failure has been caused by end-of-file condition, additionally sets the eof indicator (see feof()) on stdin. If the failure has been caused by some other error, sets the error indicator (see ferror()) on stdin.
  * @see https://en.cppreference.com/w/c/io/getchar
  */
-@export
+@extern
 public func getchar() : int
 
 /**
@@ -233,7 +233,7 @@ public func getchar() : int
  *         On failure, returns EOF and sets the error indicator (see ferror()) on stdout.
  * @see https://en.cppreference.com/w/c/io/putchar
  */
-@export
+@extern
 public func putchar(ch : int) : int
 
 /**
@@ -244,7 +244,7 @@ public func putchar(ch : int) : int
  *         On failure, returns EOF and sets the error indicator (see ferror()) on stream.
  * @see https://en.cppreference.com/w/c/io/puts
  */
-@export
+@extern
 public func puts(str : *char) : int
 
 /**
@@ -261,7 +261,7 @@ public func puts(str : *char) : int
  *         On failure EOF is returned and the given stream remains unchanged.
  * @see https://en.cppreference.com/w/c/io/ungetc
  */
-@export
+@extern
 public func ungetc(ch : int, stream : *mut FILE) : int
 
 
@@ -284,7 +284,7 @@ public func ungetc(ch : int, stream : *mut FILE) : int
  * @return Number of receiving arguments successfully assigned (which may be zero in case a matching failure occurred before the first receiving argument was assigned), or EOF if input failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-@export
+@extern
 public func scanf(format : *char, _ : any... ) : int
 
 /**
@@ -306,7 +306,7 @@ public func scanf(format : *char, _ : any... ) : int
  * @return Number of receiving arguments successfully assigned (which may be zero in case a matching failure occurred before the first receiving argument was assigned), or EOF if input failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-@export
+@extern
 public func fscanf(stream : *mut FILE, format : *char, _ : any... ) : int
 
 /**
@@ -328,7 +328,7 @@ public func fscanf(stream : *mut FILE, format : *char, _ : any... ) : int
  * @return Number of receiving arguments successfully assigned (which may be zero in case a matching failure occurred before the first receiving argument was assigned), or EOF if input failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-@export
+@extern
 public func sscanf(buffer : *char, format : *char, _ : any... ) : int
 
 /**
@@ -355,7 +355,7 @@ public func sscanf(buffer : *char, format : *char, _ : any... ) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-@export
+@extern
 public func scanf_s(format : *char, _ : any...) : int
 
 /**
@@ -382,7 +382,7 @@ public func scanf_s(format : *char, _ : any...) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-@export
+@extern
 public func fscanf_s(stream : *mut FILE, format : *char, _ : any...) : int
 
 /**
@@ -409,7 +409,7 @@ public func fscanf_s(stream : *mut FILE, format : *char, _ : any...) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
-@export
+@extern
 public func sscanf_s(buffer : *char, format : *char, _ : any...) : int
 
 /**
@@ -431,7 +431,7 @@ public func sscanf_s(buffer : *char, format : *char, _ : any...) : int
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
-@export
+@extern
 public func vscanf(format : *char, vlist : va_list ) : int
 
 /**
@@ -453,7 +453,7 @@ public func vscanf(format : *char, vlist : va_list ) : int
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
-@export
+@extern
 public func vfscanf(stream : *mut FILE, format : *char, vlist : va_list) : int
 
 /**
@@ -475,7 +475,7 @@ public func vfscanf(stream : *mut FILE, format : *char, vlist : va_list) : int
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
-@export
+@extern
 public func vsscanf(buffer : *char, format : *char, vlist : va_list) : int
 
 /**
@@ -502,7 +502,7 @@ public func vsscanf(buffer : *char, format : *char, vlist : va_list) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
-@export
+@extern
 public func vscanf_s(format : *char, vlist : va_list) : int
 
 /**
@@ -529,7 +529,7 @@ public func vscanf_s(format : *char, vlist : va_list) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
-@export
+@extern
 public func vfscanf_s(stream : *mut FILE, format : *char, vlist : va_list) : int
 
 /**
@@ -556,7 +556,7 @@ public func vfscanf_s(stream : *mut FILE, format : *char, vlist : va_list) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
-@export
+@extern
 public func vsscanf_s(buffer : *char, format : *char, vlist : va_list) : int
 
 /**
@@ -582,7 +582,7 @@ public func vsscanf_s(buffer : *char, format : *char, vlist : va_list) : int
  * @return number of characters transmitted to the output stream or negative value if an output error or an encoding error (for string and character conversion specifiers) occurred.
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
-@export
+@extern
 public func printf(format : *char, _ : any...) : int
 
 /**
@@ -608,7 +608,7 @@ public func printf(format : *char, _ : any...) : int
  * @return number of characters transmitted to the output stream or negative value if an output error or an encoding error (for string and character conversion specifiers) occurred.
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
-@export
+@extern
 public func fprintf(stream : *mut FILE, format : *char, _ : any...) : int
 
 /**
@@ -634,7 +634,7 @@ public func fprintf(stream : *mut FILE, format : *char, _ : any...) : int
  * @return number of characters written to buffer (not counting the terminating null character), or a negative value if an encoding error (for string and character conversion specifiers) occurred.
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
-@export
+@extern
 public func sprintf(buffer : *mut char, format : *char, _ : any...) : int
 
 /**
@@ -660,7 +660,7 @@ public func sprintf(buffer : *mut char, format : *char, _ : any...) : int
  * @return number of characters (not including the terminating null character) which would have been written to buffer if bufsz was ignored, or a negative value if an encoding error (for string and character conversion specifiers) occurred.
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
-@export
+@extern
 public func snprintf(buffer : *mut char, bufsz : size_t, format : *char, _ : any...) : int
 
 /**
@@ -693,7 +693,7 @@ public func snprintf(buffer : *mut char, bufsz : size_t, format : *char, _ : any
  * @return number of characters transmitted to the output stream or negative value if an output error, a runtime constraints violation error, or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
-@export
+@extern
 public func printf_s(format : *char, _ : any...) : int
 
 /**
@@ -726,7 +726,7 @@ public func printf_s(format : *char, _ : any...) : int
  * @return number of characters transmitted to the output stream or negative value if an output error, a runtime constraints violation error, or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
-@export
+@extern
 public func fprintf_s(stream : *mut FILE, format : *char, _ : any...) : int
 
 /**
@@ -759,7 +759,7 @@ public func fprintf_s(stream : *mut FILE, format : *char, _ : any...) : int
  * @return number of characters written to buffer, not counting the null character (which is always written as long as buffer is not a null pointer and bufsz is not zero and not greater than RSIZE_MAX), or zero on runtime constraint violations, and negative value on encoding errors.
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
-@export
+@extern
 public func sprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : any...) : int
 
 /**
@@ -792,7 +792,7 @@ public func sprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : a
  * @return number of characters not including the terminating null character (which is always written as long as buffer is not a null pointer and bufsz is not zero and not greater than RSIZE_MAX), which would have been written to buffer if bufsz was ignored, or a negative value if a runtime constraints violation or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
-@export
+@extern
 public func snprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : any...) : int
 
 /**
@@ -818,7 +818,7 @@ public func snprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : 
  * @return The number of characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
-@export
+@extern
 public func vprintf(format : *char, vlist : va_list) : int
 
 /**
@@ -844,7 +844,7 @@ public func vprintf(format : *char, vlist : va_list) : int
  * @return The number of characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
-@export
+@extern
 public func vfprintf(stream : *FILE, format : *char, vlist : va_list) : int
 
 /**
@@ -870,7 +870,7 @@ public func vfprintf(stream : *FILE, format : *char, vlist : va_list) : int
  * @return The number of characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
-@export
+@extern
 public func vsprintf(buffer : *mut char, format : *char, vlist : va_list) : int
 
 /**
@@ -896,7 +896,7 @@ public func vsprintf(buffer : *mut char, format : *char, vlist : va_list) : int
  * @return The number of characters written if successful or negative value if an error occurred. If the resulting string gets truncated due to buf_size limit, function returns the total number of characters (not including the terminating null-byte) which would have been written, if the limit was not imposed.
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
-@export
+@extern
 public func vsnprintf(buffer : *mut char, bufsz : size_t, format : *char, vlist : va_list) : int
 
 /**
@@ -929,7 +929,7 @@ public func vsnprintf(buffer : *mut char, bufsz : size_t, format : *char, vlist 
  * @return number of characters transmitted to the output stream or negative value if an output error, a runtime constrants violation error, or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
-@export
+@extern
 public func vprintf_s(format : *char, vlist : va_list) : int
 
 /**
@@ -962,7 +962,7 @@ public func vprintf_s(format : *char, vlist : va_list) : int
  * @return number of characters transmitted to the output stream or negative value if an output error, a runtime constrants violation error, or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
-@export
+@extern
 public func vfprintf_s(stream : *mut FILE, format : *char, vlist : va_list) : int
 
 /**
@@ -995,7 +995,7 @@ public func vfprintf_s(stream : *mut FILE, format : *char, vlist : va_list) : in
  * @return number of characters written to buffer, not counting the null character (which is always written as long as buffer is not a null pointer and bufsz is not zero and not greater than RSIZE_MAX), or zero on runtime constraint violations, and negative value on encoding errors
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
-@export
+@extern
 public func vsprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlist : va_list) : int
 
 /**
@@ -1028,7 +1028,7 @@ public func vsprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlis
  * @return number of characters not including the terminating null character (which is always written as long as buffer is not a null pointer and bufsz is not zero and not greater than RSIZE_MAX), which would have been written to buffer if bufsz was ignored, or a negative value if a runtime constraints violation or an encoding error occurred
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
-@export
+@extern
 public func vsnprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlist : va_list) : int
 
 
@@ -1041,7 +1041,7 @@ public func vsnprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vli
  *         On error, the errno variable is set to implementation-defined positive value.
  * @see https://en.cppreference.com/w/c/io/ftell
  */
-@export
+@extern
 public func ftell(stream : *mut FILE) : long
 
 /**
@@ -1051,7 +1051,7 @@ public func ftell(stream : *mut FILE) : long
  * @return 0 upon success, nonzero value otherwise.
  * @see https://en.cppreference.com/w/c/io/fgetpos
  */
-@export
+@extern
 public func fgetpos(stream : *mut FILE, pos : *mut fpos_t) : int
 
 /**
@@ -1067,7 +1067,7 @@ public func fgetpos(stream : *mut FILE, pos : *mut fpos_t) : int
  * @return 0 upon success, nonzero value otherwise.
  * @see https://en.cppreference.com/w/c/io/fseek
  */
-@export
+@extern
 public func fseek(stream : *mut FILE, offset : long, origin : int) : int
 
 /**
@@ -1107,7 +1107,7 @@ public const EOF : int = -1;
  * @return 0 upon success, nonzero value otherwise.
  * @see https://en.cppreference.com/w/c/io/fsetpos
  */
-@export
+@extern
 public func fsetpos(stream : *mut FILE, pos : *fpos_t) : int
 
 /**
@@ -1117,7 +1117,7 @@ public func fsetpos(stream : *mut FILE, pos : *fpos_t) : int
  * @param stream	-	file stream to modify
  * @see https://en.cppreference.com/w/c/io/rewind
  */
-@export
+@extern
 public func rewind(stream : *mut FILE) : void
 
 /**
@@ -1125,7 +1125,7 @@ public func rewind(stream : *mut FILE) : void
  * @param stream	-	the file to reset the error flags for
  * @see https://en.cppreference.com/w/c/io/clearerr
  */
-@export
+@extern
 public func clearerr(stream : *mut FILE) : void
 
 /**
@@ -1134,7 +1134,7 @@ public func clearerr(stream : *mut FILE) : void
  * @return nonzero value if the end of the stream has been reached, otherwise ​0​
  * @see https://en.cppreference.com/w/c/io/feof
  */
-@export
+@extern
 public func feof(stream : *mut FILE) : int
 
 /**
@@ -1143,7 +1143,7 @@ public func feof(stream : *mut FILE) : int
  * @return Nonzero value if the file stream has errors occurred, 0 otherwise
  * @see https://en.cppreference.com/w/c/io/ferror
  */
-@export
+@extern
 public func ferror(stream : *mut FILE) : int
 
 /**
@@ -1154,7 +1154,7 @@ public func ferror(stream : *mut FILE) : int
  * @param s	-	pointer to a null-terminated string with explanatory message
  * @see https://en.cppreference.com/w/c/io/perror
  */
-@export
+@extern
 public func perror(s : *char);
 
 /**
@@ -1164,7 +1164,7 @@ public func perror(s : *char);
  * @return 0 upon success or non-zero value on error.
  * @see https://en.cppreference.com/w/c/io/remove
  */
-@export
+@extern
 public func remove(pathname : *char) : int
 
 /**
@@ -1175,7 +1175,7 @@ public func remove(pathname : *char) : int
  * @return 0 upon success or non-zero value on error.
  * @see https://en.cppreference.com/w/c/io/rename
  */
-@export
+@extern
 public func rename(old_filename : *char, new_filename : *char) : int
 
 /**
@@ -1183,7 +1183,7 @@ public func rename(old_filename : *char, new_filename : *char) : int
  * @return Pointer to the file stream associated with the file or null pointer if an error has occurred.
  * @see https://en.cppreference.com/w/c/io/tmpfile
  */
-@export
+@extern
 public func tmpfile() : *mut FILE
 
 /**
@@ -1193,7 +1193,7 @@ public func tmpfile() : *mut FILE
  * @return Zero if the file was created and open successfully, non-zero if the file was not created or open or if streamptr was a null pointer. In addition, pointer to the associated file stream is stored in *streamptr on success, and a null pointer value is stored in *streamptr on error.
  * @see https://en.cppreference.com/w/c/io/tmpfile
  */
-@export
+@extern
 public func tmpfile_s(streamptr : *mut FILE) : errno_t
 
 /**
@@ -1205,7 +1205,7 @@ public func tmpfile_s(streamptr : *mut FILE) : errno_t
  * @return filename if filename was not a null pointer. Otherwise a pointer to an internal static buffer is returned. If no suitable filename can be generated, null pointer is returned.
  * @see https://en.cppreference.com/w/c/io/tmpnam
  */
-@export
+@extern
 public func tmpnam(filename : *mut char) : *mut char
 
 /**
@@ -1221,7 +1221,7 @@ public func tmpnam(filename : *mut char) : *mut char
  * @return Returns zero and writes the file name to filename_s on success. On error, returns non-zero and writes the null character to filename_s[0] (only if filename_s is not null and maxsize is not zero and is not greater than RSIZE_MAX).
  * @see https://en.cppreference.com/w/c/io/tmpnam
  */
-@export
+@extern
 public func tmpnam_s(filename : *mut char, maxsize : rsize_t) : errno_t
 
 /**

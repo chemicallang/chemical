@@ -13,7 +13,7 @@ import "./common/time_types.ch"
  * @return An integer greater than zero if the stream is wide-oriented after this call, less than zero if the stream is byte-oriented after this call, and zero if the stream has no orientation.
  * @see https://en.cppreference.com/w/c/io/fwide
  */
-@export
+@extern
 public func fwide(stream : *mut FILE, mode : int) : int
 
 /**
@@ -24,7 +24,7 @@ public func fwide(stream : *mut FILE, mode : int) : int
  *         If an encoding error occurred, additionally sets errno to EILSEQ.
  * @see https://en.cppreference.com/w/c/io/fgetwc
  */
-@export
+@extern
 public func fgetwc(stream : *mut FILE) : wint_t
 
 /**
@@ -35,7 +35,7 @@ public func fgetwc(stream : *mut FILE) : wint_t
  *         If an encoding error occurred, additionally sets errno to EILSEQ.
  * @see https://en.cppreference.com/w/c/io/fgetwc
  */
-@export
+@extern
 public func getwc(stream : *mut FILE) : wint_t
 
 /**
@@ -46,7 +46,7 @@ public func getwc(stream : *mut FILE) : wint_t
  * @return str on success, a null pointer on an error
  * @see https://en.cppreference.com/w/c/io/fgetws
  */
-@export
+@extern
 public func fgetws(str : *mut wchar_t, count : int, stream : *mut FILE) : *mut wchar_t
 
 /**
@@ -58,7 +58,7 @@ public func fgetws(str : *mut wchar_t, count : int, stream : *mut FILE) : *mut w
  *         If an encoding error occurred, additionally sets errno to EILSEQ.
  * @see https://en.cppreference.com/w/c/io/fputwc
  */
-@export
+@extern
 public func fputwc(ch : wchar_t, stream : *mut FILE) : wint_t
 
 /**
@@ -70,7 +70,7 @@ public func fputwc(ch : wchar_t, stream : *mut FILE) : wint_t
  *         If an encoding error occurred, additionally sets errno to EILSEQ.
  * @see https://en.cppreference.com/w/c/io/fputwc
  */
-@export
+@extern
 public func putwc(ch : wchar_t, stream : *mut FILE) : wint_t
 
 /**
@@ -82,7 +82,7 @@ public func putwc(ch : wchar_t, stream : *mut FILE) : wint_t
  *         On failure, returns EOF and sets the error indicator (see ferror) on stream.
  * @see https://en.cppreference.com/w/c/io/fputws
  */
-@export
+@extern
 public func fputws(str : *wchar_t, stream : *mut FILE) : int
 
 /**
@@ -90,7 +90,7 @@ public func fputws(str : *wchar_t, stream : *mut FILE) : int
  * @return the obtained wide character or WEOF if an error has occurred or the end of file reached
  * @see https://en.cppreference.com/w/c/io/getwchar
  */
-@export
+@extern
 public func getwchar() : wint_t
 
 /**
@@ -99,7 +99,7 @@ public func getwchar() : wint_t
  * @return ch on success, WEOF on failure.
  * @see https://en.cppreference.com/w/c/io/putwchar
  */
-@export
+@extern
 public func putwchar(ch : wchar_t) : wint_t
 
 /**
@@ -115,7 +115,7 @@ public func putwchar(ch : wchar_t) : wint_t
  *         On failure WEOF is returned and the given stream remains unchanged.
  * @see https://en.cppreference.com/w/c/io/ungetwc
  */
-@export
+@extern
 public func ungetwc(ch : wint_t, stream : *mut FILE) : wint_t
 
 /**
@@ -137,7 +137,7 @@ public func ungetwc(ch : wint_t, stream : *mut FILE) : wint_t
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-@export
+@extern
 public func wscanf(format : *wchar_t, _ : any... ) : int
 
 /**
@@ -159,7 +159,7 @@ public func wscanf(format : *wchar_t, _ : any... ) : int
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-@export
+@extern
 public func fwscanf(stream : *mut FILE, format : *wchar_t, _ : any... ) : int
 
 /**
@@ -181,7 +181,7 @@ public func fwscanf(stream : *mut FILE, format : *wchar_t, _ : any... ) : int
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-@export
+@extern
 public func swscanf(buffer : *wchar_t, format : *wchar_t, _ : any... ) : int
 
 /**
@@ -208,7 +208,7 @@ public func swscanf(buffer : *wchar_t, format : *wchar_t, _ : any... ) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-@export
+@extern
 public func wscanf_s(format : *wchar_t, _ : any...) : int
 
 /**
@@ -235,7 +235,7 @@ public func wscanf_s(format : *wchar_t, _ : any...) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-@export
+@extern
 public func fwscanf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
 
 /**
@@ -262,7 +262,7 @@ public func fwscanf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
-@export
+@extern
 public func swscanf_s( s : *wchar_t, format : *wchar_t, _ : any...) : int
 
 /**
@@ -284,7 +284,7 @@ public func swscanf_s( s : *wchar_t, format : *wchar_t, _ : any...) : int
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
-@export
+@extern
 public func vwscanf(format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -306,7 +306,7 @@ public func vwscanf(format : *wchar_t, vlist : va_list) : int
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
-@export
+@extern
 public func vfwscanf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -328,7 +328,7 @@ public func vfwscanf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : i
  * @return Number of receiving arguments successfully assigned, or EOF if read failure occurs before the first receiving argument was assigned.
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
-@export
+@extern
 public func vswscanf(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -355,7 +355,7 @@ public func vswscanf(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : in
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
-@export
+@extern
 public func vwscanf_s(format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -382,7 +382,7 @@ public func vwscanf_s(format : *wchar_t, vlist : va_list) : int
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
-@export
+@extern
 public func vfwscanf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -409,7 +409,7 @@ public func vfwscanf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) :
  * @return Same as (1-3), except that EOF is also returned if there is a runtime constraint violation.
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
-@export
+@extern
 public func vswscanf_s(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -435,7 +435,7 @@ public func vswscanf_s(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : 
  * @return Number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-@export
+@extern
 public func wprintf(format : *wchar_t, _ : any...) : int
 
 /**
@@ -461,7 +461,7 @@ public func wprintf(format : *wchar_t, _ : any...) : int
  * @return Number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-@export
+@extern
 public func fwprintf(stream : *mut FILE, format : *wchar_t, _ : any...) : int
 
 /**
@@ -487,7 +487,7 @@ public func fwprintf(stream : *mut FILE, format : *wchar_t, _ : any...) : int
  * @return Number of wide characters written (not counting the terminating null wide character) if successful or negative value if an encoding error occurred or if the number of characters to be generated was equal or greater than bufsz (including when bufsz is zero).
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-@export
+@extern
 public func swprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, _ : any...) : int
 
 /**
@@ -519,7 +519,7 @@ public func swprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, _
  * @return Number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-@export
+@extern
 public func wprintf_s(format : *wchar_t, _ : any...) : int
 
 /**
@@ -551,7 +551,7 @@ public func wprintf_s(format : *wchar_t, _ : any...) : int
  * @return Number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-@export
+@extern
 public func fwprintf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
 
 /**
@@ -583,7 +583,7 @@ public func fwprintf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
  * @return Number of wide characters (not counting the terminating null) that were written to buffer. Returns a negative value on encoding errors and on overflow. Returns zero on all other errors.
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-@export
+@extern
 public func swprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, _ : any...) : int
 
 /**
@@ -610,7 +610,7 @@ public func swprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t
  * @return Number of wide characters (not counting the terminating null) that would have been written to buffer had bufsz been sufficiently large, or a negative value if an error occurs. (meaning, write was successful and complete only if the return is nonnegative and less than bufsz)
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
-@export
+@extern
 public func snwprintf_s(s : *mut wchar_t, n : rsize_t, format : *wchar_t, _ : any...) : int
 
 /**
@@ -636,7 +636,7 @@ public func snwprintf_s(s : *mut wchar_t, n : rsize_t, format : *wchar_t, _ : an
  * @return The number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-@export
+@extern
 public func vwprintf(format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -662,7 +662,7 @@ public func vwprintf(format : *wchar_t, vlist : va_list) : int
  * @return number of wide characters transmitted to the output stream or negative value if an output error, a runtime constraints violation error, or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-@export
+@extern
 public func vfwprintf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -688,7 +688,7 @@ public func vfwprintf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : 
  * @return The number of wide characters written if successful or negative value if an error occurred. If the resulting string gets truncated due to bufsz limit, function returns the total number of characters (not including the terminating null wide character) which would have been written, if the limit were not imposed.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-@export
+@extern
 public func vswprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -720,7 +720,7 @@ public func vswprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, 
  * @return The number of wide characters written if successful or negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-@export
+@extern
 public func vwprintf_s(format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -752,7 +752,7 @@ public func vwprintf_s(format : *wchar_t, vlist : va_list) : int
  * @return number of wide characters transmitted to the output stream or negative value if an output error, a runtime constraints violation error, or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-@export
+@extern
 public func vfwprintf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -784,7 +784,7 @@ public func vfwprintf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) 
  * @return number of wide characters written to buffer, not counting the null wide character (which is always written as long as buffer is not a null pointer and bufsz is not zero and not greater than RSIZE_MAX/sizeof(wchar_t)), or zero on runtime constraint violations, and negative value on encoding errors.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-@export
+@extern
 public func vswprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -811,7 +811,7 @@ public func vswprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_
  * @return number of wide characters not including the terminating null character (which is always written as long as buffer is not a null pointer and bufsz is not zero and not greater than RSIZE_MAX/sizeof(wchar_t)), which would have been written to buffer if bufsz was ignored, or a negative value if a runtime constraints violation or an encoding error occurred.
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
-@export
+@extern
 public func vsnwprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list) : int
 
 /**
@@ -820,7 +820,7 @@ public func vsnwprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar
  * @return ​0​ if ps is not a null pointer and does not represent the initial conversion state, nonzero value otherwise.
  * @see https://en.cppreference.com/w/c/string/multibyte/mbsinit
  */
-@export
+@extern
 public func mbsinit(ps : *mbstate_t) : int
 
 /**
@@ -831,7 +831,7 @@ public func mbsinit(ps : *mbstate_t) : int
  *         wide character representation of c if (unsigned char)c is a valid single-byte character in the initial shift state, WEOF otherwise.
  * @see https://en.cppreference.com/w/c/string/multibyte/btowc
  */
-@export
+@extern
 public func btowc(c : int) : wint_t
 
 /**
@@ -842,7 +842,7 @@ public func btowc(c : int) : wint_t
  *         otherwise, the single-byte representation of c as unsigned char converted to int
  * @see https://en.cppreference.com/w/c/string/multibyte/wctob
  */
-@export
+@extern
 public func wctob(c : wint_t) : int
 
 /**
@@ -858,7 +858,7 @@ public func wctob(c : wint_t) : int
  *         (size_t)-1 if encoding error occurs. The value of errno is EILSEQ; the conversion state is unspecified.
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrlen
  */
-@export
+@extern
 public func mbrlen(s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
@@ -874,7 +874,7 @@ public func mbrlen(s : *char, n : size_t, ps : *mut mbstate_t) : size_t
  *         (size_t)-1 if encoding error occurs. The value of errno is EILSEQ; the conversion state is unspecified.
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrlen
  */
-@export
+@extern
 public func mbrtowc(pwc : *mut wchar_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
@@ -891,7 +891,7 @@ public func mbrtowc(pwc : *mut wchar_t, s : *char, n : size_t, ps : *mut mbstate
  *         On failure (if wc is not a valid wide character), returns (size_t)-1, stores EILSEQ in errno, and leaves *ps in unspecified state.
  * @see https://en.cppreference.com/w/c/string/multibyte/wcrtomb
  */
-@export
+@extern
 public func wcrtomb(s : *mut char, wc : wchar_t, ps : *mut mbstate_t) : size_t
 
 /**
@@ -912,7 +912,7 @@ public func wcrtomb(s : *mut char, wc : wchar_t, ps : *mut mbstate_t) : size_t
  * @return Returns zero on success and non-zero on failure, in which case, s[0] is set to '\0' (unless s is null or ssz is zero or greater than RSIZE_MAX) and *retval is set to (size_t)-1 (unless retval is null)
  * @see https://en.cppreference.com/w/c/string/multibyte/wcrtomb
  */
-@export
+@extern
 public func wcrtomb_s(retval : *mut size_t, s : *mut char, ssz : rsize_t, wc : wchar_t, ps : *mut mbstate_t) : errno_t
 
 /**
@@ -929,7 +929,7 @@ public func wcrtomb_s(retval : *mut size_t, s : *mut char, ssz : rsize_t, wc : w
  * @return On success, returns the number of wide characters, excluding the terminating L'\0', written to the character array. If dst is a null pointer, returns the number of wide characters that would have been written given unlimited length. On conversion error (if invalid multibyte character was encountered), returns (size_t)-1, stores EILSEQ in errno, and leaves *ps in unspecified state.
  * @see https://en.cppreference.com/w/c/string/multibyte/mbsrtowcs
  */
-@export
+@extern
 public func mbsrtowcs(dst : *mut wchar_t, src : **mut char, len : size_t, ps : *mut mbstate_t) : size_t
 
 /**
@@ -953,7 +953,7 @@ public func mbsrtowcs(dst : *mut wchar_t, src : **mut char, len : size_t, ps : *
  * @return zero on success (in which case the number of wide characters excluding terminating zero that were, or would be written to dst, is stored in *retval), non-sero on error. In case of a runtime constraint violation, stores (size_t)-1 in *retval (unless retval is null) and sets dst[0] to L'\0' (unless dst is null or dstmax is zero or greater than RSIZE_MAX)
  * @see https://en.cppreference.com/w/c/string/multibyte/mbsrtowcs
  */
-@export
+@extern
 public func mbsrtowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_t, src : **char, len : rsize_t, ps : *mut mbstate_t) : errno_t
 
 /**
@@ -970,7 +970,7 @@ public func mbsrtowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_
  * @return On success, returns the number of bytes (including any shift sequences, but excluding the terminating '\0') written to the character array whose first element is pointed to by dst. If dst is a null pointer, returns the number of bytes that would have been written. On conversion error (if invalid wide character was encountered), returns (size_t)-1, stores EILSEQ in errno, and leaves *ps in unspecified state.
  * @see https://en.cppreference.com/w/c/string/multibyte/wcsrtombs
  */
-@export
+@extern
 public func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbstate_t) : size_t
 
 /**
@@ -994,7 +994,7 @@ public func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbst
  * @return Returns zero on success (in which case the number of bytes excluding terminating zero that were, or would be written to dst, is stored in *retval), non-zero on error. In case of a runtime constraint violation, stores (size_t)-1 in *retval (unless retval is null) and sets dst[0] to '\0' (unless dst is null or dstmax is zero or greater than RSIZE_MAX)
  * @see https://en.cppreference.com/w/c/string/multibyte/wcsrtombs
  */
-@export
+@extern
 public func wcsrtombs_s(retval : *mut size_t, dst : *mut char, dstsz : rsize_t, src : **wchar_t, len : rsize_t, ps : *mut mbstate_t) : errno_t
 
 /**
@@ -1005,7 +1005,7 @@ public func wcsrtombs_s(retval : *mut size_t, dst : *mut char, dstsz : rsize_t, 
  * @return Number of wide characters written into the wide character array pointed to by str not including the terminating L'\0' on success. If count was reached before the entire string could be stored, ​0​ is returned and the contents are undefined.
  * @see https://en.cppreference.com/w/c/chrono/wcsftime
  */
-@export
+@extern
 public func wcsftime(str : *mut wchar_t, count : size_t, format : *wchar_t, time : *tm) : size_t
 
 /**
@@ -1026,7 +1026,7 @@ public func wcsftime(str : *mut wchar_t, count : size_t, format : *wchar_t, time
  * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and LONG_MAX, LONG_MIN, LLONG_MAX or LLONG_MIN is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/wide/wcstol
  */
-@export
+@extern
 public func wcstol(str : *wchar_t, str_end : **mut wchar_t, base : int) : long
 
 /**
@@ -1047,7 +1047,7 @@ public func wcstol(str : *wchar_t, str_end : **mut wchar_t, base : int) : long
  * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and LONG_MAX, LONG_MIN, LLONG_MAX or LLONG_MIN is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/wide/wcstol
  */
-@export
+@extern
 public func wcstoll(str : *wchar_t, str_end : **mut wchar_t, base : int) : bigint
 
 /**
@@ -1068,7 +1068,7 @@ public func wcstoll(str : *wchar_t, str_end : **mut wchar_t, base : int) : bigin
  * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and ULONG_MAX or ULLONG_MAX is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/wide/wcstoul
  */
-@export
+@extern
 public func wcstoul(str : *wchar_t, str_end : **mut wchar_t, base : int) : ulong
 
 /**
@@ -1089,7 +1089,7 @@ public func wcstoul(str : *wchar_t, str_end : **mut wchar_t, base : int) : ulong
  * @return Integer value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and ULONG_MAX or ULLONG_MAX is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/wide/wcstoul
  */
-@export
+@extern
 public func wcstoull(str : *wchar_t, str_end : **mut wchar_t, base : int) : ubigint
 
 /**
@@ -1116,7 +1116,7 @@ public func wcstoull(str : *wchar_t, str_end : **mut wchar_t, base : int) : ubig
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/wide/wcstof
  */
-@export
+@extern
 public func wcstof(str : *wchar_t, str_end : **mut wchar_t) : float
 
 /**
@@ -1143,7 +1143,7 @@ public func wcstof(str : *wchar_t, str_end : **mut wchar_t) : float
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/wide/wcstof
  */
-@export
+@extern
 public func wcstod(str : *wchar_t, str_end : **mut wchar_t) : double
 
 /**
@@ -1170,7 +1170,7 @@ public func wcstod(str : *wchar_t, str_end : **mut wchar_t) : double
  * @return Floating-point value corresponding to the contents of str on success. If the converted value falls out of range of corresponding return type, range error occurs and HUGE_VAL, HUGE_VALF or HUGE_VALL is returned. If no conversion can be performed, ​0​ is returned.
  * @see https://en.cppreference.com/w/c/string/wide/wcstof
  */
-@export
+@extern
 public func wcstold(str : *wchar_t, str_end : **mut wchar_t) : longdouble
 
 /**
@@ -1181,7 +1181,7 @@ public func wcstold(str : *wchar_t, str_end : **mut wchar_t) : longdouble
  * @return returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/wide/wcscpy
  */
-@export
+@extern
 public func wcscpy(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
 
 /**
@@ -1197,7 +1197,7 @@ public func wcscpy(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
  * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RMAX_SIZE / sizeof(wchar_t)).
  * @see https://en.cppreference.com/w/c/string/wide/wcscpy
  */
-@export
+@extern
 public func wcscpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t) : errno_t
 
 /**
@@ -1212,7 +1212,7 @@ public func wcscpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t) : errno_
  * @return returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/wide/wcsncpy
  */
-@export
+@extern
 public func wcsncpy(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut wchar_t
 
 /**
@@ -1229,7 +1229,7 @@ public func wcsncpy(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut 
  * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX/sizeof(wchar_t)) and may clobber the rest of the destination array with unspecified values.
  * @see https://en.cppreference.com/w/c/string/wide/wcsncpy
  */
-@export
+@extern
 public func wcsncpy_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
 
 /**
@@ -1240,7 +1240,7 @@ public func wcsncpy_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t, cou
  * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX/sizeof(wchar_t)).
  * @see https://en.cppreference.com/w/c/string/wide/wcscat
  */
-@export
+@extern
 public func wcscat(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
 
 /**
@@ -1257,7 +1257,7 @@ public func wcscat(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
  * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX/sizeof(wchar_t)).
  * @see https://en.cppreference.com/w/c/string/wide/wcscat
  */
-@export
+@extern
 public func wcscat_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t) : errno_t
 
 /**
@@ -1270,7 +1270,7 @@ public func wcscat_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t) : er
  * @param destsz	-	the size of the destination buffer
  * @return returns a copy of dest
  */
-@export
+@extern
 public func wcsncat(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut wchar_t
 
 /**
@@ -1288,7 +1288,7 @@ public func wcsncat(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut 
  * @return returns zero on success, returns non-zero on error. Also, on error, writes L'\0' to dest[0] (unless dest is a null pointer or destsz is zero or greater than RSIZE_MAX/sizeof(wchar_t)).
  * @see https://en.cppreference.com/w/c/string/wide/wcsncat
  */
-@export
+@extern
 public func wcsncat_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
 
 /**
@@ -1301,7 +1301,7 @@ public func wcsncat_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count :
  * @return The length of the transformed wide string, not including the terminating null-character.
  * @see https://en.cppreference.com/w/c/string/wide/wcsxfrm
  */
-@export
+@extern
 public func wcsxfrm(dest : *mut wchar_t, src : *wchar_t, count : size_t) : size_t
 
 /**
@@ -1311,7 +1311,7 @@ public func wcsxfrm(dest : *mut wchar_t, src : *wchar_t, count : size_t) : size_
  * @return The length of the null-terminated wide string str.
  * @see https://en.cppreference.com/w/c/string/wide/wcslen
  */
-@export
+@extern
 public func wcslen(str : *wchar_t) : size_t
 
 /**
@@ -1322,7 +1322,7 @@ public func wcslen(str : *wchar_t) : size_t
  * @return The length of the null-terminated wide string str on success, zero if str is a null pointer, strsz if the null wide character was not found.
  * @see https://en.cppreference.com/w/c/string/wide/wcslen
  */
-@export
+@extern
 public func wcsnlen_s(str : *wchar_t, strsz : size_t) : size_t
 
 /**
@@ -1335,7 +1335,7 @@ public func wcsnlen_s(str : *wchar_t, strsz : size_t) : size_t
  *         Positive value if lhs appears after rhs in lexicographical order.
  * @see https://en.cppreference.com/w/c/string/wide/wcscmp
  */
-@export
+@extern
 public func wcscmp(lhs : *wchar_t, rhs : *wchar_t) : int
 
 /**
@@ -1349,7 +1349,7 @@ public func wcscmp(lhs : *wchar_t, rhs : *wchar_t) : int
  *         Positive value if lhs appears after rhs in lexicographical order.
  * @see https://en.cppreference.com/w/c/string/wide/wcsncmp
  */
-@export
+@extern
 public func wcsncmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
 
 /**
@@ -1360,7 +1360,7 @@ public func wcsncmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
  *          Positive value if lhs is greater than (follows) rhs.
  * @see https://en.cppreference.com/w/c/string/wide/wcscoll
  */
-@export
+@extern
 public func wcscoll(lhs : *wchar_t, rhs : *wchar_t) : int
 
 /**
@@ -1370,7 +1370,7 @@ public func wcscoll(lhs : *wchar_t, rhs : *wchar_t) : int
  * @return Pointer to the found character in str, or a null pointer if no such character is found.
  * @see https://en.cppreference.com/w/c/string/wide/wcschr
  */
-@export
+@extern
 public func wcschr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
 
 /**
@@ -1391,7 +1391,7 @@ public func wcschr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
  * @return Pointer to the found character in str, or a null pointer if no such character is found.
  * @see https://en.cppreference.com/w/c/string/wide/wcsrchr
  */
-@export
+@extern
 public func wcsrchr(str : *wchar_t, ch : wchar_t) : *wchar_t
 
 /**
@@ -1412,7 +1412,7 @@ public func wcsrchr(str : *wchar_t, ch : wchar_t) : *wchar_t
  * @return The length of the maximum initial segment that contains only characters from wide string pointed to by src
  * @see https://en.cppreference.com/w/c/string/wide/wcsspn
  */
-@export
+@extern
 public func wcsspn(dest : *wchar_t, src : *wchar_t) : size_t
 
 /**
@@ -1422,7 +1422,7 @@ public func wcsspn(dest : *wchar_t, src : *wchar_t) : size_t
  * @return The length of the maximum initial segment that contains only characters not found in the character string pointed to by src
  * @see https://en.cppreference.com/w/c/string/wide/wcscspn
  */
-@export
+@extern
 public func wcscspn(dest : *wchar_t, src : *wchar_t) : size_t
 
 /**
@@ -1432,7 +1432,7 @@ public func wcscspn(dest : *wchar_t, src : *wchar_t) : size_t
  * @return Pointer to the first character in dest, that is also in str, or a null pointer if no such character exists.
  * @see https://en.cppreference.com/w/c/string/wide/wcspbrk
  */
-@export
+@extern
 public func wcspbrk(dest : *wchar_t, str : *wchar_t) : *wchar_t
 
 /**
@@ -1448,7 +1448,7 @@ public func wcspbrk(dest : *wchar_t, str : *wchar_t) : *wchar_t
  * @return Pointer to the first character of the found substring in dest, or a null pointer if no such substring is found. If src points to an empty string, dest is returned.
  * @see https://en.cppreference.com/w/c/string/wide/wcsstr
  */
-@export
+@extern
 public func wcsstr(dest : *wchar_t, src : *wchar_t) : *wchar_t
 
 /**
@@ -1474,7 +1474,7 @@ public func wcsstr(dest : *wchar_t, src : *wchar_t) : *wchar_t
  * @return Returns pointer to the beginning of the next token or null pointer if there are no more tokens.
  * @see https://en.cppreference.com/w/c/string/wide/wcstok
  */
-@export
+@extern
 public func wcstok(str : *wchar_t, delim : *wchar_t, ptr : **mut wchar_t) : *wchar_t
 
 /**
@@ -1486,7 +1486,7 @@ public func wcstok(str : *wchar_t, delim : *wchar_t, ptr : **mut wchar_t) : *wch
  * @return returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/wide/wmemcpy
  */
-@export
+@extern
 public func wmemcpy(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
 
 /**
@@ -1502,7 +1502,7 @@ public func wmemcpy(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
  * @param destsz	-	max number of wide characters to write (the size of the destination buffer)
  * @return returns zero on success, returns non-zero on error. Also, on error, fills the entire dst up to and not including dst+dstsz with null wide characters, L'\0' (unless dest is null or destsz is greater than RSIZE_MAX/sizeof(wchar_t))
  */
-@export
+@extern
 public func wmemcpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
 
 /**
@@ -1514,7 +1514,7 @@ public func wmemcpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count :
  * @return Returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/wide/wmemmove
  */
-@export
+@extern
 public func wmemmove(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
 
 /**
@@ -1530,7 +1530,7 @@ public func wmemmove(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
  * @return Returns zero on success, returns non-zero on error. Also, on error, fills the entire dst up to and not including dst+dstsz with null wide characters, L'\0' (unless dest is null or destsz is greater than RSIZE_MAX/sizeof(wchar_t))
  * @see https://en.cppreference.com/w/c/string/wide/wmemmove
  */
-@export
+@extern
 public func wmemmove_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
 
 /**
@@ -1544,7 +1544,7 @@ public func wmemmove_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count 
  *         Positive value if the value of the first differing wide character in lhs is greater than the value of the corresponding wide character in rhs: rhs precedes lhs in lexicographical order.
  * @see https://en.cppreference.com/w/c/string/wide/wmemcmp
  */
-@export
+@extern
 public func wmemcmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
 
 /**
@@ -1555,7 +1555,7 @@ public func wmemcmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
  * @return Pointer to the location of the wide character, or a null pointer if no such character is found.
  * @see https://en.cppreference.com/w/c/string/wide/wmemchr
  */
-@export
+@extern
 public func wmemchr(ptr : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t
 
 /**
@@ -1579,5 +1579,5 @@ public func wmemchr(ptr : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t
  * @return Returns a copy of dest
  * @see https://en.cppreference.com/w/c/string/wide/wmemset
  */
-@export
+@extern
 public func wmemset(dest : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t

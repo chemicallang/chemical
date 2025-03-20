@@ -4,7 +4,7 @@ import "./time.ch"
  * TODO mtx_t is implementation defined
  * @see https://en.cppreference.com/w/c/thread
  */
-@export
+@extern
 public struct mtx_t {
 
 }
@@ -13,7 +13,7 @@ public struct mtx_t {
  * TODO thrd_t is implementation defined
  * @see https://en.cppreference.com/w/c/thread
  */
-@export
+@extern
 public struct thrd_t {
 
 }
@@ -22,7 +22,7 @@ public struct thrd_t {
  * TODO cnd_t is implementation defined
  * @see https://en.cppreference.com/w/c/thread
  */
-@export
+@extern
 public struct cnd_t {
 
 }
@@ -31,7 +31,7 @@ public struct cnd_t {
  * TODO tss_t is implementation defined
  * @see https://en.cppreference.com/w/c/thread
  */
-@export
+@extern
 public struct tss_t {
 
 }
@@ -40,7 +40,7 @@ public struct tss_t {
  * TODO tss_dtor_t is implementation defined
  * @see https://en.cppreference.com/w/c/thread
  */
-@export
+@extern
 public struct tss_dtor_t {
 
 }
@@ -49,7 +49,7 @@ public struct tss_dtor_t {
  * TODO once_flag is implementation defined
  * @see https://en.cppreference.com/w/c/thread
  */
-@export
+@extern
 public struct once_flag {
 
 }
@@ -77,7 +77,7 @@ enum thrd_result {
  * @return Non-zero value if lhs and rhs refer to the same value, 0 otherwise.
  * @see https://en.cppreference.com/w/c/thread/thrd_equal
  */
-@export
+@extern
 public func thrd_equal(lhs : thrd_t, rhs : thrd_t) : int
 
 /**
@@ -85,7 +85,7 @@ public func thrd_equal(lhs : thrd_t, rhs : thrd_t) : int
  * @return The identifier of the calling thread.
  * @see https://en.cppreference.com/w/c/thread/thrd_current
  */
-@export
+@extern
 public func thrd_current() : thrd_t
 
 /**
@@ -96,14 +96,14 @@ public func thrd_current() : thrd_t
  * @return 0 on successful sleep, -1 if a signal occurred, other negative value if an error occurred.
  * @see https://en.cppreference.com/w/c/thread/thrd_sleep
  */
-@export
+@extern
 public func thrd_sleep(duration : *timespec, remaining : *timespec) : int
 
 /**
  * Provides a hint to the implementation to reschedule the execution of threads, allowing other threads to run.
  * @see https://en.cppreference.com/w/c/thread/thrd_yield
  */
-@export
+@extern
 public func thrd_yield()
 
 /**
@@ -115,7 +115,7 @@ public func thrd_yield()
  * @see https://en.cppreference.com/w/c/thread/thrd_exit
  */
 @no_return
-@export
+@extern
 public func thrd_exit(res : int) : void
 
 /**
@@ -124,7 +124,7 @@ public func thrd_exit(res : int) : void
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/thrd_detach
  */
-@export
+@extern
 public func thrd_detach(thr : thrd_t) : thrd_result
 
 /**
@@ -137,7 +137,7 @@ public func thrd_detach(thr : thrd_t) : thrd_result
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/thrd_join
  */
-@export
+@extern
 public func thrd_join(thr : thrd_t, res : *int) : thrd_result
 
 /**
@@ -152,7 +152,7 @@ public func thrd_join(thr : thrd_t, res : *int) : thrd_result
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/mtx_init
  */
-@export
+@extern
 public func mtx_init(mutex : *mut mtx_t, type : int ) : thrd_result
 
 /**
@@ -163,7 +163,7 @@ public func mtx_init(mutex : *mut mtx_t, type : int ) : thrd_result
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/mtx_lock
  */
-@export
+@extern
 public func mtx_lock(mutex : *mut mtx_t) : thrd_result
 
 /**
@@ -177,7 +177,7 @@ public func mtx_lock(mutex : *mut mtx_t) : thrd_result
  * @return thrd_success if successful, thrd_timedout if the timeout time has been reached before the mutex is locked, thrd_error if an error occurs.
  * @see https://en.cppreference.com/w/c/thread/mtx_timedlock
  */
-@export
+@extern
 public func mtx_timedlock(mutex : *mtx_t, time_point : *timespec) : thrd_result
 
 /**
@@ -187,7 +187,7 @@ public func mtx_timedlock(mutex : *mtx_t, time_point : *timespec) : thrd_result
  * @return thrd_success if successful, thrd_busy if the mutex has already been locked or due to a spurious failure to acquire an available mutex, thrd_error if an error occurs.
  * @see https://en.cppreference.com/w/c/thread/mtx_trylock
  */
-@export
+@extern
 public func mtx_trylock(mutex : *mtx_t) : thrd_result
 
 /**
@@ -198,7 +198,7 @@ public func mtx_trylock(mutex : *mtx_t) : thrd_result
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/mtx_unlock
  */
-@export
+@extern
 public func mtx_unlock(mutex : *mtx_t) : thrd_result
 
 /**
@@ -207,7 +207,7 @@ public func mtx_unlock(mutex : *mtx_t) : thrd_result
  * @param mutex	-	pointer to the mutex to destroy
  * @see https://en.cppreference.com/w/c/thread/mtx_destroy
  */
-@export
+@extern
 public func mtx_destroy(mutex : *mtx_t);
 
 /**
@@ -226,7 +226,7 @@ enum mtx_type {
  * @param func	-	the function to execute only once
  * @see https://en.cppreference.com/w/c/thread/call_once
  */
-@export
+@extern
 public func call_once(flag : *mut once_flag, func : () => void);
 
 /**
@@ -248,7 +248,7 @@ public func call_once(flag : *mut once_flag, func : () => void);
  * @param cond	-	pointer to a variable to store identifier of the condition variable to
  * @return thrd_success if the condition variable was successfully created. Otherwise returns thrd_nomem if there was insufficient amount of memory or thrd_error if another error occurred.
  */
-@export
+@extern
 public func cnd_init(cond : *mut cnd_t) : thrd_result
 
 /**
@@ -257,7 +257,7 @@ public func cnd_init(cond : *mut cnd_t) : thrd_result
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/cnd_signal
  */
-@export
+@extern
 public func cnd_signal(cond : *mut cnd_t) : thrd_result
 
 /**
@@ -266,7 +266,7 @@ public func cnd_signal(cond : *mut cnd_t) : thrd_result
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/cnd_broadcast
  */
-@export
+@extern
 public func cnd_broadcast(cond : *cnd_t) : thrd_result
 
 /**
@@ -277,7 +277,7 @@ public func cnd_broadcast(cond : *cnd_t) : thrd_result
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/cnd_wait
  */
-@export
+@extern
 public func cnd_wait(cond : *mut cnd_t, mutex : *mut mtx_t) : thrd_result
 
 /**
@@ -289,7 +289,7 @@ public func cnd_wait(cond : *mut cnd_t, mutex : *mut mtx_t) : thrd_result
  * @return thrd_success if successful, thrd_timedout if the timeout time has been reached before the mutex is locked, or thrd_error if an error occurred.
  * @see https://en.cppreference.com/w/c/thread/cnd_timedwait
  */
-@export
+@extern
 public func cnd_timedwait(cond : *mut cnd_t, mutex : *mut mtx_t, time_point : *timespec) : thrd_result
 
 /**
@@ -298,7 +298,7 @@ public func cnd_timedwait(cond : *mut cnd_t, mutex : *mut mtx_t, time_point : *t
  * @param cond	-	pointer to the condition variable to destroy
  * @see https://en.cppreference.com/w/c/thread/cnd_destroy
  */
-@export
+@extern
 public func cnd_destroy(cond : *mut cnd_t);
 
 /**
@@ -317,7 +317,7 @@ public func cnd_destroy(cond : *mut cnd_t);
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/tss_create
  */
-@export
+@extern
 public func tss_create(tss_key : *mut tss_t, destructor : tss_dtor_t) : thrd_result
 
 /**
@@ -327,7 +327,7 @@ public func tss_create(tss_key : *mut tss_t, destructor : tss_dtor_t) : thrd_res
  * @return The value on success, NULL on failure.
  * @see https://en.cppreference.com/w/c/thread/tss_get
  */
-@export
+@extern
 public func tss_get(tss_key : tss_t) : *mut void
 
 /**
@@ -338,7 +338,7 @@ public func tss_get(tss_key : tss_t) : *mut void
  * @return thrd_success if successful, thrd_error otherwise.
  * @see https://en.cppreference.com/w/c/thread/tss_set
  */
-@export
+@extern
 public func tss_set(tss_id : tss_t, val : *mut void) : thrd_result
 
 /**
@@ -349,5 +349,5 @@ public func tss_set(tss_id : tss_t, val : *mut void) : thrd_result
  * @param tss_id	-	thread-specific storage key previously returned by tss_create and not yet deleted by tss_delete
  * @see https://en.cppreference.com/w/c/thread/tss_delete
  */
-@export
+@extern
 public func tss_delete(tss_id : tss_t);

@@ -85,6 +85,18 @@ bool is_node_no_mangle(ASTNode* node) {
     }
 }
 
+void write_file_scope(std::ostream& stream, ASTNode* node, FileScope* p) {
+    const auto scope = p->parent();
+    if(scope && !is_node_no_mangle(node)) {
+        if(!scope->scope_name.empty()) {
+            stream << scope->scope_name;
+            stream << '_';
+        }
+        stream << scope->module_name;
+        stream << '_';
+    }
+}
+
 bool NameMangler::mangle_non_func(std::ostream& stream, ASTNode* node) {
     const auto id = node->get_located_id();
     if(id) {
@@ -92,14 +104,7 @@ bool NameMangler::mangle_non_func(std::ostream& stream, ASTNode* node) {
         if (p) {
             switch(p->kind()) {
                 case ASTNodeKind::FileScope: {
-                    const auto scope = p->as_file_scope_unsafe()->parent();
-                    if(scope && !is_node_no_mangle(node)) {
-                        if(!scope->scope_name.empty()) {
-                            stream << scope->scope_name;
-                            stream << '_';
-                        }
-                        stream << scope->module_name;
-                    }
+                    write_file_scope(stream, node, p->as_file_scope_unsafe());
                     break;
                 }
                 case ASTNodeKind::FunctionDecl:
@@ -117,9 +122,9 @@ bool NameMangler::mangle_non_func(std::ostream& stream, ASTNode* node) {
 }
 
 void NameMangler::mangle_func_parent(std::ostream& stream, FunctionDeclaration* decl) {
-    if(decl->parent()) {
-        const auto k = decl->parent()->kind();
-        switch(k) {
+    const auto parent = decl->parent();
+    if(parent) {
+        switch(parent->kind()) {
             case ASTNodeKind::InterfaceDecl: {
                 const auto interface = decl->parent()->as_interface_def_unsafe();
                 if(interface->is_static()) {
@@ -150,6 +155,10 @@ void NameMangler::mangle_func_parent(std::ostream& stream, FunctionDeclaration* 
                     const auto& interface = def->interface_type->linked_interface_def();
                     mangle_non_func(stream, interface);
                 }
+                break;
+            }
+            case ASTNodeKind::FileScope: {
+                write_file_scope(stream, decl, parent->as_file_scope_unsafe());
                 break;
             }
             default:

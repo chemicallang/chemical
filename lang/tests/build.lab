@@ -3,14 +3,14 @@ import "@lab/lab.ch"
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = ctx.build_path();
     new_path.append('/')
-    new_path.append_str(&path);
+    new_path.append_with_len(path.data(), path.size());
     return new_path;
 }
 
 func exe_dir_path(ctx : *BuildContext, exe_name : *std::string_view) : std::string {
     const new_path = ctx.build_path();
     new_path.append('/');
-    new_path.append_str(exe_name);
+    new_path.append_with_len(exe_name.data(), exe_name.size());
     new_path.append_char_ptr(".dir");
     new_path.append('/')
     return new_path;
@@ -18,7 +18,7 @@ func exe_dir_path(ctx : *BuildContext, exe_name : *std::string_view) : std::stri
 
 func exe_dir_file(ctx : *BuildContext, exe_name : *std::string_view, file_name : *std::string_view, extension : *char) : std::string {
     const exe_dir = exe_dir_path(ctx, exe_name);
-    exe_dir.append_str(file_name);
+    exe_dir.append_with_len(file_name.data(), file_name.size());
     exe_dir.append_char_ptr(extension);
     return exe_dir;
 }

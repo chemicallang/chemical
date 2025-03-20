@@ -166,7 +166,7 @@ very innovative things are planned.
 - [x] Type Aliases (like typedef)
 - [x] Pass struct to functions (passes a pointer as param)
 - [x] Return structs from functions (passes a pointer, memcpy like C++)
-- [ ] Explicit copying, there's no implicit copying, you must call .copy()
+- [x] Explicit copying, there's no implicit copying, you must call .copy()
 - [x] Const Function Params, cannot change value of parameter
 - [x] Comptime Support
 - [x] Same name function overloading
@@ -177,7 +177,7 @@ very innovative things are planned.
 - [x] Rust like Trait and Impl
   - [ ] Dynamic dispatch requires polishing
 - [x] Top Level Symbol Conflict Detection 
-- [ ] Name mangling
+- [x] Name mangling
 
 As you can see, our language features promote insane code generation, Type Safety with Power,
 Guaranteed Performance with ease of use, A heaven for Library Developers. But there's one thing that isn't being reflected

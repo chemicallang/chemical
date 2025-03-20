@@ -2,6 +2,7 @@
  * TODO time_t is implementation defined
  * @see https://en.cppreference.com/w/c/chrono/time_t
  */
+@export
 public struct time_t {
 
 }
@@ -10,6 +11,7 @@ public struct time_t {
  * TODO clock_t is implementation defined
  * @see https://en.cppreference.com/w/c/chrono/clock_t
  */
+@export
 public struct clock_t {
 
 }
@@ -17,6 +19,7 @@ public struct clock_t {
 /**
  * Structure holding an interval broken down into seconds and nanoseconds.
  */
+@export
 public struct timespec {
 
     /**
@@ -36,6 +39,7 @@ public struct timespec {
 /**
  * Structure holding a calendar date and time broken down into its components.
  */
+@export
 public struct tm {
     /**
      * seconds after the minute – [0, 61](until C99)[0, 60](since C99)[note 1]

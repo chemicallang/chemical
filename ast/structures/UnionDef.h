@@ -20,6 +20,8 @@ struct UnionDeclAttributes {
 
     bool is_copy = false;
 
+    bool is_no_mangle = false;
+
 };
 
 class UnionDef : public ExtendableMembersContainerNode {
@@ -96,6 +98,14 @@ public:
 
     inline void set_shallow_copyable(bool value) {
         attrs.is_copy = value;
+    }
+
+    inline bool is_no_mangle() {
+        return attrs.is_no_mangle;
+    }
+
+    inline void set_no_mangle(bool no_mangle) {
+        attrs.is_no_mangle = no_mangle;
     }
 
     UnionDef* shallow_copy(ASTAllocator& allocator) {

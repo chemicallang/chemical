@@ -4,6 +4,7 @@
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
+@export
 public func fabsf(arg : float) : float
 
 /**
@@ -12,6 +13,7 @@ public func fabsf(arg : float) : float
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
+@export
 public func fabs(arg : double) : double
 
 /**
@@ -20,13 +22,17 @@ public func fabs(arg : double) : double
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
+@export
 public func fabsl(arg : longdouble) : longdouble
 
 /**
  * TODO
  */
+@export
 public type _Decimal32 = float
+@export
 public type _Decimal64 = double
+@export
 public type _Decimal128 = longdouble
 
 /**
@@ -35,6 +41,7 @@ public type _Decimal128 = longdouble
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
+@export
 public func fabsd32(arg : _Decimal32) : _Decimal32
 
 /**
@@ -43,6 +50,7 @@ public func fabsd32(arg : _Decimal32) : _Decimal32
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
+@export
 public func fabsd64(arg : _Decimal64) : _Decimal64
 
 /**
@@ -51,6 +59,7 @@ public func fabsd64(arg : _Decimal64) : _Decimal64
  * @return If successful, returns the absolute value of arg (|arg|). The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fabs
  */
+@export
 public func fabsd128(arg : _Decimal128) : _Decimal128
 
 /**
@@ -69,6 +78,7 @@ public func fabsd128(arg : _Decimal128) : _Decimal128
  * If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fmod
  */
+@export
 public func fmodf(x : float, y : float) : float
 
 /**
@@ -81,6 +91,7 @@ public func fmodf(x : float, y : float) : float
  * If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fmod
  */
+@export
 public func fmod(x : double, y : double) : double
 
 /**
@@ -93,6 +104,7 @@ public func fmod(x : double, y : double) : double
  * If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fmod
  */
+@export
 public func fmodl(x : longdouble, y : longdouble) : longdouble
 
 /**
@@ -111,6 +123,7 @@ public func fmodl(x : longdouble, y : longdouble) : longdouble
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remainder
  */
+@export
 public func remainderf(x : float, y : float) : float
 
 /**
@@ -122,6 +135,7 @@ public func remainderf(x : float, y : float) : float
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remainder
  */
+@export
 public func remainder(x : double, y : double) : double
 
 /**
@@ -133,6 +147,7 @@ public func remainder(x : double, y : double) : double
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remainder
  */
+@export
 public func remainderl(x : longdouble, y : longdouble) : longdouble
 
 /**
@@ -147,6 +162,7 @@ public func remainderl(x : longdouble, y : longdouble) : longdouble
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
+@export
 public func remquof(x : float, y : float, quo : *mut int) : float
 
 /**
@@ -161,6 +177,7 @@ public func remquof(x : float, y : float, quo : *mut int) : float
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
+@export
 public func remquo(x : double, y : double, quo : *mut int) : double
 
 /**
@@ -175,6 +192,7 @@ public func remquo(x : double, y : double, quo : *mut int) : double
  * If y is zero, but the domain error does not occur, zero is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
+@export
 public func remquol(x : longdouble, y : longdouble, quo : *mut int) : longdouble
 
 /**
@@ -185,6 +203,7 @@ public func remquol(x : longdouble, y : longdouble, quo : *mut int) : longdouble
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fma
  */
+@export
 public func fmaf(x : float, y : float, z : float) : float
 
 /**
@@ -195,6 +214,7 @@ public func fmaf(x : float, y : float, z : float) : float
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fma
  */
+@export
 public func fma(x : double, y : double, z : double) : double
 
 /**
@@ -205,6 +225,7 @@ public func fma(x : double, y : double, z : double) : double
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fma
  */
+@export
 public func fmal(x : longdouble, y : longdouble, z : longdouble) : longdouble
 
 /**
@@ -222,6 +243,7 @@ public func fmal(x : longdouble, y : longdouble, z : longdouble) : longdouble
  * @return If successful, returns the larger of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmax
  */
+@export
 public func fmaxf(x : float, y : float) : float
 
 /**
@@ -230,6 +252,7 @@ public func fmaxf(x : float, y : float) : float
  * @return If successful, returns the larger of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmax
  */
+@export
 public func fmax(x : double, y : double) : double
 
 /**
@@ -238,6 +261,7 @@ public func fmax(x : double, y : double) : double
  * @return If successful, returns the larger of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmax
  */
+@export
 public func fmaxl(x : longdouble, y : longdouble) : longdouble
 
 /**
@@ -246,6 +270,7 @@ public func fmaxl(x : longdouble, y : longdouble) : longdouble
  * @return If successful, returns the smaller of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmin
  */
+@export
 public func fminf(x : float, y : float) : float
 
 /**
@@ -254,6 +279,7 @@ public func fminf(x : float, y : float) : float
  * @return If successful, returns the smaller of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmin
  */
+@export
 public func fmin(x : double, y : double ) : double
 
 /**
@@ -262,6 +288,7 @@ public func fmin(x : double, y : double ) : double
  * @return If successful, returns the smaller of two floating-point values. The value returned is exact and does not depend on any rounding modes.
  * @see https://en.cppreference.com/w/c/numeric/math/fmin
  */
+@export
 public func fminl(x : longdouble, y : longdouble) : longdouble
 
 /**
@@ -272,6 +299,7 @@ public func fminl(x : longdouble, y : longdouble) : longdouble
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fdim
  */
+@export
 public func fdimf(x : float, y : float) : float
 
 /**
@@ -282,6 +310,7 @@ public func fdimf(x : float, y : float) : float
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fdim
  */
+@export
 public func fdim(x : double, y : double) : double
 
 /**
@@ -292,6 +321,7 @@ public func fdim(x : double, y : double) : double
  * If a range error due to underflow occurs, the correct value (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/fdim
  */
+@export
 public func fdiml(x : longdouble, y : longdouble) : longdouble
 
 /**
@@ -305,6 +335,7 @@ public func fdiml(x : longdouble, y : longdouble) : longdouble
  * If the implementation supports IEEE floating-point arithmetic (IEC 60559), it also supports quiet NaNs.
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
+@export
 public func nanf(arg : *char) : float
 
 /**
@@ -318,6 +349,7 @@ public func nanf(arg : *char) : float
  * If the implementation supports IEEE floating-point arithmetic (IEC 60559), it also supports quiet NaNs.
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
+@export
 public func nan(arg : *char) : double
 
 /**
@@ -331,7 +363,8 @@ public func nan(arg : *char) : double
  * If the implementation supports IEEE floating-point arithmetic (IEC 60559), it also supports quiet NaNs.
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
-func nanl(arg : *char) : longdouble
+@export
+public func nanl(arg : *char) : longdouble
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -344,7 +377,8 @@ func nanl(arg : *char) : longdouble
  * If the implementation supports IEEE floating-point arithmetic (IEC 60559), it also supports quiet NaNs.
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
-func nand32(arg : *char) : _Decimal32
+@export
+public func nand32(arg : *char) : _Decimal32
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -357,7 +391,8 @@ func nand32(arg : *char) : _Decimal32
  * If the implementation supports IEEE floating-point arithmetic (IEC 60559), it also supports quiet NaNs.
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
-func nand64(arg : *char) : _Decimal64
+@export
+public func nand64(arg : *char) : _Decimal64
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -370,7 +405,8 @@ func nand64(arg : *char) : _Decimal64
  * If the implementation supports IEEE floating-point arithmetic (IEC 60559), it also supports quiet NaNs.
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
-func nand128(arg : *char) : _Decimal128
+@export
+public func nand128(arg : *char) : _Decimal128
 
 /**
  * Computes e (Euler's number, 2.7182818...) raised to the given power arg.
@@ -380,7 +416,8 @@ func nand128(arg : *char) : _Decimal128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/exp
  */
-func expf(arg : float) : float
+@export
+public func expf(arg : float) : float
 
 /**
  * Computes e (Euler's number, 2.7182818...) raised to the given power arg.
@@ -390,7 +427,8 @@ func expf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/exp
  */
-func exp(arg : double) : double
+@export
+public func exp(arg : double) : double
 
 /**
  * Computes e (Euler's number, 2.7182818...) raised to the given power arg.
@@ -400,7 +438,8 @@ func exp(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/exp
  */
-func expl(arg : longdouble ) : longdouble
+@export
+public func expl(arg : longdouble ) : longdouble
 
 /**
  * Computes 2 raised to the given power n.
@@ -410,7 +449,8 @@ func expl(arg : longdouble ) : longdouble
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/exp2
  */
-func exp2f(n : float) : float
+@export
+public func exp2f(n : float) : float
 
 /**
  * Computes 2 raised to the given power n.
@@ -420,7 +460,8 @@ func exp2f(n : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/exp2
  */
-func exp2(n : double)  : double
+@export
+public func exp2(n : double)  : double
 
 /**
  * Computes 2 raised to the given power n.
@@ -430,6 +471,7 @@ func exp2(n : double)  : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/exp2
  */
+@export
 public func exp2l(n : longdouble) : longdouble
 
 /**
@@ -440,7 +482,8 @@ public func exp2l(n : longdouble) : longdouble
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/expm1
  */
-func expm1f(arg : float) : float
+@export
+public func expm1f(arg : float) : float
 
 /**
  * Computes the e (Euler's number, 2.7182818) raised to the given power arg, minus 1.0. This function is more accurate than the expression exp(arg)-1.0 if arg is close to zero.
@@ -450,7 +493,8 @@ func expm1f(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/expm1
  */
-func expm1(arg : double) : double
+@export
+public func expm1(arg : double) : double
 
 /**
  * Computes the e (Euler's number, 2.7182818) raised to the given power arg, minus 1.0. This function is more accurate than the expression exp(arg)-1.0 if arg is close to zero.
@@ -460,7 +504,8 @@ func expm1(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/expm1
  */
-func expm1l(arg : longdouble) : longdouble
+@export
+public func expm1l(arg : longdouble) : longdouble
 
 /**
  * Computes the natural (base e) logarithm of arg.
@@ -470,7 +515,8 @@ func expm1l(arg : longdouble) : longdouble
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log
  */
-func logf(arg : float) : float
+@export
+public func logf(arg : float) : float
 
 /**
  * Computes the natural (base e) logarithm of arg.
@@ -480,7 +526,8 @@ func logf(arg : float) : float
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log
  */
-func log(arg : double) : double
+@export
+public func log(arg : double) : double
 
 /**
  * Computes the natural (base e) logarithm of arg.
@@ -490,7 +537,8 @@ func log(arg : double) : double
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log
  */
-func logl(arg : longdouble) : longdouble
+@export
+public func logl(arg : longdouble) : longdouble
 
 /**
  * Computes the common (base-10) logarithm of arg.
@@ -500,7 +548,8 @@ func logl(arg : longdouble) : longdouble
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log10
  */
-func log10f(arg : float) : float
+@export
+public func log10f(arg : float) : float
 
 /**
  * Computes the common (base-10) logarithm of arg.
@@ -510,7 +559,8 @@ func log10f(arg : float) : float
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log10
  */
-func log10(arg : double) : double
+@export
+public func log10(arg : double) : double
 
 /**
  * Computes the common (base-10) logarithm of arg.
@@ -520,7 +570,8 @@ func log10(arg : double) : double
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log10
  */
-func log10l(arg : longdouble) : longdouble
+@export
+public func log10l(arg : longdouble) : longdouble
 
 /**
  * Computes the base 2 logarithm of arg.
@@ -530,7 +581,8 @@ func log10l(arg : longdouble) : longdouble
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log2
  */
-func log2f(arg : float) : float
+@export
+public func log2f(arg : float) : float
 
 /**
  * Computes the base 2 logarithm of arg.
@@ -540,7 +592,8 @@ func log2f(arg : float) : float
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log2
  */
-func log2(arg : double) : double
+@export
+public func log2(arg : double) : double
 
 /**
  * Computes the base 2 logarithm of arg.
@@ -550,7 +603,8 @@ func log2(arg : double) : double
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log2
  */
-func log2l(arg : longdouble) : longdouble
+@export
+public func log2l(arg : longdouble) : longdouble
 
 /**
  * Computes the natural (base e) logarithm of 1 + arg. This function is more precise than the expression log(1 + arg) if arg is close to zero.
@@ -561,7 +615,8 @@ func log2l(arg : longdouble) : longdouble
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log1p
  */
-func log1pf(arg : float) : float
+@export
+public func log1pf(arg : float) : float
 
 /**
  * Computes the natural (base e) logarithm of 1 + arg. This function is more precise than the expression log(1 + arg) if arg is close to zero.
@@ -572,7 +627,8 @@ func log1pf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log1p
  */
-func log1p(arg : double) : double
+@export
+public func log1p(arg : double) : double
 
 /**
  * Computes the natural (base e) logarithm of 1 + arg. This function is more precise than the expression log(1 + arg) if arg is close to zero.
@@ -583,7 +639,8 @@ func log1p(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/log1p
  */
-func log1pl(arg :longdouble) : longdouble
+@export
+public func log1pl(arg :longdouble) : longdouble
 
 /**
  * Computes the value of base raised to the power exponent
@@ -595,7 +652,8 @@ func log1pl(arg :longdouble) : longdouble
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/pow
  */
-func powf(base : float, exponent : float) : float
+@export
+public func powf(base : float, exponent : float) : float
 
 /**
  * Computes the value of base raised to the power exponent
@@ -607,7 +665,8 @@ func powf(base : float, exponent : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/pow
  */
-func pow(base : double, exponent : double) : double
+@export
+public func pow(base : double, exponent : double) : double
 
 /**
  * Computes the value of base raised to the power exponent
@@ -619,7 +678,8 @@ func pow(base : double, exponent : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/pow
  */
-func powl(base : longdouble, exponent : longdouble) : longdouble
+@export
+public func powl(base : longdouble, exponent : longdouble) : longdouble
 
 /**
  * Computes square root of arg.
@@ -629,7 +689,8 @@ func powl(base : longdouble, exponent : longdouble) : longdouble
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sqrt
  */
-func sqrtf(arg : float) : float
+@export
+public func sqrtf(arg : float) : float
 
 /**
  * Computes square root of arg.
@@ -639,7 +700,8 @@ func sqrtf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sqrt
  */
-func sqrt(arg : double) : double
+@export
+public func sqrt(arg : double) : double
 
 /**
  * Computes square root of arg.
@@ -649,7 +711,8 @@ func sqrt(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sqrt
  */
-func sqrtl(arg : longdouble) : longdouble
+@export
+public func sqrtl(arg : longdouble) : longdouble
 
 /**
  * Computes the cube root of arg.
@@ -658,7 +721,8 @@ func sqrtl(arg : longdouble) : longdouble
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cbrt
  */
-func cbrtf(arg : float) : float
+@export
+public func cbrtf(arg : float) : float
 
 /**
  * Computes the cube root of arg.
@@ -667,7 +731,8 @@ func cbrtf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cbrt
  */
-func cbrt(arg : double) : double
+@export
+public func cbrt(arg : double) : double
 
 /**
  * Computes the cube root of arg.
@@ -676,7 +741,8 @@ func cbrt(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cbrt
  */
-func cbrtl(arg : longdouble) : longdouble
+@export
+public func cbrtl(arg : longdouble) : longdouble
 
 /**
  * Computes the square root of the sum of the squares of x and y, without undue overflow or underflow at intermediate stages of the computation.
@@ -686,7 +752,8 @@ func cbrtl(arg : longdouble) : longdouble
  * If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/hypot
  */
-func hypotf(x : float, y : float) : float
+@export
+public func hypotf(x : float, y : float) : float
 
 /**
  * Computes the square root of the sum of the squares of x and y, without undue overflow or underflow at intermediate stages of the computation.
@@ -696,14 +763,19 @@ func hypotf(x : float, y : float) : float
  * If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/hypot
  */
-func hypot(x : double, y : double) : double
+@export
+public func hypot(x : double, y : double) : double
 
 /**
  * this is just to support declarations using __float128 in Tiny CC
  */
 if(compiler::is_tcc_based()) {
 
-    public type __float128 = longdouble;
+    public type __float_128 = longdouble;
+
+} else {
+
+    public type __float_128 = float128;
 
 }
 
@@ -715,7 +787,8 @@ if(compiler::is_tcc_based()) {
  * If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/hypot
  */
-func hypotl(x : longdouble, y : float128) : float128
+@export
+public func hypotl(x : longdouble, y : __float_128) : __float_128
 
 /**
  * Computes the sine of arg (measured in radians).
@@ -726,7 +799,8 @@ func hypotl(x : longdouble, y : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sin
  */
-func sinf(arg : float) : float
+@export
+public func sinf(arg : float) : float
 
 /**
  * Computes the sine of arg (measured in radians).
@@ -737,7 +811,8 @@ func sinf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sin
  */
-func sin(arg : double) : double
+@export
+public func sin(arg : double) : double
 
 /**
  * Computes the sine of arg (measured in radians).
@@ -748,7 +823,8 @@ func sin(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sin
  */
-func sinl(arg : float128) : float128
+@export
+public func sinl(arg : __float_128) : __float_128
 
 /**
  * Computes the sine of arg (measured in radians).
@@ -759,7 +835,8 @@ func sinl(arg : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sin
  */
-func sind32(arg : _Decimal32) : _Decimal32
+@export
+public func sind32(arg : _Decimal32) : _Decimal32
 
 /**
  * Computes the sine of arg (measured in radians).
@@ -770,7 +847,8 @@ func sind32(arg : _Decimal32) : _Decimal32
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sin
  */
-func sind64(arg : _Decimal64) : _Decimal64
+@export
+public func sind64(arg : _Decimal64) : _Decimal64
 
 /**
  * Computes the sine of arg (measured in radians).
@@ -781,7 +859,8 @@ func sind64(arg : _Decimal64) : _Decimal64
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sin
  */
-func sind128(arg : _Decimal128) : _Decimal128
+@export
+public func sind128(arg : _Decimal128) : _Decimal128
 
 /**
  * Computes the cosine of arg (measured in radians).
@@ -792,7 +871,8 @@ func sind128(arg : _Decimal128) : _Decimal128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cos
  */
-func cosf(arg : float) : float
+@export
+public func cosf(arg : float) : float
 
 /**
  * Computes the cosine of arg (measured in radians).
@@ -803,7 +883,8 @@ func cosf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cos
  */
-func cos(arg : double) : double
+@export
+public func cos(arg : double) : double
 
 /**
  * Computes the cosine of arg (measured in radians).
@@ -814,7 +895,8 @@ func cos(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cos
  */
-func cosl(arg : float128) : float128
+@export
+public func cosl(arg : __float_128) : __float_128
 
 /**
  * Computes the cosine of arg (measured in radians).
@@ -825,7 +907,8 @@ func cosl(arg : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cos
  */
-func cosd32(arg : _Decimal32) : _Decimal32
+@export
+public func cosd32(arg : _Decimal32) : _Decimal32
 
 /**
  * Computes the cosine of arg (measured in radians).
@@ -836,7 +919,8 @@ func cosd32(arg : _Decimal32) : _Decimal32
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cos
  */
-func cosd64(arg : _Decimal64) : _Decimal64
+@export
+public func cosd64(arg : _Decimal64) : _Decimal64
 
 /**
  * Computes the cosine of arg (measured in radians).
@@ -847,7 +931,8 @@ func cosd64(arg : _Decimal64) : _Decimal64
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cos
  */
-func cosd128(arg : _Decimal128) : _Decimal128
+@export
+public func cosd128(arg : _Decimal128) : _Decimal128
 
 /**
  * Computes the tangent of arg (measured in radians).
@@ -858,7 +943,8 @@ func cosd128(arg : _Decimal128) : _Decimal128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/tan
  */
-func tanf(arg : float) : float
+@export
+public func tanf(arg : float) : float
 
 /**
  * Computes the tangent of arg (measured in radians).
@@ -869,7 +955,8 @@ func tanf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/tan
  */
-func tan(arg : double) : double
+@export
+public func tan(arg : double) : double
 
 /**
  * Computes the tangent of arg (measured in radians).
@@ -880,7 +967,8 @@ func tan(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/tan
  */
-func tanl(arg : float128) : float128
+@export
+public func tanl(arg : __float_128) : __float_128
 
 /**
  * Computes the tangent of arg (measured in radians).
@@ -891,7 +979,8 @@ func tanl(arg : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/tan
  */
-func tand32(arg : _Decimal32) : _Decimal32
+@export
+public func tand32(arg : _Decimal32) : _Decimal32
 
 /**
  * Computes the tangent of arg (measured in radians).
@@ -902,7 +991,8 @@ func tand32(arg : _Decimal32) : _Decimal32
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/tan
  */
-func tand64(arg : _Decimal64) : _Decimal64
+@export
+public func tand64(arg : _Decimal64) : _Decimal64
 
 /**
  * Computes the tangent of arg (measured in radians).
@@ -913,7 +1003,8 @@ func tand64(arg : _Decimal64) : _Decimal64
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/tan
  */
-func tand128(arg : _Decimal128) : _Decimal128
+@export
+public func tand128(arg : _Decimal128) : _Decimal128
 
 /**
  * Computes the principal values of the arc sine of arg.
@@ -923,7 +1014,8 @@ func tand128(arg : _Decimal128) : _Decimal128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/asin
  */
-func asinf(arg : float) : float
+@export
+public func asinf(arg : float) : float
 
 /**
  * Computes the principal values of the arc sine of arg.
@@ -933,7 +1025,8 @@ func asinf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/asin
  */
-func asin(arg : double) : double
+@export
+public func asin(arg : double) : double
 
 /**
  * Computes the principal values of the arc sine of arg.
@@ -943,7 +1036,8 @@ func asin(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/asin
  */
-func asinl(arg : float128) : float128
+@export
+public func asinl(arg : __float_128) : __float_128
 
 /**
  * Computes the principal values of the arc sine of arg.
@@ -953,7 +1047,8 @@ func asinl(arg : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/asin
  */
-func asind32(arg : _Decimal32) : _Decimal32
+@export
+public func asind32(arg : _Decimal32) : _Decimal32
 
 /**
  * Computes the principal values of the arc sine of arg.
@@ -963,7 +1058,8 @@ func asind32(arg : _Decimal32) : _Decimal32
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/asin
  */
-func asind64(arg : _Decimal64) : _Decimal64
+@export
+public func asind64(arg : _Decimal64) : _Decimal64
 
 /**
  * Computes the principal values of the arc sine of arg.
@@ -973,7 +1069,8 @@ func asind64(arg : _Decimal64) : _Decimal64
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/asin
  */
-func asind128(arg : _Decimal128) : _Decimal128
+@export
+public func asind128(arg : _Decimal128) : _Decimal128
 
 /**
  * Computes the principal value of the arc cosine of arg.
@@ -983,7 +1080,8 @@ func asind128(arg : _Decimal128) : _Decimal128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/acos
  */
-func acosf(arg : float) : float
+@export
+public func acosf(arg : float) : float
 
 /**
  * Computes the principal value of the arc cosine of arg.
@@ -993,7 +1091,8 @@ func acosf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/acos
  */
-func acos(arg : double) : double
+@export
+public func acos(arg : double) : double
 
 /**
  * Computes the principal value of the arc cosine of arg.
@@ -1003,7 +1102,8 @@ func acos(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/acos
  */
-func acosl(arg : float128) : float128
+@export
+public func acosl(arg : __float_128) : __float_128
 
 /**
  * Computes the principal value of the arc cosine of arg.
@@ -1013,7 +1113,8 @@ func acosl(arg : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/acos
  */
-func acosd32(arg : _Decimal32) : _Decimal32
+@export
+public func acosd32(arg : _Decimal32) : _Decimal32
 
 /**
  * Computes the principal value of the arc cosine of arg.
@@ -1023,7 +1124,8 @@ func acosd32(arg : _Decimal32) : _Decimal32
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/acos
  */
-func acosd64(arg : _Decimal64) : _Decimal64
+@export
+public func acosd64(arg : _Decimal64) : _Decimal64
 
 /**
  * Computes the principal value of the arc cosine of arg.
@@ -1033,7 +1135,8 @@ func acosd64(arg : _Decimal64) : _Decimal64
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/acos
  */
-func acosd128(arg : _Decimal128) : _Decimal128
+@export
+public func acosd128(arg : _Decimal128) : _Decimal128
 
 /**
  * Computes the principal value of the arc tangent of arg.
@@ -1042,7 +1145,8 @@ func acosd128(arg : _Decimal128) : _Decimal128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan
  */
-func atanf(arg : float) : float
+@export
+public func atanf(arg : float) : float
 
 /**
  * Computes the principal value of the arc tangent of arg.
@@ -1051,7 +1155,8 @@ func atanf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan
  */
-func atan(arg : double) : double
+@export
+public func atan(arg : double) : double
 
 /**
  * Computes the principal value of the arc tangent of arg.
@@ -1060,7 +1165,8 @@ func atan(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan
  */
-func atanl(arg : float128) : float128
+@export
+public func atanl(arg : __float_128) : __float_128
 
 /**
  * Computes the principal value of the arc tangent of arg.
@@ -1069,7 +1175,8 @@ func atanl(arg : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan
  */
-func atand32(arg : _Decimal32) : _Decimal32
+@export
+public func atand32(arg : _Decimal32) : _Decimal32
 
 /**
  * Computes the principal value of the arc tangent of arg.
@@ -1078,7 +1185,8 @@ func atand32(arg : _Decimal32) : _Decimal32
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan
  */
-func atand64(arg : _Decimal64) : _Decimal64
+@export
+public func atand64(arg : _Decimal64) : _Decimal64
 
 /**
  * Computes the principal value of the arc tangent of arg.
@@ -1087,7 +1195,8 @@ func atand64(arg : _Decimal64) : _Decimal64
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan
  */
-func atand128(arg : _Decimal128) : _Decimal128
+@export
+public func atand128(arg : _Decimal128) : _Decimal128
 
 /**
  * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
@@ -1095,7 +1204,8 @@ func atand128(arg : _Decimal128) : _Decimal128
  * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan2
  */
-func atan2f(y : float, x : float ) : float
+@export
+public func atan2f(y : float, x : float ) : float
 
 /**
  * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
@@ -1103,7 +1213,8 @@ func atan2f(y : float, x : float ) : float
  * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan2
  */
-func atan2(y : double, x : double ) : double
+@export
+public func atan2(y : double, x : double ) : double
 
 /**
  * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
@@ -1111,7 +1222,8 @@ func atan2(y : double, x : double ) : double
  * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan2
  */
-func atan2l(y : float128, x : float128 ) : float128
+@export
+public func atan2l(y : __float_128, x : __float_128 ) : __float_128
 
 /**
  * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
@@ -1119,7 +1231,8 @@ func atan2l(y : float128, x : float128 ) : float128
  * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan2
  */
-func atan2d32(y : _Decimal32, x : _Decimal32 ) : _Decimal32
+@export
+public func atan2d32(y : _Decimal32, x : _Decimal32 ) : _Decimal32
 
 /**
  * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
@@ -1127,7 +1240,8 @@ func atan2d32(y : _Decimal32, x : _Decimal32 ) : _Decimal32
  * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan2
  */
-func atan2d64(y : _Decimal64, x : _Decimal64 ) : _Decimal64
+@export
+public func atan2d64(y : _Decimal64, x : _Decimal64 ) : _Decimal64
 
 /**
  * Computes the arc tangent of y / x using the signs of arguments to determine the correct quadrant.
@@ -1135,7 +1249,8 @@ func atan2d64(y : _Decimal64, x : _Decimal64 ) : _Decimal64
  * @return If no errors occur, the arc tangent of y / x (arctan(y/x)) in the range [-π ; +π] radians, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atan2
  */
-func atan2d128(y : _Decimal128, x : _Decimal128 ) : _Decimal128
+@export
+public func atan2d128(y : _Decimal128, x : _Decimal128 ) : _Decimal128
 
 /**
  * Computes hyperbolic sine of arg.
@@ -1145,7 +1260,8 @@ func atan2d128(y : _Decimal128, x : _Decimal128 ) : _Decimal128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sinh
  */
-func sinhf(arg : float) : float
+@export
+public func sinhf(arg : float) : float
 
 /**
  * Computes hyperbolic sine of arg.
@@ -1155,7 +1271,8 @@ func sinhf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sinh
  */
-func sinh(arg : double) : double
+@export
+public func sinh(arg : double) : double
 
 /**
  * Computes hyperbolic sine of arg.
@@ -1165,7 +1282,8 @@ func sinh(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/sinh
  */
-func sinhl(arg : float128) : float128
+@export
+public func sinhl(arg : __float_128) : __float_128
 
 /**
  * Computes the hyperbolic cosine of arg.
@@ -1174,7 +1292,8 @@ func sinhl(arg : float128) : float128
  *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cosh
  */
-func coshf(arg : float) : float
+@export
+public func coshf(arg : float) : float
 
 /**
  * Computes the hyperbolic cosine of arg.
@@ -1183,7 +1302,8 @@ func coshf(arg : float) : float
  *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cosh
  */
-func cosh(arg : double) : double
+@export
+public func cosh(arg : double) : double
 
 /**
  * Computes the hyperbolic cosine of arg.
@@ -1192,7 +1312,8 @@ func cosh(arg : double) : double
  *         If a range error due to overflow occurs, +HUGE_VAL, +HUGE_VALF, or +HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/cosh
  */
-func coshl(arg : float128) : float128
+@export
+public func coshl(arg : __float_128) : __float_128
 
 /**
  * Computes the hyperbolic tangent of arg.
@@ -1201,7 +1322,8 @@ func coshl(arg : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/tanh
  */
-func tanhf(arg : float) : float
+@export
+public func tanhf(arg : float) : float
 
 /**
  * Computes the hyperbolic tangent of arg.
@@ -1210,7 +1332,8 @@ func tanhf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/tanh
  */
-func tanh(arg : double) : double
+@export
+public func tanh(arg : double) : double
 
 /**
  * Computes the hyperbolic tangent of arg.
@@ -1219,7 +1342,8 @@ func tanh(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/tanh
  */
-func tanhl(arg : float128) : float128
+@export
+public func tanhl(arg : __float_128) : __float_128
 
 /**
  * Computes the inverse hyperbolic sine of arg.
@@ -1228,7 +1352,8 @@ func tanhl(arg : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/asinh
  */
-func asinhf(arg : float) : float
+@export
+public func asinhf(arg : float) : float
 
 /**
  * Computes the inverse hyperbolic sine of arg.
@@ -1237,7 +1362,8 @@ func asinhf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/asinh
  */
-func asinh(arg : double) : double
+@export
+public func asinh(arg : double) : double
 
 /**
  * Computes the inverse hyperbolic sine of arg.
@@ -1246,7 +1372,8 @@ func asinh(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/asinh
  */
-func asinhl(arg : float128) : float128
+@export
+public func asinhl(arg : __float_128) : __float_128
 
 /**
  * Computes the inverse hyperbolic cosine of arg.
@@ -1255,7 +1382,8 @@ func asinhl(arg : float128) : float128
  *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
  * @see https://en.cppreference.com/w/c/numeric/math/acosh
  */
-func acoshf(arg : float) : float
+@export
+public func acoshf(arg : float) : float
 
 /**
  * Computes the inverse hyperbolic cosine of arg.
@@ -1264,7 +1392,8 @@ func acoshf(arg : float) : float
  *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
  * @see https://en.cppreference.com/w/c/numeric/math/acosh
  */
-func acosh(arg : double) : double
+@export
+public func acosh(arg : double) : double
 
 /**
  * Computes the inverse hyperbolic cosine of arg.
@@ -1273,7 +1402,8 @@ func acosh(arg : double) : double
  *         If a domain error occurs, an implementation-defined value is returned (NaN where supported).
  * @see https://en.cppreference.com/w/c/numeric/math/acosh
  */
-func acoshl(arg : float128) : float128
+@export
+public func acoshl(arg : __float_128) : __float_128
 
 /**
  * Computes the inverse hyperbolic tangent of arg.
@@ -1284,7 +1414,8 @@ func acoshl(arg : float128) : float128
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atanh
  */
-func atanhf(arg : float) : float
+@export
+public func atanhf(arg : float) : float
 
 /**
  * Computes the inverse hyperbolic tangent of arg.
@@ -1295,7 +1426,8 @@ func atanhf(arg : float) : float
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atanh
  */
-func atanh(arg : double) : double
+@export
+public func atanh(arg : double) : double
 
 /**
  * Computes the inverse hyperbolic tangent of arg.
@@ -1306,7 +1438,8 @@ func atanh(arg : double) : double
  *         If a range error occurs due to underflow, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/atanh
  */
-func atanhl(arg : float128) : float128
+@export
+public func atanhl(arg : __float_128) : __float_128
 
 /**
  * Computes the error function of arg.
@@ -1315,7 +1448,8 @@ func atanhl(arg : float128) : float128
  * @see https://en.wikipedia.org/wiki/Error_function
  * @see https://en.cppreference.com/w/c/numeric/math/erf
  */
-func erff(arg : float) : float
+@export
+public func erff(arg : float) : float
 
 /**
  * Computes the error function of arg.
@@ -1324,7 +1458,8 @@ func erff(arg : float) : float
  * @see https://en.wikipedia.org/wiki/Error_function
  * @see https://en.cppreference.com/w/c/numeric/math/erf
  */
-func erf(arg : double) : double
+@export
+public func erf(arg : double) : double
 
 /**
  * Computes the error function of arg.
@@ -1333,7 +1468,8 @@ func erf(arg : double) : double
  * @see https://en.wikipedia.org/wiki/Error_function
  * @see https://en.cppreference.com/w/c/numeric/math/erf
  */
-func erfl(arg : float128) : float128
+@export
+public func erfl(arg : __float_128) : __float_128
 
 /**
  * Computes the complementary error function of arg, that is 1.0 - erf(arg), but without loss of precision for large arg.
@@ -1342,7 +1478,8 @@ func erfl(arg : float128) : float128
  * @see https://en.cppreference.com/w/c/numeric/math/erfc
  * @see https://en.wikipedia.org/wiki/Complementary_error_function
  */
-func erfcf(arg : float) : float
+@export
+public func erfcf(arg : float) : float
 
 /**
  * Computes the complementary error function of arg, that is 1.0 - erf(arg), but without loss of precision for large arg.
@@ -1351,7 +1488,8 @@ func erfcf(arg : float) : float
  * @see https://en.cppreference.com/w/c/numeric/math/erfc
  * @see https://en.wikipedia.org/wiki/Complementary_error_function
  */
-func erfc(arg : double) : double
+@export
+public func erfc(arg : double) : double
 
 /**
  * Computes the complementary error function of arg, that is 1.0 - erf(arg), but without loss of precision for large arg.
@@ -1360,7 +1498,8 @@ func erfc(arg : double) : double
  * @see https://en.cppreference.com/w/c/numeric/math/erfc
  * @see https://en.wikipedia.org/wiki/Complementary_error_function
  */
-func erfcl(arg : float128) : float128
+@export
+public func erfcl(arg : __float_128) : __float_128
 
 /**
  * Computes the gamma function of arg.
@@ -1373,7 +1512,8 @@ func erfcl(arg : float128) : float128
  * @see https://en.wikipedia.org/wiki/Gamma_function
  * @see https://en.cppreference.com/w/c/numeric/math/tgamma
  */
-func tgammaf(arg : float) : float
+@export
+public func tgammaf(arg : float) : float
 
 /**
  * Computes the gamma function of arg.
@@ -1386,7 +1526,8 @@ func tgammaf(arg : float) : float
  * @see https://en.wikipedia.org/wiki/Gamma_function
  * @see https://en.cppreference.com/w/c/numeric/math/tgamma
  */
-func tgamma(arg : double) : double
+@export
+public func tgamma(arg : double) : double
 
 /**
  * Computes the gamma function of arg.
@@ -1399,7 +1540,8 @@ func tgamma(arg : double) : double
  * @see https://en.wikipedia.org/wiki/Gamma_function
  * @see https://en.cppreference.com/w/c/numeric/math/tgamma
  */
-func tgammal(arg : float128) : float128
+@export
+public func tgammal(arg : __float_128) : __float_128
 
 /**
  * Computes the natural logarithm of the absolute value of the gamma function of arg.
@@ -1409,7 +1551,8 @@ func tgammal(arg : float128) : float128
  *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/lgamma
  */
-func lgammaf(arg : float) : float
+@export
+public func lgammaf(arg : float) : float
 
 /**
  * Computes the natural logarithm of the absolute value of the gamma function of arg.
@@ -1419,7 +1562,8 @@ func lgammaf(arg : float) : float
  *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/lgamma
  */
-func lgamma(arg : double) : double
+@export
+public func lgamma(arg : double) : double
 
 /**
  * Computes the natural logarithm of the absolute value of the gamma function of arg.
@@ -1429,7 +1573,8 @@ func lgamma(arg : double) : double
  *         If a range error due to overflow occurs, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/lgamma
  */
-func lgammal(arg : float128) : float128
+@export
+public func lgammal(arg : __float_128) : __float_128
 
 /**
  * Computes the smallest integer value not less than arg.
@@ -1437,7 +1582,8 @@ func lgammal(arg : float128) : float128
  * @return If no errors occur, the smallest integer value not less than arg, that is ⌈arg⌉, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/ceil
  */
-func ceilf(arg : float) : float
+@export
+public func ceilf(arg : float) : float
 
 /**
  * Computes the smallest integer value not less than arg.
@@ -1445,7 +1591,8 @@ func ceilf(arg : float) : float
  * @return If no errors occur, the smallest integer value not less than arg, that is ⌈arg⌉, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/ceil
  */
-func ceil(arg : double) : double
+@export
+public func ceil(arg : double) : double
 
 /**
  * Computes the smallest integer value not less than arg.
@@ -1453,7 +1600,8 @@ func ceil(arg : double) : double
  * @return If no errors occur, the smallest integer value not less than arg, that is ⌈arg⌉, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/ceil
  */
-func ceill(arg : float128) : float128
+@export
+public func ceill(arg : __float_128) : __float_128
 
 /**
  * Computes the largest integer value not greater than arg.
@@ -1461,7 +1609,8 @@ func ceill(arg : float128) : float128
  * @return If no errors occur, the largest integer value not greater than arg, that is ⌊arg⌋, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/floor
  */
-func floorf(arg : float) : float
+@export
+public func floorf(arg : float) : float
 
 /**
  * Computes the largest integer value not greater than arg.
@@ -1469,7 +1618,8 @@ func floorf(arg : float) : float
  * @return If no errors occur, the largest integer value not greater than arg, that is ⌊arg⌋, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/floor
  */
-func floor(arg : double) : double
+@export
+public func floor(arg : double) : double
 
 /**
  * Computes the largest integer value not greater than arg.
@@ -1477,7 +1627,8 @@ func floor(arg : double) : double
  * @return If no errors occur, the largest integer value not greater than arg, that is ⌊arg⌋, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/floor
  */
-func floorl(arg : float128) : float128
+@export
+public func floorl(arg : __float_128) : __float_128
 
 /**
  * Computes the nearest integer not greater in magnitude than arg.
@@ -1485,7 +1636,8 @@ func floorl(arg : float128) : float128
  * @return If no errors occur, the nearest integer value not greater in magnitude than arg (in other words, arg rounded towards zero), is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/trunc
  */
-func truncf(arg : float) : float
+@export
+public func truncf(arg : float) : float
 
 /**
  * Computes the nearest integer not greater in magnitude than arg.
@@ -1493,7 +1645,8 @@ func truncf(arg : float) : float
  * @return If no errors occur, the nearest integer value not greater in magnitude than arg (in other words, arg rounded towards zero), is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/trunc
  */
-func trunc(arg : double) : double
+@export
+public func trunc(arg : double) : double
 
 /**
  * Computes the nearest integer not greater in magnitude than arg.
@@ -1501,7 +1654,8 @@ func trunc(arg : double) : double
  * @return If no errors occur, the nearest integer value not greater in magnitude than arg (in other words, arg rounded towards zero), is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/trunc
  */
-func truncl(arg : float128) : float128
+@export
+public func truncl(arg : __float_128) : __float_128
 
 /**
  * Computes the nearest integer value to arg (in floating-point format), rounding halfway cases away from zero, regardless of the current rounding mode.
@@ -1509,7 +1663,8 @@ func truncl(arg : float128) : float128
  * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/round
  */
-func roundf(arg : float) : float
+@export
+public func roundf(arg : float) : float
 
 /**
  * Computes the nearest integer value to arg (in floating-point format), rounding halfway cases away from zero, regardless of the current rounding mode.
@@ -1517,7 +1672,8 @@ func roundf(arg : float) : float
  * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/round
  */
-func round(arg : double) : double
+@export
+public func round(arg : double) : double
 
 /**
  * Computes the nearest integer value to arg (in floating-point format), rounding halfway cases away from zero, regardless of the current rounding mode.
@@ -1525,7 +1681,8 @@ func round(arg : double) : double
  * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/round
  */
-func roundl(arg : float128) : float128
+@export
+public func roundl(arg : __float_128) : __float_128
 
 /**
  * Computes the nearest integer value to arg (in integer format), rounding halfway cases away from zero, regardless of the current rounding mode.
@@ -1533,7 +1690,8 @@ func roundl(arg : float128) : float128
  * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/round
  */
-func lroundf(arg : float) : long
+@export
+public func lroundf(arg : float) : long
 
 /**
  * Computes the nearest integer value to arg (in integer format), rounding halfway cases away from zero, regardless of the current rounding mode.
@@ -1541,7 +1699,8 @@ func lroundf(arg : float) : long
  * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/round
  */
-func lround(arg : double) : long
+@export
+public func lround(arg : double) : long
 
 /**
  * Computes the nearest integer value to arg (in integer format), rounding halfway cases away from zero, regardless of the current rounding mode.
@@ -1549,7 +1708,8 @@ func lround(arg : double) : long
  * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/round
  */
-func lroundl(arg : float128) : long
+@export
+public func lroundl(arg : __float_128) : long
 
 /**
  * Type-generic macros: If arg has type long double, roundl, lroundl, llroundl is called. Otherwise, if arg has integer type or the type double, round, lround, llround is called. Otherwise, roundf, lroundf, llroundf is called, respectively.
@@ -1557,7 +1717,8 @@ func lroundl(arg : float128) : long
  * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/round
  */
-func llroundf(arg : float) : bigint
+@export
+public func llroundf(arg : float) : bigint
 
 /**
  * Type-generic macros: If arg has type long double, roundl, lroundl, llroundl is called. Otherwise, if arg has integer type or the type double, round, lround, llround is called. Otherwise, roundf, lroundf, llroundf is called, respectively.
@@ -1565,7 +1726,8 @@ func llroundf(arg : float) : bigint
  * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/round
  */
-func llround(arg : double) : bigint
+@export
+public func llround(arg : double) : bigint
 
 /**
  * Type-generic macros: If arg has type long double, roundl, lroundl, llroundl is called. Otherwise, if arg has integer type or the type double, round, lround, llround is called. Otherwise, roundf, lroundf, llroundf is called, respectively.
@@ -1573,7 +1735,8 @@ func llround(arg : double) : bigint
  * @return If no errors occur, the nearest integer value to arg, rounding halfway cases away from zero, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/round
  */
-func llroundl(arg : float128) : bigint
+@export
+public func llroundl(arg : __float_128) : bigint
 
 /**
  * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
@@ -1581,7 +1744,8 @@ func llroundl(arg : float128) : bigint
  * @return The nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/nearbyint
  */
-func nearbyintf(arg : float) : float
+@export
+public func nearbyintf(arg : float) : float
 
 /**
  * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
@@ -1589,7 +1753,8 @@ func nearbyintf(arg : float) : float
  * @return The nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/nearbyint
  */
-func nearbyint(arg : double) : double
+@export
+public func nearbyint(arg : double) : double
 
 /**
  * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
@@ -1597,7 +1762,8 @@ func nearbyint(arg : double) : double
  * @return The nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/nearbyint
  */
-func nearbyintl(arg : float128) : float128
+@export
+public func nearbyintl(arg : __float_128) : __float_128
 
 /**
  * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
@@ -1605,7 +1771,8 @@ func nearbyintl(arg : float128) : float128
  * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/rint
  */
-func rintf(arg : float) : float
+@export
+public func rintf(arg : float) : float
 
 /**
  * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
@@ -1613,7 +1780,8 @@ func rintf(arg : float) : float
  * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/rint
  */
-func rint(arg : double) : double
+@export
+public func rint(arg : double) : double
 
 /**
  * Rounds the floating-point argument arg to an integer value in floating-point format, using the current rounding mode.
@@ -1621,7 +1789,8 @@ func rint(arg : double) : double
  * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/rint
  */
-func rintl(arg : float128) : float128
+@export
+public func rintl(arg : __float_128) : __float_128
 
 /**
  * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
@@ -1629,7 +1798,8 @@ func rintl(arg : float128) : float128
  * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/rint
  */
-func lrintf(arg : float) : long
+@export
+public func lrintf(arg : float) : long
 
 /**
  * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
@@ -1637,7 +1807,8 @@ func lrintf(arg : float) : long
  * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/rint
  */
-func lrint(arg : double) : long
+@export
+public func lrint(arg : double) : long
 
 /**
  * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
@@ -1645,7 +1816,8 @@ func lrint(arg : double) : long
  * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/rint
  */
-func lrintl(arg : float128) : long
+@export
+public func lrintl(arg : __float_128) : long
 
 /**
  * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
@@ -1653,7 +1825,8 @@ func lrintl(arg : float128) : long
  * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/rint
  */
-func llrintf(arg : float) : bigint
+@export
+public func llrintf(arg : float) : bigint
 
 /**
  * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
@@ -1661,7 +1834,8 @@ func llrintf(arg : float) : bigint
  * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/rint
  */
-func llrint(arg : double) : bigint
+@export
+public func llrint(arg : double) : bigint
 
 /**
  * Rounds the floating-point argument arg to an integer value in integer format, using the current rounding mode.
@@ -1669,7 +1843,8 @@ func llrint(arg : double) : bigint
  * @return If no errors occur, the nearest integer value to arg, according to the current rounding mode, is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/rint
  */
-func llrintl(arg : float128) : bigint
+@export
+public func llrintl(arg : __float_128) : bigint
 
 /**
  * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
@@ -1681,7 +1856,8 @@ func llrintl(arg : float128) : bigint
  *         If arg is not a floating-point number, the behavior is unspecified.
  * @see https://en.cppreference.com/w/c/numeric/math/frexp
  */
-func frexpf(arg : float, exp : *int) : float
+@export
+public func frexpf(arg : float, exp : *int) : float
 
 /**
  * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
@@ -1693,7 +1869,8 @@ func frexpf(arg : float, exp : *int) : float
  *         If arg is not a floating-point number, the behavior is unspecified.
  * @see https://en.cppreference.com/w/c/numeric/math/frexp
  */
-func frexp(arg : double, exp : *int) : double
+@export
+public func frexp(arg : double, exp : *int) : double
 
 /**
  * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
@@ -1705,7 +1882,8 @@ func frexp(arg : double, exp : *int) : double
  *         If arg is not a floating-point number, the behavior is unspecified.
  * @see https://en.cppreference.com/w/c/numeric/math/frexp
  */
-func frexpl(arg : float128, exp : *int) : float128
+@export
+public func frexpl(arg : __float_128, exp : *int) : __float_128
 
 /**
  * Multiplies a floating-point value arg by the number 2 raised to the exp power.
@@ -1716,7 +1894,8 @@ func frexpl(arg : float128, exp : *int) : float128
  *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/ldexp
  */
-func ldexpf(arg : float, exp : int) : float
+@export
+public func ldexpf(arg : float, exp : int) : float
 
 /**
  * Multiplies a floating-point value arg by the number 2 raised to the exp power.
@@ -1727,7 +1906,8 @@ func ldexpf(arg : float, exp : int) : float
  *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/ldexp
  */
-func ldexp(arg : double, exp : int) : double
+@export
+public func ldexp(arg : double, exp : int) : double
 
 /**
  * Multiplies a floating-point value arg by the number 2 raised to the exp power.
@@ -1738,7 +1918,8 @@ func ldexp(arg : double, exp : int) : double
  *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/ldexp
  */
-func ldexpl(arg : float128, exp : int) : float128
+@export
+public func ldexpl(arg : __float_128, exp : int) : __float_128
 
 /**
  * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
@@ -1748,7 +1929,8 @@ func ldexpl(arg : float128, exp : int) : float128
  * The sum of the returned value and the value stored in *iptr gives arg (allowing for rounding).
  * @see https://en.cppreference.com/w/c/numeric/math/modf
  */
-func modff(arg : float, iptr : *float) : float
+@export
+public func modff(arg : float, iptr : *float) : float
 
 /**
  * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
@@ -1758,7 +1940,8 @@ func modff(arg : float, iptr : *float) : float
  * The sum of the returned value and the value stored in *iptr gives arg (allowing for rounding).
  * @see https://en.cppreference.com/w/c/numeric/math/modf
  */
-func modf(arg : double, iptr : *double) : double
+@export
+public func modf(arg : double, iptr : *double) : double
 
 /**
  * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
@@ -1768,7 +1951,8 @@ func modf(arg : double, iptr : *double) : double
  * The sum of the returned value and the value stored in *iptr gives arg (allowing for rounding).
  * @see https://en.cppreference.com/w/c/numeric/math/modf
  */
-func modfl(arg : float128, iptr : *float128) : float128
+@export
+public func modfl(arg : __float_128, iptr : *__float_128) : __float_128
 
 /**
  * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
@@ -1779,7 +1963,8 @@ func modfl(arg : float128, iptr : *float128) : float128
  *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/scalbn
  */
-func scalbnf(arg : float, exp : int) : float
+@export
+public func scalbnf(arg : float, exp : int) : float
 
 /**
  * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
@@ -1790,7 +1975,8 @@ func scalbnf(arg : float, exp : int) : float
  *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/scalbn
  */
-func scalbn(arg : double, exp : int) : double
+@export
+public func scalbn(arg : double, exp : int) : double
 
 /**
  * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
@@ -1801,7 +1987,8 @@ func scalbn(arg : double, exp : int) : double
  *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/scalbn
  */
-func scalbnl(arg : float128, exp : int) : float128
+@export
+public func scalbnl(arg : __float_128, exp : int) : __float_128
 
 /**
  * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
@@ -1812,7 +1999,8 @@ func scalbnl(arg : float128, exp : int) : float128
  *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/scalbn
  */
-func scalblnf(arg : float, exp : long) : float
+@export
+public func scalblnf(arg : float, exp : long) : float
 
 /**
  * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
@@ -1823,7 +2011,8 @@ func scalblnf(arg : float, exp : long) : float
  *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/scalbn
  */
-func scalbln(arg : double, exp : long) : double
+@export
+public func scalbln(arg : double, exp : long) : double
 
 /**
  * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.
@@ -1834,7 +2023,8 @@ func scalbln(arg : double, exp : long) : double
  *         If a range error due to underflow occurs, the correct result (after rounding) is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/scalbn
  */
-func scalblnl(arg : float128, exp : long) : float128
+@export
+public func scalblnl(arg : __float_128, exp : long) : __float_128
 
 /**
  * Extracts the value of the unbiased exponent from the floating-point argument arg, and returns it as a signed integer value.
@@ -1846,7 +2036,8 @@ func scalblnl(arg : float128, exp : long) : float128
  *         If the correct result is greater than INT_MAX or smaller than INT_MIN, the return value is unspecified and a domain error or range error may occur.
  * @see https://en.cppreference.com/w/c/numeric/math/ilogb
  */
-func ilogbf(arg : float) : int
+@export
+public func ilogbf(arg : float) : int
 
 /**
  * Extracts the value of the unbiased exponent from the floating-point argument arg, and returns it as a signed integer value.
@@ -1858,7 +2049,8 @@ func ilogbf(arg : float) : int
  *         If the correct result is greater than INT_MAX or smaller than INT_MIN, the return value is unspecified and a domain error or range error may occur.
  * @see https://en.cppreference.com/w/c/numeric/math/ilogb
  */
-func ilogb(arg : double) : int
+@export
+public func ilogb(arg : double) : int
 
 /**
  * Extracts the value of the unbiased exponent from the floating-point argument arg, and returns it as a signed integer value.
@@ -1870,7 +2062,8 @@ func ilogb(arg : double) : int
  *         If the correct result is greater than INT_MAX or smaller than INT_MIN, the return value is unspecified and a domain error or range error may occur.
  * @see https://en.cppreference.com/w/c/numeric/math/ilogb
  */
-func ilogbl(arg : float128) : int
+@export
+public func ilogbl(arg : __float_128) : int
 
 /**
  * TODO these macros
@@ -1887,7 +2080,8 @@ func ilogbl(arg : float128) : int
  *         If a range error occurs due to underflow, the correct result is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/nextafter
  */
-func nextafterf(from : float, to : float) : float
+@export
+public func nextafterf(from : float, to : float) : float
 
 /**
  * First, converts both arguments to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned.
@@ -1897,7 +2091,8 @@ func nextafterf(from : float, to : float) : float
  *         If a range error occurs due to underflow, the correct result is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/nextafter
  */
-func nextafter(from : double, to : double) : double
+@export
+public func nextafter(from : double, to : double) : double
 
 /**
  * First, converts both arguments to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned.
@@ -1907,7 +2102,8 @@ func nextafter(from : double, to : double) : double
  *         If a range error occurs due to underflow, the correct result is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/nextafter
  */
-func nextafterl(from : float128, to : float128) : float128
+@export
+public func nextafterl(from : __float_128, to : __float_128) : __float_128
 
 /**
  * First, converts the first argument to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned, converted from long double to the return type of the function without loss of range or precision.
@@ -1917,7 +2113,8 @@ func nextafterl(from : float128, to : float128) : float128
  *         If a range error occurs due to underflow, the correct result is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/nextafter
  */
-func nexttowardf(from : float, to : float128) : float
+@export
+public func nexttowardf(from : float, to : __float_128) : float
 
 /**
  * First, converts the first argument to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned, converted from long double to the return type of the function without loss of range or precision.
@@ -1927,7 +2124,8 @@ func nexttowardf(from : float, to : float128) : float
  *         If a range error occurs due to underflow, the correct result is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/nextafter
  */
-func nexttoward(from : double, to : float128) : double
+@export
+public func nexttoward(from : double, to : __float_128) : double
 
 /**
  * First, converts the first argument to the type of the function, then returns the next representable value of from in the direction of to. If from equals to to, to is returned, converted from long double to the return type of the function without loss of range or precision.
@@ -1937,7 +2135,8 @@ func nexttoward(from : double, to : float128) : double
  *         If a range error occurs due to underflow, the correct result is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/nextafter
  */
-func nexttowardl(from : float128, to : float128) : float128
+@export
+public func nexttowardl(from : __float_128, to : __float_128) : __float_128
 
 /**
  * Extracts the value of the unbiased radix-independent exponent from the floating-point argument arg, and returns it as a floating-point value.
@@ -1947,7 +2146,8 @@ func nexttowardl(from : float128, to : float128) : float128
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/logb
  */
-func logbf(arg : float) : float
+@export
+public func logbf(arg : float) : float
 
 /**
  * Extracts the value of the unbiased radix-independent exponent from the floating-point argument arg, and returns it as a floating-point value.
@@ -1957,7 +2157,8 @@ func logbf(arg : float) : float
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/logb
  */
-func logb(arg : double) : double
+@export
+public func logb(arg : double) : double
 
 /**
  * Extracts the value of the unbiased radix-independent exponent from the floating-point argument arg, and returns it as a floating-point value.
@@ -1967,7 +2168,8 @@ func logb(arg : double) : double
  *         If a pole error occurs, -HUGE_VAL, -HUGE_VALF, or -HUGE_VALL is returned.
  * @see https://en.cppreference.com/w/c/numeric/math/logb
  */
-func logbl(arg : float128) : float128
+@export
+public func logbl(arg : __float_128) : __float_128
 
 /**
  * Composes a floating-point value with the magnitude of x and the sign of y.
@@ -1977,7 +2179,8 @@ func logbl(arg : float128) : float128
  *         If y is -0, the result is only negative if the implementation supports the signed zero consistently in arithmetic operations.
  * @see https://en.cppreference.com/w/c/numeric/math/copysign
  */
-func copysignf(x : float, y : float) : float
+@export
+public func copysignf(x : float, y : float) : float
 
 /**
  * Composes a floating-point value with the magnitude of x and the sign of y.
@@ -1987,7 +2190,8 @@ func copysignf(x : float, y : float) : float
  *         If y is -0, the result is only negative if the implementation supports the signed zero consistently in arithmetic operations.
  * @see https://en.cppreference.com/w/c/numeric/math/copysign
  */
-func copysign(x : double, y : double) : double
+@export
+public func copysign(x : double, y : double) : double
 
 /**
  * Composes a floating-point value with the magnitude of x and the sign of y.
@@ -1997,7 +2201,8 @@ func copysign(x : double, y : double) : double
  *         If y is -0, the result is only negative if the implementation supports the signed zero consistently in arithmetic operations.
  * @see https://en.cppreference.com/w/c/numeric/math/copysign
  */
-func copysignl(x : float128, y : float128) : float128
+@export
+public func copysignl(x : __float_128, y : __float_128) : __float_128
 
 /**
  * TODO macro fpclassify
@@ -2075,11 +2280,13 @@ func copysignl(x : float128, y : float128) : float128
 /**
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
+@export
 public type float_t = float
 
 /**
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
+@export
 public type double_t = double
 
 /**

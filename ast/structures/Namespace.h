@@ -32,7 +32,7 @@ struct NamespaceDeclAttributes {
     /**
      * if it's anonymous, it's name wouldn't make it to the final runtime name
      */
-    bool dg_empty_runtime_name = false;
+    bool is_anonymous = false;
 
 };
 
@@ -112,12 +112,12 @@ public:
         attrs.deprecated = value;
     }
 
-    inline bool empty_runtime_name() {
-        return attrs.dg_empty_runtime_name;
+    inline bool is_anonymous() {
+        return attrs.is_anonymous;
     }
 
-    inline void set_empty_runtime_name(bool empty) {
-        attrs.dg_empty_runtime_name = empty;
+    inline void set_anonymous(bool anonymous) {
+        attrs.is_anonymous = anonymous;
     }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;

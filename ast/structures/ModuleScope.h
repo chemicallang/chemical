@@ -23,7 +23,9 @@ public:
     ModuleScope(
         chem::string_view scope_name,
         chem::string_view module_name
-    ) : ASTNode(ASTNodeKind::ModuleScope, nullptr, 0) {
+    ) : ASTNode(ASTNodeKind::ModuleScope, nullptr, 0),
+        scope_name(scope_name), module_name(module_name)
+    {
 
     }
 

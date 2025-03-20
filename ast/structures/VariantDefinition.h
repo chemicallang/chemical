@@ -19,6 +19,8 @@ struct VariantDeclAttributes {
 
     bool is_copy = false;
 
+    bool is_no_mangle = false;
+
 };
 
 class VariantDefinition : public ExtendableMembersContainerNode {
@@ -101,6 +103,14 @@ public:
 
     inline void set_shallow_copyable(bool value) {
         attrs.is_copy = value;
+    }
+
+    inline bool is_no_mangle() {
+        return attrs.is_no_mangle;
+    }
+
+    inline void set_no_mangle(bool no_mangle) {
+        attrs.is_no_mangle = no_mangle;
     }
 
     bool is_exported_fast() {

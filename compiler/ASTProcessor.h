@@ -93,6 +93,17 @@ struct ASTFileMetaData {
     }
 
     /**
+     * the file meta data
+     */
+    ASTFileMetaData(
+            unsigned int file_id,
+            ModuleScope* moduleScope,
+            std::string abs_path
+    ) : file_id(file_id), private_symbol_range(0, 0), moduleScope(moduleScope), abs_path(std::move(abs_path)) {
+
+    }
+
+    /**
      * constructor
      */
     ASTFileMetaData(
@@ -158,7 +169,11 @@ struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
     /**
      * constructor
      */
-    ASTFileResult(unsigned int file_id, ModuleScope* mod) : unit(mod), ASTFileMetaData(file_id, mod) {
+    ASTFileResult(
+        unsigned int file_id,
+        std::string abs_path,
+        ModuleScope* mod
+    ) : ASTFileMetaData(file_id, mod, std::move(abs_path)), unit(file_id, chem::string_view(this->abs_path), mod) {
 
     }
 

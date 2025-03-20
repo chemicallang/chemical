@@ -24,17 +24,22 @@ struct InterfaceDefinitionAttrs {
     /**
      * this is set to true when even a single implementation is detected
      */
-    bool has_implementation;
+    bool has_implementation = false;
 
     /**
      * is this interface deprecated
      */
-    bool deprecated;
+    bool deprecated = false;
 
     /**
      * is the interface a static interface (only one implementation allowed)
      */
-    bool is_static;
+    bool is_static = false;
+
+    /**
+     * this interface won't be prefixed with module name
+     */
+    bool is_no_mangle = false;
 
 };
 
@@ -120,6 +125,14 @@ public:
 
     inline bool has_implementation() {
         return attrs.has_implementation;
+    }
+
+    inline bool is_no_mangle() {
+        return attrs.is_no_mangle;
+    }
+
+    inline void set_no_mangle(bool no_mangle) {
+        attrs.is_no_mangle = no_mangle;
     }
 
     InterfaceDefinition* shallow_copy(ASTAllocator& allocator) {

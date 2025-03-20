@@ -4,4 +4,5 @@
  * It is legal to pass a pointer to a va_list object to another function and then use that object after the function returns
  * @see https://en.cppreference.com/w/c/variadic/va_list
  */
+@export
 public type va_list = *mut char

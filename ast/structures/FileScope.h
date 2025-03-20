@@ -8,6 +8,11 @@ class FileScope : public ASTNode {
 public:
 
     /**
+     * the file id for location manager
+     */
+    unsigned int file_id;
+
+    /**
      * the file path
      */
     chem::string_view file_path;
@@ -21,9 +26,11 @@ public:
      * constructor
      */
     explicit FileScope(
+            unsigned int file_id,
+            const chem::string_view& file_path,
             ModuleScope* moduleScope
     ) : ASTNode(ASTNodeKind::FileScope, (ASTNode*) moduleScope, 0),
-        body(this, 0)
+        file_id(file_id), file_path(file_path), body(this, 0)
     {
 
     }

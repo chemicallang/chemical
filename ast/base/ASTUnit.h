@@ -32,7 +32,11 @@ public:
     /**
      * empty constructor
      */
-    ASTUnit(ModuleScope* modScope) : scope(modScope) {
+    ASTUnit(
+        unsigned int file_id,
+        const chem::string_view& file_path,
+        ModuleScope* modScope
+    ) : scope(file_id, file_path, modScope) {
 
     }
 

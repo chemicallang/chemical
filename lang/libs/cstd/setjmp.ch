@@ -9,6 +9,7 @@
  * TODO jmp_bug type not defined as it's implementation is unknown
  * @see https://en.cppreference.com/w/c/program/jmp_buf
  */
+@export
 public type jmp_buf = int
 
 /**
@@ -20,4 +21,5 @@ public type jmp_buf = int
  * @see https://en.cppreference.com/w/c/program/longjmp
  */
 @no_return
+@export
 public func longjmp(env : jmp_buf, status : int);

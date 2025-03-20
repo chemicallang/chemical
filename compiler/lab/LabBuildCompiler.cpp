@@ -646,7 +646,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 }
                 const auto abs_path = include.to_std_string();
                 unsigned fileId = loc_man.encodeFile(abs_path);
-                ASTFileResultNew imported_file(fileId, &mod->module_scope);
+                ASTFileResultNew imported_file(fileId, abs_path, &mod->module_scope);
                 processor.import_chemical_file(imported_file, fileId, abs_path);
                 auto& scope = imported_file.unit.scope.body;
                 auto& nodes = scope.nodes;
@@ -1117,7 +1117,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     ModuleScope labModuleScope("chemical", "lab");
     auto buildLabFileId = loc_man.encodeFile(path);
     ASTFileMetaData buildLabMetaData(buildLabFileId, &labModuleScope, path, path, "");
-    ASTFileResultNew blResult(buildLabFileId, &labModuleScope);
+    ASTFileResult blResult(buildLabFileId, path, &labModuleScope);
 
     lab_processor.import_chemical_file(blResult, pool, buildLabMetaData);
 

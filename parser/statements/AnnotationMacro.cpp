@@ -10,7 +10,33 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/UnionDef.h"
+#include "ast/statements/Typealias.h"
 #include "ast/statements/UsingStmt.h"
+
+bool make_node_no_mangle(ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::FunctionDecl:
+            node->as_function_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::InterfaceDecl:
+            node->as_interface_def_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::StructDecl:
+            node->as_struct_def_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::UnionDecl:
+            node->as_union_def_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::VariantDecl:
+            node->as_variant_def_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::TypealiasStmt:
+            node->as_typealias_unsafe()->set_no_mangle(true);
+            return true;
+        default:
+            return false;
+    }
+}
 
 const std::unordered_map<chem::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
         { "inline", [](Parser* parser, ASTNode* node) -> void {
@@ -86,16 +112,19 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
             const auto def = node->as_struct_def();
             if(def) {
                 def->set_compiler_interface(true);
+                def->set_no_mangle(true);
             } else {
                 parser->error("couldn't make struct a compiler interface");
             }
         } },
         { "no_mangle", [](Parser* parser, ASTNode* node) -> void {
-            const auto func = node->as_function();
-            if(func) {
-                func->set_no_mangle(false);
-            } else {
-                parser->error("couldn't make the function no_mangle");
+            if(!make_node_no_mangle(node)) {
+                parser->error("couldn't make the node no_mangle");
+            }
+        } },
+        { "export", [](Parser* parser, ASTNode* node) -> void {
+            if(!make_node_no_mangle(node)) {
+                parser->error("couldn't make the node no_mangle");
             }
         } },
         { "constructor", [](Parser* parser, ASTNode* node) -> void {

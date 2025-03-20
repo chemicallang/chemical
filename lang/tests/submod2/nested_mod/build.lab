@@ -4,6 +4,6 @@ import "@std/string.ch"
 func build(ctx : *mut BuildContext) : *Module {
 
     const path = lab::rel_path_to("src")
-    return ctx.chemical_dir_module(std::string_view("submod2"), std::string_view(path), { })
+    return ctx.chemical_dir_module(std::string_view("nested_mod"), std::string_view(path), { })
 
 }

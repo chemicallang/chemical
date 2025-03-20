@@ -41,6 +41,17 @@ void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string** 
     }
 }
 
+void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string_view** paths, unsigned int path_len) {
+    if(!paths || path_len == 0) return;
+    auto ptr = paths;
+    unsigned i = 0;
+    while (i < path_len) {
+        into.emplace_back(**ptr);
+        ptr++;
+        i++;
+    }
+}
+
 void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string>& aliases, std::string alias, std::string path) {
     const auto path_last = path.size() - 1;
     if(path[path_last] == '/') {
@@ -83,6 +94,21 @@ void LabBuildContext::init_path_aliases(LabJob* job) {
     }
 }
 
+LabModule* LabBuildContext::add_with_type(
+        LabModuleType type,
+        chem::string_view* name,
+        chem::string_view** paths,
+        unsigned int path_len,
+        LabModule** dependencies,
+        unsigned int dep_len
+) {
+    auto mod = new LabModule(type, chem::string(*name));
+    modules.emplace_back(mod);
+    LabBuildContext::add_paths(mod->paths, paths, path_len);
+    LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
+    return mod;
+}
+
 LabModule *LabBuildContext::add_with_type(
     LabModuleType type,
     chem::string name,
@@ -95,6 +121,24 @@ LabModule *LabBuildContext::add_with_type(
     modules.emplace_back(mod);
     LabBuildContext::add_paths(mod->paths, paths, path_len);
     LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
+    return mod;
+}
+
+LabModule* LabBuildContext::create_of_type(LabModuleType type, chem::string_view* path, unsigned number) {
+    const char* prefix;
+    switch(type) {
+        case LabModuleType::CFile:
+            prefix = "CFile-";
+            break;
+        case LabModuleType::ObjFile:
+            prefix = "ObjFile-";
+            break;
+        default:
+            prefix = "UnkFile-";
+            break;
+    }
+    auto mod = add_with_type(type, chem::string(prefix + std::to_string(modules.size()) + '-' + std::to_string(number)), nullptr, 0, nullptr, 0);
+    mod->paths.emplace_back(*path);
     return mod;
 }
 
@@ -117,20 +161,20 @@ LabModule* LabBuildContext::create_of_type(LabModuleType type, chem::string* pat
 }
 
 LabModule* LabBuildContext::files_module(
-        chem::string* name,
-        chem::string** paths,
+        chem::string_view* name,
+        chem::string_view** paths,
         unsigned int path_len,
         LabModule** dependencies,
         unsigned int dep_len
 ) {
     // create a module with no files
-    auto mod = add_with_type(LabModuleType::Files, name->copy(), nullptr, 0, dependencies, dep_len);
+    auto mod = add_with_type(LabModuleType::Files, chem::string(*name), nullptr, 0, dependencies, dep_len);
     if(paths && path_len != 0) {
         auto ptr = *paths;
         unsigned i = 0;
         while (i < path_len) {
             if(ptr->ends_with(".ch")) {
-                mod->paths.emplace_back(ptr->copy());
+                mod->paths.emplace_back(*ptr);
             } else if(ptr->ends_with(".c")) {
                 mod->dependencies.emplace_back(create_of_type(LabModuleType::CFile, ptr, i));
             } else if(ptr->ends_with(".o")) {
@@ -147,11 +191,11 @@ LabModule* LabBuildContext::files_module(
 
 LabJob* LabBuildContext::translate_to_chemical(
         LabModule* module,
-        chem::string* out_path
+        chem::string_view* out_path
 ) {
     auto job = new LabJob(LabJobType::ToChemicalTranslation, chem::string("ToChemicalJob"));
     executables.emplace_back(job);
-    job->abs_path.append(out_path);
+    job->abs_path.append(*out_path);
     job->dependencies.emplace_back(module);
     init_path_aliases(job);
     return job;
@@ -163,29 +207,29 @@ void LabBuildContext::set_build_dir(LabJob* job) {
 }
 
 LabJob* LabBuildContext::translate_to_c(
-        chem::string* name,
+        chem::string_view* name,
         LabModule** dependencies,
         unsigned int dep_len,
-        chem::string* out_path
+        chem::string_view* out_path
 ) {
-    auto job = new LabJob(LabJobType::ToCTranslation, name->copy());
+    auto job = new LabJob(LabJobType::ToCTranslation, chem::string(*name));
     executables.emplace_back(job);
     set_build_dir(job);
-    job->abs_path.append(out_path);
+    job->abs_path.append(*out_path);
     LabBuildContext::add_dependencies(job->dependencies, dependencies, dep_len);
     init_path_aliases(job);
     return job;
 }
 
 LabJob* LabBuildContext::build_exe(
-        chem::string* name,
+        chem::string_view* name,
         LabModule** dependencies,
         unsigned int dep_len
 ) {
-    auto exe = new LabJob(LabJobType::Executable, name->copy());
+    auto exe = new LabJob(LabJobType::Executable, chem::string(*name));
     executables.emplace_back(exe);
     set_build_dir(exe);
-    auto exe_path = resolve_rel_child_path_str(exe->build_dir.data(), name->to_std_string());
+    auto exe_path = resolve_rel_child_path_str(exe->build_dir.data(), name->str());
 #ifdef _WINDOWS
     exe_path += ".exe";
 #endif
@@ -196,14 +240,14 @@ LabJob* LabBuildContext::build_exe(
 }
 
 LabJob* LabBuildContext::build_dynamic_lib(
-        chem::string* name,
+        chem::string_view* name,
         LabModule** dependencies,
         unsigned int dep_len
 ) {
-    auto exe = new LabJob(LabJobType::Library, name->copy());
+    auto exe = new LabJob(LabJobType::Library, chem::string(*name));
     executables.emplace_back(exe);
     set_build_dir(exe);
-    auto output_path = resolve_rel_child_path_str(exe->build_dir.data(), name->to_std_string());
+    auto output_path = resolve_rel_child_path_str(exe->build_dir.data(), name->str());
 #ifdef _WIN32
         output_path += ".dll";
 #elif __linux__
@@ -218,12 +262,12 @@ LabJob* LabBuildContext::build_dynamic_lib(
 }
 
 LabJob* LabBuildContext::build_cbi(
-        chem::string* name,
+        chem::string_view* name,
         LabModule** dependencies,
         unsigned int dep_len,
         LabModule* entry
 ) {
-    auto exe = new LabJobCBI(LabJob(LabJobType::CBI, name->copy()));
+    auto exe = new LabJobCBI(LabJob(LabJobType::CBI, chem::string(*name)));
     exe->entry_module = entry;
     executables.emplace_back(exe);
     set_build_dir(exe);
@@ -232,19 +276,19 @@ LabJob* LabBuildContext::build_cbi(
     return exe;
 }
 
-bool LabBuildContext::has_arg(chem::string* name) {
-    return build_args.find(name->to_std_string()) != build_args.end();
+bool LabBuildContext::has_arg(const std::string& name) {
+    return build_args.find(name) != build_args.end();
 }
 
-void LabBuildContext::get_arg(chem::string* str, chem::string* name) {
-    auto found = build_args.find(name->to_std_string());
+void LabBuildContext::get_arg(chem::string& str, const std::string& name) {
+    auto found = build_args.find(name);
     if(found != build_args.end()) {
-        str->append(found->second.data(), found->second.size());
+        str.append(found->second.data(), found->second.size());
     }
 }
 
-void LabBuildContext::remove_arg(chem::string* name) {
-    auto found = build_args.find(name->to_std_string());
+void LabBuildContext::remove_arg(const std::string& name) {
+    auto found = build_args.find(name);
     if(found != build_args.end()) {
         build_args.erase(found);
     }

@@ -92,6 +92,15 @@ struct CmdOption {
     }
 
     /**
+     * puts all multi value
+     */
+    void put_multi_value_vec(std::vector<chem::string_view>& args) {
+        for(auto& value : multi_value.values) {
+            args.emplace_back(value);
+        }
+    }
+
+    /**
      * calling this method is not recommended if the option is not known to be a multi valued option
      */
     inline bool has_multi_value() {

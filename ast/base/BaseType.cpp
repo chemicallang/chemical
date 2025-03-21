@@ -18,6 +18,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ArrayType.h"
 #include <sstream>
+#include <iostream>
 #include "ASTNode.h"
 
 std::string BaseType::representation() {

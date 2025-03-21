@@ -249,15 +249,6 @@ public:
      */
     LabBuildContext* context = nullptr;
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * translator is used to translate c files during import
-     */
-    CTranslator* const translator;
-
-#endif
-
     /**
      * it's a container of AST diagnostics
      * this is here because c file's errors are ignored because they contain unresolvable symbols
@@ -299,13 +290,14 @@ public:
             LocationManager& loc_man,
             SymbolResolver* resolver,
             CompilerBinder& binder,
-#ifdef COMPILER_BUILD
-            CTranslator* translator,
-#endif
             ASTAllocator& job_allocator,
             ASTAllocator& mod_allocator,
             ASTAllocator& file_allocator
-    );
+    ) : loc_man(loc_man), options(options), resolver(resolver), path_handler(pathHandler), binder(binder),
+        job_allocator(job_allocator), mod_allocator(mod_allocator), context(context), file_allocator(file_allocator)
+    {
+
+    }
 
     /**
      * the reason we clear the file allocator like this is because maybe a single allocator

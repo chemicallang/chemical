@@ -154,6 +154,7 @@ public:
             LabModule* mod,
             ASTProcessor& processor,
             Codegen& gen,
+            CTranslator& cTranslator,
             const std::string& mod_timestamp_file
     );
 

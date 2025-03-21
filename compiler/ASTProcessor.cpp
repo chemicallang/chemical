@@ -36,30 +36,6 @@ std::string ASTProcessorOptions::get_resources_path() {
     return resources_path;
 }
 
-ASTProcessor::ASTProcessor(
-        ImportPathHandler& pathHandler,
-        ASTProcessorOptions* options,
-        LabBuildContext* context,
-        LocationManager& loc_man,
-        SymbolResolver* resolver,
-        CompilerBinder& binder,
-#ifdef COMPILER_BUILD
-        CTranslator* translator,
-#endif
-        ASTAllocator& job_allocator,
-        ASTAllocator& mod_allocator,
-        ASTAllocator& file_allocator
-) : loc_man(loc_man), options(options), resolver(resolver), path_handler(pathHandler), binder(binder),
-    job_allocator(job_allocator), mod_allocator(mod_allocator), context(context),
-#ifdef COMPILER_BUILD
-        translator(translator),
-#endif
-    file_allocator(file_allocator)
-
-{
-
-}
-
 void getFilesInDirectory(std::vector<std::string>& filePaths, const std::string& dirPath) {
     for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
         if (entry.is_regular_file()) {

@@ -36,30 +36,11 @@ void WhileLoop::code_gen(Codegen &gen) {
 
 #endif
 
-/**
- * initializes the loop with only a condition and empty body
- * @param condition
- */
-//WhileLoop::WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node, CSTToken* token) : condition(std::move(condition)), token(token) {
-//
-//}
-
 void WhileLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
     condition->link(linker, condition);
     body.link_sequentially(linker);
     linker.scope_end();
-}
-
-void WhileLoop::interpret(InterpretScope &scope) {
-    InterpretScope child(&scope, scope.allocator, scope.global);
-    while (condition->evaluated_bool(child)) {
-        body.interpret(child);
-        if (stoppedInterpretation) {
-            stoppedInterpretation = false;
-            break;
-        }
-    }
 }
 
 void WhileLoop::stopInterpretation() {

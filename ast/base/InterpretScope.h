@@ -134,6 +134,11 @@ public:
     Value* evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location, Value* debugValue);
 
     /**
+     * this node will be interpreted in this interpret scope
+     */
+    void interpret(ASTNode* node);
+
+    /**
      * print all values
      */
     void print_values();

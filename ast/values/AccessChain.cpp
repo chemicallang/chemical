@@ -131,10 +131,6 @@ AccessChain *AccessChain::copy(ASTAllocator& allocator) {
     return chain;
 }
 
-void AccessChain::interpret(InterpretScope &scope) {
-    evaluated_value(scope);
-}
-
 Value *AccessChain::parent(InterpretScope &scope) {
     Value *current = values[0];
     unsigned i = 1;

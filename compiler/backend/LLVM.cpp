@@ -1202,7 +1202,7 @@ void ProvideStmt::code_gen(Codegen &gen) {
 }
 
 void ComptimeBlock::code_gen(Codegen& gen) {
-    body.interpret(gen.comptime_scope);
+    gen.comptime_scope.interpret(&body);
 }
 
 void InitBlock::code_gen(Codegen &gen) {

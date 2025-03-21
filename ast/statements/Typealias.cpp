@@ -6,21 +6,6 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
 
-void TypealiasStatement::interpret(InterpretScope &scope) {
-
-}
-
-//FunctionCall* get_call(Value* value) {
-//    switch(value->val_kind()) {
-//        case ValueKind::FunctionCall:
-//            return value->as_func_call_unsafe();
-//        default:
-//            return nullptr;
-//        case ValueKind::AccessChain:
-//            return get_call(value->as_access_chain_unsafe()->values.front());
-//    }
-//}
-
 void TypealiasStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_node(name_view(), this, specifier(), false);
 }

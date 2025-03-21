@@ -380,31 +380,3 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
 
     return result;
 }
-
-void SwitchStatement::interpret(InterpretScope &scope) {
-    const auto cond = expression->evaluated_value(scope);
-    if(!cond) {
-        scope.error("couldn't evaluate the expression", expression);
-        return;
-    }
-    unsigned i = 0;
-    const auto size = scopes.size();
-    while(i < size) {
-        for(auto& casePair : cases) {
-            if(casePair.second == i && casePair.first) {
-                const auto isEqualEval = scope.evaluate(Operation::IsEqual, casePair.first, cond, ZERO_LOC, casePair.first);
-                if(isEqualEval->val_kind() == ValueKind::Bool && isEqualEval->get_the_bool()) {
-                    auto& body = scopes[i];
-                    body.interpret(scope);
-                    return;
-                }
-            }
-        }
-        i++;
-    }
-    if(has_default_case()) {
-        auto& body = scopes[defScopeInd];
-        body.interpret(scope);
-        return;
-    }
-}

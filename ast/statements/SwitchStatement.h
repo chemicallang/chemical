@@ -67,8 +67,6 @@ public:
         return defScopeInd != -1;
     }
 
-    void interpret(InterpretScope &scope) override;
-
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen, bool last_block);

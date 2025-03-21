@@ -90,16 +90,6 @@ public:
         return evaluate(scope);
     }
 
-//    Value* create_evaluated_value(InterpretScope &scope) final {
-//        return evaluate(scope);
-//    }
-
     bool compile_time_computable() final;
-
-    /**
-     * evaluates the current expression and also interprets the evaluated value
-     * @param scope
-     */
-    void interpret(InterpretScope &scope) final;
 
 };

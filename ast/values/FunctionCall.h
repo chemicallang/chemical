@@ -97,8 +97,6 @@ public:
 
     FunctionCall *copy(ASTAllocator& allocator) final;
 
-    void interpret(InterpretScope &scope) final;
-
     /**
      * this returns the return type of the function
      */

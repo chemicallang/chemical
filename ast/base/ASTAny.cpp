@@ -14,12 +14,6 @@ llvm::Type *ASTAny::llvm_type(Codegen &gen) {
 
 #endif
 
-void ASTAny::interpret(InterpretScope &scope) {
-#ifdef DEBUG
-    throw std::runtime_error("ASTAny::interpret called on a base node");
-#endif
-}
-
 std::string to_string(AccessSpecifier specifier) {
     switch(specifier) {
         case AccessSpecifier::Private:

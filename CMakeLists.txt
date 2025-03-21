@@ -534,6 +534,7 @@ set(COMMON_SOURCES
         ast/structures/FileScope.h
         ast/structures/ModuleScope.h
         compiler/lab/ModuleStorage.h
+        compiler/Interpreter/Core.cpp
 )
 
 # Chemical LSP Executable Target

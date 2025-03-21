@@ -1267,10 +1267,6 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     return pure_type;
 }
 
-void FunctionCall::interpret(InterpretScope &scope) {
-    evaluated_value(scope);
-}
-
 BaseType* FunctionCall::known_type() {
     const auto parent_type = parent_val->known_type();
     if(parent_type) {

@@ -132,6 +132,4 @@ public:
 
 #endif
 
-    void interpret(InterpretScope &scope) final;
-
 };

@@ -28,10 +28,6 @@ public:
         value->link(linker, value);
     }
 
-    void interpret(InterpretScope &scope) override {
-        value->evaluated_value(scope);
-    }
-
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override {

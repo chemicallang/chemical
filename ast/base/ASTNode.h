@@ -864,11 +864,43 @@ public:
     }
 
     /**
+     * get as for loop
+     */
+    inline ForLoop* as_for_loop_unsafe() {
+        CHECK_CAST(ASTNodeKind::ForLoopStmt);
+        return (ForLoop*) this;
+    }
+
+    /**
+     * get as while loop
+     */
+    inline WhileLoop* as_while_loop_unsafe() {
+        CHECK_CAST(ASTNodeKind::WhileLoopStmt);
+        return (WhileLoop*) this;
+    }
+
+    /**
+     * get as do while loop
+     */
+    inline DoWhileLoop* as_do_while_loop_unsafe() {
+        CHECK_CAST(ASTNodeKind::DoWhileLoopStmt);
+        return (DoWhileLoop*) this;
+    }
+
+    /**
      * as break stmt unsafe
      */
     inline BreakStatement* as_break_stmt_unsafe() {
         CHECK_CAST(ASTNodeKind::BreakStmt);
         return (BreakStatement*) this;
+    }
+
+    /**
+     * as break stmt unsafe
+     */
+    inline ContinueStatement* as_continue_stmt_unsafe() {
+        CHECK_CAST(ASTNodeKind::ContinueStmt);
+        return (ContinueStatement*) this;
     }
 
     /**

@@ -22,6 +22,7 @@
 #include "ast/structures/If.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include <iostream>
 
 #ifdef COMPILER_BUILD
 
@@ -826,6 +827,7 @@ chem::string_view InheritedType::ref_type_name() {
     throw std::runtime_error("unable to retrieve referenced type name from type " + type->representation());
 #else
     std::cerr << "unable to retrieve referenced type name from type " + type->representation() << std::endl;
+    return "";
 #endif
 }
 

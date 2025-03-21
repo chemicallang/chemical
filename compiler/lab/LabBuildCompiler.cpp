@@ -851,20 +851,10 @@ int LabBuildCompiler::process_module_gen(
 
 #endif
 
-int LabBuildCompiler::process_modules(LabJob* job) {
-
-    const auto exe = job;
-    const auto get_job_type = job->type;
-    const auto job_type = exe->type;
-
-    // the flag that forces usage of tcc
-    const bool use_tcc = options->use_tcc || job_type == LabJobType::ToCTranslation || job_type == LabJobType::CBI;
-
-    const auto caching = options->is_caching_enabled;
-    const auto verbose = options->verbose;
+void begin_job_print(LabJob* job) {
 
     std::cout << rang::bg::blue << rang::fg::black << "[lab] ";
-    switch(job_type) {
+    switch(job->type) {
         case LabJobType::Executable:
             std::cout << "Building executable";
             break;
@@ -884,15 +874,104 @@ int LabBuildCompiler::process_modules(LabJob* job) {
             std::cout << "Building CBI";
             break;
     }
-    if(!exe->name.empty()) {
-        std::cout << ' ' << '\'' << exe->name.data() << '\'';
+    if(!job->name.empty()) {
+        std::cout << ' ' << '\'' << job->name.data() << '\'';
     }
-    if(!exe->abs_path.empty()) {
-        std::cout << " at path '" << exe->abs_path.data() << '\'';
+    if(!job->abs_path.empty()) {
+        std::cout << " at path '" << job->abs_path.data() << '\'';
     }
     std::cout << std::endl << rang::bg::reset << rang::fg::reset;
 
-    std::string exe_build_dir = exe->build_dir.to_std_string();
+}
+
+void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope& global, SymbolResolver& resolver) {
+    const auto verbose = compiler->options->verbose;
+    if(compiler->container) {
+        if(verbose) {
+            std::cout << "[lab] " << "rebinding comptime methods" << std::endl;
+        }
+        // bind global container that contains namespaces like std and compiler
+        // reusing it, if we created it before
+        global.rebind_container(resolver, compiler->container);
+    } else {
+        if(verbose) {
+            std::cout << "[lab] " << "creating comptime methods" << std::endl;
+        }
+        // allow user the compiler (namespace) functions in @comptime
+        // we create the new global container here once
+        compiler->container = global.create_container(resolver);
+        if(verbose) {
+            std::cout << "[lab] " << "created the global container" << std::endl;
+        }
+    }
+}
+
+int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod) {
+    const auto is_use_obj_format = compiler->options->use_mod_obj_format;
+    std::cout << rang::bg::gray << rang::fg::black << "[lab] ";
+    if(mod->type == LabModuleType::CFile) {
+        std::cout << "compiling c ";
+    } else {
+        std::cout << "compiling c++ ";
+    }
+    if (!mod->name.empty()) {
+        std::cout << '\'' << mod->name.data() << "' ";
+    }
+    std::cout << "at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+#ifdef COMPILER_BUILD
+    const auto compile_result = compile_c_file_to_object(mod->paths[0].data(), mod->object_path.data(), compiler->options->exe_path, {});
+    if (compile_result == 1) {
+        return 1;
+    }
+    compiler->generated[mod] = mod->object_path.to_std_string();
+#else
+    if(mod->type == LabModuleType::CPPFile) {
+        std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ file '" << mod->paths[0] << '\'' << rang::fg::reset << std::endl;
+        return 1;
+    }
+    const auto compile_result = compile_c_file(compiler->options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, false);
+    if (compile_result == 1) {
+        return 1;
+    }
+    compiler->generated[mod] = mod->object_path.to_std_string();
+#endif
+    return 0;
+}
+
+std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJob* job, LabModule* mod) {
+    const auto verbose = compiler->options->verbose;
+    const auto is_use_obj_format = compiler->options->use_mod_obj_format;
+    const auto job_type = job->type;
+    // creating the module directory
+    auto module_dir_path = resolve_rel_child_path_str(job->build_dir.to_std_string(), mod->name.to_std_string());
+    auto mod_obj_path = resolve_rel_child_path_str(module_dir_path,  (is_use_obj_format ? "object.o" : "object.bc"));
+    auto mod_timestamp_file = resolve_rel_child_path_str(module_dir_path, "timestamp.dat");
+    if(!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
+        const auto mod_dir_exists = fs::exists(module_dir_path);
+        if (!mod_dir_exists) {
+            if(verbose) {
+                std::cout << "[lab] " << "creating module directory at path '" << module_dir_path << "'" << std::endl;
+            }
+            fs::create_directory(module_dir_path);
+        }
+    }
+    if(job_type == LabJobType::Executable || job_type == LabJobType::ProcessingOnly || job_type == LabJobType::Library) {
+        if (is_use_obj_format || mod->type == LabModuleType::CFile) {
+            if (mod->object_path.empty()) {
+                mod->object_path.append(mod_obj_path);
+            }
+        } else {
+            if (mod->bitcode_path.empty()) {
+                mod->bitcode_path.append(mod_obj_path);
+            }
+        }
+    }
+    return mod_timestamp_file;
+}
+
+void create_job_build_dir(LabBuildCompiler* compiler, LabJob* job) {
+    const auto verbose = compiler->options->verbose;
+    std::string exe_build_dir = job->build_dir.to_std_string();
     if(!exe_build_dir.empty()) {
         if(verbose) {
             std::cout << "[lab] " << "creating build directory at '" << exe_build_dir << "'" << std::endl;
@@ -902,6 +981,21 @@ int LabBuildCompiler::process_modules(LabJob* job) {
             std::filesystem::create_directory(exe_build_dir);
         }
     }
+}
+
+int LabBuildCompiler::process_job_tcc(LabJob* job) {
+
+
+    const auto exe = job;
+    const auto get_job_type = job->type;
+    const auto job_type = exe->type;
+
+    const auto caching = options->is_caching_enabled;
+    const auto verbose = options->verbose;
+
+    begin_job_print(job);
+
+    create_job_build_dir(this, job);
 
     if(verbose) {
         std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
@@ -920,6 +1014,154 @@ int LabBuildCompiler::process_modules(LabJob* job) {
     std::stringstream output_ptr;
     ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man, job_type == LabJobType::CBI ? &compiler_interfaces : nullptr);
     ToCBackendContext c_context(&c_visitor);
+    global.backend_context = (BackendContext*) &c_context;
+
+#ifdef COMPILER_BUILD
+    auto& job_alloc = *job_allocator;
+    // a single c translator across this entire job
+    CTranslator cTranslator(job_alloc, options->is64Bit);
+    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
+#else
+    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
+#endif
+
+    // import executable path aliases
+    processor.path_handler.path_aliases = std::move(exe->path_aliases);
+
+    create_or_rebind_container(this, global, resolver);
+
+    // configure output path
+    const bool is_use_obj_format = options->use_mod_obj_format;
+
+    if(verbose) {
+        std::cout << "[lab] " << "flattening the module structure" << std::endl;
+    }
+
+    // flatten the dependencies
+    auto dependencies = flatten_dedupe_sorted(exe->dependencies);
+
+    // allocating required variables before going into loop
+    bool do_compile = job_type != LabJobType::ToCTranslation && job_type != LabJobType::CBI;
+
+    // create cbi before hand, for reserving allocation
+    if(job_type == LabJobType::CBI) {
+        if(verbose) {
+            std::cout << "[lab] " << "creating a compiler binding interface for '" << exe->name << "'" << std::endl;
+        }
+        binder.create_cbi(exe->name.to_std_string(), dependencies.size());
+    }
+
+    // compile dependent modules for this executable
+    for(auto mod : dependencies) {
+
+        if(verbose) {
+            std::cout << "[lab] " << "processing module '" << mod->name << '\'' << std::endl;
+        }
+
+        // check we haven't already generated this module
+        auto found = generated.find(mod);
+        if(found != generated.end() && job_type != LabJobType::ToCTranslation) {
+            exe->linkables.emplace_back(found->second);
+            continue;
+        }
+
+        // creating the module directory and getting the timestamp file path
+        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
+
+        if(do_compile) {
+            switch (mod->type) {
+                case LabModuleType::CPPFile: {
+                    // TODO we cannot yet compile cpp module when linking using tcc
+                    // that's because we must figure out if this is a compiler executable and use clang
+                    // to emit a executable that tiny cc can link easily, however this might not be possible
+                    // since clang may not generate code like tiny cc does
+                    std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ file '" << mod->paths[0] << '\'' << rang::fg::reset << std::endl;
+                    continue;
+                }
+                case LabModuleType::CFile: {
+                    const auto c_res = compile_c_or_cpp_module(this, mod);
+                    if(c_res == 0) {
+                        job->linkables.emplace_back(mod->object_path.copy());
+                        continue;
+                    } else {
+                        return 1;
+                    }
+                }
+                case LabModuleType::ObjFile:
+                    exe->linkables.emplace_back(mod->paths[0].copy());
+                    continue;
+                default:
+                    break;
+            }
+        } else if (mod->type == LabModuleType::ObjFile
+#ifdef COMPILER_BUILD
+                || mod->type == LabModuleType::CFile
+#endif
+        ) {
+            continue;
+        }
+
+
+        // figuring out the translated c output for the module (if user required)
+        std::string out_c_file;
+        if(get_job_type == LabJobType::ToCTranslation || !mod->out_c_path.empty()) {
+            out_c_file = mod->out_c_path.to_std_string();
+            if(out_c_file.empty()) {
+                if(!job->build_dir.empty()) {
+                    out_c_file = resolve_rel_child_path_str(job->build_dir.data(),mod->name.to_std_string() + ".2c.c");
+                } else if(!job->abs_path.empty()) {
+                    out_c_file = job->abs_path.to_std_string();
+                }
+#ifdef DEBUG
+                else {
+                    throw std::runtime_error("couldn't figure out the output c path");
+                }
+#endif
+            }
+        }
+
+        // get the cbi job pointer, if it's a cbi
+        LabJobCBI* cbiJob = get_job_type == LabJobType::CBI ? (LabJobCBI*) job : nullptr;
+
+        const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file, out_c_file, do_compile, output_ptr, cbiJob);
+        if(result == 1) {
+            return 1;
+        }
+
+        if(do_compile) {
+            job->linkables.emplace_back(mod->object_path.copy());
+        }
+
+    }
+
+    exe->path_aliases = std::move(processor.path_handler.path_aliases);
+
+    return 0;
+
+}
+
+#ifdef COMPILER_BUILD
+
+int LabBuildCompiler::process_job_gen(LabJob* job) {
+
+    const auto job_type = job->type;
+
+    const auto caching = options->is_caching_enabled;
+    const auto verbose = options->verbose;
+
+    begin_job_print(job);
+
+    create_job_build_dir(this, job);
+
+    if(verbose) {
+        std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
+    }
+
+    // an interpretation scope for interpreting compile time function calls
+    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
+
+    // a new symbol resolver for every executable
+    SymbolResolver resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
 #ifdef COMPILER_BUILD
     auto& job_alloc = *job_allocator;
@@ -935,33 +1177,15 @@ int LabBuildCompiler::process_modules(LabJob* job) {
     Codegen gen(code_gen_options, global, mangler, options->target_triple, options->exe_path, options->is64Bit, *file_allocator);
     LLVMBackendContext g_context(&gen);
     // set the context so compile time calls are sent to it
-    global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
+    global.backend_context = (BackendContext*) &g_context;
 #else
     ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
-    global.backend_context = (BackendContext*) &c_context;
 #endif
 
     // import executable path aliases
-    processor.path_handler.path_aliases = std::move(exe->path_aliases);
+    processor.path_handler.path_aliases = std::move(job->path_aliases);
 
-    if(container) {
-        if(verbose) {
-            std::cout << "[lab] " << "rebinding comptime methods" << std::endl;
-        }
-        // bind global container that contains namespaces like std and compiler
-        // reusing it, if we created it before
-        global.rebind_container(resolver, container);
-    } else {
-        if(verbose) {
-            std::cout << "[lab] " << "creating comptime methods" << std::endl;
-        }
-        // allow user the compiler (namespace) functions in @comptime
-        // we create the new global container here once
-        container = global.create_container(resolver);
-        if(verbose) {
-            std::cout << "[lab] " << "created the global container" << std::endl;
-        }
-    }
+    create_or_rebind_container(this, global, resolver);
 
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
@@ -971,173 +1195,60 @@ int LabBuildCompiler::process_modules(LabJob* job) {
     }
 
     // flatten the dependencies
-    auto dependencies = flatten_dedupe_sorted(exe->dependencies);
-
-    // allocating required variables before going into loop
-    int compile_result = 0;
-    bool do_compile = job_type != LabJobType::ToCTranslation && job_type != LabJobType::CBI;
-
-    // create cbi before hand, for reserving allocation
-    if(job_type == LabJobType::CBI) {
-        if(verbose) {
-            std::cout << "[lab] " << "creating a compiler binding interface for '" << exe->name << "'" << std::endl;
-        }
-        binder.create_cbi(exe->name.to_std_string(), dependencies.size());
-    }
+    auto dependencies = flatten_dedupe_sorted(job->dependencies);
 
     // compile dependent modules for this executable
-    int mod_index = -1;
     for(auto mod : dependencies) {
-        mod_index++;
 
         if(verbose) {
             std::cout << "[lab] " << "processing module '" << mod->name << '\'' << std::endl;
         }
 
+        // check we haven't already generated this module
         auto found = generated.find(mod);
-        if(found != generated.end() && job_type != LabJobType::ToCTranslation) {
-            exe->linkables.emplace_back(found->second);
+        if(found != generated.end()) {
+            job->linkables.emplace_back(found->second);
             continue;
         }
 
-        // creating the module directory
-        auto module_dir_path = resolve_rel_child_path_str(exe_build_dir, mod->name.to_std_string());
-        auto mod_obj_path = resolve_rel_child_path_str(module_dir_path,  (is_use_obj_format ? "object.o" : "object.bc"));
-        auto mod_timestamp_file = resolve_rel_child_path_str(module_dir_path, "timestamp.dat");
-        if(!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
-            const auto mod_dir_exists = fs::exists(module_dir_path);
-            if (!mod_dir_exists) {
-                if(verbose) {
-                    std::cout << "[lab] " << "creating module directory at path '" << module_dir_path << "'" << std::endl;
-                }
-                fs::create_directory(module_dir_path);
-            }
-        }
+        // creating the module directory and getting the timestamp file path
+        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
 
-        if(job_type == LabJobType::Executable || job_type == LabJobType::ProcessingOnly || job_type == LabJobType::Library) {
-            if (is_use_obj_format || mod->type == LabModuleType::CFile) {
-                if (mod->object_path.empty()) {
-                    mod->object_path.append(mod_obj_path);
-                }
-            } else {
-                if (mod->bitcode_path.empty()) {
-                    mod->bitcode_path.append(mod_obj_path);
+        // handle c and cpp file modules
+        switch (mod->type) {
+            case LabModuleType::CFile:
+            case LabModuleType::CPPFile: {
+                const auto c_res = compile_c_or_cpp_module(this, mod);
+                if(c_res == 0) {
+                    job->linkables.emplace_back(mod->object_path.copy());
+                    continue;
+                } else {
+                    return 1;
                 }
             }
-        }
-
-        if(do_compile) {
-            switch (mod->type) {
-                case LabModuleType::CFile:
-                case LabModuleType::CPPFile: {
-                    std::cout << rang::bg::gray << rang::fg::black << "[lab] ";
-                    if(mod->type == LabModuleType::CFile) {
-                        std::cout << "compiling c ";
-                    } else {
-                        std::cout << "compiling c++ ";
-                    }
-                    if (!mod->name.empty()) {
-                        std::cout << '\'' << mod->name.data() << "' ";
-                    }
-                    std::cout << "at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data())
-                              << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
-#ifdef COMPILER_BUILD
-                    compile_result = compile_c_file_to_object(mod->paths[0].data(), mod->object_path.data(), options->exe_path, {});
-                    if (compile_result == 1) {
-                        break;
-                    }
-                    exe->linkables.emplace_back(mod->object_path.copy());
-                    generated[mod] = mod->object_path.to_std_string();
-                    continue;
-#else
-                    if(mod->type == LabModuleType::CPPFile) {
-                        std::cerr << rang::fg::yellow << "[Tcc] skipping compilation of C++ file '" << mod->paths[0] << '\'' << rang::fg::reset << std::endl;
-                        continue;
-                    }
-                    compile_result = compile_c_file(options->exe_path.data(), mod->paths[0].data(),
-                                                    mod->object_path.to_std_string(), false, false, false);
-                    if (compile_result == 1) {
-                        break;
-                    }
-                    exe->linkables.emplace_back(mod->object_path.copy());
-                    generated[mod] = mod->object_path.to_std_string();
-                    continue;
-#endif
-                }
-                case LabModuleType::ObjFile:
-                    exe->linkables.emplace_back(mod->paths[0].copy());
-                    continue;
-                default:
-                    break;
-            }
-            if (compile_result == 1) {
+            case LabModuleType::ObjFile:
+                job->linkables.emplace_back(mod->paths[0].copy());
+                continue;
+            default:
                 break;
-            }
-        } else if (mod->type == LabModuleType::ObjFile
-#ifdef COMPILER_BUILD
-|| mod->type == LabModuleType::CFile
-#endif
-        ) {
-            continue;
         }
 
-
-        // figuring out the translated c output for the module (if user required)
-        std::string out_c_file;
-        if(get_job_type == LabJobType::ToCTranslation || !mod->out_c_path.empty()) {
-            out_c_file = mod->out_c_path.to_std_string();
-            if(!out_c_file.empty()) {
-                if(!job->build_dir.empty()) {
-                    out_c_file = resolve_rel_child_path_str(job->build_dir.data(),mod->name.to_std_string() + ".2c.c");
-                } else if(!job->abs_path.empty()) {
-                    out_c_file = job->abs_path.to_std_string();
-                }
-            }
-#ifdef DEBUG
-            else {
-                throw std::runtime_error("couldn't figure out the output c path");
-            }
-#endif
+        const auto result = process_module_gen(mod, processor, gen, mod_timestamp_file);
+        if(result == 1) {
+            return 1;
         }
 
-        // get the cbi job pointer, if it's a cbi
-        LabJobCBI* cbiJob = get_job_type == LabJobType::CBI ? (LabJobCBI*) job : nullptr;
-
-        if(use_tcc) {
-
-            const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file, out_c_file, do_compile, output_ptr, cbiJob);
-            if(result == 1) {
-                return 1;
-            }
-
-            if(do_compile) {
-                job->linkables.emplace_back(mod->object_path.copy());
-            }
-
-        } else {
-
-#ifdef COMPILER_BUILD
-
-            const auto result = process_module_gen(mod, processor, gen, mod_timestamp_file);
-            if(result == 1) {
-                return 1;
-            }
-
-            job->linkables.emplace_back(mod->object_path.copy());
-
-#endif
-
-        }
-
+        job->linkables.emplace_back(mod->object_path.copy());
 
     }
 
-    exe->path_aliases = std::move(processor.path_handler.path_aliases);
+    job->path_aliases = std::move(processor.path_handler.path_aliases);
 
-    return compile_result;
-
+    return 0;
 
 }
+
+#endif
 
 int link_objects(
     const std::string& comp_exe_path,

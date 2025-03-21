@@ -160,9 +160,35 @@ public:
 #endif
 
     /**
-     * processes modules, generates code, or all modules required for linking but doesn't link
+     * use tcc to process the job
      */
-    int process_modules(LabJob* job);
+    int process_job_tcc(LabJob* job);
+
+#ifdef COMPILER_BUILD
+
+    /**
+     * process the job using gen
+     */
+    int process_job_gen(LabJob* job);
+
+#endif
+
+    /**
+     * processes modules, generates code, or all modules required for linking but doesn't link
+     * it also calls appropriate method process job tcc or process job gen
+     */
+    int process_modules(LabJob* job) {
+#ifdef COMPILER_BUILD
+        const bool use_tcc = options->use_tcc || job->type == LabJobType::ToCTranslation || job->type == LabJobType::CBI;
+        return use_tcc ? (
+            process_job_tcc(job)
+        ) : (
+            process_job_gen(job)
+        );
+#else
+        return process_job_tcc(job);
+#endif
+    }
 
     /**
      * link process modules result

@@ -21,6 +21,12 @@ struct GlobalContainer;
 
 class CmdOptions;
 
+class ToCAstVisitor;
+
+#ifdef COMPILER_BUILD
+class Codegen;
+#endif
+
 /**
  * lab build compiler, doesn't relate to building a .lab file
  * it provides easy methods to do what can be done with a .lab file
@@ -124,6 +130,34 @@ public:
             ASTAllocator* const mod_allocator,
             ASTAllocator* const file_allocator
     );
+
+    /**
+     * the given module is processed
+     */
+    int process_module_tcc(
+        LabModule* mod,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        const std::string& mod_timestamp_file,
+        const std::string& out_c_file,
+        bool do_compile,
+        std::stringstream& output_ptr,
+        LabJobCBI* cbiJob
+    );
+
+#ifdef COMPILER_BUILD
+
+    /**
+     * the given module is processed
+     */
+    int process_module_gen(
+            LabModule* mod,
+            ASTProcessor& processor,
+            Codegen& gen,
+            const std::string& mod_timestamp_file
+    );
+
+#endif
 
     /**
      * processes modules, generates code, or all modules required for linking but doesn't link

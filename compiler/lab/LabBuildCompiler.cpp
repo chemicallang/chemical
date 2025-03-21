@@ -328,8 +328,533 @@ inline bool is_node_exported(ASTNode* node) {
     return node->specifier() == AccessSpecifier::Public;
 }
 
-int LabBuildCompiler::process_modules(LabJob* exe) {
+int LabBuildCompiler::process_module_tcc(
+        LabModule* mod,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        const std::string& mod_timestamp_file,
+        const std::string& out_c_file,
+        bool do_compile,
+        std::stringstream& output_ptr,
+        LabJobCBI* cbiJob
+) {
 
+    // variables
+    const auto caching = options->is_caching_enabled;
+    const auto verbose = options->verbose;
+    const bool is_use_obj_format = options->use_mod_obj_format;
+
+    auto& resolver = *processor.resolver;
+
+    // these files are only the direct files present in the module
+    // for example every file (nested included) in a directory
+    // however it won't include files imported from another module
+    std::vector<ASTFileMetaData> direct_files;
+
+    // this would determine the direct files for the module
+    processor.determine_mod_files(direct_files, mod);
+
+    // let's check object file if it already exists
+    if(fs::exists(mod->object_path.to_view())) {
+
+        if (verbose) {
+            std::cout << "[lab] " << "found object file '" << mod->object_path << "', checking timestamp." << std::endl;
+        }
+
+        // let's check if module timestamp file exists and is valid (files haven't changed)
+        if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
+
+            if (verbose) {
+                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "'" << std::endl;
+                std::cout << "[lab] " << "reusing found object file" << std::endl;
+            }
+
+            // exe->linkables.emplace_back(mod->object_path.copy());
+            return 0;
+
+        } else if (verbose) {
+            std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
+        }
+
+    } else if(verbose) {
+        std::cout << "[lab] " << "couldn't find object file at '" << mod->object_path << "'" << std::endl;
+    }
+
+    // ---------- HEAVY WORK BEGINS HERE ----------------
+    // -------- (Tyla "omg, this is so heavy") ----------
+    // ------- we must use any cache, before this --------
+
+    // this will include the direct files (nested included) for the module
+    // these will be lexed and parsed
+    // these direct files will have "imports" field, which can be accessed to check each file's imports
+    std::vector<ASTFileResultNew*> module_files;
+
+    // this would import these direct files (lex and parse), into the module files
+    // the module files will have imports, any file imported (from this module or external module will be included)
+    processor.import_mod_files(pool, module_files, direct_files, mod);
+
+    const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
+    if(mod_data_path && do_compile) {
+        std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
+        if (!mod->name.empty()) {
+            std::cout << '\'' << mod->name.data() << "' ";
+        }
+        std::cout << "at path '" << mod_data_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+    }
+
+    // preparing translation
+    c_visitor.prepare_translate();
+
+    // start a module scope in symbol resolver, that we can dispose later
+    resolver.module_scope_start();
+
+    // importing files user imported using includes
+    if(!mod->includes.empty()) {
+        for(auto& include : mod->includes) {
+            if(verbose) {
+                std::cout << "[lab] " << "including chemical file '" << include << '\'' << std::endl;
+            }
+            const auto abs_path = include.to_std_string();
+            unsigned fileId = loc_man.encodeFile(abs_path);
+            ASTFileResultNew imported_file(fileId, abs_path, &mod->module_scope);
+            processor.import_chemical_file(imported_file, fileId, abs_path);
+            auto& scope = imported_file.unit.scope.body;
+            auto& nodes = scope.nodes;
+            resolver.resolve_file(scope, abs_path);
+            processor.translate_to_c(c_visitor, nodes, abs_path);
+        }
+    }
+
+    if(verbose) {
+        std::cout << "[lab] " << "detecting import cycles in the imports" << std::endl;
+    }
+
+    // check module files for import cycles (direct or indirect)
+    ImportCycleCheckResult importCycle { false, loc_man };
+    check_imports_for_cycles(importCycle, module_files);
+    if(importCycle.has_cyclic_dependencies) {
+        return 1;
+    }
+
+    if(verbose) {
+        std::cout << "[lab] " << "flattening the module import graph" << std::endl;
+    }
+
+    // get the files flattened
+    auto flattened_files = flatten(module_files);
+
+    if(verbose) {
+        std::cout << "[lab] " << "resolving symbols in the module" << std::endl;
+    }
+
+    // symbol resolve all the files in the module
+    const auto sym_res_status = processor.sym_res_files(flattened_files);
+    if(sym_res_status == 1) {
+        return 1;
+    }
+
+    // we need to search for main function in each module and make it no_mangle
+    // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
+    const auto main_func = resolver.find("main");
+    if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
+        if(verbose) {
+            std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
+        }
+        main_func->as_function_unsafe()->set_no_mangle(true);
+    }
+
+    if(verbose) {
+        std::cout << "[lab] " << "compiling module files" << std::endl;
+    }
+
+    // compile the whole module
+    processor.translate_module(
+            c_visitor, mod, flattened_files
+    );
+
+    if(verbose) {
+        std::cout << "[lab] " << "disposing symbols in the module" << std::endl;
+    }
+
+    // going over each file in the module, to remove non-public nodes
+    // so when we declare the nodes in other module, we don't consider non-public nodes
+    // because non-public nodes are only present in the module allocator which will be cleared
+    for(const auto file : module_files) {
+        auto file_unit = processor.shrinked_unit.find(file->abs_path);
+        if(file_unit != processor.shrinked_unit.end()) {
+            auto& nodes = file_unit->second.scope.body.nodes;
+            auto itr = nodes.begin();
+            while(itr != nodes.end()) {
+                auto& node = *itr;
+                if(is_node_exported(node)) {
+                    itr++;
+                } else {
+                    itr = nodes.erase(itr);
+                }
+            }
+        }
+    }
+
+    // dispose module symbols in symbol resolver
+    resolver.dispose_module_symbols_now(mod->name.data());
+
+    // disposing data
+    mod_allocator->clear();
+
+    // getting the c program
+    const auto& program = output_ptr.str();
+
+    // compiling the c program, if required
+    if(do_compile) {
+        auto obj_path = mod->object_path.to_std_string();
+        if(verbose) {
+            std::cout << "[lab] emitting the module '" << mod->name <<  "' object file at path '" << obj_path << '\'' << std::endl;
+        }
+        const auto compile_c_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, options->outMode == OutputMode::DebugComplete);
+        if (compile_c_result == 1) {
+            const auto out_path = resolve_sibling(obj_path, mod->name.to_std_string() + ".debug.c");
+            writeToFile(out_path, program);
+            std::cerr << rang::fg::red << "[lab] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
+            return 1;
+        }
+        // exe->linkables.emplace_back(obj_path);
+        generated[mod] = obj_path;
+        if(caching) {
+            save_mod_timestamp(direct_files, mod_timestamp_file);
+        }
+    }
+
+    // writing the translated c file (if user required)
+    if(!out_c_file.empty()) {
+        if(mod->type == LabModuleType::CFile) {
+            copyFile(mod->paths[0].to_view(), out_c_file);
+        } else {
+            writeToFile(out_c_file, program);
+        }
+    }
+
+    if(cbiJob && c_visitor.compiler_interfaces) {
+        auto& compiler_interfaces = *c_visitor.compiler_interfaces;
+        auto cbiName = cbiJob->name.to_std_string();
+        auto& cbiData = binder.data[cbiName];
+        auto bResult = binder.compile(
+                cbiData,
+                program,
+                compiler_interfaces,
+                processor
+        );
+        if(options->verbose || options->benchmark || !bResult.error.empty()) {
+            for(auto& diag : binder.diagnostics) {
+                std::cerr << rang::fg::red << "[lab:cbi] " << diag << std::endl << rang::fg::reset;
+            }
+        }
+        binder.diagnostics.clear();
+        if(!bResult.error.empty()) {
+            auto out_path = resolve_rel_child_path_str(cbiJob->build_dir.data(),mod->name.to_std_string() + ".2c.c");
+            writeToFile(out_path, program);
+            std::cerr << rang::fg::red << "[lab] failed to compile CBI module with name '" << mod->name.data() << "' in '" << cbiJob->name.data() << "' with error '" << bResult.error << "' written at '" << out_path << '\'' << rang::fg::reset << std::endl;
+            return 1;
+        }
+        compiler_interfaces.clear();
+        // marking entry of the cbi module, if this module is the entry
+        if(cbiJob->entry_module == mod) {
+            cbiData.entry_module = bResult.module;
+        }
+    }
+
+    // clear the current c string
+    output_ptr.clear();
+    output_ptr.str("");
+
+    return 0;
+
+}
+
+#ifdef COMPILER_BUILD
+
+int LabBuildCompiler::process_module_gen(
+        LabModule* mod,
+        ASTProcessor& processor,
+        Codegen& gen,
+        const std::string& mod_timestamp_file
+) {
+
+    // variables
+    const auto caching = options->is_caching_enabled;
+    const auto verbose = options->verbose;
+    const bool is_use_obj_format = options->use_mod_obj_format;
+
+    auto& resolver = *processor.resolver;
+#ifdef COMPILER_BUILD
+    auto& cTranslator = *processor.translator;
+#endif
+
+    // these files are only the direct files present in the module
+    // for example every file (nested included) in a directory
+    // however it won't include files imported from another module
+    std::vector<ASTFileMetaData> direct_files;
+
+    // this would determine the direct files for the module
+    processor.determine_mod_files(direct_files, mod);
+
+    // let's check object file if it already exists
+    if(fs::exists(mod->object_path.to_view())) {
+
+        if (verbose) {
+            std::cout << "[lab] " << "found object file '" << mod->object_path << "', checking timestamp." << std::endl;
+        }
+
+        // let's check if module timestamp file exists and is valid (files haven't changed)
+        if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
+
+            if (verbose) {
+                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "'" << std::endl;
+                std::cout << "[lab] " << "reusing found object file" << std::endl;
+            }
+
+            // exe->linkables.emplace_back(mod->object_path.copy());
+            return 0;
+
+        } else if (verbose) {
+            std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
+        }
+
+    } else if(verbose) {
+        std::cout << "[lab] " << "couldn't find object file at '" << mod->object_path << "'" << std::endl;
+    }
+
+    // ---------- HEAVY WORK BEGINS HERE ----------------
+    // -------- (Tyla "omg, this is so heavy") ----------
+    // ------- we must use any cache, before this --------
+
+    // this will include the direct files (nested included) for the module
+    // these will be lexed and parsed
+    // these direct files will have "imports" field, which can be accessed to check each file's imports
+    std::vector<ASTFileResultNew*> module_files;
+
+    // this would import these direct files (lex and parse), into the module files
+    // the module files will have imports, any file imported (from this module or external module will be included)
+    processor.import_mod_files(pool, module_files, direct_files, mod);
+
+    const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
+    if(mod_data_path) {
+        std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
+        if (!mod->name.empty()) {
+            std::cout << '\'' << mod->name.data() << "' ";
+        }
+        std::cout << "at path '" << mod_data_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+    }
+
+    // let c translator know that a new module has begin
+    // so it can re-declare imported c headers
+    cTranslator.module_begin();
+
+    // prepare for code generation of this module
+    gen.module_init(mod->scope_name.to_chem_view(), mod->name.to_chem_view());
+
+    // start a module scope in symbol resolver, that we can dispose later
+    resolver.module_scope_start();
+
+    // importing files user imported using includes
+    if(!mod->includes.empty()) {
+        for(auto& include : mod->includes) {
+            if(verbose) {
+                std::cout << "[lab] " << "including chemical file '" << include << '\'' << std::endl;
+            }
+            const auto abs_path = include.to_std_string();
+            unsigned fileId = loc_man.encodeFile(abs_path);
+            ASTFileResultNew imported_file(fileId, abs_path, &mod->module_scope);
+            processor.import_chemical_file(imported_file, fileId, abs_path);
+            auto& scope = imported_file.unit.scope.body;
+            auto& nodes = scope.nodes;
+            resolver.resolve_file(scope, abs_path);
+            processor.declare_and_compile(gen, nodes, abs_path);
+        }
+    }
+
+    // importing c headers of the module before processing files
+    if(!mod->headers.empty()) {
+        if(verbose) {
+            std::cout << "[lab] " << "including c headers for module" << std::endl;
+        }
+        // args to clang
+        std::vector<std::string> args;
+        args.emplace_back(options->exe_path);
+        for(auto& header: mod->headers) {
+            args.emplace_back("-include");
+            args.emplace_back(header.to_view());
+        }
+        args.emplace_back("-x");
+        args.emplace_back("c");
+#ifdef WIN32
+        args.emplace_back("NUL");
+#else
+        args.emplace_back("/dev/null");
+#endif
+        // set checking for declarations to false, since this is a new module (so none have been included, we are also using a single invocation)
+        // this will improve performance (since it hashes their locations), and reliability (since locations sometimes can't be found)
+        auto prev_check = cTranslator.check_decls_across_invocations;
+        cTranslator.check_decls_across_invocations = false;
+        // translate
+        cTranslator.translate(args, options->resources_path.c_str());
+        cTranslator.check_decls_across_invocations = prev_check;
+        auto& nodes = cTranslator.nodes;
+        // symbol resolving c nodes, really fast -- just declaring their id's as less than public specifier
+        resolver.import_file(nodes, mod->name.to_std_string() + ":headers", true);
+        // declaring the nodes fast using code generator
+        for(const auto node : nodes) {
+            node->code_gen_declare(gen);
+        }
+    }
+
+    if(verbose) {
+        std::cout << "[lab] " << "detecting import cycles in the imports" << std::endl;
+    }
+
+    // check module files for import cycles (direct or indirect)
+    ImportCycleCheckResult importCycle { false, loc_man };
+    check_imports_for_cycles(importCycle, module_files);
+    if(importCycle.has_cyclic_dependencies) {
+        return 1;
+    }
+
+    if(verbose) {
+        std::cout << "[lab] " << "flattening the module import graph" << std::endl;
+    }
+
+    // get the files flattened
+    auto flattened_files = flatten(module_files);
+
+    if(verbose) {
+        std::cout << "[lab] " << "resolving symbols in the module" << std::endl;
+    }
+
+    // symbol resolve all the files in the module
+    const auto sym_res_status = processor.sym_res_files(flattened_files);
+    if(sym_res_status == 1) {
+        return 1;
+    }
+
+    // we need to search for main function in each module and make it no_mangle
+    // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
+    const auto main_func = resolver.find("main");
+    if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
+        if(verbose) {
+            std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
+        }
+        main_func->as_function_unsafe()->set_no_mangle(true);
+    }
+
+    if(verbose) {
+        std::cout << "[lab] " << "compiling module files" << std::endl;
+    }
+
+    // compile the whole module
+    processor.compile_module(
+            gen, mod, flattened_files
+    );
+
+    if(verbose) {
+        std::cout << "[lab] " << "disposing symbols in the module" << std::endl;
+    }
+
+    // going over each file in the module, to remove non-public nodes
+    // so when we declare the nodes in other module, we don't consider non-public nodes
+    // because non-public nodes are only present in the module allocator which will be cleared
+    for(const auto file : module_files) {
+        auto file_unit = processor.shrinked_unit.find(file->abs_path);
+        if(file_unit != processor.shrinked_unit.end()) {
+            auto& nodes = file_unit->second.scope.body.nodes;
+            auto itr = nodes.begin();
+            while(itr != nodes.end()) {
+                auto& node = *itr;
+                if(is_node_exported(node)) {
+                    itr++;
+                } else {
+                    itr = nodes.erase(itr);
+                }
+            }
+        }
+    }
+
+    // dispose module symbols in symbol resolver
+    resolver.dispose_module_symbols_now(mod->name.data());
+
+    if(gen.has_errors) {
+        std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;
+        return 1;
+    }
+
+    // finalizing the di builder
+    gen.di.finalize();
+
+    // disposing data
+    mod_allocator->clear();
+
+    CodegenEmitterOptions emitter_options;
+    // emitter options allow to configure type of build (debug or release)
+    // configuring the emitter options
+    configure_emitter_opts(options->outMode, &emitter_options);
+    if (options->def_lto_on) {
+        emitter_options.lto = true;
+    }
+    if(options->debug_ir) {
+        emitter_options.debug_ir = true;
+    }
+    if (options->def_assertions_on) {
+        emitter_options.assertions_on = true;
+    }
+
+    // which files to emit
+    if(!mod->llvm_ir_path.empty()) {
+        if(options->debug_ir) {
+            if(verbose) {
+                std::cout << "[lab] saving debug llvm ir at path '" << mod->llvm_ir_path << '\'' << std::endl;
+            }
+            gen.save_to_ll_file_for_debugging(mod->llvm_ir_path.data());
+        } else {
+            emitter_options.ir_path = mod->llvm_ir_path.data();
+        }
+    }
+    if(!mod->asm_path.empty()) {
+        emitter_options.asm_path = mod->asm_path.data();
+    }
+    if(!mod->bitcode_path.empty()) {
+        emitter_options.bitcode_path = mod->bitcode_path.data();
+    }
+    if(!mod->object_path.empty()) {
+        emitter_options.obj_path = mod->object_path.data();
+    }
+
+    const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
+    if(verbose) {
+        std::cout << "[lab] emitting the module '" << mod->name << "' at '" << gen_path << '\'' << std::endl;
+    }
+
+    // creating a object or bitcode file
+    const bool save_result = gen.save_with_options(&emitter_options);
+    if(save_result) {
+        if(gen_path) {
+            // exe->linkables.emplace_back(gen_path);
+            generated[mod] = gen_path;
+            if(caching) {
+                save_mod_timestamp(direct_files, mod_timestamp_file);
+            }
+        }
+    } else {
+        std::cerr << "[lab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
+    }
+
+    return 0;
+
+}
+
+#endif
+
+int LabBuildCompiler::process_modules(LabJob* job) {
+
+    const auto exe = job;
+    const auto get_job_type = job->type;
     const auto job_type = exe->type;
 
     // the flag that forces usage of tcc
@@ -436,12 +961,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         if(verbose) {
             std::cout << "[lab] " << "created the global container" << std::endl;
         }
-    }
-
-    if(use_tcc) {
-        // clear build.lab c output
-        output_ptr.clear();
-        output_ptr.str("");
     }
 
     // configure output path
@@ -562,388 +1081,54 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             continue;
         }
 
-        // these files are only the direct files present in the module
-        // for example every file (nested included) in a directory
-        // however it won't include files imported from another module
-        std::vector<ASTFileMetaData> direct_files;
 
-        // this would determine the direct files for the module
-        processor.determine_mod_files(direct_files, mod);
-
-        // let's check object file if it already exists
-        if(fs::exists(mod->object_path.to_view())) {
-
-            if (verbose) {
-                std::cout << "[lab] " << "found object file '" << mod->object_path << "', checking timestamp." << std::endl;
-            }
-
-            // let's check if module timestamp file exists and is valid (files haven't changed)
-            if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
-
-                if (verbose) {
-                    std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "'" << std::endl;
-                    std::cout << "[lab] " << "reusing found object file" << std::endl;
-                }
-
-                exe->linkables.emplace_back(mod->object_path.copy());
-                continue;
-
-            } else if (verbose) {
-                std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
-            }
-
-        } else if(verbose) {
-            std::cout << "[lab] " << "couldn't find object file at '" << mod->object_path << "'" << std::endl;
-        }
-
-        // ---------- HEAVY WORK BEGINS HERE ----------------
-        // -------- (Tyla "omg, this is so heavy") ----------
-        // ------- we must use any cache, before this --------
-
-        // this will include the direct files (nested included) for the module
-        // these will be lexed and parsed
-        // these direct files will have "imports" field, which can be accessed to check each file's imports
-        std::vector<ASTFileResultNew*> module_files;
-
-        // this would import these direct files (lex and parse), into the module files
-        // the module files will have imports, any file imported (from this module or external module will be included)
-        processor.import_mod_files(pool, module_files, direct_files, mod);
-
-        const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
-        if(mod_data_path && do_compile) {
-            std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
-            if (!mod->name.empty()) {
-                std::cout << '\'' << mod->name.data() << "' ";
-            }
-            std::cout << "at path '" << mod_data_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
-        }
-
-#ifdef COMPILER_BUILD
-        // let c translator know that a new module has begin
-        // so it can re-declare imported c headers
-        cTranslator.module_begin();
-#endif
-
-        if(use_tcc) {
-            // preparing translation
-            c_visitor.prepare_translate();
-        }
-#ifdef COMPILER_BUILD
-        else {
-            // prepare for code generation of this module
-            gen.module_init(mod->scope_name.to_chem_view(), mod->name.to_chem_view());
-        }
-#endif
-
-        // start a module scope in symbol resolver, that we can dispose later
-        resolver.module_scope_start();
-
-        // importing files user imported using includes
-        if(!mod->includes.empty()) {
-            for(auto& include : mod->includes) {
-                if(verbose) {
-                    std::cout << "[lab] " << "including chemical file '" << include << '\'' << std::endl;
-                }
-                const auto abs_path = include.to_std_string();
-                unsigned fileId = loc_man.encodeFile(abs_path);
-                ASTFileResultNew imported_file(fileId, abs_path, &mod->module_scope);
-                processor.import_chemical_file(imported_file, fileId, abs_path);
-                auto& scope = imported_file.unit.scope.body;
-                auto& nodes = scope.nodes;
-                resolver.resolve_file(scope, abs_path);
-#ifdef COMPILER_BUILD
-                processor.declare_and_compile(gen, nodes, abs_path);
-#else
-                processor.translate_to_c(c_visitor, nodes, abs_path);
-#endif
-            }
-        }
-
-#ifdef COMPILER_BUILD
-        // importing c headers of the module before processing files
-        if(!mod->headers.empty()) {
-            if(verbose) {
-                std::cout << "[lab] " << "including c headers for module" << std::endl;
-            }
-            // args to clang
-            std::vector<std::string> args;
-            args.emplace_back(options->exe_path);
-            for(auto& header: mod->headers) {
-                args.emplace_back("-include");
-                args.emplace_back(header.to_view());
-            }
-            args.emplace_back("-x");
-            args.emplace_back("c");
-#ifdef WIN32
-            args.emplace_back("NUL");
-#else
-            args.emplace_back("/dev/null");
-#endif
-            // set checking for declarations to false, since this is a new module (so none have been included, we are also using a single invocation)
-            // this will improve performance (since it hashes their locations), and reliability (since locations sometimes can't be found)
-            auto prev_check = cTranslator.check_decls_across_invocations;
-            cTranslator.check_decls_across_invocations = false;
-            // translate
-            cTranslator.translate(args, options->resources_path.c_str());
-            cTranslator.check_decls_across_invocations = prev_check;
-            auto& nodes = cTranslator.nodes;
-            // symbol resolving c nodes, really fast -- just declaring their id's as less than public specifier
-            resolver.import_file(nodes, mod->name.to_std_string() + ":headers", true);
-            // declaring the nodes fast using code generator
-            for(const auto node : nodes) {
-                node->code_gen_declare(gen);
-            }
-        }
-#endif
-
-        if(verbose) {
-            std::cout << "[lab] " << "detecting import cycles in the imports" << std::endl;
-        }
-
-        // check module files for import cycles (direct or indirect)
-        ImportCycleCheckResult importCycle { false, loc_man };
-        check_imports_for_cycles(importCycle, module_files);
-        if(importCycle.has_cyclic_dependencies) {
-            compile_result = 1;
-            break;
-        }
-
-        if(verbose) {
-            std::cout << "[lab] " << "flattening the module import graph" << std::endl;
-        }
-
-        // get the files flattened
-        auto flattened_files = flatten(module_files);
-
-        if(verbose) {
-            std::cout << "[lab] " << "resolving symbols in the module" << std::endl;
-        }
-
-        // symbol resolve all the files in the module
-        const auto sym_res_status = processor.sym_res_files(flattened_files);
-        if(sym_res_status == 1) {
-            compile_result = 1;
-            break;
-        }
-
-        // we need to search for main function in each module and make it no_mangle
-        // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
-        const auto main_func = resolver.find("main");
-        if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
-            if(verbose) {
-                std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
-            }
-            main_func->as_function_unsafe()->set_no_mangle(true);
-        }
-
-        if(verbose) {
-            std::cout << "[lab] " << "compiling module files" << std::endl;
-        }
-
-        // compile the whole module
-        if(use_tcc) {
-            processor.translate_module(
-                c_visitor, mod, flattened_files
-            );
-        } else {
-#ifdef COMPILER_BUILD
-            processor.compile_module(
-                gen, mod, flattened_files
-            );
-#endif
-        }
-
-        if(verbose) {
-            std::cout << "[lab] " << "disposing symbols in the module" << std::endl;
-        }
-
-        // going over each file in the module, to remove non-public nodes
-        // so when we declare the nodes in other module, we don't consider non-public nodes
-        // because non-public nodes are only present in the module allocator which will be cleared
-        for(const auto file : module_files) {
-            auto file_unit = processor.shrinked_unit.find(file->abs_path);
-            if(file_unit != processor.shrinked_unit.end()) {
-                auto& nodes = file_unit->second.scope.body.nodes;
-                auto itr = nodes.begin();
-                while(itr != nodes.end()) {
-                    auto& node = *itr;
-                    if(is_node_exported(node)) {
-                        itr++;
-                    } else {
-                        itr = nodes.erase(itr);
-                    }
+        // figuring out the translated c output for the module (if user required)
+        std::string out_c_file;
+        if(get_job_type == LabJobType::ToCTranslation || !mod->out_c_path.empty()) {
+            out_c_file = mod->out_c_path.to_std_string();
+            if(!out_c_file.empty()) {
+                if(!job->build_dir.empty()) {
+                    out_c_file = resolve_rel_child_path_str(job->build_dir.data(),mod->name.to_std_string() + ".2c.c");
+                } else if(!job->abs_path.empty()) {
+                    out_c_file = job->abs_path.to_std_string();
                 }
             }
-        }
-
-        // no need to dispose symbols for last module
-        if(mod_index < dependencies.size() - 1) {
-            // dispose module symbols in symbol resolver
-            resolver.dispose_module_symbols_now(mod->name.data());
-        }
-
-#ifdef COMPILER_BUILD
-        if(!use_tcc && gen.has_errors) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;
-            compile_result = 1;
-            break;
-        }
-#endif
-        if(compile_result == 1) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;
-            break;
-        }
-
-#ifdef COMPILER_BUILD
-        // finalizing the di builder
-        gen.di.finalize();
-#endif
-        // disposing data
-        mod_allocator->clear();
-
-        if(use_tcc) {
-
-            // getting the c program
-            const auto& program = output_ptr.str();
-
-            // compiling the c program, if required
-            if(do_compile) {
-                auto obj_path = mod->object_path.to_std_string();
-                if(verbose) {
-                    std::cout << "[lab] emitting the module '" << mod->name <<  "' object file at path '" << obj_path << '\'' << std::endl;
-                }
-                compile_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, options->outMode == OutputMode::DebugComplete);
-                if (compile_result == 1) {
-                    const auto out_path = resolve_sibling(obj_path, mod->name.to_std_string() + ".debug.c");
-                    writeToFile(out_path, program);
-                    std::cerr << rang::fg::red << "[lab] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
-                    break;
-                }
-                exe->linkables.emplace_back(obj_path);
-                generated[mod] = obj_path;
-                if(caching) {
-                    save_mod_timestamp(direct_files, mod_timestamp_file);
-                }
-            }
-
-            // writing the translated c file (if user required)
-            if(job_type == LabJobType::ToCTranslation || !mod->out_c_path.empty()) {
-                auto out_path = mod->out_c_path.to_std_string();
-                if(out_path.empty()) {
-                    if(!exe->build_dir.empty()) {
-                        out_path = resolve_rel_child_path_str(exe->build_dir.data(),mod->name.to_std_string() + ".2c.c");
-                    } else if(!exe->abs_path.empty()) {
-                        out_path = exe->abs_path.to_std_string();
-                    }
-                }
-                if(!out_path.empty()) {
-                    if(mod->type == LabModuleType::CFile) {
-                        copyFile(mod->paths[0].to_view(), out_path);
-                    } else {
-                        writeToFile(out_path, program);
-                    }
-                }
 #ifdef DEBUG
-                else {
-                    throw std::runtime_error("couldn't figure out the output c path");
-                }
+            else {
+                throw std::runtime_error("couldn't figure out the output c path");
+            }
 #endif
-            }
-
-            if(job_type == LabJobType::CBI) {
-                const auto cbiJob = (LabJobCBI*) exe;
-                auto cbiName = exe->name.to_std_string();
-                auto& cbiData = binder.data[cbiName];
-                auto bResult = binder.compile(
-                        cbiData,
-                        program,
-                        compiler_interfaces,
-                        processor
-                );
-                if(options->verbose || options->benchmark || !bResult.error.empty()) {
-                    for(auto& diag : binder.diagnostics) {
-                        std::cerr << rang::fg::red << "[lab:cbi] " << diag << std::endl << rang::fg::reset;
-                    }
-                }
-                binder.diagnostics.clear();
-                if(!bResult.error.empty()) {
-                    auto out_path = resolve_rel_child_path_str(exe->build_dir.data(),mod->name.to_std_string() + ".2c.c");
-                    writeToFile(out_path, program);
-                    std::cerr << rang::fg::red << "[lab] failed to compile CBI module with name '" << mod->name.data() << "' in '" << exe->name.data() << "' with error '" << bResult.error << "' written at '" << out_path << '\'' << rang::fg::reset << std::endl;
-                    compile_result = 1;
-                    break;
-                }
-                compiler_interfaces.clear();
-                // marking entry of the cbi module, if this module is the entry
-                if(cbiJob->entry_module == mod) {
-                    cbiData.entry_module = bResult.module;
-                }
-            }
-
-            // clear the current c string
-            output_ptr.clear();
-            output_ptr.str("");
-
         }
+
+        // get the cbi job pointer, if it's a cbi
+        LabJobCBI* cbiJob = get_job_type == LabJobType::CBI ? (LabJobCBI*) job : nullptr;
+
+        if(use_tcc) {
+
+            const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file, out_c_file, do_compile, output_ptr, cbiJob);
+            if(result == 1) {
+                return 1;
+            }
+
+            if(do_compile) {
+                job->linkables.emplace_back(mod->object_path.copy());
+            }
+
+        } else {
+
 #ifdef COMPILER_BUILD
-        else {
 
-            CodegenEmitterOptions emitter_options;
-            // emitter options allow to configure type of build (debug or release)
-            // configuring the emitter options
-            configure_emitter_opts(options->outMode, &emitter_options);
-            if (options->def_lto_on) {
-                emitter_options.lto = true;
-            }
-            if(options->debug_ir) {
-                emitter_options.debug_ir = true;
-            }
-            if (options->def_assertions_on) {
-                emitter_options.assertions_on = true;
+            const auto result = process_module_gen(mod, processor, gen, mod_timestamp_file);
+            if(result == 1) {
+                return 1;
             }
 
-            // which files to emit
-            if(!mod->llvm_ir_path.empty()) {
-                if(options->debug_ir) {
-                    if(verbose) {
-                        std::cout << "[lab] saving debug llvm ir at path '" << mod->llvm_ir_path << '\'' << std::endl;
-                    }
-                    gen.save_to_ll_file_for_debugging(mod->llvm_ir_path.data());
-                } else {
-                    emitter_options.ir_path = mod->llvm_ir_path.data();
-                }
-            }
-            if(!mod->asm_path.empty()) {
-                emitter_options.asm_path = mod->asm_path.data();
-            }
-            if(!mod->bitcode_path.empty()) {
-                emitter_options.bitcode_path = mod->bitcode_path.data();
-            }
-            if(!mod->object_path.empty()) {
-                emitter_options.obj_path = mod->object_path.data();
-            }
+            job->linkables.emplace_back(mod->object_path.copy());
 
-            const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
-            if(verbose) {
-                std::cout << "[lab] emitting the module '" << mod->name << "' at '" << gen_path << '\'' << std::endl;
-            }
-
-            // creating a object or bitcode file
-            const bool save_result = gen.save_with_options(&emitter_options);
-            if(save_result) {
-                if(gen_path) {
-                    exe->linkables.emplace_back(gen_path);
-                    generated[mod] = gen_path;
-                    if(caching) {
-                        save_mod_timestamp(direct_files, mod_timestamp_file);
-                    }
-                }
-            } else {
-                std::cerr << "[lab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
-            }
+#endif
 
         }
-#endif
+
 
     }
 

@@ -35,11 +35,6 @@ public:
     virtual ASTAnyKind any_kind() = 0;
 
     /**
-     * Interpret the current node in the given interpret scope
-     */
-    virtual void interpret(InterpretScope &scope);
-
-    /**
      * linked node is only available in Value and BaseType
      */
     ASTNode* get_ref_linked_node();

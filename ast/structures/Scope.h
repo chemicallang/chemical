@@ -138,8 +138,6 @@ public:
 
 #endif
 
-    void interpret(InterpretScope &scope) final;
-
     /**
      * function is supposed to implemented by other scopes
      * like loop scope, which can be stopped in the middle of the loop

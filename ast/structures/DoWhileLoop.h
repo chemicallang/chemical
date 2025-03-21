@@ -11,11 +11,9 @@
 #include "Scope.h"
 
 class DoWhileLoop : public LoopASTNode {
-private:
+public:
 
     bool stoppedInterpretation = false;
-
-public:
 
     Value* condition;
 
@@ -46,8 +44,6 @@ public:
 #endif
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
-    void interpret(InterpretScope &scope) final;
 
     void stopInterpretation() final;
 

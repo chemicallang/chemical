@@ -7,26 +7,6 @@
 #include "ast/base/LoopASTNode.h"
 #include "ast/base/GlobalInterpretScope.h"
 
-LoopASTNode* asLoopNode(ASTNode* node) {
-    return ASTNode::isLoopASTNode(node->kind()) ? node->as_loop_node_unsafe() : nullptr;
-}
-
-void stop_interpretation_above(ASTNode* node) {
-    const auto p = asLoopNode(node);
-    if(p) {
-        p->stopInterpretation();
-    }
-    const auto parent = node->parent();
-    if(parent) {
-        stop_interpretation_above(parent);
-    }
-}
-
-void ReturnStatement::interpret(InterpretScope &scope) {
-    scope.global->current_func_type->set_return(scope, value);
-    stop_interpretation_above(parent());
-}
-
 void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if (value) {
         const auto func_type = linker.current_func_type;

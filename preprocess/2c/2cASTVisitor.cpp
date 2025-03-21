@@ -4466,7 +4466,7 @@ void ToCAstVisitor::VisitProvideStmt(ProvideStmt *stmt) {
 }
 
 void ToCAstVisitor::VisitComptimeBlock(ComptimeBlock *block) {
-    block->body.interpret(comptime_scope);
+    comptime_scope.interpret(&block->body);
 }
 
 void ToCAstVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {

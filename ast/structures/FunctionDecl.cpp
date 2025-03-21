@@ -1260,7 +1260,7 @@ Value *FunctionDeclaration::call(
         fn_scope->declare(params[i]->name, param_val);
         i++;
     }
-    body.value().interpret(*fn_scope);
+    fn_scope->interpret(&body.value());
     return interpretReturn;
 }
 

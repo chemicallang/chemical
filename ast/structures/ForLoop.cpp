@@ -40,22 +40,6 @@ void ForLoop::code_gen(Codegen &gen) {
 
 #endif
 
-/**
- * @brief Construct a new ForLoop object with an empty body
- */
-//ForLoop::ForLoop(
-//        std::unique_ptr<VarInitStatement> initializer,
-//        std::unique_ptr<Value> conditionExpr,
-//        std::unique_ptr<ASTNode> incrementerExpr,
-//        ASTNode* parent_node,
-//        CSTToken* token
-//) : initializer(std::move(initializer)),
-//    conditionExpr(std::move(conditionExpr)),
-//    incrementerExpr(std::move(incrementerExpr)),
-//    parent_node(parent_node), token(token) {
-//
-//}
-
 void ForLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
     initializer->declare_and_link(linker, (ASTNode*&) initializer);
@@ -63,19 +47,6 @@ void ForLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     incrementerExpr->declare_and_link(linker, incrementerExpr);
     body.link_sequentially(linker);
     linker.scope_end();
-}
-
-void ForLoop::interpret(InterpretScope &scope) {
-    InterpretScope child(&scope, scope.allocator, scope.global);
-    initializer->interpret(child);
-    while (conditionExpr->evaluated_bool(child)) {
-        body.interpret(child);
-        if (stoppedInterpretation) {
-            stoppedInterpretation = false;
-            break;
-        }
-        incrementerExpr->interpret(child);
-    }
 }
 
 void ForLoop::stopInterpretation() {

@@ -142,8 +142,6 @@ public:
 
     BaseType* known_type() final;
 
-    void interpret(InterpretScope &scope);
-
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void link_signature(SymbolResolver &linker) override;

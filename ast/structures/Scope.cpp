@@ -51,16 +51,6 @@ void top_level_dedupe(std::vector<ASTNode*>& nodes) {
 
 }
 
-void Scope::interpret(InterpretScope &scope) {
-    for (const auto &node: nodes) {
-        node->interpret(scope);
-        if (stoppedInterpretOnce) {
-            stoppedInterpretOnce = false;
-            return;
-        }
-    }
-}
-
 void Scope::tld_declare(SymbolResolver &linker) {
     for (auto &node: nodes) {
         node->declare_top_level(linker, node);

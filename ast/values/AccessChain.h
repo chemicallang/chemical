@@ -101,8 +101,6 @@ public:
 
     bool compile_time_computable() final;
 
-    void interpret(InterpretScope &scope) final;
-
     BaseType* create_type(ASTAllocator& allocator) final;
 
     BaseType* known_type() final;

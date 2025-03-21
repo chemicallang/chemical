@@ -325,14 +325,6 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
     }
 }
 
-void VarInitStatement::interpret(InterpretScope &scope) {
-    if (value) {
-        auto initializer = value->scope_value(scope);
-        scope.declare(name_view(), initializer);
-    }
-    decl_scope = &scope;
-}
-
 /**
  * called by assignment to assign a new value in the scope that this variable was declared
  */

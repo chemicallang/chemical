@@ -52,6 +52,4 @@ public:
     void code_gen(Codegen &gen) final;
 #endif
 
-    void interpret(InterpretScope& scope) final;
-
 };

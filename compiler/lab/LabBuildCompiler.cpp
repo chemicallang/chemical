@@ -1119,8 +1119,11 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     ASTFileMetaData buildLabMetaData(buildLabFileId, &labModuleScope, path, path, "");
     ASTFileResult blResult(buildLabFileId, path, &labModuleScope);
 
+    // parse the build.lab and all the files it imports
+    // TODO: handle the module imports differently and imports for other build.lab
     lab_processor.import_chemical_file(blResult, pool, buildLabMetaData);
 
+    // probably an error during parsing
     if(!blResult.continue_processing) {
         return nullptr;
     }

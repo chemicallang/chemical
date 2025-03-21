@@ -50,7 +50,3 @@ void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
         func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());
     }
 }
-
-void AssignStatement::interpret(InterpretScope &scope) {
-    lhs->set_value(scope, value, assOp, encoded_location());
-}

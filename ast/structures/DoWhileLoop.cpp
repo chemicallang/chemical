@@ -41,17 +41,6 @@ void DoWhileLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_end();
 }
 
-void DoWhileLoop::interpret(InterpretScope &scope) {
-    InterpretScope child(&scope, scope.allocator, scope.global);
-    do {
-        body.interpret(child);
-        if (stoppedInterpretation) {
-            stoppedInterpretation = false;
-            break;
-        }
-    } while (condition->evaluated_bool(child));
-}
-
 void DoWhileLoop::stopInterpretation() {
     stoppedInterpretation = true;
 }

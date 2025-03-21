@@ -576,6 +576,7 @@ int LabBuildCompiler::process_module_gen(
         LabModule* mod,
         ASTProcessor& processor,
         Codegen& gen,
+        CTranslator& cTranslator,
         const std::string& mod_timestamp_file
 ) {
 
@@ -583,11 +584,7 @@ int LabBuildCompiler::process_module_gen(
     const auto caching = options->is_caching_enabled;
     const auto verbose = options->verbose;
     const bool is_use_obj_format = options->use_mod_obj_format;
-
     auto& resolver = *processor.resolver;
-#ifdef COMPILER_BUILD
-    auto& cTranslator = *processor.translator;
-#endif
 
     // these files are only the direct files present in the module
     // for example every file (nested included) in a directory
@@ -1016,14 +1013,8 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     ToCBackendContext c_context(&c_visitor);
     global.backend_context = (BackendContext*) &c_context;
 
-#ifdef COMPILER_BUILD
-    auto& job_alloc = *job_allocator;
-    // a single c translator across this entire job
-    CTranslator cTranslator(job_alloc, options->is64Bit);
-    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
-#else
+    // the processor we use
     ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
-#endif
 
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
@@ -1163,11 +1154,10 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // a new symbol resolver for every executable
     SymbolResolver resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
-#ifdef COMPILER_BUILD
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, options->is64Bit);
-    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, &cTranslator, job_alloc, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, job_alloc, *mod_allocator, *file_allocator);
     CodegenOptions code_gen_options;
     if(cmd) {
         code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
@@ -1178,9 +1168,6 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     LLVMBackendContext g_context(&gen);
     // set the context so compile time calls are sent to it
     global.backend_context = (BackendContext*) &g_context;
-#else
-    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
-#endif
 
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(job->path_aliases);
@@ -1233,7 +1220,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
                 break;
         }
 
-        const auto result = process_module_gen(mod, processor, gen, mod_timestamp_file);
+        const auto result = process_module_gen(mod, processor, gen, cTranslator, mod_timestamp_file);
         if(result == 1) {
             return 1;
         }
@@ -1388,11 +1375,6 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     // creating symbol resolver for build.lab files only
     SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, &lab_allocator, &lab_allocator);
 
-#ifdef COMPILER_BUILD
-    // a single c translator is used to translate c files
-    CTranslator cTranslator(lab_allocator, options->is64Bit);
-#endif
-
     // the processor that does everything for build.lab files only
     ASTProcessor lab_processor(
             path_handler,
@@ -1401,9 +1383,6 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             loc_man,
             &lab_resolver,
             binder,
-#ifdef COMPILER_BUILD
-            &cTranslator,
-#endif
             lab_allocator,
             lab_allocator, // lab allocator is being used as a module level allocator
             lab_allocator

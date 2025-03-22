@@ -118,6 +118,12 @@ very innovative things are planned.
   - [ ] AST Transformation Plugins (ATP)
   - [ ] Annotation / Symbol Processing
 - [x] Build System based on Chemical
+  - [ ] Advanced caching support for modules
+  - [ ] Modes of build
+    - [x] Simple and easy 'chemical.mod' files
+    - [x] Advanced and powerful 'build.lab' files
+    - [x] Builds modules on the fly for usage within 'build.lab' files
+    - [x] Extremely fast build.lab processing with minimal allocations
   - [x] Compile single / multiple root file as modules
   - [x] Link multiple modules
   - [x] Work with both TCC and Clang based
@@ -129,6 +135,8 @@ very innovative things are planned.
   - [x] Can generate shared objects / dll
   - [ ] Can generate static libraries
   - [x] Can compile and link C module
+  - [x] Sibling Modules
+  - [x] Complex Nested Modules
   - [ ] Github modules
   - [ ] Watch mode, so files can be compiled incrementally
   - [ ] Configure compile / link parameters
@@ -172,7 +180,6 @@ very innovative things are planned.
 - [x] Same name function overloading
 - [x] Variants
 - [x] Generics
-  - [ ] Generics in inheritance require polishing
 - [x] C++ like Inheritance (Non-Multi)
 - [x] Rust like Trait and Impl
   - [ ] Dynamic dispatch requires polishing

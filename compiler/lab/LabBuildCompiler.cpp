@@ -1480,8 +1480,14 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         return nullptr;
     }
 
+    // printing results for module file parsing
+    print_results(modResult, modFilePath, true);
+
     // probably an error during parsing
     if(!modResult.continue_processing) {
+        if(verbose) {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't import the mod file at '" << modFilePath << "' due to errors" << std::endl;
+        }
         return nullptr;
     }
 
@@ -1503,6 +1509,10 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     } else {
         // otherwise we should try to get it from the import dependency
         module->update_mod_name(chem::string(dependency.scope_name), chem::string(dependency.mod_name));
+    }
+
+    if(verbose) {
+        std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
     }
 
     // module dependencies we determined from directly imported files
@@ -1542,9 +1552,6 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
             buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path), nullptr, imp_scope_name, imp_mod_name);
         }
     }
-
-    // figure out path for lab modules directory
-    const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");
 
     // these are modules imported by the build.lab
     // however we must build their build.lab or chemical.mod into a LabModule*
@@ -1635,21 +1642,27 @@ TCCState* LabBuildCompiler::built_lab_file(
     LabModule chemical_lab_module(LabModuleType::Files, chem::string("chemical"), chem::string("lab"));
     auto buildLabFileId = loc_man.encodeFile(path);
     ASTFileMetaData buildLabMetaData(buildLabFileId, &chemical_lab_module, path, path, "");
-    ASTFileResult blResult(buildLabFileId, path, &chemical_lab_module);
+    ASTFileResult labFileResult(buildLabFileId, path, &chemical_lab_module);
 
     // import the file into result (lex and parse)
     lab_processor.parse_on_job_allocator = true;
-    lab_processor.import_file(blResult, buildLabMetaData.file_id, buildLabMetaData.abs_path);
+    lab_processor.import_file(labFileResult, buildLabMetaData.file_id, buildLabMetaData.abs_path);
     lab_processor.parse_on_job_allocator = false;
 
+    // printing results for module file parsing
+    print_results(labFileResult, path, true);
+
     // probably an error during parsing
-    if(!blResult.continue_processing) {
+    if(!labFileResult.continue_processing) {
+        if(verbose) {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't import the 'build.lab' file at '" << path << "' due to errors" << std::endl;
+        }
         return nullptr;
     }
 
     // figure out files imported by this file
     std::vector<ASTFileMetaData> imports;
-    lab_processor.figure_out_direct_imports(buildLabMetaData, blResult.unit.scope.body.nodes, imports);
+    lab_processor.figure_out_direct_imports(buildLabMetaData, labFileResult.unit.scope.body.nodes, imports);
 
     // module dependencies we determined from directly imported files
     std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
@@ -1668,7 +1681,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     // if has imports, we import those files, this would just hit caches
     // but it's required to build a proper import tree
     if(!imports.empty()) {
-        const auto success = lab_processor.import_chemical_files(pool, blResult.imports, imports);
+        const auto success = lab_processor.import_chemical_files(pool, labFileResult.imports, imports);
         if(!success) {
             return nullptr;
         }
@@ -1690,7 +1703,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     {
 
-        std::vector<ASTFileResult*> files_to_flatten = { &blResult };
+        std::vector<ASTFileResult*> files_to_flatten = { &labFileResult };
 
         // check module files for import cycles (direct or indirect)
         ImportCycleCheckResult importCycle { false, loc_man };

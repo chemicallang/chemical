@@ -87,7 +87,7 @@ bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string_
 }
 
 void BuildContextbuild_path(chem::string* str, LabBuildContext* self) {
-    init_chem_string(str)->append(self->build_dir);
+    init_chem_string(str)->append(self->options->build_dir);
 }
 
 bool BuildContexthas_arg(LabBuildContext* self, chem::string_view* name) {

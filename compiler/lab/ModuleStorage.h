@@ -31,9 +31,18 @@ public:
     }
 
     /**
+     * would just index this module
+     */
+    void index_module(LabModule* module);
+
+    /**
      * insert a module into the modules
      */
-    void insert_module(std::unique_ptr<LabModule> modulePtr);
+    void insert_module(std::unique_ptr<LabModule> modulePtr) {
+        const auto module = modulePtr.get();
+        modules.emplace_back(std::move(modulePtr));
+        index_module(module);
+    }
 
     /**
      * insert module ptr dangerously
@@ -55,6 +64,15 @@ public:
      */
     inline size_t modules_size() {
         return modules.size();
+    }
+
+    /**
+     * this would clear any modules or indexes
+     * as if this storage started anew
+     */
+    void clear() {
+        modules.clear();
+        indexes.clear();
     }
 
 };

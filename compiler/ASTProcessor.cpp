@@ -51,11 +51,11 @@ void getFilesInDirectory(std::vector<std::string>& filePaths, const std::string&
     }
 }
 
-bool ASTProcessor::empty_diags(ASTFileResultNew& result) {
+bool ASTProcessor::empty_diags(ASTFileResult& result) {
     return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
 }
 
-void ASTProcessor::print_results(ASTFileResultNew& result, const chem::string_view& abs_path, bool benchmark) {
+void ASTProcessor::print_results(ASTFileResult& result, const chem::string_view& abs_path, bool benchmark) {
     CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
     CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Parser");
     if(benchmark) {
@@ -84,7 +84,7 @@ void ASTProcessor::determine_mod_files(
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
                 // all these files belong to the given module, so it's scope will be used
-                files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
+                files.emplace_back(fileId, module, abs_path, abs_path, "");
             }
             return;
         }
@@ -103,15 +103,15 @@ void ASTProcessor::determine_mod_files(
             getFilesInDirectory(filePaths, dir_path.data());
             for (auto& abs_path: filePaths) {
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
+                files.emplace_back(fileId, module, abs_path, abs_path, "");
             }
             return;
     }
 }
 
-void ASTProcessor::import_mod_files(
+bool ASTProcessor::import_mod_files(
         ctpl::thread_pool& pool,
-        std::vector<ASTFileResultNew*>& out_files,
+        std::vector<ASTFileResult*>& out_files,
         std::vector<ASTFileMetaData>& files,
         LabModule* module
 ) {
@@ -120,39 +120,7 @@ void ASTProcessor::import_mod_files(
     } else {
         path_handler.module_src_dir_path = "";
     }
-    import_chemical_files(pool, out_files, files);
-}
-
-void ASTProcessor::sym_res_c_file(Scope& scope, const std::string& abs_path) {
-    // doing stuff
-    auto prev_has_errors = resolver->has_errors;
-    previous = std::move(resolver->diagnostics);
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
-    }
-    for(const auto node : scope.nodes) {
-        auto id = node->get_located_id();
-        if(id) {
-            if (id->identifier.empty()) {
-                // TODO handle empty declarations, for example C contains
-                // empty enum declarations, where members can be linked directly
-                // enum {  Mem1, Mem2 }
-            } else {
-                resolver->declare_overriding(id->identifier, node);
-            }
-        }
-    }
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "SymRes:" + abs_path, bm_results.get());
-    }
-    if(!resolver->diagnostics.empty()) {
-        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes");
-    }
-    resolver->diagnostics = std::move(previous);
-    resolver->has_errors = prev_has_errors;
+    return import_chemical_files(pool, out_files, files);
 }
 
 SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string& abs_path) {
@@ -319,11 +287,11 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view
     }
 }
 
-ASTFileResultNew* concurrent_file_importer(
+ASTFileResult* chemical_file_concurrent_importer(
         int id,
         ASTProcessor* processor,
         ctpl::thread_pool& pool,
-        ASTFileResultNew* out_file,
+        ASTFileResult* out_file,
         ASTFileMetaData& fileData
 ) {
     processor->import_chemical_file(*out_file, pool, fileData);
@@ -331,31 +299,30 @@ ASTFileResultNew* concurrent_file_importer(
 }
 
 struct future_ptr_union {
-    ASTFileResultNew* result = nullptr;
-    std::future<ASTFileResultNew*> future;
+    ASTFileResult* result = nullptr;
+    std::future<ASTFileResult*> future;
 };
 
 #ifdef DEBUG
-#define DEBUG_FUTURE true
+#define DEBUG_FUTURE false
 #endif
 
-void ASTProcessor::import_chemical_files(
+bool ASTProcessor::import_chemical_files(
         ctpl::thread_pool& pool,
-        std::vector<ASTFileResultNew*>& out_files,
+        std::vector<ASTFileResult*>& out_files,
         std::vector<ASTFileMetaData>& files
 ) {
 
     std::vector<future_ptr_union> futures;
 
     // pointer variable to be used inside the for loop
-    ASTFileResultNew* out_file;
+    ASTFileResult* out_file;
 
     // launch all files concurrently
     for(auto& fileData : files) {
 
         const auto file_id = fileData.file_id;
         const auto& abs_path = fileData.abs_path;
-        auto file = std::string_view(abs_path);
 
         {
             std::lock_guard<std::mutex> guard(import_mutex);
@@ -368,7 +335,7 @@ void ASTProcessor::import_chemical_files(
 
 //            std::cout << "launching file : " << fileData.abs_path << std::endl;
             // we must try to store chem::string_view into the fileData, from the beginning
-            cache.emplace(abs_path, ASTFileResultNew(file_id, "", fileData.moduleScope));
+            cache.emplace(abs_path, ASTFileResult(file_id, "", fileData.module));
             out_file = &cache.find(abs_path)->second;
         }
 
@@ -376,11 +343,11 @@ void ASTProcessor::import_chemical_files(
         *static_cast<ASTFileMetaData*>(out_file) = fileData;
 
 #if defined(DEBUG_FUTURE) && DEBUG_FUTURE
-        futures.emplace_back(concurrent_file_importer(0, this, pool, out_file, fileData));
+        futures.emplace_back(chemical_file_concurrent_importer(0, this, pool, out_file, fileData));
 #else
         futures.emplace_back(
                 nullptr,
-                pool.push(concurrent_file_importer, this, std::ref(pool), out_file, fileData)
+                pool.push(chemical_file_concurrent_importer, this, std::ref(pool), out_file, fileData)
         );
 #endif
 
@@ -396,30 +363,42 @@ void ASTProcessor::import_chemical_files(
         }
     }
 
+    for(const auto file : out_files) {
+        if(!file->continue_processing) {
+            return false;
+        }
+    }
+
+    return true;
+
 }
 
-void ASTProcessor::import_chemical_file(
-        ASTFileResultNew& result,
-        ctpl::thread_pool& pool,
-        ASTFileMetaData& fileData
+void ASTProcessor::figure_out_direct_imports(
+        ASTFileMetaData& fileData,
+        std::vector<ASTNode*>& fileNodes,
+        std::vector<ASTFileMetaData>& outImports
 ) {
+    for(auto node : fileNodes) {
 
-    import_file(result, fileData.file_id, fileData.abs_path);
+        if(node->kind() == ASTNodeKind::ImportStmt) {
 
-    // figure out files imported by this file
-    std::vector<ASTFileMetaData> imports;
-    auto& file_nodes = result.unit.scope.body.nodes;
-    for(auto node : file_nodes) {
-        auto kind = node->kind();
-        if(kind == ASTNodeKind::ImportStmt) {
             auto stmt = node->as_import_stmt_unsafe();
+
+            // resolve the import path of this import statement
             auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, stmt->filePath.str());
+
             if(replaceResult.error.empty()) {
+
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
+
                 if(context) {
 
-                    ModuleScope* moduleScope = fileData.moduleScope;
+                    LabModule* module = fileData.module;
 
+                    // here since this path begins with '@'
+                    // we must determine which module it belongs to, we index modules based on 'scope_name:module_name' format
+                    // this format, we expect users to use for importing something for example -> import "@wakaztahir:socket/connect.ch"
+                    // sometimes the scope is empty, so user can directly use -> import "@std/fs.ch"
                     if(stmt->filePath[0] == '@') {
 
                         const auto atDirective = path_handler.get_atDirective(stmt->filePath.str());
@@ -427,36 +406,73 @@ void ASTProcessor::import_chemical_file(
                         // TODO this should be present in replace result, and that should be renamed to PathResolutionResult
                         const auto found = context->storage.find_module(atDirective.replaced);
                         if(found) {
-                            moduleScope = &found->module_scope;
+
+                            module = found;
+
+                        } else {
+
+                            // this is an error, because we couldn't determine the module for this file
+                            // even though it's path begins with a '@' which means it's external to module
+
+                            // however currently we do allow user to declare an alias for a path using '@'
+                            // it could be an alias as well, however checking alias for each import would lead to bad performance
+
                         }
+
                     }
 
-                    imports.emplace_back(fileId, moduleScope, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
+                    outImports.emplace_back(fileId, module, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
 
                 } else {
+                    // TODO we need context here always, or at least the module storage
 #ifdef DEBUG
                     throw std::runtime_error("there's no context here");
 #endif
-                    imports.emplace_back(fileId, fileData.moduleScope, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
+                    outImports.emplace_back(fileId, fileData.module, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
                 }
 
             } else {
-                std::cerr << "error: resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
+                std::cerr <<  rang::fg::red << "error:" << rang::fg::reset <<  " resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
             }
+
         } else {
             break;
         }
-    }
-
-    if(!imports.empty()) {
-
-        import_chemical_files(pool, result.imports, imports);
 
     }
 
 }
 
-void ASTProcessor::import_chemical_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path) {
+bool ASTProcessor::import_chemical_file(
+        ASTFileResult& result,
+        ctpl::thread_pool& pool,
+        ASTFileMetaData& fileData
+) {
+
+    // import the file into result (lex and parse)
+    const auto success = import_file(result, fileData.file_id, fileData.abs_path);
+    if(!success) {
+        return false;
+    }
+
+    // figure out files imported by this file
+    std::vector<ASTFileMetaData> imports;
+    figure_out_direct_imports(fileData, result.unit.scope.body.nodes, imports);
+
+    // if has imports, we import those files
+    if(!imports.empty()) {
+        const auto success2 = import_chemical_files(pool, result.imports, imports);
+        if(!success2) {
+            result.continue_processing = false;
+            return false;
+        }
+    }
+
+    return true;
+
+}
+
+bool ASTProcessor::import_chemical_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path) {
 
     auto& unit = result.unit;
 
@@ -465,9 +481,92 @@ void ASTProcessor::import_chemical_file(ASTFileResult& result, unsigned int file
 
     FileInputSource inp_source(abs_path.data());
     if(inp_source.has_error()) {
+        result.continue_processing = false;
         result.read_error = inp_source.error_message();
-        std::cerr << rang::fg::red << "error: when reading file " << abs_path << " because " << result.read_error << rang::fg::reset << std::endl;
-        return;
+        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
+        if(!result.read_error.empty()) {
+            std::cerr << " because " << result.read_error;
+        }
+        std::cerr << rang::fg::reset << std::endl;
+        return false;
+    }
+
+    Lexer lexer(std::string(abs_path), &inp_source, &binder, file_allocator);
+    std::vector<Token> tokens;
+
+    if(options->benchmark) {
+        result.lex_benchmark = std::make_unique<BenchmarkResults>();
+        result.lex_benchmark->benchmark_begin();
+        lexer.getTokens(tokens);
+        result.lex_benchmark->benchmark_end();
+    } else {
+        lexer.getTokens(tokens);
+    }
+
+    // lexer doesn't have diagnostics
+    // result.lex_diagnostics = {};
+
+    // parse the file
+    Parser parser(
+            fileId,
+            abs_path,
+            tokens.data(),
+            resolver->comptime_scope.loc_man,
+            job_allocator,
+            parse_on_job_allocator ? job_allocator : mod_allocator,
+            resolver->is64Bit,
+            &binder
+    );
+
+    // put the lexing diagnostic into the parser diagnostic for now
+    if(!tokens.empty()) {
+        auto& last_token = tokens.back();
+        if (last_token.type == TokenType::Unexpected) {
+            parser.diagnostics.emplace_back(
+                    CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", chem::string_view(abs_path), last_token.position, last_token.position, DiagSeverity::Warning));
+        }
+    }
+
+    // setting file scope as parent of all nodes parsed
+    parser.parent_node = &result.unit.scope;
+
+    if(options->benchmark) {
+        result.parse_benchmark = std::make_unique<BenchmarkResults>();
+        result.parse_benchmark->benchmark_begin();
+        parser.parse(unit.scope.body.nodes);
+        result.parse_benchmark->benchmark_end();
+    } else {
+        parser.parse(unit.scope.body.nodes);
+    }
+
+    result.parse_diagnostics = std::move(parser.diagnostics);
+
+    if(parser.has_errors) {
+        result.continue_processing = false;
+        return false;
+    } else {
+        return true;
+    }
+
+}
+
+bool ASTProcessor::import_chemical_mod_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path) {
+
+    auto& unit = result.unit;
+
+    std::unique_ptr<BenchmarkResults> lex_bm;
+    std::unique_ptr<BenchmarkResults> parse_bm;
+
+    FileInputSource inp_source(abs_path.data());
+    if(inp_source.has_error()) {
+        result.continue_processing = false;
+        result.read_error = inp_source.error_message();
+        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
+        if(!result.read_error.empty()) {
+            std::cerr << " because " << result.read_error;
+        }
+        std::cerr << rang::fg::reset << std::endl;
+        return false;
     }
 
     Lexer lexer(std::string(abs_path), &inp_source, &binder, file_allocator);
@@ -512,21 +611,88 @@ void ASTProcessor::import_chemical_file(ASTFileResult& result, unsigned int file
     if(options->benchmark) {
         result.parse_benchmark = std::make_unique<BenchmarkResults>();
         result.parse_benchmark->benchmark_begin();
-        parser.parse(unit.scope.body.nodes);
+        parser.parseModuleFile(unit.scope.body.nodes);
         result.parse_benchmark->benchmark_end();
     } else {
-        parser.parse(unit.scope.body.nodes);
+        parser.parseModuleFile(unit.scope.body.nodes);
     }
 
     result.parse_diagnostics = std::move(parser.diagnostics);
 
     if(parser.has_errors) {
         result.continue_processing = false;
+        return false;
+    } else {
+        return true;
     }
 
 }
 
-void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& abs_path) {
+// this function cannot be used as a replacement for .mod or .lab files
+// because a module won't import all the files from external module, only a few
+// and we can't determine which modules it depends on because one of the non-imported files may
+// have dependencies on other modules (in other words, an import tree in our language doesn't tell us the complete module graph)
+void ASTProcessor::figure_out_module_dependency_based_on_import(
+        ASTFileMetaData& imported,
+        ASTFileMetaData& importer,
+        std::vector<BuildLabModuleDependency>& dependencies
+) {
+
+    auto& result = imported;
+
+    // then we compile the entire module
+    if(result.import_path[0] == '@' && !result.import_path.ends_with(".lab")) {
+
+        // module identifier for the import path
+        auto modIdentifier = path_handler.get_mod_identifier_from_import_path(result.import_path);
+
+        // got the dir path for the module
+        auto dir_path = path_handler.resolve_lib_dir_path(modIdentifier.scope_name, modIdentifier.module_name);
+
+        if(dir_path.error.empty()) {
+
+            // if user is importing a file from the module
+            if (result.import_path.ends_with(".ch")) {
+
+                // now we put this module dependency in the vector
+                // because this module needs to be built before this file can be imported
+                dependencies.emplace_back(std::move(dir_path.replaced), &imported, modIdentifier.scope_name, modIdentifier.module_name);
+
+            } else {
+
+                // now we must check if it contains a build.lab
+                const auto child_path = resolve_rel_child_path_str(dir_path.replaced, "build.lab");
+                if (std::filesystem::exists(child_path)) {
+
+                    // if it contains a build.lab, we would change the absolute path to that build.lab
+                    // so that build.lab gets imported (lexed and parsed, no invocation to build method, which would be done manually by the user)
+                    result.abs_path = child_path;
+
+                    // import should be done with a 'as' identifier because without it build.lab cannot be imported
+                    // (conflict: contains build method with same name) however user could provide a library with a build.lab that doesn't contain
+                    // a build method named 'build', so we don't enforce that as_identifier be used
+
+                } else {
+
+                    // however the module doesn't contain build.lab (which means there's no build function)
+                    // so we produce an error, because we cannot import that module directly like this
+                    std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << "cannot import directory '" << result.import_path << "' without a 'build.lab'" << std::endl;
+
+                }
+
+            }
+
+        } else {
+
+            std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << "couldn't determine the library directory for '" << result.import_path << "'" << std::endl;
+
+        }
+
+    }
+
+}
+
+bool ASTProcessor::import_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path) {
 
     result.abs_path = abs_path;
     result.file_id = fileId;
@@ -535,7 +701,7 @@ void ASTProcessor::import_file(ASTFileResultNew& result, unsigned int fileId, co
     result.diCompileUnit = nullptr;
     result.unit.scope.file_path = chem::string_view(result.abs_path);
 
-    import_chemical_file(result, fileId, abs_path);
+    return import_chemical_file(result, fileId, abs_path);
 
 }
 
@@ -687,29 +853,12 @@ int ASTProcessor::translate_module(
             continue;
         }
 
-        // check file exists
-        if(file.abs_path.empty()) {
-            std::cerr << rang::fg::red << "error: file not found '" << file.import_path << "'" << rang::fg::reset << std::endl;
-            return 1;
-        }
-
-        if(!result.read_error.empty()) {
-            std::cerr << rang::fg::red << "error: when reading file '" << file.abs_path << "' with message '" << result.read_error << "'" << rang::fg::reset << std::endl;
-            return 1;
-        }
-
         ASTUnit& unit = file.unit;
 
         // print the benchmark or verbose output received from processing
         if((options->benchmark || options->verbose) && !empty_diags(result)) {
             std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
             print_results(result, chem::string_view(file.abs_path), options->benchmark);
-        }
-
-        // do not continue processing
-        if(!result.continue_processing) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during lexing or parsing file '" << file.abs_path << '\'' << rang::fg::reset << std::endl;
-            return 1;
         }
 
         // translating to c
@@ -773,5 +922,8 @@ int ASTProcessor::translate_module(
 
     // resetting c visitor to use with another module
     c_visitor.reset();
+
+    // return for success
+    return 0;
 
 }

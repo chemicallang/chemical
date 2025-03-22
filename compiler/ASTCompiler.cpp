@@ -199,24 +199,7 @@ int ASTProcessor::compile_module(
             continue;
         }
 
-        // check file exists
-        if(file.abs_path.empty()) {
-            std::cerr << rang::fg::red << "error: file not found '" << file.import_path << "'" << rang::fg::reset << std::endl;
-            return 1;
-        }
-
-        if(!result.read_error.empty()) {
-            std::cerr << rang::fg::red << "error: when reading file '" << file.abs_path << "' with message '" << result.read_error << "'" << rang::fg::reset << std::endl;
-            return 1;
-        }
-
         ASTUnit& unit = file.unit;
-
-        // do not continue processing
-        if(!result.continue_processing) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during lexing or parsing file '" << file.abs_path << '\'' << rang::fg::reset << std::endl;
-            return 1;
-        }
 
         // print the benchmark or verbose output received from processing
         if((options->benchmark || options->verbose) && !empty_diags(result)) {

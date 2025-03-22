@@ -2046,22 +2046,22 @@ inline void scope(ToCAstVisitor& visitor, Scope& scope, FunctionType* decl) {
     visitor.write('}');
 }
 
-std::string func_type_alias(ToCAstVisitor& visitor, FunctionType* type) {
-    std::string alias = "__chx_functype_";
-    alias += std::to_string(random(100,999)) + "_";
-    alias += std::to_string(visitor.declarer->func_type_num++);
-    func_type_with_id(visitor, type, chem::string_view(alias.data(), alias.size()));
-    visitor.declarer->aliases[type] = alias;
-    return alias;
-}
+//std::string func_type_alias(ToCAstVisitor& visitor, FunctionType* type) {
+//    std::string alias = "__chx_functype_";
+//    alias += std::to_string(random(100,999)) + "_";
+//    alias += std::to_string(visitor.declarer->func_type_num++);
+//    func_type_with_id(visitor, type, chem::string_view(alias.data(), alias.size()));
+//    visitor.declarer->aliases[type] = alias;
+//    return alias;
+//}
 
-std::string typedef_func_type(ToCAstVisitor& visitor, FunctionType* type) {
-    visitor.new_line_and_indent();
-    visitor.write("typedef ");
-    auto alia = func_type_alias(visitor, type);
-    visitor.write(';');
-    return alia;
-}
+//std::string typedef_func_type(ToCAstVisitor& visitor, FunctionType* type) {
+//    visitor.new_line_and_indent();
+//    visitor.write("typedef ");
+//    auto alia = func_type_alias(visitor, type);
+//    visitor.write(';');
+//    return alia;
+//}
 
 //void func_call(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type) {
 //    visitor.write('(');
@@ -2255,10 +2255,87 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl)
     }
 }
 
+void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
+    const auto node_kind = node->kind();
+    if (node_kind == ASTNodeKind::StructDecl) {
+        const auto def = node->as_struct_def_unsafe();
+        // declare inherited types
+        for(auto& inherit : def->inherited) {
+            auto in_node = inherit.type->get_direct_linked_node();
+            if(in_node) {
+                early_declare_node(visitor, in_node);
+            }
+        }
+        // declare sub variables
+        for(const auto var : def->variables()) {
+            const auto known_t = var->known_type();
+            if(known_t) {
+                auto sub_node = known_t->get_direct_linked_node();
+                if (sub_node) {
+                    early_declare_node(visitor, sub_node);
+                }
+            }
+        }
+        visitor.declare_struct_iterations(def);
+    } else if (node_kind == ASTNodeKind::VariantDecl) {
+        const auto def = node->as_variant_def_unsafe();
+        visitor.declare_variant_iterations(def);
+    } else if (node_kind == ASTNodeKind::UnionDecl) {
+        // TODO this
+    }
+}
+
+void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::vector<GenericTypeParameter*>& gen_params) {
+    for(auto& param : gen_params) {
+        auto t = param->known_type();
+        const auto node = t->get_direct_linked_node();
+        if(node) {
+            early_declare_node(visitor, node);
+        }
+    }
+}
+
+void early_declare_composed_variables(CTopLevelDeclarationVisitor& visitor, VariablesContainer& container) {
+    for(const auto variable : container.variables()) {
+        auto t = variable->known_type();
+        const auto node = t->get_direct_linked_node();
+        if(node) {
+            early_declare_node(visitor, node);
+        }
+    }
+}
+
+void early_declare_type(CTopLevelDeclarationVisitor& visitor, BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Reference:
+            early_declare_type(visitor, type->as_reference_type_unsafe()->type);
+            return;
+        case BaseTypeKind::Pointer:
+            early_declare_type(visitor, type->as_pointer_type_unsafe()->type);
+            return;
+        case BaseTypeKind::Linked:
+            early_declare_node(visitor, type->as_linked_type_unsafe()->linked);
+            return;
+        case BaseTypeKind::Generic:
+            early_declare_node(visitor, type->as_generic_type_unsafe()->referenced->linked);
+            return;
+        default:
+            return;
+    }
+}
+
+void early_declare_func_type(CTopLevelDeclarationVisitor& visitor, FunctionType* func_type) {
+    for(const auto param : func_type->params) {
+        early_declare_type(visitor, param->type);
+    }
+    early_declare_type(visitor, func_type->returnType);
+}
+
 void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl) {
     if(decl->is_comptime()) {
         return;
     }
+    early_declare_func_type(*tld, decl);
     declare_params(tld->value_visitor, decl->params);
     if(decl->returnType->as_function_type() == nullptr) {
         tld->value_visitor->visit(decl->returnType);
@@ -2273,6 +2350,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     if(decl->is_comptime()) {
         return;
     }
+    early_declare_func_type(*tld, decl);
     declare_params(tld->value_visitor, decl->params);
     if(decl->returnType->as_function_type() == nullptr) {
         tld->value_visitor->visit(decl->returnType);
@@ -2297,7 +2375,9 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
             i = 1;
         }
     };
-    const auto func_parent_kind = decl->parent()->kind();
+    const auto func_parent = decl->parent();
+    const auto func_parent_kind = func_parent->kind();
+    const auto is_func_parent_public = func_parent->specifier() == AccessSpecifier::Public;
     auto is_parent_interface = func_parent_kind == ASTNodeKind::InterfaceDecl;
     const auto decl_return_func_type = decl->returnType->as_function_type();
     if(decl_return_func_type != nullptr && !decl_return_func_type->isCapturing()) {
@@ -2307,7 +2387,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         write_self_param_now();
         func_ret_func_proto_after_l_paren(tld->visitor, decl, decl_return_func_type, i);
     } else {
-        accept_func_return_with_name(tld->visitor, decl, (is_parent_interface || decl->body.has_value()) && !decl->is_exported_fast());
+        accept_func_return_with_name(tld->visitor, decl, (is_parent_interface || decl->body.has_value()) && !decl->is_exported_fast() && !is_func_parent_public);
         tld->write('(');
         write_self_param_now();
         func_type_params(tld->visitor, decl, i);
@@ -2339,60 +2419,6 @@ void CTopLevelDeclarationVisitor::VisitIfStmt(IfStatement* stmt) {
     }
 }
 
-void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
-    const auto node_kind = node->kind();
-    if (node_kind == ASTNodeKind::StructDecl) {
-        const auto def = node->as_struct_def_unsafe();
-        if(visitor.external_module) {
-            // declare inherited types
-            for(auto& inherit : def->inherited) {
-                auto in_node = inherit.type->get_direct_linked_node();
-                if(in_node) {
-                    early_declare_node(visitor, in_node);
-                }
-            }
-            // declare sub variables
-            for(const auto var : def->variables()) {
-                const auto known_t = var->known_type();
-                if(known_t) {
-                    auto sub_node = known_t->get_direct_linked_node();
-                    if (sub_node) {
-                        early_declare_node(visitor, sub_node);
-                    }
-                }
-            }
-            visitor.declare_struct_iterations(def);
-        }
-    } else if (node_kind == ASTNodeKind::VariantDecl) {
-        const auto def = node->as_variant_def_unsafe();
-        if(visitor.external_module) {
-            visitor.declare_variant_iterations(def);
-        }
-    } else if (node_kind == ASTNodeKind::UnionDecl) {
-        // TODO this
-    }
-}
-
-void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::vector<GenericTypeParameter*>& gen_params) {
-    for(auto& param : gen_params) {
-        auto t = param->known_type();
-        const auto node = t->get_direct_linked_node();
-        if(node) {
-            early_declare_node(visitor, node);
-        }
-    }
-}
-
-void early_declare_composed_variables(CTopLevelDeclarationVisitor& visitor, VariablesContainer& container) {
-    for(const auto variable : container.variables()) {
-        auto t = variable->known_type();
-        const auto node = t->get_direct_linked_node();
-        if(node) {
-            early_declare_node(visitor, node);
-        }
-    }
-}
-
 void CTopLevelDeclarationVisitor::declare_func(FunctionDeclaration* decl) {
     // TODO we will fix capturing lambda types when introducing generics and unions
 //    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {
@@ -2414,27 +2440,6 @@ void CTopLevelDeclarationVisitor::VisitGenericFuncDecl(GenericFuncDecl* node) {
 void CValueDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
     if(decl->body.has_value() && !decl->is_comptime()) {
         visit(&decl->body.value());
-    }
-}
-
-void CValueDeclarationVisitor::VisitEnumDecl(EnumDeclaration *enumDecl) {
-    if(visitor.inline_enum_member_access) return;
-    unsigned i = 0;
-    for(auto& mem : enumDecl->members) {
-        visitor.new_line_and_indent();
-        std::string value = ("__CHENUM_");
-        value += (std::to_string(enum_num++));
-        value += ('_');
-        value += (enumDecl->name_view().view());
-        value += (std::to_string(random(100, 999)));
-        value += ("_");
-        value += (mem.first.view());
-        write("#define ");
-        visitor.write_str(value);
-        write(' ');
-        *visitor.output << mem.second->get_default_index();
-        aliases[mem.second] = value;
-        i++;
     }
 }
 
@@ -2529,12 +2534,28 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def);
 
 void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* def) {
-    if(external_module && !has_declared(def)) {
-        declare_struct(def);
-        set_declared(def);
+    if(external_module) {
+        if(!has_declared(def)) {
+
+            // we must also set iterations_declared to 1 why is that ?
+            // let's see, because when a generic struct contains a function pointer to this struct (generically monomorphised)
+            // that struct calls early_declare_node on this struct (declares it early)
+            // however since the generic struct is in an external module and if iterations_declared is not set to 1, which means when this
+            // struct is visited in it's own module, it will end up being declared again
+            // (however it has already been declared because the generic struct present in external module is being declared in this module)
+
+            // you may think this has one con -> that the struct won't be declared in its own module because we are setting it to have been declared
+            // however that's not the case, because if an external module is early declaring this struct it means, it's external module is being declared
+            // in this struct's module (because that struct won't know this struct exists but since it knows it means that during symbol resolution of this module)
+            // we notified that struct of presence of this struct
+
+            def->iterations_declared = 1;
+            set_declared(def);
+            declare_struct(def);
+        }
     } else if(def->iterations_declared == 0) {
-        declare_struct(def);
         def->iterations_declared = 1;
+        declare_struct(def);
     }
 }
 
@@ -2639,12 +2660,28 @@ void gen_variant_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::declare_variant_iterations(VariantDefinition* def) {
-    if(external_module && !has_declared(def)) {
-        declare_variant(def);
-        set_declared(def);
+    if(external_module ) {
+        if(!has_declared(def)) {
+
+            // we must also set iterations_declared to 1 why is that ?
+            // let's see, because when a generic struct contains a function pointer to this struct (generically monomorphised)
+            // that struct calls early_declare_node on this struct (declares it early)
+            // however since the generic struct is in an external module and if iterations_declared is not set to 1, which means when this
+            // struct is visited in it's own module, it will end up being declared again
+            // (however it has already been declared because the generic struct present in external module is being declared in this module)
+
+            // you may think this has one con -> that the struct won't be declared in its own module because we are setting it to have been declared
+            // however that's not the case, because if an external module is early declaring this struct it means, it's external module is being declared
+            // in this struct's module (because that struct won't know this struct exists but since it knows it means that during symbol resolution of this module)
+            // we notified that struct of presence of this struct
+
+            def->iterations_declared = 1;
+            set_declared(def);
+            declare_variant(def);
+        }
     } else if(def->iterations_declared == 0) {
-        declare_variant(def);
         def->iterations_declared = 1;
+        declare_variant(def);
     }
 }
 
@@ -2775,9 +2812,9 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
 
 void CTopLevelDeclarationVisitor::declare_interface_iterations(InterfaceDefinition* def) {
     if(external_module || def->iterations_declared == 0) {
+        def->iterations_declared = 1;
         declare_interface(def);
     }
-    def->iterations_declared = 1;
 }
 
 void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
@@ -4105,19 +4142,10 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
 }
 
 void write_enum(ToCAstVisitor& visitor, EnumMember* member) {
-    if(visitor.inline_enum_member_access) {
-        if(member->init_value) {
-            visitor.visit(member->init_value);
-        } else {
-            *visitor.output << member->get_default_index();
-        }
+    if(member->init_value) {
+        visitor.visit(member->init_value);
     } else {
-        auto found = visitor.declarer->aliases.find(member);
-        if (found != visitor.declarer->aliases.end()) {
-            visitor.write(found->second);
-        } else {
-            visitor.error("couldn't write the enum", member);
-        }
+        *visitor.output << member->get_default_index();
     }
 }
 

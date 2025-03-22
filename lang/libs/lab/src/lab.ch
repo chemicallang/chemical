@@ -57,7 +57,7 @@ public enum CBIImportKind {
     Lexer
 }
 
-struct PathResolutionResult {
+public struct PathResolutionResult {
     var path : std::string
     var error : std::string
 }
@@ -158,32 +158,32 @@ public struct BuildContext {
 
 }
 
-func (ctx : &BuildContext) chemical_file_module(name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) chemical_file_module(name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     const path_ptr = &path;
     return ctx.chemical_files_module(name, &path_ptr, 1, dependencies);
 }
 
-func (ctx : &BuildContext) file_module(name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) file_module(name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     const path_ptr = &path;
     return ctx.files_module(name, &path_ptr, 1, dependencies);
 }
 
-func (ctx : &BuildContext) translate_file_to_chemical (c_path : &std::string_view, output_path : &std::string_view) : *mut LabJob {
+public func (ctx : &BuildContext) translate_file_to_chemical (c_path : &std::string_view, output_path : &std::string_view) : *mut LabJob {
     const mod = ctx.file_module(std::string_view("CFile"), c_path, {  });
     return ctx.translate_to_chemical(mod, output_path);
 }
 
-func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &std::string_view) : *mut LabJob {
+public func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &std::string_view) : *mut LabJob {
     return ctx.translate_to_c(std::string_view("ToCJob"), { module }, output_dir);
 }
 
-func (ctx : &BuildContext) translate_file_to_c(chem_path : &std::string, output_path : &std::string_view) : *mut LabJob {
+public func (ctx : &BuildContext) translate_file_to_c(chem_path : &std::string, output_path : &std::string_view) : *mut LabJob {
     var mod = ctx.file_module(std::string_view("TempChem"), chem_path, {});
     return ctx.translate_mod_to_c(mod, output_path);
 }
 
 // allows to include headers in the module
-func (ctx : &BuildContext) include_headers(module : *mut Module, headers : std::span<std::string_view>) {
+public func (ctx : &BuildContext) include_headers(module : *mut Module, headers : std::span<std::string_view>) {
     var i = 0;
     const total = headers.size();
     while(i < total) {
@@ -194,7 +194,7 @@ func (ctx : &BuildContext) include_headers(module : *mut Module, headers : std::
 }
 
 // allows to include headers in the module
-func (ctx : &BuildContext) include_files(module : *mut Module, files : std::span<std::string_view>) {
+public func (ctx : &BuildContext) include_files(module : *mut Module, files : std::span<std::string_view>) {
     var i = 0;
     const total = files.size();
     while(i < total) {
@@ -204,7 +204,7 @@ func (ctx : &BuildContext) include_files(module : *mut Module, files : std::span
     }
 }
 
-namespace lab {
+public namespace lab {
 
     private func curr_dir_of(path : *char, len : size_t) : std::string {
         return fs::parent_path(std::string_view(path, len))

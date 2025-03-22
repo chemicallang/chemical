@@ -17,47 +17,93 @@ AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::stri
 }
 
 AtReplaceResult lib_path_resolver(
+        const std::string& lib_name,
+        ImportPathHandler& handler
+) {
+    std::string libPath;
+    const auto lib_path = "libs/" + lib_name;
+#ifdef DEBUG
+    const auto libsStd = resolve_sibling(handler.exe_path, lib_path);
+    if (std::filesystem::exists(libsStd)) {
+        // debug executable launched in a folder that contains libs/std
+        libPath = libsStd;
+    } else {
+        // debug executable launched in a sub folder of this project
+        libPath = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/" + lib_path);
+    }
+#else
+    libPath = resolve_rel_parent_path_str(handler.exe_path, lib_path);
+#endif
+    if(libPath.empty()) {
+        return AtReplaceResult { "", "couldn't find " + lib_name + " library at path '" + libPath + "' relative to '" + handler.exe_path + "'" };
+    } else {
+        return AtReplaceResult { std::move(libPath), "" };
+    }
+}
+
+ModuleIdentifier ImportPathHandler::get_mod_identifier_from_import_path(const std::string& filePath) {
+    if(filePath[0] != '@') return { "", "" };
+    auto slash = filePath.find('/');
+    std::string_view directive_view;
+    if(slash == std::string::npos) {
+        directive_view = std::string_view(filePath.data() + 1);
+    } else {
+        directive_view = std::string_view(filePath.data() + 1, slash - 1);
+    }
+    auto found = directive_view.find(':');
+    if(found == std::string_view::npos) {
+        return { "", chem::string_view(directive_view) };
+    }
+    return { chem::string_view(directive_view.data(), found), chem::string_view(directive_view.data() + found, directive_view.size() - found) };
+}
+
+AtReplaceResult ImportPathHandler::resolve_lib_dir_path(const chem::string_view& scope_name, const chem::string_view& mod_name) {
+    // TODO currently we don't handle the scope name
+    return lib_path_resolver(mod_name.str(), *this);
+}
+
+AtReplaceResult lib_src_path_resolver(
+        const std::string& lib_name,
+        ImportPathHandler& handler
+) {
+    std::string libPath;
+    const auto lib_path = "libs/" + lib_name + "/src";
+#ifdef DEBUG
+    const auto libsStd = resolve_sibling(handler.exe_path, lib_path);
+    if (std::filesystem::exists(libsStd)) {
+        // debug executable launched in a folder that contains libs/std
+        libPath = libsStd;
+    } else {
+        // debug executable launched in a sub folder of this project
+        libPath = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/" + lib_path);
+    }
+#else
+    libPath = resolve_rel_parent_path_str(handler.exe_path, lib_path);
+#endif
+    if(libPath.empty()) {
+        return AtReplaceResult { "", "couldn't find " + lib_name + " library at path '" + libPath + "' relative to '" + handler.exe_path + "'" };
+    } else {
+        return AtReplaceResult { std::move(libPath), "" };
+    }
+}
+
+AtReplaceResult lib_path_replacer(
     const std::string& lib_name,
     ImportPathHandler& handler,
     const std::string& importPath,
     unsigned int slash
 ) {
-    auto filePath = importPath.substr(slash + 1);
-    std::string libPath;
-//    auto found = handler.cached_lib_paths.find(lib_name);
-//    const auto is_cached = found != handler.cached_lib_paths.end();
-//    if(is_cached) {
-//        libPath = found->second;
-//    } else {
-        const auto lib_path = "libs/" + lib_name;
-#ifdef DEBUG
-        const auto libsStd = resolve_sibling(handler.exe_path, lib_path);
-        if (std::filesystem::exists(libsStd)) {
-            // debug executable launched in a folder that contains libs/std
-            libPath = libsStd;
-        } else {
-            // debug executable launched in a sub folder of this project
-            libPath = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/" + lib_path);
-        }
-#else
-        libPath = resolve_rel_parent_path_str(handler.exe_path, lib_path);
-#endif
-//    }
-    if(libPath.empty()) {
-#ifndef DEBUG
-        std::string stdLib = "libs/" + lib_name;
-#endif
-        return AtReplaceResult { "", "couldn't find " + lib_name + " library at path '" + libPath + "' relative to '" + handler.exe_path + "'" };
-    } else {
-//        if(!is_cached) {
-//            handler.cached_lib_paths[lib_name] = libPath;
-//        }
-        auto replaced = resolve_rel_child_path_str(libPath, filePath);
+    auto result = lib_src_path_resolver(lib_name, handler);
+    if(result.error.empty() && slash + 1 < importPath.size()) {
+        auto filePath = importPath.substr(slash + 1);
+        auto replaced = resolve_rel_child_path_str(result.replaced, filePath);
         if(replaced.empty()) {
-            return AtReplaceResult { "", "couldn't find file '" + filePath + "' in " + lib_name + " library at path '" + libPath + "'" };
+            return AtReplaceResult { "", "couldn't find file '" + filePath + "' in " + lib_name + " library at path '" + result.replaced + "'" };
         } else {
             return AtReplaceResult { replaced, "" };
         }
+    } else {
+        return result;
     }
 }
 
@@ -77,11 +123,20 @@ std::string ImportPathHandler::headers_dir(const std::string &header) {
 
 }
 
+AtReplaceResult ImportPathHandler::get_atDirective_withAt(const std::string& filePath) {
+    if(filePath[0] != '@') return { filePath, "" };
+    auto slash = filePath.find('/');
+    if(slash == std::string::npos) {
+        return { filePath, "" };
+    }
+    return { filePath.substr(0, slash), "" };
+}
+
 AtReplaceResult ImportPathHandler::get_atDirective(const std::string& filePath) {
     if(filePath[0] != '@') return { filePath, "" };
     auto slash = filePath.find('/');
-    if(slash == -1) {
-        return { filePath, "couldn't find '/' in the file path, which must be present if using '@' directive" };
+    if(slash == std::string::npos) {
+        return { filePath, "" };
     }
     return { filePath.substr(1, slash - 1), "" };
 }
@@ -89,8 +144,8 @@ AtReplaceResult ImportPathHandler::get_atDirective(const std::string& filePath) 
 AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string &filePath, const std::unordered_map<std::string, std::string>& aliases) {
     if(filePath[0] != '@') return {filePath, ""};
     auto slash = filePath.find('/');
-    if(slash == -1) {
-        return {filePath, "couldn't find '/' in the file path, which must be present if using '@' directive" };
+    if(slash == std::string::npos) {
+        slash = filePath.size();
     }
     auto atDirective = filePath.substr(1, slash - 1);
     auto found = path_resolvers.find(atDirective);
@@ -101,7 +156,7 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string &filePat
     if(next != aliases.end()) {
         return { next->second + filePath.substr(slash), "" };
     }
-    auto resolver = lib_path_resolver(atDirective, *this, filePath, slash);
+    auto resolver = lib_path_replacer(atDirective, *this, filePath, slash);
     if(resolver.error.empty()) {
         return resolver;
     }

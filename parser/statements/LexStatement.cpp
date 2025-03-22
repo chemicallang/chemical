@@ -14,6 +14,7 @@
 #include "ast/statements/AliasStmt.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
+#include "ast/statements/PackageDefinition.h"
 
 ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator) {
     auto specifier = parseAccessSpecifier();
@@ -49,6 +50,7 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator
 }
 
 ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
+    // TODO remove this
     while(true) {
         const auto type = token->type;
         if(type == TokenType::NewLine) {
@@ -103,6 +105,7 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
 }
 
 ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool is_value, bool parse_value_node) {
+    // TODO remove this
     while(true) {
         const auto type = token->type;
         if(type == TokenType::NewLine) {
@@ -342,4 +345,42 @@ ComptimeBlock* Parser::parseComptimeBlock(ASTAllocator& allocator) {
     } else {
         return nullptr;
     }
+}
+
+PackageDefinition* Parser::parsePackageDefinition(ASTAllocator& allocator) {
+
+    if(token->value == "package") {
+        token++;
+    } else {
+        return nullptr;
+    }
+
+    const auto pkgDef = new (allocator.allocate<PackageDefinition>()) PackageDefinition(
+        "", "", loc_single(token)
+    );
+
+    const auto scope_name = consumeIdentifierOrKeyword();
+    if(!scope_name) {
+        error("expected an identifier for 'package' definition");
+        return pkgDef;
+    }
+
+    const auto t = token->type;
+    if(t == TokenType::DotSym || t == TokenType::DoubleColonSym) {
+        token++;
+    } else {
+        pkgDef->module_name = allocate_view(allocator, scope_name->value);
+        return pkgDef;
+    }
+
+    const auto mod_name = consumeIdentifierOrKeyword();
+    if(mod_name) {
+        pkgDef->scope_name = allocate_view(allocator, scope_name->value);
+        pkgDef->module_name = allocate_view(allocator, mod_name->value);
+    } else {
+        error("expected an identifier for 'package' definition");
+    }
+
+    return pkgDef;
+
 }

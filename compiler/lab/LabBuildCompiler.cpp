@@ -5,6 +5,8 @@
 #include "ast/types/LinkedType.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/statements/Import.h"
+#include "ast/statements/PackageDefinition.h"
 #include "utils/Benchmark.h"
 #include "ast/structures/ModuleScope.h"
 #include "Utils.h"
@@ -88,6 +90,22 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
     std::unordered_map<LabModule*, bool> imported;
     for(auto mod : modules) {
         recursive_dedupe(mod, imported, new_modules);
+    }
+    return new_modules;
+}
+
+/**
+ * same as above, only it operates on multiple modules, it de-dupes the dependent modules
+ * of the given list of modules and also sorts them
+ * TODO
+ * 1 - avoid direct cyclic dependencies a depends on b and b depends on a
+ * 2 - avoid indirect cyclic dependencies a depends on b and b depends on c and c depends on a
+ */
+std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<std::unique_ptr<LabModule>>& modules) {
+    std::vector<LabModule*> new_modules;
+    std::unordered_map<LabModule*, bool> imported;
+    for(auto& mod : modules) {
+        recursive_dedupe(mod.get(), imported, new_modules);
     }
     return new_modules;
 }
@@ -206,11 +224,11 @@ int LabBuildCompiler::do_job(LabJob* job) {
     return return_int;
 }
 
-bool empty_diags(ASTFileResultNew& result) {
+bool empty_diags(ASTFileResult& result) {
     return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
 }
 
-void print_results(ASTFileResultNew& result, const std::string& abs_path, bool benchmark) {
+void print_results(ASTFileResult& result, const std::string& abs_path, bool benchmark) {
     CSTDiagnoser::print_diagnostics(result.lex_diagnostics, chem::string_view(abs_path), "Lexer");
     CSTDiagnoser::print_diagnostics(result.parse_diagnostics, chem::string_view(abs_path), "Parser");
     if(benchmark) {
@@ -256,7 +274,7 @@ void check_imports_for_cycles(void* data_ptr, ASTFileResult* parent_file, std::v
     }
 }
 
-void check_imports_for_cycles(void* data_ptr, std::vector<ASTFileResultNew*>& files, ImportCycleHandler handler) {
+void check_imports_for_cycles(void* data_ptr, std::vector<ASTFileResult*>& files, ImportCycleHandler handler) {
     std::vector<unsigned int> parents;
     parents.reserve(16);
     for(const auto file : files) {
@@ -273,7 +291,7 @@ struct ImportCycleCheckResult {
 
 };
 
-void check_imports_for_cycles(ImportCycleCheckResult& out, std::vector<ASTFileResultNew*>& module_files) {
+void check_imports_for_cycles(ImportCycleCheckResult& out, std::vector<ASTFileResult*>& module_files) {
     check_imports_for_cycles(&out, module_files, [](void* data_ptr, std::vector<unsigned int>& parents, ASTFileResult* imported_file, ASTFileResult* parent_file, bool direct){
         const auto holder = (ImportCycleCheckResult*) data_ptr;
         auto& locMan = holder->loc_man;
@@ -291,7 +309,7 @@ void check_imports_for_cycles(ImportCycleCheckResult& out, std::vector<ASTFileRe
     });
 }
 
-void flatten(std::vector<ASTFileResultNew*>& flat_out, std::unordered_map<std::string_view, bool>& done_files, ASTFileResultNew* single_file) {
+void flatten(std::vector<ASTFileResult*>& flat_out, std::unordered_map<std::string_view, bool>& done_files, ASTFileResult* single_file) {
     for(auto& file : single_file->imports) {
         flatten(flat_out, done_files, file);
     }
@@ -303,8 +321,8 @@ void flatten(std::vector<ASTFileResultNew*>& flat_out, std::unordered_map<std::s
     }
 }
 
-std::vector<ASTFileResultNew*> flatten(std::vector<ASTFileResultNew*>& files) {
-    std::vector<ASTFileResultNew*> flat_out;
+std::vector<ASTFileResult*> flatten(std::vector<ASTFileResult*>& files) {
+    std::vector<ASTFileResult*> flat_out;
     std::unordered_map<std::string_view, bool> done_files;
     for(auto file : files) {
         flatten(flat_out, done_files, file);
@@ -387,11 +405,13 @@ int LabBuildCompiler::process_module_tcc(
     // this will include the direct files (nested included) for the module
     // these will be lexed and parsed
     // these direct files will have "imports" field, which can be accessed to check each file's imports
-    std::vector<ASTFileResultNew*> module_files;
+    std::vector<ASTFileResult*> module_files;
 
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
-    processor.import_mod_files(pool, module_files, direct_files, mod);
+    if(!processor.import_mod_files(pool, module_files, direct_files, mod)) {
+        return 1;
+    }
 
     const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
     if(mod_data_path && do_compile) {
@@ -416,8 +436,10 @@ int LabBuildCompiler::process_module_tcc(
             }
             const auto abs_path = include.to_std_string();
             unsigned fileId = loc_man.encodeFile(abs_path);
-            ASTFileResultNew imported_file(fileId, abs_path, &mod->module_scope);
-            processor.import_chemical_file(imported_file, fileId, abs_path);
+            ASTFileResult imported_file(fileId, abs_path, mod);
+            if(!processor.import_chemical_file(imported_file, fileId, abs_path)) {
+                return 1;
+            }
             auto& scope = imported_file.unit.scope.body;
             auto& nodes = scope.nodes;
             resolver.resolve_file(scope, abs_path);
@@ -627,7 +649,7 @@ int LabBuildCompiler::process_module_gen(
     // this will include the direct files (nested included) for the module
     // these will be lexed and parsed
     // these direct files will have "imports" field, which can be accessed to check each file's imports
-    std::vector<ASTFileResultNew*> module_files;
+    std::vector<ASTFileResult*> module_files;
 
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
@@ -660,8 +682,10 @@ int LabBuildCompiler::process_module_gen(
             }
             const auto abs_path = include.to_std_string();
             unsigned fileId = loc_man.encodeFile(abs_path);
-            ASTFileResultNew imported_file(fileId, abs_path, &mod->module_scope);
-            processor.import_chemical_file(imported_file, fileId, abs_path);
+            ASTFileResult imported_file(fileId, abs_path, mod);
+            if(!processor.import_chemical_file(imported_file, fileId, abs_path)) {
+                return 1;
+            }
             auto& scope = imported_file.unit.scope.body;
             auto& nodes = scope.nodes;
             resolver.resolve_file(scope, abs_path);
@@ -935,12 +959,11 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod) {
     return 0;
 }
 
-std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJob* job, LabModule* mod) {
+std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJobType job_type, const std::string& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
     const auto is_use_obj_format = compiler->options->use_mod_obj_format;
-    const auto job_type = job->type;
     // creating the module directory
-    auto module_dir_path = resolve_rel_child_path_str(job->build_dir.to_std_string(), mod->name.to_std_string());
+    auto module_dir_path = resolve_rel_child_path_str(build_dir, mod->name.to_std_string());
     auto mod_obj_path = resolve_rel_child_path_str(module_dir_path,  (is_use_obj_format ? "object.o" : "object.bc"));
     auto mod_timestamp_file = resolve_rel_child_path_str(module_dir_path, "timestamp.dat");
     if(!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
@@ -966,18 +989,28 @@ std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJob
     return mod_timestamp_file;
 }
 
-void create_job_build_dir(LabBuildCompiler* compiler, LabJob* job) {
-    const auto verbose = compiler->options->verbose;
-    std::string exe_build_dir = job->build_dir.to_std_string();
-    if(!exe_build_dir.empty()) {
-        if(verbose) {
-            std::cout << "[lab] " << "creating build directory at '" << exe_build_dir << "'" << std::endl;
-        }
-        // create the build directory for this executable
-        if (!std::filesystem::exists(exe_build_dir)) {
-            std::filesystem::create_directory(exe_build_dir);
-        }
+inline std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJob* job, LabModule* mod) {
+    return create_mod_dir_get_timestamp_path(compiler, job->type, job->build_dir.to_std_string(), mod);
+}
+
+inline void create_dir(const std::string& build_dir) {
+    // create the build directory for this executable
+    if (!std::filesystem::exists(build_dir)) {
+        std::filesystem::create_directory(build_dir);
     }
+}
+
+void create_job_build_dir(bool verbose, const std::string& build_dir) {
+    if(!build_dir.empty()) {
+        if(verbose) {
+            std::cout << "[lab] " << "creating build directory at '" << build_dir << "'" << std::endl;
+        }
+        create_dir(build_dir);
+    }
+}
+
+inline void create_job_build_dir(LabBuildCompiler* compiler, LabJob* job) {
+    create_job_build_dir(compiler->options->verbose, job->build_dir.to_std_string());
 }
 
 int LabBuildCompiler::process_job_tcc(LabJob* job) {
@@ -1359,70 +1392,286 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
 #endif
 }
 
-TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::string& path) {
+LabModule* LabBuildCompiler::create_module_for_dependency(
+        LabBuildContext& context,
+        BuildLabModuleDependency& dependency,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        std::stringstream& output_ptr
+) {
 
-    // set the build context
-    build_context = &context;
+    auto& module_path = dependency.module_dir_path;
+    const auto buildLabPath = resolve_rel_child_path_str(module_path, "build.lab");
+    if(std::filesystem::exists(buildLabPath)) {
 
-    const auto lab_mem_size = 100000; // 100kb for the whole lab operations
+        // build lab file into a tcc state
+        // TODO verify the build method signature in the build.lab file
+        const auto state = built_lab_file(
+            context, buildLabPath, processor, c_visitor, output_ptr
+        );
 
-    // the allocator is used in lab
-    ASTAllocator lab_allocator(lab_mem_size);
+        // emit a warning or error
+        if(state == nullptr) {
+            return nullptr;
+        }
 
-    // a global interpret scope required to evaluate compile time things
-    GlobalInterpretScope global(options->target_triple, nullptr, this, lab_allocator, loc_man);
+        // automatic destroy
+        TCCDeletor auto_del(state);
 
-    // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, &lab_allocator, &lab_allocator);
+        // get the build method
+        auto build = (LabModule*(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
+        if(!build) {
+            std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
+            return nullptr;
+        }
 
-    // the processor that does everything for build.lab files only
-    ASTProcessor lab_processor(
-            path_handler,
-            options,
-            &context,
-            loc_man,
-            &lab_resolver,
-            binder,
-            lab_allocator,
-            lab_allocator, // lab allocator is being used as a module level allocator
-            lab_allocator
-    );
+        // call the root build.lab build's function
+        const auto modPtr = build(&context);
 
-    // get flat imports
-    ModuleScope labModuleScope("chemical", "lab");
+        // since this file belongs to this module, we should set it (since initially this file gets assigned the module it's import is in)
+        if(dependency.importer_file) {
+            dependency.importer_file->module = modPtr;
+        }
+
+        return modPtr;
+
+    } else {
+
+        const auto modFilePath = resolve_rel_child_path_str(module_path, "chemical.mod");
+        if(std::filesystem::exists(modFilePath)) {
+
+            return build_module_from_mod_file(context, dependency, modFilePath, processor, c_visitor, output_ptr);
+
+        } else {
+
+            std::cerr << rang::fg::red << "error:" << rang::fg::reset << " module '" << dependency.scope_name << ':' << dependency.mod_name << '\'' << " at path '" << dependency.module_dir_path << "' doesn't contain a 'build.lab' or 'chemical.mod' therefore cannot be imported" << std::endl;
+            return nullptr;
+
+        }
+
+
+    };
+
+}
+
+LabModule* LabBuildCompiler::build_module_from_mod_file(
+        LabBuildContext& context,
+        BuildLabModuleDependency& dependency,
+        const std::string& modFilePath,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        std::stringstream& output_ptr
+) {
+
+    auto& lab_processor = processor;
+    auto& lab_resolver = *processor.resolver;
+    auto& module_dir = dependency.module_dir_path;
+    const auto verbose = options->verbose;
+
+    auto buildLabFileId = loc_man.encodeFile(modFilePath);
+    ASTFileResult modResult(buildLabFileId, modFilePath, nullptr);
+
+    if(verbose) {
+        std::cout << "[lab] " << "building mod file '" << modFilePath << '\'' << std::endl;
+    }
+
+    // import the file into result (lex and parse)
+    if(!lab_processor.import_chemical_mod_file(modResult, buildLabFileId, modFilePath)) {
+        return nullptr;
+    }
+
+    // probably an error during parsing
+    if(!modResult.continue_processing) {
+        return nullptr;
+    }
+
+    // let's create a module for this .mod file
+    const auto module = new LabModule(LabModuleType::Directory, chem::string(""), chem::string(""));
+    context.storage.insert_module_ptr_dangerous(module);
+
+    // TODO: support allowing src directory inside the .mod file
+    // since currently we don't support custom source directory
+    // we'll assume the source is present in 'src' directory and and use that as module directory path
+    auto srcDirPath = resolve_rel_child_path_str(module_dir, "src");
+    module->paths.emplace_back(srcDirPath);
+
+    // update the scope and module name if user wrote package declaration in the mod file
+    auto& nodes = modResult.unit.scope.body.nodes;
+    if(nodes[0]->kind() == ASTNodeKind::PackageDef) {
+        const auto def = nodes[0]->as_package_def_unsafe();
+        module->update_mod_name(chem::string(def->scope_name), chem::string(def->module_name));
+    } else {
+        // otherwise we should try to get it from the import dependency
+        module->update_mod_name(chem::string(dependency.scope_name), chem::string(dependency.mod_name));
+    }
+
+    // module dependencies we determined from directly imported files
+    std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
+
+    // figuring out module dependencies from import statements within the .mod file
+
+    // some variables for processing
+    std::string imp_module_dir_path;
+    chem::string_view imp_scope_name;
+    chem::string_view imp_mod_name;
+    for(const auto stmt : nodes) {
+        if(stmt->kind() == ASTNodeKind::ImportStmt) {
+            const auto impStmt = stmt->as_import_stmt_unsafe();
+            imp_module_dir_path.clear();
+            imp_scope_name = "";
+            imp_mod_name = "";
+            if(impStmt->filePath.empty()) {
+                const auto idSize = impStmt->identifier.size();
+                if (idSize == 1) {
+                    imp_mod_name = impStmt->identifier[0];
+                } else if (idSize == 2) {
+                    imp_scope_name = impStmt->identifier[0];
+                    imp_mod_name = impStmt->identifier[1];
+                } else {
+                    // TODO handle the error
+                }
+                auto result = path_handler.resolve_lib_dir_path(imp_scope_name, imp_mod_name);
+                if(result.error.empty()) {
+                    imp_module_dir_path.append(result.replaced);
+                } else {
+                    // TODO handle the error
+                }
+            } else {
+                imp_module_dir_path.append(impStmt->filePath.data(), impStmt->filePath.size());
+            }
+            buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path), nullptr, imp_scope_name, imp_mod_name);
+        }
+    }
+
+    // figure out path for lab modules directory
+    const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");
+
+    // these are modules imported by the build.lab
+    // however we must build their build.lab or chemical.mod into a LabModule*
+    for(auto& mod_ptr : buildLabModuleDependencies) {
+        // get the module pointer
+        const auto modDependency = create_module_for_dependency(context, mod_ptr, lab_processor, c_visitor, output_ptr);
+        if(modDependency == nullptr) {
+            return nullptr;
+        }
+        module->dependencies.emplace_back(modDependency);
+    }
+
+    // clear the allocators
+    mod_allocator->clear();
+    file_allocator->clear();
+
+    // return the state
+    return module;
+
+}
+
+bool LabBuildCompiler::compile_dependencies_tcc(
+        LabBuildContext& context,
+        std::vector<BuildLabModuleDependency>& dependencies,
+        std::vector<LabModule*>& outModDependencies,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        std::stringstream& output_ptr
+) {
+
+    // figure out path for lab modules directory
+    const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");
+
+    // direct module dependencies (in no valid order)
+    std::vector<LabModule*> mod_dependencies;
+
+    // these are modules imported by the build.lab
+    // however we must build their build.lab or chemical.mod into a LabModule*
+    for(auto& mod_ptr : dependencies) {
+        // get the module pointer
+        const auto mod = create_module_for_dependency(context, mod_ptr, processor, c_visitor, output_ptr);
+        if(mod == nullptr) {
+            return false;
+        }
+        mod_dependencies.emplace_back(mod);
+    }
+
+    // in the order of least dependence
+    outModDependencies = flatten_dedupe_sorted(mod_dependencies);
+    for(const auto mod : outModDependencies) {
+
+        // the timestamp file is what determines whether the module needs to be rebuilt again
+        const auto timestamp_path = create_mod_dir_get_timestamp_path(this, LabJobType::ProcessingOnly, lab_mods_dir, mod);
+
+        // the c output for this module, so we can debug
+        const auto out_c_path = resolve_sibling(timestamp_path, "mod.2c.c");
+
+        // compile the module
+        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path, out_c_path, true, output_ptr, nullptr);
+        if(module_result == 1) {
+            return false;
+        }
+
+        // since the job was successful, we can expect an object file at module's object_path
+        // we'll use this object file by linking it with tcc
+    }
+
+    return true;
+
+}
+
+TCCState* LabBuildCompiler::built_lab_file(
+        LabBuildContext& context,
+        const std::string& path,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        std::stringstream& output_ptr
+) {
+
+    auto& lab_processor = processor;
+    auto& lab_resolver = *processor.resolver;
+    const auto verbose = options->verbose;
+
+    if(verbose) {
+        std::cout << "[lab] building lab file at '" << path << '\'' << std::endl;
+    }
+
+    LabModule chemical_lab_module(LabModuleType::Files, chem::string("chemical"), chem::string("lab"));
     auto buildLabFileId = loc_man.encodeFile(path);
-    ASTFileMetaData buildLabMetaData(buildLabFileId, &labModuleScope, path, path, "");
-    ASTFileResult blResult(buildLabFileId, path, &labModuleScope);
+    ASTFileMetaData buildLabMetaData(buildLabFileId, &chemical_lab_module, path, path, "");
+    ASTFileResult blResult(buildLabFileId, path, &chemical_lab_module);
 
-    // parse the build.lab and all the files it imports
-    // TODO: handle the module imports differently and imports for other build.lab
-    lab_processor.import_chemical_file(blResult, pool, buildLabMetaData);
+    // import the file into result (lex and parse)
+    lab_processor.parse_on_job_allocator = true;
+    lab_processor.import_file(blResult, buildLabMetaData.file_id, buildLabMetaData.abs_path);
+    lab_processor.parse_on_job_allocator = false;
 
     // probably an error during parsing
     if(!blResult.continue_processing) {
         return nullptr;
     }
 
-    int compile_result = 0;
+    // figure out files imported by this file
+    std::vector<ASTFileMetaData> imports;
+    lab_processor.figure_out_direct_imports(buildLabMetaData, blResult.unit.scope.body.nodes, imports);
 
-    // compiler interfaces the lab files imports
-    std::vector<std::string> compiler_interfaces;
+    // module dependencies we determined from directly imported files
+    std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
 
-    // beginning
-    std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, mangler, &output_ptr, lab_allocator, loc_man, &compiler_interfaces);
-    ToCBackendContext c_context(&c_visitor);
+    // direct imports tell us which modules the build.lab depends upon
+    // this modules would be put into context.storage
+    for(auto& imported : imports) {
+        lab_processor.figure_out_module_dependency_based_on_import(imported, buildLabMetaData, buildLabModuleDependencies);
+    }
 
-    // set the backend context
-    global.backend_context = &c_context;
+    // compile all dependencies to object files
+    if(!compile_dependencies_tcc(context, buildLabModuleDependencies, chemical_lab_module.dependencies, lab_processor, c_visitor, output_ptr)) {
+        return nullptr;
+    }
 
-    // allow user the compiler (namespace) functions in @comptime
-    if(container) {
-        // reuse already created container
-        global.rebind_container(lab_resolver, container);
-    } else {
-        // create a new container, once
-        container = global.create_container(lab_resolver);
+    // if has imports, we import those files, this would just hit caches
+    // but it's required to build a proper import tree
+    if(!imports.empty()) {
+        const auto success = lab_processor.import_chemical_files(pool, blResult.imports, imports);
+        if(!success) {
+            return nullptr;
+        }
     }
 
     // preparing translation
@@ -1441,7 +1690,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
     {
 
-        std::vector<ASTFileResultNew*> files_to_flatten = { &blResult };
+        std::vector<ASTFileResult*> files_to_flatten = { &blResult };
 
         // check module files for import cycles (direct or indirect)
         ImportCycleCheckResult importCycle { false, loc_man };
@@ -1458,55 +1707,40 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
             return nullptr;
         }
 
-        // processing each build.lab file and creating C output
+        // TODO this loop just puts the imported lab files into a namespace
         int i = 0;
         for (const auto file_ptr : module_files) {
 
             auto& file = *file_ptr;
 
             auto& result = file;
-            if (!result.continue_processing) {
-                compile_result = false;
-                break;
-            }
-
-            // print the benchmark or verbose output received from processing
-            if((options->benchmark || options->verbose) && !empty_diags(result)) {
-                std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-                print_results(result, file.abs_path, options->benchmark);
-            }
 
             // the last build.lab file is whose build method is to be called
             bool is_last = i == module_files.size() - 1;
             if (is_last) {
                 auto found = finder(lab_resolver, file.abs_path, file.unit.scope.body.nodes);
                 if (!found) {
-                    compile_result = 1;
-                    break;
+                    return nullptr;
                 }
                 if (!verify_app_build_func_type(found, file.abs_path)) {
-                    compile_result = 1;
-                    break;
+                    return nullptr;
                 }
                 // expose the last file's build method, so it's callable
                 found->set_specifier_fast(AccessSpecifier::Public);
             } else if (file.abs_path.ends_with(".lab")) {
                 if (file.as_identifier.empty()) {
                     std::cerr << "[lab] lab file cannot be imported without an 'as' identifier in import statement, error importing " << file.abs_path << std::endl;
-                    compile_result = 1;
-                    break;
+                    return nullptr;
                 } else {
                     auto found = finder(lab_resolver, file.abs_path, file.unit.scope.body.nodes);
                     if (!found) {
-                        compile_result = 1;
-                        break;
+                        return nullptr;
                     }
                     if (!verify_lib_build_func_type(found, file.abs_path)) {
-                        compile_result = 1;
-                        break;
+                        return nullptr;
                     }
                     // put every imported file in it's own namespace so build methods don't clash
-                    auto ns = new (lab_allocator.allocate<Namespace>()) Namespace(ZERO_LOC_ID(lab_allocator, file.as_identifier), nullptr, ZERO_LOC);
+                    auto ns = new (job_allocator->allocate<Namespace>()) Namespace(ZERO_LOC_ID(*job_allocator, file.as_identifier), nullptr, ZERO_LOC);
                     for (auto &node: result.unit.scope.body.nodes) {
                         node->set_parent(ns);
                     }
@@ -1515,37 +1749,53 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
                 }
             }
 
-            // reset c visitor to use with another file
-            c_visitor.reset();
-
-            // translate build.lab file to c
-            lab_processor.translate_to_c(c_visitor, result.unit.scope.body.nodes, file.abs_path);
-
-            // save the file result, for future retrievals
-            lab_processor.shrinked_unit.emplace(file.abs_path, std::move(result.unit));
-
             i++;
         }
-    }
 
-    // return if error occurred during processing of build.lab(s)
-    if(compile_result == 1) {
-        return nullptr;
+        // translating the build.lab module
+        lab_processor.translate_module(
+            c_visitor, &chemical_lab_module, module_files
+        );
+
     }
 
     // compiling the c output from build.labs
     const auto& str = output_ptr.str();
-    auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", true, options->outMode == OutputMode::DebugComplete);
 
+    // creating a new tcc state
+    const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
     if(state == nullptr) {
-        const auto out_path = resolve_rel_child_path_str(context.build_dir, "build.lab.c");
+        const auto out_path = resolve_rel_child_path_str(options->build_dir, "build.lab.c");
         writeToFile(out_path, str);
         std::cerr << rang::fg::red << "[lab] couldn't build lab file due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
         return nullptr;
+    } else {
+        // TODO place a check to only output this when need be
+        const auto out_path = resolve_rel_child_path_str(options->build_dir, "build.lab.c");
+        writeToFile(out_path, str);
     }
 
+    // add module object files
+    for(const auto dep : chemical_lab_module.dependencies) {
+        if(tcc_add_file(state, dep->object_path.data()) == -1) {
+            std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of 'build.lab'" << std::endl;
+            tcc_delete(state);
+            return nullptr;
+        }
+    }
+
+    // compiling the program
+    if(tcc_compile_string(state, str.data()) == -1) {
+        std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " couldn't compile 'build.lab'" << std::endl;
+        tcc_delete(state);
+        return nullptr;
+    }
+
+    // prepare for jit
+    prepare_tcc_state_for_jit(state);
+
     // import all compiler interfaces the lab files import
-    for(const auto& interface : compiler_interfaces) {
+    for(const auto& interface : *c_visitor.compiler_interfaces) {
         if(!binder.import_compiler_interface(interface, state)) {
             std::cerr << rang::fg::red << "[lab] failed to import compiler binding interface '" << interface << '\'' << rang::fg::reset << std::endl;
             tcc_delete(state);
@@ -1556,8 +1806,74 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     // relocate the code before calling
     tcc_relocate(state);
 
+    // clear the output ptr
+    output_ptr.clear();
+    output_ptr.str("");
+
+    // clear the allocators
+    mod_allocator->clear();
+    file_allocator->clear();
+
     // return the state
     return state;
+
+}
+
+TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::string& path) {
+
+#ifdef DEBUG
+    if(!context.storage.get_modules().empty()) {
+        throw std::runtime_error("please clean the module storage before using it with another lab file");
+    }
+#endif
+
+    // set the build context
+    build_context = &context;
+
+    // a global interpret scope required to evaluate compile time things
+    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
+
+    // creating symbol resolver for build.lab files only
+    SymbolResolver lab_resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+
+    // the processor that does everything for build.lab files only
+    ASTProcessor lab_processor(
+            path_handler,
+            options,
+            &context,
+            loc_man,
+            &lab_resolver,
+            binder,
+            *job_allocator,
+            *mod_allocator,
+            *file_allocator
+    );
+
+    // creates or rebinds the global container
+    create_or_rebind_container(this, global, lab_resolver);
+
+    // compiler interfaces the lab files imports
+    std::vector<std::string> compiler_interfaces;
+    std::stringstream output_ptr;
+    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man, &compiler_interfaces);
+    ToCBackendContext c_context(&c_visitor);
+
+    // set the backend context
+    global.backend_context = &c_context;
+
+    // create a directory for lab processing and dependent modules
+    // we'll call it 'lab' inside the build directory
+    const auto lab_dir = resolve_rel_child_path_str(options->build_dir, "lab");
+    const auto lab_mods_dir = resolve_rel_child_path_str(lab_dir, "modules");
+
+    // create lab dir and modules dir inside lab dir (lab, lab/modules)
+    create_dir(lab_dir);
+    create_dir(lab_mods_dir);
+
+    // call the function
+    return built_lab_file(
+        context, path, lab_processor, c_visitor, output_ptr
+    );
 
 }
 
@@ -1597,31 +1913,6 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
 
 int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string& path) {
 
-    auto state = built_lab_file(context, path);
-    if(!state) {
-        return 1;
-    }
-
-    // automatic destroy
-    TCCDeletor auto_del(state);
-
-    // get the build method
-    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
-    if(!build) {
-        std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
-        return 1;
-    }
-
-    // call the root build.lab build's function
-    build(&context);
-
-    // mkdir the build directory
-    if(!std::filesystem::exists(context.build_dir)) {
-        std::filesystem::create_directory(context.build_dir);
-    }
-
-    int job_result = 0;
-
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
     const auto mod_mem_size = 100000; // 100 kb
@@ -1634,6 +1925,35 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     job_allocator = &_job_allocator;
     mod_allocator = &_mod_allocator;
     file_allocator = &_file_allocator;
+
+    // mkdir the build directory
+    create_dir(options->build_dir);
+
+    // get build lab file into a tcc state
+    auto state = built_lab_file(context, path);
+    if(!state) {
+        return 1;
+    }
+
+    // automatic destroy
+    TCCDeletor auto_del(state);
+
+    // clear everything from allocators before proceeding
+    _job_allocator.clear();
+    _mod_allocator.clear();
+    _file_allocator.clear();
+
+    // get the build method
+    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
+    if(!build) {
+        std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
+        return 1;
+    }
+
+    // call the root build.lab build's function
+    build(&context);
+
+    int job_result = 0;
 
     // generating outputs (executables)
     for(auto& exe : context.executables) {

@@ -18,14 +18,14 @@
 #include "integration/common/Diagnostic.h"
 #include "cst/LocationManager.h"
 #include "compiler/symres/SymbolRange.h"
+#include "compiler/processor/ASTFileMetaData.h"
+#include "compiler/processor/BuildLabModuleDependency.h"
 #include <span>
 #include <mutex>
 
 class Parser;
 
 class SymbolResolver;
-
-class ShrinkingVisitor;
 
 class ToCAstVisitor;
 
@@ -47,76 +47,6 @@ struct ASTFileResultData {
      * should the processing be continued, this is false, if ast contained errors
      */
     bool continue_processing;
-
-};
-
-struct ASTFileMetaData {
-
-    /**
-     * the id of the file
-     */
-    unsigned int file_id;
-
-    /**
-     * the scope index is the index of scope where symbols in symbol resolver exist
-     */
-    SymbolRange private_symbol_range;
-
-    /**
-     * the module scope
-     */
-    ModuleScope* moduleScope;
-
-    /**
-     * the path used when user imported the file
-     */
-    std::string import_path;
-
-    /**
-     * the absolute path determined to the file
-     */
-    std::string abs_path;
-
-    /**
-     * the as identifier is used with import statements to import files
-     */
-    std::string as_identifier;
-
-    /**
-     * the file meta data
-     */
-    ASTFileMetaData(
-            unsigned int file_id,
-            ModuleScope* moduleScope
-    ) : file_id(file_id), private_symbol_range(0, 0), moduleScope(moduleScope) {
-
-    }
-
-    /**
-     * the file meta data
-     */
-    ASTFileMetaData(
-            unsigned int file_id,
-            ModuleScope* moduleScope,
-            std::string abs_path
-    ) : file_id(file_id), private_symbol_range(0, 0), moduleScope(moduleScope), abs_path(std::move(abs_path)) {
-
-    }
-
-    /**
-     * constructor
-     */
-    ASTFileMetaData(
-        unsigned int file_id,
-        ModuleScope* moduleScope,
-        std::string import_path,
-        std::string abs_path,
-        std::string as_identifier
-    ) : file_id(file_id), private_symbol_range(0, 0), moduleScope(moduleScope),
-        import_path(std::move(import_path)), abs_path(std::move(abs_path)), as_identifier(std::move(as_identifier))
-    {
-
-    }
 
 };
 
@@ -172,17 +102,14 @@ struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
     ASTFileResult(
         unsigned int file_id,
         std::string abs_path,
-        ModuleScope* mod
-    ) : ASTFileMetaData(file_id, mod, std::move(abs_path)), unit(file_id, chem::string_view(this->abs_path), mod) {
+        LabModule* module
+    ) : ASTFileMetaData(file_id, module, std::move(abs_path)),
+        unit(file_id, chem::string_view(this->abs_path), module ? &module->module_scope : nullptr)
+    {
 
     }
 
 };
-
-/**
- * @deprecated
- */
-using ASTFileResultNew = ASTFileResult;
 
 /**
  * this will be called ASTProcessor
@@ -230,7 +157,7 @@ public:
      * cache is where files parsed are stored, before parsing the
      * file we search for it in this cache
      */
-    std::unordered_map<std::string, ASTFileResultNew> cache;
+    std::unordered_map<std::string, ASTFileResult> cache;
 
     /**
      * the compiler binder that will be used
@@ -250,12 +177,6 @@ public:
     LabBuildContext* context = nullptr;
 
     /**
-     * it's a container of AST diagnostics
-     * this is here because c file's errors are ignored because they contain unresolvable symbols
-     */
-    std::vector<Diag> previous;
-
-    /**
      * Job (executable or dll) level allocator
      */
     ASTAllocator& job_allocator;
@@ -271,14 +192,32 @@ public:
     ASTAllocator& file_allocator;
 
     /**
+     * NOTE: THIS BOOLEAN IS VERY SCARY, IT MUST BE USED WITH EXTREME CARE
+     * when true, all the files parsed will go into job allocator, module allocator won't
+     * be used, job allocator will be used to parse the entire files
+     * the module allocator frees everything after compilation of the module, only functions
+     * that are public are allocated on job allocator, which makes this process super efficient
+     *
+     * why do we need this ? because build.lab compilation triggers module compilation
+     * after compilation of first module from build.lab the module allocator disposes everything
+     * and build.lab which was parsed using module allocator also dies, so we can't compile build.lab now
+     * we set this boolean to true to keep build.lab on job allocator, while we compile other modules
+     *
+     * WHEN YOU SET THIS TO TRUE, ALWAYS SET IT BACK TO FALSE, AFTER PARSING A SINGLE FILE
+     * WHEN PARSING AN ENTIRE IMPORT TREE CONCURRENTLY (DO NOT USE IT)
+     *
+     */
+    bool parse_on_job_allocator = false;
+
+    /**
      * check if the result has empty diagnostics
      */
-    static bool empty_diags(ASTFileResultNew& result);
+    static bool empty_diags(ASTFileResult& result);
 
     /**
      * print results for the given result
      */
-    static void print_results(ASTFileResultNew& result, const chem::string_view& abs_path, bool benchmark);
+    static void print_results(ASTFileResult& result, const chem::string_view& abs_path, bool benchmark);
 
     /**
      * constructor
@@ -313,10 +252,11 @@ public:
 
     /**
      * this imports the given files in parallel using the given thread pool
+     * @return true if succeeding importing all files with continue_processing, false otherwise
      */
-    void import_chemical_files(
+    bool import_chemical_files(
             ctpl::thread_pool& pool,
-            std::vector<ASTFileResultNew*>& out_files,
+            std::vector<ASTFileResult*>& out_files,
             std::vector<ASTFileMetaData>& files
     );
 
@@ -332,37 +272,61 @@ public:
     /**
      * imports module files
      */
-    void import_mod_files(
+    bool import_mod_files(
             ctpl::thread_pool& pool,
-            std::vector<ASTFileResultNew*>& out_files,
+            std::vector<ASTFileResult*>& out_files,
             std::vector<ASTFileMetaData>& files,
             LabModule* module
     );
 
     /**
-     * import a single file and all it's imports (in parallel) using the given thread pool
+     * figures out direct imports of the given file (fileData), the fileNodes are the nodes
+     * that are contained inside the file
      */
-    void import_chemical_file(
-            ASTFileResultNew& result,
+    void figure_out_direct_imports(
+            ASTFileMetaData& fileData,
+            std::vector<ASTNode*>& fileNodes,
+            std::vector<ASTFileMetaData>& outImports
+    );
+
+    /**
+     * the problem with build.labs is that user doesn't tell us which module it depends on, so we figure that out based on its imports
+     * this function creates modules on the fly based on the imported file by the importer, it also sets the appropriate dependency in the
+     * importer's modules
+     */
+    void figure_out_module_dependency_based_on_import(
+            ASTFileMetaData& imported,
+            ASTFileMetaData& importer,
+            std::vector<BuildLabModuleDependency>& dependencies
+    );
+
+    /**
+     * import a single file and all it's imports (in parallel) using the given thread pool
+     * @return true if success importing this file and it's imports, false otherwise
+     */
+    bool import_chemical_file(
+            ASTFileResult& result,
             ctpl::thread_pool& pool,
             ASTFileMetaData& fileData
     );
 
     /**
      * import chemical file with absolute path to it
+     * @return true if success importing file, false otherwise
      */
-    void import_chemical_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& absolute_path);
+    bool import_chemical_file(ASTFileResult& result, unsigned int fileId, const std::string_view& absolute_path);
+
+    /**
+     * import chemical file with absolute path to it
+     * @return true if success importing file, false otherwise
+     */
+    bool import_chemical_mod_file(ASTFileResult& result, unsigned int fileId, const std::string_view& absolute_path);
 
     /**
      * lex, parse in file and return Scope containing nodes
      * without performing any symbol resolution
      */
-    void import_file(ASTFileResultNew& result, unsigned int fileId, const std::string_view& absolute_path);
-
-    /**
-     * the function to use, if the file is a c file
-     */
-    void sym_res_c_file(Scope& scope, const std::string& abs_path);
+    bool import_file(ASTFileResult& result, unsigned int fileId, const std::string_view& absolute_path);
 
     /**
      * it declares all the symbols inside the file and returns a scope index for the file

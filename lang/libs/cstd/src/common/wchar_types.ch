@@ -4,10 +4,10 @@
  */
 if(def.windows) {
     @extern
-public type wint_t = ushort;
+    public type wint_t = ushort;
 } else {
     @extern
-public type wint_t = int;
+    public type wint_t = int;
 }
 
 /**
@@ -16,8 +16,8 @@ public type wint_t = int;
  */
 if(def.windows) {
     @extern
-public type wchar_t = ushort;
+    public type wchar_t = ushort;
 } else {
     @extern
-public type wchar_t = int;
+    public type wchar_t = int;
 }

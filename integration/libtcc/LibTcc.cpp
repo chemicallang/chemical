@@ -13,6 +13,89 @@ void handle_tcc_error(void *opaque, const char *msg){
     std::cout << rang::fg::red << msg << " in " << ((char*) opaque) << rang::fg::reset << std::endl;
 }
 
+int tcc_backtrace_fn_handler(void *udata, void *pc, const char *file, int line, const char *func, const char *msg) {
+    std::cerr << "[tcc] " << rang::fg::red << "error: '" << rang::fg::reset << msg << "' in runtime function " << func << " at " << file << ':' << line << std::endl;
+    return 1;
+}
+
+TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name) {
+
+    // creating a tcc state
+    auto s = tcc_new();
+    if (!s) {
+        fprintf(stderr, "Could not create tcc state\n");
+        return nullptr;
+    }
+
+    // set custom error/warning printer
+    tcc_set_error_func(s, (void*) debug_file_name, handle_tcc_error);
+
+    // the tcc dir contains everything tcc needs present relative to our compiler executable
+    auto tcc_dir = resolve_non_canon_parent_path(exe_path, "packages/tcc");
+
+    // TODO check if tcc dir is not present and error out appropriately
+
+    // adding tcc include paths (which should be present relative to our compiler executable
+    auto include_dir = resolve_rel_child_path_str(tcc_dir, "include");
+    const auto includeRes = tcc_add_include_path(s, include_dir.data());;
+    if (includeRes == -1) {
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't include tcc include package" << std::endl;
+        return nullptr;
+    }
+
+    // adding tcc library path, pre
+    auto lib_dir = resolve_rel_child_path_str(tcc_dir, "lib");
+    const auto addRes = tcc_add_library_path(s, lib_dir.data());
+    if (addRes == -1) {
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't add tcc library package" << std::endl;
+        return nullptr;
+    }
+
+    return s;
+
+}
+
+bool tcc_set_output_for_jit(TCCState* s) {
+    const auto outputRes = tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+    if (outputRes == -1) {
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset << "couldn't set tcc output type" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool tcc_set_output_for_extension(TCCState* s, const std::string& outputFileName) {
+    int outputType = TCC_OUTPUT_EXE;
+    if (!outputFileName.empty()) {
+        if (outputFileName.ends_with(".exe")) {
+            outputType = TCC_OUTPUT_EXE;
+        } else if (outputFileName.ends_with(".o")) {
+            outputType = TCC_OUTPUT_OBJ;
+        } else if (outputFileName.ends_with(".dll") || outputFileName.ends_with(".so")) {
+            outputType = TCC_OUTPUT_DLL;
+        }
+    }
+    const auto outputRes = tcc_set_output_type(s, outputType);
+    if (outputRes == -1) {
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset << "couldn't set tcc output type" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void tcc_set_debug_options(TCCState* s) {
+    // generates slower code in debug versions, but allows proper debugging
+    // it would be helpful to set -b but that's not working on my system
+    // -b
+    // Generate additional support code to check memory allocations and array/pointer bounds. -g is implied. Note that the generated code is slower and bigger in this case.
+    // Note: -b is only available on i386 when using libtcc for the moment.
+    // -bt N Display N callers in stack traces. This is useful with -g or -b.
+    tcc_set_options(s, "-g -bt 4");
+    tcc_set_backtrace_func(s, nullptr, tcc_backtrace_fn_handler);
+}
+
 TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, bool jit, bool debug) {
 
     // creating a tcc state
@@ -170,10 +253,12 @@ int compile_c_file(char* exe_path, const char* c_file_path, const std::string& o
 
 int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects) {
 
-    auto s = setup_tcc_state(exe_path, outputFileName, false, false);
-    if(!s) {
-        return 1;
-    }
+    // creating a new tcc state
+    const auto s = tcc_new_state(exe_path, outputFileName.data());
+    if(!s) return 1;
+
+    // set output according to extension
+    tcc_set_output_for_extension(s, outputFileName);
 
     // auto delete state
     TCCDeletor del_auto(s);

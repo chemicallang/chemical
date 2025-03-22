@@ -769,13 +769,13 @@ public func hypot(x : double, y : double) : double
 /**
  * this is just to support declarations using __float128 in Tiny CC
  */
-if(compiler::is_tcc_based()) {
+if(compiler::supports("float128")) {
 
-    public type __float_128 = longdouble;
+    public type __float_128 = float128;
 
 } else {
 
-    public type __float_128 = float128;
+    public type __float_128 = longdouble;
 
 }
 

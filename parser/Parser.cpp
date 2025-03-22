@@ -102,3 +102,38 @@ void Parser::parse(std::vector<ASTNode*>& nodes) {
     parseTopLevelMultipleImportStatements(mod_allocator, nodes);
     parseTopLevelMultipleStatements(mod_allocator, nodes);
 }
+
+void Parser::parseModuleFile(std::vector<ASTNode*>& nodes) {
+    auto& allocator = mod_allocator;
+    consumeNewLines();
+    const auto pkg_def = parsePackageDefinition(allocator);
+    if(pkg_def) {
+        nodes.emplace_back((ASTNode*) pkg_def);
+        consumeNewLines();
+    }
+    while (true) {
+        consumeNewLines();
+        switch(token->type) {
+            case TokenType::ImportKw: {
+                if(!parseSingleOrMultipleImportStatements(allocator, nodes, false)) {
+                    goto loop_break;
+                }
+                break;
+            }
+            case TokenType::VarKw:
+            case TokenType::ConstKw:
+                // TODO handle these
+            case TokenType::EndOfFile:
+                goto loop_break;
+            default: {
+                // skip the current token
+                error("skipped due to invalid syntax before it", token->position);
+                token++;
+                continue;
+            }
+        }
+        consumeToken(TokenType::SemiColonSym);
+    }
+    loop_break:
+        return;
+}

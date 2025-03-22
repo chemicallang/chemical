@@ -295,6 +295,10 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
             }
         }
     }
+    if(is_top_level()) {
+        linker.error("cannot evaluate compile time top level if statement", (ASTNode*) this);
+        return;
+    }
 
     // temporary moved identifiers and chains
     std::vector<VariableIdentifier*> moved_ids;
@@ -320,7 +324,6 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     const auto curr_func = linker.current_func_type;
     curr_func->restore_moved_ids(moved_ids);
     curr_func->restore_moved_chains(moved_chains);
-
 }
 
 Value* IfStatement::get_value_node() {

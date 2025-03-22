@@ -92,4 +92,14 @@ struct LabModule {
 
     }
 
+    /**
+     * this allows updating the module and scope names
+     */
+    void update_mod_name(chem::string new_scope_name, chem::string new_module_name) {
+        scope_name = std::move(new_scope_name);
+        name = std::move(new_module_name);
+        module_scope.scope_name = this->scope_name.to_chem_view();
+        module_scope.module_name = this->name.to_chem_view();
+    }
+
 };

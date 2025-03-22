@@ -119,7 +119,7 @@ very innovative things are planned.
   - [ ] Annotation / Symbol Processing
 - [x] Build System based on Chemical
   - [ ] Advanced caching support for modules
-  - [ ] Modes of build
+  - [x] Modes of build
     - [x] Simple and easy 'chemical.mod' files
     - [x] Advanced and powerful 'build.lab' files
     - [x] Builds modules on the fly for usage within 'build.lab' files

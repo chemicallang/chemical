@@ -31,6 +31,8 @@ bool parseImportFromPart(Parser& parser, ASTAllocator& allocator, ImportStatemen
     } else if(require_path) {
         parser.error("expected keyword 'from' after the identifier");
         return false;
+    } else {
+        return true;
     }
 }
 

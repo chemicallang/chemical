@@ -9,14 +9,9 @@
 LabBuildContext::LabBuildContext(
     LabBuildCompilerOptions* options,
     ImportPathHandler& path_handler,
-    std::string lab_file,
-    std::string user_build_dir
+    std::string lab_file
 ) : handler(path_handler), options(options) {
-    if(user_build_dir.empty()) {
-        build_dir = resolve_non_canon_parent_path(lab_file, "build");
-    } else {
-        build_dir = user_build_dir;
-    }
+
 }
 
 void LabBuildContext::add_dependencies(std::vector<LabModule*>& into, LabModule **dependencies, unsigned int dep_len) {
@@ -94,9 +89,7 @@ void LabBuildContext::init_path_aliases(LabJob* job) {
     }
 }
 
-void ModuleStorage::insert_module(std::unique_ptr<LabModule> modulePtr) {
-    const auto module = modulePtr.get();
-    modules.emplace_back(std::move(modulePtr));
+void ModuleStorage::index_module(LabModule* module) {
     std::string str;
     if(!module->scope_name.empty()) {
         str.append(module->scope_name.to_view());
@@ -198,7 +191,7 @@ LabJob* LabBuildContext::translate_to_chemical(
 }
 
 void LabBuildContext::set_build_dir(LabJob* job) {
-    auto build_dir_path = resolve_rel_child_path_str(build_dir, job->name.to_std_string() + ".dir");
+    auto build_dir_path = resolve_rel_child_path_str(options->build_dir, job->name.to_std_string() + ".dir");
     job->build_dir.append(build_dir_path.data(), build_dir_path.size());
 }
 

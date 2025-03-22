@@ -190,6 +190,12 @@ public:
      */
     void parse(std::vector<ASTNode*>& nodes);
 
+    /**
+     * a module file is a .mod file that defines which modules are imported
+     * by a single module, and it's scope and module declaration
+     */
+    void parseModuleFile(std::vector<ASTNode*>& nodes);
+
     // ------------- Functions exposed to chemical begin here
 
 public:
@@ -455,9 +461,19 @@ public:
     std::optional<Scope> parseBraceBlockOrValueNode(ASTAllocator& allocator, const std::string_view& forThing, bool is_value, bool parse_value_node);
 
     /**
+     * parses import statement after the import keyword
+     */
+    ImportStatement* parseImportStmtAfterKw(ASTAllocator& allocator, bool require_path = true, bool error_out = true);
+
+    /**
      * lexes import statement
      */
-    ImportStatement* parseImportStatement(ASTAllocator& allocator);
+    ImportStatement* parseImportStatement(ASTAllocator& allocator, bool require_path = true);
+
+    /**
+     * parses a single or multiple import statements
+     */
+    bool parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool require_path = true);
 
     /**
      * parse destruct statement
@@ -808,6 +824,11 @@ public:
      * lexes a comptime block
      */
     ComptimeBlock* parseComptimeBlock(ASTAllocator& allocator);
+
+    /**
+     * a package definition is parsed
+     */
+    PackageDefinition* parsePackageDefinition(ASTAllocator& allocator);
 
     // -------------------------------- Exposed till here
 

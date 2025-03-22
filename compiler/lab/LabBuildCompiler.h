@@ -10,6 +10,7 @@
 #include "cst/LocationManager.h"
 #include "preprocess/ImportPathHandler.h"
 #include "compiler/mangler/NameMangler.h"
+#include "compiler/processor/BuildLabModuleDependency.h"
 
 class ASTAllocator;
 
@@ -227,9 +228,54 @@ public:
     int do_job_allocating(LabJob* job);
 
     /**
-     * filter will be used, to perform jobs that are of interest
+     * we create a module for the following dependency, by importing and building
+     * it's build.lab or chemical.mod file
      */
-    int do_jobs_filtering(bool(*filter)(LabBuildCompiler*, LabJob*));
+    LabModule* create_module_for_dependency(
+        LabBuildContext& context,
+        BuildLabModuleDependency& dependency,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        std::stringstream& output_ptr
+    );
+
+    /**
+     * compile dependencies using tcc
+     * @return true on success, false on failure
+     */
+    bool compile_dependencies_tcc(
+        LabBuildContext& context,
+        std::vector<BuildLabModuleDependency>& dependencies,
+        std::vector<LabModule*>& outModDependencies,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        std::stringstream& output_ptr
+    );
+
+    /**
+     * a chemical.mod file can be imported using this method into a LabModule*, the dependencies will include
+     * all the modules this module depends on (the mod file states this, it recursively parses those modules)
+     */
+    LabModule* build_module_from_mod_file(
+            LabBuildContext& context,
+            BuildLabModuleDependency& dependency,
+            const std::string& modFilePath,
+            ASTProcessor& processor,
+            ToCAstVisitor& c_visitor,
+            std::stringstream& output_ptr
+    );
+
+    /**
+     * will build the lab file and return the callable tcc state
+     * however using the given resources
+     */
+    TCCState* built_lab_file(
+        LabBuildContext& context,
+        const std::string& path,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        std::stringstream& output_ptr
+    );
 
     /**
      * will build the lab file and return the callable tcc state

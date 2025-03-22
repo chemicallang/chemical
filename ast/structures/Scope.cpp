@@ -69,19 +69,27 @@ void Scope::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-void Scope::link_sequentially(SymbolResolver &linker) {
-    if(nodes.empty()) return;
-    const auto curr_func = linker.current_func_type;
-    const auto moved_ids_begin = curr_func->moved_identifiers.size();
-    const auto moved_chains_begin = curr_func->moved_chains.size();
-    for(auto& node : nodes) {
+inline void link_seq(SymbolResolver& linker, Scope* scope) {
+    for(auto& node : scope->nodes) {
         node->declare_top_level(linker, node);
         node->link_signature(linker);
         node->declare_and_link(linker, node);
     }
-    if(nodes.back()->kind() == ASTNodeKind::ReturnStmt) {
-        curr_func->erase_moved_ids_after(moved_ids_begin);
-        curr_func->erase_moved_chains_after(moved_chains_begin);
+}
+
+void Scope::link_sequentially(SymbolResolver &linker) {
+    if(nodes.empty()) return;
+    const auto curr_func = linker.current_func_type;
+    if(curr_func) {
+        const auto moved_ids_begin = curr_func->moved_identifiers.size();
+        const auto moved_chains_begin = curr_func->moved_chains.size();
+        link_seq(linker, this);
+        if (nodes.back()->kind() == ASTNodeKind::ReturnStmt) {
+            curr_func->erase_moved_ids_after(moved_ids_begin);
+            curr_func->erase_moved_chains_after(moved_chains_begin);
+        }
+    } else {
+        link_seq(linker, this);
     }
 }
 

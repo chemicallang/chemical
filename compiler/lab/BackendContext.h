@@ -4,6 +4,10 @@
 
 #include <string>
 
+enum class CompilerFeatureKind : int {
+    Float128 = 0
+};
+
 /**
  * a very simple, pure virtual class that is implemented by different backends to
  * provide functionality
@@ -20,5 +24,10 @@ public:
      * performs a mem cpy on lhs and rhs using the backend
      */
     virtual void mem_copy(Value* lhs, Value* rhs) = 0;
+
+    /**
+     * is the following feature supported inside the compiler ?
+     */
+    virtual bool supports(CompilerFeatureKind kind) = 0;
 
 };

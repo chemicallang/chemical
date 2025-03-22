@@ -18,17 +18,9 @@ public:
 
     unsigned lambda_num = 0;
 
-    unsigned func_type_num = 0;
-
-    unsigned alias_num = 0;
-
-    unsigned enum_num = 0;
-
     void VisitLambdaFunction(LambdaFunction *func);
 
     void VisitFunctionDecl(FunctionDeclaration *functionDeclaration);
-
-    void VisitEnumDecl(EnumDeclaration *enumDeclaration);
 
     void VisitFunctionType(FunctionType *func);
 

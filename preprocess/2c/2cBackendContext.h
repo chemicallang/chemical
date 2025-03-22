@@ -17,4 +17,13 @@ public:
 
     void mem_copy(Value *lhs, Value *rhs) final;
 
+    bool supports(CompilerFeatureKind kind) final {
+        switch(kind) {
+            case CompilerFeatureKind::Float128:
+                return false;
+            default:
+                return true;
+        }
+    }
+
 };

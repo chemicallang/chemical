@@ -369,7 +369,7 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
             auto path = chem::string_view(lib.data() + (found + 1));
 
             // creating the job and module and setting options for it
-            LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_folder), LabJobStatus::Pending, {}, {}, {}, {});
+            LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_dir), LabJobStatus::Pending, {}, {}, {}, {});
             LabModule mod(LabModuleType::Directory, chem::string(""), chem::string(name));
             mod.paths.emplace_back(path);
             job.dependencies.emplace_back(&mod);
@@ -656,11 +656,13 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
+    auto build_dir_opt = options.option_new("build-dir", "b");
+
     // build a .lab file
     if(args[0].ends_with(".lab")) {
 
-
-        LabBuildCompilerOptions compiler_opts(argv[0], target, is64Bit);
+        std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : resolve_non_canon_parent_path(std::string(args[0]), "build");
+        LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
         CompilerBinder binder(argv[0]);
         LabBuildCompiler compiler(binder, &compiler_opts);
         compiler.set_cmd_options(&options);
@@ -673,7 +675,7 @@ int main(int argc, char *argv[]) {
 
         // translate the build.lab to a c file (for debugging)
         if(output.has_value() && output.value().ends_with(".c")) {
-            LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_folder), { }, { });
+            LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_dir), { }, { });
             LabModule module(LabModuleType::Files, chem::string(""), chem::string("[BuildLabFile]"));
             module.paths.emplace_back(std::string(args[0]));
             job.dependencies.emplace_back(&module);
@@ -703,7 +705,8 @@ int main(int argc, char *argv[]) {
     }
 
     // compilation
-    LabBuildCompilerOptions compiler_opts(argv[0], target, is64Bit);
+    std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : "./";
+    LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
     CompilerBinder binder(argv[0]);
     LabBuildCompiler compiler(binder, &compiler_opts);
     compiler.set_cmd_options(&options);

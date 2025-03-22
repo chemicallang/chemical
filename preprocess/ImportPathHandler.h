@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "std/chem_string_view.h"
 
 std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
 
@@ -14,6 +15,11 @@ std::string resolve_rel_parent_path_str(const std::string &root_path, const std:
 struct AtReplaceResult {
     std::string replaced;
     std::string error; // empty if no error
+};
+
+struct ModuleIdentifier {
+    chem::string_view scope_name;
+    chem::string_view module_name;
 };
 
 class ImportPathHandler;
@@ -64,6 +70,22 @@ public:
      * get containing system headers directory for the following header
      */
     std::string headers_dir(const std::string &header);
+
+    /**
+     * a module identifier is created based on import path that includes a '@' symbol in front
+     */
+    ModuleIdentifier get_mod_identifier_from_import_path(const std::string& path);
+
+    /**
+     * finds the directory path from scope and mod name
+     */
+    AtReplaceResult resolve_lib_dir_path(const chem::string_view& scope_name, const chem::string_view& mod_name);
+
+    /**
+     * a path can be given to get the at directive
+     * the returned result also contains an '@'
+     */
+    AtReplaceResult get_atDirective_withAt(const std::string& path);
 
     /**
      * a path can be given to get the at directive, the path has '@' in front

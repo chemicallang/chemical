@@ -834,6 +834,14 @@ public:
     /**
      * as value wrapper node unsafe
      */
+    inline PackageDefinition* as_package_def_unsafe() {
+        CHECK_CAST(ASTNodeKind::PackageDef);
+        return (PackageDefinition*) this;
+    }
+
+    /**
+     * as value wrapper node unsafe
+     */
     inline ValueWrapperNode* as_value_wrapper_unsafe() {
         CHECK_CAST(ASTNodeKind::ValueWrapper);
         return (ValueWrapperNode*) this;

@@ -19,6 +19,24 @@ public:
     }
 };
 
+/**
+ * this function creates a new tcc state and also sets up it's libraries and includes correctly
+ */
+TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name);
+
+/**
+ * set the output type to jit for a tcc state, should be set right after creation of the tcc state
+ */
+bool tcc_set_output_for_jit(TCCState* s);
+
+/**
+ * should be set after creation, but always before compilation, this makes it so
+ * that tcc generates debug code
+ */
+void tcc_set_debug_options(TCCState* s);
+
+TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, bool jit, bool debug);
+
 TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug);
 
 /**

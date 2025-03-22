@@ -30,8 +30,6 @@ public:
      * the place where modules exist
      */
     ModuleStorage storage;
-    // the build directory that will be used for file generation
-    std::string build_dir;
     // all the executables created during the build process
     std::vector<std::unique_ptr<LabJob>> executables;
     // build arguments given to the build lab
@@ -43,7 +41,7 @@ public:
     // if import paths are to be used with aliases in them, we need a path handler
     ImportPathHandler& handler;
     // the compiler options sent by the user
-    LabBuildCompilerOptions* options = nullptr;
+    LabBuildCompilerOptions* options;
 
 private:
 
@@ -60,8 +58,7 @@ public:
     LabBuildContext(
         LabBuildCompilerOptions* options,
         ImportPathHandler& path_handler,
-        std::string lab_file,
-        std::string build_dir = ""
+        std::string lab_file
     );
 
     /**

@@ -11,12 +11,10 @@
 class LabBuildCompilerOptions : public ASTProcessorOptions {
 public:
 
-    using ASTProcessorOptions::ASTProcessorOptions;
-
     /**
-     * if left empty, by default a build folder relative to build.lab will be chosen with name build
+     * the build directory, where everything will be outputted
      */
-    std::string build_folder;
+    std::string build_dir;
 
     /**
      * use tcc compiler to build and generate executable
@@ -71,5 +69,19 @@ public:
      */
     bool no_pie = false;
 #endif
+
+
+    /**
+     * constructor
+     */
+    LabBuildCompilerOptions(
+        std::string exe_path,
+        std::string target_triple,
+        std::string build_dir,
+        bool is64Bit
+    ) : ASTProcessorOptions(std::move(exe_path), std::move(target_triple), is64Bit), build_dir(std::move(build_dir)) {
+
+    }
+
 
 };

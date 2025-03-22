@@ -17,4 +17,8 @@ public:
 
     void mem_copy(Value* lhs, Value* rhs) final;
 
+    bool supports(CompilerFeatureKind kind) final {
+        return true;
+    }
+
 };

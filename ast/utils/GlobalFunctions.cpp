@@ -612,6 +612,51 @@ public:
     }
 };
 
+class InterpretSupports : public FunctionDeclaration {
+public:
+
+    BoolType boolType;
+    AnyType anyType;
+    FunctionParam valueParam;
+
+    explicit InterpretSupports(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("supports"),
+            &boolType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), boolType(ZERO_LOC), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params.emplace_back(&valueParam);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.empty()) {
+            call_scope->error("expects a single argument", call);
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        }
+        const auto eval = call->values.back()->evaluated_value(*call_scope);
+        bool supports;
+        if(eval->kind() == ValueKind::String) {
+            // TODO compiler feature cannot handle other features yet!!
+            if (eval->get_the_string() == "float128") {
+                supports = call_scope->global->backend_context->supports(CompilerFeatureKind::Float128);
+            } else {
+                supports = false;
+            }
+        } else {
+            const auto number = eval->get_the_number();
+            if(number.has_value()) {
+                supports = call_scope->global->backend_context->supports((CompilerFeatureKind) (int) number.value());
+            } else {
+                supports = false;
+            }
+        }
+        return new (allocator.allocate<BoolValue>()) BoolValue(supports, ZERO_LOC);
+    }
+};
+
 class InterpretIsTcc : public FunctionDeclaration {
 public:
 
@@ -1264,6 +1309,7 @@ public:
 class CompilerNamespace : public Namespace {
 public:
 
+    InterpretSupports interpretSupports;
     InterpretPrint printFn;
     InterpretPrintLn printlnFn;
     InterpretToString to_stringFn;
@@ -1294,13 +1340,13 @@ public:
     CompilerNamespace(
 
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
-        printFn(this), printlnFn(this), to_stringFn(this), type_to_stringFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
+        interpretSupports(this), printFn(this), printlnFn(this), to_stringFn(this), type_to_stringFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this), satisfiesFn(this),
         get_target_fn(this), get_current_file_path(this), get_loc_file_path(this), get_child_fn(this), error_fn(this)
     {
         set_compiler_decl(true);
         nodes = {
-            &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
+            &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
             &satisfiesFn, &get_raw_location, &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
             &get_target_fn, &get_current_file_path, &get_loc_file_path, &get_child_fn, &error_fn
         };
@@ -1723,8 +1769,3 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
 void GlobalInterpretScope::dispose_container(GlobalContainer* container) {
     delete container;
 }
-
-//void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {
-//    auto& compiler_ns = global_nodes["compiler"];
-//    compiler_ns->declare_top_level(resolver, compiler_ns);
-//}

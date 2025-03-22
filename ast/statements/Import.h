@@ -17,7 +17,13 @@ class ASTDiagnoser;
 class ImportStatement : public ASTNode {
 public:
 
-    std::vector<chem::string_view> identifiers;
+    /**
+     * a single identifier or a identifier list can be held
+     * usually written like this import a from "something" <-- single identifier
+     * import a::b::c from "something2", every import statement can import a single identifier
+     * from a file from a module or the file itself
+     */
+    std::vector<chem::string_view> identifier;
     chem::string_view filePath; ///< The file path to import.
     chem::string_view as_identifier;
 
@@ -39,7 +45,7 @@ public:
             parent(),
             encoded_location()
         );
-        stmt->identifiers = identifiers;
+        stmt->identifier = identifier;
         stmt->as_identifier = as_identifier;
         return stmt;
     }

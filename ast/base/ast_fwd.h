@@ -12,6 +12,8 @@ class AssignStatement;
 
 class BreakStatement;
 
+class PackageDefinition;
+
 class AliasStmt;
 
 class UnreachableStmt;

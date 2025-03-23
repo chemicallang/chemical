@@ -41,17 +41,12 @@ namespace ctpl {
     class thread_pool;
 }
 
-struct ASTFileResultData {
+struct ASTFileResult : ASTFileMetaData {
 
     /**
      * should the processing be continued, this is false, if ast contained errors
      */
     bool continue_processing;
-
-};
-
-
-struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
 
     /**
      * the parsed unit
@@ -103,7 +98,7 @@ struct ASTFileResult : ASTFileResultData, ASTFileMetaData {
         unsigned int file_id,
         std::string abs_path,
         LabModule* module
-    ) : ASTFileMetaData(file_id, module, std::move(abs_path)),
+    ) : ASTFileMetaData(file_id, module, std::move(abs_path)), continue_processing(true),
         unit(file_id, chem::string_view(this->abs_path), module ? &module->module_scope : nullptr)
     {
 

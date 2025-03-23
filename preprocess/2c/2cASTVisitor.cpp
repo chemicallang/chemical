@@ -5166,11 +5166,7 @@ void ToCAstVisitor::VisitIntNType(IntNType *type) {
             write("int");
             return;
         case IntNTypeKind::Long:
-            if(is64Bit) {
-                write("long long");
-            } else {
-                write("long");
-            }
+            write("long");
             return;
         case IntNTypeKind::BigInt:
             write("long long");

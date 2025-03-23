@@ -22,7 +22,7 @@ struct ASTFileMetaData {
     /**
      * the module this file belongs to
      */
-    LabModule* module;
+    ModuleScope* module;
 
     /**
      * the path used when user imported the file
@@ -44,7 +44,7 @@ struct ASTFileMetaData {
      */
     ASTFileMetaData(
             unsigned int file_id,
-            LabModule* module
+            ModuleScope* module
     ) : file_id(file_id), private_symbol_range(0, 0), module(module) {
 
     }
@@ -54,7 +54,7 @@ struct ASTFileMetaData {
      */
     ASTFileMetaData(
             unsigned int file_id,
-            LabModule* module,
+            ModuleScope* module,
             std::string abs_path
     ) : file_id(file_id), private_symbol_range(0, 0), module(module), abs_path(std::move(abs_path)) {
 
@@ -65,7 +65,7 @@ struct ASTFileMetaData {
      */
     ASTFileMetaData(
             unsigned int file_id,
-            LabModule* module,
+            ModuleScope* module,
             std::string import_path,
             std::string abs_path,
             std::string as_identifier

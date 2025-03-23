@@ -84,7 +84,7 @@ void ASTProcessor::determine_mod_files(
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
                 // all these files belong to the given module, so it's scope will be used
-                files.emplace_back(fileId, module, abs_path, abs_path, "");
+                files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
             }
             return;
         }
@@ -103,7 +103,7 @@ void ASTProcessor::determine_mod_files(
             getFilesInDirectory(filePaths, dir_path.data());
             for (auto& abs_path: filePaths) {
                 auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, module, abs_path, abs_path, "");
+                files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
             }
             return;
     }
@@ -393,7 +393,7 @@ void ASTProcessor::figure_out_direct_imports(
 
                 if(context) {
 
-                    LabModule* module = fileData.module;
+                    auto module = fileData.module;
 
                     // here since this path begins with '@'
                     // we must determine which module it belongs to, we index modules based on 'scope_name:module_name' format
@@ -407,7 +407,7 @@ void ASTProcessor::figure_out_direct_imports(
                         const auto found = context->storage.find_module(atDirective.replaced);
                         if(found) {
 
-                            module = found;
+                            module = &found->module_scope;
 
                         } else {
 

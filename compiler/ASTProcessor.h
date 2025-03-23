@@ -95,11 +95,11 @@ struct ASTFileResult : ASTFileMetaData {
      * constructor
      */
     ASTFileResult(
-        unsigned int file_id,
-        std::string abs_path,
-        LabModule* module
+            unsigned int file_id,
+            std::string abs_path,
+            ModuleScope* module
     ) : ASTFileMetaData(file_id, module, std::move(abs_path)), continue_processing(true),
-        unit(file_id, chem::string_view(this->abs_path), module ? &module->module_scope : nullptr)
+        unit(file_id, chem::string_view(this->abs_path), module)
     {
 
     }

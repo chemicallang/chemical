@@ -108,8 +108,8 @@ void Parser::parseModuleFile(std::vector<ASTNode*>& nodes) {
     consumeNewLines();
     const auto pkg_def = parsePackageDefinition(allocator);
     if(pkg_def) {
+        consumeToken(TokenType::SemiColonSym);
         nodes.emplace_back((ASTNode*) pkg_def);
-        consumeNewLines();
     }
     while (true) {
         consumeNewLines();

@@ -436,7 +436,7 @@ int LabBuildCompiler::process_module_tcc(
             }
             const auto abs_path = include.to_std_string();
             unsigned fileId = loc_man.encodeFile(abs_path);
-            ASTFileResult imported_file(fileId, abs_path, mod);
+            ASTFileResult imported_file(fileId, abs_path, &mod->module_scope);
             if(!processor.import_chemical_file(imported_file, fileId, abs_path)) {
                 return 1;
             }
@@ -682,7 +682,7 @@ int LabBuildCompiler::process_module_gen(
             }
             const auto abs_path = include.to_std_string();
             unsigned fileId = loc_man.encodeFile(abs_path);
-            ASTFileResult imported_file(fileId, abs_path, mod);
+            ASTFileResult imported_file(fileId, abs_path, &mod->module_scope);
             if(!processor.import_chemical_file(imported_file, fileId, abs_path)) {
                 return 1;
             }
@@ -1430,7 +1430,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         // since this file belongs to this module, we should set it (since initially this file gets assigned the module it's import is in)
         if(dependency.importer_file) {
-            dependency.importer_file->module = modPtr;
+            dependency.importer_file->module = &modPtr->module_scope;
         }
 
         return modPtr;
@@ -1469,7 +1469,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     const auto verbose = options->verbose;
 
     auto buildLabFileId = loc_man.encodeFile(modFilePath);
-    ASTFileResult modResult(buildLabFileId, modFilePath, nullptr);
+    ASTFileResult modResult(buildLabFileId, modFilePath, (ModuleScope*) nullptr);
 
     if(verbose) {
         std::cout << "[lab] " << "building mod file '" << modFilePath << '\'' << std::endl;
@@ -1510,6 +1510,10 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         // otherwise we should try to get it from the import dependency
         module->update_mod_name(chem::string(dependency.scope_name), chem::string(dependency.mod_name));
     }
+
+    // lets update the module scope of the mod file ast result, which we set to nullptr initially
+    modResult.unit.scope.set_parent(&module->module_scope);
+    modResult.module = &module->module_scope;
 
     if(verbose) {
         std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
@@ -1641,8 +1645,8 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     LabModule chemical_lab_module(LabModuleType::Files, chem::string("chemical"), chem::string("lab"));
     auto buildLabFileId = loc_man.encodeFile(path);
-    ASTFileMetaData buildLabMetaData(buildLabFileId, &chemical_lab_module, path, path, "");
-    ASTFileResult labFileResult(buildLabFileId, path, &chemical_lab_module);
+    ASTFileMetaData buildLabMetaData(buildLabFileId, &chemical_lab_module.module_scope, path, path, "");
+    ASTFileResult labFileResult(buildLabFileId, path, &chemical_lab_module.module_scope);
 
     // import the file into result (lex and parse)
     lab_processor.parse_on_job_allocator = true;
@@ -1720,7 +1724,15 @@ TCCState* LabBuildCompiler::built_lab_file(
             return nullptr;
         }
 
-        // TODO this loop just puts the imported lab files into a namespace
+        // the last build.lab file index (it will always be at last, unless some design change is made)
+        const auto last_file_index = module_files.size() - 1;
+
+        // allocating a name buffer, which we will use for all files
+        constexpr auto nameBufferSize = 50;
+        char nameBuffer[nameBufferSize];
+
+        // what we must do is check that each build.lab gets an as_identifier + build.lab index as scope_name
+        // which will mangle it differently from other build.lab files, and stop conflicts
         int i = 0;
         for (const auto file_ptr : module_files) {
 
@@ -1729,22 +1741,28 @@ TCCState* LabBuildCompiler::built_lab_file(
             auto& result = file;
 
             // the last build.lab file is whose build method is to be called
-            bool is_last = i == module_files.size() - 1;
+            bool is_last = i == last_file_index;
             if (is_last) {
+
                 auto found = finder(lab_resolver, file.abs_path, file.unit.scope.body.nodes);
                 if (!found) {
                     return nullptr;
                 }
+
                 if (!verify_app_build_func_type(found, file.abs_path)) {
                     return nullptr;
                 }
+
                 // expose the last file's build method, so it's callable
                 found->set_specifier_fast(AccessSpecifier::Public);
+
             } else if (file.abs_path.ends_with(".lab")) {
+
                 if (file.as_identifier.empty()) {
                     std::cerr << "[lab] lab file cannot be imported without an 'as' identifier in import statement, error importing " << file.abs_path << std::endl;
                     return nullptr;
                 } else {
+
                     auto found = finder(lab_resolver, file.abs_path, file.unit.scope.body.nodes);
                     if (!found) {
                         return nullptr;
@@ -1752,13 +1770,30 @@ TCCState* LabBuildCompiler::built_lab_file(
                     if (!verify_lib_build_func_type(found, file.abs_path)) {
                         return nullptr;
                     }
-                    // put every imported file in it's own namespace so build methods don't clash
-                    auto ns = new (job_allocator->allocate<Namespace>()) Namespace(ZERO_LOC_ID(*job_allocator, file.as_identifier), nullptr, ZERO_LOC);
-                    for (auto &node: result.unit.scope.body.nodes) {
-                        node->set_parent(ns);
+
+                    // writing file index to the name buffer
+                    int total_written = snprintf(nameBuffer, nameBufferSize, "_%d", i);
+
+                    // debug safety check
+#ifdef DEBUG
+                    if(total_written < 0 || total_written >= nameBufferSize) {
+                        throw std::runtime_error("integer conversion truncated or failed.");
                     }
-                    ns->nodes = std::move(result.unit.scope.body.nodes);
-                    result.unit.scope.body.nodes.emplace_back(ns);
+#endif
+
+                    // building the name string, for the build.lab which will be as_identifier + '_' + file_index
+                    const auto name_size = file.as_identifier.size() + total_written;
+                    const auto name_str = job_allocator->allocate_released_size(name_size + 1, 1); // 1 for the null terminator
+                    std::memcpy(name_str, file.as_identifier.data(), file.as_identifier.size());
+                    std::memcpy(name_str + file.as_identifier.size(), nameBuffer, static_cast<size_t>(total_written));
+                    name_str[name_size] = '\0';
+
+                    // now we create a new module scope on the job allocator, we will set this scope as parent of this file
+                    // this way the mangler will think this file belongs to this module (fictionally external) and use its scope and module
+                    const auto new_scope = new (job_allocator->allocate_released<ModuleScope>()) ModuleScope("lab", chem::string_view(name_str, name_size));
+                    file.module = new_scope;
+                    file.unit.scope.set_parent(new_scope);
+
                 }
             }
 

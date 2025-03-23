@@ -92,6 +92,7 @@ jobs:
             cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
           fi
           pushd "$release_root"
+          rm -rf lang/tests/build
           echo "Running compile command for Linux TCC Variant:"
           echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
           eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
@@ -189,6 +190,7 @@ jobs:
               Copy-Item -Path ..\lang\tests -Destination "$releaseRoot\lang\tests" -Recurse
           }
           Set-Location $releaseRoot
+          if (Test-Path "$releaseRoot\lang\tests\build") { Remove-Item "$releaseRoot\lang\tests\build" -Recurse -Force }
           Write-Host "Running compile command for Windows TCC Variant:"
           Write-Host $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt
           Invoke-Expression $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt -Append

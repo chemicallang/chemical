@@ -113,8 +113,13 @@ public type intmax_t = bigint
  * integer type capable of holding a pointer
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
-public type intptr_t = bigint
+if(def.windows) {
+    @extern
+    public type intptr_t = bigint
+} else {
+    @extern
+    public type intptr_t = long
+}
 
 /**
  * unsigned integer type with width of
@@ -227,5 +232,10 @@ public type uintmax_t = ubigint
  * unsigned integer type capable of holding a pointer
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
-public type uintptr_t = ubigint
+if(def.windows) {
+    @extern
+    public type uintptr_t = ubigint
+} else {
+    @extern
+    public type uintptr_t = ulong
+}

@@ -1663,7 +1663,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         auto module_files = flatten(files_to_flatten);
 
         // symbol resolve all the files in the module
-        const auto sym_res_status = lab_processor.sym_res_module_drop(module_files);
+        const auto sym_res_status = lab_processor.sym_res_module(module_files);
         if(sym_res_status == 1) {
             return nullptr;
         }

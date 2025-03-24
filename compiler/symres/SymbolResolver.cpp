@@ -218,7 +218,7 @@ void SymbolResolver::link_signature_file(Scope& scope, const std::string& abs_pa
     const auto scope_index = file_scope_start();
     enable_file_symbols(range);
     scope.link_signature(*this);
-    end_all_scopes_from(scope_index);
+    file_scope_end(scope_index);
 }
 
 void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, const SymbolRange& range) {
@@ -227,7 +227,7 @@ void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, 
     const auto scope_index = file_scope_start();
     enable_file_symbols(range);
     nodes_scope.declare_and_link(*this);
-    end_all_scopes_from(scope_index);
+    file_scope_end(scope_index);
 }
 
 void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string_view& path, bool restrict_public) {

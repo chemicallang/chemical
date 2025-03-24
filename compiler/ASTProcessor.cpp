@@ -256,15 +256,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
 int ASTProcessor::sym_res_module(std::vector<ASTFileResult*>& mod_files) {
     const auto mod_index = resolver->module_scope_start();
     const auto res = sym_res_files(mod_files);
-    resolver->module_scope_end_drop(mod_index);
-    resolver->stored_file_symbols.clear();
-    return res;
-}
-
-int ASTProcessor::sym_res_module_drop(std::vector<ASTFileResult*>& mod_files) {
-    const auto mod_index = resolver->module_scope_start();
-    const auto res = sym_res_files(mod_files);
-    resolver->module_scope_end_drop(mod_index);
+    resolver->module_scope_end(mod_index);
     resolver->stored_file_symbols.clear();
     return res;
 }

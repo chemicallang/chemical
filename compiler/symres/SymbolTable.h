@@ -610,6 +610,8 @@ public:
 
     /**
      * this method will keep all symbol entries, however drop buckets
+     * NOTE: this method should be used with care, indexes should be maintained carefully, being just
+     * one index off can cause a huge bug which would be hard to debug
      *
      * how does it benefit ? modules are scopes that never dispose scope, one module starts
      * another starts, it's a nesting chain, when a module scope ends, we do not call scope_end
@@ -637,6 +639,8 @@ public:
 
     /**
      * this drops all symbol entries and scopes after this scope_index
+     * NOTE: this method should be used with care, indexes should be maintained carefully, being just
+     * one index off can cause a huge bug which would be hard to debug
      */
     void scope_end_drop_entries(int scope_index) {
         assert(scope_index < scopeStack.size());

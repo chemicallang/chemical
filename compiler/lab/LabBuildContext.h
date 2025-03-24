@@ -26,10 +26,6 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
 class LabBuildContext {
 public:
 
-    /**
-     * the place where modules exist
-     */
-    ModuleStorage storage;
     // all the executables created during the build process
     std::vector<std::unique_ptr<LabJob>> executables;
     // build arguments given to the build lab
@@ -40,6 +36,8 @@ public:
     void* on_finished_data = nullptr;
     // if import paths are to be used with aliases in them, we need a path handler
     ImportPathHandler& handler;
+    // the module storage
+    ModuleStorage& storage;
     // the compiler options sent by the user
     LabBuildCompilerOptions* options;
 
@@ -58,8 +56,11 @@ public:
     LabBuildContext(
         LabBuildCompilerOptions* options,
         ImportPathHandler& path_handler,
+        ModuleStorage& storage,
         std::string lab_file
-    );
+    ) : handler(path_handler), options(options), storage(storage) {
+
+    }
 
     /**
      * add given dependencies to the given module

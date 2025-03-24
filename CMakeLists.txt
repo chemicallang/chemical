@@ -539,6 +539,7 @@ set(COMMON_SOURCES
         compiler/processor/BuildLabModuleDependency.h
         ast/statements/PackageDefinition.h
         compiler/symres/SymResScopeKind.h
+        compiler/processor/ASTFileResult.h
 )
 
 # Chemical LSP Executable Target

@@ -180,6 +180,8 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
 }
 
 int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
+
+    // declare symbols for all files once in the module
     int i = -1;
     for(auto file_ptr : files) {
         i++;
@@ -199,6 +201,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
 
     }
 
+    // link the signature of the files
     for(auto file_ptr : files) {
         auto& file = *file_ptr;
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
@@ -236,6 +239,16 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
 
     }
 
+    // we need to search for main function in each module and make it no_mangle
+    // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
+    const auto main_func = resolver->find("main");
+    if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
+        if(options->verbose) {
+            std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
+        }
+        main_func->as_function_unsafe()->set_no_mangle(true);
+    }
+
     return 0;
 
 }
@@ -247,70 +260,12 @@ int ASTProcessor::sym_res_module(std::vector<ASTFileResult*>& mod_files) {
     return res;
 }
 
-int ASTProcessor::sym_res_module_main_no_mangle(std::vector<ASTFileResult*>& mod_files) {
-    const auto mod_index = resolver->module_scope_start();
-    const auto res = sym_res_files(mod_files);
-    // we need to search for main function in each module and make it no_mangle
-    // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
-    const auto main_func = resolver->find("main");
-    if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
-        if(options->verbose) {
-            std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
-        }
-        main_func->as_function_unsafe()->set_no_mangle(true);
-    }
-    // now we can end the module scope, which will drop all the symbols from the module
-    resolver->module_scope_end(mod_index);
-    return res;
-}
-
 int ASTProcessor::sym_res_module_drop(std::vector<ASTFileResult*>& mod_files) {
     const auto mod_index = resolver->module_scope_start();
     const auto res = sym_res_files(mod_files);
-    // TODO remove this method, if cannot be changed
-    resolver->module_scope_end(mod_index);
+    resolver->module_scope_end_drop(mod_index);
     return res;
 }
-
-//void ASTProcessor::sym_res_file(Scope& scope, bool is_c_file, const std::string& abs_path) {
-//    // doing stuff
-//    auto prev_has_errors = resolver->has_errors;
-//    if (is_c_file) {
-//        previous = std::move(resolver->diagnostics);
-//    }
-//    std::unique_ptr<BenchmarkResults> bm_results;
-//    if(options->benchmark) {
-//        bm_results = std::make_unique<BenchmarkResults>();
-//        bm_results->benchmark_begin();
-//    }
-//    if(is_c_file) {
-//        for(const auto node : scope.nodes) {
-//            auto id = node->get_located_id();
-//            if(id) {
-//                if (id->identifier.empty()) {
-//                    // TODO handle empty declarations, for example C contains
-//                    // empty enum declarations, where members can be linked directly
-//                    // enum {  Mem1, Mem2 }
-//                } else {
-//                    resolver->declare_overriding(id->identifier, node);
-//                }
-//            }
-//        }
-//    } else {
-//        resolver->resolve_file(scope, abs_path);
-//    }
-//    if(options->benchmark) {
-//        bm_results->benchmark_end();
-//        print_benchmarks(std::cout, "SymRes:" + abs_path, bm_results.get());
-//    }
-//    if(!resolver->diagnostics.empty()) {
-//        resolver->print_diagnostics(abs_path, "SymRes");
-//    }
-//    if (is_c_file) {
-//        resolver->diagnostics = std::move(previous);
-//        resolver->has_errors = prev_has_errors;
-//    }
-//}
 
 void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view& TAG, BenchmarkResults* bm_results) {
     const auto mil = bm_results->millis();
@@ -442,45 +397,35 @@ void ASTProcessor::figure_out_direct_imports(
 
                 auto fileId = loc_man.encodeFile(replaceResult.replaced);
 
-                if(context) {
+                auto module = fileData.module;
 
-                    auto module = fileData.module;
+                // here since this path begins with '@'
+                // we must determine which module it belongs to, we index modules based on 'scope_name:module_name' format
+                // this format, we expect users to use for importing something for example -> import "@wakaztahir:socket/connect.ch"
+                // sometimes the scope is empty, so user can directly use -> import "@std/fs.ch"
+                if(stmt->filePath[0] == '@') {
 
-                    // here since this path begins with '@'
-                    // we must determine which module it belongs to, we index modules based on 'scope_name:module_name' format
-                    // this format, we expect users to use for importing something for example -> import "@wakaztahir:socket/connect.ch"
-                    // sometimes the scope is empty, so user can directly use -> import "@std/fs.ch"
-                    if(stmt->filePath[0] == '@') {
+                    const auto atDirective = path_handler.get_atDirective(stmt->filePath.str());
 
-                        const auto atDirective = path_handler.get_atDirective(stmt->filePath.str());
+                    // TODO this should be present in replace result, and that should be renamed to PathResolutionResult
+                    const auto found = mod_storage.find_module(atDirective.replaced);
+                    if(found) {
 
-                        // TODO this should be present in replace result, and that should be renamed to PathResolutionResult
-                        const auto found = context->storage.find_module(atDirective.replaced);
-                        if(found) {
+                        module = &found->module_scope;
 
-                            module = &found->module_scope;
+                    } else {
 
-                        } else {
+                        // this is an error, because we couldn't determine the module for this file
+                        // even though it's path begins with a '@' which means it's external to module
 
-                            // this is an error, because we couldn't determine the module for this file
-                            // even though it's path begins with a '@' which means it's external to module
-
-                            // however currently we do allow user to declare an alias for a path using '@'
-                            // it could be an alias as well, however checking alias for each import would lead to bad performance
-
-                        }
+                        // however currently we do allow user to declare an alias for a path using '@'
+                        // it could be an alias as well, however checking alias for each import would lead to bad performance
 
                     }
 
-                    outImports.emplace_back(fileId, module, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
-
-                } else {
-                    // TODO we need context here always, or at least the module storage
-#ifdef DEBUG
-                    throw std::runtime_error("there's no context here");
-#endif
-                    outImports.emplace_back(fileId, fileData.module, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
                 }
+
+                outImports.emplace_back(fileId, module, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
 
             } else {
                 std::cerr <<  rang::fg::red << "error:" << rang::fg::reset <<  " resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;

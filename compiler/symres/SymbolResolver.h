@@ -275,22 +275,15 @@ public:
     /**
      * ends the scope, keeps the symbol entries so they can imported later
      */
+    inline void file_scope_end(int scope_index) {
+        table.drop_all_scopes_from(scope_index);
+    }
+
+    /**
+     * ends the scope, keeps the symbol entries so they can imported later
+     */
     inline void module_scope_end(int scope_index) {
-        table.scope_end_keep_entries(scope_index);
-    }
-
-    /**
-     * ends the scope, keeps the symbol entries so they can imported later
-     */
-    inline void end_all_scopes_from(int scope_index) {
-        table.scope_end_drop_entries(scope_index);
-    }
-
-    /**
-     * ends the scope, keeps the symbol entries so they can imported later
-     */
-    inline void module_scope_end_drop(int scope_index) {
-        table.scope_end_drop_entries(scope_index);
+        table.drop_all_scopes_from(scope_index);
     }
 
     /**

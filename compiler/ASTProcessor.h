@@ -284,11 +284,6 @@ public:
     int sym_res_module(std::vector<ASTFileResult*>& mod_files);
 
     /**
-     * symbol resolves the files of the module, however drops all symbols afterwards
-     */
-    int sym_res_module_drop(std::vector<ASTFileResult*>& mod_files);
-
-    /**
      * print given benchmark results
      */
     static void print_benchmarks(std::ostream& stream, const std::string_view& TAG, BenchmarkResults* results);

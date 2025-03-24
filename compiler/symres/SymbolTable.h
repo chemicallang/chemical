@@ -608,41 +608,15 @@ public:
         }
     }
 
-    /**
-     * this method will keep all symbol entries, however drop buckets
-     * NOTE: this method should be used with care, indexes should be maintained carefully, being just
-     * one index off can cause a huge bug which would be hard to debug
-     *
-     * how does it benefit ? modules are scopes that never dispose scope, one module starts
-     * another starts, it's a nesting chain, when a module scope ends, we do not call scope_end
-     * we call this method, this will drop all it's buckets, which means now if a symbol is resolved
-     * it won't be from that module, this makes resolving symbols faster
-     *
-     * why not drop the symbol entries too ? because we need them, to be able to import symbols from
-     * files of another module, by keeping the symbol entries, when user imports a file, we just go over
-     * the range of symbol entries that user asked and bring them into user's module scope (create buckets)
-     *
-     * when we do create buckets for which symbols already exist, we should not create the symbol entry, for which
-     * methods exist
-     *
-     * this also starts a new scope, it must always start a scope, because if you call this method, we don't
-     * actually drop the scope entry, which means new entries go into a new scope
-     *
-     * It should be noted that after calling this method, scope_end must not called to eliminate symbol entries
-     * that would lead to a huge error
-     *
-     */
-    void scope_end_keep_entries(int scope_index) {
-        assert(scope_index < scopeStack.size());
-        drop_symbols_from(scopeStack[scope_index].start);
-    }
+//    void scope_end_keep_entries(int scope_index) {
+//        assert(scope_index < scopeStack.size());
+//        drop_symbols_from(scopeStack[scope_index].start);
+//    }
 
     /**
      * this drops all symbol entries and scopes after this scope_index
-     * NOTE: this method should be used with care, indexes should be maintained carefully, being just
-     * one index off can cause a huge bug which would be hard to debug
      */
-    void scope_end_drop_entries(int scope_index) {
+    void drop_all_scopes_from(int scope_index) {
         assert(scope_index < scopeStack.size());
         int marker = scopeStack[scope_index].start;
         scopeStack.resize(scope_index);

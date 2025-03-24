@@ -448,7 +448,7 @@ int LabBuildCompiler::process_module_tcc(
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = processor.sym_res_module_main_no_mangle(flattened_files);
+    const auto sym_res_status = processor.sym_res_module(flattened_files);
     if(sym_res_status == 1) {
         return 1;
     }
@@ -700,7 +700,7 @@ int LabBuildCompiler::process_module_gen(
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = processor.sym_res_module_main_no_mangle(flattened_files);
+    const auto sym_res_status = processor.sym_res_module(flattened_files);
     if(sym_res_status == 1) {
         return 1;
     }
@@ -983,7 +983,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     global.backend_context = (BackendContext*) &c_context;
 
     // the processor we use
-    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
 
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
@@ -1126,7 +1126,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, options->is64Bit);
-    ASTProcessor processor(path_handler, options, build_context, loc_man, &resolver, binder, job_alloc, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, loc_man, &resolver, binder, job_alloc, *mod_allocator, *file_allocator);
     CodegenOptions code_gen_options;
     if(cmd) {
         code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
@@ -1563,6 +1563,16 @@ bool LabBuildCompiler::compile_dependencies_tcc(
 
 }
 
+FunctionDeclaration* find_lab_build_method(const std::string& abs_path, std::vector<ASTNode*>& nodes, bool error = true) {
+    for(const auto node : nodes) {
+        if(node->kind() == ASTNodeKind::FunctionDecl && node->as_function_unsafe()->name_view() == "build") {
+            return node->as_function_unsafe();
+        }
+    }
+    std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << " no build method found in the lab build file " << abs_path << std::endl;
+    return nullptr;
+}
+
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
         const std::string& path,
@@ -1630,17 +1640,6 @@ TCCState* LabBuildCompiler::built_lab_file(
     // preparing translation
     c_visitor.prepare_translate();
 
-    // function can find the build method in lab file
-    auto finder = [](SymbolResolver& resolver, const std::string& abs_path, std::vector<ASTNode*>& nodes, bool error = true) -> FunctionDeclaration* {
-        for(const auto node : nodes) {
-            if(node->kind() == ASTNodeKind::FunctionDecl && node->as_function_unsafe()->name_view() == "build") {
-                return node->as_function_unsafe();
-            }
-        }
-        std::cerr << "[lab] No build method found in the root lab build file " << abs_path << std::endl;
-        return nullptr;
-    };
-
     {
 
         std::vector<ASTFileResult*> files_to_flatten = { &labFileResult };
@@ -1680,7 +1679,7 @@ TCCState* LabBuildCompiler::built_lab_file(
             bool is_last = i == last_file_index;
             if (is_last) {
 
-                auto found = finder(lab_resolver, file.abs_path, file.unit.scope.body.nodes);
+                auto found = find_lab_build_method(file.abs_path, file.unit.scope.body.nodes);
                 if (!found) {
                     return nullptr;
                 }
@@ -1695,11 +1694,11 @@ TCCState* LabBuildCompiler::built_lab_file(
             } else if (file.abs_path.ends_with(".lab")) {
 
                 if (file.as_identifier.empty()) {
-                    std::cerr << "[lab] lab file cannot be imported without an 'as' identifier in import statement, error importing " << file.abs_path << std::endl;
+                    std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << " lab file cannot be imported without an 'as' identifier in import statement '" << file.abs_path << '\'' << std::endl;
                     return nullptr;
                 } else {
 
-                    auto found = finder(lab_resolver, file.abs_path, file.unit.scope.body.nodes);
+                    auto found = find_lab_build_method(file.abs_path, file.unit.scope.body.nodes);
                     if (!found) {
                         return nullptr;
                     }
@@ -1811,9 +1810,6 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     }
 #endif
 
-    // set the build context
-    build_context = &context;
-
     // a global interpret scope required to evaluate compile time things
     GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
 
@@ -1824,7 +1820,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     ASTProcessor lab_processor(
             path_handler,
             options,
-            &context,
+            mod_storage,
             loc_man,
             &lab_resolver,
             binder,

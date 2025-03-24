@@ -10,6 +10,7 @@
 #include "cst/LocationManager.h"
 #include "preprocess/ImportPathHandler.h"
 #include "compiler/mangler/NameMangler.h"
+#include "compiler/lab/ModuleStorage.h"
 #include "compiler/processor/BuildLabModuleDependency.h"
 
 class ASTAllocator;
@@ -47,6 +48,12 @@ public:
     ImportPathHandler path_handler;
 
     /**
+     * allows us to index and storage module pointers that can be retrieved really
+     * fast
+     */
+    ModuleStorage mod_storage;
+
+    /**
      * compiler binder is used to bind compiler functions with user source code
      */
     CompilerBinder& binder;
@@ -74,11 +81,6 @@ public:
      * are absolute paths to their object or bitcode files
      */
     std::unordered_map<LabModule*, std::string> generated;
-
-    /**
-     * the build context that is being used to build
-     */
-    LabBuildContext* build_context = nullptr;
 
     /**
      * when given, we check for any command line options that configure the code generator

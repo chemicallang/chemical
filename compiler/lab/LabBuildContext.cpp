@@ -6,14 +6,6 @@
 #include <iostream>
 #include <unordered_map>
 
-LabBuildContext::LabBuildContext(
-    LabBuildCompilerOptions* options,
-    ImportPathHandler& path_handler,
-    std::string lab_file
-) : handler(path_handler), options(options) {
-
-}
-
 void LabBuildContext::add_dependencies(std::vector<LabModule*>& into, LabModule **dependencies, unsigned int dep_len) {
     if(!dependencies || dep_len == 0) return;
     auto ptr = dependencies;

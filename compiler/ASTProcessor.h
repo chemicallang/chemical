@@ -4,7 +4,6 @@
 
 #include <utility>
 
-#include "compiler/llvmfwd.h"
 #include "ast/structures/Scope.h"
 #include "ASTProcessorOptions.h"
 #include "ASTDiag.h"
@@ -18,7 +17,7 @@
 #include "integration/common/Diagnostic.h"
 #include "cst/LocationManager.h"
 #include "compiler/symres/SymbolRange.h"
-#include "compiler/processor/ASTFileMetaData.h"
+#include "compiler/processor/ASTFileResult.h"
 #include "compiler/processor/BuildLabModuleDependency.h"
 #include <span>
 #include <mutex>
@@ -41,71 +40,6 @@ namespace ctpl {
     class thread_pool;
 }
 
-struct ASTFileResult : ASTFileMetaData {
-
-    /**
-     * should the processing be continued, this is false, if ast contained errors
-     */
-    bool continue_processing;
-
-    /**
-     * the parsed unit
-     */
-    ASTUnit unit;
-
-    /**
-     * the compile unit
-     */
-    llvm::DICompileUnit* diCompileUnit = nullptr;
-
-    /**
-     * the imported files by this file, these files don't contain duplicates
-     * or already imported files
-     */
-    std::vector<ASTFileResult*> imports;
-
-    /**
-     * if read error occurred this would contain it
-     */
-    std::string read_error;
-
-    /**
-     * diagnotics collected during the lexing process
-     */
-    std::vector<Diag> lex_diagnostics;
-
-    /**
-     * diagnostics collected during the conversion process
-     * These diagnostics will be translation diagnostics, if it's a c file
-     */
-    std::vector<Diag> parse_diagnostics;
-
-    /**
-     * the benchmark results are stored here, if user opted for benchmarking
-     */
-    std::unique_ptr<BenchmarkResults> lex_benchmark;
-
-    /**
-     * the parsing benchmarks are stored here, if user opted for benchmarking
-     * This will be c translation benchmarks, if it's c file
-     */
-    std::unique_ptr<BenchmarkResults> parse_benchmark;
-
-    /**
-     * constructor
-     */
-    ASTFileResult(
-            unsigned int file_id,
-            std::string abs_path,
-            ModuleScope* module
-    ) : ASTFileMetaData(file_id, module, std::move(abs_path)), continue_processing(true),
-        unit(file_id, chem::string_view(this->abs_path), module)
-    {
-
-    }
-
-};
-
 /**
  * this will be called ASTProcessor
  */
@@ -126,6 +60,12 @@ public:
      * import path handler, handles paths, '@' symbols in paths, determining their absolute paths
      */
     ImportPathHandler& path_handler;
+
+    /**
+     * module storage allows us to check which modules are present in compilation
+     * so we can resolve import statements
+     */
+    ModuleStorage& mod_storage;
 
     /**
      * import mutex is used to synchronize launching of multiple files
@@ -163,13 +103,6 @@ public:
      * the symbol resolver that will resolve all the symbols
      */
     SymbolResolver* resolver;
-
-    /**
-     * the lab build context allows us to get any modules user imports files from
-     * if not given, it might mean that the build hasn't been invoked on a build.lab
-     * TODO: we must figure out a way to allow access modules without the LabBuildContext
-     */
-    LabBuildContext* context = nullptr;
 
     /**
      * Job (executable or dll) level allocator
@@ -220,7 +153,7 @@ public:
     ASTProcessor(
             ImportPathHandler& pathHandler,
             ASTProcessorOptions* options,
-            LabBuildContext* context,
+            ModuleStorage& mod_storage,
             LocationManager& loc_man,
             SymbolResolver* resolver,
             CompilerBinder& binder,
@@ -228,7 +161,7 @@ public:
             ASTAllocator& mod_allocator,
             ASTAllocator& file_allocator
     ) : loc_man(loc_man), options(options), resolver(resolver), path_handler(pathHandler), binder(binder),
-        job_allocator(job_allocator), mod_allocator(mod_allocator), context(context), file_allocator(file_allocator)
+        job_allocator(job_allocator), mod_allocator(mod_allocator), mod_storage(mod_storage), file_allocator(file_allocator)
     {
 
     }
@@ -349,12 +282,6 @@ public:
      * symbol resolves the module, creating the scope
      */
     int sym_res_module(std::vector<ASTFileResult*>& mod_files);
-
-    /**
-     * symbol resolves the module, it also makes the main function in the module
-     * if any exists, no_mangle
-     */
-    int sym_res_module_main_no_mangle(std::vector<ASTFileResult*>& mod_files);
 
     /**
      * symbol resolves the files of the module, however drops all symbols afterwards

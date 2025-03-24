@@ -1,3 +1,4 @@
+import "@std/std.ch"
 import "@std/hashing/fnv1.ch"
 import "@std/hashing/murmur.ch"
 

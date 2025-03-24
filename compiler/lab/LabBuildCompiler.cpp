@@ -7,6 +7,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/Import.h"
 #include "ast/statements/PackageDefinition.h"
+#include "ast/structures/If.h"
 #include "utils/Benchmark.h"
 #include "ast/structures/ModuleScope.h"
 #include "Utils.h"
@@ -343,7 +344,15 @@ bool copyFile(const fs::path& sourcePath, const fs::path& destinationPath) {
 }
 
 inline bool is_node_exported(ASTNode* node) {
-    return node->specifier() == AccessSpecifier::Public;
+    switch(node->kind()) {
+        case ASTNodeKind::IfStmt: {
+            // top level if statements are retained at the moment
+            return true;
+        }
+        default: {
+            return node->specifier() == AccessSpecifier::Public;
+        }
+    }
 }
 
 int LabBuildCompiler::process_module_tcc(
@@ -470,8 +479,8 @@ int LabBuildCompiler::process_module_tcc(
     // so when we declare the nodes in other module, we don't consider non-public nodes
     // because non-public nodes are only present in the module allocator which will be cleared
     for(const auto file : module_files) {
-        auto file_unit = processor.shrinked_unit.find(file->abs_path);
-        if(file_unit != processor.shrinked_unit.end()) {
+        auto file_unit = processor.compiled_units.find(file->abs_path);
+        if(file_unit != processor.compiled_units.end()) {
             auto& nodes = file_unit->second.scope.body.nodes;
             auto itr = nodes.begin();
             while(itr != nodes.end()) {
@@ -722,8 +731,8 @@ int LabBuildCompiler::process_module_gen(
     // so when we declare the nodes in other module, we don't consider non-public nodes
     // because non-public nodes are only present in the module allocator which will be cleared
     for(const auto file : module_files) {
-        auto file_unit = processor.shrinked_unit.find(file->abs_path);
-        if(file_unit != processor.shrinked_unit.end()) {
+        auto file_unit = processor.compiled_units.find(file->abs_path);
+        if(file_unit != processor.compiled_units.end()) {
             auto& nodes = file_unit->second.scope.body.nodes;
             auto itr = nodes.begin();
             while(itr != nodes.end()) {

@@ -1,4 +1,5 @@
 import "@lab/lab.ch"
+import "@std/std.ch"
 import "./submod2/build.lab" as submod2
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {

@@ -170,11 +170,9 @@ public:
     std::unordered_map<chem::string_view, Value*> implicit_args;
 
     /**
-     * symbol scope indexes mapped to file paths, this allows the import statements
-     * to get the scope index for a file, get it's symbols from symbol table, and bring
-     * them into scope
+     * the files we've declared
      */
-    std::unordered_map<chem::string_view, int> scope_indexes;
+    std::unordered_map<chem::string_view, Scope&> declared_files;
 
     /**
      * is the codegen for arch 64bit

@@ -134,8 +134,8 @@ int ASTProcessor::compile_module(
         auto& file = *file_ptr;
         auto& result = file;
 
-        auto present_unit = shrinked_unit.find(file.abs_path);
-        if(present_unit == shrinked_unit.end()) {
+        auto present_unit = compiled_units.find(file.abs_path);
+        if(present_unit == compiled_units.end()) {
             // not external module file
             continue;
         }
@@ -194,7 +194,7 @@ int ASTProcessor::compile_module(
         auto& file = *file_ptr;
         auto& result = file;
 
-        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
+        if(compiled_units.find(file.abs_path) != compiled_units.end()) {
             // external module file
             continue;
         }
@@ -247,8 +247,8 @@ int ASTProcessor::compile_module(
         auto& file = *file_ptr;
         auto& result = file;
 
-        auto present_unit = shrinked_unit.find(file.abs_path);
-        if(present_unit == shrinked_unit.end()) {
+        auto present_unit = compiled_units.find(file.abs_path);
+        if(present_unit == compiled_units.end()) {
             // not external module file
             continue;
         }
@@ -300,7 +300,7 @@ int ASTProcessor::compile_module(
         auto& file = *file_ptr;
         auto& result = file;
 
-        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
+        if(compiled_units.find(file.abs_path) != compiled_units.end()) {
             // external module file
             continue;
         }
@@ -326,7 +326,7 @@ int ASTProcessor::compile_module(
         }
 
         // save the file result, for future retrievals
-        shrinked_unit.emplace(file.abs_path, std::move(result.unit));
+        compiled_units.emplace(file.abs_path, result.unit);
 
         // clear everything we allocated using file allocator to make it re-usable
         safe_clear_file_allocator();

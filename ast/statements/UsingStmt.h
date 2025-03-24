@@ -15,7 +15,12 @@ struct UsingStmtAttributes {
     /**
      * should the symbols be propagated to other files
      */
-    bool propagate;
+    bool propagate = false;
+
+    /**
+     * did the chain failed linking
+     */
+    bool failed_chain_link = false;
 
 };
 
@@ -35,7 +40,7 @@ public:
             bool is_namespace,
             SourceLocation location
     ) : ASTNode(ASTNodeKind::UsingStmt, parent_node, location), chain(chain),
-        attrs(is_namespace, false)
+        attrs(is_namespace, false, false)
     {
 
     }
@@ -67,8 +72,17 @@ public:
         attrs.propagate = value;
     }
 
+    inline bool is_failed_chain_link() {
+        return attrs.failed_chain_link;
+    }
+
+    void declare_symbols(SymbolResolver &linker);
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
+
+    void link_signature(SymbolResolver &linker) override;
+
+    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
 
 #ifdef COMPILER_BUILD
 

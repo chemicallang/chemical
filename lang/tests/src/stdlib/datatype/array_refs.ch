@@ -1,4 +1,5 @@
 import "@std/span.ch"
+import "@std/std.ch"
 
 func array_ref_size(array : std::span<int>) : size_t {
     return array.size();

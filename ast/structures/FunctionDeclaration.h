@@ -155,11 +155,6 @@ public:
      */
     std::optional<Scope> body;
     /**
-     * this index corresponds to number of iterations in llvm_data, for which function bodies
-     * have been generated, so next time we should start at this index to generate bodies
-     */
-    int16_t bodies_gen_index = 0;
-    /**
      * if this function an instantiation of a generic function, this field is set to the
      * generic decl, of which function this is instantiation of, which field helps us
      * register generic calls inside the current function
@@ -175,7 +170,7 @@ public:
      * the llvm data
      */
 #ifdef COMPILER_BUILD
-    std::vector<llvm::Function*> llvm_data;
+    llvm::Function* llvm_data = nullptr;
 #endif
 
     /**

@@ -107,7 +107,7 @@ llvm::FunctionType *FunctionDeclaration::create_llvm_func_type(Codegen &gen) {
 }
 
 llvm::Function* FunctionDeclaration::known_func() {
-    return llvm_data.empty() ? nullptr : llvm_data[0];
+    return llvm_data;
 }
 
 llvm::FunctionType *FunctionDeclaration::known_func_type() {
@@ -122,7 +122,7 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
 }
 
 llvm::Function*& FunctionDeclaration::get_llvm_data() {
-    if(llvm_data.empty() && is_override()) {
+    if(llvm_data == nullptr && is_override()) {
         const auto struct_def = parent()->as_struct_def();
         if(struct_def) {
             const auto overriding = struct_def->get_overriding_info(this);
@@ -132,8 +132,9 @@ llvm::Function*& FunctionDeclaration::get_llvm_data() {
                     auto& use = interface->users[struct_def];
                     const auto& found = use.find(overriding.second);
                     if(found != use.end()) {
-                        llvm_data.emplace_back(found->second);
-                        return llvm_data.back();
+                        // TODO this function is probably not declared in this module, if the interface is from outside
+                        llvm_data = found->second;
+                        return llvm_data;
                     }
                 } else {
                     const auto parent_struct = overriding.first->as_struct_def();
@@ -144,7 +145,7 @@ llvm::Function*& FunctionDeclaration::get_llvm_data() {
             }
         }
     }
-    return llvm_data[0];
+    return llvm_data;
 }
 
 void FunctionType::queue_destruct_params(Codegen& gen) {
@@ -287,16 +288,7 @@ void FunctionDeclaration::llvm_attributes(llvm::Function* func) {
 }
 
 void FunctionDeclaration::set_llvm_data(llvm::Function* func) {
-#ifdef DEBUG
-    if(0 > (int) llvm_data.size()) {
-        throw std::runtime_error("decl's generic active iteration is greater than total llvm_data size");
-    }
-#endif
-    if(llvm_data.empty()) {
-        llvm_data.emplace_back(func);
-    } else {
-        llvm_data[0] = func;
-    }
+    llvm_data = func;
 }
 
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
@@ -397,7 +389,7 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_f
 }
 
 void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
-    llvm_data.clear();
+    llvm_data = nullptr;
     if(!is_exported()) {
         // TODO this should not happen, we should not even include nodes
         // we should remove the nodes if they are not public, so we never have to call code_gen_external_declare

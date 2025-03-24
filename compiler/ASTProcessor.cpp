@@ -187,7 +187,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         i++;
 
         auto& file = *file_ptr;
-        bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
+        bool already_imported = compiled_units.find(file.abs_path) != compiled_units.end();
 
         if(!already_imported) {
             file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope.body, file.abs_path);
@@ -204,7 +204,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
     // link the signature of the files
     for(auto file_ptr : files) {
         auto& file = *file_ptr;
-        bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
+        bool already_imported = compiled_units.find(file.abs_path) != compiled_units.end();
         if(!already_imported) {
             sym_res_link_sig_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
             // report and clear diagnostics
@@ -221,8 +221,8 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
 
         auto& file = *file_ptr;
 
-        auto imported = shrinked_unit.find(file.abs_path);
-        bool already_imported = imported != shrinked_unit.end();
+        auto imported = compiled_units.find(file.abs_path);
+        bool already_imported = imported != compiled_units.end();
 
         // symbol resolution
         if(!already_imported) {
@@ -256,7 +256,8 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
 int ASTProcessor::sym_res_module(std::vector<ASTFileResult*>& mod_files) {
     const auto mod_index = resolver->module_scope_start();
     const auto res = sym_res_files(mod_files);
-    resolver->module_scope_end(mod_index);
+    resolver->module_scope_end_drop(mod_index);
+    resolver->stored_file_symbols.clear();
     return res;
 }
 
@@ -264,6 +265,7 @@ int ASTProcessor::sym_res_module_drop(std::vector<ASTFileResult*>& mod_files) {
     const auto mod_index = resolver->module_scope_start();
     const auto res = sym_res_files(mod_files);
     resolver->module_scope_end_drop(mod_index);
+    resolver->stored_file_symbols.clear();
     return res;
 }
 
@@ -816,8 +818,8 @@ int ASTProcessor::translate_module(
         auto& file = *file_ptr;
         auto& result = file;
 
-        auto imported = shrinked_unit.find(file.abs_path);
-        if(imported == shrinked_unit.end()) {
+        auto imported = compiled_units.find(file.abs_path);
+        if(imported == compiled_units.end()) {
             // not external module file
             continue;
         }
@@ -844,7 +846,7 @@ int ASTProcessor::translate_module(
         auto& file = *file_ptr;
         auto& result = file;
 
-        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
+        if(compiled_units.find(file.abs_path) != compiled_units.end()) {
             // external module file
             continue;
         }
@@ -868,8 +870,8 @@ int ASTProcessor::translate_module(
         auto& file = *file_ptr;
         auto& result = file;
 
-        auto imported = shrinked_unit.find(file.abs_path);
-        if(imported == shrinked_unit.end()) {
+        auto imported = compiled_units.find(file.abs_path);
+        if(imported == compiled_units.end()) {
             // not external module file
             continue;
         }
@@ -900,7 +902,7 @@ int ASTProcessor::translate_module(
         auto& file = *file_ptr;
         auto& result = file;
 
-        if(shrinked_unit.find(file.abs_path) != shrinked_unit.end()) {
+        if(compiled_units.find(file.abs_path) != compiled_units.end()) {
             // external module file
             continue;
         }
@@ -909,7 +911,7 @@ int ASTProcessor::translate_module(
         // translating to c
         translate_after_declaration(c_visitor, unit.scope.body.nodes, file.abs_path);
         // save the file result, for future retrievals
-        shrinked_unit.emplace(file.abs_path, std::move(result.unit));
+        compiled_units.emplace(file.abs_path, result.unit);
 
         // clear everything we allocated using file allocator to make it re-usable
         safe_clear_file_allocator();

@@ -86,7 +86,7 @@ public:
      * This Allows caching files in a module that have been processed to be imported by other modules that depend on it
      *
      */
-    std::unordered_map<std::string, ASTUnit> shrinked_unit;
+    std::unordered_map<std::string, ASTUnit&> compiled_units;
 
     /**
      * cache is where files parsed are stored, before parsing the

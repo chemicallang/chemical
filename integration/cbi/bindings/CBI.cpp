@@ -35,7 +35,6 @@ void build_context_symbol_map(std::unordered_map<std::string_view, void*>& sym_m
         { "BuildContextresolve_import_path", (void*) BuildContextresolve_import_path },
 
         { "BuildContextinclude_header", (void*) BuildContextinclude_header },
-        { "BuildContextinclude_file", (void*) BuildContextinclude_file },
 
         { "BuildContexttranslate_to_chemical", (void*) BuildContexttranslate_to_chemical },
         { "BuildContexttranslate_to_c", (void*) BuildContexttranslate_to_c },

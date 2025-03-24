@@ -1,5 +1,6 @@
 import "@submod/check.ch"
 import "@submod/indirect.ch"
+import "@submod2/main.ch"
 
 func test_imported_modules() {
     test("function imported from other module works", () => {
@@ -113,5 +114,8 @@ func test_imported_modules() {
     })
     test("file imported from other module also imports it's imports", () => {
         return indirect_mod_func() == 943;
+    })
+    test("check submod2 linked properly", () => {
+        return give_submod2_rand_num() == 83838;
     })
 }

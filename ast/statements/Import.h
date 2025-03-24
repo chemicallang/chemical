@@ -7,6 +7,7 @@
 #pragma once
 
 #include <utility>
+#include <unordered_map>
 
 #include "ast/base/ASTNode.h"
 
@@ -14,7 +15,7 @@ class Diag;
 
 class ASTDiagnoser;
 
-class ImportStatement : public ASTNode {
+class ImportStatement final : public ASTNode {
 public:
 
     /**
@@ -26,7 +27,7 @@ public:
     std::vector<chem::string_view> identifier;
     chem::string_view filePath; ///< The file path to import.
     chem::string_view as_identifier;
-
+    std::unordered_map<chem::string_view, ASTNode*>* symbols = nullptr;
 
     /**
      * constructor
@@ -52,10 +53,18 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) final;
+    void code_gen(Codegen &gen) final {
+
+    }
 
 #endif
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
+
+    ASTNode* child(const chem::string_view &name) override;
+
+    ~ImportStatement() final {
+        delete symbols;
+    }
 
 };

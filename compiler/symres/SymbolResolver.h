@@ -20,6 +20,8 @@ class AccessChain;
 
 class FunctionDeclaration;
 
+class ImportPathHandler;
+
 class Scope;
 
 class GlobalInterpretScope;
@@ -27,30 +29,6 @@ class GlobalInterpretScope;
 class ChainValue;
 
 class VariableIdentifier;
-
-enum class SymResScopeKind : int {
-    /**
-     * a global namespace is much like default scope, however
-     * only a single global scope exists, It's never created by the user
-     */
-    Global,
-    /**
-     * a module is a collection of files, that export into an object files,
-     * symbols in a module that have been exported aren't supposed to collide
-     * with symbols in other modules
-     */
-    Module,
-    /**
-     * a file scope is just like a default scope, however with minor
-     * differences, a file scope helps also to distinguish between files
-     */
-    File,
-    /**
-     * a default scope, symbols can be declared and retrieved
-     * the retrieval takes into account symbols declared in scopes above
-     */
-    Default,
-};
 
 /**
  * a struct representing a scope, every '{' and '}' opens and closes a scope respectively
@@ -79,10 +57,6 @@ struct SymbolRef {
      * the symbol view
      */
     chem::string_view symbol;
-
-};
-
-struct SymbolRefValue : SymbolRef {
 
     /**
      * the node symbol is pointing to
@@ -156,6 +130,12 @@ public:
     GlobalInterpretScope& comptime_scope;
 
     /**
+     * a reference to path handler allows resolution of paths in import statements during
+     * symbol resolution
+     */
+    ImportPathHandler& path_handler;
+
+    /**
      * ast allocator is the pointer to the allocator that is used to allocate ast nodes
      * globally, because it is used to store usages of generic types, so they are never disposed
      * because usages of ast types are needed to generate implementations based on usage
@@ -190,6 +170,13 @@ public:
     std::unordered_map<chem::string_view, Value*> implicit_args;
 
     /**
+     * symbol scope indexes mapped to file paths, this allows the import statements
+     * to get the scope index for a file, get it's symbols from symbol table, and bring
+     * them into scope
+     */
+    std::unordered_map<chem::string_view, int> scope_indexes;
+
+    /**
      * is the codegen for arch 64bit
      */
     bool is64Bit;
@@ -219,24 +206,18 @@ public:
     FunctionTypeBody* current_func_type = nullptr;
 
     /**
-     * stores symbols that will be disposed after this file has been completely symbol resolved
-     * for example using namespace some; this will always be disposed unless propagate annotation exists
-     * above it
+     * instead of declaring the file symbols right when they are found, we store the file symbols
+     * and when we link the file, we take symbol range (start and end index) of the private symbols in this vector
+     * and enable them in a nested file scope, which ends after linking the file dropping the private symbols
      */
-    std::vector<SymbolRefValue> dispose_file_symbols;
-
-    /**
-     * stores symbols that will be disposed after this module has been completely symbol resolved
-     * for example symbols that are internal in module are stored on this vector for disposing
-     * at the end of module, struct without a public keyword (internal by default)
-     */
-    std::vector<SymbolRef> dispose_module_symbols;
+    std::vector<SymbolRef> stored_file_symbols;
 
     /**
      * constructor
      */
     SymbolResolver(
             GlobalInterpretScope& global,
+            ImportPathHandler& handler,
             bool is64Bit,
             ASTAllocator& allocator,
             ASTAllocator* modAllocator,
@@ -244,18 +225,10 @@ public:
     );
 
     /**
-     * a file scope begins, a file scope should not be popped, this is because
-     * symbols are expected to exist in other files
-     */
-    inline int file_scope_start() {
-        return table.scope_start_index((int) SymResScopeKind::File);
-    }
-
-    /**
      * global scope start
      */
     inline void global_scope_start() {
-        table.scope_start((int) SymResScopeKind::Global);
+        table.scope_start(SymResScopeKind::Global);
     }
 
     /**
@@ -265,8 +238,16 @@ public:
      * a module is just there to indicate that a module exists, it helps us delete symbols
      * only in a specific module
      */
-    inline void module_scope_start() {
-        table.scope_start((int) SymResScopeKind::Module);
+    inline int module_scope_start() {
+        return table.scope_start_index(SymResScopeKind::Module);
+    }
+
+    /**
+     * a file scope begins, a file scope should not be popped, this is because
+     * symbols are expected to exist in other files
+     */
+    inline int file_scope_start() {
+        return table.scope_start_index(SymResScopeKind::File);
     }
 
     /**
@@ -274,7 +255,44 @@ public:
      * it would put a scope on current vector
      */
     inline void scope_start() {
-        table.scope_start((int) SymResScopeKind::Default);
+        table.scope_start(SymResScopeKind::Default);
+    }
+
+    /**
+     * get symbol scope at index
+     */
+    [[nodiscard]]
+    inline const SymbolScope* get_scope_at_index(int index) const noexcept {
+        return table.get_scope_at_index(index);
+    }
+
+    /**
+     * get the symbols vector
+     */
+    [[nodiscard]]
+    const std::vector<SymbolEntry>& get_symbols() const noexcept {
+        return table.get_symbols();
+    }
+
+    /**
+     * ends the scope, keeps the symbol entries so they can imported later
+     */
+    inline void module_scope_end(int scope_index) {
+        table.scope_end_keep_entries(scope_index);
+    }
+
+    /**
+     * ends the scope, keeps the symbol entries so they can imported later
+     */
+    inline void end_all_scopes_from(int scope_index) {
+        table.scope_end_drop_entries(scope_index);
+    }
+
+    /**
+     * ends the scope, keeps the symbol entries so they can imported later
+     */
+    inline void module_scope_end_drop(int scope_index) {
+        table.scope_end_drop_entries(scope_index);
     }
 
     /**
@@ -303,7 +321,7 @@ public:
      * if the current where the symbols are being declared is a file scope
      */
     bool is_current_file_scope() {
-        return table.get_last_scope_kind() == (int) SymResScopeKind::File;
+        return table.get_last_scope_kind() == SymResScopeKind::File;
     }
 
     /**
@@ -332,6 +350,13 @@ public:
      * declare a symbol that will disposed at the end of this module
      */
     void declare(const chem::string_view &name, ASTNode *node);
+
+    /**
+     * declares a symbol for which entry already exists
+     */
+    inline void declare_entry(const SymbolEntry* entry, int index) {
+        table.declare_entry(entry, index);
+    }
 
     /**
      * declare name for which you own a string name
@@ -416,11 +441,6 @@ public:
     }
 
     /**
-     * symbol resolves a file
-     */
-    void resolve_file(Scope& scope, const std::string& abs_path);
-
-    /**
      * top level declare all the symbols in a file
      */
     SymbolRange tld_declare_file(Scope& scope, const std::string& abs_path);
@@ -444,23 +464,6 @@ public:
      * enable file symbols for given scope index
      */
     void enable_file_symbols(const SymbolRange& range);
-
-    /**
-     * should be called after symbol resolving a single file
-     * the passed absolute path is used to provide diagnostics only
-     */
-    void dispose_all_file_symbols(const std::string_view& abs_path);
-
-    /**
-     * provide a range of file symbols to dispose
-     */
-    void dispose_file_symbols_now(const std::string_view& abs_path, const SymbolRange& range);
-
-    /**
-     * should be called after symbol resolving a single module
-     * the passed module name is used to provide diagnostics only
-     */
-    void dispose_module_symbols_now(const std::string& module_name);
 
     /**
      * error for when the value doesn't satisfy the requires type

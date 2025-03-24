@@ -15,6 +15,7 @@
 #include "rang.hpp"
 #include "integration/cbi/bindings/CBI.h"
 #include "preprocess/RepresentationVisitor.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include <filesystem>
 #include "lexer/Lexer.h"
 #include "stream/FileInputSource.h"
@@ -137,9 +138,27 @@ SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::stri
         print_benchmarks(std::cout, "SymRes:declare", abs_path, bm_results.get());
     }
     if(!resolver->diagnostics.empty()) {
-        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes");
+        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:declare");
     }
     return range;
+}
+
+void ASTProcessor::sym_res_link_sig_file(Scope& scope, const std::string& abs_path, const SymbolRange& range) {
+    // doing stuff
+    auto prev_has_errors = resolver->has_errors;
+    std::unique_ptr<BenchmarkResults> bm_results;
+    if(options->benchmark) {
+        bm_results = std::make_unique<BenchmarkResults>();
+        bm_results->benchmark_begin();
+    }
+    resolver->link_signature_file(scope, abs_path, range);
+    if(options->benchmark) {
+        bm_results->benchmark_end();
+        print_benchmarks(std::cout, "SymRes:link_sig", abs_path, bm_results.get());
+    }
+    if(!resolver->diagnostics.empty()) {
+        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:link_sig");
+    }
 }
 
 void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range) {
@@ -156,7 +175,7 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
         print_benchmarks(std::cout, "SymRes:link", abs_path, bm_results.get());
     }
     if(!resolver->diagnostics.empty()) {
-        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes");
+        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:link");
     }
 }
 
@@ -184,7 +203,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         auto& file = *file_ptr;
         bool already_imported = shrinked_unit.find(file.abs_path) != shrinked_unit.end();
         if(!already_imported) {
-            resolver->link_signature_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
+            sym_res_link_sig_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
             // report and clear diagnostics
             if (resolver->has_errors && !options->ignore_errors) {
                 std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
@@ -219,6 +238,38 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
 
     return 0;
 
+}
+
+int ASTProcessor::sym_res_module(std::vector<ASTFileResult*>& mod_files) {
+    const auto mod_index = resolver->module_scope_start();
+    const auto res = sym_res_files(mod_files);
+    resolver->module_scope_end(mod_index);
+    return res;
+}
+
+int ASTProcessor::sym_res_module_main_no_mangle(std::vector<ASTFileResult*>& mod_files) {
+    const auto mod_index = resolver->module_scope_start();
+    const auto res = sym_res_files(mod_files);
+    // we need to search for main function in each module and make it no_mangle
+    // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
+    const auto main_func = resolver->find("main");
+    if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
+        if(options->verbose) {
+            std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
+        }
+        main_func->as_function_unsafe()->set_no_mangle(true);
+    }
+    // now we can end the module scope, which will drop all the symbols from the module
+    resolver->module_scope_end(mod_index);
+    return res;
+}
+
+int ASTProcessor::sym_res_module_drop(std::vector<ASTFileResult*>& mod_files) {
+    const auto mod_index = resolver->module_scope_start();
+    const auto res = sym_res_files(mod_files);
+    // TODO remove this method, if cannot be changed
+    resolver->module_scope_end(mod_index);
+    return res;
 }
 
 //void ASTProcessor::sym_res_file(Scope& scope, bool is_c_file, const std::string& abs_path) {

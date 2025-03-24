@@ -425,28 +425,6 @@ int LabBuildCompiler::process_module_tcc(
     // preparing translation
     c_visitor.prepare_translate();
 
-    // start a module scope in symbol resolver, that we can dispose later
-    resolver.module_scope_start();
-
-    // importing files user imported using includes
-    if(!mod->includes.empty()) {
-        for(auto& include : mod->includes) {
-            if(verbose) {
-                std::cout << "[lab] " << "including chemical file '" << include << '\'' << std::endl;
-            }
-            const auto abs_path = include.to_std_string();
-            unsigned fileId = loc_man.encodeFile(abs_path);
-            ASTFileResult imported_file(fileId, abs_path, &mod->module_scope);
-            if(!processor.import_chemical_file(imported_file, fileId, abs_path)) {
-                return 1;
-            }
-            auto& scope = imported_file.unit.scope.body;
-            auto& nodes = scope.nodes;
-            resolver.resolve_file(scope, abs_path);
-            processor.translate_to_c(c_visitor, nodes, abs_path);
-        }
-    }
-
     if(verbose) {
         std::cout << "[lab] " << "detecting import cycles in the imports" << std::endl;
     }
@@ -470,19 +448,9 @@ int LabBuildCompiler::process_module_tcc(
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = processor.sym_res_files(flattened_files);
+    const auto sym_res_status = processor.sym_res_module_main_no_mangle(flattened_files);
     if(sym_res_status == 1) {
         return 1;
-    }
-
-    // we need to search for main function in each module and make it no_mangle
-    // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
-    const auto main_func = resolver.find("main");
-    if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
-        if(verbose) {
-            std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
-        }
-        main_func->as_function_unsafe()->set_no_mangle(true);
     }
 
     if(verbose) {
@@ -518,7 +486,7 @@ int LabBuildCompiler::process_module_tcc(
     }
 
     // dispose module symbols in symbol resolver
-    resolver.dispose_module_symbols_now(mod->name.data());
+    // resolver.dispose_module_symbols_now(mod->name.data());
 
     // disposing data
     mod_allocator->clear();
@@ -674,25 +642,6 @@ int LabBuildCompiler::process_module_gen(
     // start a module scope in symbol resolver, that we can dispose later
     resolver.module_scope_start();
 
-    // importing files user imported using includes
-    if(!mod->includes.empty()) {
-        for(auto& include : mod->includes) {
-            if(verbose) {
-                std::cout << "[lab] " << "including chemical file '" << include << '\'' << std::endl;
-            }
-            const auto abs_path = include.to_std_string();
-            unsigned fileId = loc_man.encodeFile(abs_path);
-            ASTFileResult imported_file(fileId, abs_path, &mod->module_scope);
-            if(!processor.import_chemical_file(imported_file, fileId, abs_path)) {
-                return 1;
-            }
-            auto& scope = imported_file.unit.scope.body;
-            auto& nodes = scope.nodes;
-            resolver.resolve_file(scope, abs_path);
-            processor.declare_and_compile(gen, nodes, abs_path);
-        }
-    }
-
     // importing c headers of the module before processing files
     if(!mod->headers.empty()) {
         if(verbose) {
@@ -751,19 +700,9 @@ int LabBuildCompiler::process_module_gen(
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = processor.sym_res_files(flattened_files);
+    const auto sym_res_status = processor.sym_res_module_main_no_mangle(flattened_files);
     if(sym_res_status == 1) {
         return 1;
-    }
-
-    // we need to search for main function in each module and make it no_mangle
-    // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
-    const auto main_func = resolver.find("main");
-    if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
-        if(verbose) {
-            std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
-        }
-        main_func->as_function_unsafe()->set_no_mangle(true);
     }
 
     if(verbose) {
@@ -797,9 +736,6 @@ int LabBuildCompiler::process_module_gen(
             }
         }
     }
-
-    // dispose module symbols in symbol resolver
-    resolver.dispose_module_symbols_now(mod->name.data());
 
     if(gen.has_errors) {
         std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;
@@ -1035,7 +971,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // TODO this is only required in CBI
     std::vector<std::string> compiler_interfaces;
@@ -1185,7 +1121,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
@@ -1719,7 +1655,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         auto module_files = flatten(files_to_flatten);
 
         // symbol resolve all the files in the module
-        const auto sym_res_status = lab_processor.sym_res_files(module_files);
+        const auto sym_res_status = lab_processor.sym_res_module_drop(module_files);
         if(sym_res_status == 1) {
             return nullptr;
         }
@@ -1882,7 +1818,7 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
 
     // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver lab_resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // the processor that does everything for build.lab files only
     ASTProcessor lab_processor(

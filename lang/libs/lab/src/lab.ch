@@ -90,9 +90,6 @@ public struct BuildContext {
     // allows to include c header in the module
     func include_header(&self, module : *mut Module, header : &std::string_view);
 
-    // allows to include a chemical file in the module
-    func include_file(&self, module : *mut Module, abs_path : &std::string_view);
-
     // translate a module to chemical
     func translate_to_chemical (&self, module : *mut Module, output_path : &std::string_view) : *mut LabJob;
 
@@ -189,17 +186,6 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
     while(i < total) {
         var ele = headers.get(i as size_t);
         ctx.include_header(module, *ele);
-        i++;
-    }
-}
-
-// allows to include headers in the module
-public func (ctx : &BuildContext) include_files(module : *mut Module, files : std::span<std::string_view>) {
-    var i = 0;
-    const total = files.size();
-    while(i < total) {
-        var ele = files.get(i as size_t);
-        ctx.include_file(module, *ele);
         i++;
     }
 }

@@ -1497,10 +1497,6 @@ void LoopBlock::code_gen(Codegen &gen) {
     gen.SetInsertPoint(end_block);
 }
 
-void ImportStatement::code_gen(Codegen &gen) {
-
-}
-
 llvm::Type *EnumDeclaration::llvm_type(Codegen &gen) {
     return underlying_type->llvm_type(gen);
 }

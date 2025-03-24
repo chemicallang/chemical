@@ -1,4 +1,5 @@
 import "@lab/lab.ch"
+import "./submod2/build.lab" as submod2
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = ctx.build_path();
@@ -129,8 +130,12 @@ func build(ctx : *mut BuildContext) {
 
     const submod_path = lab::rel_path_to("submod")
     const submod = ctx.chemical_dir_module(std::string_view("submod"), std::string_view(submod_path), { })
+
+    // build imported submod2 module, with it's own build method
+    const submod2 = submod2.build(ctx);
+
     // currently the last dependency becomes null if we don't take it out like this
-    var dependencies = { ext_module, ext_cpp_module, cstd_module, submod, std_module }
+    var dependencies = { ext_module, ext_cpp_module, cstd_module, submod, submod2, std_module }
     const main_mod_path = lab::rel_path_to("src");
     const module = ctx.chemical_dir_module(std::string_view("main"), std::string_view(main_mod_path), dependencies);
 

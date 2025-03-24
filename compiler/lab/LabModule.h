@@ -57,12 +57,6 @@ struct LabModule {
     ModuleScope module_scope;
 
     /**
-     * includes are chemical files included in the modules
-     * these files are imported in the module by the compiler
-     */
-    std::vector<chem::string> includes;
-
-    /**
      * these headers are imported before any other files are processed
      */
     std::vector<chem::string> headers;

@@ -12,16 +12,16 @@
 
 SymbolResolver::SymbolResolver(
     GlobalInterpretScope& global,
+    ImportPathHandler& handler,
     bool is64Bit,
     ASTAllocator& fileAllocator,
     ASTAllocator* modAllocator,
     ASTAllocator* astAllocator
-) : comptime_scope(global), ASTDiagnoser(global.loc_man), is64Bit(is64Bit), allocator(fileAllocator),
+) : comptime_scope(global), path_handler(handler), ASTDiagnoser(global.loc_man), is64Bit(is64Bit), allocator(fileAllocator),
     mod_allocator(modAllocator), ast_allocator(astAllocator), genericInstantiator(*astAllocator, *this), table(512)
 {
     global_scope_start();
-    dispose_file_symbols.reserve(128);
-    dispose_module_symbols.reserve(128);
+    stored_file_symbols.reserve(128);
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
@@ -119,9 +119,6 @@ void SymbolResolver::declare_overriding(const chem::string_view &name, ASTNode* 
     // we'll allow it to shadow, since when the scope ends, the previous symbol will become visible
     // we have to see who's calling this method
     table.declare(name, node);
-    if(is_current_file_scope()) { // only top level scope symbols are disposed at module's end
-        dispose_module_symbols.emplace_back(name);
-    }
 }
 
 void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
@@ -132,15 +129,11 @@ void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
     }
 #endif
     table.declare(name, node);
-    if (is_current_file_scope()) { // only top level scope symbols are disposed at module's end
-        dispose_module_symbols.emplace_back(name);
-    }
 }
 
 void SymbolResolver::declare_file_disposable(const chem::string_view &name, ASTNode *node) {
-    table.declare(name, node);
     if (is_current_file_scope()) {
-        dispose_file_symbols.emplace_back(SymbolRef{ name }, node);
+        stored_file_symbols.emplace_back(name, node);
     }
 }
 
@@ -152,17 +145,12 @@ void SymbolResolver::declare_function(const chem::string_view& name, FunctionDec
         return;
     }
 #endif
-    const auto new_sym = declare_function_quietly(name, declaration);
-    if(new_sym && is_current_file_scope()) { // only top level scope symbols are disposed at module's end
-        dispose_module_symbols.emplace_back(name);
-    }
+    declare_function_quietly(name, declaration);
 }
 
 void SymbolResolver::declare_private_function(const chem::string_view& name, FunctionDeclaration* declaration) {
-    const auto new_sym = declare_function_quietly(name, declaration);
-    if(new_sym && is_current_file_scope()) {
-        dispose_file_symbols.emplace_back(SymbolRef { name }, declaration);
-    }
+    // TODO please note that this doesn't take into account name overloading
+    stored_file_symbols.emplace_back(name, declaration);
 }
 
 void SymbolResolver::declare_node(const chem::string_view& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime) {
@@ -207,53 +195,41 @@ void SymbolResolver::declare_function(const chem::string_view& name, FunctionDec
 
 void SymbolResolver::enable_file_symbols(const SymbolRange& range) {
     if(range.symbol_start == range.symbol_end) return;
-    auto sym = dispose_file_symbols.data() + range.symbol_start;
-    const auto end = dispose_file_symbols.data() + range.symbol_end;
+    auto sym = stored_file_symbols.data() + range.symbol_start;
+    const auto end = stored_file_symbols.data() + range.symbol_end;
     while(sym != end) {
         table.declare(sym->symbol, sym->node);
         sym++;
     }
 }
 
-void SymbolResolver::dispose_file_symbols_now(const std::string_view& abs_path, const SymbolRange& range) {
-    if(range.symbol_start == range.symbol_end) return;
-    auto sym = dispose_file_symbols.data() + range.symbol_start;
-    const auto end = dispose_file_symbols.data() + range.symbol_end;
-    while(sym != end) {
-        if(!table.erase(sym->symbol)) {
-            std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym->symbol << " in file " << abs_path  << rang::fg::reset << std::endl;
-        }
-        sym++;
-    }
-}
-
-void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {
-    file_scope_start();
-    scope.link_asynchronously(*this);
-    dispose_all_file_symbols(abs_path);
-}
-
 SymbolRange SymbolResolver::tld_declare_file(Scope& scope, const std::string& abs_path) {
     const auto scope_index = file_scope_start();
+    // TODO abs_path could be referencing a path that would freed
+    scope_indexes[chem::string_view(abs_path)] = scope_index;
     auto& linker = *this;
-    const auto start = dispose_file_symbols.size();
+    const auto start = stored_file_symbols.size();
     scope.tld_declare(linker);
-    const auto end = dispose_file_symbols.size();
-    auto range = SymbolRange { (unsigned int) start, (unsigned int) end };
-    dispose_file_symbols_now(abs_path, range);
-    return range;
+    const auto end = stored_file_symbols.size();
+    return SymbolRange { (unsigned int) start, (unsigned int) end };
 }
 
 void SymbolResolver::link_signature_file(Scope& scope, const std::string& abs_path, const SymbolRange& range) {
+    // we create a scope_index, this scope is strictly for private entries
+    // when this scope drops, every private symbol and non closed scope will automatically be dropped
+    const auto scope_index = file_scope_start();
     enable_file_symbols(range);
     scope.link_signature(*this);
-    dispose_file_symbols_now(abs_path, range);
+    end_all_scopes_from(scope_index);
 }
 
 void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, const SymbolRange& range) {
+    // we create a scope_index, this scope is strictly for private entries
+    // when this scope drops, every private symbol and non closed scope will automatically be dropped
+    const auto scope_index = file_scope_start();
     enable_file_symbols(range);
     nodes_scope.declare_and_link(*this);
-    dispose_file_symbols_now(abs_path, range);
+    end_all_scopes_from(scope_index);
 }
 
 void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string_view& path, bool restrict_public) {
@@ -268,31 +244,6 @@ void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string
     }
     print_diagnostics(chem::string_view(path), "SymRes");
     diagnostics.clear();
-}
-
-void SymbolResolver::dispose_all_file_symbols(const std::string_view& abs_path) {
-    if(dispose_file_symbols.empty()) return;
-#ifdef DEBUG
-    if(!is_current_file_scope()) {
-        throw std::runtime_error("undeclare in current file, while current file is not a file");
-    }
-#endif
-    for(const auto& sym : dispose_file_symbols) {
-        if(!table.erase(sym.symbol)) {
-            std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym.symbol << " in file " << abs_path  << rang::fg::reset << std::endl;
-        }
-    }
-    dispose_file_symbols.clear();
-}
-
-void SymbolResolver::dispose_module_symbols_now(const std::string& module_name) {
-    if(dispose_module_symbols.empty()) return;
-    for(const auto& sym : dispose_module_symbols) {
-        if(!table.erase(sym.symbol)) {
-            std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare module symbol " << sym.symbol << " in module " << module_name << rang::fg::reset << std::endl;
-        }
-    }
-    dispose_module_symbols.clear();
 }
 
 void SymbolResolver::unsatisfied_type_err(Value* value, BaseType* type) {

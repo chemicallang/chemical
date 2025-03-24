@@ -54,10 +54,6 @@ void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::
     module->headers.emplace_back(*header);
 }
 
-void BuildContextinclude_file(LabBuildContext* self, LabModule* module, chem::string_view* abs_path) {
-    module->includes.emplace_back(*abs_path);
-}
-
 LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string_view* output_path) {
     return self->translate_to_chemical(module, output_path);
 }

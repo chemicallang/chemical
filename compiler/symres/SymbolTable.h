@@ -3,6 +3,7 @@
 #pragma once
 
 #include "std/chem_string_view.h"
+#include "SymResScopeKind.h"
 #include <vector>
 #include <functional>
 #include <span>
@@ -60,10 +61,8 @@ struct Bucket : BucketSymbol {
  * the scope began, as well as a kind identifier.
  */
 struct SymbolScope {
+    SymResScopeKind kind;   // An integer identifier for the scope type (0 if not specified).
     int start;  // The index in the symbols vector where this scope began.
-    int kind;   // An integer identifier for the scope type (0 if not specified).
-
-    SymbolScope(int s, int k) : start(s), kind(k) {}
 };
 
 /**
@@ -329,6 +328,35 @@ public:
     }
 
     /**
+     * same as declare, however this is to be used when an entry already exists
+     */
+    void declare_entry(const SymbolEntry* entry, int index) {
+        // Rehash if load factor exceeds 90% (using integer arithmetic).
+        if (symbols.size() >= (buckets.size() * 9) / 10) {
+            rehash();
+        }
+
+        const auto hash = entry->hash;
+        const auto bucketIndex = hash & bucketMask;
+        Bucket &bucket = buckets[bucketIndex];
+
+        if (bucket.index == -1) {
+            // Bucket is empty; insert directly.
+            set_to_bucket(bucket, entry->key, hash, entry->node, index, nullptr);
+        } else {
+            if (bucket.hash == hash && bucket.key == entry->key) {
+                // Same key: shadow the current active symbol.
+                const auto next = allocateBucketSymbol(bucket);
+                set_to_bucket(bucket, entry->key, hash, entry->node, index, next);
+            } else {
+                // Collision: different key but same bucket.
+                const auto extra = allocateBucketSymbol(entry->key, hash, entry->node, index, bucket.collision);
+                bucket.collision = extra;
+            }
+        }
+    }
+
+    /**
      * @brief Declares a symbol without allowing shadowing.
      *
      * If a symbol with the same key is already declared (either in the bucket or in the collision chain),
@@ -474,7 +502,7 @@ public:
      * Records the current number of symbols to mark the beginning of a new scope.
      */
     inline void scope_start() noexcept {
-        scopeStack.emplace_back(static_cast<int>(symbols.size()), 0);
+        scopeStack.emplace_back(SymResScopeKind::Default, static_cast<int>(symbols.size()));
     }
 
     /**
@@ -482,19 +510,16 @@ public:
      *
      * @param kind The kind identifier for the scope.
      */
-    inline void scope_start(int kind) noexcept {
-        scopeStack.emplace_back(static_cast<int>(symbols.size()), kind);
+    inline void scope_start(SymResScopeKind kind) noexcept {
+        scopeStack.emplace_back(kind, static_cast<int>(symbols.size()));
     }
 
     /**
-     * @brief Begins a new scope and returns the starting index.
-     *
-     * @param kind The kind identifier for the scope.
-     * @return The starting index in the symbols vector for the new scope.
+     * start a new scope with kind, get the scope index as well
      */
-    inline int scope_start_index(int kind) noexcept {
-        int scope_index = static_cast<int>(symbols.size());
-        scopeStack.emplace_back(scope_index, kind);
+    inline int scope_start_index(SymResScopeKind kind) noexcept {
+        int scope_index = static_cast<int>(scopeStack.size());
+        scopeStack.emplace_back(kind, static_cast<int>(symbols.size()));
         return scope_index;
     }
 
@@ -503,8 +528,26 @@ public:
      *
      * @return The kind identifier of the last scope.
      */
-    inline int get_last_scope_kind() const noexcept {
+    inline SymResScopeKind get_last_scope_kind() const noexcept {
         return scopeStack.back().kind;
+    }
+
+    /**
+     * get symbol scope at index
+     * @return nullptr if not found
+     */
+    [[nodiscard]]
+    const SymbolScope* get_scope_at_index(int index) const noexcept {
+        if(index >= scopeStack.size()) return nullptr;
+        return &scopeStack[index];
+    }
+
+    /**
+     * get the symbols vector
+     */
+    [[nodiscard]]
+    const std::vector<SymbolEntry>& get_symbols() const noexcept {
+        return symbols;
     }
 
     /**
@@ -518,18 +561,12 @@ public:
     }
 
     /**
-     * @brief Ends the current scope.
-     *
      * Removes all symbols declared since the last scope_start(). For each symbol
      * removed, if it was shadowing another symbol (via the 'next' chain), that
      * shadowed symbol is restored. Additionally, symbols in the collision chain
      * are removed if they were declared in the ending scope.
      */
-    void scope_end() {
-        assert(!scopeStack.empty());
-        int marker = scopeStack.back().start;
-        scopeStack.pop_back();
-
+    void drop_symbols_from(int marker) {
         // Roll back each symbol declared in the current scope.
         for (int i = static_cast<int>(symbols.size()) - 1; i >= marker; --i) {
             const SymbolEntry& entry = symbols[i];
@@ -569,6 +606,56 @@ public:
             }
 #endif
         }
+    }
+
+    /**
+     * this method will keep all symbol entries, however drop buckets
+     *
+     * how does it benefit ? modules are scopes that never dispose scope, one module starts
+     * another starts, it's a nesting chain, when a module scope ends, we do not call scope_end
+     * we call this method, this will drop all it's buckets, which means now if a symbol is resolved
+     * it won't be from that module, this makes resolving symbols faster
+     *
+     * why not drop the symbol entries too ? because we need them, to be able to import symbols from
+     * files of another module, by keeping the symbol entries, when user imports a file, we just go over
+     * the range of symbol entries that user asked and bring them into user's module scope (create buckets)
+     *
+     * when we do create buckets for which symbols already exist, we should not create the symbol entry, for which
+     * methods exist
+     *
+     * this also starts a new scope, it must always start a scope, because if you call this method, we don't
+     * actually drop the scope entry, which means new entries go into a new scope
+     *
+     * It should be noted that after calling this method, scope_end must not called to eliminate symbol entries
+     * that would lead to a huge error
+     *
+     */
+    void scope_end_keep_entries(int scope_index) {
+        assert(scope_index < scopeStack.size());
+        drop_symbols_from(scopeStack[scope_index].start);
+    }
+
+    /**
+     * this drops all symbol entries and scopes after this scope_index
+     */
+    void scope_end_drop_entries(int scope_index) {
+        assert(scope_index < scopeStack.size());
+        int marker = scopeStack[scope_index].start;
+        scopeStack.resize(scope_index);
+        drop_symbols_from(marker);
+        symbols.resize(marker);
+    }
+
+    /**
+     * end the scope, dropping all it's symbols from buckets (so you can't resolve them) and dropping
+     * their symbol entries (this means that we no longer know that which symbols were declared in that scope
+     * or even if that scope existed)
+     */
+    void scope_end() {
+        assert(!scopeStack.empty());
+        int marker = scopeStack.back().start;
+        scopeStack.pop_back();
+        drop_symbols_from(marker);
         symbols.resize(marker);
     }
 

@@ -329,6 +329,11 @@ public:
     SymbolRange sym_res_tld_declare_file(Scope& scope, const std::string& abs_path);
 
     /**
+     * links the signature of the file
+     */
+    void sym_res_link_sig_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
+
+    /**
      * this function is used to resolve symbols inside the file, the scope_index is used to enable
      * the file's private symbols
      */
@@ -339,6 +344,22 @@ public:
      * errors are encountered during symbol resolution of one file
      */
     int sym_res_files(std::vector<ASTFileResult*>& files);
+
+    /**
+     * symbol resolves the module, creating the scope
+     */
+    int sym_res_module(std::vector<ASTFileResult*>& mod_files);
+
+    /**
+     * symbol resolves the module, it also makes the main function in the module
+     * if any exists, no_mangle
+     */
+    int sym_res_module_main_no_mangle(std::vector<ASTFileResult*>& mod_files);
+
+    /**
+     * symbol resolves the files of the module, however drops all symbols afterwards
+     */
+    int sym_res_module_drop(std::vector<ASTFileResult*>& mod_files);
 
     /**
      * print given benchmark results

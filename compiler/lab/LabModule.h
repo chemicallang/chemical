@@ -8,6 +8,7 @@
 #include "integration/cbi/model/FlatIGFile.h"
 #include "std/chem_string.h"
 #include "ast/structures/ModuleScope.h"
+#include "compiler/processor/ASTFileMetaData.h"
 
 struct LabModule {
 
@@ -68,6 +69,15 @@ struct LabModule {
     std::vector<chem::string> paths;
 
     /**
+     * these files are calculated before compilation to see which direct files
+     * are present in the module, which have changed, so we can determine whether
+     * module requires compilation
+     * direct files are known without parsing, for example for a directory module, every
+     * file (even nested) is considered to be part of the module
+     */
+    std::vector<ASTFileMetaData> direct_files;
+
+    /**
      * dependencies are the pointers to modules that this module depends on
      * these modules will be compiled first
      */
@@ -78,6 +88,14 @@ struct LabModule {
      * these modules will be compiled after this module has been compiled
      */
     std::vector<LabModule*> dependents;
+
+    /**
+     * this flag is calculated before compilation based on whether the module's files
+     * have changed or any module it depends on has changed
+     * NOTE: we consider every module changed by default, meaning every module
+     * must be compiled, however we can switch this flag when determined that nothing has changed
+     */
+    bool has_changed = true;
 
     /**
      * constructor

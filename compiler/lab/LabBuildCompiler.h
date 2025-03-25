@@ -76,13 +76,6 @@ public:
     ctpl::thread_pool pool;
 
     /**
-     * modules that have been generated are stored on this map
-     * so we can reuse them for different jobs, the values
-     * are absolute paths to their object or bitcode files
-     */
-    std::unordered_map<LabModule*, std::string> generated;
-
-    /**
      * when given, we check for any command line options that configure the code generator
      */
     CmdOptions* cmd = nullptr;

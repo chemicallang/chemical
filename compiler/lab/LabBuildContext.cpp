@@ -5,6 +5,7 @@
 #include "utils/PathUtils.h"
 #include <iostream>
 #include <unordered_map>
+#include <span>
 
 void LabBuildContext::add_dependencies(std::vector<LabModule*>& into, LabModule **dependencies, unsigned int dep_len) {
     if(!dependencies || dep_len == 0) return;
@@ -92,42 +93,20 @@ void LabBuildContext::init_path_aliases(LabJob* job) {
     }
 }
 
-void ModuleStorage::index_module(LabModule* module) {
-    std::string str;
-    if(!module->scope_name.empty()) {
-        str.append(module->scope_name.to_view());
-        str.append(1, ':');
-    }
-    str.append(module->name.to_view());
-    indexes[std::move(str)] = module;
-}
-
 LabModule* LabBuildContext::add_with_type(
         LabModuleType type,
-        chem::string_view* name,
+        const chem::string_view& scope_name,
+        const chem::string_view& module_name,
         chem::string_view** paths,
         unsigned int path_len,
         LabModule** dependencies,
         unsigned int dep_len
 ) {
-    // TODO allow scope_name
-    auto mod = new LabModule(type, chem::string(""), chem::string(*name));
-    storage.insert_module_ptr_dangerous(mod);
-    LabBuildContext::add_paths(mod->paths, paths, path_len);
-    LabBuildContext::add_dependencies(mod, dependencies, dep_len);
-    return mod;
-}
-
-LabModule *LabBuildContext::add_with_type(
-    LabModuleType type,
-    chem::string name,
-    chem::string** paths,
-    unsigned int path_len,
-    LabModule **dependencies,
-    unsigned int dep_len
-) {
-    // TODO allow scope_name
-    auto mod = new LabModule(type, chem::string(""), std::move(name));
+    const auto found_module = storage.find_module(scope_name, module_name);
+    if(found_module != nullptr) {
+        return found_module;
+    }
+    auto mod = new LabModule(type, chem::string(scope_name), chem::string(module_name));
     storage.insert_module_ptr_dangerous(mod);
     LabBuildContext::add_paths(mod->paths, paths, path_len);
     LabBuildContext::add_dependencies(mod, dependencies, dep_len);
@@ -147,20 +126,27 @@ LabModule* LabBuildContext::create_of_type(LabModuleType type, chem::string_view
             prefix = "UnkFile-";
             break;
     }
-    auto mod = add_with_type(type, chem::string(prefix + std::to_string(storage.modules_size()) + '-' + std::to_string(number)), nullptr, 0, nullptr, 0);
+    chem::string mod_name;
+    mod_name.append(prefix);
+    mod_name.append(std::to_string(storage.modules_size()));
+    mod_name.append('-');
+    mod_name.append(std::to_string(number));
+    // TODO scope_name here is empty
+    auto mod = add_with_type(type, "", mod_name.to_chem_view(), nullptr, 0, nullptr, 0);
     mod->paths.emplace_back(*path);
     return mod;
 }
 
 LabModule* LabBuildContext::files_module(
-        chem::string_view* name,
+        const chem::string_view& scope_name,
+        const chem::string_view& module_name,
         chem::string_view** paths,
         unsigned int path_len,
         LabModule** dependencies,
         unsigned int dep_len
 ) {
     // create a module with no files
-    auto mod = add_with_type(LabModuleType::Files, chem::string(*name), nullptr, 0, dependencies, dep_len);
+    auto mod = add_with_type(LabModuleType::Files, scope_name, module_name, nullptr, 0, dependencies, dep_len);
     if(paths && path_len != 0) {
         auto ptr = *paths;
         unsigned i = 0;

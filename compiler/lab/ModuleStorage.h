@@ -23,6 +23,16 @@ private:
 
 public:
 
+    static std::string build_format(const chem::string_view& scope_name, const chem::string_view& mod_name) {
+        std::string str;
+        if(!scope_name.empty()) {
+            str.append(scope_name.data(), scope_name.size());
+            str.append(1, ':');
+        }
+        str.append(mod_name.data(), mod_name.size());
+        return str;
+    }
+
     /**
      * get the modules
      */
@@ -33,7 +43,18 @@ public:
     /**
      * would just index this module
      */
-    void index_module(LabModule* module);
+    void index_module(LabModule* module) {
+        indexes[build_format(module->scope_name.to_chem_view(), module->name.to_chem_view())] = module;
+    }
+
+    /**
+     * would index module and its dependencies
+     */
+    void index_modules(std::vector<LabModule*>& mods) {
+        for(const auto mod : mods) {
+            index_module(mod);
+        }
+    }
 
     /**
      * insert a module into the modules
@@ -60,10 +81,24 @@ public:
     }
 
     /**
+     * this will return a cached pointer, if the module already exists
+     */
+    inline LabModule* find_module(const chem::string_view& scope_name, const chem::string_view& mod_name) {
+        return find_module(build_format(scope_name, mod_name));
+    }
+
+    /**
      * this gives the total modules
      */
     inline size_t modules_size() {
         return modules.size();
+    }
+
+    /**
+     * only indexes are cleared
+     */
+    void clear_indexes() {
+        indexes.clear();
     }
 
     /**

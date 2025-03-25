@@ -7,6 +7,11 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/Import.h"
 #include "ast/statements/PackageDefinition.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericImplDecl.h"
 #include "ast/structures/If.h"
 #include "utils/Benchmark.h"
 #include "ast/structures/ModuleScope.h"
@@ -69,11 +74,11 @@ static bool verify_app_build_func_type(FunctionDeclaration* found, const std::st
 }
 
 void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imported, std::vector<LabModule*>& flat_map) {
+    for(auto nested : file->get_dependencies()) {
+        recursive_dedupe(nested, imported, flat_map);
+    }
     auto found = imported.find(file);
     if(found == imported.end()) {
-        for(auto nested : file->get_dependencies()) {
-            recursive_dedupe(nested, imported, flat_map);
-        }
         imported[file] = true;
         flat_map.emplace_back(file);
     }
@@ -361,6 +366,111 @@ inline bool is_node_exported(ASTNode* node) {
     }
 }
 
+bool determine_if_module_has_changed(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
+
+    auto& direct_files = mod->direct_files;
+    const auto verbose = compiler->options->verbose;
+
+    if(verbose) {
+        std::cout << "[lab] " << "checking if module " << mod->scope_name << ':' << mod->name << " has changed" << std::endl;
+    }
+
+    if(fs::exists(mod->object_path.to_view())) {
+
+        if (verbose) {
+            std::cout << "[lab] " << "found cached object file '" << mod->object_path << "', checking timestamp" << std::endl;
+        }
+
+        // let's check if module timestamp file exists and is valid (files haven't changed)
+        if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
+
+            if (verbose) {
+
+                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
+
+            }
+
+            // module has not changed, lets mark it unchanged
+            mod->has_changed = false;
+
+            // consider all its dependencies changed as well
+            for(const auto dep : mod->dependents) {
+                dep->has_changed = true;
+            }
+
+            return false;
+
+        } else if (verbose) {
+
+            std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
+
+        }
+
+    } else if(verbose) {
+
+        std::cout << "[lab] " << "couldn't find cached object file at '" << mod->object_path << "' for module '" << mod->scope_name << ':' << mod->name << std::endl;
+
+    }
+
+    return true;
+
+}
+
+void set_generated_instantiations(ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::NamespaceDecl:{
+            const auto ns = node->as_namespace_unsafe();
+            for(const auto child : ns->nodes) {
+                set_generated_instantiations(child);
+            }
+            break;
+        }
+        case ASTNodeKind::GenericStructDecl:{
+            const auto decl = node->as_gen_struct_def_unsafe();
+            const auto size = decl->instantiations.size();
+            decl->total_declared_instantiations = size;
+            decl->total_bodied_instantiations = size;
+            break;
+        }
+        case ASTNodeKind::GenericUnionDecl:{
+            const auto decl = node->as_gen_union_decl_unsafe();
+            const auto size = decl->instantiations.size();
+            decl->total_declared_instantiations = size;
+            decl->total_bodied_instantiations = size;
+            break;
+        }
+        case ASTNodeKind::GenericInterfaceDecl:{
+            const auto decl = node->as_gen_interface_decl_unsafe();
+            const auto size = decl->instantiations.size();
+            decl->total_declared_instantiations = size;
+            decl->total_bodied_instantiations = size;
+            break;
+        }
+        case ASTNodeKind::GenericVariantDecl:{
+            const auto decl = node->as_gen_variant_decl_unsafe();
+            const auto size = decl->instantiations.size();
+            decl->total_declared_instantiations = size;
+            decl->total_bodied_instantiations = size;
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void process_cached_module(ASTProcessor& processor, std::vector<ASTFileResult*>& files) {
+    auto& compiled_units = processor.compiled_units;
+    for(const auto file : files) {
+        if(compiled_units.find(file->abs_path) != compiled_units.end()) {
+            continue;
+        }
+        auto& nodes = file->unit.scope.body.nodes;
+        for(const auto node : nodes) {
+            set_generated_instantiations(node);
+        }
+    }
+}
+
 int LabBuildCompiler::process_module_tcc(
         LabModule* mod,
         ASTProcessor& processor,
@@ -379,43 +489,8 @@ int LabBuildCompiler::process_module_tcc(
 
     auto& resolver = *processor.resolver;
 
-    // these files are only the direct files present in the module
-    // for example every file (nested included) in a directory
-    // however it won't include files imported from another module
-    std::vector<ASTFileMetaData> direct_files;
-
-    // this would determine the direct files for the module
-    processor.determine_module_files(direct_files, mod);
-
-    // let's check object file if it already exists (for caching)
-    if(caching && fs::exists(mod->object_path.to_view())) {
-
-        if (verbose) {
-            std::cout << "[lab] " << "found cached object file '" << mod->object_path << "', checking timestamp." << std::endl;
-        }
-
-        // let's check if module timestamp file exists and is valid (files haven't changed)
-        if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
-
-            if (verbose) {
-                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "'" << std::endl;
-                std::cout << "[lab] " << "reusing found object file" << std::endl;
-            }
-
-            // exe->linkables.emplace_back(mod->object_path.copy());
-            return 0;
-
-        } else if (verbose) {
-            std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
-        }
-
-    } else if(caching && verbose) {
-        std::cout << "[lab] " << "couldn't find cached object file at '" << mod->object_path << "'" << std::endl;
-    }
-
-    // ---------- HEAVY WORK BEGINS HERE ----------------
-    // -------- (Tyla "omg, this is so heavy") ----------
-    // ------- we must use any cache, before this --------
+    // direct files are stored inside the module
+    auto& direct_files = mod->direct_files;
 
     // this will include the direct files (nested included) for the module
     // these will be lexed and parsed
@@ -466,6 +541,31 @@ int LabBuildCompiler::process_module_tcc(
     const auto sym_res_status = processor.sym_res_module(flattened_files);
     if(sym_res_status == 1) {
         return 1;
+    }
+
+    // check if module has not changed, and use cache appropriately
+    // not changed means object file is also present (currently
+    if(!mod->has_changed) {
+
+        if(verbose) {
+            std::cout << "[lab] " << "module hasn't changed, processing cached module" << std::endl;
+        }
+
+        // this will set all the generic instantiations to generated
+        // which means generic decls won't generate those instantiations
+        process_cached_module(processor, flattened_files);
+
+        // let's put all files to compiled units
+        auto& compiled_units = processor.compiled_units;
+        for(const auto file : flattened_files) {
+            if(compiled_units.find(file->abs_path) == compiled_units.end()) {
+                compiled_units.emplace(file->abs_path, file->unit);
+            }
+        }
+
+        // the module hasn't changed
+        return 0;
+
     }
 
     if(verbose) {
@@ -523,7 +623,6 @@ int LabBuildCompiler::process_module_tcc(
             return 1;
         }
         // exe->linkables.emplace_back(obj_path);
-        generated[mod] = obj_path;
         if(caching) {
             save_mod_timestamp(direct_files, mod_timestamp_file);
         }
@@ -590,44 +689,7 @@ int LabBuildCompiler::process_module_gen(
     const auto verbose = options->verbose;
     const bool is_use_obj_format = options->use_mod_obj_format;
     auto& resolver = *processor.resolver;
-
-    // these files are only the direct files present in the module
-    // for example every file (nested included) in a directory
-    // however it won't include files imported from another module
-    std::vector<ASTFileMetaData> direct_files;
-
-    // this would determine the direct files for the module
-    processor.determine_module_files(direct_files, mod);
-
-    // let's check object file if it already exists (for caching)
-    if(caching && fs::exists(mod->object_path.to_view())) {
-
-        if (verbose) {
-            std::cout << "[lab] " << "found cached object file '" << mod->object_path << "', checking timestamp" << std::endl;
-        }
-
-        // let's check if module timestamp file exists and is valid (files haven't changed)
-        if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
-
-            if (verbose) {
-                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "'" << std::endl;
-                std::cout << "[lab] " << "reusing found object file" << std::endl;
-            }
-
-            // exe->linkables.emplace_back(mod->object_path.copy());
-            return 0;
-
-        } else if (verbose) {
-            std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
-        }
-
-    } else if(caching && verbose) {
-        std::cout << "[lab] " << "couldn't find cached object file at '" << mod->object_path << "'" << std::endl;
-    }
-
-    // ---------- HEAVY WORK BEGINS HERE ----------------
-    // -------- (Tyla "omg, this is so heavy") ----------
-    // ------- we must use any cache, before this --------
+    auto& direct_files = mod->direct_files;
 
     // this will include the direct files (nested included) for the module
     // these will be lexed and parsed
@@ -720,6 +782,32 @@ int LabBuildCompiler::process_module_gen(
         return 1;
     }
 
+    // check if module has not changed, and use cache appropriately
+    // not changed means object file is also present (currently
+    if(!mod->has_changed) {
+
+        if(verbose) {
+            std::cout << "[lab] " << "module hasn't changed, processing cached module" << std::endl;
+        }
+
+        // this will set all the generic instantiations to generated
+        // which means generic decls won't generate those instantiations
+        process_cached_module(processor, flattened_files);
+
+        // let's put all files to compiled units
+        auto& compiled_units = processor.compiled_units;
+        for(const auto file : flattened_files) {
+            if(compiled_units.find(file->abs_path) == compiled_units.end()) {
+                compiled_units.emplace(file->abs_path, file->unit);
+            }
+        }
+
+        // the module hasn't changed
+        return 0;
+
+    }
+
+
     if(verbose) {
         std::cout << "[lab] " << "compiling module files" << std::endl;
     }
@@ -807,14 +895,13 @@ int LabBuildCompiler::process_module_gen(
     const bool save_result = gen.save_with_options(&emitter_options);
     if(save_result) {
         if(gen_path) {
-            // exe->linkables.emplace_back(gen_path);
-            generated[mod] = gen_path;
             if(caching) {
                 save_mod_timestamp(direct_files, mod_timestamp_file);
             }
         }
     } else {
         std::cerr << "[lab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
+        return 1;
     }
 
     return 0;
@@ -895,7 +982,6 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod) {
     if (compile_result == 1) {
         return 1;
     }
-    compiler->generated[mod] = mod->object_path.to_std_string();
 #else
     if(mod->type == LabModuleType::CPPFile) {
         std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ file '" << mod->paths[0] << '\'' << rang::fg::reset << std::endl;
@@ -905,9 +991,12 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod) {
     if (compile_result == 1) {
         return 1;
     }
-    compiler->generated[mod] = mod->object_path.to_std_string();
 #endif
     return 0;
+}
+
+std::string get_mod_timestamp_path(const std::string& build_dir, LabModule* mod) {
+    return resolve_rel_child_path_str(build_dir, mod->name.to_std_string() + "/timestamp.dat");
 }
 
 std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJobType job_type, const std::string& build_dir, LabModule* mod) {
@@ -1015,6 +1104,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(exe->dependencies);
 
+    // index the modules, so imports can be resolved
+    mod_storage.index_modules(dependencies);
+
     // allocating required variables before going into loop
     bool do_compile = job_type != LabJobType::ToCTranslation && job_type != LabJobType::CBI;
 
@@ -1026,18 +1118,48 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         binder.create_cbi(exe->name.to_std_string(), dependencies.size());
     }
 
-    // compile dependent modules for this executable
+    // if not a single module has changed, we consider it true
+    bool has_any_changed = false;
+
+    // for each module, let's determine its files and whether it has changed
+    for(const auto mod : dependencies) {
+
+        // determining module's direct files
+        processor.determine_module_files(mod->direct_files, mod);
+
+        // creating the module directory and getting the timestamp file path
+        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
+
+        // lets determine if the module has changed (one of the file of module has changed)
+        const auto has_changed = determine_if_module_has_changed(this, mod, mod_timestamp_file);
+
+        // set that a single module exists that has changed
+        if(has_changed) {
+            has_any_changed = true;
+        }
+
+    }
+
+    if(!has_any_changed && do_compile) {
+
+        // NOTE: there exists not a single module that has changed
+        // which means we can safely link the previous object files again
+        // we need to return early so modules won't be parsed at all
+
+        for(const auto mod : dependencies) {
+            job->linkables.emplace_back(mod->object_path.to_chem_view());
+        }
+
+        job->path_aliases = std::move(processor.path_handler.path_aliases);
+        return 0;
+
+    }
+
+    // compile dependencies modules for this executable
     for(auto mod : dependencies) {
 
         if(verbose) {
-            std::cout << "[lab] " << "processing module '" << mod->name << '\'' << std::endl;
-        }
-
-        // check we haven't already generated this module
-        auto found = generated.find(mod);
-        if(found != generated.end() && job_type != LabJobType::ToCTranslation) {
-            exe->linkables.emplace_back(found->second);
-            continue;
+            std::cout << "[lab] " << "processing module " << mod->scope_name << ':' << mod->name << std::endl;
         }
 
         // creating the module directory and getting the timestamp file path
@@ -1110,7 +1232,6 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     exe->path_aliases = std::move(processor.path_handler.path_aliases);
-
     return 0;
 
 }
@@ -1168,6 +1289,46 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(job->dependencies);
 
+    // index the modules, so imports can be resolved
+    mod_storage.index_modules(dependencies);
+
+    // if not a single module has changed, we consider it true
+    bool has_any_changed = false;
+
+    // for each module, let's determine its files and whether it has changed
+    for(const auto mod : dependencies) {
+
+        // determining module's direct files
+        processor.determine_module_files(mod->direct_files, mod);
+
+        // creating the module directory and getting the timestamp file path
+        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
+
+        // lets determine if the module has changed (one of the file of module has changed)
+        const auto has_changed = determine_if_module_has_changed(this, mod, mod_timestamp_file);
+
+        // set that a single module exists that has changed
+        if(has_changed) {
+            has_any_changed = true;
+        }
+
+    }
+
+    if(!has_any_changed) {
+
+        // NOTE: there exists not a single module that has changed
+        // which means we can safely link the previous object files again
+        // we need to return early so modules won't be parsed at all
+
+        for(const auto mod : dependencies) {
+            job->linkables.emplace_back(mod->object_path.to_chem_view());
+        }
+
+        job->path_aliases = std::move(processor.path_handler.path_aliases);
+        return 0;
+
+    }
+
     // compile dependent modules for this executable
     for(auto mod : dependencies) {
 
@@ -1175,15 +1336,8 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             std::cout << "[lab] " << "processing module '" << mod->name << '\'' << std::endl;
         }
 
-        // check we haven't already generated this module
-        auto found = generated.find(mod);
-        if(found != generated.end()) {
-            job->linkables.emplace_back(found->second);
-            continue;
-        }
-
-        // creating the module directory and getting the timestamp file path
-        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
+        // get the timestamp file path
+        const auto mod_timestamp_file = get_mod_timestamp_path(job->build_dir.to_std_string(), mod);
 
         // handle c and cpp file modules
         switch (mod->type) {
@@ -1442,25 +1596,29 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         return nullptr;
     }
 
-    // let's create a module for this .mod file
-    const auto module = new LabModule(LabModuleType::Directory, chem::string(""), chem::string(""));
-    context.storage.insert_module_ptr_dangerous(module);
-
     // TODO: support allowing src directory inside the .mod file
     // since currently we don't support custom source directory
     // we'll assume the source is present in 'src' directory and and use that as module directory path
     auto srcDirPath = resolve_rel_child_path_str(module_dir, "src");
-    module->paths.emplace_back(srcDirPath);
+
+    // determining the module scope name and module name
+    chem::string_view scope_name;
+    chem::string_view module_name;
 
     // update the scope and module name if user wrote package declaration in the mod file
     auto& nodes = modResult.unit.scope.body.nodes;
     if(nodes[0]->kind() == ASTNodeKind::PackageDef) {
         const auto def = nodes[0]->as_package_def_unsafe();
-        module->update_mod_name(chem::string(def->scope_name), chem::string(def->module_name));
+        scope_name = def->scope_name;
+        module_name = def->module_name;
     } else {
         // otherwise we should try to get it from the import dependency
-        module->update_mod_name(chem::string(dependency.scope_name), chem::string(dependency.mod_name));
+        scope_name = dependency.scope_name;
+        module_name = dependency.mod_name;
     }
+
+    auto path_view = chem::string_view(srcDirPath);
+    const auto module = context.chemical_dir_module(scope_name, module_name, &path_view, nullptr, 0);
 
     // lets update the module scope of the mod file ast result, which we set to nullptr initially
     modResult.unit.scope.set_parent(&module->module_scope);
@@ -1557,11 +1715,44 @@ bool LabBuildCompiler::compile_dependencies_tcc(
     // figure out path for lab modules directory
     const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");
 
+    // if not a single module has changed, we consider it true
+    bool has_any_changed = false;
+
+    // for each module, let's determine its files and whether it has changed
+    for(const auto mod : outModDependencies) {
+
+        // determining module's direct files
+        processor.determine_module_files(mod->direct_files, mod);
+
+        // the timestamp file is what determines whether the module needs to be rebuilt again
+        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, LabJobType::ProcessingOnly, lab_mods_dir, mod);
+
+        // lets determine if the module has changed (one of the file of module has changed)
+        const auto has_changed = determine_if_module_has_changed(this, mod, mod_timestamp_file);
+
+        // set that a single module exists that has changed
+        if(has_changed) {
+            has_any_changed = true;
+        }
+
+    }
+
+    if(!has_any_changed) {
+
+        // NOTE: there exists not a single module that has changed
+        // which means we can safely link the previous object files again
+        // we need to return early so modules won't be parsed at all
+
+        // we can expect the object files in module's object paths
+        return true;
+
+    }
+
     // processing flattened dependencies
     for(const auto mod : outModDependencies) {
 
         // the timestamp file is what determines whether the module needs to be rebuilt again
-        const auto timestamp_path = create_mod_dir_get_timestamp_path(this, LabJobType::ProcessingOnly, lab_mods_dir, mod);
+        const auto timestamp_path = get_mod_timestamp_path(lab_mods_dir, mod);
 
         // the c output for this module, so we can debug
         const auto out_c_path = resolve_sibling(timestamp_path, "mod.2c.c");

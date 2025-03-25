@@ -113,20 +113,9 @@ public:
      */
     LabModule* add_with_type(
             LabModuleType type,
-            chem::string_view* name,
+            const chem::string_view& scope_name,
+            const chem::string_view& name,
             chem::string_view** paths,
-            unsigned int path_len,
-            LabModule** dependencies,
-            unsigned int dep_len
-    );
-
-    /**
-     * adds the given module with type
-     */
-    LabModule* add_with_type(
-            LabModuleType type,
-            chem::string name,
-            chem::string** paths,
             unsigned int path_len,
             LabModule** dependencies,
             unsigned int dep_len
@@ -136,7 +125,8 @@ public:
      * adds the given module with type multiple files
      */
     LabModule* files_module(
-            chem::string_view* name,
+            const chem::string_view& scope_name,
+            const chem::string_view& module_name,
             chem::string_view** paths,
             unsigned int path_len,
             LabModule** dependencies,
@@ -147,71 +137,64 @@ public:
      * when path's list contains only chemical files
      */
     LabModule* chemical_files_module(
-            chem::string_view* name,
+            const chem::string_view& scope_name,
+            const chem::string_view& module_name,
             chem::string_view** paths,
             unsigned int path_len,
             LabModule** dependencies,
             unsigned int dep_len
     ) {
-        return add_with_type(LabModuleType::Files, name, paths, path_len, dependencies, dep_len);
+        return add_with_type(LabModuleType::Files, scope_name, module_name, paths, path_len, dependencies, dep_len);
     }
 
     /**
      * add the given module as a directory module
      */
     LabModule* chemical_dir_module(
-            chem::string_view* name,
+            const chem::string_view& scope_name,
+            const chem::string_view& module_name,
             chem::string_view* path,
             LabModule** dependencies,
             unsigned int dep_len
     ) {
-        return add_with_type(LabModuleType::Directory, name, &path, 1, dependencies, dep_len);
-    }
-
-    /**
-     * add the given module as a directory module
-     */
-    LabModule* chemical_dir_module(
-        chem::string* name,
-        chem::string* path,
-        LabModule** dependencies,
-        unsigned int dep_len
-    ) {
-        return add_with_type(LabModuleType::Directory, name->copy(), &path, 1, dependencies, dep_len);
+        return add_with_type(LabModuleType::Directory, scope_name, module_name, &path, 1, dependencies, dep_len);
     }
 
     /**
      * add the given module as a c translation unit
      */
     LabModule* c_file_module(
-            chem::string_view* name,
+            const chem::string_view& scope_name,
+            const chem::string_view& module_name,
             chem::string_view* path,
             LabModule** dependencies,
             unsigned int dep_len
     ) {
-        return add_with_type(LabModuleType::CFile, name, &path, 1, dependencies, dep_len);
+        return add_with_type(LabModuleType::CFile, scope_name, module_name, &path, 1, dependencies, dep_len);
     }
 
     /**
      * add the given module as a c translation unit
      */
     LabModule* cpp_file_module(
-            chem::string_view* name,
+            const chem::string_view& scope_name,
+            const chem::string_view& module_name,
             chem::string_view* path,
             LabModule** dependencies,
             unsigned int dep_len
     ) {
-        return add_with_type(LabModuleType::CPPFile, name, &path, 1, dependencies, dep_len);
+        return add_with_type(LabModuleType::CPPFile, scope_name, module_name, &path, 1, dependencies, dep_len);
     }
 
     /**
      * add the given module as an obj file, that'll be linked with final executable
      */
     LabModule* obj_file_module(
-            chem::string_view* name,
+            const chem::string_view& scope_name,
+            const chem::string_view& module_name,
             chem::string_view* path
     ) {
-        return add_with_type(LabModuleType::ObjFile, name, &path, 1, nullptr, 0);
+        return add_with_type(LabModuleType::ObjFile, scope_name, module_name, &path, 1, nullptr, 0);
     }
 
     /**

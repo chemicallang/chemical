@@ -32,7 +32,8 @@ jobs:
       - name: Create main.ch source file (Linux)
         if: runner.os != 'Windows'
         run: |
-          echo "public func printf(format : *char, _ : any...)" > main.ch
+          echo "@extern" > main.ch
+          echo "public func printf(format : *char, _ : any...)" >> main.ch
           echo "public func main() : int {" >> main.ch
           echo "    printf(\"hello world\")" >> main.ch
           echo "    return 0;" >> main.ch
@@ -45,6 +46,7 @@ jobs:
           # Only create main.ch if it doesn't already exist
           if (!(Test-Path -Path main.ch)) {
             Set-Content -Path main.ch -Value @(
+              '@extern',
               'public func printf(format : *char, _ : any...)',
               'public func main() : int {',
               '    printf("hello world")',

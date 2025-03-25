@@ -17,6 +17,17 @@ void LabBuildContext::add_dependencies(std::vector<LabModule*>& into, LabModule 
     }
 }
 
+void LabBuildContext::add_dependencies(LabModule* module, LabModule** dependencies, unsigned int dep_len) {
+    if(!dependencies || dep_len == 0) return;
+    auto ptr = dependencies;
+    unsigned i = 0;
+    while (i < dep_len) {
+        module->add_dependency(*ptr);
+        ptr++;
+        i++;
+    }
+}
+
 void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len) {
     if(!paths || path_len == 0) return;
     auto ptr = paths;
@@ -70,7 +81,7 @@ void LabBuildContext::put_path_aliases(LabJob* job, LabModule* module) {
     if(module->type == LabModuleType::Directory) {
         declare_alias(job->path_aliases, module->name.to_std_string(), module->paths[0].to_std_string());
     }
-    for(auto dep : module->dependencies) {
+    for(auto dep : module->get_dependencies()) {
         put_path_aliases(job, dep);
     }
 }
@@ -103,7 +114,7 @@ LabModule* LabBuildContext::add_with_type(
     auto mod = new LabModule(type, chem::string(""), chem::string(*name));
     storage.insert_module_ptr_dangerous(mod);
     LabBuildContext::add_paths(mod->paths, paths, path_len);
-    LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
+    LabBuildContext::add_dependencies(mod, dependencies, dep_len);
     return mod;
 }
 
@@ -119,7 +130,7 @@ LabModule *LabBuildContext::add_with_type(
     auto mod = new LabModule(type, chem::string(""), std::move(name));
     storage.insert_module_ptr_dangerous(mod);
     LabBuildContext::add_paths(mod->paths, paths, path_len);
-    LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
+    LabBuildContext::add_dependencies(mod, dependencies, dep_len);
     return mod;
 }
 
@@ -157,9 +168,9 @@ LabModule* LabBuildContext::files_module(
             if(ptr->ends_with(".ch")) {
                 mod->paths.emplace_back(*ptr);
             } else if(ptr->ends_with(".c")) {
-                mod->dependencies.emplace_back(create_of_type(LabModuleType::CFile, ptr, i));
+                mod->add_dependency(create_of_type(LabModuleType::CFile, ptr, i));
             } else if(ptr->ends_with(".o")) {
-                mod->dependencies.emplace_back(create_of_type(LabModuleType::ObjFile, ptr, i));
+                mod->add_dependency(create_of_type(LabModuleType::ObjFile, ptr, i));
             } else {
 
             }

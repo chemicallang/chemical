@@ -70,7 +70,7 @@ void ASTProcessor::print_results(ASTFileResult& result, const chem::string_view&
     std::cout << std::flush;
 }
 
-void ASTProcessor::determine_mod_files(
+void ASTProcessor::determine_module_files(
         std::vector<ASTFileMetaData>& files,
         LabModule* module
 ) {
@@ -110,7 +110,7 @@ void ASTProcessor::determine_mod_files(
     }
 }
 
-bool ASTProcessor::import_mod_files(
+bool ASTProcessor::import_module_files(
         ctpl::thread_pool& pool,
         std::vector<ASTFileResult*>& out_files,
         std::vector<ASTFileMetaData>& files,

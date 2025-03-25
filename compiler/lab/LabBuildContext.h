@@ -68,6 +68,12 @@ public:
     static void add_dependencies(std::vector<LabModule*>& into, LabModule** dependencies, unsigned int dep_len);
 
     /**
+     * add given dependencies to the given module, this should be used when putting dependencies
+     * into a module, because this takes care of informing about dependents as well
+     */
+    static void add_dependencies(LabModule* module, LabModule** dependencies, unsigned int dep_len);
+
+    /**
      * add given dependencies to the given module
      */
     static void add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len);

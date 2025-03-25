@@ -71,7 +71,7 @@ static bool verify_app_build_func_type(FunctionDeclaration* found, const std::st
 void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imported, std::vector<LabModule*>& flat_map) {
     auto found = imported.find(file);
     if(found == imported.end()) {
-        for(auto nested : file->dependencies) {
+        for(auto nested : file->get_dependencies()) {
             recursive_dedupe(nested, imported, flat_map);
         }
         imported[file] = true;
@@ -80,11 +80,8 @@ void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imp
 }
 
 /**
- * same as above, only it operates on multiple modules, it de-dupes the dependent modules
+ * same as above, only it operates on multiple modules, it de-dupes the dependencies modules
  * of the given list of modules and also sorts them
- * TODO
- * 1 - avoid direct cyclic dependencies a depends on b and b depends on a
- * 2 - avoid indirect cyclic dependencies a depends on b and b depends on c and c depends on a
  */
 std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules) {
     std::vector<LabModule*> new_modules;
@@ -95,18 +92,27 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
     return new_modules;
 }
 
+// this works on dependents instead of dependencies, making sure dependents are compiled later
+void recursive_dedupe_wd(LabModule* file, std::unordered_map<LabModule*, bool>& imported, std::vector<LabModule*>& flat_map) {
+    auto found = imported.find(file);
+    if(found == imported.end()) {
+        imported[file] = true;
+        flat_map.emplace_back(file);
+        for(auto nested : file->dependents) {
+            recursive_dedupe(nested, imported, flat_map);
+        }
+    }
+}
+
 /**
  * same as above, only it operates on multiple modules, it de-dupes the dependent modules
  * of the given list of modules and also sorts them
- * TODO
- * 1 - avoid direct cyclic dependencies a depends on b and b depends on a
- * 2 - avoid indirect cyclic dependencies a depends on b and b depends on c and c depends on a
  */
-std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<std::unique_ptr<LabModule>>& modules) {
+std::vector<LabModule*> flatten_dedupe_sorted_wd(const std::vector<LabModule*>& modules) {
     std::vector<LabModule*> new_modules;
     std::unordered_map<LabModule*, bool> imported;
-    for(auto& mod : modules) {
-        recursive_dedupe(mod.get(), imported, new_modules);
+    for(auto mod : modules) {
+        recursive_dedupe_wd(mod, imported, new_modules);
     }
     return new_modules;
 }
@@ -379,13 +385,13 @@ int LabBuildCompiler::process_module_tcc(
     std::vector<ASTFileMetaData> direct_files;
 
     // this would determine the direct files for the module
-    processor.determine_mod_files(direct_files, mod);
+    processor.determine_module_files(direct_files, mod);
 
-    // let's check object file if it already exists
-    if(fs::exists(mod->object_path.to_view())) {
+    // let's check object file if it already exists (for caching)
+    if(caching && fs::exists(mod->object_path.to_view())) {
 
         if (verbose) {
-            std::cout << "[lab] " << "found object file '" << mod->object_path << "', checking timestamp." << std::endl;
+            std::cout << "[lab] " << "found cached object file '" << mod->object_path << "', checking timestamp." << std::endl;
         }
 
         // let's check if module timestamp file exists and is valid (files haven't changed)
@@ -403,8 +409,8 @@ int LabBuildCompiler::process_module_tcc(
             std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
         }
 
-    } else if(verbose) {
-        std::cout << "[lab] " << "couldn't find object file at '" << mod->object_path << "'" << std::endl;
+    } else if(caching && verbose) {
+        std::cout << "[lab] " << "couldn't find cached object file at '" << mod->object_path << "'" << std::endl;
     }
 
     // ---------- HEAVY WORK BEGINS HERE ----------------
@@ -418,7 +424,7 @@ int LabBuildCompiler::process_module_tcc(
 
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
-    if(!processor.import_mod_files(pool, module_files, direct_files, mod)) {
+    if(!processor.import_module_files(pool, module_files, direct_files, mod)) {
         return 1;
     }
 
@@ -591,13 +597,13 @@ int LabBuildCompiler::process_module_gen(
     std::vector<ASTFileMetaData> direct_files;
 
     // this would determine the direct files for the module
-    processor.determine_mod_files(direct_files, mod);
+    processor.determine_module_files(direct_files, mod);
 
-    // let's check object file if it already exists
-    if(fs::exists(mod->object_path.to_view())) {
+    // let's check object file if it already exists (for caching)
+    if(caching && fs::exists(mod->object_path.to_view())) {
 
         if (verbose) {
-            std::cout << "[lab] " << "found object file '" << mod->object_path << "', checking timestamp." << std::endl;
+            std::cout << "[lab] " << "found cached object file '" << mod->object_path << "', checking timestamp" << std::endl;
         }
 
         // let's check if module timestamp file exists and is valid (files haven't changed)
@@ -615,8 +621,8 @@ int LabBuildCompiler::process_module_gen(
             std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
         }
 
-    } else if(verbose) {
-        std::cout << "[lab] " << "couldn't find object file at '" << mod->object_path << "'" << std::endl;
+    } else if(caching && verbose) {
+        std::cout << "[lab] " << "couldn't find cached object file at '" << mod->object_path << "'" << std::endl;
     }
 
     // ---------- HEAVY WORK BEGINS HERE ----------------
@@ -630,7 +636,7 @@ int LabBuildCompiler::process_module_gen(
 
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
-    processor.import_mod_files(pool, module_files, direct_files, mod);
+    processor.import_module_files(pool, module_files, direct_files, mod);
 
     const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
     if(mod_data_path) {
@@ -1510,7 +1516,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         if(modDependency == nullptr) {
             return nullptr;
         }
-        module->dependencies.emplace_back(modDependency);
+        module->add_dependency(modDependency);
     }
 
     // clear the allocators
@@ -1531,9 +1537,6 @@ bool LabBuildCompiler::compile_dependencies_tcc(
         std::stringstream& output_ptr
 ) {
 
-    // figure out path for lab modules directory
-    const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");
-
     // direct module dependencies (in no valid order)
     std::vector<LabModule*> mod_dependencies;
 
@@ -1548,8 +1551,13 @@ bool LabBuildCompiler::compile_dependencies_tcc(
         mod_dependencies.emplace_back(mod);
     }
 
-    // in the order of least dependence
+    // sorted in the order of least dependence (flattened with all the dependencies in one vector)
     outModDependencies = flatten_dedupe_sorted(mod_dependencies);
+
+    // figure out path for lab modules directory
+    const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");
+
+    // processing flattened dependencies
     for(const auto mod : outModDependencies) {
 
         // the timestamp file is what determines whether the module needs to be rebuilt again
@@ -1632,8 +1640,11 @@ TCCState* LabBuildCompiler::built_lab_file(
         lab_processor.figure_out_module_dependency_based_on_import(imported, buildLabMetaData, buildLabModuleDependencies);
     }
 
+    // flattened dependencies, including all (+nested) dependencies in a single vector
+    std::vector<LabModule*> flattened_dependencies;
+
     // compile all dependencies to object files
-    if(!compile_dependencies_tcc(context, buildLabModuleDependencies, chemical_lab_module.dependencies, lab_processor, c_visitor, output_ptr)) {
+    if(!compile_dependencies_tcc(context, buildLabModuleDependencies, flattened_dependencies, lab_processor, c_visitor, output_ptr)) {
         return nullptr;
     }
 
@@ -1768,7 +1779,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // add module object files
-    for(const auto dep : chemical_lab_module.dependencies) {
+    for(const auto dep : flattened_dependencies) {
         if(tcc_add_file(state, dep->object_path.data()) == -1) {
             std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of 'build.lab'" << std::endl;
             tcc_delete(state);

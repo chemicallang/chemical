@@ -189,18 +189,22 @@ public:
     );
 
     /**
-     * determines the files in a module, if it's a directory module, we traverse the directory
-     * if it's a files module, we include all the files
+     * determine the direct files in the module, for example if this is a directory module
+     * we traverse the whole directory and it's nested folders to determine direct files
+     * this doesn't take into account import statements that import files that aren't present
+     * inside the module
      */
-    void determine_mod_files(
+    void determine_module_files(
             std::vector<ASTFileMetaData>& outFiles,
             LabModule* module
     );
 
     /**
-     * imports module files
+     * imports files in a module, this just lexes and parses the file, no symbol resolution
+     * the given 'files' are lexed and parsed into units which are put into 'out_files'
+     * it also takes into account files imported using import statements inside the files
      */
-    bool import_mod_files(
+    bool import_module_files(
             ctpl::thread_pool& pool,
             std::vector<ASTFileResult*>& out_files,
             std::vector<ASTFileMetaData>& files,

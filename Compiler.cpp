@@ -310,7 +310,7 @@ void include_mod_command_modules(
             if(mod_type == LabModuleType::Directory) {
                 job.path_aliases[name.str()] = path.str();
             }
-            main_mod->dependencies.emplace_back(mod);
+            main_mod->add_dependency(mod);
         } else {
             std::cerr << rang::fg::red << "the argument to --" << command_key << " must be formatted as <name>:<path>" << rang::fg::reset;
         }
@@ -784,12 +784,12 @@ int main(int argc, char *argv[]) {
             auto dep = new LabModule(LabModuleType::CFile, chem::string(""), chem::string(""));
             dependencies.emplace_back(dep);
             dep->paths.emplace_back(std::string(arg));
-            module.dependencies.emplace_back(dep);
+            module.add_dependency(dep);
         } else if(arg.ends_with(".o")) {
             auto dep = new LabModule(LabModuleType::ObjFile, chem::string(""), chem::string(""));
             dependencies.emplace_back(dep);
             dep->paths.emplace_back(std::string(arg));
-            module.dependencies.emplace_back(dep);
+            module.add_dependency(dep);
         } else {
             module.paths.emplace_back(std::string(arg));
         }

@@ -74,6 +74,12 @@ struct LabModule {
     std::vector<LabModule*> dependencies;
 
     /**
+     * dependents are the pointers to modules that depend on this module
+     * these modules will be compiled after this module has been compiled
+     */
+    std::vector<LabModule*> dependents;
+
+    /**
      * constructor
      */
     LabModule(
@@ -94,6 +100,37 @@ struct LabModule {
         name = std::move(new_module_name);
         module_scope.scope_name = this->scope_name.to_chem_view();
         module_scope.module_name = this->name.to_chem_view();
+    }
+
+    /**
+     * get the dependencies of this module
+     */
+    const std::vector<LabModule*>& get_dependencies() {
+        return dependencies;
+    }
+
+    /**
+     * get the dependents of this module
+     */
+    const std::vector<LabModule*>& get_dependents() {
+        return dependents;
+    }
+
+    /**
+     * add a module dependency into this module
+     */
+    inline void add_dependency(LabModule* dependency) {
+        dependencies.emplace_back(dependency);
+        dependency->dependents.emplace_back(this);
+    }
+
+    /**
+     * will add the given dependencies into this module
+     */
+    void add_dependencies(const std::vector<LabModule*>& deps) {
+        for(const auto dep : deps) {
+            add_dependency(dep);
+        }
     }
 
 };

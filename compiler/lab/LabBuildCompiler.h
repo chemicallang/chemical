@@ -242,8 +242,7 @@ public:
     );
 
     /**
-     * compile dependencies using tcc
-     * @return true on success, false on failure
+     * compile dependencies using tcc, this will put the dependencies into the dependent as well
      */
     bool compile_dependencies_tcc(
         LabBuildContext& context,

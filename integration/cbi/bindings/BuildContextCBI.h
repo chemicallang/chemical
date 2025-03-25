@@ -35,17 +35,17 @@ extern "C" {
         chem::string error;
     };
 
-    LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies);
+    LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies);
 
-    LabModule* BuildContextchemical_files_module(LabBuildContext* self, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies);
+    LabModule* BuildContextchemical_files_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies);
 
-    LabModule* BuildContextchemical_dir_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies);
+    LabModule* BuildContextchemical_dir_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies);
 
-    LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies);
+    LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies);
 
-    LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies);
+    LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies);
 
-    LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path);
+    LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path);
 
     void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path);
 

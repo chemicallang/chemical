@@ -14,28 +14,28 @@
 int llvm_ar_main2(const std::span<chem::string_view> &command_args);
 #endif
 
-LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies) {
-    return self->files_module(name, path, path_len, dependencies->ptr, dependencies->size);
+LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies) {
+    return self->files_module(*scope_name, *name, path, path_len, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextchemical_files_module(LabBuildContext* self, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies) {
-    return self->chemical_files_module(name, path, path_len, dependencies->ptr, dependencies->size);
+LabModule* BuildContextchemical_files_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies) {
+    return self->chemical_files_module(*scope_name, *name, path, path_len, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextchemical_dir_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
-    return self->chemical_dir_module(name, path, dependencies->ptr, dependencies->size);
+LabModule* BuildContextchemical_dir_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
+    return self->chemical_dir_module(*scope_name, *name, path, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
-    return self->c_file_module(name, path, dependencies->ptr, dependencies->size);
+LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
+    return self->c_file_module(*scope_name, *name, path, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
-    return self->cpp_file_module(name, path, dependencies->ptr, dependencies->size);
+LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
+    return self->cpp_file_module(*scope_name, *name, path, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* name, chem::string_view* path) {
-    return self->obj_file_module(name, path);
+LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path) {
+    return self->obj_file_module(*scope_name, *name, path);
 }
 
 void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path) {

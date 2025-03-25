@@ -67,22 +67,22 @@ public struct PathResolutionResult {
 public struct BuildContext {
 
     // support's paths with .o, .c and .ch extensions
-    func files_module (&self, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
+    func files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
 
     // when paths only contain chemical files
-    func chemical_files_module (&self, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
+    func chemical_files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
 
     // directory module
-    func chemical_dir_module (&self, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
+    func chemical_dir_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
 
     // a single .c file
-    func c_file_module (&self, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
+    func c_file_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
 
     // a single .cpp file
-    func cpp_file_module (&self, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
+    func cpp_file_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
 
     // a single .o file
-    func object_module (&self, name : &std::string_view, path : &std::string_view) : *mut Module
+    func object_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view) : *mut Module
 
     // resolves a path, this allows to get exact path to the library or file
     // you can resolve for example where the std library is using base_path empty and path "@std/"
@@ -156,18 +156,18 @@ public struct BuildContext {
 
 }
 
-public func (ctx : &BuildContext) chemical_file_module(name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) chemical_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     const path_ptr = &path;
-    return ctx.chemical_files_module(name, &path_ptr, 1, dependencies);
+    return ctx.chemical_files_module(scope_name, name, &path_ptr, 1, dependencies);
 }
 
-public func (ctx : &BuildContext) file_module(name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     const path_ptr = &path;
-    return ctx.files_module(name, &path_ptr, 1, dependencies);
+    return ctx.files_module(scope_name, name, &path_ptr, 1, dependencies);
 }
 
 public func (ctx : &BuildContext) translate_file_to_chemical (c_path : &std::string_view, output_path : &std::string_view) : *mut LabJob {
-    const mod = ctx.file_module(std::string_view("CFile"), c_path, {  });
+    const mod = ctx.file_module(std::string_view(""), std::string_view("CFile"), c_path, {  });
     return ctx.translate_to_chemical(mod, output_path);
 }
 
@@ -176,7 +176,7 @@ public func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_di
 }
 
 public func (ctx : &BuildContext) translate_file_to_c(chem_path : &std::string, output_path : &std::string_view) : *mut LabJob {
-    var mod = ctx.file_module(std::string_view("TempChem"), chem_path, {});
+    var mod = ctx.file_module(std::string_view(""), std::string_view("TempChem"), chem_path, {});
     return ctx.translate_mod_to_c(mod, output_path);
 }
 

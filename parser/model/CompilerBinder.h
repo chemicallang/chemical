@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CBIData.h"
-#include "compiler/cbi/Model.h"
+#include "compiler/cbi/model/Model.h"
 #include <unordered_map>
 #include "std/chem_string_view.h"
-#include "integration/cbi/bindings/CBI.h"
+#include "compiler/cbi/bindings/CBI.h"
 
 class ASTProcessor;
 
@@ -72,7 +72,7 @@ public:
      * a map between interface names like Lexer, SourceProvider and their actual symbols
      * these symbols correspond to function pointers in the our source code
      */
-    std::unordered_map<std::string_view, std::span<const std::pair<chem::string_view, void*>>> interface_maps;
+    std::unordered_map<chem::string_view, std::span<const std::pair<chem::string_view, void*>>> interface_maps;
 
     /**
      * diagnostics during compilation of c files
@@ -103,6 +103,11 @@ public:
         const std::vector<std::string>& compiler_interfaces,
         ASTProcessor& processor
     );
+
+    /**
+     * imports the given compiler interfaces
+     */
+    static void import_compiler_interface(const std::span<const std::pair<chem::string_view, void*>>& interface, TCCState* state);
 
     /**
      * import compiler interface with the given name

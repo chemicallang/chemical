@@ -11,7 +11,7 @@
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
-#include "integration/cbi/bindings/CBI.h"
+#include "compiler/cbi/bindings/CBI.h"
 #include "rang.hpp"
 
 void handle_error(void *opaque, const char *msg){
@@ -23,8 +23,14 @@ CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_pa
     prepare_cbi_maps(interface_maps);
 }
 
+void CompilerBinder::import_compiler_interface(const std::span<const std::pair<chem::string_view, void*>>& interface, TCCState* state) {
+    for(auto& sym : interface) {
+        tcc_add_symbol(state, sym.first.data(), sym.second);
+    }
+}
+
 bool CompilerBinder::import_compiler_interface(const std::string& name, TCCState* state) {
-    auto map = interface_maps.find(name);
+    auto map = interface_maps.find(chem::string_view(name));
     if(map != interface_maps.end()) {
         for(auto& sym : map->second) {
             tcc_add_symbol(state, sym.first.data(), sym.second);

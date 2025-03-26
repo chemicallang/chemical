@@ -13,8 +13,6 @@
 #include "integration/common/Diagnostic.h"
 #include <memory>
 #include <optional>
-#include "model/CompilerBinder.h"
-#include "integration/cbi/bindings/CBI.h"
 #include "compiler/ASTDiagnoser.h"
 #include "lexer/Token.h"
 #include "ast/base/ASTAllocator.h"

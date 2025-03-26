@@ -9,6 +9,7 @@
 #include "compiler/InvokeUtils.h"
 #include "preprocess/ImportPathHandler.h"
 #include "CBIUtils.h"
+#include "parser/model/CompilerBinder.h"
 
 #ifdef COMPILER_BUILD
 int llvm_ar_main2(const std::span<chem::string_view> &command_args);
@@ -36,6 +37,17 @@ LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string_view*
 
 LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path) {
     return self->obj_file_module(*scope_name, *name, path);
+}
+
+bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface) {
+    auto& maps = self->binder.interface_maps;
+    auto found = maps.find(*interface);
+    if(found != maps.end()) {
+        module->compiler_interfaces.emplace_back(found->second);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path) {

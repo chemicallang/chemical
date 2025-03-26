@@ -13,7 +13,7 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "std/chem_string.h"
 #include "rang.hpp"
-#include "integration/cbi/bindings/CBI.h"
+#include "compiler/cbi/bindings/CBI.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include <filesystem>

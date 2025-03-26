@@ -308,10 +308,10 @@ set(COMMON_SOURCES
         utils/Benchmark.cpp
         compiler/ASTDiagnoser.h
         compiler/ASTDiagnoser.cpp
-        integration/cbi/model/LexResult.h
-        integration/cbi/model/LexImportUnit.h
-        integration/cbi/model/FlatIGFile.h
-        integration/cbi/model/ImportUnitCache.h
+        compiler/cbi/model/LexResult.h
+        compiler/cbi/model/LexImportUnit.h
+        compiler/cbi/model/FlatIGFile.h
+        compiler/cbi/model/ImportUnitCache.h
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp
         integration/common/Location.h
@@ -327,8 +327,8 @@ set(COMMON_SOURCES
         compiler/ASTDiag.h
         compiler/ASTProcessor.cpp
         utils/PathUtils.h
-        integration/cbi/bindings/CBI.h
-        integration/cbi/bindings/CBI.cpp
+        compiler/cbi/bindings/CBI.h
+        compiler/cbi/bindings/CBI.cpp
         parser/CompilerBinder.cpp
         parser/model/CompilerBinder.h
         ast/utils/ASTUtils.h
@@ -416,8 +416,8 @@ set(COMMON_SOURCES
         utils/Environment.h
         ast/base/ASTAnyKind.h
         ast/base/ASTUnit.h
-        integration/cbi/model/ASTImportUnitRef.h
-        integration/cbi/model/ASTResult.h
+        compiler/cbi/model/ASTImportUnitRef.h
+        compiler/cbi/model/ASTResult.h
         preprocess/2c/CBeforeStmtVisitor.h
         preprocess/2c/CAfterStmtVisitor.h
         preprocess/2c/CTopLevelDeclVisitor.h
@@ -433,17 +433,16 @@ set(COMMON_SOURCES
         ast/base/ASTAllocator.h
         ast/base/ASTAllocator.cpp
         parser/model/CBIData.h
-        integration/cbi/bindings/BuildContextCBI.h
-        integration/cbi/bindings/BuildContextCBI.cpp
-        integration/cbi/bindings/CBIUtils.h
-        integration/cbi/bindings/SourceProviderCBI.cpp
-        integration/cbi/bindings/SourceProviderCBI.h
-        integration/cbi/bindings/PtrVecCBI.h
-        integration/cbi/bindings/PtrVecCBI.cpp
-        integration/cbi/bindings/ASTBuilderCBI.h
-        integration/cbi/bindings/ASTBuilderCBI.cpp
-        integration/cbi/bindings/ASTCBI.h
-        integration/cbi/model/ASTImportUnit.h
+        compiler/cbi/bindings/BuildContextCBI.h
+        compiler/cbi/bindings/BuildContextCBI.cpp
+        compiler/cbi/bindings/CBIUtils.h
+        compiler/cbi/bindings/SourceProviderCBI.cpp
+        compiler/cbi/bindings/SourceProviderCBI.h
+        compiler/cbi/bindings/PtrVecCBI.h
+        compiler/cbi/bindings/PtrVecCBI.cpp
+        compiler/cbi/bindings/ASTBuilderCBI.h
+        compiler/cbi/bindings/ASTBuilderCBI.cpp
+        compiler/cbi/bindings/ASTCBI.h
         ast/statements/ProvideStmt.h
         ast/statements/ProvideStmt.cpp
         ast/types/Float128Type.h
@@ -466,27 +465,26 @@ set(COMMON_SOURCES
         lexer/Token.h
         lexer/LexUnit.h
         std/alloc/SerialStrAllocator.h
-        compiler/cbi/Model.h
         std/chem_span.h
         std/chem_string_view.h
         std/small_vector.h
         ast/values/AlignOfValue.h
-        integration/cbi/bindings/BatchAllocatorCBI.h
-        integration/cbi/bindings/BatchAllocatorCBI.cpp
-        integration/cbi/bindings/SerialStrAllocatorCBI.h
-        integration/cbi/bindings/SerialStrAllocator.cpp
-        integration/cbi/bindings/LexerCBI.h
-        integration/cbi/bindings/LexerCBI.cpp
+        compiler/cbi/bindings/BatchAllocatorCBI.h
+        compiler/cbi/bindings/BatchAllocatorCBI.cpp
+        compiler/cbi/bindings/SerialStrAllocatorCBI.h
+        compiler/cbi/bindings/SerialStrAllocator.cpp
+        compiler/cbi/bindings/LexerCBI.h
+        compiler/cbi/bindings/LexerCBI.cpp
         ast/values/NewTypedValue.h
         ast/values/NewValue.h
         ast/values/PlacementNewValue.h
         ast/values/NewValue.cpp
-        integration/cbi/bindings/ParserCBI.cpp
+        compiler/cbi/bindings/ParserCBI.cpp
         ast/statements/ValueWrapperNode.h
         ast/values/SymResValue.h
         ast/statements/SymResNode.h
-        integration/cbi/bindings/SymbolResolverCBI.h
-        integration/cbi/bindings/SymbolResolverCBI.cpp
+        compiler/cbi/bindings/SymbolResolverCBI.h
+        compiler/cbi/bindings/SymbolResolverCBI.cpp
         ast/values/IncDecValue.h
         ast/values/ComptimeValue.h
         ast/values/UnsafeValue.h
@@ -541,6 +539,14 @@ set(COMMON_SOURCES
         compiler/processor/ASTFileResult.h
         parser/utils/ParseModDecl.cpp
         parser/utils/ParseModDecl.h
+        compiler/cbi/model/ASTImportUnit.h
+        compiler/cbi/model/ASTImportUnitRef.h
+        compiler/cbi/model/ASTResult.h
+        compiler/cbi/model/FlatIGFile.h
+        compiler/cbi/model/ImportUnitCache.h
+        compiler/cbi/model/LexImportUnit.h
+        compiler/cbi/model/LexResult.h
+        compiler/cbi/model/Model.h
 )
 
 # Chemical LSP Executable Target

@@ -3,7 +3,7 @@
 #include "ASTProcessor.h"
 
 #include <memory>
-#include "parser/model/CompilerBinder.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "parser/Parser.h"
 #include "compiler/SymbolResolver.h"
 #include "preprocess/2c/2cASTVisitor.h"
@@ -549,7 +549,12 @@ bool ASTProcessor::import_chemical_file(
 
 }
 
-bool ASTProcessor::import_chemical_mod_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path) {
+bool ASTProcessor::import_chemical_mod_file(
+        ASTFileResult& result,
+        ModuleFileData& data,
+        unsigned int fileId,
+        const std::string_view& abs_path
+) {
 
     auto& unit = result.unit;
 
@@ -610,10 +615,10 @@ bool ASTProcessor::import_chemical_mod_file(ASTFileResult& result, unsigned int 
     if(options->benchmark) {
         result.parse_benchmark = std::make_unique<BenchmarkResults>();
         result.parse_benchmark->benchmark_begin();
-        parser.parseModuleFile(unit.scope.body.nodes);
+        parser.parseModuleFile(unit.scope.body.nodes, data);
         result.parse_benchmark->benchmark_end();
     } else {
-        parser.parseModuleFile(unit.scope.body.nodes);
+        parser.parseModuleFile(unit.scope.body.nodes, data);
     }
 
     result.parse_diagnostics = std::move(parser.diagnostics);

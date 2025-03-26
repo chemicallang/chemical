@@ -2,7 +2,7 @@
 
 #include <sstream>
 #include <utility>
-#include "parser/model/CompilerBinder.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "utils/PathUtils.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "compiler/ASTProcessor.h"

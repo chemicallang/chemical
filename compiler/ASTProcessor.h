@@ -7,7 +7,7 @@
 #include "ast/structures/Scope.h"
 #include "ASTProcessorOptions.h"
 #include "ASTDiag.h"
-#include "parser/model/CompilerBinder.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/lab/LabModule.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/Benchmark.h"
@@ -19,6 +19,7 @@
 #include "compiler/symres/SymbolRange.h"
 #include "compiler/processor/ASTFileResult.h"
 #include "compiler/processor/BuildLabModuleDependency.h"
+#include "compiler/processor/ModuleFileData.h"
 #include <span>
 #include <mutex>
 
@@ -254,7 +255,12 @@ public:
      * import chemical file with absolute path to it
      * @return true if success importing file, false otherwise
      */
-    bool import_chemical_mod_file(ASTFileResult& result, unsigned int fileId, const std::string_view& absolute_path);
+    bool import_chemical_mod_file(
+            ASTFileResult& result,
+            ModuleFileData& data,
+            unsigned int fileId,
+            const std::string_view& absolute_path
+    );
 
     /**
      * lex, parse in file and return Scope containing nodes

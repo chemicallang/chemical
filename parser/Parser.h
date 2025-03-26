@@ -21,6 +21,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/Annotation.h"
 #include "ast/base/LocatedIdentifier.h"
+#include "compiler/processor/ModuleFileData.h"
 
 class CompilerBinder;
 
@@ -192,7 +193,7 @@ public:
      * a module file is a .mod file that defines which modules are imported
      * by a single module, and it's scope and module declaration
      */
-    void parseModuleFile(std::vector<ASTNode*>& nodes);
+    void parseModuleFile(std::vector<ASTNode*>& nodes, ModuleFileData& data);
 
     // ------------- Functions exposed to chemical begin here
 

@@ -41,7 +41,7 @@
 #include "utils/FileUtils.h"
 #include "compiler/backend/LLVMBackendContext.h"
 #include "preprocess/2c/2cBackendContext.h"
-#include "parser/model/CompilerBinder.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/SelfInvocation.h"
 #include "utils/CmdUtils.h"
 
@@ -1678,8 +1678,11 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     auto buildLabFileId = loc_man.encodeFile(modFilePath);
     ASTFileResult modResult(buildLabFileId, modFilePath, (ModuleScope*) nullptr);
 
+    // module file data
+    ModuleFileData modFileData;
+
     // import the file into result (lex and parse)
-    if (!lab_processor.import_chemical_mod_file(modResult, buildLabFileId, modFilePath)) {
+    if (!lab_processor.import_chemical_mod_file(modResult, modFileData, buildLabFileId, modFilePath)) {
         return nullptr;
     }
 
@@ -1700,6 +1703,9 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     // create a new module
     auto path_view = chem::string_view(srcDirPath);
     const auto module = context.chemical_dir_module(scope_name, module_name, &path_view, nullptr, 0);
+
+    // importing all compiler interfaces user requested inside the .mod file
+    module->compiler_interfaces = std::move(modFileData.compiler_interfaces);
 
     if (verbose) {
         std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;

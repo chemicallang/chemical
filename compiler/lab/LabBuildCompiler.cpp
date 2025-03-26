@@ -1936,13 +1936,10 @@ TCCState* LabBuildCompiler::built_lab_file(
         // prepare for jit
         prepare_tcc_state_for_jit(state);
 
-        // import all compiler interfaces the lab files import
-        // TODO: we need to import all compiler interfaces, or the ones needed, currently this importing via writing annotation is not good !
-        for(const auto& interface : *c_visitor.compiler_interfaces) {
-            if(!binder.import_compiler_interface(interface, state)) {
-                std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to import compiler binding interface '" << interface << '\'' << rang::fg::reset << std::endl;
-                tcc_delete(state);
-                return nullptr;
+        // import all compiler interfaces the modules require
+        for(const auto mod : outModDependencies) {
+            for(auto& interface : mod->compiler_interfaces) {
+                CompilerBinder::import_compiler_interface(interface, state);
             }
         }
 

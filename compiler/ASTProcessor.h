@@ -13,7 +13,7 @@
 #include "utils/Benchmark.h"
 #include "ast/base/ASTUnit.h"
 #include "ast/base/ASTAllocator.h"
-#include "integration/cbi/bindings/CBI.h"
+#include "compiler/cbi/bindings/CBI.h"
 #include "integration/common/Diagnostic.h"
 #include "cst/LocationManager.h"
 #include "compiler/symres/SymbolRange.h"

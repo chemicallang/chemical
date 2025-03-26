@@ -6,7 +6,7 @@
 #include "Token.h"
 #include "LexUnit.h"
 #include "std/alloc/SerialStrAllocator.h"
-#include "compiler/cbi/Model.h"
+#include "compiler/cbi/model/Model.h"
 #include "cst/base/CSTDiagnoser.h"
 
 class CompilerBinder;

@@ -84,6 +84,10 @@ public struct BuildContext {
     // a single .o file
     func object_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view) : *mut Module
 
+    // adds the given compiler interface to the module
+    // returns true if it succeeds
+    func add_compiler_interface(&self, module : *mut Module, interface : &std::string_view) : bool
+
     // resolves a path, this allows to get exact path to the library or file
     // you can resolve for example where the std library is using base_path empty and path "@std/"
     func resolve_import_path(&self, base_path : &std::string_view, path : &std::string_view) : PathResolutionResult

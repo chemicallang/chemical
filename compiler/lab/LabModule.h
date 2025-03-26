@@ -5,10 +5,10 @@
 #include <vector>
 #include <memory>
 #include "LabModuleType.h"
-#include "integration/cbi/model/FlatIGFile.h"
 #include "std/chem_string.h"
 #include "ast/structures/ModuleScope.h"
 #include "compiler/processor/ASTFileMetaData.h"
+#include <span>
 
 struct LabModule {
 
@@ -67,6 +67,13 @@ struct LabModule {
      * depends on the type of module
      */
     std::vector<chem::string> paths;
+
+    /**
+     * these are interfaces (that contain functions)required by the module
+     * which will be implemented by the compiler, to provide interaction between
+     * module and compiler's api (cool, isn't it)
+     */
+    std::vector<std::span<const std::pair<chem::string_view, void*>>> compiler_interfaces;
 
     /**
      * these files are calculated before compilation to see which direct files

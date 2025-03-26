@@ -30,6 +30,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "BuildContextc_file_module", (void*) BuildContextc_file_module },
         { "BuildContextcpp_file_module", (void*) BuildContextcpp_file_module },
         { "BuildContextobject_module", (void*) BuildContextobject_module },
+        { "BuildContextadd_compiler_interface", (void*) BuildContextadd_compiler_interface },
         { "BuildContextresolve_import_path", (void*) BuildContextresolve_import_path },
         { "BuildContextinclude_header", (void*) BuildContextinclude_header },
         { "BuildContexttranslate_to_chemical", (void*) BuildContexttranslate_to_chemical },
@@ -252,7 +253,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "InitBlockadd_initializer", (void*) InitBlockadd_initializer },
 };
 
-void prepare_cbi_maps(std::unordered_map<std::string_view, std::span<const std::pair<chem::string_view, void*>>>& interface_maps) {
+void prepare_cbi_maps(std::unordered_map<chem::string_view, std::span<const std::pair<chem::string_view, void*>>>& interface_maps) {
     interface_maps.reserve(9);
     interface_maps.emplace("SourceProvider", SourceProviderSymMap);
     interface_maps.emplace("BatchAllocator", BatchAllocatorSymMap);

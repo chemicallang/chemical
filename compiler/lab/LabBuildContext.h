@@ -5,7 +5,7 @@
 #include "std/chem_string.h"
 #include "LabModule.h"
 #include "LabJob.h"
-#include "integration/cbi/model/FlatIGFile.h"
+#include "compiler/cbi/model/FlatIGFile.h"
 #include "LabBuildCompilerOptions.h"
 #include "parser/model/CBIData.h"
 #include "ModuleStorage.h"
@@ -13,6 +13,8 @@
 #include <unordered_map>
 
 class ImportPathHandler;
+
+class CompilerBinder;
 
 std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules);
 
@@ -38,6 +40,10 @@ public:
     ImportPathHandler& handler;
     // the module storage
     ModuleStorage& storage;
+    /**
+     * the compiler binder is used to provide the binding support
+     */
+    CompilerBinder& binder;
     // the compiler options sent by the user
     LabBuildCompilerOptions* options;
 
@@ -57,8 +63,9 @@ public:
         LabBuildCompilerOptions* options,
         ImportPathHandler& path_handler,
         ModuleStorage& storage,
+        CompilerBinder& binder,
         std::string lab_file
-    ) : handler(path_handler), options(options), storage(storage) {
+    ) : handler(path_handler), options(options), storage(storage), binder(binder) {
 
     }
 

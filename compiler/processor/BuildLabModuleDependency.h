@@ -4,8 +4,17 @@
 
 #include <string>
 
-class ASTFileMetaData;
+class ASTFileResult;
 
+/**
+ * a build lab dependency is formed by an import statement
+ * which modules build.lab depends on, we have to parse every file it imports down the tree
+ * when we have the tree, we figure out which imports use '@' and so we try and find the module
+ * and process it which creates an object of this struct, the module_dir_path is the path
+ * we have determined for that module, fileResult is only present if we have imported the file
+ * in a build.lab, in that case this file may have been processed already before
+ *
+ */
 struct BuildLabModuleDependency {
 
     /**
@@ -14,10 +23,14 @@ struct BuildLabModuleDependency {
     std::string module_dir_path;
 
     /**
-     * the file import in the build.lab that told us about this module dependency
-     * this is only set in case the file is being imported in a build.lab file
+     * this file is the one that belongs to this module dependency and was imported from this
+     * module in a build.lab, we have already processed this single file from this module
+     * however we haven't parsed / compiled the entire module
+     * there's one problem, this file thinks it belongs to the module we created for root build.lab
+     * file, however it belongs to this module dependency that we haven't parsed / compiled, and
+     * after we do that, we'll let this file know (by changing module scope pointer in it)
      */
-    ASTFileMetaData* importer_file = nullptr;
+    ASTFileResult* fileResult = nullptr;
 
     /**
      * the scope name given by the user
@@ -34,10 +47,10 @@ struct BuildLabModuleDependency {
      */
     BuildLabModuleDependency(
             std::string module_dir_path,
-            ASTFileMetaData* importer_file,
+            ASTFileResult* fileResult,
             chem::string_view scope_name,
             chem::string_view mod_name
-    ) : module_dir_path(std::move(module_dir_path)), importer_file(importer_file), scope_name(scope_name), mod_name(mod_name) {
+    ) : module_dir_path(std::move(module_dir_path)), fileResult(fileResult), scope_name(scope_name), mod_name(mod_name) {
 
     }
 

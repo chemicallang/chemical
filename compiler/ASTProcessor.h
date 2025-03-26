@@ -224,8 +224,7 @@ public:
      * importer's modules
      */
     void figure_out_module_dependency_based_on_import(
-            ASTFileMetaData& imported,
-            ASTFileMetaData& importer,
+            ASTFileResult& imported,
             std::vector<BuildLabModuleDependency>& dependencies
     );
 

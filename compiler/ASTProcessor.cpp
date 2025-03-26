@@ -637,8 +637,7 @@ bool ASTProcessor::import_chemical_mod_file(
 // and we can't determine which modules it depends on because one of the non-imported files may
 // have dependencies on other modules (in other words, an import tree in our language doesn't tell us the complete module graph)
 void ASTProcessor::figure_out_module_dependency_based_on_import(
-        ASTFileMetaData& imported,
-        ASTFileMetaData& importer,
+        ASTFileResult& imported,
         std::vector<BuildLabModuleDependency>& dependencies
 ) {
 

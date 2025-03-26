@@ -7,7 +7,7 @@
 #include "LabJob.h"
 #include "compiler/cbi/model/FlatIGFile.h"
 #include "LabBuildCompilerOptions.h"
-#include "parser/model/CBIData.h"
+#include "compiler/cbi/model/CBIData.h"
 #include "ModuleStorage.h"
 #include <vector>
 #include <unordered_map>

@@ -6,7 +6,7 @@
 #include "LabBuildCompilerOptions.h"
 #include "LabJob.h"
 #include "ctpl.h"
-#include "parser/model/CompilerBinder.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "cst/LocationManager.h"
 #include "preprocess/ImportPathHandler.h"
 #include "compiler/mangler/NameMangler.h"

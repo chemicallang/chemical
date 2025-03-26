@@ -4,7 +4,7 @@
 // Created by Waqas Tahir on 10/03/2024.
 //
 
-#include "parser/model/CompilerBinder.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "parser/Parser.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"

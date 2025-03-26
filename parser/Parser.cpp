@@ -10,6 +10,7 @@
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 #include "ast/base/AnnotableNode.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 
 Parser::Parser(
         unsigned int file_id,
@@ -103,7 +104,7 @@ void Parser::parse(std::vector<ASTNode*>& nodes) {
     parseTopLevelMultipleStatements(mod_allocator, nodes);
 }
 
-void Parser::parseModuleFile(std::vector<ASTNode*>& nodes) {
+void Parser::parseModuleFile(std::vector<ASTNode*>& nodes, ModuleFileData& data) {
     auto& allocator = mod_allocator;
     consumeNewLines();
     const auto pkg_def = skipModuleDefinition(allocator);
@@ -120,6 +121,21 @@ void Parser::parseModuleFile(std::vector<ASTNode*>& nodes) {
                     goto loop_break;
                 }
                 break;
+            }
+            case TokenType::InterfaceKw: {
+                token++;
+                const auto id = consumeIdentifierOrKeyword();
+                if(id) {
+                    auto found = binder->interface_maps.find(id->value);
+                    if(found != binder->interface_maps.end()) {
+                        data.compiler_interfaces.emplace_back(found->second);
+                        consumeToken(TokenType::SemiColonSym);
+                    } else {
+                        error() << "unknown compiler binding interface '" << id->value << '\'';
+                    }
+                } else {
+                    break;
+                }
             }
             case TokenType::VarKw:
             case TokenType::ConstKw:

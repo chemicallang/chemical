@@ -9,7 +9,7 @@
 #include "compiler/InvokeUtils.h"
 #include "preprocess/ImportPathHandler.h"
 #include "CBIUtils.h"
-#include "parser/model/CompilerBinder.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 
 #ifdef COMPILER_BUILD
 int llvm_ar_main2(const std::span<chem::string_view> &command_args);

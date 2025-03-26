@@ -330,7 +330,6 @@ set(COMMON_SOURCES
         compiler/cbi/bindings/CBI.h
         compiler/cbi/bindings/CBI.cpp
         parser/CompilerBinder.cpp
-        parser/model/CompilerBinder.h
         ast/utils/ASTUtils.h
         ast/utils/ASTUtils.cpp
         integration/libtcc/LibTccInteg.h
@@ -432,7 +431,6 @@ set(COMMON_SOURCES
         ast/structures/UnsafeBlock.cpp
         ast/base/ASTAllocator.h
         ast/base/ASTAllocator.cpp
-        parser/model/CBIData.h
         compiler/cbi/bindings/BuildContextCBI.h
         compiler/cbi/bindings/BuildContextCBI.cpp
         compiler/cbi/bindings/CBIUtils.h
@@ -547,6 +545,9 @@ set(COMMON_SOURCES
         compiler/cbi/model/LexImportUnit.h
         compiler/cbi/model/LexResult.h
         compiler/cbi/model/Model.h
+        compiler/cbi/model/CBIData.h
+        compiler/cbi/model/CompilerBinder.h
+        compiler/processor/ModuleFileData.h
 )
 
 # Chemical LSP Executable Target

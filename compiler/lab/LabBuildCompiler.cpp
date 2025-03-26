@@ -612,7 +612,7 @@ int LabBuildCompiler::process_module_tcc(
     if(!mod->has_changed) {
 
         if(verbose) {
-            std::cout << "[lab] " << "module hasn't changed, processing cached module" << std::endl;
+            std::cout << "[lab] " << "module " << mod->scope_name << ':' << mod->name << " hasn't changed, processing cached module" << std::endl;
         }
 
         // this will set all the generic instantiations to generated
@@ -1569,6 +1569,11 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         std::stringstream& output_ptr
 ) {
 
+    const auto module = context.storage.find_module(dependency.scope_name, dependency.mod_name);
+    if(module != nullptr) {
+        return module;
+    }
+
     auto& module_path = dependency.module_dir_path;
     auto buildLabPath = resolve_rel_child_path_str(module_path, "build.lab");
     if(std::filesystem::exists(buildLabPath)) {
@@ -1602,11 +1607,6 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         // call the root build.lab build's function
         const auto modPtr = build(&context);
-
-        // since this file belongs to this module, we should set it (since initially this file gets assigned the module it's import is in)
-        if(dependency.importer_file) {
-            dependency.importer_file->module = &modPtr->module_scope;
-        }
 
         // store the mod pointer in cache, so we don't need to build this build.lab again
         buildLabDependenciesCache[std::move(buildLabPath)] = modPtr;
@@ -1717,8 +1717,6 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // module dependencies we determined from directly imported files
     std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
-
-    // figuring out module dependencies from import statements within the .mod file
 
     // some variables for processing
     std::string imp_module_dir_path;
@@ -1848,7 +1846,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         return nullptr;
     }
 
-    // flatten the files to module files (in sorted order)
+    // flatten the files to module files (in sorted order of independence)
     auto module_files = flatten(files_to_flatten);
 
     // the build lab object file (cached)
@@ -1864,7 +1862,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     // imports tell us which modules the build.lab and its imports depend upon
     // we would compile these modules ahead and then process the build.lab
     for(const auto file : module_files) {
-        lab_processor.figure_out_module_dependency_based_on_import(*file, buildLabMetaData, buildLabModuleDependencies);
+        lab_processor.figure_out_module_dependency_based_on_import(*file, buildLabModuleDependencies);
     }
 
     // direct module dependencies (in no valid order)
@@ -1878,6 +1876,13 @@ TCCState* LabBuildCompiler::built_lab_file(
         if(mod == nullptr) {
             return nullptr;
         }
+
+        // we imported this file from this module and it thinks that
+        // it belongs to the build.lab module we created above (because we hadn't created this module before)
+        // lets change this
+        mod_ptr.fileResult->module = &mod->module_scope;
+        mod_ptr.fileResult->unit.scope.set_parent(&mod->module_scope);
+
         mod_dependencies.emplace_back(mod);
     }
 

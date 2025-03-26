@@ -1444,15 +1444,21 @@ int link_objects(
     std::vector<chem::string>& linkables,
     const std::string& output_path,
     const std::vector<std::string>& flags,
-    const std::string_view& target_triple
+    const std::string_view& target_triple,
+    bool use_tcc
 ) {
     int link_result;
 #ifdef COMPILER_BUILD
-    std::vector<std::string> data;
-    for(auto& obj : linkables) {
-        data.emplace_back(obj.data());
+    if(use_tcc) {
+        chem::string copy(comp_exe_path);
+        link_result = tcc_link_objects(copy.mutable_data(), output_path, linkables);
+    } else {
+        std::vector<std::string> data;
+        for (auto& obj: linkables) {
+            data.emplace_back(obj.data());
+        }
+        link_result = link_objects(data, output_path, comp_exe_path, flags, target_triple);
     }
-    link_result = link_objects(data, output_path, comp_exe_path, flags, target_triple);
 #else
     chem::string copy(comp_exe_path);
     link_result = tcc_link_objects(copy.mutable_data(), output_path, linkables);
@@ -1470,10 +1476,10 @@ int link_objects(
     return link_result;
 }
 
-int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::string& output_path) {
+int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::string& output_path, bool use_tcc) {
     std::vector<std::string> flags;
 #ifdef COMPILER_BUILD
-    if(options->no_pie) {
+    if(options->no_pie && !use_tcc) {
         flags.emplace_back("-no-pie");
     }
 #endif
@@ -1494,7 +1500,7 @@ int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::stri
         std::cout << std::endl;
         flags.emplace_back("-v");
     }
-    return link_objects(options->exe_path, linkables, output_path, flags, options->target_triple);
+    return link_objects(options->exe_path, linkables, output_path, flags, options->target_triple, use_tcc);
 }
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {
@@ -1503,7 +1509,7 @@ int LabBuildCompiler::do_executable_job(LabJob* job) {
         return 1;
     }
     // link will automatically detect the extension at the end
-    return link(job->linkables, job->abs_path.to_std_string());
+    return link(job->linkables, job->abs_path.to_std_string(), use_tcc(job));
 }
 
 int LabBuildCompiler::do_library_job(LabJob* job) {
@@ -1512,7 +1518,7 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
         return 1;
     }
     // link will automatically detect the extension at the end
-    return link(job->linkables, job->abs_path.to_std_string());
+    return link(job->linkables, job->abs_path.to_std_string(), use_tcc(job));
 }
 
 int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
@@ -1983,11 +1989,6 @@ TCCState* LabBuildCompiler::built_lab_file(
         // since the job was successful, we can expect an object file at module's object_path
         // we'll use this object file by linking it with tcc
     }
-
-//    // compile all dependencies to object files
-//    if(!compile_dependencies_tcc(context, buildLabModuleDependencies, outModDependencies, lab_processor, c_visitor, output_ptr)) {
-//        return nullptr;
-//    }
 
     // symbol resolve all the files in the module
     const auto sym_res_status = lab_processor.sym_res_module(module_files);

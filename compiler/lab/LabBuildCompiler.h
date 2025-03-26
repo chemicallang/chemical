@@ -179,13 +179,19 @@ public:
 #endif
 
     /**
+     * should use tcc for the job
+     */
+    inline bool use_tcc(LabJob* job) {
+        return options->use_tcc || job->type == LabJobType::ToCTranslation || job->type == LabJobType::CBI;
+    }
+
+    /**
      * processes modules, generates code, or all modules required for linking but doesn't link
      * it also calls appropriate method process job tcc or process job gen
      */
     int process_modules(LabJob* job) {
 #ifdef COMPILER_BUILD
-        const bool use_tcc = options->use_tcc || job->type == LabJobType::ToCTranslation || job->type == LabJobType::CBI;
-        return use_tcc ? (
+        return use_tcc(job) ? (
             process_job_tcc(job)
         ) : (
             process_job_gen(job)
@@ -198,7 +204,7 @@ public:
     /**
      * link process modules result
      */
-    int link(std::vector<chem::string>& result, const std::string& path);
+    int link(std::vector<chem::string>& result, const std::string& path, bool use_tcc);
 
     /**
      * does executable job (generates executable)

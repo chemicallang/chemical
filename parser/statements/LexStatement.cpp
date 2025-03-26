@@ -14,7 +14,6 @@
 #include "ast/statements/AliasStmt.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
-#include "ast/statements/PackageDefinition.h"
 
 ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator) {
     auto specifier = parseAccessSpecifier();
@@ -347,40 +346,34 @@ ComptimeBlock* Parser::parseComptimeBlock(ASTAllocator& allocator) {
     }
 }
 
-PackageDefinition* Parser::parsePackageDefinition(ASTAllocator& allocator) {
+bool Parser::skipModuleDefinition(ASTAllocator& allocator) {
 
-    if(token->value == "package") {
+    if(token->value == "module") {
         token++;
     } else {
-        return nullptr;
+        error("expected a module definition at top");
+        return false;
     }
-
-    const auto pkgDef = new (allocator.allocate<PackageDefinition>()) PackageDefinition(
-        "", "", loc_single(token)
-    );
 
     const auto scope_name = consumeIdentifierOrKeyword();
     if(!scope_name) {
-        error("expected an identifier for 'package' definition");
-        return pkgDef;
+        error("expected an identifier for module definition");
+        return false;
     }
 
     const auto t = token->type;
     if(t == TokenType::DotSym || t == TokenType::DoubleColonSym) {
         token++;
     } else {
-        pkgDef->module_name = allocate_view(allocator, scope_name->value);
-        return pkgDef;
+        return true;
     }
 
     const auto mod_name = consumeIdentifierOrKeyword();
-    if(mod_name) {
-        pkgDef->scope_name = allocate_view(allocator, scope_name->value);
-        pkgDef->module_name = allocate_view(allocator, mod_name->value);
-    } else {
-        error("expected an identifier for 'package' definition");
+    if(!mod_name) {
+        error("expected an identifier for module definition");
+        return false;
     }
 
-    return pkgDef;
+    return true;
 
 }

@@ -1,3 +1,3 @@
-package lab
+module lab
 
 import std

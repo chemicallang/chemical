@@ -1,3 +1,3 @@
-package compiler
+module compiler
 
 import std

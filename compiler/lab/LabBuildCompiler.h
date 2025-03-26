@@ -235,18 +235,6 @@ public:
     );
 
     /**
-     * compile dependencies using tcc, this will put the dependencies into the dependent as well
-     */
-    bool compile_dependencies_tcc(
-        LabBuildContext& context,
-        std::vector<BuildLabModuleDependency>& dependencies,
-        std::vector<LabModule*>& outModDependencies,
-        ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
-        std::stringstream& output_ptr
-    );
-
-    /**
      * a chemical.mod file can be imported using this method into a LabModule*, the dependencies will include
      * all the modules this module depends on (the mod file states this, it recursively parses those modules)
      */

@@ -99,11 +99,9 @@ void tcc_set_debug_options(TCCState* s) {
 TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, bool jit, bool debug) {
 
     // creating a tcc state
-    TCCState *s;
-    s = tcc_new();
+    const auto s = tcc_new();
     if (!s) {
-        fprintf(stderr, "Could not create tcc state\n");
-        exit(1);
+        return nullptr;
     }
 
     /* set custom error/warning printer */
@@ -117,14 +115,16 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
     result = tcc_add_include_path(s, include_dir.data());;
     if (result == -1) {
         std::cerr << rang::fg::red << "error: " << rang::fg::reset;
-        std::cerr << "couldn't include tcc include package" << std::endl;
+        std::cerr << "couldn't include tcc package at '" << include_dir << '\'' << std::endl;
+        tcc_delete(s);
         return nullptr;
     }
 
     result = tcc_add_library_path(s, lib_dir.data());
     if (result == -1) {
         std::cerr << rang::fg::red << "error: " << rang::fg::reset;
-        std::cerr << "couldn't add tcc library package" << std::endl;
+        std::cerr << "couldn't add tcc library package at '" << lib_dir << '\'' << std::endl;
+        tcc_delete(s);
         return nullptr;
     }
 
@@ -149,17 +149,18 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
         // Note: -b is only available on i386 when using libtcc for the moment.
         // -bt N Display N callers in stack traces. This is useful with -g or -b.
         tcc_set_options(s, "-g -bt 4");
-        tcc_set_backtrace_func(s, nullptr, [](void *udata, void *pc, const char *file, int line, const char *func,
-                                              const char *msg) {
-            std::cerr << "[Tcc] error '" << msg << "' in runtime function " << func << " in file "
-                      << file << ':' << line << std::endl;
+        tcc_set_backtrace_func(s, nullptr, [](void *udata, void *pc, const char *file, int line, const char *func, const char *msg) {
+            std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+            std::cerr << '\'' << msg << "' in runtime function " << func << " at " << file << ':' << line << std::endl;
             return 1;
         });
     }
 
     result = tcc_set_output_type(s, outputType);
     if (result == -1) {
-        std::cerr << "Couldn't set tcc output type" << std::endl;
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't set tcc output type" << std::endl;
+        tcc_delete(s);
         return nullptr;
     }
 
@@ -181,9 +182,14 @@ void prepare_tcc_state_for_jit(TCCState* s) {
 TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug) {
 
     auto s = setup_tcc_state(exe_path, outputFileName, jit, debug);
+    if(!s) {
+        return nullptr;
+    }
 
     if (tcc_compile_string(s, program) == -1) {
-        std::cerr << "Couldn't compile the program" << std::endl;
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't compile the program" << std::endl;
+        tcc_delete(s);
         return nullptr;
     }
 

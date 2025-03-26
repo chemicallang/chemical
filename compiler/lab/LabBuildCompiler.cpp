@@ -18,6 +18,7 @@
 #include "Utils.h"
 #include "cst/LocationManager.h"
 #include <fstream>
+#include <span>
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
 #endif
@@ -128,12 +129,11 @@ namespace fs = std::filesystem;
  * save mod timestamp data (modified date and file size) in a file that can be read later and compared
  * to check if files have changed
  */
-void save_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& output_file) {
+void save_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& output_file) {
     std::ofstream ofs(output_file.data(), std::ios::binary);
     size_t num_files = files.size();
     ofs.write(reinterpret_cast<const char*>(&num_files), sizeof(num_files));
-    for (const auto& file : files) {
-        auto& file_abs_path = file.abs_path;
+    for (const auto& file_abs_path : files) {
         fs::path file_path(file_abs_path);
         if (fs::exists(file_path)) {
             uintmax_t file_size = fs::file_size(file_path);
@@ -147,7 +147,26 @@ void save_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::st
     }
 }
 
-bool compare_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& prev_timestamp_file) {
+void save_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& output_file) {
+    std::vector<std::string_view> paths;
+    paths.reserve(files.size());
+    for(const auto& f : files) {
+        paths.emplace_back(f.abs_path);
+    }
+    save_mod_timestamp(paths, output_file);
+}
+
+void save_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& output_file) {
+    std::vector<std::string_view> paths;
+    paths.reserve(files.size());
+    for(const auto f : files) {
+        // TODO: we should not be putting files that are external to module (imported using '@' usually)
+        paths.emplace_back(f->abs_path);
+    }
+    save_mod_timestamp(paths, output_file);
+}
+
+bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& prev_timestamp_file) {
     std::ifstream ifs(prev_timestamp_file.data(), std::ios::binary);
 
     if (!ifs.is_open()) {
@@ -162,7 +181,7 @@ bool compare_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std:
     }
 
     for (const auto& file : files) {
-        fs::path file_path(file.abs_path);
+        fs::path file_path(file);
         if (fs::exists(file_path)) {
             uintmax_t current_file_size = fs::file_size(file_path);
             auto current_mod_time = fs::last_write_time(file_path);
@@ -188,6 +207,24 @@ bool compare_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std:
     }
 
     return true;
+}
+
+bool compare_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& prev_timestamp_file) {
+    std::vector<std::string_view> paths;
+    paths.reserve(files.size());
+    for(const auto& f : files) {
+        paths.emplace_back(f.abs_path);
+    }
+    return compare_mod_timestamp(paths, prev_timestamp_file);
+}
+
+bool compare_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& prev_timestamp_file) {
+    std::vector<std::string_view> paths;
+    paths.reserve(files.size());
+    for(const auto f : files) {
+        paths.emplace_back(f->abs_path);
+    }
+    return compare_mod_timestamp(paths, prev_timestamp_file);
 }
 
 LabBuildCompiler::LabBuildCompiler(
@@ -286,7 +323,7 @@ void check_imports_for_cycles(void* data_ptr, ASTFileResult* parent_file, std::v
     }
 }
 
-void check_imports_for_cycles(void* data_ptr, std::vector<ASTFileResult*>& files, ImportCycleHandler handler) {
+void check_imports_for_cycles(void* data_ptr, const std::span<ASTFileResult*>& files, ImportCycleHandler handler) {
     std::vector<unsigned int> parents;
     parents.reserve(16);
     for(const auto file : files) {
@@ -303,7 +340,7 @@ struct ImportCycleCheckResult {
 
 };
 
-void check_imports_for_cycles(ImportCycleCheckResult& out, std::vector<ASTFileResult*>& module_files) {
+void check_imports_for_cycles(ImportCycleCheckResult& out, const std::span<ASTFileResult*>& module_files) {
     check_imports_for_cycles(&out, module_files, [](void* data_ptr, std::vector<unsigned int>& parents, ASTFileResult* imported_file, ASTFileResult* parent_file, bool direct){
         const auto holder = (ImportCycleCheckResult*) data_ptr;
         auto& locMan = holder->loc_man;
@@ -333,7 +370,7 @@ void flatten(std::vector<ASTFileResult*>& flat_out, std::unordered_map<std::stri
     }
 }
 
-std::vector<ASTFileResult*> flatten(std::vector<ASTFileResult*>& files) {
+std::vector<ASTFileResult*> flatten(const std::span<ASTFileResult*>& files) {
     std::vector<ASTFileResult*> flat_out;
     std::unordered_map<std::string_view, bool> done_files;
     for(auto file : files) {
@@ -409,6 +446,43 @@ bool determine_if_module_has_changed(LabBuildCompiler* compiler, LabModule* mod,
     } else if(verbose) {
 
         std::cout << "[lab] " << "couldn't find cached object file at '" << mod->object_path << "' for module '" << mod->scope_name << ':' << mod->name << std::endl;
+
+    }
+
+    return true;
+
+}
+
+bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vector<ASTFileResult*>& files, const std::string_view& object_path, const std::string& mod_timestamp_file) {
+
+    const auto verbose = compiler->options->verbose;
+
+    if(fs::exists(object_path)) {
+
+        if (verbose) {
+            std::cout << "[lab] " << "found cached object file '" << object_path << "', checking timestamp" << std::endl;
+        }
+
+        // let's check if module timestamp file exists and is valid (files haven't changed)
+        if (compare_mod_timestamp(files, mod_timestamp_file)) {
+
+            if (verbose) {
+
+                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
+
+            }
+
+            return false;
+
+        } else if (verbose) {
+
+            std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
+
+        }
+
+    } else if(verbose) {
+
+        std::cout << "[lab] " << "couldn't find cached object file at '" << object_path << std::endl;
 
     }
 
@@ -1577,7 +1651,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     ASTFileResult modResult(buildLabFileId, modFilePath, (ModuleScope*) nullptr);
 
     if(verbose) {
-        std::cout << "[lab] " << "building mod file '" << modFilePath << '\'' << std::endl;
+        std::cout << "[lab] " << "parsing mod file '" << modFilePath << '\'' << std::endl;
     }
 
     // import the file into result (lex and parse)
@@ -1591,15 +1665,10 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     // probably an error during parsing
     if(!modResult.continue_processing) {
         if(verbose) {
-            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't import the mod file at '" << modFilePath << "' due to errors" << std::endl;
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't parse the mod file at '" << modFilePath << "' due to errors" << std::endl;
         }
         return nullptr;
     }
-
-    // TODO: support allowing src directory inside the .mod file
-    // since currently we don't support custom source directory
-    // we'll assume the source is present in 'src' directory and and use that as module directory path
-    auto srcDirPath = resolve_rel_child_path_str(module_dir, "src");
 
     // determining the module scope name and module name
     chem::string_view scope_name;
@@ -1617,16 +1686,41 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         module_name = dependency.mod_name;
     }
 
-    auto path_view = chem::string_view(srcDirPath);
-    const auto module = context.chemical_dir_module(scope_name, module_name, &path_view, nullptr, 0);
+    // TODO currently we parse the entirety of the mod file
+    // to determine the scope and module name, we should parse just the package declaration
+    // then determine if module exists and reuse it if it does, otherwise parse the rest of mod file
+    // to create a new module for it
+
+    // let's find the module
+    LabModule* module = nullptr;
+
+    // is there an existing module with same scope and name
+    const auto prev_module = context.storage.find_module(scope_name, module_name);
+    if(prev_module != nullptr) {
+
+        module = prev_module;
+
+    } else {
+
+        // TODO: support allowing src directory inside the .mod file
+        // since currently we don't support custom source directory
+        // we'll assume the source is present in 'src' directory and and use that as module directory path
+        auto srcDirPath = resolve_rel_child_path_str(module_dir, "src");
+
+        // create a new module
+        auto path_view = chem::string_view(srcDirPath);
+        module = context.chemical_dir_module(scope_name, module_name, &path_view, nullptr, 0);
+
+        if(verbose) {
+            std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
+        }
+
+    }
+
 
     // lets update the module scope of the mod file ast result, which we set to nullptr initially
     modResult.unit.scope.set_parent(&module->module_scope);
     modResult.module = &module->module_scope;
-
-    if(verbose) {
-        std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
-    }
 
     // module dependencies we determined from directly imported files
     std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
@@ -1803,9 +1897,10 @@ TCCState* LabBuildCompiler::built_lab_file(
     ASTFileResult labFileResult(buildLabFileId, path, &chemical_lab_module.module_scope);
 
     // import the file into result (lex and parse)
-    lab_processor.parse_on_job_allocator = true;
-    lab_processor.import_file(labFileResult, buildLabMetaData.file_id, buildLabMetaData.abs_path);
-    lab_processor.parse_on_job_allocator = false;
+    // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules
+    // that we need to compile, which will free the module allocator, so if we kept on module allocator
+    // we will lose everything after processing dependencies
+    lab_processor.import_file(labFileResult, buildLabMetaData.file_id, buildLabMetaData.abs_path, true);
 
     // printing results for module file parsing
     print_results(labFileResult, path, true);
@@ -1818,143 +1913,278 @@ TCCState* LabBuildCompiler::built_lab_file(
         return nullptr;
     }
 
-    // figure out files imported by this file
-    std::vector<ASTFileMetaData> imports;
-    lab_processor.figure_out_direct_imports(buildLabMetaData, labFileResult.unit.scope.body.nodes, imports);
+    // figure out direct imported by this build.lab file
+    auto& direct_files_in_lab = chemical_lab_module.direct_files;
+    lab_processor.figure_out_direct_imports(buildLabMetaData, labFileResult.unit.scope.body.nodes, direct_files_in_lab);
+
+    // if has imports, we import those files, this would just hit caches
+    // but it's required to build a proper import tree
+    if(!direct_files_in_lab.empty()) {
+        // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules
+        // that we need to compile, which will free the module allocator, so if we kept on module allocator
+        // we will lose everything after processing dependencies
+        const auto success = lab_processor.import_chemical_files(pool, labFileResult.imports, direct_files_in_lab, true);
+        if(!success) {
+            return nullptr;
+        }
+    }
+
+    ASTFileResult* files_to_flatten[] = { &labFileResult };
+
+    // check module files for import cycles (direct or indirect)
+    ImportCycleCheckResult importCycle { false, loc_man };
+    check_imports_for_cycles(importCycle, files_to_flatten);
+    if(importCycle.has_cyclic_dependencies) {
+        return nullptr;
+    }
+
+    // flatten the files to module files (in sorted order)
+    auto module_files = flatten(files_to_flatten);
+
+    // the build lab object file (cached)
+    const auto buildLabObj = resolve_rel_child_path_str(options->build_dir, "build.lab.o");
+    const auto buildLabTimestamp = resolve_rel_child_path_str(options->build_dir, "build.lab.dat");
+
+    // determine if build lab has changed
+    const auto has_buildLabChanged = determine_if_files_have_changed(this, module_files, buildLabObj, buildLabTimestamp);
 
     // module dependencies we determined from directly imported files
     std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
 
     // direct imports tell us which modules the build.lab depends upon
     // this modules would be put into context.storage
-    for(auto& imported : imports) {
-        lab_processor.figure_out_module_dependency_based_on_import(imported, buildLabMetaData, buildLabModuleDependencies);
+    for(const auto file : module_files) {
+        lab_processor.figure_out_module_dependency_based_on_import(*file, buildLabMetaData, buildLabModuleDependencies);
     }
 
-    // flattened dependencies, including all (+nested) dependencies in a single vector
-    std::vector<LabModule*> flattened_dependencies;
+    // direct module dependencies (in no valid order)
+    auto& mod_dependencies = chemical_lab_module.dependencies;
 
-    // compile all dependencies to object files
-    if(!compile_dependencies_tcc(context, buildLabModuleDependencies, flattened_dependencies, lab_processor, c_visitor, output_ptr)) {
+    // these are modules imported by the build.lab
+    // however we must build their build.lab or chemical.mod into a LabModule*
+    for(auto& mod_ptr : buildLabModuleDependencies) {
+        // get the module pointer
+        const auto mod = create_module_for_dependency(context, mod_ptr, processor, c_visitor, output_ptr);
+        if(mod == nullptr) {
+            return nullptr;
+        }
+        mod_dependencies.emplace_back(mod);
+    }
+
+    // including all (+nested) dependencies in a single vector
+    // sorted in the order of least dependence (flattened with all the dependencies in one vector)
+    auto outModDependencies = flatten_dedupe_sorted(mod_dependencies);
+
+    // figure out path for lab modules directory
+    const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");
+
+    // if not a single module has changed, we consider it true
+    bool has_any_changed = false;
+
+    // for each module, let's determine its files and whether it has changed
+    for(const auto mod : outModDependencies) {
+
+        // determining module's direct files
+        processor.determine_module_files(mod->direct_files, mod);
+
+        // the timestamp file is what determines whether the module needs to be rebuilt again
+        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, LabJobType::ProcessingOnly, lab_mods_dir, mod);
+
+        // lets determine if the module has changed (one of the file of module has changed)
+        const auto has_changed = determine_if_module_has_changed(this, mod, mod_timestamp_file);
+
+        // set that a single module exists that has changed
+        if(has_changed) {
+            has_any_changed = true;
+        }
+
+    }
+
+    if(!has_any_changed && !has_buildLabChanged) {
+
+        // NOTE: there exists not a single module that has changed
+        // also not a single file in the build.lab has changed and its object file also exists
+        // which means we can safely link the previous object files again
+
+        const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
+        if(state == nullptr) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
+            std::cerr << "couldn't create tcc state for jit of cached build.lab object file" << std::endl;
+            return nullptr;
+        }
+
+        // add module object files
+        for(const auto dep : outModDependencies) {
+            if(tcc_add_file(state, dep->object_path.data()) == -1) {
+                std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of cached 'build.lab'" << std::endl;
+                tcc_delete(state);
+                return nullptr;
+            }
+        }
+
+        // add final object file (of the build.lab we cached earlier)
+        if(tcc_add_file(state, buildLabObj.data()) == -1) {
+            std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to add file '" << buildLabObj <<  "' in compilation of cached 'build.lab'" << std::endl;
+            tcc_delete(state);
+            return nullptr;
+        }
+
+        // prepare for jit
+        prepare_tcc_state_for_jit(state);
+
+        // import all compiler interfaces the lab files import
+        // TODO: we need to import all compiler interfaces, or the ones needed, currently this importing via writing annotation is not good !
+        for(const auto& interface : *c_visitor.compiler_interfaces) {
+            if(!binder.import_compiler_interface(interface, state)) {
+                std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to import compiler binding interface '" << interface << '\'' << rang::fg::reset << std::endl;
+                tcc_delete(state);
+                return nullptr;
+            }
+        }
+
+        // relocate the code before calling
+        if(tcc_relocate(state) == -1) {
+            std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to relocate cached build.lab" << std::endl;
+            tcc_delete(state);
+            return nullptr;
+        }
+
+        return state;
+
+    }
+
+    // processing flattened dependencies
+    for(const auto mod : outModDependencies) {
+
+        // the timestamp file is what determines whether the module needs to be rebuilt again
+        const auto timestamp_path = get_mod_timestamp_path(lab_mods_dir, mod);
+
+        // the c output for this module, so we can debug
+        const auto out_c_path = resolve_sibling(timestamp_path, "mod.2c.c");
+
+        // compile the module
+        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path, out_c_path, true, output_ptr, nullptr);
+        if(module_result == 1) {
+            return nullptr;
+        }
+
+        // since the job was successful, we can expect an object file at module's object_path
+        // we'll use this object file by linking it with tcc
+    }
+
+//    // compile all dependencies to object files
+//    if(!compile_dependencies_tcc(context, buildLabModuleDependencies, outModDependencies, lab_processor, c_visitor, output_ptr)) {
+//        return nullptr;
+//    }
+
+    // symbol resolve all the files in the module
+    const auto sym_res_status = lab_processor.sym_res_module(module_files);
+    if(sym_res_status == 1) {
         return nullptr;
     }
 
-    // if has imports, we import those files, this would just hit caches
-    // but it's required to build a proper import tree
-    if(!imports.empty()) {
-        const auto success = lab_processor.import_chemical_files(pool, labFileResult.imports, imports);
-        if(!success) {
-            return nullptr;
-        }
-    }
+    // the last build.lab file index (it will always be at last, unless some design change is made)
+    const auto last_file_index = module_files.size() - 1;
 
-    // preparing translation
-    c_visitor.prepare_translate();
+    // allocating a name buffer, which we will use for all files
+    constexpr auto nameBufferSize = 50;
+    char nameBuffer[nameBufferSize];
 
-    {
+    // what we must do is check that each build.lab gets an as_identifier + build.lab index as scope_name
+    // which will mangle it differently from other build.lab files, and stop conflicts
+    int i = 0;
+    for (const auto file_ptr : module_files) {
 
-        std::vector<ASTFileResult*> files_to_flatten = { &labFileResult };
+        auto& file = *file_ptr;
 
-        // check module files for import cycles (direct or indirect)
-        ImportCycleCheckResult importCycle { false, loc_man };
-        check_imports_for_cycles(importCycle, files_to_flatten);
-        if(importCycle.has_cyclic_dependencies) {
-            return nullptr;
-        }
+        auto& result = file;
 
-        auto module_files = flatten(files_to_flatten);
+        // the last build.lab file is whose build method is to be called
+        bool is_last = i == last_file_index;
+        if (is_last) {
 
-        // symbol resolve all the files in the module
-        const auto sym_res_status = lab_processor.sym_res_module(module_files);
-        if(sym_res_status == 1) {
-            return nullptr;
-        }
+            auto found = find_lab_build_method(file.abs_path, file.unit.scope.body.nodes);
+            if (!found) {
+                return nullptr;
+            }
 
-        // the last build.lab file index (it will always be at last, unless some design change is made)
-        const auto last_file_index = module_files.size() - 1;
+            if (!verify_app_build_func_type(found, file.abs_path)) {
+                return nullptr;
+            }
 
-        // allocating a name buffer, which we will use for all files
-        constexpr auto nameBufferSize = 50;
-        char nameBuffer[nameBufferSize];
+            // expose the last file's build method, so it's callable
+            found->set_specifier_fast(AccessSpecifier::Public);
 
-        // what we must do is check that each build.lab gets an as_identifier + build.lab index as scope_name
-        // which will mangle it differently from other build.lab files, and stop conflicts
-        int i = 0;
-        for (const auto file_ptr : module_files) {
+        } else if (file.abs_path.ends_with(".lab")) {
 
-            auto& file = *file_ptr;
-
-            auto& result = file;
-
-            // the last build.lab file is whose build method is to be called
-            bool is_last = i == last_file_index;
-            if (is_last) {
+            if (file.as_identifier.empty()) {
+                std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << " lab file cannot be imported without an 'as' identifier in import statement '" << file.abs_path << '\'' << std::endl;
+                return nullptr;
+            } else {
 
                 auto found = find_lab_build_method(file.abs_path, file.unit.scope.body.nodes);
                 if (!found) {
                     return nullptr;
                 }
-
-                if (!verify_app_build_func_type(found, file.abs_path)) {
+                if (!verify_lib_build_func_type(found, file.abs_path)) {
                     return nullptr;
                 }
 
-                // expose the last file's build method, so it's callable
-                found->set_specifier_fast(AccessSpecifier::Public);
+                // writing file index to the name buffer
+                int total_written = snprintf(nameBuffer, nameBufferSize, "_%d", i);
 
-            } else if (file.abs_path.ends_with(".lab")) {
-
-                if (file.as_identifier.empty()) {
-                    std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << " lab file cannot be imported without an 'as' identifier in import statement '" << file.abs_path << '\'' << std::endl;
-                    return nullptr;
-                } else {
-
-                    auto found = find_lab_build_method(file.abs_path, file.unit.scope.body.nodes);
-                    if (!found) {
-                        return nullptr;
-                    }
-                    if (!verify_lib_build_func_type(found, file.abs_path)) {
-                        return nullptr;
-                    }
-
-                    // writing file index to the name buffer
-                    int total_written = snprintf(nameBuffer, nameBufferSize, "_%d", i);
-
-                    // debug safety check
+                // debug safety check
 #ifdef DEBUG
-                    if(total_written < 0 || total_written >= nameBufferSize) {
-                        throw std::runtime_error("integer conversion truncated or failed.");
-                    }
+                if(total_written < 0 || total_written >= nameBufferSize) {
+                    throw std::runtime_error("integer conversion truncated or failed.");
+                }
 #endif
 
-                    // building the name string, for the build.lab which will be as_identifier + '_' + file_index
-                    const auto name_size = file.as_identifier.size() + total_written;
-                    const auto name_str = job_allocator->allocate_released_size(name_size + 1, 1); // 1 for the null terminator
-                    std::memcpy(name_str, file.as_identifier.data(), file.as_identifier.size());
-                    std::memcpy(name_str + file.as_identifier.size(), nameBuffer, static_cast<size_t>(total_written));
-                    name_str[name_size] = '\0';
+                // building the name string, for the build.lab which will be as_identifier + '_' + file_index
+                const auto name_size = file.as_identifier.size() + total_written;
+                const auto name_str = job_allocator->allocate_released_size(name_size + 1, 1); // 1 for the null terminator
+                std::memcpy(name_str, file.as_identifier.data(), file.as_identifier.size());
+                std::memcpy(name_str + file.as_identifier.size(), nameBuffer, static_cast<size_t>(total_written));
+                name_str[name_size] = '\0';
 
-                    // now we create a new module scope on the job allocator, we will set this scope as parent of this file
-                    // this way the mangler will think this file belongs to this module (fictionally external) and use its scope and module
-                    const auto new_scope = new (job_allocator->allocate_released<ModuleScope>()) ModuleScope("lab", chem::string_view(name_str, name_size));
-                    file.module = new_scope;
-                    file.unit.scope.set_parent(new_scope);
+                // now we create a new module scope on the job allocator, we will set this scope as parent of this file
+                // this way the mangler will think this file belongs to this module (fictionally external) and use its scope and module
+                const auto new_scope = new (job_allocator->allocate_released<ModuleScope>()) ModuleScope("lab", chem::string_view(name_str, name_size));
+                file.module = new_scope;
+                file.unit.scope.set_parent(new_scope);
 
-                }
             }
-
-            i++;
         }
 
-        // translating the build.lab module
-        lab_processor.translate_module(
-            c_visitor, &chemical_lab_module, module_files
-        );
-
+        i++;
     }
+
+    // preparing translation
+    c_visitor.prepare_translate();
+
+    // translating the build.lab module
+    lab_processor.translate_module(
+        c_visitor, &chemical_lab_module, module_files
+    );
 
     // compiling the c output from build.labs
     const auto& str = output_ptr.str();
+
+    // let's first create an object file for build.lab (for caching)
+    const auto objRes = compile_c_string(options->exe_path.data(), str.data(), buildLabObj, false, false, options->outMode == OutputMode::DebugComplete);
+    if(objRes == -1){
+
+        std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to compile 'build.lab' at '" << path <<  "' to object file" << std::endl;
+
+        // TODO: object file compilation failed, we must delete any existing timestamp file (so next time, we must build the build.lab from scratch)
+
+
+    } else {
+
+        // since object file compilation was successful, we should save a timestamp
+        save_mod_timestamp(module_files, std::string_view(buildLabTimestamp));
+
+    }
 
     // creating a new tcc state
     const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
@@ -1970,7 +2200,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // add module object files
-    for(const auto dep : flattened_dependencies) {
+    for(const auto dep : outModDependencies) {
         if(tcc_add_file(state, dep->object_path.data()) == -1) {
             std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of 'build.lab'" << std::endl;
             tcc_delete(state);

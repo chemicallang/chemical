@@ -120,24 +120,6 @@ public:
     ASTAllocator& file_allocator;
 
     /**
-     * NOTE: THIS BOOLEAN IS VERY SCARY, IT MUST BE USED WITH EXTREME CARE
-     * when true, all the files parsed will go into job allocator, module allocator won't
-     * be used, job allocator will be used to parse the entire files
-     * the module allocator frees everything after compilation of the module, only functions
-     * that are public are allocated on job allocator, which makes this process super efficient
-     *
-     * why do we need this ? because build.lab compilation triggers module compilation
-     * after compilation of first module from build.lab the module allocator disposes everything
-     * and build.lab which was parsed using module allocator also dies, so we can't compile build.lab now
-     * we set this boolean to true to keep build.lab on job allocator, while we compile other modules
-     *
-     * WHEN YOU SET THIS TO TRUE, ALWAYS SET IT BACK TO FALSE, AFTER PARSING A SINGLE FILE
-     * WHEN PARSING AN ENTIRE IMPORT TREE CONCURRENTLY (DO NOT USE IT)
-     *
-     */
-    bool parse_on_job_allocator = false;
-
-    /**
      * check if the result has empty diagnostics
      */
     static bool empty_diags(ASTFileResult& result);
@@ -185,7 +167,8 @@ public:
     bool import_chemical_files(
             ctpl::thread_pool& pool,
             std::vector<ASTFileResult*>& out_files,
-            std::vector<ASTFileMetaData>& files
+            std::vector<ASTFileMetaData>& files,
+            bool use_job_allocator
     );
 
     /**
@@ -208,8 +191,21 @@ public:
             ctpl::thread_pool& pool,
             std::vector<ASTFileResult*>& out_files,
             std::vector<ASTFileMetaData>& files,
-            LabModule* module
+            LabModule* module,
+            bool use_job_allocator
     );
+
+    /**
+     * same as above, doesn't use job allocator for all the parsing
+     */
+    inline bool import_module_files(
+            ctpl::thread_pool& pool,
+            std::vector<ASTFileResult*>& out_files,
+            std::vector<ASTFileMetaData>& files,
+            LabModule* module
+    ) {
+        return import_module_files(pool, out_files, files, module, false);
+    }
 
     /**
      * figures out direct imports of the given file (fileData), the fileNodes are the nodes
@@ -239,14 +235,20 @@ public:
     bool import_chemical_file(
             ASTFileResult& result,
             ctpl::thread_pool& pool,
-            ASTFileMetaData& fileData
+            ASTFileMetaData& fileData,
+            bool use_job_allocator
     );
 
     /**
      * import chemical file with absolute path to it
      * @return true if success importing file, false otherwise
      */
-    bool import_chemical_file(ASTFileResult& result, unsigned int fileId, const std::string_view& absolute_path);
+    bool import_chemical_file(
+            ASTFileResult& result,
+            unsigned int fileId,
+            const std::string_view& absolute_path,
+            bool use_job_allocator
+    );
 
     /**
      * import chemical file with absolute path to it
@@ -258,7 +260,12 @@ public:
      * lex, parse in file and return Scope containing nodes
      * without performing any symbol resolution
      */
-    bool import_file(ASTFileResult& result, unsigned int fileId, const std::string_view& absolute_path);
+    bool import_file(
+            ASTFileResult& result,
+            unsigned int fileId,
+            const std::string_view& absolute_path,
+            bool use_job_allocator
+    );
 
     /**
      * it declares all the symbols inside the file and returns a scope index for the file

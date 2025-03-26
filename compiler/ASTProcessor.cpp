@@ -114,14 +114,15 @@ bool ASTProcessor::import_module_files(
         ctpl::thread_pool& pool,
         std::vector<ASTFileResult*>& out_files,
         std::vector<ASTFileMetaData>& files,
-        LabModule* module
+        LabModule* module,
+        bool use_job_allocator
 ) {
     if(module->type == LabModuleType::Directory) {
         path_handler.module_src_dir_path = module->paths[0].to_view();
     } else {
         path_handler.module_src_dir_path = "";
     }
-    return import_chemical_files(pool, out_files, files);
+    return import_chemical_files(pool, out_files, files, use_job_allocator);
 }
 
 SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string& abs_path) {
@@ -292,9 +293,10 @@ ASTFileResult* chemical_file_concurrent_importer(
         ASTProcessor* processor,
         ctpl::thread_pool& pool,
         ASTFileResult* out_file,
-        ASTFileMetaData& fileData
+        ASTFileMetaData& fileData,
+        bool use_job_allocator
 ) {
-    processor->import_chemical_file(*out_file, pool, fileData);
+    processor->import_chemical_file(*out_file, pool, fileData, use_job_allocator);
     return out_file;
 }
 
@@ -310,7 +312,8 @@ struct future_ptr_union {
 bool ASTProcessor::import_chemical_files(
         ctpl::thread_pool& pool,
         std::vector<ASTFileResult*>& out_files,
-        std::vector<ASTFileMetaData>& files
+        std::vector<ASTFileMetaData>& files,
+        bool use_job_allocator
 ) {
 
     std::vector<future_ptr_union> futures;
@@ -343,11 +346,11 @@ bool ASTProcessor::import_chemical_files(
         *static_cast<ASTFileMetaData*>(out_file) = fileData;
 
 #if defined(DEBUG_FUTURE) && DEBUG_FUTURE
-        futures.emplace_back(chemical_file_concurrent_importer(0, this, pool, out_file, fileData));
+        futures.emplace_back(chemical_file_concurrent_importer(0, this, pool, out_file, fileData, use_job_allocator));
 #else
         futures.emplace_back(
                 nullptr,
-                pool.push(chemical_file_concurrent_importer, this, std::ref(pool), out_file, fileData)
+                pool.push(chemical_file_concurrent_importer, this, std::ref(pool), out_file, fileData, use_job_allocator)
         );
 #endif
 
@@ -436,11 +439,12 @@ void ASTProcessor::figure_out_direct_imports(
 bool ASTProcessor::import_chemical_file(
         ASTFileResult& result,
         ctpl::thread_pool& pool,
-        ASTFileMetaData& fileData
+        ASTFileMetaData& fileData,
+        bool use_job_allocator
 ) {
 
     // import the file into result (lex and parse)
-    const auto success = import_file(result, fileData.file_id, fileData.abs_path);
+    const auto success = import_file(result, fileData.file_id, fileData.abs_path, use_job_allocator);
     if(!success) {
         return false;
     }
@@ -451,7 +455,7 @@ bool ASTProcessor::import_chemical_file(
 
     // if has imports, we import those files
     if(!imports.empty()) {
-        const auto success2 = import_chemical_files(pool, result.imports, imports);
+        const auto success2 = import_chemical_files(pool, result.imports, imports, use_job_allocator);
         if(!success2) {
             result.continue_processing = false;
             return false;
@@ -462,7 +466,12 @@ bool ASTProcessor::import_chemical_file(
 
 }
 
-bool ASTProcessor::import_chemical_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path) {
+bool ASTProcessor::import_chemical_file(
+        ASTFileResult& result,
+        unsigned int fileId,
+        const std::string_view& abs_path,
+        bool use_job_allocator
+) {
 
     auto& unit = result.unit;
 
@@ -503,7 +512,7 @@ bool ASTProcessor::import_chemical_file(ASTFileResult& result, unsigned int file
             tokens.data(),
             resolver->comptime_scope.loc_man,
             job_allocator,
-            parse_on_job_allocator ? job_allocator : mod_allocator,
+            use_job_allocator ? job_allocator : mod_allocator,
             resolver->is64Bit,
             &binder
     );
@@ -682,7 +691,7 @@ void ASTProcessor::figure_out_module_dependency_based_on_import(
 
 }
 
-bool ASTProcessor::import_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path) {
+bool ASTProcessor::import_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path, bool use_job_allocator) {
 
     result.abs_path = abs_path;
     result.file_id = fileId;
@@ -691,7 +700,7 @@ bool ASTProcessor::import_file(ASTFileResult& result, unsigned int fileId, const
     result.diCompileUnit = nullptr;
     result.unit.scope.file_path = chem::string_view(result.abs_path);
 
-    return import_chemical_file(result, fileId, abs_path);
+    return import_chemical_file(result, fileId, abs_path, use_job_allocator);
 
 }
 

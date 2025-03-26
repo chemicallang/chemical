@@ -1646,9 +1646,6 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     auto& module_dir = dependency.module_dir_path;
     const auto verbose = options->verbose;
 
-    auto buildLabFileId = loc_man.encodeFile(modFilePath);
-    ASTFileResult modResult(buildLabFileId, modFilePath, (ModuleScope*) nullptr);
-
     if(verbose) {
         std::cout << "[lab] " << "getting the module declaration from '" << modFilePath << '\'' << std::endl;
     }
@@ -1677,6 +1674,9 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     if(verbose) {
         std::cout << "[lab] " << "parsing mod file '" << modFilePath << '\'' << std::endl;
     }
+
+    auto buildLabFileId = loc_man.encodeFile(modFilePath);
+    ASTFileResult modResult(buildLabFileId, modFilePath, (ModuleScope*) nullptr);
 
     // import the file into result (lex and parse)
     if (!lab_processor.import_chemical_mod_file(modResult, buildLabFileId, modFilePath)) {

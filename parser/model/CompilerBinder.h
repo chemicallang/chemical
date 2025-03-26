@@ -6,6 +6,7 @@
 #include "compiler/cbi/Model.h"
 #include <unordered_map>
 #include "std/chem_string_view.h"
+#include "integration/cbi/bindings/CBI.h"
 
 class ASTProcessor;
 
@@ -71,7 +72,7 @@ public:
      * a map between interface names like Lexer, SourceProvider and their actual symbols
      * these symbols correspond to function pointers in the our source code
      */
-    std::unordered_map<std::string_view, std::unordered_map<std::string_view, void*>> interface_maps;
+    std::unordered_map<std::string_view, std::span<const std::pair<chem::string_view, void*>>> interface_maps;
 
     /**
      * diagnostics during compilation of c files

@@ -234,16 +234,6 @@ LabBuildCompiler::LabBuildCompiler(
 
 }
 
-void LabBuildCompiler::prepare(
-    ASTAllocator* const jobAllocator,
-    ASTAllocator* const modAllocator,
-    ASTAllocator* const fileAllocator
-) {
-    job_allocator = jobAllocator;
-    mod_allocator = modAllocator;
-    file_allocator = fileAllocator;
-}
-
 int LabBuildCompiler::do_job(LabJob* job) {
     job->status = LabJobStatus::Launched;
     int return_int;
@@ -1580,8 +1570,14 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 ) {
 
     auto& module_path = dependency.module_dir_path;
-    const auto buildLabPath = resolve_rel_child_path_str(module_path, "build.lab");
+    auto buildLabPath = resolve_rel_child_path_str(module_path, "build.lab");
     if(std::filesystem::exists(buildLabPath)) {
+
+        // check if we have already parsed this build.lab (from another module's dependency)
+        auto found = buildLabDependenciesCache.find(buildLabPath);
+        if(found != buildLabDependenciesCache.end()) {
+            return found->second;
+        }
 
         // build lab file into a tcc state
         // TODO verify the build method signature in the build.lab file
@@ -1611,6 +1607,9 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         if(dependency.importer_file) {
             dependency.importer_file->module = &modPtr->module_scope;
         }
+
+        // store the mod pointer in cache, so we don't need to build this build.lab again
+        buildLabDependenciesCache[std::move(buildLabPath)] = modPtr;
 
         return modPtr;
 
@@ -2214,7 +2213,7 @@ int LabBuildCompiler::do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*,
     ASTAllocator _file_allocator(file_mem_size);
 
     // the allocators that will be used for all jobs
-    prepare(
+    set_allocators(
             &_job_allocator,
             &_mod_allocator,
             &_file_allocator

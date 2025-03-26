@@ -81,6 +81,13 @@ public:
     CmdOptions* cmd = nullptr;
 
     /**
+     * dependencies having build.lab have a function that return the LabModule*
+     * instead of parsing the build.lab again and running it, we reuse this module
+     * pointer
+     */
+    std::unordered_map<std::string, LabModule*> buildLabDependenciesCache;
+
+    /**
      * the global container contains namespaces like std and compiler
      */
     GlobalContainer* container = nullptr;
@@ -116,16 +123,17 @@ public:
     }
 
     /**
-     * this prepares the build compiler for a session of multiple jobs
-     * after performing the jobs, we expected that manager, or allocators provided
-     * will go out of scope and die, which means we'll have pointers to these freed objects
-     * so that's why prepare should be called, for each session of multiple jobs
+     * sets the following allocators
      */
-    void prepare(
-            ASTAllocator* const job_allocator,
-            ASTAllocator* const mod_allocator,
-            ASTAllocator* const file_allocator
-    );
+    inline void set_allocators(
+            ASTAllocator* const jobAllocator,
+            ASTAllocator* const modAllocator,
+            ASTAllocator* const fileAllocator
+    ) {
+        job_allocator = jobAllocator;
+        mod_allocator = modAllocator;
+        file_allocator = fileAllocator;
+    }
 
     /**
      * the given module is processed

@@ -17,7 +17,8 @@ int link_objects(
     std::vector<chem::string>& linkables,
     const std::string& output_path,
     const std::vector<std::string>& flags,
-    const std::string_view& target_triple
+    const std::string_view& target_triple,
+    bool use_tcc
 );
 
 /**
@@ -29,5 +30,5 @@ inline int link_objects(
         const std::string& output_path,
         const std::string_view& target_triple
 ) {
-    return link_objects(comp_exe_path, linkables, output_path, {}, target_triple);
+    return link_objects(comp_exe_path, linkables, output_path, {}, target_triple, false);
 }

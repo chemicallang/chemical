@@ -537,9 +537,10 @@ set(COMMON_SOURCES
         compiler/Interpreter/Core.cpp
         compiler/processor/ASTFileMetaData.h
         compiler/processor/BuildLabModuleDependency.h
-        ast/statements/PackageDefinition.h
         compiler/symres/SymResScopeKind.h
         compiler/processor/ASTFileResult.h
+        parser/utils/ParseModDecl.cpp
+        parser/utils/ParseModDecl.h
 )
 
 # Chemical LSP Executable Target

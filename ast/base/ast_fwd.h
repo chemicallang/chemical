@@ -12,7 +12,7 @@ class AssignStatement;
 
 class BreakStatement;
 
-class PackageDefinition;
+class ModuleDefinition;
 
 class AliasStmt;
 

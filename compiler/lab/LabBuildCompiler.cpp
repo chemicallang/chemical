@@ -6,7 +6,6 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/Import.h"
-#include "ast/statements/PackageDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
@@ -19,6 +18,7 @@
 #include "cst/LocationManager.h"
 #include <fstream>
 #include <span>
+#include "parser/utils/ParseModDecl.h"
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
 #endif
@@ -1651,11 +1651,36 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     ASTFileResult modResult(buildLabFileId, modFilePath, (ModuleScope*) nullptr);
 
     if(verbose) {
+        std::cout << "[lab] " << "getting the module declaration from '" << modFilePath << '\'' << std::endl;
+    }
+
+    // determining the scope and module name from the .mod file
+    const auto each_buf_size = 80;
+    char temp_scope_name[each_buf_size];
+    char temp_module_name[each_buf_size];
+    size_t scope_name_size = 0;
+    size_t mod_name_size = 0;
+    const auto errorMsg = parseModDecl(temp_scope_name, temp_module_name, scope_name_size, mod_name_size, each_buf_size, modFilePath);
+
+    // determining the module scope name and module name
+    chem::string_view scope_name(temp_scope_name, scope_name_size);
+    chem::string_view module_name(temp_module_name, mod_name_size);
+
+    if(errorMsg == nullptr) {
+        const auto module = context.storage.find_module(scope_name, module_name);
+        if(module != nullptr) {
+            return module;
+        }
+    } else {
+        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't get module declaration from the mod file at '" << modFilePath << "' because of error '" << errorMsg << '\'' << std::endl;
+    }
+
+    if(verbose) {
         std::cout << "[lab] " << "parsing mod file '" << modFilePath << '\'' << std::endl;
     }
 
     // import the file into result (lex and parse)
-    if(!lab_processor.import_chemical_mod_file(modResult, buildLabFileId, modFilePath)) {
+    if (!lab_processor.import_chemical_mod_file(modResult, buildLabFileId, modFilePath)) {
         return nullptr;
     }
 
@@ -1663,60 +1688,23 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     print_results(modResult, modFilePath, true);
 
     // probably an error during parsing
-    if(!modResult.continue_processing) {
-        if(verbose) {
-            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't parse the mod file at '" << modFilePath << "' due to errors" << std::endl;
-        }
+    if (!modResult.continue_processing) {
+        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't parse the mod file at '" << modFilePath << "' due to errors" << std::endl;
         return nullptr;
     }
 
-    // determining the module scope name and module name
-    chem::string_view scope_name;
-    chem::string_view module_name;
+    // TODO: support allowing src directory inside the .mod file
+    // since currently we don't support custom source directory
+    // we'll assume the source is present in 'src' directory and and use that as module directory path
+    auto srcDirPath = resolve_rel_child_path_str(module_dir, "src");
 
-    // update the scope and module name if user wrote package declaration in the mod file
-    auto& nodes = modResult.unit.scope.body.nodes;
-    if(nodes[0]->kind() == ASTNodeKind::PackageDef) {
-        const auto def = nodes[0]->as_package_def_unsafe();
-        scope_name = def->scope_name;
-        module_name = def->module_name;
-    } else {
-        // otherwise we should try to get it from the import dependency
-        scope_name = dependency.scope_name;
-        module_name = dependency.mod_name;
+    // create a new module
+    auto path_view = chem::string_view(srcDirPath);
+    const auto module = context.chemical_dir_module(scope_name, module_name, &path_view, nullptr, 0);
+
+    if (verbose) {
+        std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
     }
-
-    // TODO currently we parse the entirety of the mod file
-    // to determine the scope and module name, we should parse just the package declaration
-    // then determine if module exists and reuse it if it does, otherwise parse the rest of mod file
-    // to create a new module for it
-
-    // let's find the module
-    LabModule* module = nullptr;
-
-    // is there an existing module with same scope and name
-    const auto prev_module = context.storage.find_module(scope_name, module_name);
-    if(prev_module != nullptr) {
-
-        module = prev_module;
-
-    } else {
-
-        // TODO: support allowing src directory inside the .mod file
-        // since currently we don't support custom source directory
-        // we'll assume the source is present in 'src' directory and and use that as module directory path
-        auto srcDirPath = resolve_rel_child_path_str(module_dir, "src");
-
-        // create a new module
-        auto path_view = chem::string_view(srcDirPath);
-        module = context.chemical_dir_module(scope_name, module_name, &path_view, nullptr, 0);
-
-        if(verbose) {
-            std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
-        }
-
-    }
-
 
     // lets update the module scope of the mod file ast result, which we set to nullptr initially
     modResult.unit.scope.set_parent(&module->module_scope);
@@ -1731,6 +1719,8 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     std::string imp_module_dir_path;
     chem::string_view imp_scope_name;
     chem::string_view imp_mod_name;
+
+    auto& nodes = modResult.unit.scope.body.nodes;
     for(const auto stmt : nodes) {
         if(stmt->kind() == ASTNodeKind::ImportStmt) {
             const auto impStmt = stmt->as_import_stmt_unsafe();
@@ -1777,91 +1767,6 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // return the state
     return module;
-
-}
-
-bool LabBuildCompiler::compile_dependencies_tcc(
-        LabBuildContext& context,
-        std::vector<BuildLabModuleDependency>& dependencies,
-        std::vector<LabModule*>& outModDependencies,
-        ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
-        std::stringstream& output_ptr
-) {
-
-    // direct module dependencies (in no valid order)
-    std::vector<LabModule*> mod_dependencies;
-
-    // these are modules imported by the build.lab
-    // however we must build their build.lab or chemical.mod into a LabModule*
-    for(auto& mod_ptr : dependencies) {
-        // get the module pointer
-        const auto mod = create_module_for_dependency(context, mod_ptr, processor, c_visitor, output_ptr);
-        if(mod == nullptr) {
-            return false;
-        }
-        mod_dependencies.emplace_back(mod);
-    }
-
-    // sorted in the order of least dependence (flattened with all the dependencies in one vector)
-    outModDependencies = flatten_dedupe_sorted(mod_dependencies);
-
-    // figure out path for lab modules directory
-    const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");
-
-    // if not a single module has changed, we consider it true
-    bool has_any_changed = false;
-
-    // for each module, let's determine its files and whether it has changed
-    for(const auto mod : outModDependencies) {
-
-        // determining module's direct files
-        processor.determine_module_files(mod->direct_files, mod);
-
-        // the timestamp file is what determines whether the module needs to be rebuilt again
-        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, LabJobType::ProcessingOnly, lab_mods_dir, mod);
-
-        // lets determine if the module has changed (one of the file of module has changed)
-        const auto has_changed = determine_if_module_has_changed(this, mod, mod_timestamp_file);
-
-        // set that a single module exists that has changed
-        if(has_changed) {
-            has_any_changed = true;
-        }
-
-    }
-
-    if(!has_any_changed) {
-
-        // NOTE: there exists not a single module that has changed
-        // which means we can safely link the previous object files again
-        // we need to return early so modules won't be parsed at all
-
-        // we can expect the object files in module's object paths
-        return true;
-
-    }
-
-    // processing flattened dependencies
-    for(const auto mod : outModDependencies) {
-
-        // the timestamp file is what determines whether the module needs to be rebuilt again
-        const auto timestamp_path = get_mod_timestamp_path(lab_mods_dir, mod);
-
-        // the c output for this module, so we can debug
-        const auto out_c_path = resolve_sibling(timestamp_path, "mod.2c.c");
-
-        // compile the module
-        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path, out_c_path, true, output_ptr, nullptr);
-        if(module_result == 1) {
-            return false;
-        }
-
-        // since the job was successful, we can expect an object file at module's object_path
-        // we'll use this object file by linking it with tcc
-    }
-
-    return true;
 
 }
 
@@ -1951,8 +1856,8 @@ TCCState* LabBuildCompiler::built_lab_file(
     // module dependencies we determined from directly imported files
     std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
 
-    // direct imports tell us which modules the build.lab depends upon
-    // this modules would be put into context.storage
+    // imports tell us which modules the build.lab and its imports depend upon
+    // we would compile these modules ahead and then process the build.lab
     for(const auto file : module_files) {
         lab_processor.figure_out_module_dependency_based_on_import(*file, buildLabMetaData, buildLabModuleDependencies);
     }

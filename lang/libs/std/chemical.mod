@@ -1,3 +1,3 @@
-package std
+module std
 
 import cstd

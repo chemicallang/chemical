@@ -828,7 +828,7 @@ public:
     /**
      * a package definition is parsed
      */
-    PackageDefinition* parsePackageDefinition(ASTAllocator& allocator);
+    bool skipModuleDefinition(ASTAllocator& allocator);
 
     // -------------------------------- Exposed till here
 

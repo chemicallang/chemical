@@ -2284,6 +2284,11 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
         return 1;
     }
 
+    // clear the module storage
+    // these modules were created to facilitate the build.lab generation
+    // if not cleared, these modules will interfere with modules created for executable
+    context.storage.clear();
+
     // call the root build.lab build's function
     build(&context);
 

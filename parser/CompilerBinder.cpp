@@ -20,15 +20,7 @@ void handle_error(void *opaque, const char *msg){
 }
 
 CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_path)) {
-    source_provider_symbol_map(interface_maps["SourceProvider"]);
-    batch_allocator_symbol_map(interface_maps["BatchAllocator"]);
-    serial_str_allocator_symbol_map(interface_maps["SerialStrAllocator"]);
-    lexer_symbol_map(interface_maps["Lexer"]);
-    parser_symbol_map(interface_maps["Parser"]);
-    build_context_symbol_map(interface_maps["BuildContext"]);
-    ast_builder_symbol_map(interface_maps["ASTBuilder"]);
-    symbol_resolver_symbol_map(interface_maps["SymbolResolver"]);
-    ptr_vec_symbol_map(interface_maps["PtrVec"]);
+    prepare_cbi_maps(interface_maps);
 }
 
 bool CompilerBinder::import_compiler_interface(const std::string& name, TCCState* state) {

@@ -54,18 +54,9 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "BuildContextinvoke_ar", (void*) BuildContextinvoke_ar }
 };
 
-void build_context_symbol_map(std::span<const std::pair<chem::string_view, void*>>& sym_map) {
-    sym_map = std::span(BuildContextSymMap);
-}
-
 const std::pair<chem::string_view, void*> BatchAllocatorSymMap[] = {
         { "BatchAllocatorallocate_size", (void*) BatchAllocatorallocate_size },
 };
-
-
-void batch_allocator_symbol_map(std::span<const std::pair<chem::string_view, void*>>& sym_map) {
-    sym_map = std::span(BatchAllocatorSymMap);
-}
 
 const std::pair<chem::string_view, void*> SerialStrAllocatorSymMap[] = {
         {"SerialStrAllocatordeallocate", (void*) SerialStrAllocatordeallocate },
@@ -73,10 +64,6 @@ const std::pair<chem::string_view, void*> SerialStrAllocatorSymMap[] = {
         {"SerialStrAllocatorfinalize_view", (void*) SerialStrAllocatorfinalize_view },
         {"SerialStrAllocatorappend", (void*) SerialStrAllocatorappend }
 };
-
-void serial_str_allocator_symbol_map(std::span<const std::pair<chem::string_view, void*>>& sym_map) {
-    sym_map = std::span(SerialStrAllocatorSymMap);
-}
 
 const std::pair<chem::string_view, void*> SourceProviderSymMap[] = {
         { "SourceProviderreadCharacter", (void*) SourceProviderreadCharacter },
@@ -91,20 +78,12 @@ const std::pair<chem::string_view, void*> SourceProviderSymMap[] = {
         { "SourceProviderreadWhitespacesAndNewLines", (void*) SourceProviderreadWhitespacesAndNewLines },
 };
 
-void source_provider_symbol_map(std::span<const std::pair<chem::string_view, void*>>& sym_map) {
-    sym_map = std::span(SourceProviderSymMap);
-}
-
 const std::pair<chem::string_view, void*> LexerSymMap[] = {
         {"LexergetFileAllocator",    (void*) LexergetFileAllocator },
         {"LexersetUserLexer",    (void*) LexersetUserLexer },
         {"LexerunsetUserLexer",    (void*) LexerunsetUserLexer },
         {"LexergetEmbeddedToken",    (void*) LexergetEmbeddedToken }
 };
-
-void lexer_symbol_map(std::span<const std::pair<chem::string_view, void*>>& sym_map) {
-    sym_map = std::span(LexerSymMap);
-}
 
 const std::pair<chem::string_view, void*> ParserSymMap[] = {
         {"ParsergetTokenPtr",    (void*) ParsergetTokenPtr },
@@ -117,10 +96,6 @@ const std::pair<chem::string_view, void*> ParserSymMap[] = {
         {"Parsererror_at",    (void*) Parsererror_at },
 };
 
-void parser_symbol_map(std::span<const std::pair<chem::string_view, void*>>& sym_map) {
-    sym_map = std::span(ParserSymMap);
-}
-
 const std::pair<chem::string_view, void*> PtrVecSymMap[] = {
         { "PtrVec_get", (void*) PtrVec_get },
         { "PtrVec_size", (void*) PtrVec_size },
@@ -128,10 +103,6 @@ const std::pair<chem::string_view, void*> PtrVecSymMap[] = {
         { "PtrVec_erase", (void*) PtrVec_erase },
         { "PtrVec_push", (void*) PtrVec_push },
 };
-
-void ptr_vec_symbol_map(std::span<const std::pair<chem::string_view, void*>>& sym_map) {
-    sym_map = std::span(PtrVecSymMap);
-}
 
 const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "ASTBuilderallocate_with_cleanup", (void*) ASTBuilderallocate_with_cleanup },
@@ -281,10 +252,16 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "InitBlockadd_initializer", (void*) InitBlockadd_initializer },
 };
 
-void ast_builder_symbol_map(std::span<const std::pair<chem::string_view, void*>>& sym_map) {
-    sym_map = std::span(ASTBuilderSymMap);
-}
-
-void symbol_resolver_symbol_map(std::span<const std::pair<chem::string_view, void*>>& sym_map) {
-    sym_map = {};
+void prepare_cbi_maps(std::unordered_map<std::string_view, std::span<const std::pair<chem::string_view, void*>>>& interface_maps) {
+    interface_maps.reserve(9);
+    interface_maps.emplace("SourceProvider", SourceProviderSymMap);
+    interface_maps.emplace("BatchAllocator", BatchAllocatorSymMap);
+    interface_maps.emplace("SerialStrAllocator", SerialStrAllocatorSymMap);
+    interface_maps.emplace("Lexer", LexerSymMap);
+    interface_maps.emplace("Parser", ParserSymMap);
+    interface_maps.emplace("BuildContext", BuildContextSymMap);
+    interface_maps.emplace("ASTBuilder", ASTBuilderSymMap);
+    interface_maps.emplace("PtrVec", PtrVecSymMap);
+    // couldn't create a constant empty array
+    interface_maps["SymbolResolver"] = {};
 }

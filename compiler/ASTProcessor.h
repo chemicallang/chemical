@@ -178,10 +178,7 @@ public:
      * this doesn't take into account import statements that import files that aren't present
      * inside the module
      */
-    void determine_module_files(
-            std::vector<ASTFileMetaData>& outFiles,
-            LabModule* module
-    );
+    void determine_module_files(LabModule* module);
 
     /**
      * imports files in a module, this just lexes and parses the file, no symbol resolution
@@ -254,7 +251,8 @@ public:
      * import chemical file with absolute path to it
      * @return true if success importing file, false otherwise
      */
-    bool import_chemical_mod_file(
+    static bool import_chemical_mod_file(
+            LabBuildCompiler& compiler,
             ASTFileResult& result,
             ModuleFileData& data,
             unsigned int fileId,

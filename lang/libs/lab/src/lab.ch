@@ -101,6 +101,9 @@ public struct BuildContext {
     // returns true if it succeeds
     func add_compiler_interface(&self, module : *mut Module, interface : &std::string_view) : bool
 
+    // resolve the path for a native library given the scope name and mod name
+    func resolve_native_lib_path(&self, scope_name : &std::string_view, mod_name : &std::string_view) : PathResolutionResult
+
     // resolves a path, this allows to get exact path to the library or file
     // you can resolve for example where the std library is using base_path empty and path "@std/"
     func resolve_import_path(&self, base_path : &std::string_view, path : &std::string_view) : PathResolutionResult
@@ -179,6 +182,21 @@ public struct AppBuildContext : BuildContext {
     // something you'd want to be invoked when lab build has finished
     func on_finished (&self, lambda : (data : *void) => void, data : *void) : void;
 
+}
+
+public func (ctx : &BuildContext) native_lib_module(mod : &std::string_view) : *mut Module {
+    var path_res = ctx.resolve_native_lib_path(std::string_view(""), mod)
+    if(path_res.error.empty()) {
+        printf("resolved module %s path to be: %s\n", mod.data(), path_res.path.data());
+    } else {
+        return null;
+    }
+    var err = std::string()
+    const module = ctx.module_from_directory(std::string_view(path_res.path), std::string_view(""), mod, err)
+    if(module == null && !err.empty()) {
+        printf("error '%s' during creation of native module '%s'\n", err.data(), mod.data());
+    }
+    return module;
 }
 
 public func (ctx : &BuildContext) chemical_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {

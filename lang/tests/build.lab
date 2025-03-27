@@ -110,24 +110,16 @@ func build(ctx : *mut AppBuildContext) {
     const ext_cpp_module = ctx.cpp_file_module(std::string_view(""), std::string_view("ext_cpp"), std::string_view(ext_cpp_path), { })
 
     // the cstd module
-    var cstd_path = ctx.resolve_import_path(std::string_view(""), std::string_view("@cstd/"))
-    if(cstd_path.error.empty()) {
-        printf("resolved cstd path to be: %s\n", cstd_path.path.data());
-    } else {
-        printf("detected an error when resolving the cstd path: %s\n", cstd_path.error.data());
-        cstd_path.path = lab::rel_path_to("../libs/cstd");
+    var cstd_module = ctx.native_lib_module(std::string_view("cstd"));
+    if(cstd_module == null) {
+        return null
     }
-    const cstd_module = ctx.chemical_dir_module(std::string_view(""), std::string_view("cstd"), std::string_view(cstd_path.path), { })
 
     // the std module
-    var std_path = ctx.resolve_import_path(std::string_view(""), std::string_view("@std/"))
-    if(std_path.error.empty()) {
-        printf("resolved std path to be: %s\n", std_path.path.data());
-    } else {
-        printf("detected an error when resolving the std path: %s\n", std_path.error.data());
-        std_path.path = lab::rel_path_to("../libs/std");
+    var std_module = ctx.native_lib_module(std::string_view("std"));
+    if(cstd_module == null) {
+        return null
     }
-    const std_module = ctx.chemical_dir_module(std::string_view(""), std::string_view("std"), std::string_view(std_path.path), { })
 
     const submod_path = lab::rel_path_to("submod")
     const submod = ctx.chemical_dir_module(std::string_view(""), std::string_view("submod"), std::string_view(submod_path), { })

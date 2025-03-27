@@ -2177,68 +2177,6 @@ TCCState* LabBuildCompiler::built_lab_file(
 
 }
 
-TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::string_view& path) {
-
-#ifdef DEBUG
-    if(!context.storage.get_modules().empty()) {
-        throw std::runtime_error("please clean the module storage before using it with another lab file");
-    }
-#endif
-
-    // a global interpret scope required to evaluate compile time things
-    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
-
-    // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
-
-    // the processor that does everything for build.lab files only
-    ASTProcessor lab_processor(
-            path_handler,
-            options,
-            mod_storage,
-            loc_man,
-            &lab_resolver,
-            binder,
-            *job_allocator,
-            *mod_allocator,
-            *file_allocator
-    );
-
-    // creates or rebinds the global container
-    create_or_rebind_container(this, global, lab_resolver);
-
-    // compiler interfaces the lab files imports
-    std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man);
-    ToCBackendContext c_context(&c_visitor);
-
-    // set the backend context
-    global.backend_context = &c_context;
-
-    // create a directory for lab processing and dependent modules
-    // we'll call it 'lab' inside the build directory
-    const auto lab_dir = resolve_rel_child_path_str(options->build_dir, "lab");
-    const auto lab_mods_dir = resolve_rel_child_path_str(lab_dir, "modules");
-
-    // create lab dir and modules dir inside lab dir (lab, lab/modules)
-    create_dir(lab_dir);
-    create_dir(lab_mods_dir);
-
-    // set resources for nested builds of module dependencies from build.lab calls
-    context.resources.emplace(lab_processor, c_visitor, output_ptr);
-
-    // call the function
-    const auto result = built_lab_file(
-        context, path, lab_processor, c_visitor, output_ptr
-    );
-
-    // reset resources to prevent dangling references
-    context.resources = std::nullopt;
-
-    return result;
-
-}
-
 LabModule* LabBuildCompiler::built_mod_file(LabBuildContext& context, const std::string_view& path) {
 
 #ifdef DEBUG
@@ -2353,8 +2291,58 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // mkdir the build directory
     create_dir(options->build_dir);
 
+#ifdef DEBUG
+    if(!context.storage.get_modules().empty()) {
+        throw std::runtime_error("please clean the module storage before using it with another lab file");
+    }
+#endif
+
+    // a global interpret scope required to evaluate compile time things
+    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
+
+    // creating symbol resolver for build.lab files only
+    SymbolResolver lab_resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+
+    // the processor that does everything for build.lab files only
+    ASTProcessor lab_processor(
+            path_handler,
+            options,
+            mod_storage,
+            loc_man,
+            &lab_resolver,
+            binder,
+            *job_allocator,
+            *mod_allocator,
+            *file_allocator
+    );
+
+    // creates or rebinds the global container
+    create_or_rebind_container(this, global, lab_resolver);
+
+    // compiler interfaces the lab files imports
+    std::stringstream output_ptr;
+    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man);
+    ToCBackendContext c_context(&c_visitor);
+
+    // set the backend context
+    global.backend_context = &c_context;
+
+    // create a directory for lab processing and dependent modules
+    // we'll call it 'lab' inside the build directory
+    const auto lab_dir = resolve_rel_child_path_str(options->build_dir, "lab");
+    const auto lab_mods_dir = resolve_rel_child_path_str(lab_dir, "modules");
+
+    // create lab dir and modules dir inside lab dir (lab, lab/modules)
+    create_dir(lab_dir);
+    create_dir(lab_mods_dir);
+
+    // set resources for nested builds of module dependencies from build.lab calls
+    context.resources.emplace(lab_processor, c_visitor, output_ptr);
+
     // get build lab file into a tcc state
-    auto state = built_lab_file(context, path);
+    const auto state = built_lab_file(
+            context, path, lab_processor, c_visitor, output_ptr
+    );
     if(!state) {
         return 1;
     }
@@ -2405,6 +2393,9 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     if(context.on_finished) {
         context.on_finished(context.on_finished_data);
     }
+
+    // reset resources to prevent dangling references
+    context.resources = std::nullopt;
 
     return job_result;
 

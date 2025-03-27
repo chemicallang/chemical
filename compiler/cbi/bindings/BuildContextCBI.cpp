@@ -67,6 +67,18 @@ void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildConte
     }
 }
 
+void BuildContextresolve_native_lib_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* scope_name, chem::string_view* mod_name) {
+    init_chem_string(&result->error);
+    init_chem_string(&result->path);
+    auto repResult = self->handler.resolve_lib_dir_path(*scope_name, *mod_name);
+    if(!repResult.error.empty()) {
+        result->error.append(repResult.error);
+    }
+    if(!repResult.replaced.empty()) {
+        result->path.append(repResult.replaced);
+    }
+}
+
 void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string_view* header) {
     module->headers.emplace_back(*header);
 }

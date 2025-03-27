@@ -131,10 +131,9 @@ ToCAstVisitor::ToCAstVisitor(
     NameMangler& mangler,
     std::ostream *output,
     ASTAllocator& allocator,
-    LocationManager& manager,
-    std::vector<std::string>* compiler_interfaces
+    LocationManager& manager
 ) : comptime_scope(scope), mangler(mangler), output(output), allocator(allocator), declarer(new CValueDeclarationVisitor(*this)),
-    tld(*this, declarer.get()), ASTDiagnoser(manager), compiler_interfaces(compiler_interfaces)
+    tld(*this, declarer.get()), ASTDiagnoser(manager)
 {
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
     after_stmt = std::make_unique<CAfterStmtVisitor>(*this);
@@ -2560,10 +2559,6 @@ void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* de
 }
 
 void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
-    if(visitor.compiler_interfaces && def->is_compiler_interface()) {
-        auto& interfaces = *visitor.compiler_interfaces;
-        interfaces.emplace_back(def->name_view().str());
-    }
     declare_struct_iterations(def);
 }
 

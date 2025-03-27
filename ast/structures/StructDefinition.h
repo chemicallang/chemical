@@ -40,11 +40,6 @@ struct StructDeclAttributes {
     bool is_direct_init = false;
 
     /**
-     * is struct a compiler interface
-     */
-    bool is_compiler_interface = false;
-
-    /**
      * is this struct deprecated
      */
     bool deprecated = false;
@@ -154,14 +149,6 @@ public:
 
     inline void set_direct_init(bool value) {
         attrs.is_direct_init = value;
-    }
-
-    inline bool is_compiler_interface() {
-        return attrs.is_compiler_interface;
-    }
-
-    inline void set_compiler_interface(bool value) {
-        attrs.is_compiler_interface = value;
     }
 
     inline bool is_deprecated() {

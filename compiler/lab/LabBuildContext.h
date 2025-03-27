@@ -11,12 +11,30 @@
 #include "ModuleStorage.h"
 #include <vector>
 #include <unordered_map>
+#include <optional>
+
+std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules);
 
 class ImportPathHandler;
 
 class CompilerBinder;
 
-std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules);
+class LabBuildCompiler;
+
+class ASTProcessor;
+
+class ToCAstVisitor;
+
+struct BuildResources {
+public:
+
+    ASTProcessor& processor;
+
+    ToCAstVisitor& c_visitor;
+
+    std::stringstream& output_ptr;
+
+};
 
 /**
  * A Lab build context is just a container
@@ -28,24 +46,50 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
 class LabBuildContext {
 public:
 
-    // all the executables created during the build process
+    /**
+     * all the executables created during the build process
+     */
     std::vector<std::unique_ptr<LabJob>> executables;
-    // build arguments given to the build lab
+
+    /**
+     * build arguments given to the build lab
+     */
     std::unordered_map<std::string, std::string> build_args;
-    // the lambda that will be called on exist
+
+    /**
+     * the lambda that will be called on exist
+     */
     void(*on_finished)(void*) = nullptr;
-    // the data pointer that'll be passed to on_finished at end
+
+    /**
+     * the data pointer that'll be passed to on_finished at end
+     */
     void* on_finished_data = nullptr;
-    // if import paths are to be used with aliases in them, we need a path handler
+
+    /**
+     * if import paths are to be used with aliases in them, we need a path handler
+     */
     ImportPathHandler& handler;
-    // the module storage
+
+    /**
+     * the module storage
+     */
     ModuleStorage& storage;
+
     /**
      * the compiler binder is used to provide the binding support
      */
     CompilerBinder& binder;
-    // the compiler options sent by the user
-    LabBuildCompilerOptions* options;
+
+    /**
+     * the build resources if present allow us to build nested build files
+     */
+    std::optional<BuildResources> resources;
+
+    /**
+     * the compiler is available to build nested modules
+     */
+    LabBuildCompiler& compiler;
 
 private:
 
@@ -60,12 +104,12 @@ public:
      * constructor
      */
     LabBuildContext(
-        LabBuildCompilerOptions* options,
+        LabBuildCompiler& compiler,
         ImportPathHandler& path_handler,
         ModuleStorage& storage,
         CompilerBinder& binder,
         std::string lab_file
-    ) : handler(path_handler), options(options), storage(storage), binder(binder) {
+    ) : handler(path_handler), compiler(compiler), storage(storage), binder(binder) {
 
     }
 
@@ -114,6 +158,13 @@ public:
      * including the indirect dependent modules
      */
     static void init_path_aliases(LabJob* job);
+
+    /**
+     * the path to a directory is given, in which we can find a build.lab or a
+     * chemical.mod file, which is compiled to generate a Module*
+     * if error occurs we set it in error_msg and null is returned
+     */
+    LabModule* module_from_directory(const chem::string_view& path, const chem::string_view& scope_name, const chem::string_view& mod_name, chem::string& error_msg);
 
     /**
      * adds the given module with type

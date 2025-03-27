@@ -6,6 +6,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <span>
+#include "LabBuildCompiler.h"
 
 void LabBuildContext::add_dependencies(std::vector<LabModule*>& into, LabModule **dependencies, unsigned int dep_len) {
     if(!dependencies || dep_len == 0) return;
@@ -90,6 +91,19 @@ void LabBuildContext::put_path_aliases(LabJob* job, LabModule* module) {
 void LabBuildContext::init_path_aliases(LabJob* job) {
     for(auto dep : job->dependencies) {
         put_path_aliases(job, dep);
+    }
+}
+
+LabModule* LabBuildContext::module_from_directory(const chem::string_view& path, const chem::string_view& scope_name, const chem::string_view& mod_name, chem::string& error_msg) {
+    if(resources.has_value()) {
+        auto& res = resources.value();
+        BuildLabModuleDependency dep(path.str(), nullptr, scope_name, mod_name);
+        // TODO we cannot get the error yet
+        // instead of returning error, create_module_for_dependency just prints it to stdout
+        return compiler.create_module_for_dependency(*this, dep, res.processor, res.c_visitor, res.output_ptr);
+    } else {
+        error_msg.append("resources not available for building nested module");
+        return nullptr;
     }
 }
 
@@ -180,7 +194,7 @@ LabJob* LabBuildContext::translate_to_chemical(
 }
 
 void LabBuildContext::set_build_dir(LabJob* job) {
-    auto build_dir_path = resolve_rel_child_path_str(options->build_dir, job->name.to_std_string() + ".dir");
+    auto build_dir_path = resolve_rel_child_path_str(compiler.options->build_dir, job->name.to_std_string() + ".dir");
     job->build_dir.append(build_dir_path.data(), build_dir_path.size());
 }
 

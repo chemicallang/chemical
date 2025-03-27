@@ -1,4 +1,8 @@
 import "@std/string.ch"
+import "@std/std.ch"
+import "@compiler/ast/ASTBuilder.ch"
+import "@compiler/SymbolResolver.ch"
+import "@compiler/PtrVec.ch"
 import "../../utils/stdutils.ch"
 import "../../utils/comptime_utils.ch"
 

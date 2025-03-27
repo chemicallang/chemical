@@ -1,3 +1,6 @@
+import "@compiler/Parser.ch"
+import "@compiler/ASTBuilder.ch"
+
 func getLineStyleKeyword(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }

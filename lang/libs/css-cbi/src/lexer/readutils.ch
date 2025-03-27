@@ -1,6 +1,7 @@
 import "@compiler/SourceProvider.ch"
 import "@compiler/SerialStrAllocator.ch"
 import "@cstd/ctype.ch"
+import "@std/string_view.ch"
 
 func (provider : &SourceProvider) read_tag_name(str : &SerialStrAllocator) : std::string_view {
     while(true) {

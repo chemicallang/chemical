@@ -45,17 +45,23 @@ public:
     // this will not declare it's contained functions
     void declare_struct_def_only(StructDefinition* def);
 
-    void declare_struct(StructDefinition* structDef);
+    void declare_struct_functions(StructDefinition* def);
 
-    void declare_interface(InterfaceDefinition* interface);
+    void early_declare_struct_def(StructDefinition* def);
 
     void declare_struct_iterations(StructDefinition* def);
 
+    void declare_interface(InterfaceDefinition* interface);
+
     void declare_interface_iterations(InterfaceDefinition* def);
 
-    void declare_variant_iterations(VariantDefinition* def);
+    void declare_variant_def_only(VariantDefinition* def);
 
-    void declare_variant(VariantDefinition* structDef);
+    void declare_variant_functions(VariantDefinition* def);
+
+    void early_declare_variant_def(VariantDefinition* def);
+
+    void declare_variant_iterations(VariantDefinition* def);
 
     void declare_func(FunctionDeclaration* decl);
 

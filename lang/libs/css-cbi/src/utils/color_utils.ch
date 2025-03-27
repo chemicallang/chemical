@@ -1,4 +1,5 @@
 import "@cstd/common/integer_types.ch"
+import "@std/std.ch"
 
 func hex_digit_to_int(c : char) : int {
     if (c >= '0' && c <= '9') {

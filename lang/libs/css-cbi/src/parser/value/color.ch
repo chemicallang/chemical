@@ -1,3 +1,9 @@
+import "@compiler/Token.ch"
+import "@compiler/Parser.ch"
+import "@compiler/ASTBuilder.ch"
+import "@std/string_view.ch"
+import "@std/std.ch"
+
 func (cssParser : &mut CSSParser) parseHexColor(parser : *mut Parser, builder : *mut ASTBuilder, colorView : &std::string_view, value : &mut CSSValue) {
     // After the #, only 3, 4, 6, or 8 hexadecimal digits are allowed
     const hex_size = colorView.size() - 1;

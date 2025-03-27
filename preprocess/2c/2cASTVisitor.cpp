@@ -2275,22 +2275,12 @@ void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
                 }
             }
         }
-        visitor.declare_struct_iterations(def);
+        visitor.early_declare_struct_def(def);
     } else if (node_kind == ASTNodeKind::VariantDecl) {
         const auto def = node->as_variant_def_unsafe();
-        visitor.declare_variant_iterations(def);
+        visitor.early_declare_variant_def(def);
     } else if (node_kind == ASTNodeKind::UnionDecl) {
         // TODO this
-    }
-}
-
-void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::vector<GenericTypeParameter*>& gen_params) {
-    for(auto& param : gen_params) {
-        auto t = param->known_type();
-        const auto node = t->get_direct_linked_node();
-        if(node) {
-            early_declare_node(visitor, node);
-        }
     }
 }
 
@@ -2521,8 +2511,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
     write("};");
 }
 
-void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
-    declare_struct_def_only(def);
+void CTopLevelDeclarationVisitor::declare_struct_functions(StructDefinition* def) {
     for(auto& func : def->instantiated_functions()) {
         if(def->get_overriding_interface(func) == nullptr) {
             declare_contained_func(this, func, false);
@@ -2531,6 +2520,19 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
 }
 
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def);
+
+void CTopLevelDeclarationVisitor::early_declare_struct_def(StructDefinition* def) {
+    if(external_module) {
+        if(!has_declared(def)) {
+            def->iterations_declared = 1;
+            set_declared(def);
+            declare_struct_def_only(def);
+        }
+    } else if(def->iterations_declared == 0) {
+        def->iterations_declared = 1;
+        declare_struct_def_only(def);
+    }
+}
 
 void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* def) {
     if(external_module) {
@@ -2548,13 +2550,18 @@ void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* de
             // in this struct's module (because that struct won't know this struct exists but since it knows it means that during symbol resolution of this module)
             // we notified that struct of presence of this struct
 
-            def->iterations_declared = 1;
+            def->iterations_declared = 2;
             set_declared(def);
-            declare_struct(def);
+            declare_struct_def_only(def);
+            declare_struct_functions(def);
         }
     } else if(def->iterations_declared == 0) {
-        def->iterations_declared = 1;
-        declare_struct(def);
+        def->iterations_declared = 2;
+        declare_struct_def_only(def);
+        declare_struct_functions(def);
+    } else if(def->iterations_declared == 1) {
+        def->iterations_declared = 2;
+        declare_struct_functions(def);
     }
 }
 
@@ -2586,7 +2593,7 @@ void CTopLevelDeclarationVisitor::VisitGenericVariantDecl(GenericVariantDecl* no
     }
 }
 
-void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
+void CTopLevelDeclarationVisitor::declare_variant_def_only(VariantDefinition* def) {
     for(const auto mem : def->variables()) {
         value_visitor->visit(mem);
     }
@@ -2640,22 +2647,32 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     visitor.indentation_level-=1;
     new_line_and_indent();
     write("};");
+}
+
+void CTopLevelDeclarationVisitor::declare_variant_functions(VariantDefinition* def) {
     for(auto& func : def->instantiated_functions()) {
-//        if(def->get_overriding_interface(func.get()) == nullptr) {
-            declare_contained_func(this, func, false);
-//        }
+        declare_contained_func(this, func, false);
     }
 }
 
 void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def);
 
-// just generates the remaining functions of the generic variant
-void gen_variant_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
-    generate_contained_functions(visitor, def);
+void CTopLevelDeclarationVisitor::early_declare_variant_def(VariantDefinition* def) {
+    if(external_module) {
+        if(!has_declared(def)) {
+            def->iterations_declared = 2;
+            set_declared(def);
+            declare_variant_def_only(def);
+            declare_variant_functions(def);
+        }
+    } else if(def->iterations_declared == 0) {
+        def->iterations_declared = 1;
+        declare_variant_def_only(def);
+    }
 }
 
 void CTopLevelDeclarationVisitor::declare_variant_iterations(VariantDefinition* def) {
-    if(external_module ) {
+    if(external_module) {
         if(!has_declared(def)) {
 
             // we must also set iterations_declared to 1 why is that ?
@@ -2669,14 +2686,18 @@ void CTopLevelDeclarationVisitor::declare_variant_iterations(VariantDefinition* 
             // however that's not the case, because if an external module is early declaring this struct it means, it's external module is being declared
             // in this struct's module (because that struct won't know this struct exists but since it knows it means that during symbol resolution of this module)
             // we notified that struct of presence of this struct
-
-            def->iterations_declared = 1;
+            def->iterations_declared = 2;
             set_declared(def);
-            declare_variant(def);
+            declare_variant_def_only(def);
+            declare_variant_functions(def);
         }
     } else if(def->iterations_declared == 0) {
-        def->iterations_declared = 1;
-        declare_variant(def);
+        def->iterations_declared = 2;
+        declare_variant_def_only(def);
+        declare_variant_functions(def);
+    } else if(def->iterations_declared == 1) {
+        def->iterations_declared = 2;
+        declare_variant_functions(def);
     }
 }
 

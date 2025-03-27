@@ -3,6 +3,8 @@ import "@std/hashing/fnv1.ch"
 import "/ast/CSSColorKind.ch"
 import "/ast/CSSKeywordKind.ch"
 import "/utils/color_utils.ch"
+import "@compiler/ASTBuilder.ch"
+import "@compiler/Parser.ch"
 
 func alloc_value_keyword(
     builder : *mut ASTBuilder,

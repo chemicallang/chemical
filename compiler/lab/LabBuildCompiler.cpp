@@ -1060,14 +1060,16 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod) {
 }
 
 std::string get_mod_timestamp_path(const std::string& build_dir, LabModule* mod) {
-    return resolve_rel_child_path_str(build_dir, mod->name.to_std_string() + "/timestamp.dat");
+    auto f = mod->format('.');
+    f.append("/timestamp.dat");
+    return resolve_rel_child_path_str(build_dir, f);
 }
 
 std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJobType job_type, const std::string& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
     const auto is_use_obj_format = compiler->options->use_mod_obj_format;
     // creating the module directory
-    auto module_dir_path = resolve_rel_child_path_str(build_dir, mod->name.to_std_string());
+    auto module_dir_path = resolve_rel_child_path_str(build_dir, mod->format('.'));
     auto mod_obj_path = resolve_rel_child_path_str(module_dir_path,  (is_use_obj_format ? "object.o" : "object.bc"));
     auto mod_timestamp_file = resolve_rel_child_path_str(module_dir_path, "timestamp.dat");
     if(!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
@@ -1269,6 +1271,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             out_c_file = mod->out_c_path.to_std_string();
             if(out_c_file.empty()) {
                 if(!job->build_dir.empty()) {
+                    // TODO send this to module directory
                     out_c_file = resolve_rel_child_path_str(job->build_dir.data(),mod->name.to_std_string() + ".2c.c");
                 } else if(!job->abs_path.empty()) {
                     out_c_file = job->abs_path.to_std_string();

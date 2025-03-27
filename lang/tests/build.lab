@@ -60,13 +60,13 @@ func gen_c(ctx : *BuildContext, exe_name : *std::string_view, module : *mut Modu
 }
 
 struct JobAndContext {
-    var ctx : *mut BuildContext
+    var ctx : *mut AppBuildContext
     var job : *mut LabJob
 }
 
 var jc : JobAndContext
 
-func build(ctx : *mut BuildContext) {
+func build(ctx : *mut AppBuildContext) {
 
     const debug = true;
     if(debug) {

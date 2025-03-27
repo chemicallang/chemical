@@ -147,7 +147,7 @@ bool BuildContextundefine(LabBuildContext* self, LabJob* job, chem::string_view*
     }
 }
 
-int BuildContextlaunch_executable(LabBuildContext* self, chem::string_view* path, bool same_window) {
+int AppBuildContextlaunch_executable(LabBuildContext* self, chem::string_view* path, bool same_window) {
     auto copied = absolute_path(path->view());
     if(same_window) {
         copied = '\"' + copied + '\"';
@@ -155,7 +155,7 @@ int BuildContextlaunch_executable(LabBuildContext* self, chem::string_view* path
     return launch_executable(copied.data(), same_window);
 }
 
-void BuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), void* data) {
+void AppBuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), void* data) {
     self->on_finished = lambda;
     self->on_finished_data = data;
 }

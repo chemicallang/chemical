@@ -1,4 +1,4 @@
-enum ASTNodeKind {
+public enum ASTNodeKind {
 
     AssignmentStmt,
     BreakStmt,

@@ -1,5 +1,5 @@
 @compiler.interface
-struct SymbolResolver {
+public struct SymbolResolver {
 
 
 

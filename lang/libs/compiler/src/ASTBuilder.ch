@@ -1,6 +1,7 @@
 import "AccessSpecifier.ch"
 import "./PtrVec.ch"
 import "@std/string_view.ch"
+import "@std/std.ch"
 import "./BatchAllocator.ch"
 import "./ast/base/ASTNode.ch"
 import "./ast/base/Value.ch"
@@ -12,83 +13,83 @@ using namespace std;
 
 // The Base Structs
 
-struct IntNType : BaseType {}
+public struct IntNType : BaseType {}
 
 // The Types
 
-struct AnyType : BaseType {}
+public struct AnyType : BaseType {}
 
-struct ArrayType : BaseType {}
+public struct ArrayType : BaseType {}
 
-struct BigIntType : BaseType {}
+public struct BigIntType : BaseType {}
 
-struct BoolType : BaseType {}
+public struct BoolType : BaseType {}
 
-struct DoubleType : BaseType {}
+public struct DoubleType : BaseType {}
 
-struct DynamicType : BaseType {}
+public struct DynamicType : BaseType {}
 
-struct FloatType : BaseType {}
+public struct FloatType : BaseType {}
 
-struct FunctionType : BaseType {
+public struct FunctionType : BaseType {
 
     func get_params(&self) : *VecRef<FunctionParam>;
 
 }
 
-struct GenericType : BaseType {
+public struct GenericType : BaseType {
 
     func get_types(&self) : *VecRef<BaseType>;
 
 }
 
-struct Int128Type : BaseType {}
+public struct Int128Type : BaseType {}
 
-struct IntType : BaseType {}
+public struct IntType : BaseType {}
 
-struct LinkedType : BaseType {}
+public struct LinkedType : BaseType {}
 
-struct LinkedValueType : BaseType {}
+public struct LinkedValueType : BaseType {}
 
-struct LiteralType : BaseType {}
+public struct LiteralType : BaseType {}
 
-struct LongType : BaseType {}
+public struct LongType : BaseType {}
 
-struct PointerType : BaseType {}
+public struct PointerType : BaseType {}
 
-struct ReferenceType : BaseType {}
+public struct ReferenceType : BaseType {}
 
-struct ShortType : BaseType {}
+public struct ShortType : BaseType {}
 
-struct StringType : BaseType {}
+public struct StringType : BaseType {}
 
-struct UBigIntType : BaseType {}
+public struct UBigIntType : BaseType {}
 
-struct UCharType : BaseType {}
+public struct UCharType : BaseType {}
 
-struct UInt128Type : BaseType {}
+public struct UInt128Type : BaseType {}
 
-struct UIntType : BaseType {}
+public struct UIntType : BaseType {}
 
-struct ULongType : BaseType {}
+public struct ULongType : BaseType {}
 
-struct UShortType : BaseType {}
+public struct UShortType : BaseType {}
 
-struct VoidType : BaseType {}
+public struct VoidType : BaseType {}
 
 // The Values
 
-struct AccessChain : Value {
+public struct AccessChain : Value {
 
     func get_values(&self) : *VecRef<Value>;
 
 }
 
-struct ValueWrapperNode : ASTNode {}
+public struct ValueWrapperNode : ASTNode {}
 
-struct AddrOfValue : Value {}
+public struct AddrOfValue : Value {}
 
-struct ArrayValue : Value {
+public struct ArrayValue : Value {
 
     func get_values(&self) : *VecRef<Value>;
 
@@ -96,41 +97,41 @@ struct ArrayValue : Value {
 
 }
 
-struct BigIntValue : Value {}
+public struct BigIntValue : Value {}
 
-struct BoolValue : Value {}
+public struct BoolValue : Value {}
 
-struct CastedValue : Value {}
+public struct CastedValue : Value {}
 
-struct CharValue : Value {}
+public struct CharValue : Value {}
 
-struct DereferenceValue : Value {}
+public struct DereferenceValue : Value {}
 
-struct DoubleValue : Value {}
+public struct DoubleValue : Value {}
 
-struct Expression : Value {}
+public struct Expression : Value {}
 
-struct FloatValue : Value {}
+public struct FloatValue : Value {}
 
-struct FunctionCall : Value {
+public struct FunctionCall : Value {
 
     func get_args(&self) : *VecRef<Value>;
 
 }
 
-struct IndexOperator : Value {
+public struct IndexOperator : Value {
 
     func get_values(&self) : *VecRef<Value>;
 
 }
 
-struct Int128Value : Value {}
+public struct Int128Value : Value {}
 
-struct IntValue : Value {}
+public struct IntValue : Value {}
 
-struct IsValue : Value {}
+public struct IsValue : Value {}
 
-struct LambdaFunction : Value {
+public struct LambdaFunction : Value {
 
     func get_params(&self) : *VecRef<FunctionParam>;
 
@@ -140,81 +141,81 @@ struct LambdaFunction : Value {
 
 }
 
-struct LongValue : Value {}
+public struct LongValue : Value {}
 
-struct NegativeValue : Value {}
+public struct NegativeValue : Value {}
 
-struct NotValue : Value {}
+public struct NotValue : Value {}
 
-struct NullValue : Value {}
+public struct NullValue : Value {}
 
-struct NumberValue : Value {}
+public struct NumberValue : Value {}
 
-struct ShortValue : Value {}
+public struct ShortValue : Value {}
 
-struct SizeOfValue : Value {}
+public struct SizeOfValue : Value {}
 
-struct StringValue : Value {}
+public struct StringValue : Value {}
 
-struct StructValue : Value {
+public struct StructValue : Value {
 
     func add_value(&self, name : &string_view, value : *mut Value)
 
 }
 
-struct BlockValue : Value {
+public struct BlockValue : Value {
 
     func get_body(&self) : *VecRef<ASTNode>;
 
 }
 
-struct UBigIntValue : Value {}
+public struct UBigIntValue : Value {}
 
-struct UCharValue : Value {}
+public struct UCharValue : Value {}
 
-struct UInt128Value : Value {}
+public struct UInt128Value : Value {}
 
-struct UIntValue : Value {}
+public struct UIntValue : Value {}
 
-struct ULongValue : Value {}
+public struct ULongValue : Value {}
 
-struct UShortValue : Value {}
+public struct UShortValue : Value {}
 
-struct ValueNode : ASTNode {}
+public struct ValueNode : ASTNode {}
 
-struct VariableIdentifier : Value {}
+public struct VariableIdentifier : Value {}
 
 // The ASTNodes
 
-struct StructMemberInitializer : ASTNode {}
+public struct StructMemberInitializer : ASTNode {}
 
-struct CapturedVariable : ASTNode {}
+public struct CapturedVariable : ASTNode {}
 
-struct VariantCase : ASTNode {
+public struct VariantCase : ASTNode {
 
     func add_variable(&self, variable : *VariantCaseVariable);
 
 }
 
-struct VariantCaseVariable : ASTNode {}
+public struct VariantCaseVariable : ASTNode {}
 
-struct AssignStatement : ASTNode {}
+public struct AssignStatement : ASTNode {}
 
-struct BreakStatement : ASTNode {}
+public struct BreakStatement : ASTNode {}
 
-struct ContinueStatement : ASTNode {}
+public struct ContinueStatement : ASTNode {}
 
-struct DestructStmt : ASTNode {}
+public struct DestructStmt : ASTNode {}
 
-struct ReturnStatement : ASTNode {}
+public struct ReturnStatement : ASTNode {}
 
-struct TypealiasStatement : ASTNode {}
+public struct TypealiasStatement : ASTNode {}
 
-struct UsingStmt : ASTNode {}
+public struct UsingStmt : ASTNode {}
 
-struct VarInitStatement : ASTNode {}
+public struct VarInitStatement : ASTNode {}
 
-struct Scope : ASTNode {
+public struct Scope : ASTNode {
 
     func getNodes(&self) : *VecRef<ASTNode>;
 
@@ -224,35 +225,35 @@ struct Scope : ASTNode {
 
 }
 
-struct LoopASTNode : ASTNode {
+public struct LoopASTNode : ASTNode {
 
 }
 
-struct DoWhileLoop : LoopASTNode {
+public struct DoWhileLoop : LoopASTNode {
 
     func get_body(&self) : *VecRef<ASTNode>;
 
 }
 
-struct EnumDeclaration : ASTNode {
+public struct EnumDeclaration : ASTNode {
 
     func add_member(&self, member : *EnumMember)
 
 }
 
-struct EnumMember : ASTNode {}
+public struct EnumMember : ASTNode {}
 
-struct ForLoop : LoopASTNode {
+public struct ForLoop : LoopASTNode {
 
     func get_body(&self) : *VecRef<ASTNode>;
 
 }
 
-struct SwitchStatement {
+public struct SwitchStatement {
 
 }
 
-struct FunctionDeclaration : ASTNode {
+public struct FunctionDeclaration : ASTNode {
 
     func get_params(&self) : *VecRef<FunctionParam>;
 
@@ -260,11 +261,11 @@ struct FunctionDeclaration : ASTNode {
 
 }
 
-struct FunctionParam : ASTNode {}
+public struct FunctionParam : ASTNode {}
 
-struct GenericTypeParameter : ASTNode {}
+public struct GenericTypeParameter : ASTNode {}
 
-struct IfStatement : ASTNode {
+public struct IfStatement : ASTNode {
 
     func get_body(&self) : *VecRef<ASTNode>
 
@@ -274,31 +275,31 @@ struct IfStatement : ASTNode {
 
 }
 
-struct ImplDefinition : ASTNode {
+public struct ImplDefinition : ASTNode {
 
     func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
 
 }
 
-struct InitBlock : ASTNode {
+public struct InitBlock : ASTNode {
 
     func add_initializer(&self, name : &string_view, value : *Value);
 
 }
 
-struct InterfaceDefinition : ASTNode {
+public struct InterfaceDefinition : ASTNode {
 
     func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
 
 }
 
-struct Namespace : ASTNode {
+public struct Namespace : ASTNode {
 
      func get_body(&self) : *VecRef<ASTNode>;
 
 }
 
-struct StructDefinition : ASTNode {
+public struct StructDefinition : ASTNode {
 
     func add_member(name : &string_view, member : *StructMember)
 
@@ -306,9 +307,9 @@ struct StructDefinition : ASTNode {
 
 }
 
-struct StructMember : ASTNode {}
+public struct StructMember : ASTNode {}
 
-struct UnionDef : ASTNode {
+public struct UnionDef : ASTNode {
 
     func add_member(name : &string_view, member : *StructMember)
 
@@ -316,41 +317,41 @@ struct UnionDef : ASTNode {
 
 }
 
-struct UnsafeBlock : ASTNode {
+public struct UnsafeBlock : ASTNode {
 
     func get_body(&self) : *VecRef<ASTNode>;
 
 }
 
-struct WhileLoop : LoopASTNode {
+public struct WhileLoop : LoopASTNode {
 
     func get_body(&self) : *VecRef<ASTNode>;
 
 }
 
-struct VariantDefinition : ASTNode {
+public struct VariantDefinition : ASTNode {
 
     func add_member(&self, name : &string_view, member : *StructMember)
 
 }
 
-struct VariantMember : ASTNode {
+public struct VariantMember : ASTNode {
 
     func add_param(&self, param : *VariantMemberParam);
 
 }
 
-struct VariantMemberParam : ASTNode {}
+public struct VariantMemberParam : ASTNode {}
 
-struct SymResNode : ASTNode {}
+public struct SymResNode : ASTNode {}
 
-struct SymResValue : Value {}
+public struct SymResValue : Value {}
 
-type SymResNodeDeclarationFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data_ptr : **mut void) => void;
+public type SymResNodeDeclarationFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data_ptr : **mut void) => void;
 
-type SymResNodeReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut ASTNode
+public type SymResNodeReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut ASTNode
 
-type SymResValueReplacementFn= (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut Value
+public type SymResValueReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut Value
 
 @compiler.interface
 public struct ASTBuilder : BatchAllocator {
@@ -363,9 +364,9 @@ public struct ASTBuilder : BatchAllocator {
     // to track, allocate the root node and set the data_ptr to it, otherwise set it to null
     // in the repl_fn check if it is not set, allocate it if not, also declare will only declare now as a nested level node
     // since the top level nodes can be accessed via nodes above it, this is required
-    func make_sym_res_node(&self, decl_fn : SymResNodeDeclarationFn, repl_fn : SymResNodeReplacementFn, data_ptr : void*, parent_node : ASTNode*, location : ubigint) : *mut SymResNode
+    func make_sym_res_node(&self, decl_fn : SymResNodeDeclarationFn, repl_fn : SymResNodeReplacementFn, data_ptr : *void, parent_node : *ASTNode, location : ubigint) : *mut SymResNode
 
-    func make_sym_res_value(&self, repl_fn : SymResValueReplacementFn, data_ptr : void*, location : ubigint) : *mut SymResValue;
+    func make_sym_res_value(&self, repl_fn : SymResValueReplacementFn, data_ptr : *void, location : ubigint) : *mut SymResValue;
 
     func make_any_type(&self, location : ubigint) : *mut AnyType
 
@@ -564,7 +565,7 @@ public struct ASTBuilder : BatchAllocator {
 }
 
 @comptime
-func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
+public func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
     // TODO get destructor function
     var delete_fn = compiler::get_child_fn(T, "delete");
     if(delete_fn != null) {

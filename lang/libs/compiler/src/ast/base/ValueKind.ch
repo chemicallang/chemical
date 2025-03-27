@@ -1,4 +1,4 @@
-enum ValueKind {
+public enum ValueKind {
 
     // integer types
     // signed integer types

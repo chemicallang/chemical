@@ -489,6 +489,20 @@ void set_generated_instantiations(ASTNode* node) {
             }
             break;
         }
+        case ASTNodeKind::InterfaceDecl: {
+            // interfaces generate vtables for structs
+            const auto interface = node->as_interface_def_unsafe();
+#ifdef COMPILER_BUILD
+            for(auto user : interface->users) {
+                interface->vtable_pointers[user.first] = nullptr;
+            }
+#else
+            for(auto user : interface->users) {
+                interface->users[user.first] = true;
+            }
+#endif
+            break;
+        }
         case ASTNodeKind::GenericStructDecl:{
             const auto decl = node->as_gen_struct_def_unsafe();
             const auto size = decl->instantiations.size();
@@ -506,6 +520,9 @@ void set_generated_instantiations(ASTNode* node) {
         case ASTNodeKind::GenericInterfaceDecl:{
             const auto decl = node->as_gen_interface_decl_unsafe();
             const auto size = decl->instantiations.size();
+            for(const auto inst : decl->instantiations) {
+                set_generated_instantiations(inst);
+            }
             decl->total_declared_instantiations = size;
             decl->total_bodied_instantiations = size;
             break;
@@ -525,9 +542,6 @@ void set_generated_instantiations(ASTNode* node) {
 void process_cached_module(ASTProcessor& processor, std::vector<ASTFileResult*>& files) {
     auto& compiled_units = processor.compiled_units;
     for(const auto file : files) {
-        if(compiled_units.find(file->abs_path) != compiled_units.end()) {
-            continue;
-        }
         auto& nodes = file->unit.scope.body.nodes;
         for(const auto node : nodes) {
             set_generated_instantiations(node);
@@ -575,6 +589,12 @@ int LabBuildCompiler::process_module_tcc(
         std::cout << "at path '" << mod_data_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
     }
 
+    // clear the current c string
+    // some modules cause errors, don't compile, previous module may even have half contents
+    // so we must clean that before beginning
+    output_ptr.clear();
+    output_ptr.str("");
+
     // preparing translation
     c_visitor.prepare_translate();
 
@@ -607,11 +627,11 @@ int LabBuildCompiler::process_module_tcc(
     }
 
     // check if module has not changed, and use cache appropriately
-    // not changed means object file is also present (currently
+    // not changed means object file is also present (we make the check when setting the boolean)
     if(!mod->has_changed) {
 
         if(verbose) {
-            std::cout << "[lab] " << "module " << mod->scope_name << ':' << mod->name << " hasn't changed, processing cached module" << std::endl;
+            std::cout << "[lab] " << "module " << mod->scope_name << ':' << mod->name << " hasn't changed, skipping compilation" << std::endl;
         }
 
         // this will set all the generic instantiations to generated
@@ -1051,7 +1071,7 @@ std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJob
             fs::create_directory(module_dir_path);
         }
     }
-    if(job_type == LabJobType::Executable || job_type == LabJobType::ProcessingOnly || job_type == LabJobType::Library) {
+    if(job_type == LabJobType::Executable || job_type == LabJobType::CBI || job_type == LabJobType::ProcessingOnly || job_type == LabJobType::Library) {
         if (is_use_obj_format || mod->type == LabModuleType::CFile) {
             if (mod->object_path.empty()) {
                 mod->object_path.append(mod_obj_path);
@@ -1594,7 +1614,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         BuildLabModuleDependency& dependency
 ) {
 
-    const auto module = context.storage.find_module(dependency.scope_name, dependency.mod_name);
+    const auto module = context.storage.find_module(dependency.scope_name.to_chem_view(), dependency.mod_name.to_chem_view());
     if(module != nullptr) {
         return module;
     }
@@ -1737,40 +1757,40 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // some variables for processing
     std::string imp_module_dir_path;
-    chem::string_view imp_scope_name;
-    chem::string_view imp_mod_name;
+    chem::string imp_scope_name;
+    chem::string imp_mod_name;
 
     auto& nodes = modResult.unit.scope.body.nodes;
     for(const auto stmt : nodes) {
         if(stmt->kind() == ASTNodeKind::ImportStmt) {
             const auto impStmt = stmt->as_import_stmt_unsafe();
             imp_module_dir_path.clear();
-            imp_scope_name = "";
-            imp_mod_name = "";
+            imp_scope_name.clear();
+            imp_mod_name.clear();
             if(impStmt->identifier.empty() && !impStmt->filePath.empty()) {
                 // here we will consider this file path given a scope name and module name identifier
                 auto v = impStmt->filePath.view();
                 auto colInd = v.find(':');
                 if(colInd != std::string_view::npos) {
-                    imp_scope_name = chem::string_view(v.data(), colInd);
-                    imp_mod_name = chem::string_view(v.data() + colInd + 1, v.size() - colInd);
+                    imp_scope_name.append(chem::string_view(v.data(), colInd));
+                    imp_mod_name.append(chem::string_view(v.data() + colInd + 1, v.size() - colInd));
                 } else {
                     // consider the identifier a module name with scope name empty
-                    imp_mod_name = impStmt->filePath;
+                    imp_mod_name.append(impStmt->filePath);
                 }
             } else if(!impStmt->identifier.empty()) {
                 const auto idSize = impStmt->identifier.size();
                 if (idSize == 1) {
-                    imp_mod_name = impStmt->identifier[0];
+                    imp_mod_name.append(impStmt->identifier[0]);
                 } else if (idSize == 2) {
-                    imp_scope_name = impStmt->identifier[0];
-                    imp_mod_name = impStmt->identifier[1];
+                    imp_scope_name.append(impStmt->identifier[0]);
+                    imp_mod_name.append(impStmt->identifier[1]);
                 } else {
                     // TODO handle the error
                 }
             }
             if(!imp_mod_name.empty()) {
-                auto result = path_handler.resolve_lib_dir_path(imp_scope_name, imp_mod_name);
+                auto result = path_handler.resolve_lib_dir_path(imp_scope_name.to_chem_view(), imp_mod_name.to_chem_view());
                 if(result.error.empty()) {
                     imp_module_dir_path.append(result.replaced);
                 } else {
@@ -1781,7 +1801,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
                 // TODO: explicit import for a directory with scope name and module name
                 imp_module_dir_path.append(impStmt->filePath.data(), impStmt->filePath.size());
             }
-            buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path), nullptr, imp_scope_name, imp_mod_name);
+            buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path), nullptr, std::move(imp_scope_name), std::move(imp_mod_name));
         }
     }
 
@@ -1886,7 +1906,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     // the build lab object file (cached)
     const auto labDir = resolve_rel_child_path_str(options->build_dir, "lab");
     const auto labBuildDir = resolve_rel_child_path_str(labDir, "build");
-    const auto labModDir = resolve_rel_child_path_str(labBuildDir, LabModule::format(dependency.scope_name, dependency.mod_name, '.'));
+    const auto labModDir = resolve_rel_child_path_str(labBuildDir, LabModule::format(dependency.scope_name.to_chem_view(), dependency.mod_name.to_chem_view(), '.'));
 
     // create required directories
     create_dir(labDir);
@@ -2109,6 +2129,10 @@ TCCState* LabBuildCompiler::built_lab_file(
         i++;
     }
 
+    // clear the output ptr
+    output_ptr.clear();
+    output_ptr.str("");
+
     // preparing translation
     c_visitor.prepare_translate();
 
@@ -2120,11 +2144,15 @@ TCCState* LabBuildCompiler::built_lab_file(
     // compiling the c output from build.labs
     const auto& str = output_ptr.str();
 
+    // TODO place a check to only output this when need be
+    const auto labOutCPath = resolve_rel_child_path_str(labModDir, "build.lab.c");
+    writeToFile(labOutCPath, str);
+
     // let's first create an object file for build.lab (for caching)
     const auto objRes = compile_c_string(options->exe_path.data(), str.data(), buildLabObj, false, false, options->outMode == OutputMode::DebugComplete);
     if(objRes == -1){
 
-        std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to compile 'build.lab' at '" << path <<  "' to object file" << std::endl;
+        std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to compile 'build.lab' at '" << path <<  "' to object file, written to '" << labOutCPath << '\'' << std::endl;
 
         // TODO: object file compilation failed, we must delete any existing timestamp file (so next time, we must build the build.lab from scratch)
 
@@ -2139,14 +2167,8 @@ TCCState* LabBuildCompiler::built_lab_file(
     // creating a new tcc state
     const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
     if(state == nullptr) {
-        const auto out_path = resolve_rel_child_path_str(labModDir, "build.lab.c");
-        writeToFile(out_path, str);
-        std::cerr << rang::fg::red << "[lab] couldn't build lab file due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
+        std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << "couldn't create tcc state for 'build.lab' file at '" << path << "', written to '" << labOutCPath << '\'' << std::endl;
         return nullptr;
-    } else {
-        // TODO place a check to only output this when need be
-        const auto out_path = resolve_rel_child_path_str(labModDir, "build.lab.c");
-        writeToFile(out_path, str);
     }
 
     // add module object files
@@ -2160,7 +2182,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // compiling the program
     if(tcc_compile_string(state, str.data()) == -1) {
-        std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " couldn't compile 'build.lab'" << std::endl;
+        std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " couldn't compile 'build.lab' at '" << path << "', written to '" << labOutCPath << '\'' << std::endl;
         tcc_delete(state);
         return nullptr;
     }
@@ -2319,7 +2341,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     create_dir(options->build_dir);
 
     // this is the root build.lab dependency
-    BuildLabModuleDependency buildLabDependency("", nullptr, "chemical", "lab");
+    BuildLabModuleDependency buildLabDependency("", nullptr, chem::string("chemical"), chem::string("lab"));
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(context, buildLabDependency, path);

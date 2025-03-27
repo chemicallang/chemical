@@ -5,7 +5,7 @@ import "@compiler/Token.ch"
 
 using namespace std;
 
-struct LexerState {
+public struct LexerState {
 
     var other_mode : bool
 
@@ -13,13 +13,13 @@ struct LexerState {
 
 }
 
-struct UserLexerFn {
+public struct UserLexerFn {
     var instance : *void
     var subroutine : (instance : &void, lexer : &Lexer) => Token;
 }
 
 @compiler.interface
-struct Lexer : LexerState {
+public struct Lexer : LexerState {
 
     var provider : SourceProvider
 

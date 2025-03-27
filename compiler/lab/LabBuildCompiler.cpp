@@ -1662,7 +1662,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
 LabModule* LabBuildCompiler::build_module_from_mod_file(
         LabBuildContext& context,
-        const std::string& modFilePath,
+        const std::string_view& modFilePathView,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
         std::stringstream& output_ptr
@@ -1673,7 +1673,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     const auto verbose = options->verbose;
 
     if(verbose) {
-        std::cout << "[lab] " << "getting the module declaration from '" << modFilePath << '\'' << std::endl;
+        std::cout << "[lab] " << "getting the module declaration from '" << modFilePathView << '\'' << std::endl;
     }
 
     // determining the scope and module name from the .mod file
@@ -1682,7 +1682,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     char temp_module_name[each_buf_size];
     size_t scope_name_size = 0;
     size_t mod_name_size = 0;
-    const auto errorMsg = parseModDecl(temp_scope_name, temp_module_name, scope_name_size, mod_name_size, each_buf_size, modFilePath);
+    const auto errorMsg = parseModDecl(temp_scope_name, temp_module_name, scope_name_size, mod_name_size, each_buf_size, modFilePathView);
 
     // determining the module scope name and module name
     chem::string_view scope_name(temp_scope_name, scope_name_size);
@@ -1694,13 +1694,14 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
             return module;
         }
     } else {
-        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't get module declaration from the mod file at '" << modFilePath << "' because of error '" << errorMsg << '\'' << std::endl;
+        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't get module declaration from the mod file at '" << modFilePathView << "' because of error '" << errorMsg << '\'' << std::endl;
     }
 
     if(verbose) {
-        std::cout << "[lab] " << "parsing mod file '" << modFilePath << '\'' << std::endl;
+        std::cout << "[lab] " << "parsing mod file '" << modFilePathView << '\'' << std::endl;
     }
 
+    std::string modFilePath(modFilePathView);
     auto buildLabFileId = loc_man.encodeFile(modFilePath);
     ASTFileResult modResult(buildLabFileId, modFilePath, (ModuleScope*) nullptr);
 
@@ -1717,7 +1718,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // probably an error during parsing
     if (!modResult.continue_processing) {
-        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't parse the mod file at '" << modFilePath << "' due to errors" << std::endl;
+        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't parse the mod file at '" << modFilePathView << "' due to errors" << std::endl;
         return nullptr;
     }
 
@@ -1811,7 +1812,7 @@ FunctionDeclaration* find_lab_build_method(const std::string& abs_path, std::vec
 
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
-        const std::string& path,
+        const std::string_view& path_view,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
         std::stringstream& output_ptr
@@ -1822,10 +1823,11 @@ TCCState* LabBuildCompiler::built_lab_file(
     const auto verbose = options->verbose;
 
     if(verbose) {
-        std::cout << "[lab] building lab file at '" << path << '\'' << std::endl;
+        std::cout << "[lab] building lab file at '" << path_view << '\'' << std::endl;
     }
 
     LabModule chemical_lab_module(LabModuleType::Files, chem::string("chemical"), chem::string("lab"));
+    std::string path(path_view);
     auto buildLabFileId = loc_man.encodeFile(path);
     ASTFileMetaData buildLabMetaData(buildLabFileId, &chemical_lab_module.module_scope, path, path, "");
     ASTFileResult labFileResult(buildLabFileId, path, &chemical_lab_module.module_scope);
@@ -2175,7 +2177,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
 }
 
-TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::string& path) {
+TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::string_view& path) {
 
 #ifdef DEBUG
     if(!context.storage.get_modules().empty()) {
@@ -2229,6 +2231,60 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
 
 }
 
+LabModule* LabBuildCompiler::built_mod_file(LabBuildContext& context, const std::string_view& path) {
+
+#ifdef DEBUG
+    if(!context.storage.get_modules().empty()) {
+        throw std::runtime_error("please clean the module storage before using it with another mod file");
+    }
+#endif
+
+    // a global interpret scope required to evaluate compile time things
+    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
+
+    // creating symbol resolver for build.lab files only
+    SymbolResolver lab_resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+
+    // the processor that does everything for build.lab files only
+    ASTProcessor lab_processor(
+            path_handler,
+            options,
+            mod_storage,
+            loc_man,
+            &lab_resolver,
+            binder,
+            *job_allocator,
+            *mod_allocator,
+            *file_allocator
+    );
+
+    // creates or rebinds the global container
+    create_or_rebind_container(this, global, lab_resolver);
+
+    // compiler interfaces the lab files imports
+    std::stringstream output_ptr;
+    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man);
+    ToCBackendContext c_context(&c_visitor);
+
+    // set the backend context
+    global.backend_context = &c_context;
+
+    // create a directory for lab processing and dependent modules
+    // we'll call it 'lab' inside the build directory
+    const auto lab_dir = resolve_rel_child_path_str(options->build_dir, "lab");
+    const auto lab_mods_dir = resolve_rel_child_path_str(lab_dir, "modules");
+
+    // create lab dir and modules dir inside lab dir (lab, lab/modules)
+    create_dir(lab_dir);
+    create_dir(lab_mods_dir);
+
+    // call the function
+    return build_module_from_mod_file(
+            context, path, lab_processor, c_visitor, output_ptr
+    );
+
+}
+
 int LabBuildCompiler::do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*, void*)) {
 
     // allocating ast allocators
@@ -2263,7 +2319,7 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
 
 }
 
-int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string& path) {
+int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string_view& path) {
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
@@ -2335,6 +2391,40 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     }
 
     return job_result;
+
+}
+
+int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string_view& path, chem::string outputPath) {
+
+    // allocating ast allocators
+    const auto job_mem_size = 100000; // 100 kb
+    const auto mod_mem_size = 100000; // 100 kb
+    const auto file_mem_size = 100000; // 100 kb
+    ASTAllocator _job_allocator(job_mem_size);
+    ASTAllocator _mod_allocator(mod_mem_size);
+    ASTAllocator _file_allocator(file_mem_size);
+
+    // the allocators that will be used for all jobs
+    job_allocator = &_job_allocator;
+    mod_allocator = &_mod_allocator;
+    file_allocator = &_file_allocator;
+
+    // mkdir the build directory
+    create_dir(options->build_dir);
+
+    // build mod file into a module pointer
+    const auto module = built_mod_file(context, path);
+
+    // clear everything from allocators before proceeding
+    _job_allocator.clear();
+    _mod_allocator.clear();
+    _file_allocator.clear();
+
+    // lets create a single job
+    LabJob final_job(LabJobType::Executable, module->name.copy(), std::move(outputPath), chem::string(options->build_dir));
+
+    // return doing the job
+    return do_job(&final_job);
 
 }
 

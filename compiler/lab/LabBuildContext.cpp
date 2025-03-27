@@ -244,7 +244,7 @@ LabJob* LabBuildContext::build_cbi(
         LabModule** dependencies,
         unsigned int dep_len
 ) {
-    auto exe = new LabJobCBI(LabJob(LabJobType::CBI, chem::string(*name)));
+    auto exe = new LabJobCBI(chem::string(*name));
     executables.emplace_back(exe);
     set_build_dir(exe);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);

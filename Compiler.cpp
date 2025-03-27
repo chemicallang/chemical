@@ -369,7 +369,7 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
             auto path = chem::string_view(lib.data() + (found + 1));
 
             // creating the job and module and setting options for it
-            LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_dir), LabJobStatus::Pending, {}, {}, {}, {});
+            LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_dir));
             LabModule mod(LabModuleType::Directory, chem::string(""), chem::string(name));
             mod.paths.emplace_back(path);
             job.dependencies.emplace_back(&mod);
@@ -659,7 +659,9 @@ int main(int argc, char *argv[]) {
     auto build_dir_opt = options.option_new("build-dir", "b");
 
     // build a .lab file
-    if(args[0].ends_with(".lab")) {
+    const auto is_lab_file = args[0].ends_with(".lab");
+    const auto is_mod_file = args[0].ends_with(".mod");
+    if(is_lab_file || is_mod_file) {
 
         std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : resolve_non_canon_parent_path(std::string(args[0]), "build");
         LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
@@ -675,7 +677,7 @@ int main(int argc, char *argv[]) {
 
         // translate the build.lab to a c file (for debugging)
         if(output.has_value() && output.value().ends_with(".c")) {
-            LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_dir), { }, { });
+            LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_dir));
             LabModule module(LabModuleType::Files, chem::string(""), chem::string("[BuildLabFile]"));
             module.paths.emplace_back(std::string(args[0]));
             job.dependencies.emplace_back(&module);
@@ -705,9 +707,27 @@ int main(int argc, char *argv[]) {
                 context.build_args[opt.first.data() + 4] = opt.second;
             }
         }
-        // building the lab file
-        const auto result = compiler.build_lab_file(context, std::string(args[0]));
-        return result;
+
+        if(is_lab_file) {
+            // building the lab file
+            const auto result = compiler.build_lab_file(context, args[0]);
+            return result;
+        } else {
+            // building the mod file
+            chem::string outputPath;
+            if(output.has_value()) {
+                outputPath.append(output.value());
+            } else {
+#ifdef _WIN32
+                outputPath.append("a.exe");
+#else
+                outputPath.append("a");
+#endif
+            }
+            const auto result = compiler.build_mod_file(context, args[0], std::move(outputPath));
+            return result;
+        }
+
     }
 
     // compilation
@@ -801,7 +821,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    LabJob job(LabJobType::Executable);
+    LabJob job(LabJobType::Executable, chem::string("a"));
     set_options_for_main_job(options, job, module, dependencies);
 
     // checking if user requires ll, asm output at default location for the module

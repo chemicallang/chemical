@@ -23,14 +23,8 @@ private:
 
 public:
 
-    static std::string build_format(const chem::string_view& scope_name, const chem::string_view& mod_name) {
-        std::string str;
-        if(!scope_name.empty()) {
-            str.append(scope_name.data(), scope_name.size());
-            str.append(1, ':');
-        }
-        str.append(mod_name.data(), mod_name.size());
-        return str;
+    inline static std::string build_format(const chem::string_view& scope_name, const chem::string_view& mod_name) {
+        return LabModule::format(scope_name, mod_name, ':');
     }
 
     /**

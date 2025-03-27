@@ -105,6 +105,19 @@ struct LabModule {
     bool has_changed = true;
 
     /**
+     * formats the scope name module name into a single string separated by colon
+     */
+    static std::string format(const chem::string_view& scope_name, const chem::string_view& mod_name, char sep) {
+        std::string str;
+        if(!scope_name.empty()) {
+            str.append(scope_name.data(), scope_name.size());
+            str.append(1, sep);
+        }
+        str.append(mod_name.data(), mod_name.size());
+        return str;
+    }
+
+    /**
      * constructor
      */
     LabModule(
@@ -156,6 +169,13 @@ struct LabModule {
         for(const auto dep : deps) {
             add_dependency(dep);
         }
+    }
+
+    /**
+     * format the module name with scope name
+     */
+    inline std::string format(char sep = ':') {
+        return format(scope_name.to_chem_view(), name.to_chem_view(), sep);
     }
 
 };
